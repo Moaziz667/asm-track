@@ -1,0 +1,76 @@
+@startuml
+title Assignation d'une Livraison à un Agent (Avec Vérification Workflow)
+
+actor "Admin / Auto-Assign Service" as Admin
+
+
+' ========= Event Bus =========
+box "Event Bus (RabbitMQ)"
+    queue "Message Broker" as Broker
+end box
+
+
+' ========= Microservice Livraison =========
+box "Microservice Livraison"
+    boundary "API Livraison\n<<interface>>" as DeliveryAPI
+    control "DeliveryController\n<<controller>>" as DeliveryController
+    entity "Livraison\n<<entity>>" as Delivery
+    boundary "Event Publisher\n<<interface>>" as DeliveryPublisher
+end box
+
+
+' ========= Microservice Workflow =========
+box "Microservice Workflow"
+    boundary "Event Listener\n<<interface>>" as WorkflowListener
+    control "WorkflowService\n<<controller>>" as WorkflowService
+    entity "Workflow Instance\n<<entity>>" as WorkflowInstance
+    boundary "Event Publisher\n<<interface>>" as WorkflowPublisher
+end box
+
+
+' ========= Microservice Notification =========
+box "Microservice Notification"
+    boundary "Event Listener\n<<interface>>" as NotificationListener
+    control "NotificationService\n<<controller>>" as NotificationService
+end box
+
+
+== Processus ==
+
+Admin -> DeliveryAPI : assignAgent(deliveryId, agentId)
+DeliveryAPI -> DeliveryController : assignAgent(...)
+
+alt Livraison éligible côté Delivery MS
+
+    DeliveryController -> Delivery : setAgent(agentId)
+    DeliveryController -> DeliveryPublisher : DeliveryAssigned
+    DeliveryPublisher -> Broker
+
+else Livraison non éligible
+
+    DeliveryController --> DeliveryAPI : Erreur (assignation refusée)
+
+end
+
+
+Broker -> WorkflowListener : DeliveryAssigned
+WorkflowListener -> WorkflowService : validateTransition("Assigned")
+
+alt Transition autorisée
+
+    WorkflowService -> WorkflowInstance : updateState("Assigned")
+    WorkflowService -> WorkflowPublisher : AssignmentValidated
+    WorkflowPublisher -> Broker
+
+else Transition refusée
+
+    WorkflowService -> WorkflowPublisher : AssignmentRejected
+    WorkflowPublisher -> Broker
+
+end
+
+
+Broker -> NotificationListener : AssignmentValidated
+NotificationListener -> NotificationService : notifyAgent()
+
+@enduml
