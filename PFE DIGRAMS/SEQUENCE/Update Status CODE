@@ -1,17 +1,27 @@
 @startuml
-title Mise à jour du statut de livraison avec validation Workflow
+title Mise à jour du statut avec Architecture Event-Driven
 
 actor "Agent de livraison" as DeliveryAgent
-
 boundary "Application Mobile" as Mobile
+
+' === Microservice Livraison ===
+box "Microservice Livraison"
 boundary "API Livraison" as API
-
 control "Controleur Livraison" as Controller
-control "Moteur de Workflow" as Workflow
-
 entity "Livraison" as Delivery
+end box
 
-== Processus : Mise à jour du statut ==
+' === Event Microservice ===
+box "Event Bus (Message Broker)"
+queue "Broker d'événements" as Broker
+end box
+
+' === Microservice Workflow ===
+box "Microservice Workflow"
+control "Service Workflow" as WorkflowService
+end box
+
+== Début du processus ==
 
 DeliveryAgent -> Mobile : Marquer comme « Livrée »
 activate Mobile
@@ -19,33 +29,46 @@ activate Mobile
 Mobile -> API : updateStatus(idLivraison, "Livrée")
 activate API
 
-API -> Controller : updateStatus(idLivraison, "Livrée")
+API -> Controller : updateStatus(...)
 activate Controller
 
-Controller -> Workflow : validerTransition(statutActuel, "Livrée")
-activate Workflow
-Workflow --> Controller : resultatValidation
-deactivate Workflow
+' Publication d'événement
+Controller -> Broker : Publish DeliveryStatusChangeRequested
+activate Broker
+deactivate Controller
+
+' Consommation côté Workflow
+Broker -> WorkflowService : DeliveryStatusChangeRequested
+activate WorkflowService
+
+WorkflowService -> WorkflowService : validerTransition(...)
 
 alt Transition autorisée
+    WorkflowService -> Broker : Publish TransitionValidée
+else Transition refusée
+    WorkflowService -> Broker : Publish TransitionRefusée
+end
+deactivate WorkflowService
 
+' Réception résultat côté Livraison
+Broker -> Controller : TransitionValidée / Refusée
+activate Controller
+
+alt Transition autorisée
     Controller -> Delivery : setStatus("Livrée")
     activate Delivery
-    Delivery -> Delivery : miseAJourInterne()
     deactivate Delivery
-
     Controller --> API : confirmation
     API --> Mobile : Succès
-
 else Transition refusée
-
     Controller --> API : erreur("Transition non autorisée")
     API --> Mobile : Afficher message d'erreur
-
 end
 
 deactivate Controller
 deactivate API
 deactivate Mobile
+
+== Fin du processus ==
 
 @enduml
