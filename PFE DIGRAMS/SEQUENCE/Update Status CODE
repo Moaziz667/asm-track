@@ -1,0 +1,51 @@
+@startuml
+title Mise à jour du statut de livraison avec validation Workflow
+
+actor "Agent de livraison" as DeliveryAgent
+
+boundary "Application Mobile" as Mobile
+boundary "API Livraison" as API
+
+control "Controleur Livraison" as Controller
+control "Moteur de Workflow" as Workflow
+
+entity "Livraison" as Delivery
+
+== Processus : Mise à jour du statut ==
+
+DeliveryAgent -> Mobile : Marquer comme « Livrée »
+activate Mobile
+
+Mobile -> API : updateStatus(idLivraison, "Livrée")
+activate API
+
+API -> Controller : updateStatus(idLivraison, "Livrée")
+activate Controller
+
+Controller -> Workflow : validerTransition(statutActuel, "Livrée")
+activate Workflow
+Workflow --> Controller : resultatValidation
+deactivate Workflow
+
+alt Transition autorisée
+
+    Controller -> Delivery : setStatus("Livrée")
+    activate Delivery
+    Delivery -> Delivery : miseAJourInterne()
+    deactivate Delivery
+
+    Controller --> API : confirmation
+    API --> Mobile : Succès
+
+else Transition refusée
+
+    Controller --> API : erreur("Transition non autorisée")
+    API --> Mobile : Afficher message d'erreur
+
+end
+
+deactivate Controller
+deactivate API
+deactivate Mobile
+
+@enduml
