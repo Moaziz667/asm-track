@@ -19,7 +19,10 @@ export class DeliveryRepository {
     const r = em ? em.getRepository(DeliveryEntity) : this.repo;
 
     const existing = await r.findOne({
-      where: { externalReference: canonical.identity.externalReference },
+      where: {
+        externalReference: canonical.identity.externalReference,
+        sourceSystem:      canonical.identity.sourceSystem,
+      },
     });
 
     if (existing) {
@@ -43,7 +46,7 @@ export class DeliveryRepository {
         metadata:          canonical.metadata    as any,
         sourceWriteDate:   sourceWriteDate,
       },
-      ['externalReference'],
+      ['externalReference', 'sourceSystem'],
     );
 
     return existing ? 'updated' : 'created';

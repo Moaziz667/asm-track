@@ -2,23 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { OdooDelivery, OdooMove } from '../odoo/odoo.types';
 import {
   CanonicalDelivery,
+  CanonicalStatus,
   DeliveryLoad,
   LoadItem,
   SCHEMA_VERSION,
 } from '@asm/canonical-model';
+import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 const SOURCE_SYSTEM = 'ODOO';
-import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 // ─── Status mapping ───────────────────────────────────────────────────────────
 
-const STATUS_MAP: Record<string, string> = {
+const STATUS_MAP: Record<string, CanonicalStatus> = {
   draft:    'DRAFT',
   assigned: 'READY',
 };
 
 /** Returns null for states that are handled by another microservice. */
-function mapStatus(state: string): string | null {
+function mapStatus(state: string): CanonicalStatus | null {
   return STATUS_MAP[state] ?? null;
 }
 

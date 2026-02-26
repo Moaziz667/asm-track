@@ -1,12 +1,13 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, Unique } from 'typeorm';
 
 @Entity('deliveries')
+@Unique(['externalReference', 'sourceSystem'])
 export class DeliveryEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  /** Shopify order name e.g. #1001 — unique business key */
-  @Column({ unique: true })
+  /** Shopify order name e.g. #1001 — part of composite unique key (externalReference + sourceSystem) */
+  @Column()
   @Index()
   externalReference: string;
 

@@ -49,13 +49,14 @@ import { Injectable } from '@nestjs/common';
 import { ShopifyOrder, ShopifyLineItem } from '../shopify/shopify.types';
 import {
   CanonicalDelivery,
+  CanonicalStatus,
   DeliveryLoad,
   LoadItem,
   SCHEMA_VERSION,
 } from '@asm/canonical-model';
+import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 const SOURCE_SYSTEM = 'SHOPIFY';
-import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 // ── COD gateway identifiers (case-insensitive contains check) ─────────────────
 const COD_GATEWAY_KEYWORDS = ['cash on delivery', 'cod', 'pay on delivery'];
@@ -74,7 +75,7 @@ export class MappingService {
     // ── Skip fully fulfilled orders (handled downstream) ────────────────────
     if (order.fulfillment_status === 'fulfilled') return null;
 
-    const status = 'READY'; // null and 'partial' are both READY
+    const status: CanonicalStatus = 'READY'; // null and 'partial' are both READY
     const now    = new Date().toISOString();
 
     // ── Financial ─────────────────────────────────────────────────────────────

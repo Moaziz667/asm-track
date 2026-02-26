@@ -76,9 +76,10 @@ export class SyncService implements OnModuleInit {
       );
 
       // ── Transaction ────────────────────────────────────────────────────────
-      const stats = await this.dataSource.transaction(async em => {
+      const { stats, events } = await this.dataSource.transaction(async em => {
         let created = 0, updated = 0, skipped = 0;
         const syncAt = new Date();
+        const pendingEvents: Array<{ key: 'delivery.created' | 'delivery.updated'; payload: object }> = [];
 
         for (const raw of orders) {
           const canonical = this.mappingService.map(raw);
@@ -89,10 +90,10 @@ export class SyncService implements OnModuleInit {
 
           if (result === 'created') {
             created++;
-            this.publisher.publish('delivery.created', canonical);
+            pendingEvents.push({ key: 'delivery.created', payload: canonical });
           } else if (result === 'updated') {
             updated++;
-            this.publisher.publish('delivery.updated', canonical);
+            pendingEvents.push({ key: 'delivery.updated', payload: canonical });
           } else {
             skipped++;
           }
@@ -100,8 +101,13 @@ export class SyncService implements OnModuleInit {
 
         // Advance watermark only after successful processing
         await this.syncMetaRepo.setLastSyncTimestamp(syncAt, em);
-        return { fetched: orders.length, created, updated, skipped };
+        return { stats: { fetched: orders.length, created, updated, skipped }, events: pendingEvents };
       });
+
+      // Publish AFTER transaction committed — prevents orphan events on rollback
+      for (const { key, payload } of events) {
+        this.publisher.publish(key, payload);
+      }
 
       const elapsed = Date.now() - startTime;
       await this.syncLogRepo.complete(log.id, stats);
