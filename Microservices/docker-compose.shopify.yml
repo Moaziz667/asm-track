@@ -29,6 +29,8 @@ services:
     build:
       context: ./ShopifyMapping/MappingShopify
       dockerfile: Dockerfile
+      args:
+        GITLAB_TOKEN: ${GITLAB_TOKEN}
     container_name: shopify-mapper
     ports:
       - "3400:3400"

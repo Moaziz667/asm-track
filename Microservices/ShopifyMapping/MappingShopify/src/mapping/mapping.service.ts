@@ -52,8 +52,9 @@ import {
   DeliveryLoad,
   LoadItem,
   SCHEMA_VERSION,
-  SOURCE_SYSTEM,
-} from '../canonical/canonical-delivery.model';
+} from '@asm/canonical-model';
+
+const SOURCE_SYSTEM = 'SHOPIFY';
 import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 // ── COD gateway identifiers (case-insensitive contains check) ─────────────────

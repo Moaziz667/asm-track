@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { CanonicalDelivery } from '../canonical/canonical-delivery.model';
+import { CanonicalDelivery } from '@asm/canonical-model';
 
 @Injectable()
 export class DeliveryStore {

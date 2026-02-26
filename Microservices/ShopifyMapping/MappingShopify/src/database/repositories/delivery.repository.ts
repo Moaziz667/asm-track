@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, EntityManager } from 'typeorm';
 import { DeliveryEntity } from '../entities/delivery.entity';
-import { CanonicalDelivery } from '../../canonical/canonical-delivery.model';
+import { CanonicalDelivery } from '@asm/canonical-model';
 
 @Injectable()
 export class DeliveryRepository {

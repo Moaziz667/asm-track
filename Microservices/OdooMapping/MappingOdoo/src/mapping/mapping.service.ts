@@ -5,8 +5,9 @@ import {
   DeliveryLoad,
   LoadItem,
   SCHEMA_VERSION,
-  SOURCE_SYSTEM,
-} from '../canonical/canonical-delivery.model';
+} from '@asm/canonical-model';
+
+const SOURCE_SYSTEM = 'ODOO';
 import { DEFAULT_WAREHOUSE_ADDRESS } from '../config/warehouse.config';
 
 // ─── Status mapping ───────────────────────────────────────────────────────────

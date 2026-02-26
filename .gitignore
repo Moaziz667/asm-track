@@ -1,4 +1,8 @@
 # Dependencies
+# External package repo — has its own git repo
+Microservices/asm-canonical-model/
+
+# Dependencies
 node_modules/
 .pnp
 .pnp.js
