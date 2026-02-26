@@ -1,0 +1,4 @@
+OdooQuery/
+node_modules/
+dist/
+*.md

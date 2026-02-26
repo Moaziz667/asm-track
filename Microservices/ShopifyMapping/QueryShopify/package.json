@@ -1,0 +1,24 @@
+{
+  "name": "shopify-query",
+  "version": "1.0.0",
+  "description": "Fetches raw Shopify orders and exposes them via REST for MappingShopify",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main",
+    "start:dev": "nest start --watch"
+  },
+  "dependencies": {
+    "@nestjs/common": "^10.3.0",
+    "@nestjs/core": "^10.3.0",
+    "@nestjs/platform-express": "^10.3.0",
+    "axios": "^1.6.7",
+    "reflect-metadata": "^0.2.1",
+    "rxjs": "^7.8.1"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^10.3.2",
+    "@nestjs/schematics": "^10.1.1",
+    "@types/node": "^20.11.24",
+    "typescript": "^5.3.3"
+  }
+}

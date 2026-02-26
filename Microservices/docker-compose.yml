@@ -1,0 +1,30 @@
+version: '3.9'
+
+# ──────────────────────────────────────────────────────────────
+# ⚠️  This file is superseded. Use the split compose files:
+#
+#   docker-compose.shared.yml   ← Postgres + RabbitMQ (always required)
+#   docker-compose.odoo.yml     ← Odoo source
+#   docker-compose.shopify.yml  ← Shopify source
+#   clients/clientA.env         ← Client-specific credentials & DB name
+#
+# ── Examples ───────────────────────────────────────────────────
+#
+# Client with Odoo + Shopify:
+#   docker compose \
+#     -f docker-compose.shared.yml \
+#     -f docker-compose.odoo.yml \
+#     -f docker-compose.shopify.yml \
+#     --env-file clients/clientA.env up -d
+#
+# Client with Odoo only:
+#   docker compose \
+#     -f docker-compose.shared.yml \
+#     -f docker-compose.odoo.yml \
+#     --env-file clients/clientB.env up -d
+#
+# ── First-run: create the client database ──────────────────────
+#   docker exec mapper-postgres psql -U mapper -c "CREATE DATABASE mapper_clientA;"
+# ──────────────────────────────────────────────────────────────
+
+services: {}
