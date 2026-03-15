@@ -1,0 +1,70 @@
+server:
+  port: 80
+
+spring:
+  application:
+    name: api-gateway
+  cloud:
+    gateway:
+      globalcors:
+        corsConfigurations:
+          '[/**]':
+            allowedOriginPatterns:
+              - "http://localhost:*"
+              - "http://127.0.0.1:*"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - PATCH
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            exposedHeaders:
+              - Authorization
+            allowCredentials: false
+      routes:
+        - id: app-backend-client-auth
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/auth/client/**
+
+        - id: app-backend-profile
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/profile/**
+
+        - id: odoo-products
+          uri: ${ODOO_QUERY_URL:http://localhost:3100}
+          predicates:
+            - Path=/api/products
+            - Path=/api/products/**
+
+        - id: delivery-driver-auth
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/auth/driver/**
+
+        - id: delivery-orders
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/orders/**
+
+        - id: delivery-deliveries
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/deliveries/**
+
+        - id: delivery-driver
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/driver/**
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:asmsecret2026}
+
+logging:
+  level:
+    org.springframework.cloud.gateway: INFO

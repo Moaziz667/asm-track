@@ -1,0 +1,22 @@
+services:
+  api-gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: asm/api-gateway:latest
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    environment:
+      APP_BACKEND_URL: http://app-backend-service:8080
+      DELIVERY_SERVICE_URL: http://delivery-service:8082
+      ODOO_QUERY_URL: http://odoo-query:3100
+      JWT_SECRET: asmsecret2026
+    networks:
+      - pfe-network
+
+networks:
+  pfe-network:
+    external: true
+    name: pfe-network

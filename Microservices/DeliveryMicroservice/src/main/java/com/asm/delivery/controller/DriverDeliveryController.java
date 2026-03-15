@@ -1,0 +1,117 @@
+package com.asm.delivery.controller;
+
+import com.asm.delivery.dto.request.CancelDeliveryRequest;
+import com.asm.delivery.dto.request.FailDeliveryRequest;
+import com.asm.delivery.dto.request.LocationUpdateRequest;
+import com.asm.delivery.dto.request.ReportRequest;
+import com.asm.delivery.dto.response.DriverDeliveryResponse;
+import com.asm.delivery.dto.response.MessageResponse;
+import com.asm.delivery.security.UserPrincipal;
+import com.asm.delivery.service.DriverDeliveryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/driver/deliveries")
+@Tag(name = "Driver Deliveries", description = "Delivery management for driver app")
+@SecurityRequirement(name = "Bearer Authentication")
+@RequiredArgsConstructor
+public class DriverDeliveryController {
+
+    private final DriverDeliveryService deliveryService;
+
+    @GetMapping("/available")
+    @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
+    public ResponseEntity<List<DriverDeliveryResponse>> getAvailable(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.getAvailable(UUID.fromString(principal.getUserId())));
+    }
+
+    @GetMapping("/active")
+    @Operation(summary = "Get the driver's currently active delivery")
+    public ResponseEntity<List<DriverDeliveryResponse>> getActive(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.getActive(UUID.fromString(principal.getUserId())));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get a specific delivery")
+    public ResponseEntity<DriverDeliveryResponse> getDelivery(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.getDelivery(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/accept")
+    @Operation(summary = "Accept a delivery (atomic — 409 if taken)")
+    public ResponseEntity<DriverDeliveryResponse> accept(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.accept(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/pickup")
+    @Operation(summary = "Confirm package pickup")
+    public ResponseEntity<DriverDeliveryResponse> pickup(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.pickup(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/transit")
+    @Operation(summary = "Start transit to delivery address")
+    public ResponseEntity<DriverDeliveryResponse> transit(
+            @PathVariable UUID id,
+            @Valid @RequestBody(required = false) LocationUpdateRequest locationReq,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        java.math.BigDecimal lat = locationReq != null ? locationReq.getLat() : null;
+        java.math.BigDecimal lng = locationReq != null ? locationReq.getLng() : null;
+        return ResponseEntity.ok(deliveryService.transit(id, UUID.fromString(principal.getUserId()), lat, lng));
+    }
+
+    @PostMapping("/{id}/complete")
+    @Operation(summary = "Mark delivery as completed")
+    public ResponseEntity<DriverDeliveryResponse> complete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.complete(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/fail")
+    @Operation(summary = "Mark delivery as failed (from PICKED_UP or IN_TRANSIT)")
+    public ResponseEntity<DriverDeliveryResponse> fail(
+            @PathVariable UUID id,
+            @Valid @RequestBody FailDeliveryRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.fail(id, UUID.fromString(principal.getUserId()), req.getReason()));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel delivery (driver) — resets to WAITING_DRIVER")
+    public ResponseEntity<DriverDeliveryResponse> cancel(
+            @PathVariable UUID id,
+            @RequestBody(required = false) CancelDeliveryRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        String reason = req != null ? req.getReason() : null;
+        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason));
+    }
+
+    @PostMapping("/{id}/report")
+    @Operation(summary = "Submit a report for a delivery")
+    public ResponseEntity<MessageResponse> report(
+            @PathVariable UUID id,
+            @Valid @RequestBody ReportRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription());
+        return ResponseEntity.ok(new MessageResponse("Report submitted"));
+    }
+}

@@ -5,7 +5,7 @@
  * Do NOT import this directly across services — Docker builds are isolated.
  *
  * Exchange:    delivery.events   (topic)
- * Queue:       delivery.ready.queue
+ * Queue:       order.ready.mapper
  * Routing keys:
  *   - delivery.created   → new delivery ready for dispatch
  *   - delivery.updated   → existing delivery was modified
@@ -22,7 +22,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import * as amqp from 'amqplib';
 
 const EXCHANGE      = process.env.RABBITMQ_EXCHANGE ?? 'delivery.events';
-const QUEUE         = 'delivery.ready.queue';
+const QUEUE         = 'order.ready.mapper';
 const ROUTING_KEYS  = ['delivery.created', 'delivery.updated'];
 const RETRY_DELAY   = 5_000;
 

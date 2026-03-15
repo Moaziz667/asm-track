@@ -1,0 +1,69 @@
+server:
+  port: 8082
+
+logging:
+  level:
+    com.asm.delivery.security: DEBUG
+
+spring:
+  application:
+    name: delivery-service
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5434}/${DB_NAME:delivery_db}
+    username: ${DB_USER:delivery}
+    password: ${DB_PASS:delivery}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          lob:
+            non_contextual_creation: true
+    show-sql: false
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      continue-on-error: true
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:asmsecret2026}
+    access-expiry-ms: 3600000     # 1 hour
+    refresh-expiry-ms: 604800000  # 7 days
+
+  rabbitmq:
+    incoming-exchange: ${RABBITMQ_INCOMING_EXCHANGE:delivery.events}
+    outgoing-exchange: ${RABBITMQ_OUTGOING_EXCHANGE:delivery-service.events}
+    queue-orders-created: mapper.ready.canonical.queue
+    queue-workflow-commands: workflow.commands
+    queue-delivery-events-debug: delivery.events.debug
+    consume-canonical: true
+
+  origin:
+    name: ${WAREHOUSE_NAME:Main Warehouse}
+    address: ${WAREHOUSE_ADDRESS:123 Logistics Street}
+    city: ${WAREHOUSE_CITY:Tunis}
+    postal-code: ${WAREHOUSE_POSTAL_CODE:1000}
+    country-code: ${WAREHOUSE_COUNTRY_CODE:TN}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  default-produces-media-type: application/json

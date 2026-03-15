@@ -1,0 +1,52 @@
+services:
+  app-backend-db:
+    image: postgres:16-alpine
+    container_name: app-backend-postgres
+    restart: unless-stopped
+    ports:
+      - "${APP_BACKEND_DB_HOST_PORT:-5433}:5432"
+    environment:
+      POSTGRES_USER: app_backend
+      POSTGRES_PASSWORD: app_backend
+      POSTGRES_DB: app_backend_db
+    volumes:
+      - app-backend-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_backend -d app_backend_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - pfe-network
+
+  app-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: asm/app-backend-service:latest
+    container_name: app-backend-service
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      DB_HOST: app-backend-db
+      DB_PORT: 5432
+      DB_NAME: app_backend_db
+      DB_USER: app_backend
+      DB_PASS: app_backend
+      JWT_SECRET: asmsecret2026
+      APP_JWT_ACCESS_EXPIRY_MS: 3600000
+    depends_on:
+      app-backend-db:
+        condition: service_healthy
+    networks:
+      - pfe-network
+
+volumes:
+  app-backend-pgdata:
+    driver: local
+
+networks:
+  pfe-network:
+    external: true
+    name: pfe-network

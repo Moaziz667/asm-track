@@ -110,6 +110,13 @@ export interface RawOdooProduct {
   id: number;
   name: string;
   default_code: string | false;
+  list_price?: number;
+  qty_available?: number;
+  active?: boolean;
+  sale_ok?: boolean;
+  description_sale?: string | false;
+  categ_id?: [number, string] | false;
+  image_1920?: string | false;
   weight: number;
   volume: number;
   barcode: string | false;
@@ -326,6 +333,55 @@ export class OdooQueryService {
     });
   }
 
+  async queryCatalog(page: number, size: number, search?: string) {
+    const domain: any[] = [
+      ['sale_ok', '=', true],
+      ['active', '=', true],
+    ];
+
+    if (search && search.length > 0) {
+      domain.push('|', '|',
+        ['name', 'ilike', search],
+        ['default_code', 'ilike', search],
+        ['barcode', 'ilike', search],
+      );
+    }
+
+    const totalElements = await this.executeKw('product.product', 'search_count', [domain]);
+    const products: RawOdooProduct[] = await this.executeKw('product.product', 'search_read', [domain], {
+      fields: [
+        'id', 'name', 'default_code', 'list_price', 'qty_available', 'active',
+        'sale_ok', 'description_sale', 'categ_id', 'image_1920', 'weight',
+        'volume', 'barcode', 'tracking', 'write_date',
+      ],
+      offset: page * size,
+      limit: size,
+      order: 'name asc',
+    });
+
+    const totalPages = totalElements === 0 ? 0 : Math.ceil(totalElements / size);
+
+    return {
+      content: products.map(product => ({
+        id: product.id,
+        name: product.name,
+        sku: product.default_code || null,
+        price: product.list_price ?? 0,
+        stock: Math.max(Math.floor(product.qty_available ?? 0), 0),
+        available: Boolean(product.active && product.sale_ok && (product.qty_available ?? 0) > 0),
+        imageUrl: product.image_1920 || null,
+        description: product.description_sale || null,
+        category: Array.isArray(product.categ_id) ? product.categ_id[1] : null,
+        unitWeightKg: product.weight ?? 0,
+      })),
+      pageNumber: page,
+      pageSize: size,
+      totalElements,
+      totalPages,
+      last: page + 1 >= totalPages,
+    };
+  }
+
   // ─── Private Query Helpers ─────────────────────────────────────────────────
 
   private async queryPartners(ids: number[]): Promise<RawOdooPartner[]> {
@@ -349,7 +405,7 @@ export class OdooQueryService {
   private async queryProducts(ids: number[]): Promise<RawOdooProduct[]> {
     if (!ids.length) return [];
     return this.executeKw('product.product', 'read', [ids], {
-      fields: ['id','name','default_code','weight','volume','barcode','tracking','write_date'],
+      fields: ['id','name','default_code','list_price','qty_available','active','sale_ok','description_sale','categ_id','image_1920','weight','volume','barcode','tracking','write_date'],
     });
   }
 

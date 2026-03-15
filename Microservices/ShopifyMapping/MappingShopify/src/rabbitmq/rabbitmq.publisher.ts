@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from '@nestjs/commo
 import * as amqp from 'amqplib';
 
 const EXCHANGE     = process.env.RABBITMQ_EXCHANGE ?? 'delivery.events';
-const QUEUE        = 'delivery.ready.queue';
+const QUEUE        = 'order.ready.mapper';
 const ROUTING_KEYS = ['delivery.created', 'delivery.updated'];
 const RETRY_DELAY  = 5_000;
 
