@@ -1,6 +1,8 @@
 package com.asm.delivery.dto.request;
 
 import com.asm.delivery.entity.OrderItem;
+import com.asm.delivery.entity.OrderPriority;
+import com.asm.delivery.entity.PaymentType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -26,9 +28,8 @@ public class CreateOrderRequest {
     @DecimalMin("0.000")
     private BigDecimal totalAmount;
 
-    @NotBlank
-    @Pattern(regexp = "COD|PREPAID", message = "paymentType must be COD or PREPAID")
-    private String paymentType;
+    @NotNull
+    private PaymentType paymentType;
 
     @NotNull
     @DecimalMin("0.000")
@@ -40,6 +41,5 @@ public class CreateOrderRequest {
 
     private String scheduledAt;  // ISO-8601 string, nullable
 
-    @Pattern(regexp = "NORMAL|HIGH", message = "priority must be NORMAL or HIGH")
-    private String priority;
+    private OrderPriority priority;
 }

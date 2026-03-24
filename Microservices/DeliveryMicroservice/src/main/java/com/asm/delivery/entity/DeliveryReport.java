@@ -25,8 +25,9 @@ public class DeliveryReport {
     @Column(name = "driver_id", nullable = false)
     private UUID driverId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "report_type", nullable = false, length = 30)
-    private String reportType;
+    private ReportType reportType;
 
     @Column(name = "description", columnDefinition = "TEXT")
     private String description;

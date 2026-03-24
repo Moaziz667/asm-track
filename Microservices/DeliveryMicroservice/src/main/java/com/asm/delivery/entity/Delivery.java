@@ -19,16 +19,17 @@ public class Delivery {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false)
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false, unique = true)
     private Order order;
 
     @Column(name = "driver_id")
     private UUID driverId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
-    private String status = "WAITING_DRIVER";
+    private DeliveryStatus status = DeliveryStatus.WAITING_DRIVER;
 
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
@@ -54,8 +55,9 @@ public class Delivery {
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "cancelled_by", length = 10)
-    private String cancelledBy;  // "CLIENT" | "DRIVER" | "SYSTEM"
+    private Role cancelledBy;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

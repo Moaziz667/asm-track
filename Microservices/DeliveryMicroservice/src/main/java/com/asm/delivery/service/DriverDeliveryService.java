@@ -28,6 +28,12 @@ public class DriverDeliveryService {
     private final DriverRepository                driverRepo;
     private final EventPublisher                  eventPublisher;
 
+        private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
+            DeliveryStatus.ASSIGNED,
+            DeliveryStatus.PICKED_UP,
+            DeliveryStatus.IN_TRANSIT
+        );
+
     // ── Get available deliveries ──────────────────────────────────────────────
 
     @Transactional(readOnly = true)
@@ -35,7 +41,7 @@ public class DriverDeliveryService {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> new AppException(org.springframework.http.HttpStatus.NOT_FOUND, "Driver not found"));
 
-        return deliveryRepo.findAllWaitingWithOrder().stream()
+        return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.WAITING_DRIVER).stream()
                 .filter(delivery -> delivery.getOrder().getDropoffCity() != null &&
                         delivery.getOrder().getDropoffCity().equalsIgnoreCase(driver.getCity()))
                 .map(this::toDriverDeliveryResponse)
@@ -46,7 +52,7 @@ public class DriverDeliveryService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getActive(UUID driverId) {
-        return deliveryRepo.findActiveForDriver(driverId).stream()
+        return deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
                 .map(this::toDriverDeliveryResponse)
                 .collect(Collectors.toList());
     }
@@ -59,7 +65,7 @@ public class DriverDeliveryService {
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
         if (delivery.getDriverId() != null && !delivery.getDriverId().equals(driverId)
-                && !"WAITING_DRIVER".equals(delivery.getStatus())) {
+            && delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
             throw AppException.forbidden("Not your delivery");
         }
 
@@ -70,8 +76,11 @@ public class DriverDeliveryService {
 
     @Transactional
     public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId) {
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+
         // Check driver doesn't already have an active delivery
-        boolean hasActive = deliveryRepo.existsActiveDeliveryForDriver(driverId);
+        boolean hasActive = deliveryRepo.existsActiveDeliveryForDriver(driverId, ACTIVE_STATUSES);
         if (hasActive) {
             throw AppException.badRequest("You already have an active delivery");
         }
@@ -80,8 +89,14 @@ public class DriverDeliveryService {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        if (!"WAITING_DRIVER".equals(delivery.getStatus())) {
+        if (delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
             throw AppException.conflict("Delivery is no longer available");
+        }
+
+        String driverCity = driver.getCity();
+        String dropoffCity = delivery.getOrder() != null ? delivery.getOrder().getDropoffCity() : null;
+        if (driverCity == null || dropoffCity == null || !dropoffCity.equalsIgnoreCase(driverCity)) {
+            throw AppException.forbidden("Delivery is outside your city");
         }
 
         // Atomic UPDATE — 0 rows = race condition
@@ -94,7 +109,12 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found after accept"));
 
-        appendHistory(delivery, "ASSIGNED", driverId.toString(), "DRIVER", "Driver accepted delivery");
+        if (!Boolean.FALSE.equals(driver.getAvailable())) {
+            driver.setAvailable(false);
+            driverRepo.save(driver);
+        }
+
+        appendHistory(delivery, DeliveryStatus.ASSIGNED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryAssigned(delivery.getOrder(), delivery, driverId);
 
         return toDriverDeliveryResponse(delivery);
@@ -105,13 +125,13 @@ public class DriverDeliveryService {
     @Transactional
     public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, "ASSIGNED", "pickup");
+        assertStatus(delivery, DeliveryStatus.ASSIGNED, "pickup");
 
-        delivery.setStatus("PICKED_UP");
+        delivery.setStatus(DeliveryStatus.PICKED_UP);
         delivery.setPickedUpAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, "PICKED_UP", driverId.toString(), "DRIVER", "Package picked up");
+        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
         return toDriverDeliveryResponse(delivery);
@@ -122,13 +142,13 @@ public class DriverDeliveryService {
     @Transactional
     public DriverDeliveryResponse transit(UUID deliveryId, UUID driverId, BigDecimal lat, BigDecimal lng) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, "PICKED_UP", "start transit");
+        assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
 
-        delivery.setStatus("IN_TRANSIT");
+        delivery.setStatus(DeliveryStatus.IN_TRANSIT);
         delivery.setInTransitAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, "IN_TRANSIT", driverId.toString(), "DRIVER", "Driver started transit");
+        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "Driver started transit");
         eventPublisher.publishDeliveryInTransit(delivery.getOrder(), delivery, lat, lng);
 
         return toDriverDeliveryResponse(delivery);
@@ -139,13 +159,13 @@ public class DriverDeliveryService {
     @Transactional
     public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, "IN_TRANSIT", "complete");
+        assertStatus(delivery, DeliveryStatus.IN_TRANSIT, "complete");
 
-        delivery.setStatus("DELIVERED");
+        delivery.setStatus(DeliveryStatus.DELIVERED);
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, "DELIVERED", driverId.toString(), "DRIVER", "Delivery completed");
+        appendHistory(delivery, DeliveryStatus.DELIVERED, driverId.toString(), Role.DRIVER, "Delivery completed");
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
         return toDriverDeliveryResponse(delivery);
@@ -157,11 +177,11 @@ public class DriverDeliveryService {
     public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, String reason) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        if (!"PICKED_UP".equals(delivery.getStatus()) && !"IN_TRANSIT".equals(delivery.getStatus())) {
+        if (delivery.getStatus() != DeliveryStatus.PICKED_UP && delivery.getStatus() != DeliveryStatus.IN_TRANSIT) {
             throw AppException.badRequest("Can only fail delivery from PICKED_UP or IN_TRANSIT state");
         }
 
-        delivery.setStatus("FAILED");
+        delivery.setStatus(DeliveryStatus.FAILED);
         delivery.setFailedAt(LocalDateTime.now());
         delivery.setFailReason(reason);
         delivery = deliveryRepo.save(delivery);
@@ -169,7 +189,7 @@ public class DriverDeliveryService {
         // Release driver availability
         releaseDriver(driverId);
 
-        appendHistory(delivery, "FAILED", driverId.toString(), "DRIVER", reason);
+        appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, reason);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, reason);
 
         return toDriverDeliveryResponse(delivery);
@@ -181,11 +201,11 @@ public class DriverDeliveryService {
     public DriverDeliveryResponse cancelByDriver(UUID deliveryId, UUID driverId, String reason) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        if (!"ASSIGNED".equals(delivery.getStatus())) {
+        if (delivery.getStatus() != DeliveryStatus.ASSIGNED) {
             throw AppException.badRequest("Driver can only cancel from ASSIGNED state");
         }
 
-        delivery.setStatus("WAITING_DRIVER");
+        delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
         delivery.setDriverId(null);
         delivery.setAssignedAt(null);
         delivery = deliveryRepo.save(delivery);
@@ -193,7 +213,7 @@ public class DriverDeliveryService {
         // Release driver
         releaseDriver(driverId);
 
-        appendHistory(delivery, "WAITING_DRIVER", driverId.toString(), "DRIVER",
+        appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, driverId.toString(), Role.DRIVER,
                 StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
 
         // Publish cancelled event
@@ -205,7 +225,7 @@ public class DriverDeliveryService {
     // ── Report ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public void report(UUID deliveryId, UUID driverId, String reportType, String description) {
+    public void report(UUID deliveryId, UUID driverId, ReportType reportType, String description) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         DeliveryReport report = DeliveryReport.builder()
@@ -230,7 +250,7 @@ public class DriverDeliveryService {
         driverRepo.save(driver);
 
         // Store tracking point for active delivery
-        List<Delivery> active = deliveryRepo.findActiveForDriver(driverId);
+        List<Delivery> active = deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES);
         if (!active.isEmpty()) {
             trackingRepo.save(Tracking.builder()
                     .deliveryId(active.get(0).getId())
@@ -245,13 +265,13 @@ public class DriverDeliveryService {
     @Transactional
     public void resetToWaiting(UUID deliveryId) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
-            if ("ASSIGNED".equals(delivery.getStatus()) && delivery.getDriverId() != null) {
+            if (delivery.getStatus() == DeliveryStatus.ASSIGNED && delivery.getDriverId() != null) {
                 releaseDriver(delivery.getDriverId());
-                delivery.setStatus("WAITING_DRIVER");
+                delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
                 deliveryRepo.save(delivery);
-                appendHistory(delivery, "WAITING_DRIVER", "SYSTEM", "SYSTEM", "Workflow: timeout reset");
+                appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, "SYSTEM", Role.SYSTEM, "Workflow: timeout reset");
             }
         });
     }
@@ -260,12 +280,12 @@ public class DriverDeliveryService {
     public void forceCancel(UUID deliveryId, String reason) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getDriverId() != null) releaseDriver(delivery.getDriverId());
-            delivery.setStatus("CANCELLED");
+            delivery.setStatus(DeliveryStatus.CANCELLED);
             delivery.setCancelledAt(LocalDateTime.now());
-            delivery.setCancelledBy("SYSTEM");
+            delivery.setCancelledBy(Role.SYSTEM);
             delivery.setCancelReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, "CANCELLED", "SYSTEM", "SYSTEM", reason);
+            appendHistory(delivery, DeliveryStatus.CANCELLED, "SYSTEM", Role.SYSTEM, reason);
             eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, null);
         });
     }
@@ -274,11 +294,11 @@ public class DriverDeliveryService {
     public void forceFail(UUID deliveryId, String reason) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getDriverId() != null) releaseDriver(delivery.getDriverId());
-            delivery.setStatus("FAILED");
+            delivery.setStatus(DeliveryStatus.FAILED);
             delivery.setFailedAt(LocalDateTime.now());
             delivery.setFailReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, "FAILED", "SYSTEM", "SYSTEM", reason);
+            appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, reason);
             eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, reason);
         });
     }
@@ -295,8 +315,8 @@ public class DriverDeliveryService {
         return delivery;
     }
 
-    private void assertStatus(Delivery delivery, String expected, String action) {
-        if (!expected.equals(delivery.getStatus())) {
+    private void assertStatus(Delivery delivery, DeliveryStatus expected, String action) {
+        if (delivery.getStatus() != expected) {
             throw AppException.badRequest("Cannot " + action + " from status " + delivery.getStatus());
         }
     }
@@ -308,7 +328,7 @@ public class DriverDeliveryService {
         });
     }
 
-    private void appendHistory(Delivery delivery, String status, String changedBy, String role, String note) {
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
         historyRepo.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(status)
@@ -323,19 +343,19 @@ public class DriverDeliveryService {
         return DriverDeliveryResponse.builder()
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
-                .status(delivery.getStatus())
+                .status(delivery.getStatus().name())
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .dropoffCity(order != null ? order.getDropoffCity() : null)
                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
-                .paymentType(order != null ? order.getPaymentType() : null)
+                .paymentType(order != null ? order.getPaymentType().name() : null)
                 .amountToCollect(order != null ? order.getAmountToCollect() : null)
                 .currency(order != null ? order.getCurrency() : null)
                 .items(order != null ? order.getItems() : null)
                 .totalQuantity(order != null ? order.getTotalQuantity() : null)
-                .priority(order != null ? order.getPriority() : null)
+                .priority(order != null ? order.getPriority().name() : null)
                 .scheduledAt(order != null ? order.getScheduledAt() : null)
                 .assignedAt(delivery.getAssignedAt())
                 .pickedUpAt(delivery.getPickedUpAt())

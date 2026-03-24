@@ -1,0 +1,75 @@
+@startuml delivery_use_case
+left to right direction
+skinparam shadowing false
+
+title DeliveryMicroservice - Use Case Diagram
+
+actor "Client App User" as Client
+actor "Driver App User" as Driver
+actor "Mapper/Odoo" as Mapper
+actor "Workflow Service" as Workflow
+
+rectangle "DeliveryMicroservice" {
+  usecase "Create Order" as UC_CreateOrder
+  usecase "View Orders" as UC_ViewOrders
+  usecase "Cancel Order" as UC_CancelOrder
+  usecase "Check Cancellable" as UC_CheckCancellable
+  usecase "Reorder" as UC_Reorder
+
+  usecase "Get Available Deliveries" as UC_GetAvailable
+  usecase "Accept Delivery" as UC_Accept
+  usecase "Pickup Delivery" as UC_Pickup
+  usecase "Start Transit" as UC_Transit
+  usecase "Complete Delivery" as UC_Complete
+  usecase "Fail Delivery" as UC_Fail
+  usecase "Cancel Delivery by Driver" as UC_DriverCancel
+  usecase "Submit Delivery Report" as UC_Report
+  usecase "Update Driver Location" as UC_UpdateLocation
+
+  usecase "Get Delivery Details" as UC_GetDelivery
+  usecase "Get Tracking" as UC_GetTracking
+  usecase "Get Status History" as UC_GetHistory
+
+  usecase "Consume Canonical Order" as UC_ConsumeCanonical
+  usecase "Process Workflow Command" as UC_ProcessWorkflow
+
+  usecase "Publish Delivery Events" as UC_PublishEvents
+}
+
+Client --> UC_CreateOrder
+Client --> UC_ViewOrders
+Client --> UC_CancelOrder
+Client --> UC_CheckCancellable
+Client --> UC_Reorder
+Client --> UC_GetDelivery
+Client --> UC_GetTracking
+Client --> UC_GetHistory
+
+Driver --> UC_GetAvailable
+Driver --> UC_Accept
+Driver --> UC_Pickup
+Driver --> UC_Transit
+Driver --> UC_Complete
+Driver --> UC_Fail
+Driver --> UC_DriverCancel
+Driver --> UC_Report
+Driver --> UC_UpdateLocation
+Driver --> UC_GetDelivery
+Driver --> UC_GetTracking
+Driver --> UC_GetHistory
+
+Mapper --> UC_ConsumeCanonical
+Workflow --> UC_ProcessWorkflow
+
+UC_CreateOrder ..> UC_PublishEvents : <<include>>
+UC_Accept ..> UC_PublishEvents : <<include>>
+UC_Pickup ..> UC_PublishEvents : <<include>>
+UC_Transit ..> UC_PublishEvents : <<include>>
+UC_Complete ..> UC_PublishEvents : <<include>>
+UC_Fail ..> UC_PublishEvents : <<include>>
+UC_DriverCancel ..> UC_PublishEvents : <<include>>
+UC_CancelOrder ..> UC_PublishEvents : <<include>>
+UC_Reorder ..> UC_PublishEvents : <<include>>
+UC_ConsumeCanonical ..> UC_PublishEvents : <<include>>
+
+@enduml

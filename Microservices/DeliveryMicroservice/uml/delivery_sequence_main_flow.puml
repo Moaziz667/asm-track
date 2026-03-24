@@ -1,0 +1,63 @@
+@startuml delivery_sequence_main_flow
+skinparam shadowing false
+
+title DeliveryMicroservice - Sequence Diagram (Main Flow)
+
+actor "Client App" as Client
+actor "Driver App" as Driver
+participant "OrderController" as OC
+participant "OrderService" as OS
+database "OrderRepository" as OR
+database "DeliveryRepository" as DR
+database "DeliveryStatusHistoryRepository" as HR
+participant "DriverDeliveryController" as DDC
+participant "DriverDeliveryService" as DDS
+participant "EventPublisher" as EP
+queue "RabbitMQ" as MQ
+
+== 1) Client creates order ==
+Client -> OC: POST /api/orders
+OC -> OS: createFromApp(req, clientId, name, phone)
+OS -> OR: save(Order status=PENDING)
+OR --> OS: order
+OS -> DR: save(Delivery status=WAITING_DRIVER)
+DR --> OS: delivery
+OS -> HR: save(WAITING_DRIVER history)
+OS -> EP: publishDeliveryCreated(order, delivery)
+EP -> MQ: delivery.created
+OS --> OC: OrderResponse
+OC --> Client: 201 Created
+
+== 2) Driver accepts and delivers ==
+Driver -> DDC: POST /api/driver/deliveries/{id}/accept
+DDC -> DDS: accept(deliveryId, driverId)
+DDS -> DR: atomicAccept(deliveryId, driverId)
+DDS -> HR: save(ASSIGNED history)
+DDS -> EP: publishDeliveryAssigned(...)
+EP -> MQ: delivery.assigned
+DDS --> DDC: DriverDeliveryResponse
+DDC --> Driver: 200 OK
+
+Driver -> DDC: POST /{id}/pickup
+DDC -> DDS: pickup(deliveryId, driverId)
+DDS -> DR: save(status=PICKED_UP)
+DDS -> HR: save(PICKED_UP history)
+DDS -> EP: publishDeliveryPickedUp(...)
+EP -> MQ: delivery.picked_up
+
+Driver -> DDC: POST /{id}/transit
+DDC -> DDS: transit(deliveryId, driverId, lat, lng)
+DDS -> DR: save(status=IN_TRANSIT)
+DDS -> HR: save(IN_TRANSIT history)
+DDS -> EP: publishDeliveryInTransit(...)
+EP -> MQ: delivery.in_transit
+
+Driver -> DDC: POST /{id}/complete
+DDC -> DDS: complete(deliveryId, driverId)
+DDS -> DR: save(status=DELIVERED)
+DDS -> HR: save(DELIVERED history)
+DDS -> EP: publishDeliveryCompleted(...)
+EP -> MQ: delivery.completed
+DDC --> Driver: 200 OK
+
+@enduml

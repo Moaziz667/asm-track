@@ -1,0 +1,174 @@
+@startuml delivery_class_domain_model
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam packageStyle rectangle
+hide empty members
+
+title DeliveryMicroservice - UML Class Diagram 
+
+package "Domain Entities" {
+	class Order <<entity>> {
+		- id: UUID
+		- source: OrderSource
+		- schemaVersion: String
+		- clientId: String
+		- clientName: String
+		- clientPhone: String
+		- clientEmail: String
+		- erpOrderId: String
+		- erpExternalRef: String
+		- originName: String
+		- originAddress: String
+		- originCity: String
+		- originPostalCode: String
+		- originCountryCode: String
+		- originContactName: String
+		- originContactPhone: String
+		- originContactEmail: String
+		- dropoffAddress: String
+		- dropoffCity: String
+		- dropoffPostalCode: String
+		- dropoffCountryCode: String
+		- dropoffLat: BigDecimal
+		- dropoffLng: BigDecimal
+		- deliveryInstructions: String
+		- totalAmount: BigDecimal
+		- currency: String
+		- paymentType: PaymentType
+		- amountToCollect: BigDecimal
+		- scheduledAt: LocalDateTime
+		- priority: OrderPriority
+		- items: List<OrderItem>
+		- totalQuantity: Integer
+		- totalWeightKg: BigDecimal
+		- status: OrderStatus
+		- lastSyncedAt: LocalDateTime
+		- createdAt: LocalDateTime
+		- updatedAt: LocalDateTime
+	}
+
+	class Delivery <<entity>> {
+		- id: UUID
+		- order: Order
+		- driverId: UUID
+		- status: DeliveryStatus
+		- assignedAt: LocalDateTime
+		- pickedUpAt: LocalDateTime
+		- inTransitAt: LocalDateTime
+		- completedAt: LocalDateTime
+		- failedAt: LocalDateTime
+		- cancelledAt: LocalDateTime
+		- failReason: String
+		- cancelReason: String
+		- cancelledBy: Role
+		- createdAt: LocalDateTime
+		- updatedAt: LocalDateTime
+	}
+
+	class Driver <<entity>> {
+		- id: UUID
+		- name: String
+		- phone: String
+		- passwordHash: String
+		- available: Boolean
+		- currentLat: BigDecimal
+		- currentLng: BigDecimal
+		- lastLocationAt: LocalDateTime
+		- city: String
+		- createdAt: LocalDateTime
+		- updatedAt: LocalDateTime
+	}
+
+	class Tracking <<entity>> {
+		- id: UUID
+		- deliveryId: UUID
+		- lat: BigDecimal
+		- lng: BigDecimal
+		- timestamp: LocalDateTime
+	}
+
+	class DeliveryStatusHistory <<entity>> {
+		- id: UUID
+		- deliveryId: UUID
+		- status: DeliveryStatus
+		- changedBy: String
+		- changedByRole: Role
+		- note: String
+		- changedAt: LocalDateTime
+	}
+
+	class DeliveryReport <<entity>> {
+		- id: UUID
+		- deliveryId: UUID
+		- driverId: UUID
+		- reportType: ReportType
+		- description: String
+		- createdAt: LocalDateTime
+	}
+
+	enum OrderSource {
+		APP
+		ODOO
+	}
+
+	enum OrderStatus {
+		PENDING
+		CANCELLED
+	}
+
+	enum PaymentType {
+		COD
+		PREPAID
+	}
+
+	enum OrderPriority {
+		NORMAL
+		HIGH
+	}
+
+	enum DeliveryStatus {
+		WAITING_DRIVER
+		ASSIGNED
+		PICKED_UP
+		IN_TRANSIT
+		DELIVERED
+		FAILED
+		CANCELLED
+	}
+
+	enum Role {
+		CLIENT
+		DRIVER
+		SYSTEM
+	}
+
+	enum ReportType {
+		ADDRESS_NOT_FOUND
+		CUSTOMER_UNREACHABLE
+		CUSTOMER_REFUSED
+		DAMAGED_PACKAGE
+		PAYMENT_ISSUE
+		OTHER
+	}
+
+	class OrderItem <<value_object>> {
+		- id: String
+		- sku: String
+		- name: String
+		- quantity: Integer
+		- quantityDone: Integer
+		- unitWeightKg: BigDecimal
+		- unitPrice: BigDecimal
+	}
+}
+
+' Composition / Aggregation / Associations
+Order *-- "0..*" OrderItem : items
+Order "1" -- "0..1" Delivery : delivery
+Driver "1" -- "0..*" Delivery : assignedDeliveries
+Delivery "1" -- "0..*" Tracking : trackingPoints
+Delivery "1" -- "0..*" DeliveryStatusHistory : statusHistory
+Delivery "1" -- "0..*" DeliveryReport : reports
+Driver "1" -- "0..*" DeliveryReport : submits
+
+@enduml

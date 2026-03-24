@@ -41,7 +41,7 @@ public class OrderService {
     @Value("${app.origin.country-code:TN}")
     private String originCountryCode;
 
-    private static final List<String> TERMINAL = List.of("CANCELLED", "DELIVERED", "FAILED");
+    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED);
 
     // ── Client REST entry point ───────────────────────────────────────────────
 
@@ -65,7 +65,7 @@ public class OrderService {
         });
 
         Order order = Order.builder()
-                .source("APP")
+            .source(OrderSource.APP)
                 .clientId(clientId)
                 .clientName(clientName)
                 .clientPhone(clientPhone)
@@ -86,11 +86,11 @@ public class OrderService {
                 .paymentType(req.getPaymentType())
                 .amountToCollect(req.getAmountToCollect())
                 .scheduledAt(parseDateTime(req.getScheduledAt()))
-                .priority(StringUtils.hasText(req.getPriority()) ? req.getPriority() : "NORMAL")
+                .priority(req.getPriority() != null ? req.getPriority() : OrderPriority.NORMAL)
                 .items(items)
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
-                .status("PENDING")
+                .status(OrderStatus.PENDING)
                 .build();
 
         order = orderRepo.save(order);
@@ -120,8 +120,8 @@ public class OrderService {
         }
 
         Order order = Order.builder()
-            .source("ODOO")
-            .status("PENDING")
+            .source(OrderSource.ODOO)
+            .status(OrderStatus.PENDING)
             .build();
 
         applyCanonicalToOrder(order, canonical, true);
@@ -154,7 +154,7 @@ public class OrderService {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found"));
 
-        if ("APP".equals(order.getSource()) && !clientId.equals(order.getClientId())) {
+        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
             throw AppException.forbidden("Not your order");
         }
 
@@ -168,7 +168,7 @@ public class OrderService {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found"));
 
-        if ("APP".equals(order.getSource()) && !clientId.equals(order.getClientId())) {
+        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
             throw AppException.forbidden("Not your order");
         }
 
@@ -176,30 +176,30 @@ public class OrderService {
                 .orElse(null);
 
         if (delivery != null) {
-            String ds = delivery.getStatus();
-            if ("PICKED_UP".equals(ds) || "IN_TRANSIT".equals(ds) || "DELIVERED".equals(ds)) {
+            DeliveryStatus ds = delivery.getStatus();
+            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT || ds == DeliveryStatus.DELIVERED) {
                 throw AppException.forbidden("Cannot cancel order that is being delivered");
             }
-            if ("CANCELLED".equals(ds) || "FAILED".equals(ds)) {
+            if (ds == DeliveryStatus.CANCELLED || ds == DeliveryStatus.FAILED) {
                 throw AppException.conflict("Order is already in terminal state");
             }
 
             // Release driver if assigned
-            if ("ASSIGNED".equals(ds) && delivery.getDriverId() != null) {
+            if (ds == DeliveryStatus.ASSIGNED && delivery.getDriverId() != null) {
                 // driver will be released via event / workflow — for now just cancel
             }
 
-            delivery.setStatus("CANCELLED");
+            delivery.setStatus(DeliveryStatus.CANCELLED);
             delivery.setCancelledAt(LocalDateTime.now());
-            delivery.setCancelledBy("CLIENT");
+            delivery.setCancelledBy(Role.CLIENT);
             delivery.setCancelReason("Cancelled by client");
             deliveryRepo.save(delivery);
 
-            appendHistory(delivery, "CANCELLED", clientId, "CLIENT", "Cancelled by client");
+            appendHistory(delivery, DeliveryStatus.CANCELLED, clientId, Role.CLIENT, "Cancelled by client");
             eventPublisher.publishDeliveryCancelled(order, delivery, null);
         }
 
-        order.setStatus("CANCELLED");
+        order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
     }
 
@@ -208,18 +208,18 @@ public class OrderService {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found"));
 
-        if ("APP".equals(order.getSource()) && !clientId.equals(order.getClientId())) {
+        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
             throw AppException.forbidden("Not your order");
         }
 
         Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
         if (delivery == null) {
-            return new CancellableResponse("PENDING".equals(order.getStatus()), null);
+            return new CancellableResponse(order.getStatus() == OrderStatus.PENDING, null);
         }
 
         return switch (delivery.getStatus()) {
-            case "WAITING_DRIVER", "ASSIGNED" -> new CancellableResponse(true, null);
-            case "PICKED_UP", "IN_TRANSIT"    -> new CancellableResponse(false, "Delivery is already in progress");
+            case WAITING_DRIVER, ASSIGNED -> new CancellableResponse(true, null);
+            case PICKED_UP, IN_TRANSIT    -> new CancellableResponse(false, "Delivery is already in progress");
             default -> new CancellableResponse(false, "Order is in terminal state");
         };
     }
@@ -231,12 +231,12 @@ public class OrderService {
         Order original = orderRepo.findById(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found"));
 
-        if ("APP".equals(original.getSource()) && !clientId.equals(original.getClientId())) {
+        if (OrderSource.APP.equals(original.getSource()) && !clientId.equals(original.getClientId())) {
             throw AppException.forbidden("Not your order");
         }
 
         Order reorder = Order.builder()
-                .source("APP")
+            .source(OrderSource.APP)
                 .clientId(original.getClientId())
                 .clientName(original.getClientName())
                 .clientPhone(original.getClientPhone())
@@ -261,7 +261,7 @@ public class OrderService {
                 .items(original.getItems())
                 .totalQuantity(original.getTotalQuantity())
                 .totalWeightKg(original.getTotalWeightKg())
-                .status("PENDING")
+                .status(OrderStatus.PENDING)
                 .build();
 
         reorder = orderRepo.save(reorder);
@@ -276,15 +276,15 @@ public class OrderService {
     private Delivery createDeliveryTask(Order order, String changedBy, String note) {
         Delivery delivery = Delivery.builder()
                 .order(order)
-                .status("WAITING_DRIVER")
+                .status(DeliveryStatus.WAITING_DRIVER)
                 .build();
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, "WAITING_DRIVER", changedBy, "SYSTEM", note);
+        appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, changedBy, Role.SYSTEM, note);
         return delivery;
     }
 
-    private void appendHistory(Delivery delivery, String status, String changedBy, String role, String note) {
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
         historyRepo.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(status)
@@ -302,7 +302,7 @@ public class OrderService {
     public OrderResponse toOrderResponse(Order order, Delivery delivery) {
         return OrderResponse.builder()
                 .id(order.getId())
-                .source(order.getSource())
+                .source(order.getSource().name())
                 .clientId(order.getClientId())
                 .clientName(order.getClientName())
                 .clientPhone(order.getClientPhone())
@@ -313,16 +313,16 @@ public class OrderService {
                 .deliveryInstructions(order.getDeliveryInstructions())
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
-                .paymentType(order.getPaymentType())
+                .paymentType(order.getPaymentType().name())
                 .amountToCollect(order.getAmountToCollect())
-                .priority(order.getPriority())
+                .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
                 .totalQuantity(order.getTotalQuantity())
                 .totalWeightKg(order.getTotalWeightKg())
-                .status(order.getStatus())
+                .status(order.getStatus().name())
                 .deliveryId(delivery != null ? delivery.getId() : null)
-                .deliveryStatus(delivery != null ? delivery.getStatus() : null)
+                .deliveryStatus(delivery != null ? delivery.getStatus().name() : null)
                 .erpOrderId(order.getErpOrderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
@@ -369,7 +369,7 @@ public class OrderService {
             CanonicalDelivery.Address origAddress = origin != null ? origin.getAddress() : null;
             CanonicalDelivery.Contact origContact = origin != null ? origin.getContact() : null;
 
-            order.setSource("ODOO");
+            order.setSource(OrderSource.ODOO);
             order.setSchemaVersion(identity != null && StringUtils.hasText(identity.getSchemaVersion())
                 ? identity.getSchemaVersion() : "1.0.0");
             order.setClientId(null);
@@ -400,11 +400,11 @@ public class OrderService {
 
             order.setTotalAmount(fin != null && fin.getTotalAmount() != null ? fin.getTotalAmount() : BigDecimal.ZERO);
             order.setCurrency(fin != null && StringUtils.hasText(fin.getCurrency()) ? fin.getCurrency() : "TND");
-            order.setPaymentType(fin != null && StringUtils.hasText(fin.getPaymentType()) ? fin.getPaymentType().toUpperCase() : "COD");
+            order.setPaymentType(parsePaymentType(fin != null ? fin.getPaymentType() : null));
             order.setAmountToCollect(fin != null && fin.getAmountToCollect() != null ? fin.getAmountToCollect() : BigDecimal.ZERO);
 
             order.setScheduledAt(plan != null ? parseDateTime(plan.getScheduledAt()) : null);
-            order.setPriority(plan != null && StringUtils.hasText(plan.getPriority()) ? plan.getPriority().toUpperCase() : "NORMAL");
+            order.setPriority(parsePriority(plan != null ? plan.getPriority() : null));
 
             order.setItems(items);
             order.setTotalQuantity(load != null && load.getTotalQuantity() != null ? load.getTotalQuantity() : 0);
@@ -412,7 +412,25 @@ public class OrderService {
             order.setLastSyncedAt(meta != null ? parseDateTime(meta.getLastSyncedAt()) : null);
 
             if (isNew) {
-                order.setStatus("PENDING");
+                order.setStatus(OrderStatus.PENDING);
             }
             }
+
+    private PaymentType parsePaymentType(String value) {
+        if (!StringUtils.hasText(value)) return PaymentType.COD;
+        try {
+            return PaymentType.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return PaymentType.COD;
+        }
+    }
+
+    private OrderPriority parsePriority(String value) {
+        if (!StringUtils.hasText(value)) return OrderPriority.NORMAL;
+        try {
+            return OrderPriority.valueOf(value.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            return OrderPriority.NORMAL;
+        }
+    }
 }

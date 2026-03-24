@@ -22,14 +22,16 @@ public class DeliveryStatusHistory {
     @Column(name = "delivery_id", nullable = false)
     private UUID deliveryId;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
-    private String status;
+    private DeliveryStatus status;
 
     @Column(name = "changed_by", length = 100)
     private String changedBy;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "changed_by_role", length = 10)
-    private String changedByRole;  // "CLIENT" | "DRIVER" | "SYSTEM"
+    private Role changedByRole;
 
     @Column(name = "note", columnDefinition = "TEXT")
     private String note;
