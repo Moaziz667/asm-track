@@ -13,6 +13,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.io.IOException;
 import java.util.List;
@@ -23,6 +24,9 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+
+    @Value("${app.security.trust-gateway-headers:false}")
+    private boolean trustGatewayHeaders;
 
     @Override
     protected void doFilterInternal(
@@ -36,17 +40,19 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         // Accept those headers as a trusted source of identity.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             log.debug("No Authorization header present or invalid - checking gateway headers");
-            String userId = request.getHeader("X-User-Id");
-            String role = request.getHeader("X-User-Role");
-            log.debug("Gateway headers: X-User-Id={}, X-User-Role={}", userId, role);
-            if (userId != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                log.debug("Setting authentication from gateway headers userId={} role={}", userId, role);
-                UserPrincipal principal = new UserPrincipal(userId, role, null, null);
-                UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        principal, null,
-                        List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
-                );
-                SecurityContextHolder.getContext().setAuthentication(auth);
+            if (trustGatewayHeaders) {
+                String userId = request.getHeader("X-User-Id");
+                String role = request.getHeader("X-User-Role");
+                log.debug("Gateway headers: X-User-Id={}, X-User-Role={}", userId, role);
+                if (userId != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                    log.debug("Setting authentication from gateway headers userId={} role={}", userId, role);
+                    UserPrincipal principal = new UserPrincipal(userId, role, null, null);
+                    UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
+                            principal, null,
+                            List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
+                    );
+                    SecurityContextHolder.getContext().setAuthentication(auth);
+                }
             }
             chain.doFilter(request, response);
             return;

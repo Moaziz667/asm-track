@@ -1,0 +1,46 @@
+@startuml delivery_activity_lifecycle
+skinparam shadowing false
+
+title DeliveryMicroservice - Activity Diagram (Delivery Lifecycle)
+
+start
+:Order created;
+:Create delivery task;
+:Set status = WAITING_DRIVER;
+
+repeat
+  :Driver checks available deliveries;
+repeat while (No driver accepted?) is (yes)
+
+:Assign driver;
+:Set status = ASSIGNED;
+
+if (Driver cancels?) then (yes)
+  :Set status = WAITING_DRIVER;
+  :Publish delivery.cancelled;
+  back to repeat
+else (no)
+  :Pickup package;
+  :Set status = PICKED_UP;
+endif
+
+if (Client cancels before pickup?) then (yes)
+  :Set status = CANCELLED;
+  :Publish delivery.cancelled;
+  stop
+endif
+
+:Start transit;
+:Set status = IN_TRANSIT;
+
+if (Delivered successfully?) then (yes)
+  :Set status = DELIVERED;
+  :Publish delivery.completed;
+else (no)
+  :Set status = FAILED;
+  :Publish delivery.failed;
+endif
+
+stop
+
+@enduml

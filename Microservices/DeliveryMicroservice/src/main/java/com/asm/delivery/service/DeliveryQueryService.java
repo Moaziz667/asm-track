@@ -63,8 +63,9 @@ public class DeliveryQueryService {
         assertAccessToDelivery(delivery, requesterId, requesterRole);
 
         return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId).stream()
-                .map(h -> new StatusHistoryResponse(h.getStatus(), h.getChangedBy(),
-                        h.getChangedByRole(), h.getNote(), h.getChangedAt()))
+            .map(h -> new StatusHistoryResponse(h.getStatus().name(), h.getChangedBy(),
+                h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
+                h.getNote(), h.getChangedAt()))
                 .collect(Collectors.toList());
     }
 
@@ -73,13 +74,13 @@ public class DeliveryQueryService {
     private void assertAccessToDelivery(Delivery delivery, String requesterId, String requesterRole) {
         if ("DRIVER".equals(requesterRole)) {
             // Driver can see their deliveries or any WAITING_DRIVER delivery
-            if (delivery.getDriverId() != null && !delivery.getDriverId().toString().equals(requesterId)
-                    && !"WAITING_DRIVER".equals(delivery.getStatus())) {
+                if (delivery.getDriverId() != null && !delivery.getDriverId().toString().equals(requesterId)
+                    && delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
                 throw AppException.forbidden("Not your delivery");
             }
         } else if ("CLIENT".equals(requesterRole)) {
             Order order = delivery.getOrder();
-            if ("APP".equals(order.getSource()) && !requesterId.equals(order.getClientId())) {
+            if (OrderSource.APP.equals(order.getSource()) && !requesterId.equals(order.getClientId())) {
                 throw AppException.forbidden("Not your delivery");
             }
         }
@@ -106,7 +107,7 @@ public class DeliveryQueryService {
                 .driverId(delivery.getDriverId())
                 .driverName(driverName)
                 .driverPhone(driverPhone)
-                .status(delivery.getStatus())
+                .status(delivery.getStatus().name())
                 .assignedAt(delivery.getAssignedAt())
                 .pickedUpAt(delivery.getPickedUpAt())
                 .inTransitAt(delivery.getInTransitAt())

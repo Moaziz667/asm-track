@@ -61,8 +61,14 @@ public class DriverAuthService {
             throw AppException.unauthorized("Invalid or expired refresh token");
         }
 
-        String subject = jwtService.getSubject(refreshToken);
-        String role    = jwtService.getRole(refreshToken);
+        var claims = jwtService.parseToken(refreshToken);
+        String subject = claims.getSubject();
+        String role    = claims.get("role", String.class);
+        String type    = claims.get("type", String.class);
+
+        if (!"refresh".equals(type)) {
+            throw AppException.unauthorized("Invalid refresh token type");
+        }
 
         if (!"DRIVER".equals(role)) {
             throw AppException.unauthorized("Not a driver token");

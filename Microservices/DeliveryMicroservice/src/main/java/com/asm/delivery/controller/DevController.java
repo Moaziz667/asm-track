@@ -18,6 +18,7 @@ import java.util.Map;
  * Generates a test client JWT using the same JWT_SECRET.
  * Should be disabled or protected in production.
  */
+@Profile({"dev", "local"})
 @RestController
 @RequestMapping("/api/dev")
 @Tag(name = "Dev Utilities", description = "Test helpers — generate client JWT without App Backend")

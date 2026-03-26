@@ -3,6 +3,8 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.DriverProfileResponse;
 import com.asm.delivery.dto.response.DriverStatsResponse;
+import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Driver;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
@@ -25,6 +27,12 @@ public class DriverProfileService {
     private final DeliveryRepository   deliveryRepo;
     private final DriverDeliveryService driverDeliveryService;
     private final PasswordEncoder      passwordEncoder;
+
+    private static final List<DeliveryStatus> HISTORY_STATUSES = List.of(
+            DeliveryStatus.DELIVERED,
+            DeliveryStatus.FAILED,
+            DeliveryStatus.CANCELLED
+    );
 
     @Transactional(readOnly = true)
     public DriverProfileResponse getProfile(UUID driverId) {
@@ -67,18 +75,18 @@ public class DriverProfileService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getHistory(UUID driverId) {
-        return deliveryRepo.findHistoryForDriver(driverId).stream()
+        return deliveryRepo.findHistoryForDriver(driverId, HISTORY_STATUSES).stream()
                 .map(driverDeliveryService::toDriverDeliveryResponse)
                 .collect(Collectors.toList());
     }
 
     @Transactional(readOnly = true)
     public DriverStatsResponse getStats(UUID driverId) {
-        List<?> history = deliveryRepo.findHistoryForDriver(driverId);
+        List<Delivery> history = deliveryRepo.findHistoryForDriver(driverId, HISTORY_STATUSES);
         long total     = history.size();
-        long delivered = history.stream().filter(d -> "DELIVERED".equals(((com.asm.delivery.entity.Delivery) d).getStatus())).count();
-        long failed    = history.stream().filter(d -> "FAILED".equals(((com.asm.delivery.entity.Delivery) d).getStatus())).count();
-        long cancelled = history.stream().filter(d -> "CANCELLED".equals(((com.asm.delivery.entity.Delivery) d).getStatus())).count();
+        long delivered = history.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED).count();
+        long failed    = history.stream().filter(d -> d.getStatus() == DeliveryStatus.FAILED).count();
+        long cancelled = history.stream().filter(d -> d.getStatus() == DeliveryStatus.CANCELLED).count();
 
         return new DriverStatsResponse(total, delivered, failed, cancelled);
     }

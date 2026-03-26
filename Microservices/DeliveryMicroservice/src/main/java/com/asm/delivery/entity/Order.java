@@ -23,8 +23,9 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "source", nullable = false, length = 10)
-    private String source;  // "APP" | "ODOO"
+    private OrderSource source;
 
     @Column(name = "schema_version", nullable = false, length = 10)
     @Builder.Default
@@ -106,8 +107,9 @@ public class Order {
     @Builder.Default
     private String currency = "TND";
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "payment_type", nullable = false, length = 10)
-    private String paymentType;  // "COD" | "PREPAID"
+    private PaymentType paymentType;
 
     @Column(name = "amount_to_collect", nullable = false, precision = 10, scale = 3)
     @Builder.Default
@@ -117,9 +119,10 @@ public class Order {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false, length = 10)
     @Builder.Default
-    private String priority = "NORMAL";  // "NORMAL" | "HIGH"
+    private OrderPriority priority = OrderPriority.NORMAL;
 
     // ── Items (JSONB) ─────────────────────────────────────────────────────────
     @Type(JsonType.class)
@@ -135,9 +138,10 @@ public class Order {
     private BigDecimal totalWeightKg = BigDecimal.ZERO;
 
     // ── Status ────────────────────────────────────────────────────────────────
+    @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
-    private String status = "PENDING";  // "PENDING" | "CANCELLED"
+    private OrderStatus status = OrderStatus.PENDING;
 
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")

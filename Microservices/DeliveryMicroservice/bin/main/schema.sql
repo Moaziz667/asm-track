@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS orders (
   total_weight_kg       NUMERIC(10,3) NOT NULL DEFAULT 0,
 
   -- Status
-  status                VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+  status                VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'CANCELLED')),
 
   -- Metadata
   last_synced_at        TIMESTAMP,
@@ -100,10 +100,18 @@ CREATE INDEX IF NOT EXISTS idx_orders_created_at   ON orders(created_at DESC);
 -- ── Deliveries ────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS deliveries (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  order_id        UUID NOT NULL REFERENCES orders(id),
+  order_id        UUID NOT NULL UNIQUE REFERENCES orders(id),
   driver_id       UUID REFERENCES drivers(id),
 
-  status          VARCHAR(20) NOT NULL DEFAULT 'WAITING_DRIVER',
+  status          VARCHAR(20) NOT NULL DEFAULT 'WAITING_DRIVER' CHECK (status IN (
+    'WAITING_DRIVER',
+    'ASSIGNED',
+    'PICKED_UP',
+    'IN_TRANSIT',
+    'DELIVERED',
+    'FAILED',
+    'CANCELLED'
+  )),
 
   assigned_at     TIMESTAMP,
   picked_up_at    TIMESTAMP,
@@ -120,15 +128,25 @@ CREATE TABLE IF NOT EXISTS deliveries (
   updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_deliveries_order_id  ON deliveries(order_id);
 CREATE INDEX IF NOT EXISTS idx_deliveries_driver_id ON deliveries(driver_id);
 CREATE INDEX IF NOT EXISTS idx_deliveries_status    ON deliveries(status);
+
+-- For existing databases created before the UNIQUE definition above.
+CREATE UNIQUE INDEX IF NOT EXISTS uq_deliveries_order_id ON deliveries(order_id);
 
 -- ── Delivery Status History ───────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS delivery_status_history (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_id     UUID NOT NULL REFERENCES deliveries(id),
-  status          VARCHAR(20) NOT NULL,
+  status          VARCHAR(20) NOT NULL CHECK (status IN (
+    'WAITING_DRIVER',
+    'ASSIGNED',
+    'PICKED_UP',
+    'IN_TRANSIT',
+    'DELIVERED',
+    'FAILED',
+    'CANCELLED'
+  )),
   changed_by      VARCHAR(100),
   changed_by_role VARCHAR(10) CHECK (changed_by_role IN ('CLIENT', 'DRIVER', 'SYSTEM')),
   note            TEXT,
@@ -136,6 +154,47 @@ CREATE TABLE IF NOT EXISTS delivery_status_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_history_delivery_id ON delivery_status_history(delivery_id);
+
+-- Status constraints for existing databases
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'ck_orders_status'
+  ) THEN
+    ALTER TABLE orders ADD CONSTRAINT ck_orders_status
+      CHECK (status IN ('PENDING', 'CANCELLED'));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'ck_deliveries_status'
+  ) THEN
+    ALTER TABLE deliveries ADD CONSTRAINT ck_deliveries_status
+      CHECK (status IN (
+        'WAITING_DRIVER',
+        'ASSIGNED',
+        'PICKED_UP',
+        'IN_TRANSIT',
+        'DELIVERED',
+        'FAILED',
+        'CANCELLED'
+      ));
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'ck_delivery_history_status'
+  ) THEN
+    ALTER TABLE delivery_status_history ADD CONSTRAINT ck_delivery_history_status
+      CHECK (status IN (
+        'WAITING_DRIVER',
+        'ASSIGNED',
+        'PICKED_UP',
+        'IN_TRANSIT',
+        'DELIVERED',
+        'FAILED',
+        'CANCELLED'
+      ));
+  END IF;
+END $$;
 
 -- ── Tracking ──────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS tracking (
@@ -154,7 +213,14 @@ CREATE TABLE IF NOT EXISTS delivery_reports (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_id UUID NOT NULL REFERENCES deliveries(id),
   driver_id   UUID NOT NULL REFERENCES drivers(id),
-  report_type VARCHAR(30) NOT NULL,
+  report_type VARCHAR(30) NOT NULL CHECK (report_type IN (
+    'ADDRESS_NOT_FOUND',
+    'CUSTOMER_UNREACHABLE',
+    'CUSTOMER_REFUSED',
+    'DAMAGED_PACKAGE',
+    'PAYMENT_ISSUE',
+    'OTHER'
+  )),
   description TEXT,
   created_at  TIMESTAMP NOT NULL DEFAULT NOW()
 );
