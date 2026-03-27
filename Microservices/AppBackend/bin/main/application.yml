@@ -30,6 +30,12 @@ app:
     secret: ${JWT_SECRET:asmsecret2026}
     access-expiry-ms: ${APP_JWT_ACCESS_EXPIRY_MS:3600000}
 
+odoo:
+  url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}
+  db: ${ODOO_DB:odoo}
+  uid: ${ODOO_UID:2}
+  password: ${ODOO_PASSWORD:admin}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(docker compose:*)",
+      "Bash(netstat -ano)",
+      "Bash(findstr :5433)",
+      "Bash(tasklist /FI \"PID eq 12700\")",
+      "Bash(docker ps:*)",
+      "Bash(APP_BACKEND_DB_HOST_PORT=5435 docker compose up -d --build)",
+      "Bash(APP_BACKEND_DB_HOST_PORT=5435 docker compose up -d --build --force-recreate)",
+      "Bash(APP_BACKEND_DB_HOST_PORT=5435 docker compose build --no-cache)",
+      "Bash(docker build:*)",
+      "Bash(docker images:*)",
+      "Bash(docker exec:*)"
+    ]
+  }
+}

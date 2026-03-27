@@ -59,6 +59,16 @@ app:
     postal-code: ${WAREHOUSE_POSTAL_CODE:1000}
     country-code: ${WAREHOUSE_COUNTRY_CODE:TN}
 
+  security:
+    trust-gateway-headers: false
+    gateway-secret: ${GATEWAY_SECRET:}
+
+odoo:
+  url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}
+  db: ${ODOO_DB:odoo}
+  uid: ${ODOO_UID:2}
+  password: ${ODOO_PASSWORD:admin}
+
 springdoc:
   swagger-ui:
     path: /swagger-ui.html

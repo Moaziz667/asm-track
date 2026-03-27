@@ -227,3 +227,21 @@ CREATE TABLE IF NOT EXISTS delivery_reports (
 
 -- Add city column to drivers table
 ALTER TABLE drivers ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+
+-- Add Odoo integration columns to orders table
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS client_odoo_partner_id INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS odoo_sync_status VARCHAR(20) DEFAULT 'SYNCED';
+
+-- ── Proof of Delivery ─────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS proof_of_delivery (
+  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  delivery_id      UUID NOT NULL UNIQUE REFERENCES deliveries(id),
+  photo_base64     TEXT,
+  signature_base64 TEXT NOT NULL,
+  comment          TEXT,
+  collected_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+  lat              NUMERIC(10,7),
+  lng              NUMERIC(10,7)
+);
+
+CREATE INDEX IF NOT EXISTS idx_pod_delivery_id ON proof_of_delivery(delivery_id);

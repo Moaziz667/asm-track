@@ -6,13 +6,16 @@ import com.asm.delivery.dto.response.CancellableResponse;
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -29,6 +32,7 @@ public class OrderService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
+    private final OdooSyncService    odooSyncService;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -46,7 +50,7 @@ public class OrderService {
     // ── Client REST entry point ───────────────────────────────────────────────
 
     @Transactional
-    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone) {
+    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone, Integer odooPartnerId) {
         // Build items and calculate totals
         List<OrderItem> items = req.getItems() != null ? req.getItems() : List.of();
         int totalQty = items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
@@ -69,6 +73,7 @@ public class OrderService {
                 .clientId(clientId)
                 .clientName(clientName)
                 .clientPhone(clientPhone)
+                .clientOdooPartnerId(odooPartnerId)
                 .originName(originName)
                 .originAddress(originAddress)
                 .originCity(originCity)
@@ -97,6 +102,13 @@ public class OrderService {
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
+
+        try {
+            odooSyncService.syncOrderCreation(order);
+        } catch (RuntimeException e) {
+            log.error("Odoo sync failed on order creation, rolling back. orderId={}", order.getId(), e);
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable");
+        }
 
         return toOrderResponse(order, delivery);
     }
@@ -201,6 +213,8 @@ public class OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
+
+        odooSyncService.syncOrderCancellation(order);
     }
 
     @Transactional(readOnly = true)

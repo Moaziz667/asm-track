@@ -33,7 +33,7 @@ public class OrderController {
             @Valid @RequestBody CreateOrderRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
 
-        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getName(), principal.getPhone());
+        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getName(), principal.getPhone(), principal.getOdooPartnerId());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

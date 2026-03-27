@@ -25,3 +25,6 @@ CREATE TABLE IF NOT EXISTS client_otp (
 
 CREATE INDEX IF NOT EXISTS idx_client_otp_phone ON client_otp(phone);
 CREATE INDEX IF NOT EXISTS idx_client_otp_created_at ON client_otp(created_at DESC);
+
+-- Odoo integration
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS odoo_partner_id INTEGER;
