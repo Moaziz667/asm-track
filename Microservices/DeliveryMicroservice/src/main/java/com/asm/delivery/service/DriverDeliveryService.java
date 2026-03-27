@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ public class DriverDeliveryService {
     private final DeliveryReportRepository        reportRepo;
     private final DriverRepository                driverRepo;
     private final EventPublisher                  eventPublisher;
+    private final OdooSyncService                 odooSyncService;
 
         private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED,
@@ -38,12 +40,7 @@ public class DriverDeliveryService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getAvailable(UUID driverId) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> new AppException(org.springframework.http.HttpStatus.NOT_FOUND, "Driver not found"));
-
         return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.WAITING_DRIVER).stream()
-                .filter(delivery -> delivery.getOrder().getDropoffCity() != null &&
-                        delivery.getOrder().getDropoffCity().equalsIgnoreCase(driver.getCity()))
                 .map(this::toDriverDeliveryResponse)
                 .toList();
     }
@@ -91,12 +88,6 @@ public class DriverDeliveryService {
 
         if (delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
             throw AppException.conflict("Delivery is no longer available");
-        }
-
-        String driverCity = driver.getCity();
-        String dropoffCity = delivery.getOrder() != null ? delivery.getOrder().getDropoffCity() : null;
-        if (driverCity == null || dropoffCity == null || !dropoffCity.equalsIgnoreCase(driverCity)) {
-            throw AppException.forbidden("Delivery is outside your city");
         }
 
         // Atomic UPDATE — 0 rows = race condition
@@ -167,6 +158,11 @@ public class DriverDeliveryService {
 
         appendHistory(delivery, DeliveryStatus.DELIVERED, driverId.toString(), Role.DRIVER, "Delivery completed");
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
+
+        // Sync Odoo: validate transfer → create invoice → handle payment
+        if (delivery.getOrder() != null) {
+            odooSyncService.syncStockUpdate(delivery.getOrder());
+        }
 
         return toDriverDeliveryResponse(delivery);
     }

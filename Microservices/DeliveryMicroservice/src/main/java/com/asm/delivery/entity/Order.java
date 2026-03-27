@@ -143,6 +143,14 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
+    // ── Odoo integration ──────────────────────────────────────────────────────
+    @Column(name = "client_odoo_partner_id")
+    private Integer clientOdooPartnerId;
+
+    @Column(name = "odoo_sync_status", length = 20)
+    @Builder.Default
+    private String odooSyncStatus = "SYNCED";
+
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;

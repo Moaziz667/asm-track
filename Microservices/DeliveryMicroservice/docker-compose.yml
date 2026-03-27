@@ -61,6 +61,15 @@ services:
       # JSON Web Token
       JWT_SECRET:       asmsecret2026
 
+      # Odoo ERP
+      ODOO_URL:         http://host.docker.internal:8069/jsonrpc
+      ODOO_DB:          odoo
+      ODOO_UID:         "2"
+      ODOO_PASSWORD:    admin
+
+      # Gateway security
+      GATEWAY_SECRET:   asm-gateway-secret-2026
+
     depends_on:
       delivery-db:
         condition: service_healthy

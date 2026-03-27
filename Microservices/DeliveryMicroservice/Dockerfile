@@ -6,6 +6,9 @@ COPY settings.gradle build.gradle ./
 # Cache dependency resolution layer
 RUN gradle dependencies --no-daemon --quiet || true
 
+# ARG must be USED in a RUN to bust subsequent COPY cache
+ARG CACHE_BUST=1
+RUN echo "Cache bust: $CACHE_BUST"
 COPY src ./src
 RUN gradle bootJar --no-daemon -x test
 
