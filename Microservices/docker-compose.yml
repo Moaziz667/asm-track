@@ -1,30 +1,221 @@
 version: '3.9'
 
-# ──────────────────────────────────────────────────────────────
-# ⚠️  This file is superseded. Use the split compose files:
-#
-#   docker-compose.shared.yml   ← Postgres + RabbitMQ (always required)
-#   docker-compose.odoo.yml     ← Odoo source
-#   docker-compose.shopify.yml  ← Shopify source
-#   clients/clientA.env         ← Client-specific credentials & DB name
-#
-# ── Examples ───────────────────────────────────────────────────
-#
-# Client with Odoo + Shopify:
-#   docker compose \
-#     -f docker-compose.shared.yml \
-#     -f docker-compose.odoo.yml \
-#     -f docker-compose.shopify.yml \
-#     --env-file clients/clientA.env up -d
-#
-# Client with Odoo only:
-#   docker compose \
-#     -f docker-compose.shared.yml \
-#     -f docker-compose.odoo.yml \
-#     --env-file clients/clientB.env up -d
-#
-# ── First-run: create the client database ──────────────────────
-#   docker exec mapper-postgres psql -U mapper -c "CREATE DATABASE mapper_clientA;"
-# ──────────────────────────────────────────────────────────────
+services:
 
-services: {}
+  #  RABBITMQ 
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  #  POSTGRES DATABASES 
+  postgres-app:
+    image: postgres:16-alpine
+    container_name: postgres-app
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: app_user
+      POSTGRES_PASSWORD: app_password
+      POSTGRES_DB: app_db
+    volumes:
+      - app-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U app_user -d app_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-delivery:
+    image: postgres:16-alpine
+    container_name: postgres-delivery
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: delivery
+      POSTGRES_PASSWORD: delivery
+      POSTGRES_DB: delivery_db
+    volumes:
+      - delivery-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U delivery -d delivery_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  postgres-driver:
+    image: postgres:16-alpine
+    container_name: postgres-driver
+    ports:
+      - "5437:5432"
+    environment:
+      POSTGRES_USER: driver
+      POSTGRES_PASSWORD: driver
+      POSTGRES_DB: driver_db
+    volumes:
+      - driver-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U driver -d driver_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  #  MINIO FILE STORAGE
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: asmtracking
+      MINIO_ROOT_PASSWORD: asmtracking2026
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  #  CORE MICROSERVICES
+  app-backend:
+    build:
+      context: ./AppBackend
+      dockerfile: Dockerfile
+    container_name: app-backend
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
+      SPRING_DATASOURCE_USERNAME: app_user
+      SPRING_DATASOURCE_PASSWORD: app_password
+      JWT_SECRET: asmsecret2026
+      ODOO_URL: http://host.docker.internal:8069/jsonrpc
+      ODOO_DB: DBTEST
+      ODOO_UID: "2"
+      ODOO_PASSWORD: admin
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - asm-network
+
+  delivery-service:
+    build:
+      context: ./DeliveryMicroservice
+      dockerfile: Dockerfile
+    container_name: delivery-service
+    ports:
+      - "8082:8082"
+    environment:
+      DB_HOST: postgres-delivery
+      DB_PORT: "5432"
+      DB_NAME: delivery_db
+      DB_USER: delivery
+      DB_PASS: delivery
+      JWT_SECRET: asmsecret2026
+      RABBITMQ_HOST: rabbitmq
+      DRIVER_SERVICE_URL: http://driver-service:8086
+      INTERNAL_SECRET: asm-internal-2026
+      ODOO_URL: http://host.docker.internal:8069/jsonrpc
+      ODOO_DB: DBTEST
+      ODOO_UID: "2"
+      ODOO_PASSWORD: admin
+      TRANSPORT_PROVIDER: internal
+      MINIO_URL: http://minio:9000
+      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_ACCESS_KEY: asmtracking
+      MINIO_SECRET_KEY: asmtracking2026
+      MINIO_BUCKET: pod-files
+    depends_on:
+      postgres-delivery:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - asm-network
+
+  driver-service:
+    build:
+      context: ./DriverService
+      dockerfile: Dockerfile
+    container_name: driver-service
+    ports:
+      - "8086:8086"
+    environment:
+      DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
+      DB_USER: driver
+      DB_PASS: driver
+      JWT_SECRET: asmsecret2026
+      INTERNAL_SECRET: asm-internal-2026
+    depends_on:
+      postgres-driver:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - asm-network
+
+  #  API GATEWAY 
+  api-gateway:
+    build:
+      context: ./ApiGateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    ports:
+      - "80:80"
+    environment:
+      APP_BACKEND_URL: http://app-backend:8080
+      DELIVERY_SERVICE_URL: http://delivery-service:8082
+      DRIVER_SERVICE_URL: http://driver-service:8086
+      JWT_SECRET: asmsecret2026
+    depends_on:
+      - app-backend
+      - delivery-service
+      - driver-service
+    restart: unless-stopped
+    networks:
+      - asm-network
+
+ 
+volumes:
+  rabbitmq-data:
+  app-pgdata:
+  delivery-pgdata:
+  driver-pgdata:
+  minio_data:
+
+networks:
+  asm-network:
+    driver: bridge

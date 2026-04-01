@@ -34,6 +34,10 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             return chain.filter(exchange);
         }
 
+        if (path.startsWith("/internal/")) {
+            return writeError(exchange.getResponse(), HttpStatus.FORBIDDEN, "Direct access to internal endpoints is blocked");
+        }
+
         if (isPublic(path)) {
             return chain.filter(exchange);
         }
@@ -63,10 +67,17 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
                 return writeError(exchange.getResponse(), HttpStatus.FORBIDDEN, "Access denied for role " + normalizedRole);
             }
 
-            ServerHttpRequest mutatedRequest = exchange.getRequest().mutate()
+            ServerHttpRequest.Builder reqBuilder = exchange.getRequest().mutate()
                     .header("X-User-Id", userId)
-                    .header("X-User-Role", normalizedRole)
-                    .build();
+                    .header("X-User-Role", normalizedRole);
+                    
+            if (claims.get("name", String.class) != null) {
+                reqBuilder.header("X-User-Name", claims.get("name", String.class));
+            }
+            if (claims.get("odooPartnerId", Integer.class) != null) {
+                reqBuilder.header("X-Odoo-Partner-Id", String.valueOf(claims.get("odooPartnerId", Integer.class)));
+            }
+            ServerHttpRequest mutatedRequest = reqBuilder.build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
         } catch (JwtException | IllegalArgumentException ex) {
@@ -76,6 +87,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isPublic(String path) {
+        if (path.startsWith("/api/dev/")) {
+            return true;
+        }
         return path.startsWith("/api/auth/");
     }
 
@@ -86,8 +100,26 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if (path.startsWith("/api/driver/")) {
             return "DRIVER".equals(role);
         }
+        if (path.startsWith("/api/admin/routes/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
+        }
+        if (path.startsWith("/api/admin/vehicles/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
+        }
+        if (path.startsWith("/api/admin/reports/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
+        }
+        if (path.startsWith("/api/admin/deliveries/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
+        }
+        if (path.startsWith("/api/admin/users/")) {
+            return "ADMIN".equals(role);
+        }
         if (path.startsWith("/api/deliveries/")) {
-            return "CLIENT".equals(role) || "DRIVER".equals(role);
+            return "CLIENT".equals(role) || "DRIVER".equals(role) || "DISPATCHER".equals(role) || "ADMIN".equals(role);
+        }
+        if (path.startsWith("/api/users/")) {
+            return "CLIENT".equals(role);
         }
         return true;
     }
@@ -105,3 +137,4 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         return -100;
     }
 }
+

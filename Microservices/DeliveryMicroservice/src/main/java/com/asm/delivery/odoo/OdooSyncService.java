@@ -2,41 +2,75 @@ package com.asm.delivery.odoo;
 
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.OrderSource;
-import com.asm.delivery.entity.PaymentType;
+import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.repository.OrderRepository;
+import com.asm.delivery.odoo.sync.FullDeliverySync;
+import com.asm.delivery.odoo.sync.PartialDeliverySync;
+import com.asm.delivery.odoo.sync.FailedDeliverySync;
+import com.asm.delivery.odoo.sync.CancelOrderSync;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class OdooSyncService {
 
+    private static final String SYNCED = "SYNCED";
+    private static final String PENDING_RETRY = "PENDING_RETRY";
+    private static final String PENDING_CANCEL = "PENDING_CANCEL";
+
     private final OdooClient odooClient;
+    private final ErpClientResolver erpClientResolver;
     private final OrderRepository orderRepo;
+
+    private final FullDeliverySync fullDeliverySync;
+    private final PartialDeliverySync partialDeliverySync;
+    private final FailedDeliverySync failedDeliverySync;
+    private final CancelOrderSync cancelOrderSync;
 
     // ── Sync order creation to Odoo (APP orders only) ─────────────────────────
 
     public void syncOrderCreation(Order order) {
+        if (order.getSource() == OrderSource.ODOO) {
+            log.info("Skipping Odoo order creation sync for ODOO source orderId={}", order.getId());
+            return;
+        }
         if (order.getSource() != OrderSource.APP) return;
-        if (order.getClientOdooPartnerId() == null) return;
 
-        log.info("Syncing order creation to Odoo — orderId={} partnerId={}",
-                order.getId(), order.getClientOdooPartnerId());
+        String erpClientId = order.getErpClientId();
+        if (erpClientId == null || erpClientId.isBlank()) {
+            erpClientId = erpClientResolver.resolve(order.getClientName(), order.getClientPhone());
+            if (erpClientId != null && !erpClientId.isBlank()) {
+                order.setErpClientId(erpClientId);
+                orderRepo.save(order);
+            }
+        }
 
-        // Update partner address with delivery address (best effort)
-        odooClient.updatePartnerAddress(
-                order.getClientOdooPartnerId(),
-                order.getDropoffAddress(),
-                order.getDropoffCity()
-        );
+        if (erpClientId == null || erpClientId.isBlank()) {
+            log.warn("Could not resolve ERP client, skipping sync. orderId={}", order.getId());
+            return;
+        }
 
-        Integer odooId = odooClient.createSaleOrder(
-                order.getClientOdooPartnerId(),
-                order.getItems(),
-                order.getDeliveryInstructions()
-        );
+        Integer partnerId;
+        try {
+            partnerId = Integer.parseInt(erpClientId);
+        } catch (NumberFormatException e) {
+            log.warn("Could not parse erpClientId='{}', skipping sync. orderId={}", erpClientId, order.getId());
+            return;
+        }
+
+        log.info("Syncing order creation to Odoo — orderId={} partnerId={}", order.getId(), partnerId);
+
+        odooClient.updatePartnerAddress(partnerId, order.getDropoffAddress(), order.getDropoffCity());
+
+        Integer odooId = odooClient.createSaleOrder(partnerId, order.getItems(), order.getDeliveryInstructions());
 
         if (odooId == null) {
             throw new RuntimeException("Odoo sync failed for orderId=" + order.getId());
@@ -47,92 +81,65 @@ public class OdooSyncService {
         log.info("Order creation synced to Odoo — orderId={} erpOrderId={}", order.getId(), odooId);
     }
 
-    // ── Sync order cancellation to Odoo (3 retries, never throws) ────────────
+    // ── Sync order cancellation to Odoo ───────────────────────────────────────
 
     public void syncOrderCancellation(Order order) {
         if (order.getErpOrderId() == null) return;
 
-        int erpId;
-        try {
-            erpId = Integer.parseInt(order.getErpOrderId());
-        } catch (NumberFormatException e) {
-            log.warn("Cannot parse erpOrderId='{}' as integer for orderId={} — skipping Odoo cancel",
-                    order.getErpOrderId(), order.getId());
-            return;
-        }
+        Integer erpId = resolveErpSaleOrderId(order, "cancel");
+        if (erpId == null) return;
 
-        log.info("Syncing order cancellation to Odoo — orderId={} erpOrderId={}", order.getId(), erpId);
-
-        int attempts = 0;
-        boolean success = false;
-        while (attempts < 3 && !success) {
-            if (attempts > 0) {
-                try { Thread.sleep(1000); } catch (InterruptedException ie) {
-                    Thread.currentThread().interrupt();
-                    break;
-                }
-            }
-            success = odooClient.cancelSaleOrder(erpId);
-            attempts++;
-        }
-
-        if (!success) {
-            log.warn("Odoo cancel failed after {} attempts — marking PENDING_CANCEL orderId={}", attempts, order.getId());
-            order.setOdooSyncStatus("PENDING_CANCEL");
-            orderRepo.save(order);
-        } else {
-            log.info("Order cancellation synced to Odoo — orderId={} erpOrderId={}", order.getId(), erpId);
-        }
+        boolean success = cancelOrderSync.sync(order, erpId);
+        order.setOdooSyncStatus(success ? SYNCED : PENDING_CANCEL);
+        orderRepo.save(order);
     }
 
-    // ── Sync stock update to Odoo: validate transfer → invoice → payment ──────
+    // ── Sync full stock update to Odoo ────────────────────────────────────────
 
     public void syncStockUpdate(Order order) {
         if (order.getErpOrderId() == null) return;
 
-        int erpId;
-        try {
-            erpId = Integer.parseInt(order.getErpOrderId());
-        } catch (NumberFormatException e) {
-            log.warn("Cannot parse erpOrderId='{}' as integer for orderId={} — skipping stock update",
-                    order.getErpOrderId(), order.getId());
-            return;
-        }
+        Integer erpId = resolveErpSaleOrderId(order, "stock update");
+        if (erpId == null) return;
 
-        log.info("Syncing delivery completion to Odoo — orderId={} erpOrderId={} paymentType={}",
-                order.getId(), erpId, order.getPaymentType());
+        boolean success = fullDeliverySync.sync(order, erpId);
+        order.setOdooSyncStatus(success ? SYNCED : PENDING_RETRY);
+        orderRepo.save(order);
+    }
 
-        // Step 1: validate transfer (stock out)
-        try {
-            boolean transferOk = odooClient.validateTransfer(erpId);
-            log.info("Odoo validateTransfer — orderId={} erpOrderId={} success={}", order.getId(), erpId, transferOk);
-        } catch (Exception e) {
-            log.error("Odoo validateTransfer threw unexpectedly — orderId={}: {}", order.getId(), e.getMessage());
-        }
+    // ── Sync partial stock update to Odoo ─────────────────────────────────────
 
-        // Step 2: create invoice
-        Integer invoiceId = null;
-        try {
-            invoiceId = odooClient.createInvoice(erpId);
-            log.info("Odoo createInvoice — orderId={} erpOrderId={} invoiceId={}", order.getId(), erpId, invoiceId);
-        } catch (Exception e) {
-            log.error("Odoo createInvoice threw unexpectedly — orderId={}: {}", order.getId(), e.getMessage());
-        }
+    public void syncPartialStockUpdate(Order order, List<PartialDeliveryItem> partialItems) {
+        if (order.getErpOrderId() == null) return;
 
-        // Step 3: handle payment based on payment type
-        if (invoiceId != null) {
-            if (order.getPaymentType() == PaymentType.PREPAID) {
-                try {
-                    boolean paid = odooClient.registerPayment(invoiceId);
-                    log.info("Invoice auto-paid (PREPAID) — orderId={} invoiceId={} success={}", order.getId(), invoiceId, paid);
-                } catch (Exception e) {
-                    log.error("Odoo registerPayment threw unexpectedly — orderId={}: {}", order.getId(), e.getMessage());
-                }
-            } else {
-                log.info("Invoice left unpaid (COD) - accountant will handle — orderId={} invoiceId={}", order.getId(), invoiceId);
-            }
-        } else {
-            log.warn("Skipping payment step — invoice creation returned null for orderId={}", order.getId());
-        }
+        Integer erpId = resolveErpSaleOrderId(order, "partial stock update");
+        if (erpId == null) return;
+
+        boolean success = partialDeliverySync.sync(order, erpId, partialItems);
+        order.setOdooSyncStatus(success ? SYNCED : PENDING_RETRY);
+        orderRepo.save(order);
+    }
+
+    // ── Append failure note to Odoo sale order ────────────────────────────────
+
+    public void syncFailure(Order order, String failureCode, String comment) {
+        if (order.getErpOrderId() == null) return;
+
+        Integer erpId = resolveErpSaleOrderId(order, "failure note");
+        if (erpId == null) return;
+
+        failedDeliverySync.sync(order, erpId, failureCode, comment);
+    }
+
+    // ── Retry Logic ───────────────────────────────────────────────────────────
+    // Retry logic has been removed to strictly focus on the core 4 flows and prevent side effects.
+
+    private Integer resolveErpSaleOrderId(Order order, String operation) {
+        Integer erpId = odooClient.resolveSaleOrderId(order.getErpOrderId());
+        if (erpId != null) return erpId;
+
+        log.warn("Could not resolve erpOrderId='{}' for orderId={} during {} — skipping Odoo sync",
+                order.getErpOrderId(), order.getId(), operation);
+        return null;
     }
 }

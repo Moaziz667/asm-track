@@ -50,6 +50,17 @@ public class JwtService {
         return builder.signWith(key).compact();
     }
 
+    public String generateAdminToken(String subject, String role, String name) {
+        return Jwts.builder()
+                .subject(subject)
+                .claim("role", role)
+                .claim("name", name)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + accessExpiryMs))
+                .signWith(key)
+                .compact();
+    }
+
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(key)

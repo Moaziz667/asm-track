@@ -1,0 +1,104 @@
+package com.asm.delivery.controller;
+
+import com.asm.delivery.dto.request.AssignDeliveryRequest;
+import com.asm.delivery.dto.response.AdminDeliveryDetailResponse;
+import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
+import com.asm.delivery.dto.response.AdminDriverResponse;
+import com.asm.delivery.dto.response.AdminStatsResponse;
+import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
+import com.asm.delivery.entity.DeliveryStatus;
+import com.asm.delivery.entity.OrderSource;
+import com.asm.delivery.idempotency.IdempotentOperation;
+import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.ProofOfDeliveryService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import org.springdoc.core.annotations.ParameterObject;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.*;
+
+import java.time.LocalDate;
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequestMapping("/api/admin/deliveries")
+@Tag(name = "Admin Deliveries", description = "Administrative delivery monitoring APIs")
+@SecurityRequirement(name = "Bearer Authentication")
+@RequiredArgsConstructor
+public class AdminDeliveryController {
+
+    private final AdminDeliveryService adminDeliveryService;
+    private final ProofOfDeliveryService podService;
+
+    @GetMapping
+    @Operation(summary = "List deliveries with filters and pagination")
+    public ResponseEntity<Page<AdminDeliverySummaryResponse>> list(
+            @RequestParam(required = false) DeliveryStatus status,
+            @RequestParam(required = false) UUID driverId,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+            LocalDate date,
+            @RequestParam(required = false) OrderSource source,
+            @RequestParam(required = false) String zone,
+            @ParameterObject Pageable pageable
+    ) {
+        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, zone, pageable));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get delivery detail including order and history")
+    public ResponseEntity<AdminDeliveryDetailResponse> detail(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminDeliveryService.getDeliveryDetail(id));
+    }
+
+    @PostMapping("/{id}/assign")
+    @Operation(summary = "Assign a waiting delivery to a driver")
+    @IdempotentOperation
+    public ResponseEntity<AdminDeliveryDetailResponse> assign(
+            @PathVariable UUID id,
+            @Valid @RequestBody AssignDeliveryRequest request) {
+        return ResponseEntity.ok(adminDeliveryService.assignDelivery(id, request));
+    }
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel a delivery before it is in transit. Deletes the delivery and reverts order to PENDING.")
+    @IdempotentOperation
+    public ResponseEntity<Void> cancel(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String reason) {
+        adminDeliveryService.cancelDelivery(id, reason);
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/{id}/create-backorder")
+    @Operation(summary = "Create a new Delivery task for the backordered items")
+    @IdempotentOperation
+    public ResponseEntity<AdminDeliveryDetailResponse> createBackorder(@PathVariable UUID id) {
+        return ResponseEntity.ok(adminDeliveryService.createBackorderDelivery(id));
+    }
+
+    @GetMapping("/drivers")
+    @Operation(summary = "List drivers with availability and active deliveries")
+    public ResponseEntity<List<AdminDriverResponse>> drivers() {
+        return ResponseEntity.ok(adminDeliveryService.getDrivers());
+    }
+
+    @GetMapping("/stats")
+    @Operation(summary = "Aggregated stats for today, per driver and failures")
+    public ResponseEntity<AdminStatsResponse> stats() {
+        return ResponseEntity.ok(adminDeliveryService.getStats());
+    }
+
+    @GetMapping("/{id}/pod")
+    @Operation(summary = "Get proof of delivery for auditing")
+    public ResponseEntity<ProofOfDeliveryResponse> getPod(@PathVariable UUID id) {
+        return ResponseEntity.ok(podService.getPodAdmin(id));
+    }
+}

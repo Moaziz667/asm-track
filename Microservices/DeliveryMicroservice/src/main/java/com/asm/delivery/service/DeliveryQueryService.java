@@ -4,6 +4,8 @@ import com.asm.delivery.dto.response.*;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.*;
+import com.asm.delivery.transport.DriverDTO;
+import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,12 +14,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
-/**
- * Read-only queries for the client-facing delivery + tracking + history endpoints.
- * GET /api/deliveries/{id}
- * GET /api/deliveries/{id}/tracking
- * GET /api/deliveries/{id}/history
- */
 @Service
 @RequiredArgsConstructor
 public class DeliveryQueryService {
@@ -25,9 +21,9 @@ public class DeliveryQueryService {
     private final DeliveryRepository              deliveryRepo;
     private final TrackingRepository              trackingRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
-    private final DriverRepository                driverRepo;
+    private final TransportPort                   transportPort;
 
-    // ── Get delivery (client view) ────────────────────────────────────────────
+    // ── Get delivery (client/driver view) ─────────────────────────────────────
 
     @Transactional(readOnly = true)
     public DeliveryResponse getDelivery(UUID deliveryId, String requesterId, String requesterRole) {
@@ -63,9 +59,9 @@ public class DeliveryQueryService {
         assertAccessToDelivery(delivery, requesterId, requesterRole);
 
         return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId).stream()
-            .map(h -> new StatusHistoryResponse(h.getStatus().name(), h.getChangedBy(),
-                h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
-                h.getNote(), h.getChangedAt()))
+                .map(h -> new StatusHistoryResponse(h.getStatus().name(), h.getChangedBy(),
+                        h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
+                        h.getNote(), h.getChangedAt()))
                 .collect(Collectors.toList());
     }
 
@@ -73,8 +69,7 @@ public class DeliveryQueryService {
 
     private void assertAccessToDelivery(Delivery delivery, String requesterId, String requesterRole) {
         if ("DRIVER".equals(requesterRole)) {
-            // Driver can see their deliveries or any WAITING_DRIVER delivery
-                if (delivery.getDriverId() != null && !delivery.getDriverId().toString().equals(requesterId)
+            if (delivery.getDriverId() != null && !delivery.getDriverId().toString().equals(requesterId)
                     && delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
                 throw AppException.forbidden("Not your delivery");
             }
@@ -84,20 +79,18 @@ public class DeliveryQueryService {
                 throw AppException.forbidden("Not your delivery");
             }
         }
+        // DISPATCHER / ADMIN — no restriction
     }
 
     public DeliveryResponse toDeliveryResponse(Delivery delivery) {
         String driverName  = null;
         String driverPhone = null;
+
         if (delivery.getDriverId() != null) {
-            driverRepo.findById(delivery.getDriverId()).ifPresent(d -> {
-                // we set these using a builder later — using a holder
-            });
-            // Use a separate lookup to enrich with driver info
-            var driverOpt = driverRepo.findById(delivery.getDriverId());
-            if (driverOpt.isPresent()) {
-                driverName  = driverOpt.get().getName();
-                driverPhone = driverOpt.get().getPhone();
+            DriverDTO driver = transportPort.getDriver(delivery.getDriverId().toString());
+            if (driver != null) {
+                driverName  = driver.getName();
+                driverPhone = driver.getPhone();
             }
         }
 

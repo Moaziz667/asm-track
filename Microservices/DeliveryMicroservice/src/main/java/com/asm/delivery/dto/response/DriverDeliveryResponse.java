@@ -30,8 +30,6 @@ public class DriverDeliveryResponse {
 
     // financial info (driver needs this for COD)
     private BigDecimal    totalAmount;
-    private String        paymentType;
-    private BigDecimal    amountToCollect;
     private String        currency;
 
     // items

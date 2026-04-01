@@ -19,4 +19,6 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     Optional<Order> findByErpOrderId(String erpOrderId);
 
     boolean existsByErpOrderId(String erpOrderId);
+
+    List<Order> findTop100ByOdooSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
 }

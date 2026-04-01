@@ -11,7 +11,16 @@
       "Bash(APP_BACKEND_DB_HOST_PORT=5435 docker compose build --no-cache)",
       "Bash(docker build:*)",
       "Bash(docker images:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(find 'c:/Users/M S I/OneDrive/Documents/PFE' -name *.java -path */AppBackend/*)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(npx shadcn@latest add sheet badge separator textarea switch label alert -y)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(find /c/Users/M S I/OneDrive/Documents/PFE/Microservices/DriverService -type f \\\\\\(-name *.sql -o -name *.properties -o -name *.yml \\\\\\))",
+      "Bash(grep -E \"^[^/]*$|lib|src\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File run_scenarios.ps1)",
+      "Bash(powershell -ExecutionPolicy Bypass -File create_odoo_test_orders.ps1)"
     ]
   }
 }

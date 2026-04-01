@@ -5,6 +5,7 @@ import com.asm.delivery.dto.request.CreateOrderRequest;
 import com.asm.delivery.dto.response.CancellableResponse;
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.*;
+import com.asm.delivery.erp.ErpLookupService;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.repository.*;
@@ -33,6 +34,7 @@ public class OrderService {
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
     private final OdooSyncService    odooSyncService;
+    private final ErpLookupService   erpLookupService;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -45,12 +47,12 @@ public class OrderService {
     @Value("${app.origin.country-code:TN}")
     private String originCountryCode;
 
-    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED);
+    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.PARTIALLY_DELIVERED);
 
     // ── Client REST entry point ───────────────────────────────────────────────
 
     @Transactional
-    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone, Integer odooPartnerId) {
+    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone) {
         // Build items and calculate totals
         List<OrderItem> items = req.getItems() != null ? req.getItems() : List.of();
         int totalQty = items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
@@ -73,7 +75,6 @@ public class OrderService {
                 .clientId(clientId)
                 .clientName(clientName)
                 .clientPhone(clientPhone)
-                .clientOdooPartnerId(odooPartnerId)
                 .originName(originName)
                 .originAddress(originAddress)
                 .originCity(originCity)
@@ -88,8 +89,6 @@ public class OrderService {
                 .deliveryInstructions(req.getDeliveryInstructions())
                 .totalAmount(req.getTotalAmount())
                 .currency("TND")
-                .paymentType(req.getPaymentType())
-                .amountToCollect(req.getAmountToCollect())
                 .scheduledAt(parseDateTime(req.getScheduledAt()))
                 .priority(req.getPriority() != null ? req.getPriority() : OrderPriority.NORMAL)
                 .items(items)
@@ -102,6 +101,7 @@ public class OrderService {
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
+        erpLookupService.invalidateCache();
 
         try {
             odooSyncService.syncOrderCreation(order);
@@ -141,6 +141,7 @@ public class OrderService {
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order received from Odoo");
         eventPublisher.publishDeliveryCreated(order, delivery);
+        erpLookupService.invalidateCache();
 
         log.info("Created Odoo order id={} erpOrderId={}", order.getId(), erpOrderId);
     }
@@ -189,10 +190,13 @@ public class OrderService {
 
         if (delivery != null) {
             DeliveryStatus ds = delivery.getStatus();
-            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT || ds == DeliveryStatus.DELIVERED) {
+            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT) {
                 throw AppException.forbidden("Cannot cancel order that is being delivered");
             }
-            if (ds == DeliveryStatus.CANCELLED || ds == DeliveryStatus.FAILED) {
+            if (ds == DeliveryStatus.DELIVERED
+                    || ds == DeliveryStatus.PARTIALLY_DELIVERED
+                    || ds == DeliveryStatus.CANCELLED
+                    || ds == DeliveryStatus.FAILED) {
                 throw AppException.conflict("Order is already in terminal state");
             }
 
@@ -269,8 +273,6 @@ public class OrderService {
                 .deliveryInstructions(original.getDeliveryInstructions())
                 .totalAmount(original.getTotalAmount())
                 .currency(original.getCurrency())
-                .paymentType(original.getPaymentType())
-                .amountToCollect(original.getAmountToCollect())
                 .priority(original.getPriority())
                 .items(original.getItems())
                 .totalQuantity(original.getTotalQuantity())
@@ -327,8 +329,6 @@ public class OrderService {
                 .deliveryInstructions(order.getDeliveryInstructions())
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
-                .paymentType(order.getPaymentType().name())
-                .amountToCollect(order.getAmountToCollect())
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
@@ -338,6 +338,8 @@ public class OrderService {
                 .deliveryId(delivery != null ? delivery.getId() : null)
                 .deliveryStatus(delivery != null ? delivery.getStatus().name() : null)
                 .erpOrderId(order.getErpOrderId())
+                .odooSyncStatus(order.getOdooSyncStatus())
+                .odooBackorderId(order.getOdooBackorderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
@@ -414,8 +416,6 @@ public class OrderService {
 
             order.setTotalAmount(fin != null && fin.getTotalAmount() != null ? fin.getTotalAmount() : BigDecimal.ZERO);
             order.setCurrency(fin != null && StringUtils.hasText(fin.getCurrency()) ? fin.getCurrency() : "TND");
-            order.setPaymentType(parsePaymentType(fin != null ? fin.getPaymentType() : null));
-            order.setAmountToCollect(fin != null && fin.getAmountToCollect() != null ? fin.getAmountToCollect() : BigDecimal.ZERO);
 
             order.setScheduledAt(plan != null ? parseDateTime(plan.getScheduledAt()) : null);
             order.setPriority(parsePriority(plan != null ? plan.getPriority() : null));
@@ -429,15 +429,6 @@ public class OrderService {
                 order.setStatus(OrderStatus.PENDING);
             }
             }
-
-    private PaymentType parsePaymentType(String value) {
-        if (!StringUtils.hasText(value)) return PaymentType.COD;
-        try {
-            return PaymentType.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            return PaymentType.COD;
-        }
-    }
 
     private OrderPriority parsePriority(String value) {
         if (!StringUtils.hasText(value)) return OrderPriority.NORMAL;

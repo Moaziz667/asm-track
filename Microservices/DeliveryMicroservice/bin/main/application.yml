@@ -32,25 +32,11 @@ spring:
       schema-locations: classpath:schema.sql
       continue-on-error: true
 
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USER:guest}
-    password: ${RABBITMQ_PASS:guest}
-
 app:
   jwt:
     secret: ${JWT_SECRET:asmsecret2026}
     access-expiry-ms: 3600000     # 1 hour
     refresh-expiry-ms: 604800000  # 7 days
-
-  rabbitmq:
-    incoming-exchange: ${RABBITMQ_INCOMING_EXCHANGE:delivery.events}
-    outgoing-exchange: ${RABBITMQ_OUTGOING_EXCHANGE:delivery-service.events}
-    queue-orders-created: mapper.ready.canonical.queue
-    queue-workflow-commands: workflow.commands
-    queue-delivery-events-debug: delivery.events.debug
-    consume-canonical: true
 
   origin:
     name: ${WAREHOUSE_NAME:Main Warehouse}
@@ -63,11 +49,31 @@ app:
     trust-gateway-headers: false
     gateway-secret: ${GATEWAY_SECRET:}
 
+transport:
+  provider: ${TRANSPORT_PROVIDER:internal}
+
+driver:
+  service:
+    url: ${DRIVER_SERVICE_URL:http://driver-service:8086}
+
+internal:
+  secret: ${INTERNAL_SECRET:asm-internal-2026}
+
 odoo:
   url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}
   db: ${ODOO_DB:odoo}
   uid: ${ODOO_UID:2}
   password: ${ODOO_PASSWORD:admin}
+
+  retry:
+    fixed-delay-ms: ${ODOO_RETRY_FIXED_DELAY_MS:60000}
+
+minio:
+  url: ${MINIO_URL:http://localhost:9000}
+  public-url: ${MINIO_PUBLIC_URL:${MINIO_URL:http://localhost:9000}}
+  access-key: ${MINIO_ACCESS_KEY:asmtracking}
+  secret-key: ${MINIO_SECRET_KEY:asmtracking2026}
+  bucket: ${MINIO_BUCKET:pod-files}
 
 springdoc:
   swagger-ui:

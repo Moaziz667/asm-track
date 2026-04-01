@@ -4,10 +4,12 @@ import com.asm.delivery.dto.request.CancelDeliveryRequest;
 import com.asm.delivery.dto.request.FailDeliveryRequest;
 import com.asm.delivery.dto.request.LocationUpdateRequest;
 import com.asm.delivery.dto.request.ReportRequest;
+import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.MessageResponse;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.DriverDeliveryService;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -51,6 +53,15 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(deliveryService.getDelivery(id, UUID.fromString(principal.getUserId())));
     }
 
+    @PostMapping("/location")
+    @Operation(summary = "Update driver location and record tracking for active delivery")
+    public ResponseEntity<MessageResponse> updateLocation(
+            @Valid @RequestBody LocationUpdateRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        deliveryService.updateLocation(UUID.fromString(principal.getUserId()), req.getLat(), req.getLng());        
+        return ResponseEntity.ok(new MessageResponse("Location updated"));
+    }
+
     @PostMapping("/{id}/accept")
     @Operation(summary = "Accept a delivery (atomic — 409 if taken)")
     public ResponseEntity<DriverDeliveryResponse> accept(
@@ -79,7 +90,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/complete")
-    @Operation(summary = "Mark delivery as completed")
+    @Operation(summary = "Mark delivery as completed", description = "@Deprecated: Use /pod endpoint instead. Still works for backward compatibility.")
     public ResponseEntity<DriverDeliveryResponse> complete(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -92,7 +103,12 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody FailDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.fail(id, UUID.fromString(principal.getUserId()), req.getReason()));
+        return ResponseEntity.ok(deliveryService.fail(
+            id,
+            UUID.fromString(principal.getUserId()),
+            req.getFailureCode(),
+            req.getFailureComment()
+        ));
     }
 
     @PostMapping("/{id}/cancel")
@@ -113,5 +129,14 @@ public class DriverDeliveryController {
             @AuthenticationPrincipal UserPrincipal principal) {
         deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription());
         return ResponseEntity.ok(new MessageResponse("Report submitted"));
+    }
+
+    @PostMapping("/{id}/pod")
+    @Operation(summary = "Submit proof of delivery (POD)", description = "DRIVER only. Delivery must be IN_TRANSIT. Saves POD, completes delivery, triggers Odoo sync. Returns DELIVERED status.")
+    public ResponseEntity<DriverDeliveryResponse> submitPod(
+            @PathVariable UUID id,
+            @Valid @RequestBody ProofOfDeliveryRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req));
     }
 }

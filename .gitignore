@@ -6,7 +6,7 @@ Microservices/asm-canonical-model/
 node_modules/
 .pnp
 .pnp.js
-
+agent.md
 # Build outputs
 dist/
 build/

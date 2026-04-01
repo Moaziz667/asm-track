@@ -107,14 +107,6 @@ public class Order {
     @Builder.Default
     private String currency = "TND";
 
-    @Enumerated(EnumType.STRING)
-    @Column(name = "payment_type", nullable = false, length = 10)
-    private PaymentType paymentType;
-
-    @Column(name = "amount_to_collect", nullable = false, precision = 10, scale = 3)
-    @Builder.Default
-    private BigDecimal amountToCollect = BigDecimal.ZERO;
-
     // ── Planning ──────────────────────────────────────────────────────────────
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
@@ -144,12 +136,15 @@ public class Order {
     private OrderStatus status = OrderStatus.PENDING;
 
     // ── Odoo integration ──────────────────────────────────────────────────────
-    @Column(name = "client_odoo_partner_id")
-    private Integer clientOdooPartnerId;
+    @Column(name = "erp_client_id", length = 100)
+    private String erpClientId;
 
-    @Column(name = "odoo_sync_status", length = 20)
+    @Column(name = "odoo_sync_status", length = 40)
     @Builder.Default
     private String odooSyncStatus = "SYNCED";
+
+    @Column(name = "odoo_backorder_id")
+    private Integer odooBackorderId;
 
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")

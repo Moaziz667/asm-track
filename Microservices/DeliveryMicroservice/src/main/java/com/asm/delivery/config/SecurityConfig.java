@@ -40,9 +40,17 @@ public class SecurityConfig {
                 // Client-only routes
                 .requestMatchers("/api/orders/**").hasRole("CLIENT")
                 // Driver-only routes
+                .requestMatchers("/api/driver/deliveries/**").hasRole("DRIVER")
+                .requestMatchers("/api/driver/profile/**").hasRole("DRIVER")
+                .requestMatchers("/api/driver/location/**").hasRole("DRIVER")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
-                // Both client and driver
-                .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER")
+                // Admin stats — also allowed for MANAGER
+                .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                // Admin endpoints — ADMIN + DISPATCHER
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
+                // Deliveries — client, driver, dispatcher, admin
+                .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER", "DISPATCHER", "ADMIN")
                 // Anything else requires authentication
                 .anyRequest().authenticated()
             )

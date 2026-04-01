@@ -32,20 +32,23 @@ public class OrderController {
     public ResponseEntity<OrderResponse> create(
             @Valid @RequestBody CreateOrderRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-
-        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getName(), principal.getPhone(), principal.getOdooPartnerId());
+        // Legacy endpoint kept temporarily for backward compatibility.
+        // Strategic direction: confirmed orders should be imported from ERP.
+        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getName(), principal.getPhone());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
     @GetMapping
     @Operation(summary = "Get all orders for the authenticated client")
     public ResponseEntity<List<OrderResponse>> getAll(@AuthenticationPrincipal UserPrincipal principal) {
+        // Legacy endpoint kept temporarily for backward compatibility.
         return ResponseEntity.ok(orderService.getOrdersByClient(principal.getUserId()));
     }
 
     @GetMapping("/active")
     @Operation(summary = "Get active (non-terminal) orders for the authenticated client")
     public ResponseEntity<List<OrderResponse>> getActive(@AuthenticationPrincipal UserPrincipal principal) {
+        // Legacy endpoint kept temporarily for backward compatibility.
         return ResponseEntity.ok(orderService.getActiveOrdersByClient(principal.getUserId()));
     }
 
@@ -54,6 +57,7 @@ public class OrderController {
     public ResponseEntity<OrderResponse> getById(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
+        // Legacy endpoint kept temporarily for backward compatibility.
         return ResponseEntity.ok(orderService.getOrderById(id, principal.getUserId()));
     }
 
@@ -62,6 +66,7 @@ public class OrderController {
     public ResponseEntity<Void> cancel(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
+        // Legacy endpoint kept temporarily for backward compatibility.
         orderService.cancelOrder(id, principal.getUserId());
         return ResponseEntity.noContent().build();
     }
@@ -71,6 +76,7 @@ public class OrderController {
     public ResponseEntity<CancellableResponse> isCancellable(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
+        // Legacy endpoint kept temporarily for backward compatibility.
         return ResponseEntity.ok(orderService.isCancellable(id, principal.getUserId()));
     }
 
@@ -79,7 +85,8 @@ public class OrderController {
     public ResponseEntity<OrderResponse> reorder(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(orderService.reorder(id, principal.getUserId()));
+        // Legacy endpoint kept temporarily for backward compatibility.
+        OrderResponse response = orderService.reorder(id, principal.getUserId());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 }

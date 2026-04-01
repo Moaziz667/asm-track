@@ -52,6 +52,10 @@ public class Delivery {
     @Column(name = "fail_reason", columnDefinition = "TEXT")
     private String failReason;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "failure_code", length = 30)
+    private FailureCode failureCode;
+
     @Column(name = "cancel_reason", columnDefinition = "TEXT")
     private String cancelReason;
 
