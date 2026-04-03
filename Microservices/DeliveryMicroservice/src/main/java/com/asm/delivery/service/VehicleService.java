@@ -5,7 +5,10 @@ import com.asm.delivery.dto.request.CreateVehicleRequest;
 import com.asm.delivery.dto.request.UpdateVehicleRequest;
 import com.asm.delivery.dto.response.VehicleResponse;
 import com.asm.delivery.entity.Vehicle;
+import com.asm.delivery.entity.Route;
+import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.VehicleRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import lombok.RequiredArgsConstructor;
@@ -14,23 +17,36 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
+        private final RouteRepository routeRepository;
     private final MinioStorageService minioStorageService;
+
+        private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
+            RouteStatus.DRAFT,
+            RouteStatus.VALIDATED,
+            RouteStatus.IN_PROGRESS
+        );
 
     @Transactional(readOnly = true)
     public List<VehicleResponse> list() {
-        return vehicleRepository.findAllByOrderByCreatedAtDesc().stream().map(this::toResponse).toList();
+        Set<UUID> busyVehicleIds = getBusyVehicleIds();
+        return vehicleRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(v -> toResponse(v, busyVehicleIds.contains(v.getId())))
+                .toList();
     }
 
     @Transactional(readOnly = true)
     public VehicleResponse get(UUID id) {
-        return toResponse(getVehicle(id));
+        Vehicle vehicle = getVehicle(id);
+        return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
 
     @Transactional
@@ -64,7 +80,7 @@ public class VehicleService {
             vehicle = vehicleRepository.save(vehicle);
         }
 
-        return toResponse(vehicle);
+        return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
 
     @Transactional
@@ -140,7 +156,8 @@ public class VehicleService {
 
         vehicle.setName(buildDisplayName(vehicle.getMake(), vehicle.getModel(), vehicle.getManufactureYear()));
 
-        return toResponse(vehicleRepository.save(vehicle));
+        Vehicle saved = vehicleRepository.save(vehicle);
+        return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
     @Transactional
@@ -156,7 +173,15 @@ public class VehicleService {
     public VehicleResponse assign(UUID id, AssignVehicleRequest request) {
         Vehicle vehicle = getVehicle(id);
         vehicle.setDriverId(request.getDriverId());
-        return toResponse(vehicleRepository.save(vehicle));
+        Vehicle saved = vehicleRepository.save(vehicle);
+        return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
+    }
+
+    private Set<UUID> getBusyVehicleIds() {
+        return routeRepository.findByStatusIn(ACTIVE_ROUTE_STATUSES).stream()
+                .map(Route::getVehicleId)
+                .filter(v -> v != null)
+                .collect(Collectors.toSet());
     }
 
     private Vehicle getVehicle(UUID id) {
@@ -187,7 +212,7 @@ public class VehicleService {
         return year + " " + safeMake + " " + safeModel;
     }
 
-    private VehicleResponse toResponse(Vehicle vehicle) {
+    private VehicleResponse toResponse(Vehicle vehicle, boolean assigned) {
         return VehicleResponse.builder()
                 .id(vehicle.getId())
                 .name(vehicle.getName())
@@ -204,7 +229,7 @@ public class VehicleService {
                 .type(vehicle.getType())
                 .imageUrl(vehicle.getImageUrl())
                 .driverId(vehicle.getDriverId())
-                .assigned(vehicle.getDriverId() != null)
+                .assigned(assigned)
                 .active(vehicle.getActive())
                 .createdAt(vehicle.getCreatedAt())
                 .build();

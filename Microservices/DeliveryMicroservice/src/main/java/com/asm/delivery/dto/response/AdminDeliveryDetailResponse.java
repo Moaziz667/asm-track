@@ -35,6 +35,11 @@ public class AdminDeliveryDetailResponse {
     private String clientEmail;
     private String dropoffAddress;
     private String dropoffCity;
+    private String dropoffPostalCode;
+    private String dropoffCountryCode;
+    private BigDecimal dropoffLat;
+    private BigDecimal dropoffLng;
+    private boolean dropoffPinned;
     private String deliveryInstructions;
 
     private List<OrderItem> items;

@@ -14,6 +14,5 @@ public class UpdateRouteRequest {
     private LocalDate date;
     private LocalTime plannedStartTime;
     private LocalTime plannedEndTime;
-    private String zone;
     private String city;
 }

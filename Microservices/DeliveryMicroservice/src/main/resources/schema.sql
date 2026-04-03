@@ -158,7 +158,7 @@ CREATE TABLE IF NOT EXISTS delivery_status_history (
     'CANCELLED'
   )),
   changed_by      VARCHAR(100),
-  changed_by_role VARCHAR(10) CHECK (changed_by_role IN ('CLIENT', 'DRIVER', 'SYSTEM')),
+  changed_by_role VARCHAR(10) CHECK (changed_by_role IN ('CLIENT', 'DRIVER', 'DISPATCHER', 'MANAGER', 'ADMIN', 'SYSTEM')),
   note            TEXT,
   changed_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -216,6 +216,15 @@ BEGIN
       'FAILED',
       'CANCELLED'
     ));
+
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'delivery_status_history_changed_by_role_check') THEN
+    ALTER TABLE delivery_status_history DROP CONSTRAINT delivery_status_history_changed_by_role_check;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_delivery_history_changed_by_role') THEN
+    ALTER TABLE delivery_status_history DROP CONSTRAINT ck_delivery_history_changed_by_role;
+  END IF;
+  ALTER TABLE delivery_status_history ADD CONSTRAINT ck_delivery_history_changed_by_role
+    CHECK (changed_by_role IN ('CLIENT', 'DRIVER', 'DISPATCHER', 'MANAGER', 'ADMIN', 'SYSTEM'));
 END $$;
 
 -- ── Tracking ──────────────────────────────────────────────────────────────────
@@ -322,7 +331,6 @@ CREATE TABLE IF NOT EXISTS routes (
   date         DATE NOT NULL,
   planned_start_time TIME NOT NULL DEFAULT TIME '08:00',
   planned_end_time   TIME NOT NULL DEFAULT TIME '18:00',
-  zone         VARCHAR(100),
   city         VARCHAR(100),
   status       VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALIDATED', 'IN_PROGRESS', 'CLOSED')),
   created_by   VARCHAR(100) NOT NULL,
@@ -337,6 +345,7 @@ CREATE INDEX IF NOT EXISTS idx_routes_status ON routes(status);
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS planned_start_time TIME NOT NULL DEFAULT TIME '08:00';
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS planned_end_time TIME NOT NULL DEFAULT TIME '18:00';
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS city VARCHAR(100);
+ALTER TABLE routes DROP COLUMN IF EXISTS zone;
 
 CREATE TABLE IF NOT EXISTS route_stops (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -20,7 +20,6 @@ public class RouteResponse {
     private LocalDate date;
     private LocalTime plannedStartTime;
     private LocalTime plannedEndTime;
-    private String zone;
     private String city;
     private RouteStatus status;
     private String createdBy;

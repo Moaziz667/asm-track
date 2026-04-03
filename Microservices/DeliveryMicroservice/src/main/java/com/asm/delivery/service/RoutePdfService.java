@@ -63,7 +63,7 @@ public class RoutePdfService {
             y = writeLine(stream, 11, false, 50, y - 4, "Route: " + nullSafe(route.getName()));
             y = writeLine(stream, 10, false, 50, y - 2, "Date: " + (route.getDate() != null ? route.getDate().toString() : "-"));
             y = writeLine(stream, 10, false, 50, y - 2, "Plage: " + formatTime(route.getPlannedStartTime()) + " - " + formatTime(route.getPlannedEndTime()));
-            y = writeLine(stream, 10, false, 50, y - 2, "Zone: " + nullSafe(route.getZone()) + " | Ville: " + nullSafe(route.getCity()));
+            y = writeLine(stream, 10, false, 50, y - 2, "Ville: " + nullSafe(route.getCity()));
             y = writeLine(stream, 10, false, 50, y - 2, "Driver: " + (driver != null ? driver.getName() : route.getDriverId()));
             y = writeLine(stream, 10, false, 50, y - 2, "Vehicule: " + (vehicle != null ? (nullSafe(vehicle.getName()) + " (" + nullSafe(vehicle.getPlate()) + ")") : "-"));
 

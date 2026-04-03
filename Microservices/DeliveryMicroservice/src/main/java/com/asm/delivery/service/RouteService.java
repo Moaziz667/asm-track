@@ -11,6 +11,7 @@ import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.RouteStopStatus;
 import com.asm.delivery.entity.Vehicle;
+import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.repository.DeliveryRepository;
@@ -30,6 +31,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -57,7 +59,7 @@ public class RouteService {
     }
 
     @Transactional(readOnly = true)
-    public List<RouteResponse> list(RouteStatus status, UUID driverId, LocalDate date, String zone, String city) {
+    public List<RouteResponse> list(RouteStatus status, UUID driverId, LocalDate date, String city) {
         Specification<Route> spec = Specification.where(null);
 
         if (status != null) {
@@ -68,10 +70,6 @@ public class RouteService {
         }
         if (date != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("date"), date));
-        }
-        if (StringUtils.hasText(zone)) {
-            String normalizedZone = zone.trim().toLowerCase();
-            spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("zone")), normalizedZone));
         }
         if (StringUtils.hasText(city)) {
             String normalizedCity = city.trim().toLowerCase();
@@ -119,7 +117,6 @@ public class RouteService {
                 .date(request.getDate())
             .plannedStartTime(plannedStartTime)
             .plannedEndTime(plannedEndTime)
-                .zone(normalizeNullableText(request.getZone()))
                 .city(normalizeNullableText(request.getCity()))
                 .status(RouteStatus.DRAFT)
                 .createdBy(StringUtils.hasText(createdBy) ? createdBy : "SYSTEM")
@@ -165,9 +162,6 @@ public class RouteService {
         }
         if (request.getPlannedEndTime() != null) {
             route.setPlannedEndTime(request.getPlannedEndTime());
-        }
-        if (request.getZone() != null) {
-            route.setZone(normalizeNullableText(request.getZone()));
         }
         if (request.getCity() != null) {
             route.setCity(normalizeNullableText(request.getCity()));
@@ -260,9 +254,20 @@ public class RouteService {
             throw AppException.badRequest("Cannot validate route without stops");
         }
 
+        List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
+        Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+
         for (RouteStop stop : stops) {
-            Delivery delivery = deliveryRepository.findById(stop.getDeliveryId())
-                    .orElseThrow(() -> AppException.badRequest("Delivery not found for stop: " + stop.getDeliveryId()));
+            Delivery delivery = deliveryMap.get(stop.getDeliveryId());
+            if (delivery == null) {
+                throw AppException.badRequest("Delivery not found for stop: " + stop.getDeliveryId());
+            }
+
+            Order order = delivery.getOrder();
+            if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
+                throw AppException.badRequest("Stop " + stop.getStopOrder() + " is not pinned yet. Pin all stop addresses before validating the route.");
+            }
 
             if (delivery.getStatus() == DeliveryStatus.WAITING_DRIVER) {
                 delivery.setDriverId(route.getDriverId());
@@ -281,9 +286,19 @@ public class RouteService {
     @Transactional
     public RouteResponse close(UUID routeId) {
         Route route = getRoute(routeId);
-        if (route.getStatus() != RouteStatus.IN_PROGRESS && route.getStatus() != RouteStatus.VALIDATED) {
-            throw AppException.badRequest("Only validated/in-progress routes can be closed");
+        if (route.getStatus() != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("Admin can close only in-progress routes after driver termination");
         }
+
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        if (stops.isEmpty()) {
+            throw AppException.badRequest("Cannot close route without stops");
+        }
+        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()));
+        if (!allTerminal) {
+            throw AppException.badRequest("Admin can close only after driver has terminated all stops");
+        }
+
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
         transportPort.setAvailability(route.getDriverId().toString(), true);
@@ -482,8 +497,20 @@ public class RouteService {
     }
 
     private RouteResponse toResponse(Route route) {
+        List<RouteStop> routeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+
+        Map<UUID, Delivery> deliveriesById = new HashMap<>();
+        List<UUID> deliveryIds = routeStops.stream().map(RouteStop::getDeliveryId).toList();
+        if (!deliveryIds.isEmpty()) {
+            deliveriesById = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                    .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+        }
+
         List<RouteStopResponse> stops = new ArrayList<>();
-        for (RouteStop stop : routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId())) {
+        for (RouteStop stop : routeStops) {
+            Delivery delivery = deliveriesById.get(stop.getDeliveryId());
+            Order order = delivery != null ? delivery.getOrder() : null;
+            boolean isPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
             stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
@@ -492,6 +519,13 @@ public class RouteService {
                     .arrivedAt(stop.getArrivedAt())
                     .completedAt(stop.getCompletedAt())
                     .notes(stop.getNotes())
+                    .deliveryAddress(order != null ? order.getDropoffAddress() : null)
+                    .deliveryCity(order != null ? order.getDropoffCity() : null)
+                    .deliveryPostalCode(order != null ? order.getDropoffPostalCode() : null)
+                    .deliveryCountryCode(order != null ? order.getDropoffCountryCode() : null)
+                    .dropoffLat(order != null ? order.getDropoffLat() : null)
+                    .dropoffLng(order != null ? order.getDropoffLng() : null)
+                    .dropoffPinned(isPinned)
                     .build());
         }
 
@@ -524,7 +558,6 @@ public class RouteService {
                 .date(route.getDate())
                 .plannedStartTime(route.getPlannedStartTime())
                 .plannedEndTime(route.getPlannedEndTime())
-                .zone(route.getZone())
                     .city(route.getCity())
                 .status(route.getStatus())
                 .createdBy(route.getCreatedBy())

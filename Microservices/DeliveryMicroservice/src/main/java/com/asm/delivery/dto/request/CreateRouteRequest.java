@@ -26,8 +26,6 @@ public class CreateRouteRequest {
 
     private LocalTime plannedEndTime;
 
-    private String zone;
-
     private String city;
 
     private List<UUID> deliveryIds;

@@ -53,4 +53,16 @@ public class EventPublisher {
                 order != null ? order.getId() : null,
                 delivery.getId(), driverId);
     }
+
+    public void publishDeliveryReassigned(Order order, Delivery delivery, UUID previousDriverId, UUID newDriverId) {
+        log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}",
+                order != null ? order.getId() : null,
+                delivery.getId(), previousDriverId, newDriverId);
+    }
+
+    public void publishDeliveryReplanned(Order order, Delivery delivery, UUID previousDriverId) {
+        log.info("EVENT delivery.replanned orderId={} deliveryId={} previousDriverId={}",
+                order != null ? order.getId() : null,
+                delivery.getId(), previousDriverId);
+    }
 }

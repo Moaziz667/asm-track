@@ -2,6 +2,8 @@ package com.asm.delivery.repository;
 
 import com.asm.delivery.entity.RouteStop;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -15,6 +17,9 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
     Optional<RouteStop> findByRouteIdAndId(UUID routeId, UUID id);
 
     Optional<RouteStop> findByDeliveryId(UUID deliveryId);
+
+    @Query("SELECT rs FROM RouteStop rs JOIN FETCH rs.route r WHERE rs.deliveryId IN :deliveryIds")
+    List<RouteStop> findAllByDeliveryIdInWithRoute(@Param("deliveryIds") List<UUID> deliveryIds);
 
     boolean existsByDeliveryId(UUID deliveryId);
 }

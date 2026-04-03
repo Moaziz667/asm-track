@@ -15,6 +15,8 @@ import java.util.UUID;
 public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecificationExecutor<Route> {
     List<Route> findAllByOrderByDateDescCreatedAtDesc();
 
+    List<Route> findByStatusIn(List<RouteStatus> statuses);
+
     List<Route> findAllByDriverIdAndDate(UUID driverId, LocalDate date);
 
     Optional<Route> findByDriverIdAndDate(UUID driverId, LocalDate date);

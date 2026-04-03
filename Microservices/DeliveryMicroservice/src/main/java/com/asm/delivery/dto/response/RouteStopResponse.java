@@ -4,6 +4,7 @@ import com.asm.delivery.entity.RouteStopStatus;
 import lombok.Builder;
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -17,4 +18,11 @@ public class RouteStopResponse {
     private LocalDateTime arrivedAt;
     private LocalDateTime completedAt;
     private String notes;
+    private String deliveryAddress;
+    private String deliveryCity;
+    private String deliveryPostalCode;
+    private String deliveryCountryCode;
+    private BigDecimal dropoffLat;
+    private BigDecimal dropoffLng;
+    private boolean dropoffPinned;
 }

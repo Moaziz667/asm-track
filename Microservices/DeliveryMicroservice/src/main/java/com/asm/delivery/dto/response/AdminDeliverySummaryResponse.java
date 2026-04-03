@@ -17,6 +17,8 @@ import java.util.UUID;
 public class AdminDeliverySummaryResponse {
     private UUID deliveryId;
     private UUID orderId;
+    private UUID routeId;
+    private String routeName;
     private String status;
     private OrderSource source;
 
@@ -25,6 +27,7 @@ public class AdminDeliverySummaryResponse {
     private String dropoffCity;
     private BigDecimal dropoffLat;
     private BigDecimal dropoffLng;
+    private boolean dropoffPinned;
 
     private UUID driverId;
     private String driverName;
@@ -32,5 +35,10 @@ public class AdminDeliverySummaryResponse {
 
     private BigDecimal totalAmount;
     private LocalDateTime createdAt;
+    private LocalDateTime assignedAt;
+    private LocalDateTime inTransitAt;
     private LocalDateTime completedAt;
+    private LocalDateTime failedAt;
+    private LocalDateTime cancelledAt;
+    private LocalDateTime updatedAt;
 }

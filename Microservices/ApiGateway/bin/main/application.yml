@@ -73,6 +73,11 @@ spring:
           predicates:
             - Path=/api/admin/reports/**
 
+        - id: delivery-admin-ops
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/ops/**
+
         - id: delivery-orders
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:

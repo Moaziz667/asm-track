@@ -1,9 +1,11 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.AssignDeliveryRequest;
+import com.asm.delivery.dto.request.PinDropoffRequest;
 import com.asm.delivery.dto.response.AdminDeliveryDetailResponse;
 import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
 import com.asm.delivery.dto.response.AdminDriverResponse;
+import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.dto.response.AdminStatsResponse;
 import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
 import com.asm.delivery.entity.DeliveryStatus;
@@ -46,10 +48,9 @@ public class AdminDeliveryController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date,
             @RequestParam(required = false) OrderSource source,
-            @RequestParam(required = false) String zone,
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, zone, pageable));
+        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, pageable));
     }
 
     @GetMapping("/{id}")
@@ -65,6 +66,15 @@ public class AdminDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody AssignDeliveryRequest request) {
         return ResponseEntity.ok(adminDeliveryService.assignDelivery(id, request));
+    }
+
+    @PostMapping("/{id}/pin-dropoff")
+    @Operation(summary = "Manually pin delivery dropoff coordinates and optional normalized address")
+    @IdempotentOperation
+    public ResponseEntity<AdminDeliveryDetailResponse> pinDropoff(
+            @PathVariable UUID id,
+            @Valid @RequestBody PinDropoffRequest request) {
+        return ResponseEntity.ok(adminDeliveryService.pinDropoff(id, request));
     }
 
     @PostMapping("/{id}/cancel")
@@ -92,8 +102,24 @@ public class AdminDeliveryController {
 
     @GetMapping("/stats")
     @Operation(summary = "Aggregated stats for today, per driver and failures")
-    public ResponseEntity<AdminStatsResponse> stats() {
-        return ResponseEntity.ok(adminDeliveryService.getStats());
+    public ResponseEntity<AdminStatsResponse> stats(
+            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return ResponseEntity.ok(adminDeliveryService.getStats(period, from, to));
+    }
+
+    @GetMapping("/ops-overview")
+    @Operation(summary = "Operations-ready overview: SLA, dispatch lanes, and exceptions")
+    public ResponseEntity<AdminOpsOverviewResponse> opsOverview(
+            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @RequestParam(required = false) Integer waitingSlaMinutes,
+            @RequestParam(required = false) Integer transitSlaMinutes
+    ) {
+        return ResponseEntity.ok(adminDeliveryService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/{id}/pod")

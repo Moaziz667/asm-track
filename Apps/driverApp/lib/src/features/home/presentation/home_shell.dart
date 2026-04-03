@@ -27,7 +27,9 @@ class HomeShell extends ConsumerStatefulWidget {
 class _HomeShellState extends ConsumerState<HomeShell> {
   int _index = 0;
   Timer? _locationTimer;
+  Timer? _assignmentRefreshTimer;
   bool _isTracking = false;
+  Set<String> _knownRouteDeliveryIds = <String>{};
 
   static const _navItems = [
     _NavItem(icon: PhosphorIconsFill.squaresFour,   label: 'Overview'),
@@ -39,7 +41,16 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   @override
   void dispose() {
     _locationTimer?.cancel();
+    _assignmentRefreshTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _assignmentRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
+      _refreshAssignmentsAndNotify();
+    });
   }
 
   void _startTracking() {
@@ -61,6 +72,44 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       if (point == null) return;
       await ref.read(profileRepositoryProvider).updateLocation(point.lat, point.lng);
     } catch (_) {}
+  }
+
+  Future<void> _refreshAssignmentsAndNotify() async {
+    try {
+      final route = await ref.read(routeRepositoryProvider).fetchToday();
+      final nextIds = route == null
+          ? <String>{}
+          : route.stops.map((stop) => stop.deliveryId).toSet();
+
+      if (_knownRouteDeliveryIds.isNotEmpty && mounted) {
+        final added = nextIds.difference(_knownRouteDeliveryIds);
+        final removed = _knownRouteDeliveryIds.difference(nextIds);
+
+        if (added.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('New delivery assigned (${added.length}). Please check Route tab.'),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        } else if (removed.isNotEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('A delivery was reassigned/replanned by dispatch.'),
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      _knownRouteDeliveryIds = nextIds;
+      ref.invalidate(todayRouteProvider);
+      ref.invalidate(activeDeliveriesProvider);
+    } catch (_) {
+      // Ignore background refresh errors; main screens still handle explicit fetch failures.
+    }
   }
 
   @override

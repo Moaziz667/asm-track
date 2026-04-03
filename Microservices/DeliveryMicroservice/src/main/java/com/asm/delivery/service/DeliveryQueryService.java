@@ -59,9 +59,16 @@ public class DeliveryQueryService {
         assertAccessToDelivery(delivery, requesterId, requesterRole);
 
         return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId).stream()
-                .map(h -> new StatusHistoryResponse(h.getStatus().name(), h.getChangedBy(),
-                        h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
-                        h.getNote(), h.getChangedAt()))
+            .map(h -> StatusHistoryResponse.builder()
+                .id(h.getId() != null ? h.getId().toString() : null)
+                .status(h.getStatus().name())
+                .actor(h.getChangedBy())
+                .timestamp(h.getChangedAt())
+                .changedBy(h.getChangedBy())
+                .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
+                .note(h.getNote())
+                .changedAt(h.getChangedAt())
+                .build())
                 .collect(Collectors.toList());
     }
 

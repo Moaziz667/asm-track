@@ -47,6 +47,7 @@ public class SecurityConfig {
                 // Admin stats — also allowed for MANAGER
                 .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                 .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                 // Admin endpoints — ADMIN + DISPATCHER
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
                 // Deliveries — client, driver, dispatcher, admin

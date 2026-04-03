@@ -156,6 +156,8 @@ services:
       MINIO_ACCESS_KEY: asmtracking
       MINIO_SECRET_KEY: asmtracking2026
       MINIO_BUCKET: pod-files
+      OPS_SLA_WAITING_MINUTES: "15"
+      OPS_SLA_TRANSIT_MINUTES: "120"
     depends_on:
       postgres-delivery:
         condition: service_healthy

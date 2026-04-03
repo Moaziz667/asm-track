@@ -41,9 +41,6 @@ public class Route {
     @Column(name = "planned_end_time", nullable = false)
     private LocalTime plannedEndTime;
 
-    @Column(name = "zone", length = 100)
-    private String zone;
-
     @Column(name = "city", length = 100)
     private String city;
 
