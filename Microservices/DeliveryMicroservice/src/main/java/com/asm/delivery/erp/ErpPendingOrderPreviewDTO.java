@@ -31,6 +31,7 @@ public class ErpPendingOrderPreviewDTO {
     private LocalDateTime scheduledAt;
     private List<OrderItem> items;
     private Integer totalQuantity;
+    private BigDecimal totalWeightKg;
     private boolean alreadyImported;
     private UUID existingDeliveryId;
     private Integer existingBackorderId;

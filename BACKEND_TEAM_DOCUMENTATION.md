@@ -156,7 +156,6 @@ Main feed endpoint:
 Quick actions:
 - `POST /api/admin/ops/exceptions/{deliveryId}/reassign`
 - `POST /api/admin/ops/exceptions/{deliveryId}/replan`
-- `POST /api/admin/ops/exceptions/{deliveryId}/escalate`
 
 Rules currently enforced in service logic:
 - Reassign allowed for `ASSIGNED`, `PICKED_UP`.
@@ -214,7 +213,6 @@ Admin:
 - `GET /api/admin/ops/exceptions`
 - `POST /api/admin/ops/exceptions/{deliveryId}/reassign`
 - `POST /api/admin/ops/exceptions/{deliveryId}/replan`
-- `POST /api/admin/ops/exceptions/{deliveryId}/escalate`
 - `GET /api/admin/routes`
 - `POST /api/admin/routes`
 - `PUT /api/admin/routes/{id}/validate`

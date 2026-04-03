@@ -33,14 +33,6 @@ if ($targetDriver) {
 }
 
 try {
-  $escalateBody = @{ note = "smoke escalate $(Get-Date -Format s)"; level = 'L1' } | ConvertTo-Json
-  $e = Invoke-RestMethod -Method Post -Uri "$base/api/admin/ops/exceptions/$deliveryId/escalate" -Headers $headers -ContentType 'application/json' -Body $escalateBody
-  Write-Output "ESCALATE_OK motif=$($e.motif) severity=$($e.severity)"
-} catch {
-  Write-Output "ESCALATE_FAIL=$($_.Exception.Message)"
-}
-
-try {
   $replanBody = @{ note = "smoke replan $(Get-Date -Format s)" } | ConvertTo-Json
   $p = Invoke-RestMethod -Method Post -Uri "$base/api/admin/ops/exceptions/$deliveryId/replan" -Headers $headers -ContentType 'application/json' -Body $replanBody
   Write-Output "REPLAN_OK status=$($p.status) motif=$($p.motif)"

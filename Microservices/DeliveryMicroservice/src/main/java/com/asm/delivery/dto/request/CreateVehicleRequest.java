@@ -26,6 +26,8 @@ public class CreateVehicleRequest {
 
     private String fuelType;
 
+    @NotNull
+    @Min(1)
     private Integer payloadKg;
 
     private Double volumeM3;

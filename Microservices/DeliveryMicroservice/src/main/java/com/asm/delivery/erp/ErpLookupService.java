@@ -251,6 +251,7 @@ public class ErpLookupService {
                     .scheduledAt(order.getScheduledAt())
                     .items(order.getItems())
                     .totalQuantity(order.getTotalQuantity())
+                    .totalWeightKg(order.getTotalWeightKg())
                     .alreadyImported(true)
                     .existingDeliveryId(existingDelivery != null ? existingDelivery.getId() : null)
                     .existingBackorderId(order.getOdooBackorderId())
@@ -316,7 +317,7 @@ public class ErpLookupService {
                 .priority(parsePriority(preview.getPriority()))
                 .items(preview.getItems() != null ? preview.getItems() : List.of())
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
-                .totalWeightKg(BigDecimal.ZERO)
+                .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
                 .build();
 
@@ -460,6 +461,14 @@ public class ErpLookupService {
                 .map(item -> item.getQuantity() != null ? item.getQuantity() : 0)
                 .reduce(0, Integer::sum);
 
+        BigDecimal totalWeightKg = items.stream()
+            .map(item -> {
+                BigDecimal unitWeight = item.getUnitWeightKg() != null ? item.getUnitWeightKg() : BigDecimal.ZERO;
+                int quantity = item.getQuantity() != null ? item.getQuantity() : 0;
+                return unitWeight.multiply(BigDecimal.valueOf(quantity));
+            })
+            .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return ErpPendingOrderPreviewDTO.builder()
                 .erpOrderId(normalizeNullableString(row.get("name")))
                 .externalRef(normalizeNullableString(row.get("client_order_ref")))
@@ -476,6 +485,7 @@ public class ErpLookupService {
                 .scheduledAt(parseOdooDateTime(row.get("commitment_date")))
                 .items(items)
                 .totalQuantity(totalQty)
+                .totalWeightKg(totalWeightKg)
                 .alreadyImported(alreadyImported)
                 .existingDeliveryId(existingDeliveryId)
                 .existingBackorderId(existingBackorderId)
@@ -557,12 +567,43 @@ public class ErpLookupService {
                 "id asc"
         );
 
+        Set<Integer> productIds = lineRows.stream()
+                .map(line -> asRelId(line.get("product_id")))
+                .filter(id -> id != null)
+                .collect(Collectors.toSet());
+
+        Map<Integer, BigDecimal> productWeights = fetchProductWeights(productIds);
+
         return lineRows.stream()
-                .map(this::mapLineToOrderItem)
+                .map(line -> mapLineToOrderItem(line, productWeights))
                 .collect(Collectors.toList());
     }
 
-    private OrderItem mapLineToOrderItem(Map<String, Object> line) {
+    private Map<Integer, BigDecimal> fetchProductWeights(Set<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) {
+            return Map.of();
+        }
+
+        List<Map<String, Object>> productRows = odooClient.searchRead(
+                "product.product",
+                List.of(List.of("id", "in", productIds.stream().toList())),
+                List.of("id", "weight"),
+                Math.max(productIds.size(), 1),
+                "id asc"
+        );
+
+        Map<Integer, BigDecimal> result = new HashMap<>();
+        for (Map<String, Object> row : productRows) {
+            Integer productId = asInt(row.get("id"));
+            if (productId == null) {
+                continue;
+            }
+            result.put(productId, asBigDecimal(row.get("weight")));
+        }
+        return result;
+    }
+
+    private OrderItem mapLineToOrderItem(Map<String, Object> line, Map<Integer, BigDecimal> productWeights) {
         Integer lineId = asInt(line.get("id"));
         Integer productId = asRelId(line.get("product_id"));
         String productName = asRelName(line.get("product_id"));
@@ -570,6 +611,9 @@ public class ErpLookupService {
 
         Integer qty = asInt(line.get("product_uom_qty"));
         Integer qtyDone = asInt(line.get("qty_delivered"));
+        BigDecimal unitWeight = productId != null && productWeights != null
+            ? productWeights.getOrDefault(productId, BigDecimal.ZERO)
+            : BigDecimal.ZERO;
 
         return OrderItem.builder()
                 .id(lineId != null ? String.valueOf(lineId) : null)
@@ -578,7 +622,7 @@ public class ErpLookupService {
                 .quantity(qty != null && qty > 0 ? qty : 1)
                 .quantityDone(qtyDone != null ? Math.max(qtyDone, 0) : 0)
                 .unitPrice(asBigDecimal(line.get("price_unit")))
-                .unitWeightKg(BigDecimal.ZERO)
+            .unitWeightKg(unitWeight)
                 .build();
     }
 

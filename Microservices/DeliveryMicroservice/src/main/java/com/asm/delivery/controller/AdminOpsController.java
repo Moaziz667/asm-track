@@ -1,6 +1,5 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.dto.request.AdminExceptionEscalateRequest;
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
 import com.asm.delivery.dto.request.AdminExceptionReplanRequest;
 import com.asm.delivery.dto.response.AdminOpsAlertsResponse;
@@ -125,13 +124,4 @@ public class AdminOpsController {
         return ResponseEntity.ok(adminDeliveryService.replanException(deliveryId, request, principal));
     }
 
-    @PostMapping("/exceptions/{deliveryId}/escalate")
-    @Operation(summary = "Quick action: escalate exception with level and note")
-    public ResponseEntity<AdminOpsExceptionsResponse.ExceptionItem> escalateException(
-            @PathVariable UUID deliveryId,
-            @Valid @RequestBody AdminExceptionEscalateRequest request,
-            @AuthenticationPrincipal UserPrincipal principal
-    ) {
-        return ResponseEntity.ok(adminDeliveryService.escalateException(deliveryId, request, principal));
-    }
 }

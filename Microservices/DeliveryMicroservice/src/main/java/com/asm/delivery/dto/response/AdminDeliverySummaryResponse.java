@@ -34,6 +34,7 @@ public class AdminDeliverySummaryResponse {
     private String driverPhone;
 
     private BigDecimal totalAmount;
+    private BigDecimal totalWeightKg;
     private LocalDateTime createdAt;
     private LocalDateTime assignedAt;
     private LocalDateTime inTransitAt;

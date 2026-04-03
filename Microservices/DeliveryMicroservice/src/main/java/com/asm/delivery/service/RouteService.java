@@ -26,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -134,6 +135,8 @@ public class RouteService {
             addStopInternal(route, deliveryId, index++);
         }
 
+        assertRouteWeightWithinVehicleCapacity(route);
+
         return toResponse(routeRepository.findById(route.getId()).orElse(route));
     }
 
@@ -178,6 +181,8 @@ public class RouteService {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
         }
 
+        assertRouteWeightWithinVehicleCapacity(route);
+
         return toResponse(routeRepository.save(route));
     }
 
@@ -201,6 +206,7 @@ public class RouteService {
         ensureDraft(route);
         int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId).size() + 1;
         addStopInternal(route, deliveryId, nextOrder);
+        assertRouteWeightWithinVehicleCapacity(route);
         return toResponse(route);
     }
 
@@ -248,6 +254,8 @@ public class RouteService {
     public RouteResponse validate(UUID routeId) {
         Route route = getRoute(routeId);
         ensureDraft(route);
+
+        assertRouteWeightWithinVehicleCapacity(route);
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         if (stops.isEmpty()) {
@@ -400,6 +408,51 @@ public class RouteService {
                 .build();
 
         routeStopRepository.save(stop);
+    }
+
+    private void assertRouteWeightWithinVehicleCapacity(Route route) {
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        if (stops.isEmpty()) {
+            return;
+        }
+
+        if (route.getVehicleId() == null) {
+            throw AppException.badRequest("Route vehicle is required before this operation");
+        }
+
+        Vehicle vehicle = vehicleRepository.findById(route.getVehicleId())
+                .orElseThrow(() -> AppException.badRequest("Vehicle not found"));
+
+        Integer payloadKg = vehicle.getPayloadKg();
+        if (payloadKg == null || payloadKg < 1) {
+            throw AppException.badRequest("Selected vehicle has no valid max payload configured");
+        }
+
+        List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
+        Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+
+        BigDecimal totalWeightKg = BigDecimal.ZERO;
+        for (RouteStop stop : stops) {
+            Delivery delivery = deliveryMap.get(stop.getDeliveryId());
+            if (delivery == null || delivery.getOrder() == null) {
+                continue;
+            }
+            BigDecimal orderWeight = delivery.getOrder().getTotalWeightKg();
+            if (orderWeight != null) {
+                totalWeightKg = totalWeightKg.add(orderWeight);
+            }
+        }
+
+        BigDecimal vehicleCapacity = BigDecimal.valueOf(payloadKg);
+        if (totalWeightKg.compareTo(vehicleCapacity) > 0) {
+            BigDecimal excess = totalWeightKg.subtract(vehicleCapacity);
+            throw AppException.badRequest(
+                    "Route load exceeds vehicle capacity by " + excess.stripTrailingZeros().toPlainString()
+                            + " kg (load=" + totalWeightKg.stripTrailingZeros().toPlainString()
+                            + " kg, capacity=" + vehicleCapacity.stripTrailingZeros().toPlainString() + " kg)"
+            );
+        }
     }
 
     private Route getRoute(UUID id) {

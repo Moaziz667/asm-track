@@ -1,7 +1,6 @@
 package com.asm.delivery.service;
 
 import com.asm.delivery.dto.request.AssignDeliveryRequest;
-import com.asm.delivery.dto.request.AdminExceptionEscalateRequest;
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
 import com.asm.delivery.dto.request.AdminExceptionReplanRequest;
 import com.asm.delivery.dto.request.PinDropoffRequest;
@@ -575,28 +574,6 @@ public class AdminDeliveryService {
                 return mapActionResult(delivery, "WARNING", "REPLANNED", "Delivery sent back to waiting lane");
         }
 
-        @Transactional
-        public AdminOpsExceptionsResponse.ExceptionItem escalateException(UUID deliveryId,
-                                                                                                                          AdminExceptionEscalateRequest request,
-                                                                                                                          UserPrincipal principal) {
-                Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                                .orElseThrow(() -> AppException.notFound("Delivery not found"));
-
-                if (delivery.getStatus() == DeliveryStatus.DELIVERED) {
-                        throw AppException.badRequest("Delivered deliveries cannot be escalated");
-                }
-
-                ActorInfo actor = resolveActor(principal);
-                String level = StringUtils.hasText(request.getLevel()) ? request.getLevel().trim().toUpperCase(Locale.ROOT) : "L1";
-                appendHistory(delivery,
-                                delivery.getStatus(),
-                                actor.name(),
-                                actor.role(),
-                                buildEscalateOpsNote(level, request.getNote()));
-
-                return mapActionResult(delivery, "CRITICAL", "ESCALATED_" + level, "Exception escalated to level " + level);
-        }
-
     private AdminOpsOverviewResponse buildOpsOverview(String period,
                                                       LocalDate from,
                                                       LocalDate to,
@@ -776,6 +753,7 @@ public class AdminDeliveryService {
         // Calculate remaining items
         List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
         int newTotalQuantity = 0;
+        BigDecimal newTotalWeightKg = BigDecimal.ZERO;
 
         if (order.getItems() != null) {
             for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
@@ -790,8 +768,13 @@ public class AdminDeliveryService {
                     clonedItem.setName(item.getName());
                     clonedItem.setQuantity(remaining);
                     clonedItem.setQuantityDone(0);
+                                        clonedItem.setUnitWeightKg(item.getUnitWeightKg());
+                                        clonedItem.setUnitPrice(item.getUnitPrice());
                     remainingItems.add(clonedItem);
                     newTotalQuantity += remaining;
+
+                                        BigDecimal unitWeight = item.getUnitWeightKg() != null ? item.getUnitWeightKg() : BigDecimal.ZERO;
+                                        newTotalWeightKg = newTotalWeightKg.add(unitWeight.multiply(BigDecimal.valueOf(remaining)));
                 }
             }
         }
@@ -831,6 +814,7 @@ public class AdminDeliveryService {
                 .status(OrderStatus.PENDING)
                 .items(remainingItems)
                 .totalQuantity(newTotalQuantity)
+                .totalWeightKg(newTotalWeightKg)
                 .odooSyncStatus(null) // Unsynced because we just created it
                 .build();
                 
@@ -945,6 +929,7 @@ public class AdminDeliveryService {
                 .driverName(driver != null ? driver.getName() : null)
                 .driverPhone(driver != null ? driver.getPhone() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
+                .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .createdAt(delivery.getCreatedAt())
                                 .assignedAt(delivery.getAssignedAt())
                                 .inTransitAt(delivery.getInTransitAt())
@@ -1229,11 +1214,6 @@ public class AdminDeliveryService {
                 return appendReason(message, note);
         }
 
-        private String buildEscalateOpsNote(String level, String note) {
-                String normalizedLevel = StringUtils.hasText(level) ? level.trim().toUpperCase(Locale.ROOT) : "L1";
-                return appendReason("Exception escalated to " + normalizedLevel + " by dispatch.", note);
-        }
-
         private String appendReason(String message, String note) {
                 if (!StringUtils.hasText(note)) {
                         return message;
@@ -1361,6 +1341,7 @@ public class AdminDeliveryService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .items(order != null ? order.getItems() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
+                .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .currency(order != null ? order.getCurrency() : null)
                 .odooSyncStatus(order != null ? order.getOdooSyncStatus() : null)
                 .odooBackorderId(order != null ? order.getOdooBackorderId() : null)

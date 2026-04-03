@@ -44,6 +44,7 @@ public class AdminDeliveryDetailResponse {
 
     private List<OrderItem> items;
     private BigDecimal totalAmount;
+    private BigDecimal totalWeightKg;
     private String currency;
     private String odooSyncStatus;
     private Integer odooBackorderId;
