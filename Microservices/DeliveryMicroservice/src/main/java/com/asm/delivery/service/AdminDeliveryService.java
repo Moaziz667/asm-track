@@ -523,15 +523,7 @@ public class AdminDeliveryService {
                                 DeliveryStatus.ASSIGNED,
                                 actor.name(),
                                 actor.role(),
-                                buildActionAuditNote(
-                                                "REASSIGN",
-                                                request.getNote(),
-                                                null,
-                                                previousStatus,
-                                                DeliveryStatus.ASSIGNED,
-                                                previousDriverId,
-                                                request.getDriverId()
-                                ));
+                                buildReassignOpsNote(previousStatus, request.getNote()));
 
                 eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
 
@@ -576,15 +568,7 @@ public class AdminDeliveryService {
                                 DeliveryStatus.WAITING_DRIVER,
                                 actor.name(),
                                 actor.role(),
-                                buildActionAuditNote(
-                                                "REPLAN",
-                                                request.getNote(),
-                                                null,
-                                                previousStatus,
-                                                DeliveryStatus.WAITING_DRIVER,
-                                                previousDriverId,
-                                                null
-                                ));
+                                buildReplanOpsNote(previousStatus, request.getNote()));
 
                 eventPublisher.publishDeliveryReplanned(delivery.getOrder(), delivery, previousDriverId);
 
@@ -608,15 +592,7 @@ public class AdminDeliveryService {
                                 delivery.getStatus(),
                                 actor.name(),
                                 actor.role(),
-                                buildActionAuditNote(
-                                                "ESCALATE",
-                                                request.getNote(),
-                                                level,
-                                                delivery.getStatus(),
-                                                delivery.getStatus(),
-                                                delivery.getDriverId(),
-                                                delivery.getDriverId()
-                                ));
+                                buildEscalateOpsNote(level, request.getNote()));
 
                 return mapActionResult(delivery, "CRITICAL", "ESCALATED_" + level, "Exception escalated to level " + level);
         }
@@ -873,6 +849,18 @@ public class AdminDeliveryService {
                 .build();
         deliveryRepo.save(newDelivery);
 
+        appendHistory(newDelivery,
+                DeliveryStatus.WAITING_DRIVER,
+                "SYSTEM",
+                Role.SYSTEM,
+                "Backorder created from partial delivery #" + shortDeliveryId(delivery.getId()) + ".");
+
+        appendHistory(delivery,
+                delivery.getStatus(),
+                "SYSTEM",
+                Role.SYSTEM,
+                "Backorder delivery #" + shortDeliveryId(newDelivery.getId()) + " created for remaining items.");
+
         return getDeliveryDetail(delivery.getId()); 
     }
 
@@ -1092,6 +1080,38 @@ public class AdminDeliveryService {
                         if (baseline == null) {
                                 baseline = delivery.getCreatedAt();
                         }
+
+                        Optional<RouteStop> currentStopOpt = routeStopRepository.findByDeliveryId(delivery.getId());
+                        if (currentStopOpt.isPresent()) {
+                                RouteStop currentStop = currentStopOpt.get();
+                                Route route = currentStop.getRoute();
+                                Integer currentOrder = currentStop.getStopOrder();
+
+                                if (route != null && currentOrder != null && currentOrder > 1) {
+                                        RouteStop previousStop = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId()).stream()
+                                                        .filter(stop -> stop.getStopOrder() != null && stop.getStopOrder() < currentOrder)
+                                                        .max(Comparator.comparingInt(RouteStop::getStopOrder))
+                                                        .orElse(null);
+
+                                        if (previousStop != null && !isRouteStopFinished(previousStop.getStatus())) {
+                                                return new ExceptionClassification(
+                                                                "WARNING",
+                                                                "ASSIGNED_MONITORING",
+                                                                "Assigned delivery is queued behind a previous route stop"
+                                                );
+                                        }
+
+                                        if (previousStop != null) {
+                                                LocalDateTime readyAt = previousStop.getCompletedAt() != null
+                                                                ? previousStop.getCompletedAt()
+                                                                : previousStop.getUpdatedAt();
+                                                if (readyAt != null) {
+                                                        baseline = readyAt;
+                                                }
+                                        }
+                                }
+                        }
+
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
                         String motif = elapsed > waitingSlaMinutes ? "ASSIGNED_PENDING_PICKUP" : "ASSIGNED_MONITORING";
                         String comment = elapsed > waitingSlaMinutes
@@ -1119,6 +1139,12 @@ public class AdminDeliveryService {
                         }
                 }
                 return null;
+        }
+
+        private boolean isRouteStopFinished(RouteStopStatus status) {
+                return status == RouteStopStatus.COMPLETED
+                                || status == RouteStopStatus.FAILED
+                                || status == RouteStopStatus.PARTIAL;
         }
 
         private AdminOpsExceptionsResponse.ExceptionItem mapActionResult(Delivery delivery,
@@ -1181,32 +1207,46 @@ public class AdminDeliveryService {
                 return new ActorInfo(actorName, role);
         }
 
-        private String buildAdminActionNote(String action, String note, String level) {
-                StringBuilder sb = new StringBuilder("ADMIN_ACTION:").append(action);
-                if (StringUtils.hasText(level)) {
-                        sb.append(" [").append(level.trim().toUpperCase(Locale.ROOT)).append("]");
+        private String buildReassignOpsNote(DeliveryStatus previousStatus, String note) {
+                String message;
+                if (previousStatus == DeliveryStatus.PICKED_UP) {
+                        message = "Picked-up delivery reassigned with handover confirmation.";
+                } else {
+                        message = "Delivery reassigned to another driver by dispatch.";
                 }
-                if (StringUtils.hasText(note)) {
-                        sb.append(" - ").append(note.trim());
-                }
-                return sb.toString();
+                return appendReason(message, note);
         }
 
-        private String buildActionAuditNote(String action,
-                                                                                String note,
-                                                                                String level,
-                                                                                DeliveryStatus previousStatus,
-                                                                                DeliveryStatus newStatus,
-                                                                                UUID previousDriverId,
-                                                                                UUID newDriverId) {
-                StringBuilder sb = new StringBuilder(buildAdminActionNote(action, note, level));
-                sb.append(" | status=").append(previousStatus != null ? previousStatus.name() : "UNKNOWN");
-                sb.append("->").append(newStatus != null ? newStatus.name() : "UNKNOWN");
-                sb.append(" | driver=")
-                                .append(previousDriverId != null ? previousDriverId : "NONE")
-                                .append("->")
-                                .append(newDriverId != null ? newDriverId : "NONE");
-                return sb.toString();
+        private String buildReplanOpsNote(DeliveryStatus previousStatus, String note) {
+                String message;
+                if (previousStatus == DeliveryStatus.FAILED) {
+                        message = "Delivery failed earlier today. Replanned for a new attempt.";
+                } else if (previousStatus == DeliveryStatus.PARTIALLY_DELIVERED) {
+                        message = "Delivery was partially delivered today. Remaining items moved to replanning queue.";
+                } else {
+                        message = "Delivery moved back to planning queue by dispatch.";
+                }
+                return appendReason(message, note);
+        }
+
+        private String buildEscalateOpsNote(String level, String note) {
+                String normalizedLevel = StringUtils.hasText(level) ? level.trim().toUpperCase(Locale.ROOT) : "L1";
+                return appendReason("Exception escalated to " + normalizedLevel + " by dispatch.", note);
+        }
+
+        private String appendReason(String message, String note) {
+                if (!StringUtils.hasText(note)) {
+                        return message;
+                }
+                return message + " Reason: " + note.trim();
+        }
+
+        private String shortDeliveryId(UUID deliveryId) {
+                if (deliveryId == null) {
+                        return "UNKNOWN";
+                }
+                String raw = deliveryId.toString();
+                return raw.length() <= 8 ? raw : raw.substring(0, 8);
         }
 
         private void assertReassignAllowed(Delivery delivery) {
