@@ -1,6 +1,7 @@
 package com.asm.delivery.dto.response;
 
 import com.asm.delivery.entity.RouteStopStatus;
+import com.asm.delivery.entity.SlaStatus;
 import lombok.Builder;
 import lombok.Data;
 
@@ -25,4 +26,19 @@ public class RouteStopResponse {
     private BigDecimal dropoffLat;
     private BigDecimal dropoffLng;
     private boolean dropoffPinned;
+    private String routeGeometry;
+    private BigDecimal routeDistanceKm;
+    private Integer routeDurationMinutes;
+    private LocalDateTime routeEtaAt;
+    private Integer transitSlaMinutesComputed;
+    private String routeProvider;
+
+    // ── ETA / SLA fields ─────────────────────────────────────────────────────────
+    private LocalDateTime etaAt;
+    private LocalDateTime slaDeadline;
+    private SlaStatus slaStatus;
+    private Integer driveDurationSeconds;
+    private Integer driveDistanceMeters;
+    private LocalDateTime actualArrivalAt;
+    private Integer dwellMinutes;
 }

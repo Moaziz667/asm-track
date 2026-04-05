@@ -148,6 +148,12 @@ class DriverDelivery {
     this.items = const [],
     this.priority,
     this.scheduledAt,
+    this.routeGeometry,
+    this.routeDistanceKm,
+    this.routeDurationMinutes,
+    this.transitSlaMinutesComputed,
+    this.routeEtaAt,
+    this.routeProvider,
     this.timestamps = const {},
   });
 
@@ -178,6 +184,12 @@ class DriverDelivery {
           .toList(),
       priority: json['priority'] as String?,
       scheduledAt: json['scheduledAt'] != null ? DateTime.tryParse(json['scheduledAt'] as String) : null,
+      routeGeometry: json['routeGeometry'] as String?,
+      routeDistanceKm: (json['routeDistanceKm'] as num?)?.toDouble(),
+      routeDurationMinutes: (json['routeDurationMinutes'] as num?)?.toInt(),
+      transitSlaMinutesComputed: (json['transitSlaMinutesComputed'] as num?)?.toInt(),
+      routeEtaAt: json['routeEtaAt'] != null ? DateTime.tryParse(json['routeEtaAt'] as String) : null,
+      routeProvider: json['routeProvider'] as String?,
       timestamps: timestamps,
     );
   }
@@ -193,6 +205,12 @@ class DriverDelivery {
   final List<OrderItemModel> items;
   final String? priority;
   final DateTime? scheduledAt;
+  final String? routeGeometry;
+  final double? routeDistanceKm;
+  final int? routeDurationMinutes;
+  final int? transitSlaMinutesComputed;
+  final DateTime? routeEtaAt;
+  final String? routeProvider;
   final Map<String, DateTime?> timestamps;
 
   bool get isTerminal => status == DeliveryStatus.delivered || status == DeliveryStatus.failed || status == DeliveryStatus.cancelled;

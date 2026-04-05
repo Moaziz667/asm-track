@@ -40,6 +40,27 @@ public class Delivery {
     @Column(name = "in_transit_at")
     private LocalDateTime inTransitAt;
 
+    @Column(name = "route_geometry", columnDefinition = "TEXT")
+    private String routeGeometry;
+
+    @Column(name = "route_distance_km", precision = 10, scale = 3)
+    private java.math.BigDecimal routeDistanceKm;
+
+    @Column(name = "route_duration_minutes")
+    private Integer routeDurationMinutes;
+
+    @Column(name = "route_eta_at")
+    private LocalDateTime routeEtaAt;
+
+    @Column(name = "transit_sla_minutes_computed")
+    private Integer transitSlaMinutesComputed;
+
+    @Column(name = "route_last_computed_at")
+    private LocalDateTime routeLastComputedAt;
+
+    @Column(name = "route_provider", length = 20)
+    private String routeProvider;
+
     @Column(name = "completed_at")
     private LocalDateTime completedAt;
 

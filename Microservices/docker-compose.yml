@@ -1,6 +1,50 @@
-version: '3.9'
-
 services:
+
+  #  OSRM ROUTING (self-hosted)
+  osrm-download:
+    image: curlimages/curl:8.11.1
+    container_name: osrm-download
+    user: "0:0"
+    command: >
+      sh -ec 'mkdir -p /data; if [ ! -f /data/tunisia-latest.osm.pbf ]; then curl -fL https://download.geofabrik.de/africa/tunisia-latest.osm.pbf -o /data/tunisia-latest.osm.pbf; fi'
+    volumes:
+      - osrm-data:/data
+    restart: "no"
+    networks:
+      - asm-network
+
+  osrm-prepare:
+    image: osrm/osrm-backend:latest
+    container_name: osrm-prepare
+    command: >
+      sh -ec "
+      osrm-extract -p /opt/car.lua --threads 1 /data/tunisia-latest.osm.pbf &&
+      osrm-partition --threads 1 /data/tunisia-latest.osrm &&
+      osrm-customize --threads 1 /data/tunisia-latest.osrm
+      "
+    volumes:
+      - osrm-data:/data
+    depends_on:
+      osrm-download:
+        condition: service_completed_successfully
+    restart: "no"
+    networks:
+      - asm-network
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: osrm
+    command: osrm-routed --algorithm mld /data/tunisia-latest.osrm
+    ports:
+      - "5000:5000"
+    volumes:
+      - osrm-data:/data
+    depends_on:
+      osrm-prepare:
+        condition: service_completed_successfully
+    restart: unless-stopped
+    networks:
+      - asm-network
 
   #  RABBITMQ 
   rabbitmq:
@@ -158,6 +202,11 @@ services:
       MINIO_BUCKET: pod-files
       OPS_SLA_WAITING_MINUTES: "1"
       OPS_SLA_TRANSIT_MINUTES: "2"
+      ROUTING_OSRM_ENABLED: "true"
+      ROUTING_OSRM_BASE_URL: http://osrm:5000
+      ROUTING_OSRM_PROFILE: driving
+      ROUTING_TRANSIT_SLA_MULTIPLIER: "1.20"
+      ROUTING_TRANSIT_SLA_BUFFER_MINUTES: "8"
     depends_on:
       postgres-delivery:
         condition: service_healthy
@@ -165,6 +214,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      osrm:
+        condition: service_started
     restart: unless-stopped
     networks:
       - asm-network
@@ -217,6 +268,7 @@ volumes:
   delivery-pgdata:
   driver-pgdata:
   minio_data:
+  osrm-data:
 
 networks:
   asm-network:

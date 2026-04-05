@@ -615,7 +615,10 @@ public class AdminDeliveryService {
                 .filter(s -> "IN_TRANSIT".equals(s.getStatus()))
                 .filter(s -> {
                     LocalDateTime baseline = s.getInTransitAt() != null ? s.getInTransitAt() : s.getCreatedAt();
-                                        return baseline != null && Duration.between(baseline, now).toMinutes() > effectiveTransitSlaMinutes;
+                    int transitThreshold = s.getTransitSlaMinutesComputed() != null
+                            ? s.getTransitSlaMinutesComputed()
+                            : effectiveTransitSlaMinutes;
+                    return baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold;
                 })
                 .count();
 
@@ -930,6 +933,12 @@ public class AdminDeliveryService {
                 .driverPhone(driver != null ? driver.getPhone() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
+                .routeDistanceKm(delivery.getRouteDistanceKm())
+                .routeDurationMinutes(delivery.getRouteDurationMinutes())
+                .transitSlaMinutesComputed(delivery.getTransitSlaMinutesComputed())
+                .routeEtaAt(delivery.getRouteEtaAt())
+                .routeGeometry(delivery.getRouteGeometry())
+                .routeProvider(delivery.getRouteProvider())
                 .createdAt(delivery.getCreatedAt())
                                 .assignedAt(delivery.getAssignedAt())
                                 .inTransitAt(delivery.getInTransitAt())
@@ -991,7 +1000,10 @@ public class AdminDeliveryService {
                 }
                 if ("IN_TRANSIT".equals(s.getStatus())) {
                         LocalDateTime baseline = s.getInTransitAt() != null ? s.getInTransitAt() : s.getCreatedAt();
-                        if (baseline != null && Duration.between(baseline, now).toMinutes() > effectiveTransitSlaMinutes) {
+                        int transitThreshold = s.getTransitSlaMinutesComputed() != null
+                                ? s.getTransitSlaMinutesComputed()
+                                : effectiveTransitSlaMinutes;
+                        if (baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold) {
                                 return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Transit SLA breached");
                         }
                 }
@@ -1119,7 +1131,10 @@ public class AdminDeliveryService {
                 }
                 if (status == DeliveryStatus.IN_TRANSIT) {
                         LocalDateTime baseline = delivery.getInTransitAt() != null ? delivery.getInTransitAt() : delivery.getCreatedAt();
-                        if (baseline != null && Duration.between(baseline, now).toMinutes() > transitSlaMinutes) {
+                        int transitThreshold = delivery.getTransitSlaMinutesComputed() != null
+                                ? delivery.getTransitSlaMinutesComputed()
+                                : transitSlaMinutes;
+                        if (baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold) {
                                 return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Transit SLA breached");
                         }
                 }
@@ -1342,6 +1357,12 @@ public class AdminDeliveryService {
                 .items(order != null ? order.getItems() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
+                .routeDistanceKm(delivery.getRouteDistanceKm())
+                .routeDurationMinutes(delivery.getRouteDurationMinutes())
+                .transitSlaMinutesComputed(delivery.getTransitSlaMinutesComputed())
+                .routeEtaAt(delivery.getRouteEtaAt())
+                .routeGeometry(delivery.getRouteGeometry())
+                .routeProvider(delivery.getRouteProvider())
                 .currency(order != null ? order.getCurrency() : null)
                 .odooSyncStatus(order != null ? order.getOdooSyncStatus() : null)
                 .odooBackorderId(order != null ? order.getOdooBackorderId() : null)

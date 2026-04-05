@@ -29,4 +29,10 @@ public class CreateRouteRequest {
     private String city;
 
     private List<UUID> deliveryIds;
+
+    /** Optional depot ID — every route should start from a depot. */
+    private UUID depotId;
+
+    /** Optional explicit departure time; defaults to date + plannedStartTime. */
+    private java.time.LocalDateTime departureTime;
 }

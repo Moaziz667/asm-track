@@ -4,6 +4,8 @@ import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.RouteResponse;
 import com.asm.delivery.dto.response.RouteStopResponse;
+import com.asm.delivery.dto.response.SlaSummaryResponse;
+import com.asm.delivery.entity.SlaStatus;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
@@ -32,6 +34,7 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -116,11 +119,13 @@ public class RouteService {
                 .driverId(request.getDriverId())
                 .vehicleId(request.getVehicleId())
                 .date(request.getDate())
-            .plannedStartTime(plannedStartTime)
-            .plannedEndTime(plannedEndTime)
+                .plannedStartTime(plannedStartTime)
+                .plannedEndTime(plannedEndTime)
                 .city(normalizeNullableText(request.getCity()))
                 .status(RouteStatus.DRAFT)
                 .createdBy(StringUtils.hasText(createdBy) ? createdBy : "SYSTEM")
+                .depotId(request.getDepotId())
+                .departureTime(request.getDepartureTime())
                 .build();
 
         route = routeRepository.save(route);
@@ -168,6 +173,12 @@ public class RouteService {
         }
         if (request.getCity() != null) {
             route.setCity(normalizeNullableText(request.getCity()));
+        }
+        if (request.getDepotId() != null) {
+            route.setDepotId(request.getDepotId());
+        }
+        if (request.getDepartureTime() != null) {
+            route.setDepartureTime(request.getDepartureTime());
         }
 
         LocalTime effectiveStart = route.getPlannedStartTime() != null ? route.getPlannedStartTime() : DEFAULT_PLANNED_START;
@@ -579,6 +590,19 @@ public class RouteService {
                     .dropoffLat(order != null ? order.getDropoffLat() : null)
                     .dropoffLng(order != null ? order.getDropoffLng() : null)
                     .dropoffPinned(isPinned)
+                    .routeGeometry(delivery != null ? delivery.getRouteGeometry() : null)
+                    .routeDistanceKm(delivery != null ? delivery.getRouteDistanceKm() : null)
+                    .routeDurationMinutes(delivery != null ? delivery.getRouteDurationMinutes() : null)
+                    .routeEtaAt(delivery != null ? delivery.getRouteEtaAt() : null)
+                    .transitSlaMinutesComputed(delivery != null ? delivery.getTransitSlaMinutesComputed() : null)
+                    .routeProvider(delivery != null ? delivery.getRouteProvider() : null)
+                    .etaAt(stop.getEtaAt())
+                    .slaDeadline(stop.getSlaDeadline())
+                    .slaStatus(stop.getSlaStatus())
+                    .driveDurationSeconds(stop.getDriveDurationSeconds())
+                    .driveDistanceMeters(stop.getDriveDistanceMeters())
+                    .actualArrivalAt(stop.getActualArrivalAt())
+                    .dwellMinutes(stop.getDwellMinutes())
                     .build());
         }
 
@@ -625,6 +649,64 @@ public class RouteService {
                     .progressPercent(progressPercent)
                     .etaDriftMinutes(etaDriftMinutes)
                 .stops(stops)
+                .depotId(route.getDepotId())
+                .departureTime(route.getDepartureTime())
+                .totalDurationSeconds(route.getTotalDurationSeconds())
+                .totalDistanceMeters(route.getTotalDistanceMeters())
+                .isOptimized(route.getIsOptimized())
+                .routeGeometry(route.getRouteGeometry())
                 .build();
+    }
+
+    // ─── SLA Summary ─────────────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public SlaSummaryResponse getSlaSummary() {
+        List<RouteStop> stops = routeStopRepository.findActivePendingStopsWithSla();
+
+        int onTime = 0, atRisk = 0, breached = 0;
+        List<RouteStop> atRiskList = new ArrayList<>();
+        List<RouteStop> breachedList = new ArrayList<>();
+
+        for (RouteStop stop : stops) {
+            if (stop.getSlaStatus() == SlaStatus.ON_TIME)       onTime++;
+            else if (stop.getSlaStatus() == SlaStatus.AT_RISK)  { atRisk++;   atRiskList.add(stop); }
+            else if (stop.getSlaStatus() == SlaStatus.BREACHED) { breached++; breachedList.add(stop); }
+        }
+
+        // Load client names for urgent stops only
+        List<UUID> urgentIds = new ArrayList<>();
+        atRiskList.stream().map(RouteStop::getDeliveryId).forEach(urgentIds::add);
+        breachedList.stream().map(RouteStop::getDeliveryId).forEach(urgentIds::add);
+
+        Map<UUID, Delivery> deliveryMap = urgentIds.isEmpty()
+                ? Collections.emptyMap()
+                : deliveryRepository.findAllByIdInWithOrder(urgentIds).stream()
+                        .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+
+        return SlaSummaryResponse.builder()
+                .onTime(onTime)
+                .atRisk(atRisk)
+                .breached(breached)
+                .total(onTime + atRisk + breached)
+                .atRiskStops(toSlaItems(atRiskList.stream().limit(10).toList(), deliveryMap))
+                .breachedStops(toSlaItems(breachedList.stream().limit(10).toList(), deliveryMap))
+                .build();
+    }
+
+    private List<SlaSummaryResponse.SlaStopItem> toSlaItems(List<RouteStop> stops, Map<UUID, Delivery> deliveryMap) {
+        return stops.stream().map(stop -> {
+            Delivery d = deliveryMap.get(stop.getDeliveryId());
+            String clientName = (d != null && d.getOrder() != null) ? d.getOrder().getClientName() : null;
+            return SlaSummaryResponse.SlaStopItem.builder()
+                    .stopId(stop.getId())
+                    .deliveryId(stop.getDeliveryId())
+                    .routeId(stop.getRoute().getId())
+                    .clientName(clientName)
+                    .etaAt(stop.getEtaAt())
+                    .slaDeadline(stop.getSlaDeadline())
+                    .slaStatus(stop.getSlaStatus().name())
+                    .build();
+        }).toList();
     }
 }

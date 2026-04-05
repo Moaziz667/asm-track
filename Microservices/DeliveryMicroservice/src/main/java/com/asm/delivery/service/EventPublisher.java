@@ -6,6 +6,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.UUID;
 
 // TODO Phase 2: replace with n8n webhook calls
@@ -31,9 +32,29 @@ public class EventPublisher {
 
     public void publishDeliveryInTransit(Order order, Delivery delivery,
             BigDecimal lat, BigDecimal lng) {
+        publishDeliveryInTransit(order, delivery, lat, lng, null, null, null, null, null);
+    }
+
+    public void publishDeliveryInTransit(Order order, Delivery delivery,
+            BigDecimal lat, BigDecimal lng,
+            BigDecimal routeDistanceKm,
+            Integer routeDurationMinutes,
+            Integer transitSlaMinutesComputed,
+            LocalDateTime routeEtaAt,
+            String routeProvider) {
         log.info("EVENT delivery.in_transit orderId={} deliveryId={} lat={} lng={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), lat, lng);
+        if (routeDistanceKm != null || routeDurationMinutes != null || transitSlaMinutesComputed != null || routeEtaAt != null) {
+            log.info("EVENT delivery.in_transit.route orderId={} deliveryId={} distanceKm={} durationMin={} slaMin={} etaAt={} provider={}",
+                    order != null ? order.getId() : null,
+                    delivery.getId(),
+                    routeDistanceKm,
+                    routeDurationMinutes,
+                    transitSlaMinutesComputed,
+                    routeEtaAt,
+                    routeProvider);
+        }
     }
 
     public void publishDeliveryCompleted(Order order, Delivery delivery, UUID driverId) {

@@ -64,6 +64,31 @@ public class Route {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // ── Depot & optimization fields ───────────────────────────────────────────────
+
+    @Column(name = "depot_id")
+    private UUID depotId;
+
+    /** Actual departure time from the depot (defaults to date + plannedStartTime). */
+    @Column(name = "departure_time")
+    private LocalDateTime departureTime;
+
+    @Column(name = "total_duration_seconds")
+    private Integer totalDurationSeconds;
+
+    @Column(name = "total_distance_meters")
+    private Integer totalDistanceMeters;
+
+    @Builder.Default
+    @Column(name = "is_optimized", nullable = false)
+    private Boolean isOptimized = false;
+
+    /** Full OSRM road geometry from depot through all stops, stored as [[lat,lng],...] JSON. */
+    @Column(name = "route_geometry", columnDefinition = "TEXT")
+    private String routeGeometry;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("stopOrder ASC")
     @Builder.Default
@@ -76,6 +101,9 @@ public class Route {
         }
         if (plannedEndTime == null) {
             plannedEndTime = LocalTime.of(18, 0);
+        }
+        if (isOptimized == null) {
+            isOptimized = false;
         }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();

@@ -45,6 +45,12 @@ public class AdminDeliveryDetailResponse {
     private List<OrderItem> items;
     private BigDecimal totalAmount;
     private BigDecimal totalWeightKg;
+    private BigDecimal routeDistanceKm;
+    private Integer routeDurationMinutes;
+    private Integer transitSlaMinutesComputed;
+    private LocalDateTime routeEtaAt;
+    private String routeGeometry;
+    private String routeProvider;
     private String currency;
     private String odooSyncStatus;
     private Integer odooBackorderId;

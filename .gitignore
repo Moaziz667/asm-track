@@ -12,12 +12,12 @@ dist/
 build/
 .next/
 out/
-
+CahierDeCharge.md
 # Environment files
 .env
 .env.*
 !.env.example
-
+MDS/
 # Logs
 logs/
 *.log

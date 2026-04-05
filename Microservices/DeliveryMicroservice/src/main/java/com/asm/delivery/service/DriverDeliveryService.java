@@ -9,6 +9,7 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.storage.StorageException;
 import com.asm.delivery.transport.TransportPort;
+import com.asm.delivery.transport.DriverDTO;
 import org.springframework.dao.DataIntegrityViolationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class DriverDeliveryService {
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
     private final RouteService                    routeService;
+    private final OsrmRoutingService              osrmRoutingService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED,
@@ -139,12 +141,69 @@ public class DriverDeliveryService {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
 
+        LocalDateTime transitStartedAt = LocalDateTime.now();
         delivery.setStatus(DeliveryStatus.IN_TRANSIT);
-        delivery.setInTransitAt(LocalDateTime.now());
+        delivery.setInTransitAt(transitStartedAt);
+
+        BigDecimal originLat = lat;
+        BigDecimal originLng = lng;
+        if (originLat == null || originLng == null) {
+            var latestTracking = trackingRepo.findFirstByDeliveryIdOrderByTimestampDesc(delivery.getId());
+            if (latestTracking.isPresent()) {
+                originLat = latestTracking.get().getLat();
+                originLng = latestTracking.get().getLng();
+            }
+        }
+        if (originLat == null || originLng == null) {
+            DriverDTO driver = transportPort.getDriver(driverId.toString());
+            if (driver != null && driver.getCurrentLat() != null && driver.getCurrentLng() != null) {
+                originLat = BigDecimal.valueOf(driver.getCurrentLat());
+                originLng = BigDecimal.valueOf(driver.getCurrentLng());
+            }
+        }
+
+        Order order = delivery.getOrder();
+        BigDecimal destinationLat = order != null ? order.getDropoffLat() : null;
+        BigDecimal destinationLng = order != null ? order.getDropoffLng() : null;
+
+        var routeSnapshot = osrmRoutingService.computeRoute(
+                originLat,
+                originLng,
+                destinationLat,
+                destinationLng,
+                transitStartedAt
+        );
+        if (routeSnapshot.isPresent()) {
+            var route = routeSnapshot.get();
+            delivery.setRouteGeometry(route.geometry());
+            delivery.setRouteDistanceKm(route.distanceKm());
+            delivery.setRouteDurationMinutes(route.durationMinutes());
+            delivery.setRouteEtaAt(route.etaAt());
+            delivery.setTransitSlaMinutesComputed(route.computedTransitSlaMinutes());
+            delivery.setRouteProvider(route.provider());
+            delivery.setRouteLastComputedAt(LocalDateTime.now());
+            } else {
+                log.warn("Route snapshot empty for delivery={} originLat={} originLng={} destinationLat={} destinationLng={}",
+                    delivery.getId(), originLat, originLng, destinationLat, destinationLng);
+        }
+
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "Driver started transit");
-        eventPublisher.publishDeliveryInTransit(delivery.getOrder(), delivery, lat, lng);
+        String transitNote = routeSnapshot.isPresent()
+                ? "Driver started transit. Route ETA calculated."
+                : "Driver started transit";
+        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
+        eventPublisher.publishDeliveryInTransit(
+                delivery.getOrder(),
+                delivery,
+                originLat,
+                originLng,
+                delivery.getRouteDistanceKm(),
+                delivery.getRouteDurationMinutes(),
+                delivery.getTransitSlaMinutesComputed(),
+                delivery.getRouteEtaAt(),
+                delivery.getRouteProvider()
+        );
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -531,6 +590,12 @@ public class DriverDeliveryService {
                 .assignedAt(delivery.getAssignedAt())
                 .pickedUpAt(delivery.getPickedUpAt())
                 .inTransitAt(delivery.getInTransitAt())
+                .routeGeometry(delivery.getRouteGeometry())
+                .routeDistanceKm(delivery.getRouteDistanceKm())
+                .routeDurationMinutes(delivery.getRouteDurationMinutes())
+                .transitSlaMinutesComputed(delivery.getTransitSlaMinutesComputed())
+                .routeEtaAt(delivery.getRouteEtaAt())
+                .routeProvider(delivery.getRouteProvider())
                 .completedAt(delivery.getCompletedAt())
                 .failedAt(delivery.getFailedAt())
                 .cancelledAt(delivery.getCancelledAt())

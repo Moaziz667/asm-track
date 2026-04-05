@@ -50,6 +50,10 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                 // Admin endpoints — ADMIN + DISPATCHER
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
+                // v1 endpoints (depots, optimization) — ADMIN + DISPATCHER + MANAGER
+                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                // WebSocket endpoint — allow all authenticated
+                .requestMatchers("/ws/**").authenticated()
                 // Deliveries — client, driver, dispatcher, admin
                 .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER", "DISPATCHER", "ADMIN")
                 // Anything else requires authentication

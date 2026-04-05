@@ -35,6 +35,12 @@ public class AdminDeliverySummaryResponse {
 
     private BigDecimal totalAmount;
     private BigDecimal totalWeightKg;
+    private BigDecimal routeDistanceKm;
+    private Integer routeDurationMinutes;
+    private Integer transitSlaMinutesComputed;
+    private LocalDateTime routeEtaAt;
+    private String routeGeometry;
+    private String routeProvider;
     private LocalDateTime createdAt;
     private LocalDateTime assignedAt;
     private LocalDateTime inTransitAt;

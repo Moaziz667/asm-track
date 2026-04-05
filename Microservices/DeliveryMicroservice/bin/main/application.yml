@@ -48,6 +48,14 @@ app:
   security:
     trust-gateway-headers: false
     gateway-secret: ${GATEWAY_SECRET:}
+  osrm:
+    base-url: ${ROUTING_OSRM_BASE_URL:http://localhost:5000}
+  route:
+    default-dwell-minutes: ${ROUTE_DEFAULT_DWELL_MINUTES:10}
+    sla-buffer-minutes: ${ROUTE_SLA_BUFFER_MINUTES:30}
+  sla:
+    check-interval-ms: ${SLA_CHECK_INTERVAL_MS:30000}
+    approaching-threshold-minutes: ${SLA_APPROACHING_THRESHOLD_MINUTES:10}
 
 transport:
   provider: ${TRANSPORT_PROVIDER:internal}
@@ -74,6 +82,19 @@ minio:
   access-key: ${MINIO_ACCESS_KEY:asmtracking}
   secret-key: ${MINIO_SECRET_KEY:asmtracking2026}
   bucket: ${MINIO_BUCKET:pod-files}
+
+routing:
+  osrm:
+    enabled: ${ROUTING_OSRM_ENABLED:false}
+    base-url: ${ROUTING_OSRM_BASE_URL:http://osrm:5000}
+    profile: ${ROUTING_OSRM_PROFILE:driving}
+    connect-timeout-ms: ${ROUTING_OSRM_CONNECT_TIMEOUT_MS:1500}
+    read-timeout-ms: ${ROUTING_OSRM_READ_TIMEOUT_MS:3000}
+  transit-sla:
+    multiplier: ${ROUTING_TRANSIT_SLA_MULTIPLIER:1.20}
+    buffer-minutes: ${ROUTING_TRANSIT_SLA_BUFFER_MINUTES:8}
+    min-minutes: ${ROUTING_TRANSIT_SLA_MIN_MINUTES:15}
+    max-minutes: ${ROUTING_TRANSIT_SLA_MAX_MINUTES:240}
 
 springdoc:
   swagger-ui:

@@ -125,6 +125,13 @@ CREATE TABLE IF NOT EXISTS deliveries (
   assigned_at     TIMESTAMP,
   picked_up_at    TIMESTAMP,
   in_transit_at   TIMESTAMP,
+  route_geometry  TEXT,
+  route_distance_km NUMERIC(10,3),
+  route_duration_minutes INTEGER,
+  route_eta_at    TIMESTAMP,
+  transit_sla_minutes_computed INTEGER,
+  route_last_computed_at TIMESTAMP,
+  route_provider  VARCHAR(20),
   completed_at    TIMESTAMP,
   failed_at       TIMESTAMP,
   cancelled_at    TIMESTAMP,
@@ -283,6 +290,13 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS erp_client_id VARCHAR(100);
 
 -- Add failure code column to deliveries table
 ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS failure_code VARCHAR(30);
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_geometry TEXT;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_distance_km NUMERIC(10,3);
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_duration_minutes INTEGER;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_eta_at TIMESTAMP;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS transit_sla_minutes_computed INTEGER;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_last_computed_at TIMESTAMP;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_provider VARCHAR(20);
 
 -- Link delivery to route stop (tournee execution context)
 ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS route_stop_id UUID;
@@ -383,3 +397,64 @@ ALTER TABLE proof_of_delivery ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500);
 -- Remove base64 columns — files are stored in MinIO, only URLs are kept
 ALTER TABLE proof_of_delivery DROP COLUMN IF EXISTS signature_base64;
 ALTER TABLE proof_of_delivery DROP COLUMN IF EXISTS photo_base64;
+
+-- ── Depots ────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS depots (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name       VARCHAR(150) NOT NULL,
+  address    TEXT,
+  latitude   DOUBLE PRECISION NOT NULL,
+  longitude  DOUBLE PRECISION NOT NULL,
+  is_active  BOOLEAN NOT NULL DEFAULT true,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_depots_is_active ON depots(is_active);
+
+-- ── Route alerts ──────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS route_alerts (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  route_id     UUID NOT NULL,
+  stop_id      UUID,
+  stop_order   INTEGER,
+  alert_type   VARCHAR(20) NOT NULL CHECK (alert_type IN ('APPROACHING', 'AT_RISK', 'BREACHED')),
+  message      TEXT NOT NULL,
+  acknowledged BOOLEAN NOT NULL DEFAULT false,
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_route_alerts_route_id ON route_alerts(route_id);
+CREATE INDEX IF NOT EXISTS idx_route_alerts_unacked  ON route_alerts(route_id, acknowledged) WHERE acknowledged = false;
+
+-- ── Route — add depot and optimization columns ────────────────────────────────
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS depot_id              UUID REFERENCES depots(id);
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS departure_time        TIMESTAMP;
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS total_duration_seconds INTEGER;
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS total_distance_meters  INTEGER;
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS is_optimized           BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_geometry         TEXT;
+
+-- ── Route stops — add ETA / SLA columns ──────────────────────────────────────
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS eta_at                TIMESTAMP;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_deadline          TIMESTAMP;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS actual_arrival_at     TIMESTAMP;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(20) CHECK (sla_status IN ('ON_TIME', 'AT_RISK', 'BREACHED'));
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_duration_seconds INTEGER;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_distance_meters  INTEGER;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS dwell_minutes          INTEGER NOT NULL DEFAULT 10;
+
+-- Fix route_stops status check to include PARTIAL (legacy) alongside COMPLETED/FAILED
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_stops_status_check') THEN
+    ALTER TABLE route_stops DROP CONSTRAINT route_stops_status_check;
+  END IF;
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_route_stops_status') THEN
+    ALTER TABLE route_stops DROP CONSTRAINT ck_route_stops_status;
+  END IF;
+  ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_status
+    CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL'));
+END $$;
+
+CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;

@@ -3,10 +3,15 @@ package com.asm.delivery.controller;
 import com.asm.delivery.dto.request.AddRouteStopRequest;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.ReorderRouteStopsRequest;
+import com.asm.delivery.dto.request.ReorderStopsRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
+import com.asm.delivery.dto.response.OptimizeRouteResponse;
 import com.asm.delivery.dto.response.RouteResponse;
+import com.asm.delivery.dto.response.RouteStopEtaResponse;
+import com.asm.delivery.dto.response.SlaSummaryResponse;
 import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.idempotency.IdempotentOperation;
+import com.asm.delivery.service.RouteOptimizationService;
 import com.asm.delivery.service.RouteService;
 import com.asm.delivery.service.RoutePdfService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -33,6 +38,9 @@ public class AdminRouteController {
 
     private final RouteService routeService;
     private final RoutePdfService routePdfService;
+    private final RouteOptimizationService routeOptimizationService;
+
+    // ─── Existing CRUD ────────────────────────────────────────────────────────────
 
     @GetMapping
     @Operation(summary = "List routes")
@@ -87,9 +95,10 @@ public class AdminRouteController {
     }
 
     @PutMapping("/{id}/stops/reorder")
-    @Operation(summary = "Reorder route stops")
+    @Operation(summary = "Reorder route stops (draft only)")
     @IdempotentOperation
-    public ResponseEntity<RouteResponse> reorder(@PathVariable UUID id, @Valid @RequestBody ReorderRouteStopsRequest request) {
+    public ResponseEntity<RouteResponse> reorderDraft(@PathVariable UUID id,
+                                                      @Valid @RequestBody ReorderRouteStopsRequest request) {
         return ResponseEntity.ok(routeService.reorderStops(id, request.getStopIds()));
     }
 
@@ -115,5 +124,63 @@ public class AdminRouteController {
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=route-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    // ─── Optimization endpoints ───────────────────────────────────────────────────
+
+    @PostMapping("/{id}/optimize")
+    @Operation(summary = "Suggest optimized stop order (does not apply)")
+    public ResponseEntity<OptimizeRouteResponse> optimize(@PathVariable UUID id) {
+        return ResponseEntity.ok(routeOptimizationService.suggestOptimization(id));
+    }
+
+    @PutMapping("/{id}/apply-optimization")
+    @Operation(summary = "Apply optimized stop order and recalculate ETAs/SLAs")
+    public ResponseEntity<RouteResponse> applyOptimization(@PathVariable UUID id) {
+        routeOptimizationService.applyOptimization(id);
+        return ResponseEntity.ok(routeService.get(id));
+    }
+
+    @PutMapping("/{id}/reorder")
+    @Operation(summary = "Manually reorder stops and recalculate ETAs/SLAs")
+    public ResponseEntity<RouteResponse> reorder(@PathVariable UUID id,
+                                                 @Valid @RequestBody ReorderStopsRequest request) {
+        routeOptimizationService.applyManualReorder(id, request.getStopIds());
+        return ResponseEntity.ok(routeService.get(id));
+    }
+
+    @GetMapping("/{id}/eta-details")
+    @Operation(summary = "Get ETA and SLA details for all stops")
+    public ResponseEntity<List<RouteStopEtaResponse>> etaDetails(@PathVariable UUID id) {
+        RouteResponse route = routeService.get(id);
+        List<RouteStopEtaResponse> details = route.getStops().stream()
+                .map(s -> RouteStopEtaResponse.builder()
+                        .stopId(s.getId())
+                        .sequenceOrder(s.getStopOrder())
+                        .deliveryAddress(s.getDeliveryAddress())
+                        .etaAt(s.getEtaAt())
+                        .slaDeadline(s.getSlaDeadline())
+                        .slaStatus(s.getSlaStatus())
+                        .driveDurationSeconds(s.getDriveDurationSeconds())
+                        .driveDistanceMeters(s.getDriveDistanceMeters())
+                        .actualArrivalAt(s.getActualArrivalAt())
+                        .status(s.getStatus())
+                        .dwellMinutes(s.getDwellMinutes())
+                        .build())
+                .toList();
+        return ResponseEntity.ok(details);
+    }
+
+    @PostMapping("/{id}/recalculate")
+    @Operation(summary = "Recalculate ETAs and SLAs from current departure time")
+    public ResponseEntity<RouteResponse> recalculate(@PathVariable UUID id) {
+        routeOptimizationService.recalculate(id);
+        return ResponseEntity.ok(routeService.get(id));
+    }
+
+    @GetMapping("/sla-summary")
+    @Operation(summary = "Aggregated SLA status (ON_TIME / AT_RISK / BREACHED) across all active route stops")
+    public ResponseEntity<SlaSummaryResponse> slaSummary() {
+        return ResponseEntity.ok(routeService.getSlaSummary());
     }
 }

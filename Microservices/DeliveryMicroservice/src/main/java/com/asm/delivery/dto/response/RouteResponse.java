@@ -34,4 +34,13 @@ public class RouteResponse {
     private Double progressPercent;
     private Long etaDriftMinutes;
     private List<RouteStopResponse> stops;
+
+    // ── Depot & optimization fields ───────────────────────────────────────────────
+    private UUID depotId;
+    private LocalDateTime departureTime;
+    private Integer totalDurationSeconds;
+    private Integer totalDistanceMeters;
+    private Boolean isOptimized;
+    /** Full OSRM road geometry as [[lat,lng],...] JSON string. */
+    private String routeGeometry;
 }

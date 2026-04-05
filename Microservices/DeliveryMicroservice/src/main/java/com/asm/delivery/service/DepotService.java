@@ -1,0 +1,88 @@
+package com.asm.delivery.service;
+
+import com.asm.delivery.dto.request.DepotRequest;
+import com.asm.delivery.dto.response.DepotResponse;
+import com.asm.delivery.entity.Depot;
+import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.DepotRepository;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.UUID;
+
+@Service
+@RequiredArgsConstructor
+public class DepotService {
+
+    private final DepotRepository depotRepository;
+
+    @Transactional(readOnly = true)
+    public List<DepotResponse> list() {
+        return depotRepository.findAllByOrderByCreatedAtDesc().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DepotResponse> listActive() {
+        return depotRepository.findByIsActiveTrue().stream()
+                .map(this::toResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public DepotResponse get(UUID id) {
+        return toResponse(getDepot(id));
+    }
+
+    @Transactional
+    public DepotResponse create(DepotRequest request) {
+        Depot depot = Depot.builder()
+                .name(request.getName().trim())
+                .address(request.getAddress())
+                .latitude(request.getLatitude())
+                .longitude(request.getLongitude())
+                .isActive(true)
+                .build();
+        return toResponse(depotRepository.save(depot));
+    }
+
+    @Transactional
+    public DepotResponse update(UUID id, DepotRequest request) {
+        Depot depot = getDepot(id);
+        depot.setName(request.getName().trim());
+        depot.setAddress(request.getAddress());
+        depot.setLatitude(request.getLatitude());
+        depot.setLongitude(request.getLongitude());
+        if (request.getIsActive() != null) {
+            depot.setIsActive(request.getIsActive());
+        }
+        return toResponse(depotRepository.save(depot));
+    }
+
+    @Transactional
+    public void delete(UUID id) {
+        Depot depot = getDepot(id);
+        depotRepository.delete(depot);
+    }
+
+    public Depot getDepot(UUID id) {
+        return depotRepository.findById(id)
+                .orElseThrow(() -> AppException.notFound("Depot not found"));
+    }
+
+    private DepotResponse toResponse(Depot depot) {
+        return DepotResponse.builder()
+                .id(depot.getId())
+                .name(depot.getName())
+                .address(depot.getAddress())
+                .latitude(depot.getLatitude())
+                .longitude(depot.getLongitude())
+                .isActive(depot.getIsActive())
+                .createdAt(depot.getCreatedAt())
+                .updatedAt(depot.getUpdatedAt())
+                .build();
+    }
+}

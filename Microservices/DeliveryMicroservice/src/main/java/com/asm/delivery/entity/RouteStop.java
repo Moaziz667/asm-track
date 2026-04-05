@@ -49,8 +49,43 @@ public class RouteStop {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    // ── ETA / SLA fields ──────────────────────────────────────────────────────────
+
+    /** Calculated ETA for this stop (cumulative from depot departure). */
+    @Column(name = "eta_at")
+    private LocalDateTime etaAt;
+
+    /** SLA deadline = etaAt + sla buffer (default 30 min). */
+    @Column(name = "sla_deadline")
+    private LocalDateTime slaDeadline;
+
+    /** When the driver actually arrived at this stop (set by mobile app). */
+    @Column(name = "actual_arrival_at")
+    private LocalDateTime actualArrivalAt;
+
+    /** Computed SLA status: ON_TIME, AT_RISK, BREACHED. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "sla_status", length = 20)
+    private SlaStatus slaStatus;
+
+    /** Drive duration (seconds) from previous point (depot or previous stop). */
+    @Column(name = "drive_duration_seconds")
+    private Integer driveDurationSeconds;
+
+    /** Drive distance (meters) from previous point. */
+    @Column(name = "drive_distance_meters")
+    private Integer driveDistanceMeters;
+
+    /** Time spent at this stop in minutes (default 10). */
+    @Builder.Default
+    @Column(name = "dwell_minutes", nullable = false)
+    private Integer dwellMinutes = 10;
+
+    // ─────────────────────────────────────────────────────────────────────────────
+
     @PrePersist
     void prePersist() {
+        if (dwellMinutes == null) dwellMinutes = 10;
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

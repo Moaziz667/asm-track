@@ -22,4 +22,14 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
     List<RouteStop> findAllByDeliveryIdInWithRoute(@Param("deliveryIds") List<UUID> deliveryIds);
 
     boolean existsByDeliveryId(UUID deliveryId);
+
+    /** All non-terminal stops from VALIDATED or IN_PROGRESS routes that have a computed SLA status. */
+    @Query("""
+        SELECT rs FROM RouteStop rs JOIN FETCH rs.route r
+        WHERE r.status IN ('VALIDATED', 'IN_PROGRESS')
+        AND rs.status IN ('PENDING', 'ARRIVED')
+        AND rs.slaStatus IS NOT NULL
+        ORDER BY rs.slaStatus ASC, rs.etaAt ASC
+    """)
+    List<RouteStop> findActivePendingStopsWithSla();
 }

@@ -44,6 +44,12 @@ public class DriverDeliveryResponse {
     private LocalDateTime assignedAt;
     private LocalDateTime pickedUpAt;
     private LocalDateTime inTransitAt;
+    private String        routeGeometry;
+    private BigDecimal    routeDistanceKm;
+    private Integer       routeDurationMinutes;
+    private Integer       transitSlaMinutesComputed;
+    private LocalDateTime routeEtaAt;
+    private String        routeProvider;
     private LocalDateTime completedAt;
     private LocalDateTime failedAt;
     private LocalDateTime cancelledAt;
