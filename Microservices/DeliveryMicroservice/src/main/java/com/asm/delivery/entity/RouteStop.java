@@ -81,6 +81,14 @@ public class RouteStop {
     @Column(name = "dwell_minutes", nullable = false)
     private Integer dwellMinutes = 10;
 
+    /**
+     * Per-leg OSRM geometry for this stop (JSON array of [lat,lng] pairs).
+     * Represents the road path from the previous point (depot or prior stop) to this stop.
+     * Used by the frontend map to draw colored polylines per leg.
+     */
+    @Column(name = "route_geometry", columnDefinition = "TEXT")
+    private String routeGeometry;
+
     // ─────────────────────────────────────────────────────────────────────────────
 
     @PrePersist

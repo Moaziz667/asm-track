@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -14,8 +14,8 @@ import '../../../theme/widgets.dart';
 import '../../deliveries/presentation/delivery_detail_screen.dart';
 import '../models/route_models.dart';
 
-// Default map center — Algeria (Algiers). Will be replaced by real coords later.
-const _kDefaultCenter = LatLng(36.7372, 3.0867);
+// Default map center — Tunisia (Tunis)
+const _kDefaultCenter = LatLng(36.8065, 10.1815);
 
 class RoutesScreen extends ConsumerStatefulWidget {
   const RoutesScreen({super.key});
@@ -68,21 +68,6 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         await ref.read(routeRepositoryProvider).arrive(routeId, stopId);
       });
 
-  /// Generates evenly-spread fake stop coordinates around [center].
-  /// Replace with real delivery lat/lng once available from API.
-  List<LatLng> _fakeStopCoords(int count, LatLng center) {
-    final coords = <LatLng>[];
-    for (int i = 0; i < count; i++) {
-      final angle = (2 * math.pi / count) * i;
-      final radius = 0.012 + (i % 3) * 0.004;
-      coords.add(LatLng(
-        center.latitude + radius * math.sin(angle),
-        center.longitude + radius * math.cos(angle),
-      ));
-    }
-    return coords;
-  }
-
   @override
   Widget build(BuildContext context) {
     final routeAsync = ref.watch(todayRouteProvider);
@@ -95,7 +80,6 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           isWorking: _isWorking,
           mapController: _mapController,
           sheetController: _sheetController,
-          fakeCoords: route == null ? [] : _fakeStopCoords(route.stops.length, _kDefaultCenter),
           onStart: route == null ? null : () => _startRoute(route.id),
           onArrive: route == null ? null : (stopId) => _arriveStop(route.id, stopId),
           onRefresh: _refresh,
@@ -114,7 +98,6 @@ class _RouteMapBody extends StatelessWidget {
     required this.isWorking,
     required this.mapController,
     required this.sheetController,
-    required this.fakeCoords,
     required this.onStart,
     required this.onArrive,
     required this.onRefresh,
@@ -124,21 +107,27 @@ class _RouteMapBody extends StatelessWidget {
   final bool isWorking;
   final MapController mapController;
   final DraggableScrollableController sheetController;
-  final List<LatLng> fakeCoords;
   final VoidCallback? onStart;
   final ValueChanged<String>? onArrive;
   final VoidCallback onRefresh;
 
   @override
   Widget build(BuildContext context) {
+    // Build real stop coords from pinned deliveries; filter out unpinned stops
+    final pinnedStops = route?.stops.where((s) => s.hasPinned).toList() ?? [];
+    final stopCoords = pinnedStops.map((s) => LatLng(s.lat!, s.lng!)).toList();
+
+    // Map center: first pinned stop, or Tunisia default
+    final mapCenter = stopCoords.isNotEmpty ? stopCoords.first : _kDefaultCenter;
+
     return Stack(
       children: [
         // ── Full-screen OSM Map ──────────────────────────────────────────────
         FlutterMap(
           mapController: mapController,
           options: MapOptions(
-            initialCenter: _kDefaultCenter,
-            initialZoom: 13,
+            initialCenter: mapCenter,
+            initialZoom: stopCoords.length > 1 ? 12 : 13,
             interactionOptions: const InteractionOptions(
               flags: InteractiveFlag.pinchZoom | InteractiveFlag.drag,
             ),
@@ -148,39 +137,41 @@ class _RouteMapBody extends StatelessWidget {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.asm.driverapp',
             ),
-            // Route polyline
-            if (fakeCoords.length > 1)
+            // Route polyline connecting pinned stops in order
+            if (stopCoords.length > 1)
               PolylineLayer(
                 polylines: [
                   Polyline(
-                    points: fakeCoords,
+                    points: stopCoords,
                     color: AppColors.accent,
                     strokeWidth: 3.5,
                     pattern: const StrokePattern.dotted(),
                   ),
                 ],
               ),
-            // Stop markers
+            // Stop markers at real coordinates
             MarkerLayer(
-              markers: List.generate(fakeCoords.length, (i) {
-                final stop = route?.stops[i];
-                final isDone = stop != null && stop.status != DriverRouteStopStatus.pending;
-                final isNext = stop != null &&
-                    !isDone &&
-                    (route?.stops.firstWhere((s) => s.status == DriverRouteStopStatus.pending,
-                            orElse: () => stop) ==
+              markers: pinnedStops.asMap().entries.map((entry) {
+                final stop = entry.value;
+                final coord = stopCoords[entry.key];
+                final isDone = stop.status != DriverRouteStopStatus.pending;
+                final isNext = !isDone &&
+                    (route?.stops.firstWhere(
+                          (s) => s.status == DriverRouteStopStatus.pending,
+                          orElse: () => stop,
+                        ) ==
                         stop);
                 return Marker(
-                  point: fakeCoords[i],
+                  point: coord,
                   width: isNext ? 46 : 36,
                   height: isNext ? 46 : 36,
                   child: _StopMarker(
-                    order: (stop?.stopOrder ?? i + 1),
+                    order: stop.stopOrder,
                     isDone: isDone,
                     isNext: isNext,
                   ),
                 );
-              }),
+              }).toList(),
             ),
           ],
         ),

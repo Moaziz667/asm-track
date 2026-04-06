@@ -16,10 +16,12 @@ import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.odoo.OdooSyncService;
+import com.asm.delivery.entity.Zone;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.repository.VehicleRepository;
+import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
@@ -56,6 +58,7 @@ public class RouteService {
     private final DeliveryRepository deliveryRepository;
     private final TransportPort transportPort;
     private final OdooSyncService odooSyncService;
+    private final ZoneRepository zoneRepository;
 
     @Transactional(readOnly = true)
     public List<RouteResponse> list() {
@@ -101,6 +104,9 @@ public class RouteService {
 
     @Transactional
     public RouteResponse create(CreateRouteRequest request, String createdBy) {
+        if (request.getDepotId() == null) {
+            throw AppException.badRequest("Depot is required — ETA and route optimization depend on it");
+        }
         if (request.getVehicleId() != null && !vehicleRepository.existsById(request.getVehicleId())) {
             throw AppException.badRequest("Vehicle not found");
         }
@@ -180,7 +186,6 @@ public class RouteService {
         if (request.getDepartureTime() != null) {
             route.setDepartureTime(request.getDepartureTime());
         }
-
         LocalTime effectiveStart = route.getPlannedStartTime() != null ? route.getPlannedStartTime() : DEFAULT_PLANNED_START;
         LocalTime effectiveEnd = route.getPlannedEndTime() != null ? route.getPlannedEndTime() : DEFAULT_PLANNED_END;
         route.setPlannedStartTime(effectiveStart);
@@ -296,10 +301,35 @@ public class RouteService {
             }
         }
 
+        // Multi-zone detection: collect all distinct zone IDs from stop postal codes/cities
+        List<String> validationWarnings = new ArrayList<>();
+        {
+            List<String> postalCodes = stops.stream()
+                    .map(s -> deliveryMap.get(s.getDeliveryId()))
+                    .filter(d -> d != null && d.getOrder() != null)
+                    .map(d -> d.getOrder().getDropoffPostalCode())
+                    .filter(pc -> pc != null && !pc.isBlank())
+                    .distinct()
+                    .toList();
+
+            List<Zone> detectedZones = postalCodes.isEmpty()
+                    ? List.of()
+                    : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+
+            if (detectedZones.size() > 1) {
+                String label = detectedZones.stream().map(Zone::getName).collect(Collectors.joining(" · "));
+                validationWarnings.add("Route crosses multiple zones: " + label + " — confirm this is intentional");
+            }
+        }
+
         route.setStatus(RouteStatus.VALIDATED);
         route.setValidatedAt(LocalDateTime.now());
         transportPort.setAvailability(route.getDriverId().toString(), false);
-        return toResponse(routeRepository.save(route));
+        RouteResponse response = toResponse(routeRepository.save(route));
+        if (!validationWarnings.isEmpty()) {
+            response.setValidationWarnings(validationWarnings);
+        }
+        return response;
     }
 
     @Transactional
@@ -344,6 +374,7 @@ public class RouteService {
         }
 
         route.setStatus(RouteStatus.IN_PROGRESS);
+        route.setStartedAt(LocalDateTime.now());
         return toResponse(routeRepository.save(route));
     }
 
@@ -365,6 +396,7 @@ public class RouteService {
 
         if (route.getStatus() == RouteStatus.VALIDATED) {
             route.setStatus(RouteStatus.IN_PROGRESS);
+            route.setStartedAt(LocalDateTime.now());
             routeRepository.save(route);
         }
 
@@ -407,8 +439,15 @@ public class RouteService {
             throw AppException.conflict("Delivery already attached to another route");
         }
 
-        if (!deliveryRepository.existsById(deliveryId)) {
-            throw AppException.badRequest("Delivery not found");
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> AppException.badRequest("Delivery not found"));
+
+        // Enforce pin-before-route rule
+        Order order = delivery.getOrder();
+        if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
+            String ref = order != null && org.springframework.util.StringUtils.hasText(order.getErpOrderId())
+                    ? order.getErpOrderId() : deliveryId.toString();
+            throw AppException.badRequest("Order " + ref + " has no pin — pin the dropoff address before adding to a route");
         }
 
         RouteStop stop = RouteStop.builder()
@@ -590,7 +629,7 @@ public class RouteService {
                     .dropoffLat(order != null ? order.getDropoffLat() : null)
                     .dropoffLng(order != null ? order.getDropoffLng() : null)
                     .dropoffPinned(isPinned)
-                    .routeGeometry(delivery != null ? delivery.getRouteGeometry() : null)
+                    .routeGeometry(stop.getRouteGeometry())
                     .routeDistanceKm(delivery != null ? delivery.getRouteDistanceKm() : null)
                     .routeDurationMinutes(delivery != null ? delivery.getRouteDurationMinutes() : null)
                     .routeEtaAt(delivery != null ? delivery.getRouteEtaAt() : null)
@@ -627,6 +666,20 @@ public class RouteService {
                     etaDriftMinutes = Math.max(drift, 0);
                 }
 
+        // Auto-detect zones from stop postal codes (batch query)
+        List<String> postalCodes = stops.stream()
+                .map(RouteStopResponse::getDeliveryPostalCode)
+                .filter(pc -> pc != null && !pc.isBlank())
+                .distinct()
+                .toList();
+        List<Zone> detectedZones = postalCodes.isEmpty()
+                ? List.of()
+                : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+        List<String> detectedZoneNames = detectedZones.stream().map(Zone::getName).toList();
+        String detectedZoneLabel = detectedZoneNames.isEmpty()
+                ? ""
+                : String.join(" · ", detectedZoneNames);
+
         return RouteResponse.builder()
                 .id(route.getId())
                 .name(route.getName())
@@ -635,19 +688,20 @@ public class RouteService {
                 .date(route.getDate())
                 .plannedStartTime(route.getPlannedStartTime())
                 .plannedEndTime(route.getPlannedEndTime())
-                    .city(route.getCity())
+                .city(route.getCity())
                 .status(route.getStatus())
                 .createdBy(route.getCreatedBy())
                 .createdAt(route.getCreatedAt())
                 .validatedAt(route.getValidatedAt())
+                .startedAt(route.getStartedAt())
                 .closedAt(route.getClosedAt())
-                    .totalStops(totalStops)
-                    .completedStops(completedStops)
-                    .failedStops(failedStops)
-                    .partialStops(partialStops)
-                    .pendingStops(pendingStops)
-                    .progressPercent(progressPercent)
-                    .etaDriftMinutes(etaDriftMinutes)
+                .totalStops(totalStops)
+                .completedStops(completedStops)
+                .failedStops(failedStops)
+                .partialStops(partialStops)
+                .pendingStops(pendingStops)
+                .progressPercent(progressPercent)
+                .etaDriftMinutes(etaDriftMinutes)
                 .stops(stops)
                 .depotId(route.getDepotId())
                 .departureTime(route.getDepartureTime())
@@ -655,6 +709,8 @@ public class RouteService {
                 .totalDistanceMeters(route.getTotalDistanceMeters())
                 .isOptimized(route.getIsOptimized())
                 .routeGeometry(route.getRouteGeometry())
+                .detectedZoneLabel(detectedZoneLabel)
+                .detectedZoneNames(detectedZoneNames)
                 .build();
     }
 

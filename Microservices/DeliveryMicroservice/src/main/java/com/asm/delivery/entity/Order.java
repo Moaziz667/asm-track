@@ -135,6 +135,10 @@ public class Order {
     @Builder.Default
     private OrderStatus status = OrderStatus.PENDING;
 
+    // ── Zone ──────────────────────────────────────────────────────────────────
+    @Column(name = "zone_id")
+    private UUID zoneId;
+
     // ── Odoo integration ──────────────────────────────────────────────────────
     @Column(name = "erp_client_id", length = 100)
     private String erpClientId;

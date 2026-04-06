@@ -28,12 +28,14 @@ import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.entity.Zone;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.repository.ProofOfDeliveryRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
+import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
@@ -99,6 +101,8 @@ public class AdminDeliveryService {
         private final RouteStopRepository routeStopRepository;
     private final EventPublisher eventPublisher;
     private final OdooSyncService odooSyncService;
+    private final ZoneRepository zoneRepository;
+    private final GeocodingService geocodingService;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -107,6 +111,8 @@ public class AdminDeliveryService {
             UUID driverId,
             LocalDate date,
             OrderSource source,
+            UUID zoneId,
+            Boolean unpinned,
             Pageable pageable
     ) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -114,7 +120,7 @@ public class AdminDeliveryService {
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source);
+        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -125,7 +131,7 @@ public class AdminDeliveryService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -671,36 +677,74 @@ public class AdminDeliveryService {
         return getDeliveryDetail(deliveryId);
     }
 
-        @Transactional
-        public AdminDeliveryDetailResponse pinDropoff(UUID deliveryId, PinDropoffRequest request) {
-                Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+    @Transactional
+    public AdminDeliveryDetailResponse pinDropoff(UUID deliveryId, PinDropoffRequest request) {
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-                Order order = delivery.getOrder();
-                if (order == null) {
-                        throw AppException.badRequest("Delivery has no order attached");
-                }
-
-                order.setDropoffLat(request.getLat());
-                order.setDropoffLng(request.getLng());
-
-                if (StringUtils.hasText(request.getDropoffAddress())) {
-                        order.setDropoffAddress(request.getDropoffAddress().trim());
-                }
-                if (StringUtils.hasText(request.getDropoffCity())) {
-                        order.setDropoffCity(request.getDropoffCity().trim());
-                }
-                if (StringUtils.hasText(request.getDropoffPostalCode())) {
-                        order.setDropoffPostalCode(request.getDropoffPostalCode().trim());
-                }
-                if (StringUtils.hasText(request.getDropoffCountryCode())) {
-                        order.setDropoffCountryCode(request.getDropoffCountryCode().trim());
-                }
-
-                orderRepo.save(order);
-
-                return getDeliveryDetail(deliveryId);
+        // Lock check: cannot re-pin once the order is picked up or beyond
+        if (delivery.getStatus() == DeliveryStatus.PICKED_UP
+                || delivery.getStatus() == DeliveryStatus.IN_TRANSIT
+                || delivery.getStatus() == DeliveryStatus.DELIVERED
+                || delivery.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED
+                || delivery.getStatus() == DeliveryStatus.FAILED) {
+            throw AppException.badRequest("Pin locked: order is in transit or completed. Close the route and create a new one if the address is wrong.");
         }
+
+        Order order = delivery.getOrder();
+        if (order == null) {
+            throw AppException.badRequest("Delivery has no order attached");
+        }
+
+        order.setDropoffLat(request.getLat());
+        order.setDropoffLng(request.getLng());
+
+        if (StringUtils.hasText(request.getDropoffAddress())) {
+            order.setDropoffAddress(request.getDropoffAddress().trim());
+        }
+        if (StringUtils.hasText(request.getDropoffCity())) {
+            order.setDropoffCity(request.getDropoffCity().trim());
+        }
+        if (StringUtils.hasText(request.getDropoffPostalCode())) {
+            order.setDropoffPostalCode(request.getDropoffPostalCode().trim());
+        }
+        if (StringUtils.hasText(request.getDropoffCountryCode())) {
+            order.setDropoffCountryCode(request.getDropoffCountryCode().trim());
+        }
+
+        // Zone detection: postal code first (precise), fall back to city name
+        String postalCode = order.getDropoffPostalCode();
+        String city = order.getDropoffCity();
+        boolean zoneFound = false;
+        if (StringUtils.hasText(postalCode)) {
+            var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode.trim());
+            if (zoneByPostal.isPresent()) {
+                order.setZoneId(zoneByPostal.get().getId());
+                zoneFound = true;
+            }
+        }
+        if (!zoneFound && StringUtils.hasText(city)) {
+            zoneRepository.findActiveByCityMember(city.trim()).ifPresentOrElse(
+                    zone -> order.setZoneId(zone.getId()),
+                    () -> order.setZoneId(null)
+            );
+        } else if (!zoneFound) {
+            order.setZoneId(null);
+        }
+
+        orderRepo.save(order);
+
+        // Mark associated route as needing recalculation if already in a route
+        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+            Route route = stop.getRoute();
+            if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
+                route.setIsOptimized(false);
+                routeRepository.save(route);
+            }
+        });
+
+        return getDeliveryDetail(deliveryId);
+    }
 
     // ── Cancel ────────────────────────────────────────────────────────────────
 
@@ -858,7 +902,9 @@ public class AdminDeliveryService {
                                             DeliveryStatus status,
                                             UUID driverId,
                                             LocalDate date,
-                                                                                        OrderSource source) {
+                                            OrderSource source,
+                                            UUID zoneId,
+                                            Boolean unpinned) {
         List<Predicate> predicates = new ArrayList<>();
         if (status != null) {
             predicates.add(cb.equal(root.get("status"), status));
@@ -871,9 +917,18 @@ public class AdminDeliveryService {
             LocalDateTime end = start.plusDays(1);
             predicates.add(cb.between(root.get("createdAt"), start, end));
         }
-        if (source != null) {
-            Join<Delivery, Order> orderJoin = root.join("order");
-            predicates.add(cb.equal(orderJoin.get("source"), source));
+        // source, zoneId, unpinned all require a join on order
+        if (source != null || zoneId != null || Boolean.TRUE.equals(unpinned)) {
+            Join<Delivery, Order> orderJoin = root.join("order", JoinType.INNER);
+            if (source != null) {
+                predicates.add(cb.equal(orderJoin.get("source"), source));
+            }
+            if (zoneId != null) {
+                predicates.add(cb.equal(orderJoin.get("zoneId"), zoneId));
+            }
+            if (Boolean.TRUE.equals(unpinned)) {
+                predicates.add(cb.isNull(orderJoin.get("dropoffLat")));
+            }
         }
         return predicates;
     }
@@ -914,7 +969,10 @@ public class AdminDeliveryService {
 
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery delivery, DriverDTO driver, RouteInfo routeInfo) {
         Order order = delivery.getOrder();
-                boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        Zone zone = (order != null && order.getZoneId() != null)
+                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                : null;
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
@@ -928,6 +986,9 @@ public class AdminDeliveryService {
                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                 .dropoffPinned(isDropoffPinned)
+                .zoneId(zone != null ? zone.getId() : null)
+                .zoneName(zone != null ? zone.getName() : null)
+                .zoneColor(zone != null ? zone.getColor() : null)
                 .driverId(delivery.getDriverId())
                 .driverName(driver != null ? driver.getName() : null)
                 .driverPhone(driver != null ? driver.getPhone() : null)
@@ -940,12 +1001,12 @@ public class AdminDeliveryService {
                 .routeGeometry(delivery.getRouteGeometry())
                 .routeProvider(delivery.getRouteProvider())
                 .createdAt(delivery.getCreatedAt())
-                                .assignedAt(delivery.getAssignedAt())
-                                .inTransitAt(delivery.getInTransitAt())
+                .assignedAt(delivery.getAssignedAt())
+                .inTransitAt(delivery.getInTransitAt())
                 .completedAt(delivery.getCompletedAt())
-                                .failedAt(delivery.getFailedAt())
-                                .cancelledAt(delivery.getCancelledAt())
-                                .updatedAt(delivery.getUpdatedAt())
+                .failedAt(delivery.getFailedAt())
+                .cancelledAt(delivery.getCancelledAt())
+                .updatedAt(delivery.getUpdatedAt())
                 .build();
     }
 
@@ -1332,6 +1393,9 @@ public class AdminDeliveryService {
                                                          boolean podExists) {
         Order order = delivery.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        Zone zone = (order != null && order.getZoneId() != null)
+                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                : null;
         return AdminDeliveryDetailResponse.builder()
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
@@ -1353,6 +1417,9 @@ public class AdminDeliveryService {
                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                 .dropoffPinned(isDropoffPinned)
+                .zoneId(zone != null ? zone.getId() : null)
+                .zoneName(zone != null ? zone.getName() : null)
+                .zoneColor(zone != null ? zone.getColor() : null)
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .items(order != null ? order.getItems() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)

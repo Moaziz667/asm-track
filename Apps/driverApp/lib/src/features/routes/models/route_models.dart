@@ -81,6 +81,10 @@ class DriverRouteStop {
     required this.deliveryId,
     required this.stopOrder,
     required this.status,
+    this.lat,
+    this.lng,
+    this.address,
+    this.city,
   });
 
   factory DriverRouteStop.fromJson(Map<String, dynamic> json) {
@@ -89,6 +93,10 @@ class DriverRouteStop {
       deliveryId: (json['deliveryId'] ?? '').toString(),
       stopOrder: (json['stopOrder'] as num?)?.toInt() ?? 0,
       status: DriverRouteStopStatusX.fromApi(json['status'] as String?),
+      lat: (json['dropoffLat'] as num?)?.toDouble(),
+      lng: (json['dropoffLng'] as num?)?.toDouble(),
+      address: json['deliveryAddress'] as String?,
+      city: json['deliveryCity'] as String?,
     );
   }
 
@@ -96,6 +104,12 @@ class DriverRouteStop {
   final String deliveryId;
   final int stopOrder;
   final DriverRouteStopStatus status;
+  final double? lat;
+  final double? lng;
+  final String? address;
+  final String? city;
+
+  bool get hasPinned => lat != null && lng != null;
 }
 
 class DriverRoute {
@@ -105,6 +119,7 @@ class DriverRoute {
     required this.status,
     required this.stops,
     this.zone,
+    this.startedAt,
   });
 
   factory DriverRoute.fromJson(Map<String, dynamic> json) {
@@ -115,6 +130,9 @@ class DriverRoute {
           : 'Today route',
       status: DriverRouteStatusX.fromApi(json['status'] as String?),
       zone: json['zone'] as String?,
+      startedAt: json['startedAt'] != null
+          ? DateTime.tryParse(json['startedAt'] as String)
+          : null,
       stops: (json['stops'] as List<dynamic>? ?? [])
           .map((e) => DriverRouteStop.fromJson(e as Map<String, dynamic>))
           .toList()
@@ -126,5 +144,6 @@ class DriverRoute {
   final String name;
   final DriverRouteStatus status;
   final String? zone;
+  final DateTime? startedAt;
   final List<DriverRouteStop> stops;
 }

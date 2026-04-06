@@ -58,6 +58,9 @@ public class Route {
     @Column(name = "validated_at")
     private LocalDateTime validatedAt;
 
+    @Column(name = "started_at")
+    private LocalDateTime startedAt;
+
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
@@ -86,6 +89,9 @@ public class Route {
     /** Full OSRM road geometry from depot through all stops, stored as [[lat,lng],...] JSON. */
     @Column(name = "route_geometry", columnDefinition = "TEXT")
     private String routeGeometry;
+
+    @Column(name = "zone_id")
+    private UUID zoneId;
 
     // ─────────────────────────────────────────────────────────────────────────────
 

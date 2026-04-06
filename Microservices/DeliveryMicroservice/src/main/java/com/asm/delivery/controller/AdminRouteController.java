@@ -10,7 +10,11 @@ import com.asm.delivery.dto.response.RouteResponse;
 import com.asm.delivery.dto.response.RouteStopEtaResponse;
 import com.asm.delivery.dto.response.SlaSummaryResponse;
 import com.asm.delivery.entity.RouteStatus;
+import com.asm.delivery.entity.RouteStopStatus;
+import com.asm.delivery.entity.Tracking;
 import com.asm.delivery.idempotency.IdempotentOperation;
+import com.asm.delivery.repository.RouteStopRepository;
+import com.asm.delivery.repository.TrackingRepository;
 import com.asm.delivery.service.RouteOptimizationService;
 import com.asm.delivery.service.RouteService;
 import com.asm.delivery.service.RoutePdfService;
@@ -39,6 +43,8 @@ public class AdminRouteController {
     private final RouteService routeService;
     private final RoutePdfService routePdfService;
     private final RouteOptimizationService routeOptimizationService;
+    private final RouteStopRepository routeStopRepository;
+    private final TrackingRepository trackingRepository;
 
     // ─── Existing CRUD ────────────────────────────────────────────────────────────
 
@@ -176,6 +182,40 @@ public class AdminRouteController {
     public ResponseEntity<RouteResponse> recalculate(@PathVariable UUID id) {
         routeOptimizationService.recalculate(id);
         return ResponseEntity.ok(routeService.get(id));
+    }
+
+    @GetMapping("/{id}/driver-location")
+    @Operation(summary = "Latest driver GPS location for an in-progress route (from tracking table)")
+    public ResponseEntity<java.util.Map<String, Object>> driverLocation(@PathVariable UUID id) {
+        RouteResponse route = routeService.get(id);
+        // Find the most recent non-terminal stop's delivery, then its latest tracking point
+        java.util.Optional<UUID> activeDeliveryId = routeStopRepository
+                .findByRouteIdOrderByStopOrderAsc(id)
+                .stream()
+                .filter(s -> s.getStatus() != RouteStopStatus.COMPLETED
+                          && s.getStatus() != RouteStopStatus.FAILED
+                          && s.getStatus() != RouteStopStatus.PARTIAL)
+                .map(s -> s.getDeliveryId())
+                .findFirst();
+
+        if (activeDeliveryId.isEmpty()) {
+            return ResponseEntity.ok(java.util.Map.of("found", false));
+        }
+
+        java.util.Optional<Tracking> latest = trackingRepository
+                .findFirstByDeliveryIdOrderByTimestampDesc(activeDeliveryId.get());
+
+        if (latest.isEmpty()) {
+            return ResponseEntity.ok(java.util.Map.of("found", false));
+        }
+
+        Tracking t = latest.get();
+        return ResponseEntity.ok(java.util.Map.of(
+                "found", true,
+                "lat", t.getLat(),
+                "lng", t.getLng(),
+                "updatedAt", t.getTimestamp().toString()
+        ));
     }
 
     @GetMapping("/sla-summary")

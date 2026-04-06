@@ -7,11 +7,13 @@ import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
 import com.asm.delivery.dto.response.AdminDriverResponse;
 import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.dto.response.AdminStatsResponse;
+import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.OrderSource;
 import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.GeocodingService;
 import com.asm.delivery.service.ProofOfDeliveryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -38,6 +40,7 @@ public class AdminDeliveryController {
 
     private final AdminDeliveryService adminDeliveryService;
     private final ProofOfDeliveryService podService;
+    private final GeocodingService geocodingService;
 
     @GetMapping
     @Operation(summary = "List deliveries with filters and pagination")
@@ -48,15 +51,44 @@ public class AdminDeliveryController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date,
             @RequestParam(required = false) OrderSource source,
+            @RequestParam(required = false) UUID zoneId,
+            @RequestParam(required = false) Boolean unpinned,
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, pageable));
+        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, pageable));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get delivery detail including order and history")
     public ResponseEntity<AdminDeliveryDetailResponse> detail(@PathVariable UUID id) {
         return ResponseEntity.ok(adminDeliveryService.getDeliveryDetail(id));
+    }
+
+    @GetMapping("/{id}/geocode")
+    @Operation(summary = "Attempt Nominatim geocoding of the delivery dropoff address (always show map for confirmation)")
+    public ResponseEntity<GeocodeSuggestionResponse> geocode(@PathVariable UUID id) {
+        AdminDeliveryDetailResponse delivery = adminDeliveryService.getDeliveryDetail(id);
+        String query = buildGeocodeQuery(delivery.getDropoffAddress(), delivery.getDropoffCity());
+        return ResponseEntity.ok(geocodingService.geocode(query));
+    }
+
+    @GetMapping("/reverse-geocode")
+    @Operation(summary = "Reverse geocode a lat/lng pin to get address, city, postal code")
+    public ResponseEntity<GeocodeSuggestionResponse> reverseGeocode(
+            @RequestParam double lat,
+            @RequestParam double lng) {
+        return ResponseEntity.ok(geocodingService.reverseGeocode(lat, lng));
+    }
+
+    private static String buildGeocodeQuery(String address, String city) {
+        StringBuilder q = new StringBuilder();
+        if (address != null && !address.isBlank()) q.append(address.trim());
+        if (city != null && !city.isBlank()) {
+            if (!q.isEmpty()) q.append(", ");
+            q.append(city.trim());
+        }
+        if (!q.isEmpty()) q.append(", Tunisia");
+        return q.toString();
     }
 
     @PostMapping("/{id}/assign")

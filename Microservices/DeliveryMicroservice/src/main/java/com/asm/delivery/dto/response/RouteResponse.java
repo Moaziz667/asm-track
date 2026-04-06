@@ -25,6 +25,7 @@ public class RouteResponse {
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime validatedAt;
+    private LocalDateTime startedAt;
     private LocalDateTime closedAt;
     private Integer totalStops;
     private Integer completedStops;
@@ -43,4 +44,16 @@ public class RouteResponse {
     private Boolean isOptimized;
     /** Full OSRM road geometry as [[lat,lng],...] JSON string. */
     private String routeGeometry;
+
+    // ── Zone fields (auto-detected from stop postal codes) ────────────────────────
+    /**
+     * Compound label of all zones detected across route stops,
+     * e.g. "Grand Tunis · Ariana". Empty string if no zones matched.
+     */
+    private String detectedZoneLabel;
+    /** Individual zone names for multi-zone warning logic. */
+    private java.util.List<String> detectedZoneNames;
+
+    /** Non-blocking warnings returned from validate() e.g. zone mismatch. */
+    private java.util.List<String> validationWarnings;
 }

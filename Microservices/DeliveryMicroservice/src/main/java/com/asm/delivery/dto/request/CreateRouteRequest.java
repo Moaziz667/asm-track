@@ -30,7 +30,8 @@ public class CreateRouteRequest {
 
     private List<UUID> deliveryIds;
 
-    /** Optional depot ID — every route should start from a depot. */
+    /** Depot where the route departs from — required for ETA/optimization. */
+    @NotNull(message = "Depot is required for ETA calculation")
     private UUID depotId;
 
     /** Optional explicit departure time; defaults to date + plannedStartTime. */

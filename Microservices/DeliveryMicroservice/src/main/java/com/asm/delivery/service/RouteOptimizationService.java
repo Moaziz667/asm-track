@@ -261,8 +261,19 @@ public class RouteOptimizationService {
         route.setTotalDurationSeconds(totalDuration);
         route.setTotalDistanceMeters(totalDistance);
 
-        // Fetch full OSRM road geometry for map display (depot → stop1 → stop2 → ...)
+        // Fetch full OSRM road geometry for route-level map blob
         osrmRoutingService.routeFullGeometry(points).ifPresent(route::setRouteGeometry);
+
+        // Fetch per-leg geometries so RouteTrackingMap can color each leg independently
+        List<String> legGeometries = osrmRoutingService.routeLegsGeometry(points);
+        for (int i = 0; i < stopsInOrder.size(); i++) {
+            if (i < legGeometries.size() && legGeometries.get(i) != null) {
+                stopsInOrder.get(i).setRouteGeometry(legGeometries.get(i));
+            }
+        }
+        if (!legGeometries.isEmpty()) {
+            routeStopRepository.saveAll(stopsInOrder);
+        }
 
         routeRepository.save(route);
     }

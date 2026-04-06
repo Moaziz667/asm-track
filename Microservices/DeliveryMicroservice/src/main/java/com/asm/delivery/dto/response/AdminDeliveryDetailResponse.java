@@ -40,6 +40,9 @@ public class AdminDeliveryDetailResponse {
     private BigDecimal dropoffLat;
     private BigDecimal dropoffLng;
     private boolean dropoffPinned;
+    private UUID zoneId;
+    private String zoneName;
+    private String zoneColor;
     private String deliveryInstructions;
 
     private List<OrderItem> items;

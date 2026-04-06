@@ -158,6 +158,7 @@ services:
     ports:
       - "8080:8080"
     environment:
+      TZ: Africa/Tunis
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: app_password
@@ -181,6 +182,7 @@ services:
     ports:
       - "8082:8082"
     environment:
+      TZ: Africa/Tunis
       DB_HOST: postgres-delivery
       DB_PORT: "5432"
       DB_NAME: delivery_db
@@ -228,6 +230,7 @@ services:
     ports:
       - "8086:8086"
     environment:
+      TZ: Africa/Tunis
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DB_USER: driver
       DB_PASS: driver

@@ -253,6 +253,65 @@ public class OsrmRoutingService {
         }
     }
 
+    /**
+     * Returns per-leg route geometries as a list of JSON-serialized [[lat,lng],...] strings.
+     * Index 0 = depot→stop[0], index 1 = stop[0]→stop[1], etc.
+     * Uses the OSRM Route API with annotations per leg (no overview, steps per leg geometry).
+     * Returns empty list if OSRM unavailable.
+     *
+     * @param points list of [lat, lng] pairs; depot at index 0, then stops in order
+     */
+    public List<String> routeLegsGeometry(List<double[]> points) {
+        if (!enabled || points == null || points.size() < 2) return List.of();
+        try {
+            String coords = points.stream()
+                    .map(p -> String.format(Locale.ROOT, "%f,%f", p[1], p[0])) // lng,lat
+                    .collect(Collectors.joining(";"));
+
+            // overview=false + steps=true gives per-leg step geometries we can concat per leg
+            String url = String.format(
+                    Locale.ROOT,
+                    "%s/route/v1/%s/%s?overview=false&geometries=geojson&steps=true",
+                    stripTrailingSlash(baseUrl), profile, coords
+            );
+            String raw = buildClient().getForObject(URI.create(url), String.class);
+            if (raw == null) return List.of();
+
+            JsonNode root = objectMapper.readTree(raw);
+            if (!"Ok".equals(root.path("code").asText())) return List.of();
+
+            JsonNode legs = root.path("routes").get(0).path("legs");
+            if (!legs.isArray() || legs.isEmpty()) return List.of();
+
+            List<String> result = new ArrayList<>();
+            for (JsonNode leg : legs) {
+                // Concatenate all step geometries for this leg into one path
+                List<double[]> legPath = new ArrayList<>();
+                JsonNode steps = leg.path("steps");
+                if (steps.isArray()) {
+                    for (JsonNode step : steps) {
+                        JsonNode stepCoords = step.path("geometry").path("coordinates");
+                        if (stepCoords.isArray()) {
+                            for (JsonNode point : stepCoords) {
+                                // OSRM: [lng, lat] → convert to [lat, lng]
+                                legPath.add(new double[]{point.get(1).asDouble(), point.get(0).asDouble()});
+                            }
+                        }
+                    }
+                }
+                if (legPath.size() >= 2) {
+                    result.add(objectMapper.writeValueAsString(legPath));
+                } else {
+                    result.add(null); // null = no geometry for this leg
+                }
+            }
+            return result;
+        } catch (Exception ex) {
+            log.warn("OSRM routeLegsGeometry failed: {}", ex.getMessage());
+            return List.of();
+        }
+    }
+
     // ─── 2.3 Trip optimization (OSRM TSP solver) ─────────────────────────────────
 
     /**

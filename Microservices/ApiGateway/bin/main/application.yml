@@ -88,6 +88,11 @@ spring:
           predicates:
             - Path=/api/v1/depots/**
 
+        - id: delivery-v1-zones
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/zones/**
+
         - id: delivery-ws
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:

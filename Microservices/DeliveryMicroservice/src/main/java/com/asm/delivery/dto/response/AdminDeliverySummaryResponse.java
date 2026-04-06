@@ -29,6 +29,10 @@ public class AdminDeliverySummaryResponse {
     private BigDecimal dropoffLng;
     private boolean dropoffPinned;
 
+    private UUID zoneId;
+    private String zoneName;
+    private String zoneColor;
+
     private UUID driverId;
     private String driverName;
     private String driverPhone;

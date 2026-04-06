@@ -458,3 +458,28 @@ BEGIN
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;
+
+-- Per-leg OSRM geometry for map display
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS route_geometry TEXT;
+
+-- ── Zones ─────────────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS zones (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name         VARCHAR(150) NOT NULL,
+  color        VARCHAR(7),
+  description  TEXT,
+  cities       JSONB NOT NULL DEFAULT '[]',
+  postal_codes JSONB NOT NULL DEFAULT '[]',
+  is_active    BOOLEAN NOT NULL DEFAULT true,
+  created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_zones_is_active ON zones(is_active);
+
+-- ── Link orders and routes to zones ──────────────────────────────────────────
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS zone_id UUID REFERENCES zones(id);
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS zone_id UUID REFERENCES zones(id);
+
+-- ── Route execution timestamps ────────────────────────────────────────────────
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
