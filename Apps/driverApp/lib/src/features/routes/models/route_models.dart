@@ -1,3 +1,5 @@
+import '../../../features/deliveries/models/delivery_models.dart';
+
 enum DriverRouteStatus {
   draft,
   validated,
@@ -85,6 +87,13 @@ class DriverRouteStop {
     this.lng,
     this.address,
     this.city,
+    this.deliveryStatus,
+    this.clientName,
+    this.clientPhone,
+    this.totalAmount,
+    this.orderRef,
+    this.etaAt,
+    this.slaDeadline,
   });
 
   factory DriverRouteStop.fromJson(Map<String, dynamic> json) {
@@ -97,6 +106,13 @@ class DriverRouteStop {
       lng: (json['dropoffLng'] as num?)?.toDouble(),
       address: json['deliveryAddress'] as String?,
       city: json['deliveryCity'] as String?,
+      deliveryStatus: json['deliveryStatus'] as String?,
+      clientName: json['clientName'] as String?,
+      clientPhone: json['clientPhone'] as String?,
+      totalAmount: (json['totalAmount'] as num?)?.toDouble(),
+      orderRef: json['orderRef'] as String?,
+      etaAt: json['etaAt'] as String?,
+      slaDeadline: json['slaDeadline'] as String?,
     );
   }
 
@@ -108,8 +124,28 @@ class DriverRouteStop {
   final double? lng;
   final String? address;
   final String? city;
+  final String? deliveryStatus;
+  final String? clientName;
+  final String? clientPhone;
+  final double? totalAmount;
+  final String? orderRef;
+  final String? etaAt;
+  final String? slaDeadline;
 
   bool get hasPinned => lat != null && lng != null;
+
+  DeliveryStatus get parsedDeliveryStatus =>
+      DeliveryStatusX.fromApi(deliveryStatus);
+
+  String? get formattedEta => _formatTime(etaAt);
+  String? get formattedSla => _formatTime(slaDeadline);
+
+  static String? _formatTime(String? iso) {
+    if (iso == null) return null;
+    final dt = DateTime.tryParse(iso)?.toLocal();
+    if (dt == null) return null;
+    return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+  }
 }
 
 class DriverRoute {

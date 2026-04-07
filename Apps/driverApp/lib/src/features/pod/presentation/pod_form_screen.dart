@@ -4,9 +4,10 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:signature/signature.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_providers.dart';
+import '../../../config/app_config.dart';
 import '../../../services/location_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
@@ -29,12 +30,12 @@ class PodFormScreen extends ConsumerStatefulWidget {
 }
 
 class _PodFormScreenState extends ConsumerState<PodFormScreen> {
-  final _signatureController = SignatureController(penStrokeWidth: 3, penColor: Colors.white);
   final _notesController = TextEditingController();
   final _picker = ImagePicker();
   final _locationService = LocationService();
 
-  Uint8List? _photoBytes;
+  Uint8List? _bonLivraisonBytes;
+  Uint8List? _packageBytes;
   bool _submitting = false;
   bool _attachLocation = true;
   bool _isPartial = false;
@@ -52,13 +53,17 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
   @override
   void dispose() {
-    _signatureController.dispose();
     _notesController.dispose();
     super.dispose();
   }
 
+  bool get _canSubmit => _bonLivraisonBytes != null && _packageBytes != null;
+
   @override
   Widget build(BuildContext context) {
+    final config = ref.read(appConfigProvider);
+    final blUrl = '${config.apiBaseUrl}/api/driver/deliveries/${widget.args.delivery.id}/bon-livraison';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -72,26 +77,82 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         child: ListView(
           padding: const EdgeInsets.all(20),
           children: [
-            Text(
-              'Collect signature, capture visual evidence and transmit it back to HQ.',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: AppColors.muted),
+            // Instructions
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.info.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+              ),
+              child: const Text(
+                '1. Imprimez le bon de livraison et faites-le signer par le client.\n'
+                '2. Photographiez le bon signé.\n'
+                '3. Photographiez la remise du colis.',
+                style: TextStyle(fontSize: 13, color: AppColors.info, height: 1.5),
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // View bon de livraison button
+            OutlinedButton.icon(
+              onPressed: () async {
+                final uri = Uri.parse(blUrl);
+                if (await canLaunchUrl(uri)) {
+                  await launchUrl(uri, mode: LaunchMode.externalApplication);
+                }
+              },
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              label: const Text('Voir / Imprimer bon de livraison'),
             ),
             const SizedBox(height: 20),
-            _buildSignaturePad(context),
+
+            // Photo 1: Bon de livraison signé
+            _buildPhotoSection(
+              context,
+              title: '📄 Bon de livraison signé',
+              subtitle: 'Photographiez le bon signé par le client',
+              bytes: _bonLivraisonBytes,
+              required: true,
+              onPick: (bytes) => setState(() => _bonLivraisonBytes = bytes),
+              onClear: () => setState(() => _bonLivraisonBytes = null),
+            ),
+            const SizedBox(height: 16),
+
+            // Photo 2: Package handover
+            _buildPhotoSection(
+              context,
+              title: '📦 Remise du colis',
+              subtitle: 'Photographiez le colis au moment de la remise',
+              bytes: _packageBytes,
+              required: true,
+              onPick: (bytes) => setState(() => _packageBytes = bytes),
+              onClear: () => setState(() => _packageBytes = null),
+            ),
             const SizedBox(height: 20),
-            _buildPhotoBlock(context),
-            const SizedBox(height: 20),
+
             _buildNotesField(context),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildLocationToggle(context),
-            const SizedBox(height: 20),
+            const SizedBox(height: 16),
             _buildPartialDeliveryToggle(context),
             const SizedBox(height: 24),
+
+            if (!_canSubmit)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: Text(
+                  'Les deux photos sont obligatoires pour soumettre le POD.',
+                  style: TextStyle(fontSize: 12, color: AppColors.danger.withValues(alpha: 0.8)),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+
             AsmDriveButton(
-              label: 'Submit proof',
+              label: 'Soumettre le POD',
               icon: Icons.check,
               isLoading: _submitting,
-              onPressed: _submitting ? null : _submit,
+              onPressed: (_submitting || !_canSubmit) ? null : _submit,
             ),
           ],
         ),
@@ -99,88 +160,91 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Widget _buildSignaturePad(BuildContext context) {
+  Widget _buildPhotoSection(
+    BuildContext context, {
+    required String title,
+    required String subtitle,
+    required Uint8List? bytes,
+    required bool required,
+    required ValueChanged<Uint8List> onPick,
+    required VoidCallback onClear,
+  }) {
     return AsmDriveCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Recipient signature', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: Container(
-              color: Colors.black,
-              height: 220,
-              child: Signature(
-                controller: _signatureController,
-                backgroundColor: Colors.transparent,
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(title, style: Theme.of(context).textTheme.titleMedium),
+                        if (required)
+                          const Text(' *', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
+                      ],
+                    ),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                  ],
+                ),
               ),
-            ),
+              if (bytes != null)
+                Container(
+                  width: 22,
+                  height: 22,
+                  decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
+                  child: const Icon(Icons.check, size: 14, color: Colors.white),
+                ),
+            ],
           ),
           const SizedBox(height: 12),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton.icon(
-              onPressed: () => _signatureController.clear(),
-              icon: const Icon(Icons.restart_alt),
-              label: const Text('Clear strokes'),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPhotoBlock(BuildContext context) {
-    return AsmDriveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Visual evidence', style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: 12),
-          if (_photoBytes != null)
+          if (bytes != null)
             ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.memory(
-                _photoBytes!,
-                height: 180,
-                width: double.infinity,
-                fit: BoxFit.cover,
-              ),
+              borderRadius: BorderRadius.circular(10),
+              child: Image.memory(bytes, height: 160, width: double.infinity, fit: BoxFit.cover),
             )
           else
-            Container(
-              height: 180,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Center(
-                child: Text('No photo attached'),
+            GestureDetector(
+              onTap: () => _pickPhoto(onPick),
+              child: Container(
+                height: 120,
+                decoration: BoxDecoration(
+                  color: AppColors.surfaceElevated,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColors.border, style: BorderStyle.solid),
+                ),
+                child: const Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.camera_alt_outlined, size: 32, color: AppColors.muted),
+                      SizedBox(height: 6),
+                      Text('Appuyer pour photographier', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                    ],
+                  ),
+                ),
               ),
             ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 12,
-            runSpacing: 8,
+          const SizedBox(height: 10),
+          Row(
             children: [
               OutlinedButton.icon(
-                onPressed: () => _pickPhoto(ImageSource.camera),
-                icon: const Icon(Icons.camera_alt_outlined),
-                label: const Text('Camera'),
+                onPressed: () => _pickPhoto(onPick),
+                icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                label: Text(bytes == null ? 'Prendre une photo' : 'Reprendre'),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
               ),
-              OutlinedButton.icon(
-                onPressed: () => _pickPhoto(ImageSource.gallery),
-                icon: const Icon(Icons.photo_outlined),
-                label: const Text('Library'),
-              ),
-              if (_photoBytes != null)
+              if (bytes != null) ...[
+                const SizedBox(width: 8),
                 TextButton.icon(
-                  onPressed: () => setState(() => _photoBytes = null),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Remove'),
+                  onPressed: onClear,
+                  icon: const Icon(Icons.delete_outline, size: 16),
+                  label: const Text('Supprimer'),
+                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
                 ),
+              ],
             ],
           ),
         ],
@@ -195,7 +259,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         minLines: 2,
         maxLines: 5,
         decoration: const InputDecoration(
-          labelText: 'Comments (door code, person name, etc.)',
+          labelText: 'Commentaires (code porte, nom personne, etc.)',
         ),
       ),
     );
@@ -211,9 +275,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Attach GPS snapshot'),
+                const Text('Joindre la position GPS'),
                 Text(
-                  'We send coordinates once when you submit the proof.',
+                  'Coordonnées envoyées une seule fois à la soumission.',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                 ),
               ],
@@ -241,9 +305,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('Partial Delivery'),
+                    const Text('Livraison partielle'),
                     Text(
-                      'Mark if not all items were delivered.',
+                      'Cochez si tous les articles n\'ont pas été livrés.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                     ),
                   ],
@@ -257,16 +321,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
           ),
           if (_isPartial) ...[
             const Divider(height: 24),
-            Text('Adjust delivered quantities:', style: Theme.of(context).textTheme.titleSmall),
+            Text('Ajuster les quantités livrées :', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 12),
             ...widget.args.delivery.items.map((item) {
               final key = item.sku ?? item.name;
               final currentQty = _itemsDone[key] ?? item.quantity;
               return Row(
                 children: [
-                  Expanded(
-                    child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis),
-                  ),
+                  Expanded(child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
                   Row(
                     children: [
                       IconButton(
@@ -293,34 +355,25 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Future<void> _pickPhoto(ImageSource source) async {
+  Future<void> _pickPhoto(ValueChanged<Uint8List> onDone) async {
     try {
-      final file = await _picker.pickImage(source: source, imageQuality: 80);
+      final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
       if (file == null) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
-      setState(() => _photoBytes = bytes);
+      onDone(bytes);
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Unable to access ${source.name}')),
+        const SnackBar(content: Text('Impossible d\'accéder à l\'appareil photo.')),
       );
     }
   }
 
   Future<void> _submit() async {
-    if (_signatureController.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Capture recipient signature before submitting.')));
-      return;
-    }
+    if (!_canSubmit) return;
     setState(() => _submitting = true);
     try {
-      final signatureBytes = await _signatureController.toPngBytes();
-      if (signatureBytes == null) {
-        throw Exception('Signature missing');
-      }
-      final signatureBase64 = base64Encode(signatureBytes);
-      final photoBase64 = _photoBytes != null ? base64Encode(_photoBytes!) : null;
       double? lat;
       double? lng;
       if (_attachLocation) {
@@ -331,12 +384,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
       List<PartialDeliveryItem>? itemsArray;
       if (_isPartial) {
-        itemsArray = _itemsDone.entries.map((e) => PartialDeliveryItem(sku: e.key, quantityDone: e.value)).toList();
+        itemsArray = _itemsDone.entries
+            .map((e) => PartialDeliveryItem(sku: e.key, quantityDone: e.value))
+            .toList();
       }
 
       final payload = PodPayload(
-        signatureBase64: signatureBase64,
-        photoBase64: photoBase64,
+        bonLivraisonPhotoBase64: base64Encode(_bonLivraisonBytes!),
+        packagePhotoBase64: base64Encode(_packageBytes!),
         comment: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
         lat: lat,
         lng: lng,
@@ -345,11 +400,12 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       );
       await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Proof transmitted.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succès.')));
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to submit POD: $error')));
+      ScaffoldMessenger.of(context)
+          .showSnackBar(SnackBar(content: Text('Échec de soumission du POD : $error')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

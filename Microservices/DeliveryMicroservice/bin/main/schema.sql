@@ -398,6 +398,10 @@ ALTER TABLE proof_of_delivery ADD COLUMN IF NOT EXISTS photo_url VARCHAR(500);
 ALTER TABLE proof_of_delivery DROP COLUMN IF EXISTS signature_base64;
 ALTER TABLE proof_of_delivery DROP COLUMN IF EXISTS photo_base64;
 
+-- POD reform: bon de livraison photo + make signature_url optional
+ALTER TABLE proof_of_delivery ADD COLUMN IF NOT EXISTS bon_livraison_photo_url VARCHAR(500);
+ALTER TABLE proof_of_delivery ALTER COLUMN signature_url DROP NOT NULL;
+
 -- ── Depots ────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS depots (
   id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),

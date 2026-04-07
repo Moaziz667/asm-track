@@ -41,4 +41,11 @@ public class RouteStopResponse {
     private Integer driveDistanceMeters;
     private LocalDateTime actualArrivalAt;
     private Integer dwellMinutes;
+
+    // ── Delivery-level fields for driver app inline display ───────────────────
+    private String deliveryStatus;
+    private String clientName;
+    private String clientPhone;
+    private java.math.BigDecimal totalAmount;
+    private String orderRef;
 }

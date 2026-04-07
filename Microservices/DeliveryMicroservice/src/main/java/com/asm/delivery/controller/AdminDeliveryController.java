@@ -13,6 +13,7 @@ import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.OrderSource;
 import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.GeocodingService;
 import com.asm.delivery.service.ProofOfDeliveryService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -41,6 +42,7 @@ public class AdminDeliveryController {
     private final AdminDeliveryService adminDeliveryService;
     private final ProofOfDeliveryService podService;
     private final GeocodingService geocodingService;
+    private final BonLivraisonPdfService bonLivraisonPdfService;
 
     @GetMapping
     @Operation(summary = "List deliveries with filters and pagination")
@@ -158,5 +160,15 @@ public class AdminDeliveryController {
     @Operation(summary = "Get proof of delivery for auditing")
     public ResponseEntity<ProofOfDeliveryResponse> getPod(@PathVariable UUID id) {
         return ResponseEntity.ok(podService.getPodAdmin(id));
+    }
+
+    @GetMapping("/{id}/bon-livraison")
+    @Operation(summary = "Download bon de livraison PDF for a delivery")
+    public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
+        byte[] pdf = bonLivraisonPdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

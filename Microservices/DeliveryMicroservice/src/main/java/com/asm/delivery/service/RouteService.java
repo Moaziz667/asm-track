@@ -374,7 +374,21 @@ public class RouteService {
         }
 
         route.setStatus(RouteStatus.IN_PROGRESS);
-        route.setStartedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        route.setStartedAt(now);
+
+        // Auto-pickup all ASSIGNED deliveries so driver doesn't need per-stop pickup action
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        for (RouteStop stop : stops) {
+            deliveryRepository.findById(stop.getDeliveryId()).ifPresent(delivery -> {
+                if (delivery.getStatus() == DeliveryStatus.ASSIGNED) {
+                    delivery.setStatus(DeliveryStatus.PICKED_UP);
+                    delivery.setPickedUpAt(now);
+                    deliveryRepository.save(delivery);
+                }
+            });
+        }
+
         return toResponse(routeRepository.save(route));
     }
 
@@ -642,6 +656,11 @@ public class RouteService {
                     .driveDistanceMeters(stop.getDriveDistanceMeters())
                     .actualArrivalAt(stop.getActualArrivalAt())
                     .dwellMinutes(stop.getDwellMinutes())
+                    .deliveryStatus(delivery != null && delivery.getStatus() != null ? delivery.getStatus().name() : null)
+                    .clientName(order != null ? order.getClientName() : null)
+                    .clientPhone(order != null ? order.getClientPhone() : null)
+                    .totalAmount(order != null ? order.getTotalAmount() : null)
+                    .orderRef(order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getErpExternalRef()) : null)
                     .build());
         }
 

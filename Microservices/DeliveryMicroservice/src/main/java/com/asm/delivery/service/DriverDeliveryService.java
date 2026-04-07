@@ -356,35 +356,35 @@ public class DriverDeliveryService {
             return toDriverDeliveryResponse(delivery);
         }
 
-        // Upload files to MinIO
+        // Upload 2 mandatory photos to MinIO
         String deliveryFolder = "pod/" + deliveryId;
         long ts = System.currentTimeMillis();
 
-        String signatureUrl;
+        String bonLivraisonPhotoUrl;
         try {
-            signatureUrl = minioStorageService.uploadBase64(
-                    req.getSignatureBase64(),
-                    deliveryFolder + "/signature-" + ts + ".png");
+            bonLivraisonPhotoUrl = minioStorageService.uploadBase64(
+                    req.getBonLivraisonPhotoBase64(),
+                    deliveryFolder + "/bon-livraison-" + ts + ".png");
         } catch (StorageException e) {
-            log.error("Failed to upload signature for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Failed to store signature. Please retry.");
+            log.error("Failed to upload bon-livraison photo for delivery {}: {}", deliveryId, e.getMessage());
+            throw AppException.serviceUnavailable("Failed to store bon de livraison photo. Please retry.");
         }
 
-        String photoUrl = null;
-        if (req.getPhotoBase64() != null && !req.getPhotoBase64().isBlank()) {
-            try {
-                photoUrl = minioStorageService.uploadBase64(
-                        req.getPhotoBase64(),
-                        deliveryFolder + "/photo-" + ts + ".png");
-            } catch (StorageException e) {
-                log.warn("Failed to upload photo for delivery {}: {}", deliveryId, e.getMessage());
-            }
+        String packagePhotoUrl;
+        try {
+            packagePhotoUrl = minioStorageService.uploadBase64(
+                    req.getPackagePhotoBase64(),
+                    deliveryFolder + "/package-" + (ts + 1) + ".png");
+        } catch (StorageException e) {
+            log.error("Failed to upload package photo for delivery {}: {}", deliveryId, e.getMessage());
+            throw AppException.serviceUnavailable("Failed to store package photo. Please retry.");
         }
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
                 .deliveryId(deliveryId)
-                .signatureUrl(signatureUrl)
-                .photoUrl(photoUrl)
+                .bonLivraisonPhotoUrl(bonLivraisonPhotoUrl)
+                .photoUrl(packagePhotoUrl)
+                .signatureUrl(null)
                 .comment(req.getComment())
                 .lat(req.getLat())
                 .lng(req.getLng())

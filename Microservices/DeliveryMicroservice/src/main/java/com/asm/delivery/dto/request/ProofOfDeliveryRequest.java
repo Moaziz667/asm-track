@@ -9,9 +9,12 @@ import java.util.List;
 
 @Data
 public class ProofOfDeliveryRequest {
-    private String photoBase64;
     @NotBlank
-    private String signatureBase64;
+    private String bonLivraisonPhotoBase64; // signed receipt photo
+
+    @NotBlank
+    private String packagePhotoBase64;       // package handover photo
+
     private String comment;
     private BigDecimal lat;
     private BigDecimal lng;

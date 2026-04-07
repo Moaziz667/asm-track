@@ -24,10 +24,13 @@ public class ProofOfDelivery {
     private UUID deliveryId;
 
     @Column(name = "signature_url", length = 500)
-    private String signatureUrl;
+    private String signatureUrl; // legacy — nullable going forward
 
     @Column(name = "photo_url", length = 500)
-    private String photoUrl;
+    private String photoUrl; // package handover photo
+
+    @Column(name = "bon_livraison_photo_url", length = 500)
+    private String bonLivraisonPhotoUrl; // signed receipt photo
 
     @Column(name = "comment", columnDefinition = "TEXT")
     private String comment;

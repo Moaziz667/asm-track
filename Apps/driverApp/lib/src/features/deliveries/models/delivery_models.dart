@@ -235,8 +235,8 @@ class PartialDeliveryItem {
 
 class PodPayload {
   PodPayload({
-    this.photoBase64,
-    required this.signatureBase64,
+    required this.bonLivraisonPhotoBase64,
+    required this.packagePhotoBase64,
     this.comment,
     this.lat,
     this.lng,
@@ -244,8 +244,8 @@ class PodPayload {
     this.itemsDone,
   });
 
-  final String? photoBase64;
-  final String signatureBase64;
+  final String bonLivraisonPhotoBase64;
+  final String packagePhotoBase64;
   final String? comment;
   final double? lat;
   final double? lng;
@@ -254,8 +254,8 @@ class PodPayload {
 
   Map<String, dynamic> toJson() {
     return {
-      'photoBase64': photoBase64,
-      'signatureBase64': signatureBase64,
+      'bonLivraisonPhotoBase64': bonLivraisonPhotoBase64,
+      'packagePhotoBase64': packagePhotoBase64,
       'comment': comment,
       'lat': lat,
       'lng': lng,

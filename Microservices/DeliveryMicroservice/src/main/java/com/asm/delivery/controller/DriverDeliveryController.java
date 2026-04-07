@@ -8,7 +8,10 @@ import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.MessageResponse;
 import com.asm.delivery.security.UserPrincipal;
+import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.DriverDeliveryService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -30,6 +33,7 @@ import java.util.UUID;
 public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
+    private final BonLivraisonPdfService bonLivraisonPdfService;
 
     @GetMapping("/available")
     @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
@@ -138,5 +142,15 @@ public class DriverDeliveryController {
             @Valid @RequestBody ProofOfDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req));
+    }
+
+    @GetMapping("/{id}/bon-livraison")
+    @Operation(summary = "Download bon de livraison PDF for a delivery")
+    public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
+        byte[] pdf = bonLivraisonPdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }
