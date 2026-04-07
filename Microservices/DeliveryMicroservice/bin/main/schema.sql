@@ -447,8 +447,11 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(2
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_duration_seconds INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_distance_meters  INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS dwell_minutes          INTEGER NOT NULL DEFAULT 10;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_at            TIMESTAMP;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_reason        TEXT;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_by            VARCHAR(100);
 
--- Fix route_stops status check to include PARTIAL (legacy) alongside COMPLETED/FAILED
+-- Fix route_stops status check to include PARTIAL (legacy) and REMOVED
 DO $$
 BEGIN
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_stops_status_check') THEN
@@ -458,7 +461,7 @@ BEGIN
     ALTER TABLE route_stops DROP CONSTRAINT ck_route_stops_status;
   END IF;
   ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_status
-    CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL'));
+    CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL', 'REMOVED'));
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;

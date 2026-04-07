@@ -81,6 +81,15 @@ public class RouteStop {
     @Column(name = "dwell_minutes", nullable = false)
     private Integer dwellMinutes = 10;
 
+    @Column(name = "removed_at")
+    private LocalDateTime removedAt;
+
+    @Column(name = "removed_reason", columnDefinition = "TEXT")
+    private String removedReason;
+
+    @Column(name = "removed_by", length = 100)
+    private String removedBy;
+
     /**
      * Per-leg OSRM geometry for this stop (JSON array of [lat,lng] pairs).
      * Represents the road path from the previous point (depot or prior stop) to this stop.

@@ -36,6 +36,12 @@ public class RouteResponse {
     private Long etaDriftMinutes;
     private List<RouteStopResponse> stops;
 
+    // ── Route start delay tracking ────────────────────────────────────────────────
+    /** Minutes late driver started vs plannedStartTime (null if on time or not yet started) */
+    private Integer routeStartDelayMinutes;
+    /** Legacy stops (reassigned/replanned) for historical display */
+    private List<RouteStopResponse> legacyStops;
+
     // ── Depot & optimization fields ───────────────────────────────────────────────
     private UUID depotId;
     private LocalDateTime departureTime;

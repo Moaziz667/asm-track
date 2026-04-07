@@ -59,6 +59,7 @@ public class RouteService {
     private final TransportPort transportPort;
     private final OdooSyncService odooSyncService;
     private final ZoneRepository zoneRepository;
+    private final DelayCalculationService delayCalculationService;
 
     @Transactional(readOnly = true)
     public List<RouteResponse> list() {
@@ -623,11 +624,23 @@ public class RouteService {
                     .collect(Collectors.toMap(Delivery::getId, Function.identity()));
         }
 
+        // Separate active and legacy stops
+        List<RouteStop> activeStops = routeStops.stream()
+                .filter(s -> s.getStatus() != RouteStopStatus.REMOVED)
+                .toList();
+        List<RouteStop> legacyStops = routeStops.stream()
+                .filter(s -> s.getStatus() == RouteStopStatus.REMOVED)
+                .toList();
+
         List<RouteStopResponse> stops = new ArrayList<>();
-        for (RouteStop stop : routeStops) {
+        for (RouteStop stop : activeStops) {
             Delivery delivery = deliveriesById.get(stop.getDeliveryId());
             Order order = delivery != null ? delivery.getOrder() : null;
             boolean isPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+
+            // Calculate delay info for this stop
+            DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
+
             stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
@@ -661,6 +674,28 @@ public class RouteService {
                     .clientPhone(order != null ? order.getClientPhone() : null)
                     .totalAmount(order != null ? order.getTotalAmount() : null)
                     .orderRef(order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getErpExternalRef()) : null)
+                    .delayMinutes(delayInfo != null ? delayInfo.delayMinutes : null)
+                    .delayStatus(delayInfo != null ? delayInfo.delayStatus : null)
+                    .delayReason(delayInfo != null ? delayInfo.delayReason : null)
+                    .build());
+        }
+
+        // Build legacy stops responses
+        List<RouteStopResponse> legacyStopResponses = new ArrayList<>();
+        for (RouteStop stop : legacyStops) {
+            Delivery delivery = deliveriesById.get(stop.getDeliveryId());
+            Order order = delivery != null ? delivery.getOrder() : null;
+            legacyStopResponses.add(RouteStopResponse.builder()
+                    .id(stop.getId())
+                    .deliveryId(stop.getDeliveryId())
+                    .stopOrder(stop.getStopOrder())
+                    .status(stop.getStatus())
+                    .deliveryAddress(order != null ? order.getDropoffAddress() : null)
+                    .deliveryCity(order != null ? order.getDropoffCity() : null)
+                    .clientName(order != null ? order.getClientName() : null)
+                    .removedAt(stop.getRemovedAt())
+                    .removedReason(stop.getRemovedReason())
+                    .removedBy(stop.getRemovedBy())
                     .build());
         }
 
@@ -672,6 +707,9 @@ public class RouteService {
                 double progressPercent = totalStops == 0
                     ? 0.0
                     : ((double) (completedStops + failedStops + partialStops) * 100.0) / (double) totalStops;
+
+                // Calculate route start delay
+                Integer routeStartDelayMinutes = delayCalculationService.calculateRouteStartDelay(route);
 
                 LocalDateTime plannedEndDateTime = route.getDate() != null && route.getPlannedEndTime() != null
                     ? route.getDate().atTime(route.getPlannedEndTime())
@@ -730,6 +768,8 @@ public class RouteService {
                 .routeGeometry(route.getRouteGeometry())
                 .detectedZoneLabel(detectedZoneLabel)
                 .detectedZoneNames(detectedZoneNames)
+                .routeStartDelayMinutes(routeStartDelayMinutes)
+                .legacyStops(legacyStopResponses.isEmpty() ? null : legacyStopResponses)
                 .build();
     }
 

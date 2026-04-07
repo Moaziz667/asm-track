@@ -48,4 +48,14 @@ public class RouteStopResponse {
     private String clientPhone;
     private java.math.BigDecimal totalAmount;
     private String orderRef;
+
+    // ── Delay tracking for dashboard ──────────────────────────────────────────
+    private Integer delayMinutes;           // negative = early, positive = late
+    private String delayReason;             // "On time", "15 min early", "Failed stop (cascading)", etc.
+    private String delayStatus;             // "ON_TIME", "EARLY", "LATE"
+
+    // ── Legacy stop fields (reassigned/replanned) ─────────────────────────────
+    private LocalDateTime removedAt;
+    private String removedReason;           // "REASSIGNED" or "REPLANNED"
+    private String removedBy;
 }

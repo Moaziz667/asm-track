@@ -5,5 +5,6 @@ public enum RouteStopStatus {
     ARRIVED,
     COMPLETED,
     FAILED,
-    PARTIAL
+    PARTIAL,
+    REMOVED
 }
