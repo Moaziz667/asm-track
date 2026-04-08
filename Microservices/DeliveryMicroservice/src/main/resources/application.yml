@@ -56,6 +56,13 @@ app:
   sla:
     check-interval-ms: ${SLA_CHECK_INTERVAL_MS:30000}
     approaching-threshold-minutes: ${SLA_APPROACHING_THRESHOLD_MINUTES:10}
+  
+  # Configuration Ops pour les SLAs des Lanes
+  ops:
+    sla:
+      waiting-limit-minutes: ${OPS_SLA_WAITING_LIMIT:15}
+      pickup-limit-minutes: ${OPS_SLA_PICKUP_LIMIT:20}
+      transit-buffer-minutes: ${OPS_SLA_TRANSIT_BUFFER:15}
 
 transport:
   provider: ${TRANSPORT_PROVIDER:internal}

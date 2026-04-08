@@ -41,6 +41,9 @@ public class RouteStopResponse {
     private Integer driveDistanceMeters;
     private LocalDateTime actualArrivalAt;
     private Integer dwellMinutes;
+    private Integer bufferMinutes;
+    private java.time.LocalTime startTimeWindow;
+    private java.time.LocalTime endTimeWindow;
 
     // ── Delivery-level fields for driver app inline display ───────────────────
     private String deliveryStatus;

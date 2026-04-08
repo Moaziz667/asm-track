@@ -41,6 +41,7 @@ public class DriverDeliveryService {
     private final MinioStorageService             minioStorageService;
     private final RouteService                    routeService;
     private final OsrmRoutingService              osrmRoutingService;
+    private final AuditLogService                  auditLogService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED,
@@ -110,6 +111,8 @@ public class DriverDeliveryService {
 
         // Mark driver unavailable via Driver Service (best-effort)
         transportPort.setAvailability(driverId.toString(), false);
+
+        auditLogService.logAction(null, "DRIVER_ACCEPT", deliveryId.toString(), "Driver " + driverId + " accepted delivery");
 
         appendHistory(delivery, DeliveryStatus.ASSIGNED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryAssigned(delivery.getOrder(), delivery, driverId);
@@ -236,6 +239,9 @@ public class DriverDeliveryService {
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
+
+        auditLogService.logAction(null, "DRIVER_COMPLETE", delivery.getId().toString(), 
+            String.format("Delivery %s marked as %s by driver %s", delivery.getId(), finalStatus, driverId));
 
         String message = isPartial ? "Delivery partially completed" : "Delivery completed";
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
@@ -418,6 +424,10 @@ public class DriverDeliveryService {
         delivery.setFailReason(failureComment);
         delivery.setFailureCode(failureCode);
         delivery = deliveryRepo.save(delivery);
+
+        auditLogService.logAction(null, "DRIVER_FAIL", delivery.getId().toString(), 
+            String.format("Delivery %s failed by driver %s. Code: %s, Reason: %s", 
+            delivery.getId(), driverId, failureCode, failureComment));
 
         // Release driver + increment stat (best-effort)
         transportPort.setAvailability(driverId.toString(), true);

@@ -34,6 +34,7 @@ public class OdooSyncService {
     private final PartialDeliverySync partialDeliverySync;
     private final FailedDeliverySync failedDeliverySync;
     private final CancelOrderSync cancelOrderSync;
+    private final AuditLogService auditLogService;
 
     // ── Sync order creation to Odoo (APP orders only) ─────────────────────────
 
@@ -78,6 +79,10 @@ public class OdooSyncService {
 
         order.setErpOrderId(String.valueOf(odooId));
         orderRepo.save(order);
+        
+        auditLogService.logAction(null, "ODOO_ORDER_CREATED", order.getId().toString(), 
+            String.format("Order synced to Odoo. Odoo ID: %s, Client: %s", odooId, order.getClientName()));
+            
         log.info("Order creation synced to Odoo — orderId={} erpOrderId={}", order.getId(), odooId);
     }
 

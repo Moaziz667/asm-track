@@ -469,6 +469,44 @@ CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_
 -- Per-leg OSRM geometry for map display
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS route_geometry TEXT;
 
+-- ── Time slots / Creneaux ─────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS time_slots (
+  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  zone_id        UUID,
+  slot_date      DATE NOT NULL,
+  start_time     TIME NOT NULL,
+  end_time       TIME NOT NULL,
+  max_deliveries INTEGER,
+  current_count  INTEGER NOT NULL DEFAULT 0,
+  status         VARCHAR(20) NOT NULL DEFAULT 'ACTIVE' CHECK (status IN ('ACTIVE', 'CLOSED', 'CANCELLED')),
+  created_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at     TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_time_slots_date_zone ON time_slots(slot_date, zone_id);
+CREATE INDEX IF NOT EXISTS idx_time_slots_status ON time_slots(status);
+
+CREATE TABLE IF NOT EXISTS slot_assignments (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  delivery_id     UUID NOT NULL UNIQUE REFERENCES deliveries(id),
+  slot_id         UUID NOT NULL REFERENCES time_slots(id),
+  assigned_at     TIMESTAMP NOT NULL DEFAULT NOW(),
+  assigned_by     VARCHAR(100),
+  status          VARCHAR(20) NOT NULL DEFAULT 'ASSIGNED' CHECK (status IN ('ASSIGNED', 'FULFILLED', 'VIOLATED', 'CANCELLED')),
+  compliance_note TEXT,
+  override_used   BOOLEAN NOT NULL DEFAULT false,
+  override_reason TEXT,
+  override_by     VARCHAR(100),
+  created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+  updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_slot_assignments_slot_id ON slot_assignments(slot_id);
+CREATE INDEX IF NOT EXISTS idx_slot_assignments_status ON slot_assignments(status);
+ALTER TABLE slot_assignments ADD COLUMN IF NOT EXISTS override_used BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE slot_assignments ADD COLUMN IF NOT EXISTS override_reason TEXT;
+ALTER TABLE slot_assignments ADD COLUMN IF NOT EXISTS override_by VARCHAR(100);
+
 -- ── Zones ─────────────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS zones (
   id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -483,6 +521,17 @@ CREATE TABLE IF NOT EXISTS zones (
 );
 
 CREATE INDEX IF NOT EXISTS idx_zones_is_active ON zones(is_active);
+
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'fk_time_slots_zone_id'
+  ) THEN
+    ALTER TABLE time_slots
+      ADD CONSTRAINT fk_time_slots_zone_id
+      FOREIGN KEY (zone_id) REFERENCES zones(id);
+  END IF;
+END $$;
 
 -- ── Link orders and routes to zones ──────────────────────────────────────────
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS zone_id UUID REFERENCES zones(id);

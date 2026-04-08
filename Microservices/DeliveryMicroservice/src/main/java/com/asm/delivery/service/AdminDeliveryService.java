@@ -67,11 +67,20 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class AdminDeliveryService {
 
-        @Value("${ops.sla.waiting-minutes:15}")
-        private int waitingSlaMinutes;
+    @Value("${ops.sla.waiting-limit-minutes:15}")
+    private int waitingLimitMinutes;
 
-        @Value("${ops.sla.transit-minutes:120}")
-        private int transitSlaMinutes;
+    @Value("${ops.sla.pickup-limit-minutes:20}")
+    private int pickupLimitMinutes;
+
+    @Value("${ops.sla.transit-buffer-minutes:15}")
+    private int transitBufferMinutes;
+
+    @Value("${ops.sla.waiting-minutes:15}")
+    private int waitingSlaMinutes;
+
+    @Value("${ops.sla.transit-minutes:120}")
+    private int transitSlaMinutes;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED,
@@ -103,6 +112,8 @@ public class AdminDeliveryService {
     private final OdooSyncService odooSyncService;
     private final ZoneRepository zoneRepository;
     private final GeocodingService geocodingService;
+    private final AuditLogService auditLogService;
+    private final SystemSettingsService systemSettingsService;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -521,6 +532,10 @@ public class AdminDeliveryService {
                 deliveryRepo.save(delivery);
 
                 ActorInfo actor = resolveActor(principal);
+                auditLogService.logAction(principal, "REASSIGN_DELIVERY", delivery.getId().toString(), 
+                    String.format("Delivery %s reassigned from %s to %s. Note: %s", 
+                    delivery.getId(), previousDriverId, request.getDriverId(), request.getNote()));
+
                 // Keep route plan consistent with ownership change: move stop to the new driver's route.
                 moveStopToDriverRoute(delivery, request.getDriverId(), actor.name());
 
@@ -566,6 +581,9 @@ public class AdminDeliveryService {
                 deliveryRepo.save(delivery);
 
                 ActorInfo actor = resolveActor(principal);
+                auditLogService.logAction(principal, "REPLAN_DELIVERY", delivery.getId().toString(), 
+                    "Delivery returned to dispatch pool (WAITING_DRIVER). Note: " + request.getNote());
+
                 // Replan means pull the delivery out of the current execution route and return it to dispatch pool.
                 removeStopFromCurrentRoute(delivery.getId());
 
@@ -1045,27 +1063,38 @@ public class AdminDeliveryService {
                                                                                                                           int effectiveWaitingSlaMinutes,
                                                                                                                           int effectiveTransitSlaMinutes) {
                 if ("FAILED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Delivery failed and requires follow-up");
+                        return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Livraison en échec : Nécessite une intervention manuelle");
                 }
                 if ("CANCELLED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Delivery cancelled and requires review");
+                        return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Livraison annulée par le système ou l'utilisateur");
                 }
                 if ("PARTIALLY_DELIVERED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Partial delivery reported");
+                        return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Livraison partielle signalée");
                 }
                 if ("WAITING_DRIVER".equals(s.getStatus()) && s.getCreatedAt() != null) {
+                        int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
                         long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
-                        if (elapsed > effectiveWaitingSlaMinutes) {
-                                return buildExceptionRow(s, DeliveryStatus.WAITING_DRIVER, "WARNING", "Waiting driver SLA breached");
+                        if (elapsed > waitingLimit) {
+                                return buildExceptionRow(s, DeliveryStatus.WAITING_DRIVER, "WARNING", 
+                                    String.format("Aucun livreur n'a accepté cette commande depuis %d minutes", elapsed));
+                        }
+                }
+                if ("ASSIGNED".equals(s.getStatus()) && s.getAssignedAt() != null) {
+                        int pickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", pickupLimitMinutes);
+                        long elapsed = Duration.between(s.getAssignedAt(), now).toMinutes();
+                        if (elapsed > pickupLimit) {
+                            return buildExceptionRow(s, DeliveryStatus.ASSIGNED, "CRITICAL", 
+                                "Le livreur est en retard pour récupérer le colis au dépôt");
                         }
                 }
                 if ("IN_TRANSIT".equals(s.getStatus())) {
-                        LocalDateTime baseline = s.getInTransitAt() != null ? s.getInTransitAt() : s.getCreatedAt();
-                        int transitThreshold = s.getTransitSlaMinutesComputed() != null
-                                ? s.getTransitSlaMinutesComputed()
-                                : effectiveTransitSlaMinutes;
-                        if (baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold) {
-                                return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Transit SLA breached");
+                        // Utilisation du créneau horaire fixe défini par le dispatcher (Window End)
+                        Optional<RouteStop> stopOpt = routeStopRepository.findByDeliveryId(s.getDeliveryId());
+                        if (stopOpt.isPresent() && stopOpt.get().getEndTimeWindow() != null) {
+                            LocalDateTime deadline = LocalDateTime.of(now.toLocalDate(), stopOpt.get().getEndTimeWindow());
+                            if (now.isAfter(deadline)) {
+                                return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Retard critique : Fenêtre de livraison client dépassée");
+                            }
                         }
                 }
                 return null;

@@ -35,6 +35,7 @@ public class OrderService {
     private final EventPublisher     eventPublisher;
     private final OdooSyncService    odooSyncService;
     private final ErpLookupService   erpLookupService;
+    private final AuditLogService    auditLogService;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -99,6 +100,9 @@ public class OrderService {
 
         order = orderRepo.save(order);
 
+        auditLogService.logAction(null, "APP_ORDER_CREATED", order.getId().toString(), 
+            String.format("New order created via App for client %s (%s)", clientName, clientId));
+
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
@@ -138,6 +142,9 @@ public class OrderService {
 
         applyCanonicalToOrder(order, canonical, true);
         order = orderRepo.save(order);
+
+        auditLogService.logAction(null, "ODOO_RECV_ORDER", order.getId().toString(), 
+            "Imported order from Odoo: " + erpOrderId);
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order received from Odoo");
         eventPublisher.publishDeliveryCreated(order, delivery);

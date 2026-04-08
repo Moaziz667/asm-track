@@ -1,7 +1,9 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.response.AdminStatsResponse;
+import com.asm.delivery.dto.response.DashboardKpiResponse;
 import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.ReportingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -23,6 +25,30 @@ import java.time.LocalDate;
 public class AdminReportsController {
 
     private final AdminDeliveryService adminDeliveryService;
+    private final ReportingService reportingService;
+    private final com.asm.delivery.service.SystemSettingsService systemSettingsService;
+
+    @GetMapping("/dashboard")
+    @Operation(summary = "Indicateurs de Performance (KPIs) de l'entreprise", 
+               description = "Fournit les données de succès (SLA Compliance), volumes et statistiques de retard.")
+    public ResponseEntity<DashboardKpiResponse> getDashboard() {
+        return ResponseEntity.ok(reportingService.getGlobalKpis());
+    }
+
+    @GetMapping("/settings")
+    @Operation(summary = "Récupérer la configuration actuelle des SLAs", 
+               description = "Liste tous les paramètres opérationnels configurables (Temps d'attente max, retards au dépôt, buffers transit).")
+    public ResponseEntity<java.util.Map<String, String>> getSettings() {
+        return ResponseEntity.ok(systemSettingsService.getAll());
+    }
+
+    @PostMapping("/settings")
+    @Operation(summary = "Mettre à jour un seuil de SLA en temps réel", 
+               description = "Permet à l'Admin de modifier dynamiquement les règles de retard du système. Clés valides : 'ops.sla.waiting-limit-minutes', 'ops.sla.pickup-limit-minutes'.")
+    public ResponseEntity<Void> updateSetting(@RequestParam String key, @RequestParam String value) {
+        systemSettingsService.upsert(key, value);
+        return ResponseEntity.ok().build();
+    }
 
     @GetMapping("/kpi")
     @Operation(summary = "Get KPI report payload for admin dashboard")

@@ -50,6 +50,11 @@ public class RouteService {
 
     private static final LocalTime DEFAULT_PLANNED_START = LocalTime.of(8, 0);
     private static final LocalTime DEFAULT_PLANNED_END = LocalTime.of(18, 0);
+
+    @Transactional
+    public void deleteByRouteId(UUID routeId) {
+        routeStopRepository.deleteByRouteId(routeId);
+    }
     private static final long MIN_ROUTE_WINDOW_MINUTES = 15;
 
     private final RouteRepository routeRepository;
@@ -60,6 +65,7 @@ public class RouteService {
     private final OdooSyncService odooSyncService;
     private final ZoneRepository zoneRepository;
     private final DelayCalculationService delayCalculationService;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<RouteResponse> list() {
@@ -137,14 +143,25 @@ public class RouteService {
 
         route = routeRepository.save(route);
 
+        auditLogService.logAction(null, "CREATE_ROUTE", route.getId().toString(), "Route created: " + route.getName());
+
         if (route.getVehicleId() != null) {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
         }
 
-        List<UUID> deliveryIds = request.getDeliveryIds() != null ? request.getDeliveryIds() : List.of();
-        int index = 1;
-        for (UUID deliveryId : deliveryIds) {
-            addStopInternal(route, deliveryId, index++);
+        // Validate and create stops
+        if (request.getStopConfigs() != null && !request.getStopConfigs().isEmpty()) {
+            validateStopChronology(request.getStopConfigs(), plannedStartTime);
+            int index = 1;
+            for (CreateRouteRequest.StopConfig config : request.getStopConfigs()) {
+                addStopInternal(route, config.getDeliveryId(), index++, 
+                    config.getStartTimeWindow(), config.getEndTimeWindow(), config.getBufferMinutes(), false);
+            }
+        } else if (request.getDeliveryIds() != null) {
+            int index = 1;
+            for (UUID deliveryId : request.getDeliveryIds()) {
+                addStopInternal(route, deliveryId, index++, null, null, 30, false);
+            }
         }
 
         assertRouteWeightWithinVehicleCapacity(route);
@@ -173,10 +190,10 @@ public class RouteService {
             route.setDate(request.getDate());
         }
         if (request.getPlannedStartTime() != null) {
-            route.setPlannedStartTime(request.getPlannedStartTime());
+            route.setPlannedStartTime(LocalTime.parse(request.getPlannedStartTime()));
         }
         if (request.getPlannedEndTime() != null) {
-            route.setPlannedEndTime(request.getPlannedEndTime());
+            route.setPlannedEndTime(LocalTime.parse(request.getPlannedEndTime()));
         }
         if (request.getCity() != null) {
             route.setCity(normalizeNullableText(request.getCity()));
@@ -198,9 +215,56 @@ public class RouteService {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
         }
 
+        // --- UPDATE STOPS IF PROVIDED ---
+        if (request.getStopConfigs() != null && !request.getStopConfigs().isEmpty()) {
+            // 1. Validate chronology (re-using existing logic)
+            validateUpdateStopChronology(request.getStopConfigs(), effectiveStart);
+            
+            // 2. Wipe old stops and add new ones (clean Slate)
+            this.deleteByRouteId(route.getId());
+            routeStopRepository.flush(); // ensure deletes are processed
+
+            int index = 1;
+            for (UpdateRouteRequest.StopConfig config : request.getStopConfigs()) {
+                addStopInternal(route, config.getDeliveryId(), index++, 
+                    config.getStartTimeWindow(), config.getEndTimeWindow(), config.getBufferMinutes());
+            }
+        } else if (request.getDeliveryIds() != null) {
+             this.deleteByRouteId(route.getId());
+             routeStopRepository.flush();
+                addStopInternal(route, deliveryId, index++, null, null, 30);
+             for (UUID deliveryId : request.getDeliveryIds()) {
+                 addStopInternal(route, deliveryId, index++, null, null, 30, true);
+             }
+        }
+
         assertRouteWeightWithinVehicleCapacity(route);
 
+        auditLogService.logAction(null, "UPDATE_ROUTE", route.getId().toString(), "Route updated: " + route.getName());
+
         return toResponse(routeRepository.save(route));
+    }
+
+    private void validateUpdateStopChronology(List<UpdateRouteRequest.StopConfig> configs, LocalTime routeStart) {
+        LocalTime lastEnd = routeStart;
+        int i = 1;
+        for (UpdateRouteRequest.StopConfig config : configs) {
+            String startStr = config.getStartTimeWindow();
+                    LocalTime.parse(config.getStartTimeWindow()), LocalTime.parse(config.getEndTimeWindow()), config.getBufferMinutes());
+            if (startStr == null || startStr.isEmpty() || endStr == null || endStr.isEmpty()) {
+                throw AppException.badRequest("Stop #" + i + ": Start/End time windows are required");
+            }
+            LocalTime start = LocalTime.parse(startStr);
+            LocalTime end = LocalTime.parse(endStr);
+            if (start.isBefore(lastEnd)) {
+                 addStopInternal(route, deliveryId, index++, null, null, 30);
+            }
+            if (!start.isBefore(end)) {
+                throw AppException.badRequest("Stop #" + i + ": End time must be after start time");
+            }
+            lastEnd = end;
+            i++;
+        }
     }
 
     private void assignVehicleToDriver(UUID vehicleId, UUID driverId) {
@@ -215,15 +279,17 @@ public class RouteService {
         Route route = getRoute(id);
         ensureDraft(route);
         routeRepository.delete(route);
+        auditLogService.logAction(null, "DELETE_ROUTE", id.toString(), "Route deleted: " + route.getName());
     }
 
     @Transactional
-    public RouteResponse addStop(UUID routeId, UUID deliveryId) {
+    public RouteResponse addStop(UUID routeId, com.asm.delivery.dto.request.AddRouteStopRequest request) {
         Route route = getRoute(routeId);
         ensureDraft(route);
         int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId).size() + 1;
-        addStopInternal(route, deliveryId, nextOrder);
+        addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
         assertRouteWeightWithinVehicleCapacity(route);
+        auditLogService.logAction(null, "ADD_STOP", routeId.toString(), "Added delivery " + request.getDeliveryId());
         return toResponse(route);
     }
 
@@ -235,6 +301,7 @@ public class RouteService {
         RouteStop stop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
                 .orElseThrow(() -> AppException.notFound("Route stop not found"));
         routeStopRepository.delete(stop);
+        auditLogService.logAction(null, "REMOVE_STOP", routeId.toString(), "Removed delivery " + stop.getDeliveryId());
 
         // Re-pack stop order after deletion
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
@@ -449,10 +516,18 @@ public class RouteService {
         });
     }
 
-    private void addStopInternal(Route route, UUID deliveryId, int stopOrder) {
-        if (routeStopRepository.existsByDeliveryId(deliveryId)) {
-            throw AppException.conflict("Delivery already attached to another route");
-        }
+    private void addStopInternal(Route route, UUID deliveryId, int stopOrder, LocalTime start, LocalTime end, Integer buffer) {
+        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(existingStop -> {
+            UUID existingRouteId = existingStop.getRoute() != null ? existingStop.getRoute().getId() : null;
+            UUID currentRouteId = route.getId();
+            if (existingRouteId == null || !existingRouteId.equals(currentRouteId)) {
+                String existingRouteName = existingStop.getRoute() != null ? existingStop.getRoute().getName() : null;
+                String message = existingRouteName != null
+                        ? "Delivery already attached to route: " + existingRouteName
+                        : "Delivery already attached to another route";
+                throw AppException.conflict(message);
+            }
+        });
 
         Delivery delivery = deliveryRepository.findById(deliveryId)
                 .orElseThrow(() -> AppException.badRequest("Delivery not found"));
@@ -470,6 +545,9 @@ public class RouteService {
                 .deliveryId(deliveryId)
                 .stopOrder(stopOrder)
                 .status(RouteStopStatus.PENDING)
+                .startTimeWindow(start)
+                .endTimeWindow(end)
+                .bufferMinutes(buffer != null ? buffer : 30)
                 .build();
 
         routeStopRepository.save(stop);
@@ -614,6 +692,27 @@ public class RouteService {
         }
     }
 
+    private void validateStopChronology(List<CreateRouteRequest.StopConfig> configs, LocalTime routeStart) {
+        LocalTime lastEnd = routeStart;
+        int i = 1;
+        for (CreateRouteRequest.StopConfig config : configs) {
+            LocalTime start = config.getStartTimeWindow();
+            LocalTime end = config.getEndTimeWindow();
+
+            if (start == null || end == null) {
+                throw AppException.badRequest("Stop #" + i + ": Start/End time windows are required");
+            }
+            if (start.isBefore(lastEnd)) {
+                throw AppException.badRequest("Stop #" + i + ": Start time (" + start + ") is before previous stop ends (" + lastEnd + ")");
+            }
+            if (!start.isBefore(end)) {
+                throw AppException.badRequest("Stop #" + i + ": End time must be after start time");
+            }
+            lastEnd = end;
+            i++;
+        }
+    }
+
     private RouteResponse toResponse(Route route) {
         List<RouteStop> routeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
 
@@ -669,6 +768,9 @@ public class RouteService {
                     .driveDistanceMeters(stop.getDriveDistanceMeters())
                     .actualArrivalAt(stop.getActualArrivalAt())
                     .dwellMinutes(stop.getDwellMinutes())
+                    .bufferMinutes(stop.getBufferMinutes())
+                    .startTimeWindow(stop.getStartTimeWindow())
+                    .endTimeWindow(stop.getEndTimeWindow())
                     .deliveryStatus(delivery != null && delivery.getStatus() != null ? delivery.getStatus().name() : null)
                     .clientName(order != null ? order.getClientName() : null)
                     .clientPhone(order != null ? order.getClientPhone() : null)

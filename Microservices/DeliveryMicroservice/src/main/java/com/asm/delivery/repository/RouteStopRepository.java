@@ -23,6 +23,8 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
 
     boolean existsByDeliveryId(UUID deliveryId);
 
+    void deleteByRouteId(UUID routeId);
+
     /** All non-terminal stops from VALIDATED or IN_PROGRESS routes that have a computed SLA status. */
     @Query("""
         SELECT rs FROM RouteStop rs JOIN FETCH rs.route r

@@ -12,8 +12,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "routes")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

@@ -30,6 +30,16 @@ public class CreateRouteRequest {
 
     private List<UUID> deliveryIds;
 
+    private List<StopConfig> stopConfigs;
+
+    @Data
+    public static class StopConfig {
+        private UUID deliveryId;
+        private java.time.LocalTime startTimeWindow;
+        private java.time.LocalTime endTimeWindow;
+        private int bufferMinutes;
+    }
+
     /** Depot where the route departs from — required for ETA/optimization. */
     @NotNull(message = "Depot is required for ETA calculation")
     private UUID depotId;

@@ -22,4 +22,5 @@ public class RouteStopEtaResponse {
     private LocalDateTime actualArrivalAt;
     private RouteStopStatus status;
     private Integer dwellMinutes;
+    private Integer bufferMinutes;
 }

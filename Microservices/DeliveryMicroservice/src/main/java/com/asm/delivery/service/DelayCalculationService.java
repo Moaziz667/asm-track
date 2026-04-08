@@ -17,10 +17,9 @@ import java.util.List;
 public class DelayCalculationService {
 
     /**
-     * Calculate delay info for a single stop.
-     * @param stop RouteStop with etaAt and actualArrivalAt
+     * Calculate delay info for a single stop compared to the manual Time Window.
+     * @param stop RouteStop with actualArrivalAt and endTimeWindow
      * @param route Route with startedAt
-     * @param allStops All stops in the route (for cascading detection)
      * @return DelayInfo with minutes, reason, and status
      */
     public DelayInfo calculateDelay(RouteStop stop, Route route, List<RouteStop> allStops) {
@@ -29,61 +28,36 @@ public class DelayCalculationService {
             return null;
         }
 
-        // If route never started, can't calculate
-        if (route.getStartedAt() == null) {
+        // Manual Mode: We compare Actual Arrival vs Manual End Time Window
+        if (stop.getEndTimeWindow() == null || route.getDate() == null) {
             return null;
         }
 
-        // Reference point: when route actually started (T=0)
-        LocalDateTime routeStartTime = route.getStartedAt();
-
-        // For first stop: use route.startedAt as T=0
-        // For subsequent stops: use actual arrival at previous stop as T=0
-        LocalDateTime referenceTime = getReference(stop, routeStartTime, allStops);
-        if (referenceTime == null) {
-            return null;
-        }
-
-        // Expected arrival: reference time + (etaAt - routeStartTime)
-        long expectedSeconds = stop.getEtaAt() != null
-                ? java.time.temporal.ChronoUnit.SECONDS.between(routeStartTime, stop.getEtaAt())
-                : 0;
-        LocalDateTime expectedArrival = referenceTime.plusSeconds(expectedSeconds);
-
-        // Actual arrival
+        // The "Deadline" is the route date + the manual end time slot
+        LocalDateTime manualDeadline = route.getDate().atTime(stop.getEndTimeWindow());
         LocalDateTime actual = stop.getActualArrivalAt();
 
-        // Calculate delay in minutes
-        long delaySeconds = java.time.temporal.ChronoUnit.SECONDS.between(expectedArrival, actual);
+        // Calculate delay in minutes relative to the manual slot
+        long delaySeconds = java.time.temporal.ChronoUnit.SECONDS.between(manualDeadline, actual);
         int delayMinutes = (int) (delaySeconds / 60);
 
-        // Determine status and reason
         String delayStatus;
         String delayReason;
 
-        if (delayMinutes == 0) {
+        if (delayMinutes <= 0) {
             delayStatus = "ON_TIME";
-            delayReason = "✅ On time";
-        } else if (delayMinutes < 0) {
-            delayStatus = "EARLY";
-            delayReason = String.format("⏱️ %d min early", Math.abs(delayMinutes));
+            delayReason = "✅ Dans le créneau";
         } else {
             delayStatus = "LATE";
-
-            // Check if previous stop failed (cascading delay)
-            boolean previousFailed = isPreviousFailed(stop, allStops);
-            if (previousFailed) {
-                delayReason = String.format("🔴 %d min late (cascading from failed stop)", delayMinutes);
-            } else {
-                delayReason = String.format("⚠️ %d min late", delayMinutes);
-            }
+            delayReason = String.format("⚠️ Retard: %d min (Fin créneau: %s)", 
+                delayMinutes, stop.getEndTimeWindow().toString());
         }
 
         return DelayInfo.builder()
-                .delayMinutes(delayMinutes)
+                .delayMinutes(Math.max(0, delayMinutes))
                 .delayStatus(delayStatus)
                 .delayReason(delayReason)
-                .expectedArrival(expectedArrival)
+                .expectedArrival(manualDeadline)
                 .actualArrival(actual)
                 .build();
     }

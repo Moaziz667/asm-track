@@ -91,7 +91,7 @@ public class AdminRouteController {
     @Operation(summary = "Add stop to route")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> addStop(@PathVariable UUID id, @Valid @RequestBody AddRouteStopRequest request) {
-        return ResponseEntity.ok(routeService.addStop(id, request.getDeliveryId()));
+        return ResponseEntity.ok(routeService.addStop(id, request));
     }
 
     @DeleteMapping("/{id}/stops/{stopId}")

@@ -8,8 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "route_stops")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
@@ -97,6 +96,21 @@ public class RouteStop {
      */
     @Column(name = "route_geometry", columnDefinition = "TEXT")
     private String routeGeometry;
+
+    // ── Per-stop Time Window (SLA) fields ────────────────────────────────────────
+
+    /** Earliest time the client can receive the delivery. */
+    @Column(name = "start_time_window")
+    private java.time.LocalTime startTimeWindow;
+
+    /** Latest time the client expects the delivery. */
+    @Column(name = "end_time_window")
+    private java.time.LocalTime endTimeWindow;
+
+    /** Buffer in minutes for SLA calculation (default 30). */
+    @Builder.Default
+    @Column(name = "buffer_minutes", nullable = false)
+    private Integer bufferMinutes = 30;
 
     // ─────────────────────────────────────────────────────────────────────────────
 

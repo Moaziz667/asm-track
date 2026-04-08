@@ -232,18 +232,23 @@ public class RouteOptimizationService {
                 driveSec = (int) Math.round(durations[matrixFrom][matrixTo]);
                 driveMt = distances != null ? (int) Math.round(distances[matrixFrom][matrixTo]) : 0;
             } else {
-                // OSRM not available — skip ETA calculation
+                // OSRM not available — skip duration/distance part
                 stop.setEtaAt(null);
                 stop.setSlaDeadline(null);
                 stop.setDriveDurationSeconds(null);
                 stop.setDriveDistanceMeters(null);
-                continue;
             }
 
+            /*
+            // ─── Manual Mode: We only use OSRM for trajectories, not ETAs/Planning ───
             currentTime = currentTime.plusSeconds(driveSec);
 
             stop.setEtaAt(currentTime);
-            stop.setSlaDeadline(currentTime.plusMinutes(slaBufferMinutes));
+
+            // Use per-stop buffer (fallback to global default if null)
+            int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : slaBufferMinutes;
+            stop.setSlaDeadline(currentTime.plusMinutes(buffer));
+
             stop.setDriveDurationSeconds(driveSec);
             stop.setDriveDistanceMeters(driveMt);
             stop.setSlaStatus(computeSlaStatus(stop, LocalDateTime.now()));
@@ -254,6 +259,18 @@ public class RouteOptimizationService {
             // Advance time by dwell at this stop (if not yet completed)
             int dwell = stop.getDwellMinutes() != null ? stop.getDwellMinutes() : defaultDwellMinutes;
             currentTime = currentTime.plusMinutes(dwell);
+            */
+            
+            // In Manual Mode, we keep ETA null or use the manual window start if you prefer.
+            // For now, we follow the request to disable OSRM-based automatic timing.
+            stop.setEtaAt(null); 
+            stop.setSlaDeadline(null);
+            stop.setSlaStatus(null);
+            
+            stop.setDriveDurationSeconds(driveSec);
+            stop.setDriveDistanceMeters(driveMt);
+            totalDuration += driveSec;
+            totalDistance += driveMt;
         }
 
         routeStopRepository.saveAll(stopsInOrder);
@@ -310,7 +327,10 @@ public class RouteOptimizationService {
 
             currentTime = currentTime.plusSeconds(driveSec);
             LocalDateTime eta = currentTime;
-            LocalDateTime sla = eta.plusMinutes(slaBufferMinutes);
+
+            // Use per-stop buffer (fallback to global default if null)
+            int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : slaBufferMinutes;
+            LocalDateTime sla = eta.plusMinutes(buffer);
 
             int dwell = stop.getDwellMinutes() != null ? stop.getDwellMinutes() : defaultDwellMinutes;
 
@@ -325,6 +345,7 @@ public class RouteOptimizationService {
                     .actualArrivalAt(stop.getActualArrivalAt())
                     .status(stop.getStatus())
                     .dwellMinutes(dwell)
+                    .bufferMinutes(buffer)
                     .build());
 
             currentTime = eta.plusMinutes(dwell);
@@ -399,7 +420,33 @@ public class RouteOptimizationService {
     // ─── SLA status computation ───────────────────────────────────────────────────
 
     public static SlaStatus computeSlaStatus(RouteStop stop, LocalDateTime now) {
-        return computeSlaStatus(stop.getEtaAt(), stop.getSlaDeadline(), stop.getActualArrivalAt(), now);
+        LocalDateTime arrival = stop.getActualArrivalAt() != null ? stop.getActualArrivalAt() : now;
+
+        // 1. Manual Window Check (Priority)
+        if (stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
+            LocalDateTime date = stop.getRoute().getDate().atStartOfDay();
+            LocalDateTime windowStart = date.with(stop.getStartTimeWindow());
+            
+            // SLA Deadline for Window = End Time + Buffer
+            int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : 30;
+            LocalDateTime windowEnd = date.with(stop.getEndTimeWindow()).plusMinutes(buffer);
+
+            if (arrival.isBefore(windowStart)) return SlaStatus.EARLY;
+            if (arrival.isAfter(windowEnd)) return SlaStatus.BREACHED;
+            
+            // Orange (At Risk) if within 15 mins of deadline or already past window end but still in buffer
+            if (arrival.plusMinutes(15).isAfter(windowEnd) || arrival.isAfter(date.with(stop.getEndTimeWindow()))) {
+                return SlaStatus.AT_RISK;
+            }
+            return SlaStatus.ON_TIME;
+        }
+
+        // 2. ETA-based Check (Fallback)
+        if (stop.getEtaAt() == null || stop.getSlaDeadline() == null) return SlaStatus.ON_TIME;
+
+        if (arrival.isBefore(stop.getEtaAt()) || arrival.isEqual(stop.getEtaAt())) return SlaStatus.ON_TIME;
+        if (arrival.isBefore(stop.getSlaDeadline())) return SlaStatus.AT_RISK;
+        return SlaStatus.BREACHED;
     }
 
     public static SlaStatus computeSlaStatus(LocalDateTime etaAt, LocalDateTime slaDeadline,
