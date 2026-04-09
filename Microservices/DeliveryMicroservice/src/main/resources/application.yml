@@ -52,17 +52,15 @@ app:
     base-url: ${ROUTING_OSRM_BASE_URL:http://localhost:5000}
   route:
     default-dwell-minutes: ${ROUTE_DEFAULT_DWELL_MINUTES:10}
-    sla-buffer-minutes: ${ROUTE_SLA_BUFFER_MINUTES:30}
   sla:
     check-interval-ms: ${SLA_CHECK_INTERVAL_MS:30000}
-    approaching-threshold-minutes: ${SLA_APPROACHING_THRESHOLD_MINUTES:10}
   
   # Configuration Ops pour les SLAs des Lanes
   ops:
     sla:
       waiting-limit-minutes: ${OPS_SLA_WAITING_LIMIT:15}
+      assign-limit-minutes: ${OPS_SLA_ASSIGN_LIMIT:20}
       pickup-limit-minutes: ${OPS_SLA_PICKUP_LIMIT:20}
-      transit-buffer-minutes: ${OPS_SLA_TRANSIT_BUFFER:15}
 
 transport:
   provider: ${TRANSPORT_PROVIDER:internal}

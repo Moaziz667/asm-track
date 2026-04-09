@@ -80,6 +80,14 @@ public class RouteStop {
     @Column(name = "dwell_minutes", nullable = false)
     private Integer dwellMinutes = 10;
 
+    /** Actual stop duration in minutes, computed as completedAt - actualArrivalAt. */
+    @Column(name = "actual_dwell_minutes")
+    private Integer actualDwellMinutes;
+
+    /** Strict completion status against SW/EW rules: OK | KO. */
+    @Column(name = "completion_status", length = 10)
+    private String completionStatus;
+
     @Column(name = "removed_at")
     private LocalDateTime removedAt;
 

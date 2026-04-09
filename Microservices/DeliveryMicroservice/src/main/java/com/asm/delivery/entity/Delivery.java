@@ -33,11 +33,20 @@ public class Delivery {
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;
 
+    @Column(name = "waiting_sla_minutes")
+    private Integer waitingSlaMinutes;
+
     @Column(name = "picked_up_at")
     private LocalDateTime pickedUpAt;
 
+    @Column(name = "assign_sla_minutes")
+    private Integer assignSlaMinutes;
+
     @Column(name = "in_transit_at")
     private LocalDateTime inTransitAt;
+
+    @Column(name = "pickup_sla_minutes")
+    private Integer pickupSlaMinutes;
 
     @Column(name = "route_geometry", columnDefinition = "TEXT")
     private String routeGeometry;

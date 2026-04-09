@@ -13,6 +13,7 @@ import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
 import com.asm.delivery.dto.response.AdminDriverResponse;
 import com.asm.delivery.dto.response.AdminStatsResponse;
+import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.dto.response.StatusHistoryResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
@@ -73,14 +74,11 @@ public class AdminDeliveryService {
     @Value("${ops.sla.pickup-limit-minutes:20}")
     private int pickupLimitMinutes;
 
-    @Value("${ops.sla.transit-buffer-minutes:15}")
-    private int transitBufferMinutes;
+        @Value("${ops.sla.assign-limit-minutes:20}")
+        private int assignLimitMinutes;
 
     @Value("${ops.sla.waiting-minutes:15}")
     private int waitingSlaMinutes;
-
-    @Value("${ops.sla.transit-minutes:120}")
-    private int transitSlaMinutes;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.ASSIGNED,
@@ -114,6 +112,7 @@ public class AdminDeliveryService {
     private final GeocodingService geocodingService;
     private final AuditLogService auditLogService;
     private final SystemSettingsService systemSettingsService;
+        private final DelayCalculationService delayCalculationService;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -415,7 +414,7 @@ public class AdminDeliveryService {
                                                                                                            Integer limit,
                                                                                                            String motif,
                                                                                                            UUID driverId,
-                                                                                                           String city) {
+                                                                                                           String zone) {
                 StatsRange range = resolveRange(period, from, to);
                 int max = limit == null || limit < 1 ? 50 : Math.min(limit, 200);
 
@@ -433,11 +432,6 @@ public class AdminDeliveryService {
                         predicates.add(cb.equal(root.get("driverId"), driverId));
                 }
 
-                if (StringUtils.hasText(city)) {
-                        Join<Delivery, Order> orderJoin = root.join("order", JoinType.LEFT);
-                        predicates.add(cb.like(cb.lower(orderJoin.get("dropoffCity")), "%" + city.trim().toLowerCase(Locale.ROOT) + "%"));
-                }
-
                 cq.select(root)
                                 .distinct(true)
                                 .where(predicates.toArray(Predicate[]::new))
@@ -449,11 +443,22 @@ public class AdminDeliveryService {
 
                 Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
                 Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+                Set<UUID> zoneIds = deliveries.stream()
+                                .map(Delivery::getOrder)
+                                .filter(Objects::nonNull)
+                                .map(Order::getZoneId)
+                                .filter(Objects::nonNull)
+                                .collect(Collectors.toSet());
+                Map<UUID, String> zoneNameById = zoneIds.isEmpty()
+                                ? Map.of()
+                                : zoneRepository.findAllById(zoneIds).stream()
+                                .collect(Collectors.toMap(Zone::getId, Zone::getName));
                 LocalDateTime now = LocalDateTime.now();
                 String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
+                String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
 
                 List<AdminOpsExceptionsResponse.ExceptionItem> filteredItems = deliveries.stream()
-                                .map(delivery -> toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, now))
+                                .map(delivery -> toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
                                 .filter(Objects::nonNull)
                                 .filter(item -> {
                                         if (motifQuery == null) {
@@ -462,6 +467,7 @@ public class AdminDeliveryService {
                                         return containsIgnoreCase(item.getMotif(), motifQuery)
                                                         || containsIgnoreCase(item.getComment(), motifQuery);
                                 })
+                                .filter(item -> zoneQuery == null || containsIgnoreCase(item.getZoneName(), zoneQuery))
                                 .sorted((a, b) -> {
                                         int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
                                         if (severityOrder != 0) return severityOrder;
@@ -522,6 +528,9 @@ public class AdminDeliveryService {
                 delivery.setDriverId(request.getDriverId());
                 delivery.setStatus(DeliveryStatus.ASSIGNED);
                 delivery.setAssignedAt(now);
+                delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
+                delivery.setAssignSlaMinutes(null);
+                delivery.setPickupSlaMinutes(null);
                 delivery.setCancelledAt(null);
                 delivery.setCancelReason(null);
                 delivery.setCancelledBy(null);
@@ -571,6 +580,9 @@ public class AdminDeliveryService {
                 delivery.setPickedUpAt(null);
                 delivery.setInTransitAt(null);
                 delivery.setCompletedAt(null);
+                delivery.setWaitingSlaMinutes(null);
+                delivery.setAssignSlaMinutes(null);
+                delivery.setPickupSlaMinutes(null);
                 delivery.setCancelledAt(null);
                 delivery.setCancelReason(null);
                 delivery.setCancelledBy(null);
@@ -607,7 +619,6 @@ public class AdminDeliveryService {
                                                                                                           Integer transitSlaOverride) {
         StatsRange range = resolveRange(period, from, to);
                 int effectiveWaitingSlaMinutes = normalizeSlaThreshold(waitingSlaOverride, waitingSlaMinutes, "waitingSlaMinutes");
-                int effectiveTransitSlaMinutes = normalizeSlaThreshold(transitSlaOverride, transitSlaMinutes, "transitSlaMinutes");
 
         TypedQuery<Delivery> query = entityManager.createQuery(
                 "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end ORDER BY d.createdAt DESC",
@@ -635,17 +646,6 @@ public class AdminDeliveryService {
                 .filter(s -> s.getCreatedAt() != null && Duration.between(s.getCreatedAt(), now).toMinutes() > effectiveWaitingSlaMinutes)
                 .count();
 
-        long transitBreaches = summaries.stream()
-                .filter(s -> "IN_TRANSIT".equals(s.getStatus()))
-                .filter(s -> {
-                    LocalDateTime baseline = s.getInTransitAt() != null ? s.getInTransitAt() : s.getCreatedAt();
-                    int transitThreshold = s.getTransitSlaMinutesComputed() != null
-                            ? s.getTransitSlaMinutesComputed()
-                            : effectiveTransitSlaMinutes;
-                    return baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold;
-                })
-                .count();
-
         List<AdminOpsOverviewResponse.LaneSnapshot> lanes = List.of(
                 buildLaneSnapshot(DeliveryStatus.WAITING_DRIVER, "Planned", summaries, topItems),
                 buildLaneSnapshot(DeliveryStatus.ASSIGNED, "Assigned", summaries, topItems),
@@ -658,7 +658,7 @@ public class AdminDeliveryService {
         );
 
         List<AdminOpsOverviewResponse.ExceptionRow> exceptions = summaries.stream()
-                .map(s -> toExceptionRow(s, now, effectiveWaitingSlaMinutes, effectiveTransitSlaMinutes))
+                .map(s -> toExceptionRow(s, now, effectiveWaitingSlaMinutes, 0))
                 .filter(Objects::nonNull)
                 .sorted((a, b) -> {
                     int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
@@ -677,10 +677,10 @@ public class AdminDeliveryService {
                 .periodEnd(range.end())
                 .sla(AdminOpsOverviewResponse.SlaSnapshot.builder()
                         .waitingThresholdMinutes(effectiveWaitingSlaMinutes)
-                        .transitThresholdMinutes(effectiveTransitSlaMinutes)
+                        .transitThresholdMinutes(0)
                         .waitingBreaches(waitingBreaches)
-                        .transitBreaches(transitBreaches)
-                        .totalBreaches(waitingBreaches + transitBreaches)
+                        .transitBreaches(0)
+                        .totalBreaches(waitingBreaches)
                         .build())
                 .lanes(lanes)
                 .exceptions(exceptions)
@@ -717,25 +717,51 @@ public class AdminDeliveryService {
         order.setDropoffLat(request.getLat());
         order.setDropoffLng(request.getLng());
 
+                String requestedAddress = normalizeText(request.getDropoffAddress());
+                String requestedCity = normalizeText(request.getDropoffCity());
+                String requestedPostalCode = normalizePostalCode(request.getDropoffPostalCode());
+                String requestedCountryCode = normalizeText(request.getDropoffCountryCode());
+
         if (StringUtils.hasText(request.getDropoffAddress())) {
-            order.setDropoffAddress(request.getDropoffAddress().trim());
+                        order.setDropoffAddress(requestedAddress);
         }
         if (StringUtils.hasText(request.getDropoffCity())) {
-            order.setDropoffCity(request.getDropoffCity().trim());
+                        order.setDropoffCity(requestedCity);
         }
         if (StringUtils.hasText(request.getDropoffPostalCode())) {
-            order.setDropoffPostalCode(request.getDropoffPostalCode().trim());
+                        order.setDropoffPostalCode(requestedPostalCode);
         }
         if (StringUtils.hasText(request.getDropoffCountryCode())) {
-            order.setDropoffCountryCode(request.getDropoffCountryCode().trim());
+                        order.setDropoffCountryCode(requestedCountryCode);
+                }
+
+                // Robust fallback: enrich missing fields from pin coordinates.
+                GeocodeSuggestionResponse reverse = geocodingService.reverseGeocode(
+                                request.getLat().doubleValue(),
+                                request.getLng().doubleValue()
+                );
+                if (!StringUtils.hasText(requestedAddress) && reverse != null && StringUtils.hasText(reverse.getDisplayName())) {
+                        order.setDropoffAddress(reverse.getDisplayName().trim());
+                }
+                if (!StringUtils.hasText(requestedCity) && reverse != null && StringUtils.hasText(reverse.getCity())) {
+                        order.setDropoffCity(reverse.getCity().trim());
+                }
+                if (!StringUtils.hasText(requestedPostalCode) && reverse != null && StringUtils.hasText(reverse.getPostalCode())) {
+                        order.setDropoffPostalCode(normalizePostalCode(reverse.getPostalCode()));
         }
 
         // Zone detection: postal code first (precise), fall back to city name
-        String postalCode = order.getDropoffPostalCode();
-        String city = order.getDropoffCity();
+                String postalCode = normalizePostalCode(order.getDropoffPostalCode());
+                if (StringUtils.hasText(postalCode)) {
+                        order.setDropoffPostalCode(postalCode);
+                }
+                String city = normalizeText(order.getDropoffCity());
+                if (StringUtils.hasText(city)) {
+                        order.setDropoffCity(city);
+                }
         boolean zoneFound = false;
         if (StringUtils.hasText(postalCode)) {
-            var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode.trim());
+                        var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode);
             if (zoneByPostal.isPresent()) {
                 order.setZoneId(zoneByPostal.get().getId());
                 zoneFound = true;
@@ -1001,6 +1027,7 @@ public class AdminDeliveryService {
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .dropoffCity(order != null ? order.getDropoffCity() : null)
+                .dropoffPostalCode(order != null ? order.getDropoffPostalCode() : null)
                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                 .dropoffPinned(isDropoffPinned)
@@ -1029,6 +1056,20 @@ public class AdminDeliveryService {
     }
 
         private record RouteInfo(UUID routeId, String routeName) {}
+
+        private String normalizeText(String value) {
+                if (!StringUtils.hasText(value)) {
+                        return null;
+                }
+                return value.trim();
+        }
+
+        private String normalizePostalCode(String value) {
+                if (!StringUtils.hasText(value)) {
+                        return null;
+                }
+                return value.trim().replaceAll("\\s+", "");
+        }
 
         private AdminOpsOverviewResponse.LaneSnapshot buildLaneSnapshot(DeliveryStatus status,
                                                                                                                                         String label,
@@ -1079,12 +1120,15 @@ public class AdminDeliveryService {
                                     String.format("Aucun livreur n'a accepté cette commande depuis %d minutes", elapsed));
                         }
                 }
-                if ("ASSIGNED".equals(s.getStatus()) && s.getAssignedAt() != null) {
-                        int pickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", pickupLimitMinutes);
-                        long elapsed = Duration.between(s.getAssignedAt(), now).toMinutes();
-                        if (elapsed > pickupLimit) {
+                if ("ASSIGNED".equals(s.getStatus())) {
+                        int assignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
+                        Long elapsed = resolveAssignSlaElapsedMinutes(s, now);
+                        if (elapsed == null) {
+                                return null;
+                        }
+                        if (elapsed > assignLimit) {
                             return buildExceptionRow(s, DeliveryStatus.ASSIGNED, "CRITICAL", 
-                                "Le livreur est en retard pour récupérer le colis au dépôt");
+                                "SLA assign dépassé : le livreur tarde à récupérer le colis au dépôt");
                         }
                 }
                 if ("IN_TRANSIT".equals(s.getStatus())) {
@@ -1098,6 +1142,29 @@ public class AdminDeliveryService {
                         }
                 }
                 return null;
+        }
+
+        private Long resolveAssignSlaElapsedMinutes(AdminDeliverySummaryResponse s, LocalDateTime now) {
+                return routeStopRepository.findByDeliveryId(s.getDeliveryId())
+                                .map(RouteStop::getRoute)
+                                .map(route -> {
+                                        if (route == null) {
+                                                return null;
+                                        }
+                                        if (route.getStartedAt() != null) {
+                                                return Duration.between(route.getStartedAt(), now).toMinutes();
+                                        }
+                                        if (route.getDepartureTime() != null) {
+                                                return Duration.between(route.getDepartureTime(), now).toMinutes();
+                                        }
+                                        if (route.getDate() != null && route.getPlannedStartTime() != null) {
+                                                return Duration.between(route.getDate().atTime(route.getPlannedStartTime()), now).toMinutes();
+                                        }
+                                        return null;
+                                })
+                                .orElseGet(() -> s.getAssignedAt() != null
+                                                ? Duration.between(s.getAssignedAt(), now).toMinutes()
+                                                : null);
         }
 
         private AdminOpsOverviewResponse.ExceptionRow buildExceptionRow(AdminDeliverySummaryResponse s,
@@ -1126,6 +1193,7 @@ public class AdminDeliveryService {
         private AdminOpsExceptionsResponse.ExceptionItem toExceptionItem(Delivery delivery,
                                                                                                                                                  Map<String, DriverDTO> driverMap,
                                                                                                                                                  Map<UUID, RouteInfo> routeInfoByDeliveryId,
+                                                                                                                                                 Map<UUID, String> zoneNameById,
                                                                                                                                                  LocalDateTime now) {
                 ExceptionClassification classification = classifyException(delivery, now);
                 if (classification == null) {
@@ -1148,6 +1216,7 @@ public class AdminDeliveryService {
                                 .driverName(driver != null ? driver.getName() : null)
                                 .clientName(order != null ? order.getClientName() : null)
                                 .city(order != null ? order.getDropoffCity() : null)
+                                .zoneName(order != null && order.getZoneId() != null ? zoneNameById.get(order.getZoneId()) : null)
                                 .severity(classification.severity())
                                 .comment(classification.comment())
                                 .createdAt(delivery.getCreatedAt())
@@ -1163,6 +1232,7 @@ public class AdminDeliveryService {
                         return new ExceptionClassification("CRITICAL", motif, comment);
                 }
                 if (status == DeliveryStatus.ASSIGNED) {
+                        int effectiveAssignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
                         LocalDateTime baseline = delivery.getAssignedAt() != null ? delivery.getAssignedAt() : delivery.getUpdatedAt();
                         if (baseline == null) {
                                 baseline = delivery.getCreatedAt();
@@ -1200,8 +1270,8 @@ public class AdminDeliveryService {
                         }
 
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
-                        String motif = elapsed > waitingSlaMinutes ? "ASSIGNED_PENDING_PICKUP" : "ASSIGNED_MONITORING";
-                        String comment = elapsed > waitingSlaMinutes
+                        String motif = elapsed > effectiveAssignLimit ? "SLA_ASSIGN_DRIVER" : "ASSIGNED_MONITORING";
+                        String comment = elapsed > effectiveAssignLimit
                                         ? "Assigned delivery has not been picked up within SLA"
                                         : "Assigned delivery available for dispatch monitoring";
                         return new ExceptionClassification("WARNING", motif, comment);
@@ -1220,12 +1290,15 @@ public class AdminDeliveryService {
                         }
                 }
                 if (status == DeliveryStatus.IN_TRANSIT) {
-                        LocalDateTime baseline = delivery.getInTransitAt() != null ? delivery.getInTransitAt() : delivery.getCreatedAt();
-                        int transitThreshold = delivery.getTransitSlaMinutesComputed() != null
-                                ? delivery.getTransitSlaMinutesComputed()
-                                : transitSlaMinutes;
-                        if (baseline != null && Duration.between(baseline, now).toMinutes() > transitThreshold) {
-                                return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Transit SLA breached");
+                        Optional<RouteStop> stopOpt = routeStopRepository.findByDeliveryId(delivery.getId());
+                        if (stopOpt.isPresent() && stopOpt.get().getEndTimeWindow() != null) {
+                                Route route = stopOpt.get().getRoute();
+                                if (route != null && route.getDate() != null) {
+                                        LocalDateTime deadline = route.getDate().atTime(stopOpt.get().getEndTimeWindow());
+                                        if (now.isAfter(deadline)) {
+                                                return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Delivery time window exceeded");
+                                        }
+                                }
                         }
                 }
                 return null;
@@ -1244,6 +1317,10 @@ public class AdminDeliveryService {
                 Order order = delivery.getOrder();
                 DriverDTO driver = delivery.getDriverId() != null ? transportPort.getDriver(delivery.getDriverId().toString()) : null;
                 RouteInfo routeInfo = loadRouteInfoMap(List.of(delivery)).get(delivery.getId());
+                String zoneName = null;
+                if (order != null && order.getZoneId() != null) {
+                        zoneName = zoneRepository.findById(order.getZoneId()).map(Zone::getName).orElse(null);
+                }
                 return AdminOpsExceptionsResponse.ExceptionItem.builder()
                                 .deliveryId(delivery.getId())
                                 .orderId(order != null ? order.getId() : null)
@@ -1256,6 +1333,7 @@ public class AdminDeliveryService {
                                 .driverName(driver != null ? driver.getName() : null)
                                 .clientName(order != null ? order.getClientName() : null)
                                 .city(order != null ? order.getDropoffCity() : null)
+                                .zoneName(zoneName)
                                 .severity(severity)
                                 .comment(comment)
                                 .createdAt(delivery.getCreatedAt())

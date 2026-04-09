@@ -10,11 +10,32 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
 public class GeocodingService {
+
+        private static final List<String> LOCALITY_KEYS = List.of(
+            "city",
+            "town",
+            "municipality",
+            "village",
+            "suburb",
+            "hamlet"
+        );
+
+        private static final List<String> STATE_KEYS = List.of(
+            "state",
+            "state_district",
+            "county"
+        );
+
+        private static final Pattern GOVERNORATE_IN_DISPLAY = Pattern.compile("(?:Gouvernorat|Governorate)\\s+([^,]+)", Pattern.CASE_INSENSITIVE);
 
     private static final String NOMINATIM_URL =
             "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&countrycodes=tn&accept-language=fr";
@@ -124,11 +145,7 @@ public class GeocodingService {
             String postalCode = null;
             Object addressObj = body.get("address");
             if (addressObj instanceof Map<?, ?> addr) {
-                // Nominatim address keys in priority order for city
-                for (String key : new String[]{"city", "town", "village", "municipality", "county"}) {
-                    Object v = addr.get(key);
-                    if (v instanceof String s && !s.isBlank()) { city = s; break; }
-                }
+                city = extractPreferredTunisianCity((Map<?, ?>) addr, displayName);
                 Object pc = addr.get("postcode");
                 if (pc instanceof String s && !s.isBlank()) postalCode = s;
             }
@@ -150,5 +167,90 @@ public class GeocodingService {
             log.warn("Nominatim reverse geocoding failed for ({}, {}): {}", lat, lng, ex.getMessage());
             return GeocodeSuggestionResponse.builder().found(false).lat(lat).lng(lng).build();
         }
+    }
+
+    private String cleanTunisianAdminName(String name) {
+        if (name == null) return null;
+        String trimmed = name.trim();
+        String lower = trimmed.toLowerCase(Locale.ROOT);
+
+        if (lower.startsWith("gouvernorat ")) {
+            return trimmed.substring("gouvernorat ".length()).trim();
+        }
+        if (lower.startsWith("governorate ")) {
+            return trimmed.substring("governorate ".length()).trim();
+        }
+        if (lower.startsWith("délégation ")) {
+            return trimmed.substring("délégation ".length()).trim();
+        }
+        if (lower.startsWith("delegation ")) {
+            return trimmed.substring("delegation ".length()).trim();
+        }
+        return trimmed;
+    }
+
+    private String extractPreferredTunisianCity(Map<?, ?> addr, String displayName) {
+        String state = null;
+        for (String key : STATE_KEYS) {
+            Object v = addr.get(key);
+            if (v instanceof String s && !s.isBlank()) {
+                state = cleanTunisianAdminName(s);
+                break;
+            }
+        }
+
+        if (!org.springframework.util.StringUtils.hasText(state)) {
+            state = extractGovernorateFromDisplay(displayName);
+        }
+
+        String locality = null;
+        for (String key : LOCALITY_KEYS) {
+            Object v = addr.get(key);
+            if (v instanceof String s && !s.isBlank()) {
+                locality = cleanTunisianAdminName(s);
+                break;
+            }
+        }
+
+        if (!org.springframework.util.StringUtils.hasText(locality)) {
+            return state;
+        }
+        if (!org.springframework.util.StringUtils.hasText(state)) {
+            return locality;
+        }
+
+        // If reverse geocoding returns a micro-locality (Merkez/Delegation/etc.),
+        // prefer governorate-level city naming for operational consistency.
+        if (isMicroLocality(locality)) {
+            return state;
+        }
+
+        String localityLower = locality.toLowerCase(Locale.ROOT);
+        String stateLower = state.toLowerCase(Locale.ROOT);
+        if (localityLower.contains(stateLower)) {
+            return state;
+        }
+
+        return locality;
+    }
+
+    private String extractGovernorateFromDisplay(String displayName) {
+        if (!org.springframework.util.StringUtils.hasText(displayName)) {
+            return null;
+        }
+        Matcher matcher = GOVERNORATE_IN_DISPLAY.matcher(displayName);
+        if (matcher.find()) {
+            return cleanTunisianAdminName(matcher.group(1));
+        }
+        return null;
+    }
+
+    private boolean isMicroLocality(String value) {
+        String lowered = value.toLowerCase(Locale.ROOT);
+        return lowered.contains("delegation")
+                || lowered.contains("délégation")
+                || lowered.contains("merkez")
+                || lowered.contains("centre")
+                || lowered.contains("arrondissement");
     }
 }

@@ -39,6 +39,7 @@ public class AdminOpsExceptionsResponse {
         private String driverName;
         private String clientName;
         private String city;
+        private String zoneName;
         private String severity;
         private String comment;
         private LocalDateTime createdAt;

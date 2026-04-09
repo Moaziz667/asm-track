@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -44,7 +45,7 @@ public class AdminReportsController {
 
     @PostMapping("/settings")
     @Operation(summary = "Mettre à jour un seuil de SLA en temps réel", 
-               description = "Permet à l'Admin de modifier dynamiquement les règles de retard du système. Clés valides : 'ops.sla.waiting-limit-minutes', 'ops.sla.pickup-limit-minutes'.")
+               description = "Permet à l'Admin de modifier dynamiquement les règles de retard du système. Clés valides : 'ops.sla.waiting-limit-minutes', 'ops.sla.assign-limit-minutes', 'ops.sla.pickup-limit-minutes'.")
     public ResponseEntity<Void> updateSetting(@RequestParam String key, @RequestParam String value) {
         systemSettingsService.upsert(key, value);
         return ResponseEntity.ok().build();

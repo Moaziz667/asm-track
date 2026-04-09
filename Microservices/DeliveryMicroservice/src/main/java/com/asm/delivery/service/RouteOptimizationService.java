@@ -33,9 +33,6 @@ public class RouteOptimizationService {
     @Value("${app.route.default-dwell-minutes:10}")
     private int defaultDwellMinutes;
 
-    @Value("${app.route.sla-buffer-minutes:30}")
-    private int slaBufferMinutes;
-
     // ─── Part 5: POST /routes/{id}/optimize ───────────────────────────────────────
 
     /**
@@ -325,30 +322,23 @@ public class RouteOptimizationService {
                 driveMt = distances != null ? (int) Math.round(distances[matrixFrom][matrixTo]) : 0;
             }
 
-            currentTime = currentTime.plusSeconds(driveSec);
-            LocalDateTime eta = currentTime;
-
-            // Use per-stop buffer (fallback to global default if null)
-            int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : slaBufferMinutes;
-            LocalDateTime sla = eta.plusMinutes(buffer);
-
             int dwell = stop.getDwellMinutes() != null ? stop.getDwellMinutes() : defaultDwellMinutes;
 
             result.add(RouteStopEtaResponse.builder()
                     .stopId(stop.getId())
                     .sequenceOrder(i + 1)
-                    .etaAt(eta)
-                    .slaDeadline(sla)
-                    .slaStatus(computeSlaStatus(eta, sla, stop.getActualArrivalAt(), LocalDateTime.now()))
+                    .etaAt(null)
+                    .slaDeadline(null)
+                    .slaStatus(null)
                     .driveDurationSeconds(driveSec)
                     .driveDistanceMeters(driveMt)
                     .actualArrivalAt(stop.getActualArrivalAt())
                     .status(stop.getStatus())
                     .dwellMinutes(dwell)
-                    .bufferMinutes(buffer)
+                    .bufferMinutes(stop.getBufferMinutes())
                     .build());
 
-            currentTime = eta.plusMinutes(dwell);
+                currentTime = currentTime.plusSeconds(driveSec).plusMinutes(dwell);
         }
         return result;
     }
@@ -426,27 +416,13 @@ public class RouteOptimizationService {
         if (stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
             LocalDateTime date = stop.getRoute().getDate().atStartOfDay();
             LocalDateTime windowStart = date.with(stop.getStartTimeWindow());
-            
-            // SLA Deadline for Window = End Time + Buffer
-            int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : 30;
-            LocalDateTime windowEnd = date.with(stop.getEndTimeWindow()).plusMinutes(buffer);
 
             if (arrival.isBefore(windowStart)) return SlaStatus.EARLY;
-            if (arrival.isAfter(windowEnd)) return SlaStatus.BREACHED;
-            
-            // Orange (At Risk) if within 15 mins of deadline or already past window end but still in buffer
-            if (arrival.plusMinutes(15).isAfter(windowEnd) || arrival.isAfter(date.with(stop.getEndTimeWindow()))) {
-                return SlaStatus.AT_RISK;
-            }
             return SlaStatus.ON_TIME;
         }
 
-        // 2. ETA-based Check (Fallback)
-        if (stop.getEtaAt() == null || stop.getSlaDeadline() == null) return SlaStatus.ON_TIME;
-
-        if (arrival.isBefore(stop.getEtaAt()) || arrival.isEqual(stop.getEtaAt())) return SlaStatus.ON_TIME;
-        if (arrival.isBefore(stop.getSlaDeadline())) return SlaStatus.AT_RISK;
-        return SlaStatus.BREACHED;
+        // 2. ETA-based fallback is deprecated in strict mode.
+        return SlaStatus.ON_TIME;
     }
 
     public static SlaStatus computeSlaStatus(LocalDateTime etaAt, LocalDateTime slaDeadline,
@@ -455,9 +431,7 @@ public class RouteOptimizationService {
 
         LocalDateTime reference = actualArrivalAt != null ? actualArrivalAt : now;
 
-        if (reference.isBefore(etaAt) || reference.isEqual(etaAt)) return SlaStatus.ON_TIME;
-        if (reference.isBefore(slaDeadline)) return SlaStatus.AT_RISK;
-        return SlaStatus.BREACHED;
+        return (reference.isBefore(etaAt) || reference.isEqual(etaAt)) ? SlaStatus.EARLY : SlaStatus.ON_TIME;
     }
 
     // ─── Utility helpers ──────────────────────────────────────────────────────────

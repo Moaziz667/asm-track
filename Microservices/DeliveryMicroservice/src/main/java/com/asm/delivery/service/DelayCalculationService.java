@@ -2,6 +2,8 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
+import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.repository.RouteStopRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -16,6 +18,12 @@ import java.util.List;
 @Slf4j
 public class DelayCalculationService {
 
+    private final RouteStopRepository routeStopRepository;
+
+    public DelayCalculationService(RouteStopRepository routeStopRepository) {
+        this.routeStopRepository = routeStopRepository;
+    }
+
     /**
      * Calculate delay info for a single stop compared to the manual Time Window.
      * @param stop RouteStop with actualArrivalAt and endTimeWindow
@@ -23,8 +31,8 @@ public class DelayCalculationService {
      * @return DelayInfo with minutes, reason, and status
      */
     public DelayInfo calculateDelay(RouteStop stop, Route route, List<RouteStop> allStops) {
-        // If not yet arrived, return null
-        if (stop.getActualArrivalAt() == null) {
+        // Strict stop delay is evaluated at completion time (T5).
+        if (stop.getCompletedAt() == null) {
             return null;
         }
 
@@ -35,7 +43,7 @@ public class DelayCalculationService {
 
         // The "Deadline" is the route date + the manual end time slot
         LocalDateTime manualDeadline = route.getDate().atTime(stop.getEndTimeWindow());
-        LocalDateTime actual = stop.getActualArrivalAt();
+        LocalDateTime actual = stop.getCompletedAt();
 
         // Calculate delay in minutes relative to the manual slot
         long delaySeconds = java.time.temporal.ChronoUnit.SECONDS.between(manualDeadline, actual);
@@ -54,12 +62,156 @@ public class DelayCalculationService {
         }
 
         return DelayInfo.builder()
-                .delayMinutes(Math.max(0, delayMinutes))
+                .delayMinutes(delayMinutes)
                 .delayStatus(delayStatus)
                 .delayReason(delayReason)
                 .expectedArrival(manualDeadline)
                 .actualArrival(actual)
                 .build();
+    }
+
+    /** Waiting SLA = T2 - T1 (assignedAt - order.createdAt). */
+    public Integer calculateWaitingSlaMinutes(Delivery delivery) {
+        if (delivery == null || delivery.getAssignedAt() == null || delivery.getOrder() == null || delivery.getOrder().getCreatedAt() == null) {
+            return null;
+        }
+        return minutesBetween(delivery.getOrder().getCreatedAt(), delivery.getAssignedAt());
+    }
+
+    /** Assign SLA = pickedUpAt - routeStartTime (fallback: pickedUpAt - assignedAt). */
+    public Integer calculateAssignSlaMinutes(Delivery delivery) {
+        if (delivery == null || delivery.getPickedUpAt() == null) {
+            return null;
+        }
+
+        LocalDateTime routeStartReference = resolveRouteStartReference(delivery);
+        if (routeStartReference != null) {
+            return minutesBetween(routeStartReference, delivery.getPickedUpAt());
+        }
+
+        if (delivery.getAssignedAt() != null) {
+            return minutesBetween(delivery.getAssignedAt(), delivery.getPickedUpAt());
+        }
+
+        return null;
+    }
+
+    private LocalDateTime resolveRouteStartReference(Delivery delivery) {
+        if (delivery.getId() == null) {
+            return null;
+        }
+
+        return routeStopRepository.findByDeliveryId(delivery.getId())
+                .map(RouteStop::getRoute)
+                .map(route -> {
+                    if (route == null) {
+                        return null;
+                    }
+                    if (route.getStartedAt() != null) {
+                        return route.getStartedAt();
+                    }
+                    if (route.getDepartureTime() != null) {
+                        return route.getDepartureTime();
+                    }
+                    if (route.getDate() != null && route.getPlannedStartTime() != null) {
+                        return route.getDate().atTime(route.getPlannedStartTime());
+                    }
+                    return null;
+                })
+                .orElse(null);
+    }
+
+    /** Pickup SLA = T4(stop#1) - T3 (inTransitAt - pickedUpAt). */
+    public Integer calculatePickupSlaMinutes(Delivery delivery) {
+        if (delivery == null || delivery.getInTransitAt() == null || delivery.getPickedUpAt() == null) {
+            return null;
+        }
+        return minutesBetween(delivery.getPickedUpAt(), delivery.getInTransitAt());
+    }
+
+    /** Stop duration = T5 - T4 (completedAt - actualArrivalAt). */
+    public Integer calculateStopDurationMinutes(RouteStop stop) {
+        if (stop == null || stop.getCompletedAt() == null || stop.getActualArrivalAt() == null) {
+            return null;
+        }
+        return minutesBetween(stop.getActualArrivalAt(), stop.getCompletedAt());
+    }
+
+    /** Stop delay = T5 - EW (strict boundary, no buffer). */
+    public Integer calculateStrictStopDelayMinutes(RouteStop stop, Route route) {
+        if (stop == null || route == null || stop.getCompletedAt() == null || route.getDate() == null || stop.getEndTimeWindow() == null) {
+            return null;
+        }
+        LocalDateTime ew = route.getDate().atTime(stop.getEndTimeWindow());
+        return minutesBetween(ew, stop.getCompletedAt());
+    }
+
+    /** Stop OK iff SW <= T5 <= EW; Stop KO iff T5 > EW. */
+    public String calculateCompletionStatus(RouteStop stop, Route route) {
+        if (stop == null || route == null || stop.getCompletedAt() == null || route.getDate() == null || stop.getEndTimeWindow() == null) {
+            return null;
+        }
+
+        LocalDateTime completedAt = stop.getCompletedAt();
+        LocalDateTime ew = route.getDate().atTime(stop.getEndTimeWindow());
+        LocalDateTime sw = stop.getStartTimeWindow() != null ? route.getDate().atTime(stop.getStartTimeWindow()) : null;
+
+        if (completedAt.isAfter(ew)) {
+            return "KO";
+        }
+        if (sw != null && completedAt.isBefore(sw)) {
+            return "KO";
+        }
+        return "OK";
+    }
+
+    /** Route cumulative delay = Σ max(0, T5 - EW) for completed stops. */
+    public Integer calculateCumulativeDelayMinutes(Route route, List<RouteStop> stops) {
+        if (route == null || stops == null || stops.isEmpty()) {
+            return 0;
+        }
+        int total = 0;
+        for (RouteStop stop : stops) {
+            Integer delay = calculateStrictStopDelayMinutes(stop, route);
+            if (delay != null && delay > 0) {
+                total += delay;
+            }
+        }
+        return total;
+    }
+
+    /** Route on-time completion rate using strict EW boundary. */
+    public Double calculateOnTimeCompletionRate(Route route, List<RouteStop> stops) {
+        if (route == null || stops == null || stops.isEmpty()) {
+            return 0.0;
+        }
+        int completed = 0;
+        int onTime = 0;
+        for (RouteStop stop : stops) {
+            if (stop.getCompletedAt() == null) {
+                continue;
+            }
+            completed++;
+            Integer delay = calculateStrictStopDelayMinutes(stop, route);
+            if (delay != null && delay <= 0) {
+                onTime++;
+            }
+        }
+        if (completed == 0) {
+            return 0.0;
+        }
+        return (onTime * 100.0) / completed;
+    }
+
+    private Integer minutesBetween(LocalDateTime from, LocalDateTime to) {
+        long minutes = java.time.temporal.ChronoUnit.MINUTES.between(from, to);
+        if (minutes > Integer.MAX_VALUE) {
+            return Integer.MAX_VALUE;
+        }
+        if (minutes < Integer.MIN_VALUE) {
+            return Integer.MIN_VALUE;
+        }
+        return (int) minutes;
     }
 
     /**

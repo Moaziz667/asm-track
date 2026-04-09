@@ -1,6 +1,3 @@
--- ─────────────────────────────────────────────────────────────────────────────
--- Delivery Service — Database Schema
--- PostgreSQL 16+   (uses gen_random_uuid() built-in, no extension needed)
 -- All CREATE statements use IF NOT EXISTS to be idempotent on restart.
 -- ─────────────────────────────────────────────────────────────────────────────
 
@@ -501,6 +498,13 @@ CREATE TABLE IF NOT EXISTS slot_assignments (
   updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
+-- ── Runtime admin key/value settings ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS system_settings (
+  setting_key   VARCHAR(191) PRIMARY KEY,
+  setting_value TEXT NOT NULL,
+  updated_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
 CREATE INDEX IF NOT EXISTS idx_slot_assignments_slot_id ON slot_assignments(slot_id);
 CREATE INDEX IF NOT EXISTS idx_slot_assignments_status ON slot_assignments(status);
 ALTER TABLE slot_assignments ADD COLUMN IF NOT EXISTS override_used BOOLEAN NOT NULL DEFAULT false;
@@ -539,3 +543,14 @@ ALTER TABLE routes ADD COLUMN IF NOT EXISTS zone_id UUID REFERENCES zones(id);
 
 -- ── Route execution timestamps ────────────────────────────────────────────────
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS started_at TIMESTAMP;
+
+-- ── Strict SLA persisted metrics (T1..T5 model) ──────────────────────────────
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS waiting_sla_minutes INTEGER;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS assign_sla_minutes INTEGER;
+ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pickup_sla_minutes INTEGER;
+
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS actual_dwell_minutes INTEGER;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS completion_status VARCHAR(10);
+
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS cumulative_delay_minutes INTEGER;
+ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_on_time_completion_rate NUMERIC(5,2);

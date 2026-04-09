@@ -45,7 +45,8 @@ public class AdminDeliveryController {
     private final BonLivraisonPdfService bonLivraisonPdfService;
 
     @GetMapping
-    @Operation(summary = "List deliveries with filters and pagination")
+    @Operation(summary = "Recherche multicritères et monitoring des livraisons",
+               description = "Permet de filtrer par statut (LATE/ON_TIME), par chauffeur, par date de livraison ou par zone d'activité.")
     public ResponseEntity<Page<AdminDeliverySummaryResponse>> list(
             @RequestParam(required = false) DeliveryStatus status,
             @RequestParam(required = false) UUID driverId,

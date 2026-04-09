@@ -25,13 +25,12 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
 
     void deleteByRouteId(UUID routeId);
 
-    /** All non-terminal stops from VALIDATED or IN_PROGRESS routes that have a computed SLA status. */
+    /** All non-terminal stops from active routes, independent from legacy SLA status fields. */
     @Query("""
         SELECT rs FROM RouteStop rs JOIN FETCH rs.route r
         WHERE r.status IN ('VALIDATED', 'IN_PROGRESS')
         AND rs.status IN ('PENDING', 'ARRIVED')
-        AND rs.slaStatus IS NOT NULL
-        ORDER BY rs.slaStatus ASC, rs.etaAt ASC
+        ORDER BY r.date ASC, r.plannedStartTime ASC, rs.stopOrder ASC
     """)
-    List<RouteStop> findActivePendingStopsWithSla();
+    List<RouteStop> findActivePendingStops();
 }

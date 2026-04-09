@@ -20,7 +20,8 @@
       "Bash(find /c/Users/M S I/OneDrive/Documents/PFE/Microservices/DriverService -type f \\\\\\(-name *.sql -o -name *.properties -o -name *.yml \\\\\\))",
       "Bash(grep -E \"^[^/]*$|lib|src\")",
       "Bash(powershell -ExecutionPolicy Bypass -File run_scenarios.ps1)",
-      "Bash(powershell -ExecutionPolicy Bypass -File create_odoo_test_orders.ps1)"
+      "Bash(powershell -ExecutionPolicy Bypass -File create_odoo_test_orders.ps1)",
+      "Bash(npx tsc:*)"
     ]
   }
 }

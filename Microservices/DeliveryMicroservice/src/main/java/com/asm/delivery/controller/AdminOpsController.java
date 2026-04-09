@@ -99,9 +99,9 @@ public class AdminOpsController {
             @RequestParam(required = false, defaultValue = "50") Integer limit,
             @RequestParam(required = false) String motif,
             @RequestParam(required = false) UUID driverId,
-            @RequestParam(required = false) String city
+            @RequestParam(required = false) String zone
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsExceptions(period, from, to, limit, motif, driverId, city));
+        return ResponseEntity.ok(adminDeliveryService.getOpsExceptions(period, from, to, limit, motif, driverId, zone));
     }
 
     @PostMapping("/exceptions/{deliveryId}/reassign")

@@ -40,7 +40,7 @@ public class DriverDeliveryService {
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
     private final RouteService                    routeService;
-    private final OsrmRoutingService              osrmRoutingService;
+    private final DelayCalculationService         delayCalculationService;
     private final AuditLogService                  auditLogService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
@@ -109,6 +109,9 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found after accept"));
 
+        delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
+        delivery = deliveryRepo.save(delivery);
+
         // Mark driver unavailable via Driver Service (best-effort)
         transportPort.setAvailability(driverId.toString(), false);
 
@@ -129,6 +132,7 @@ public class DriverDeliveryService {
 
         delivery.setStatus(DeliveryStatus.PICKED_UP);
         delivery.setPickedUpAt(LocalDateTime.now());
+        delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
@@ -147,6 +151,9 @@ public class DriverDeliveryService {
         LocalDateTime transitStartedAt = LocalDateTime.now();
         delivery.setStatus(DeliveryStatus.IN_TRANSIT);
         delivery.setInTransitAt(transitStartedAt);
+        delivery.setPickupSlaMinutes(delayCalculationService.calculatePickupSlaMinutes(delivery));
+
+        delivery = deliveryRepo.save(delivery);
 
         BigDecimal originLat = lat;
         BigDecimal originLng = lng;
@@ -165,47 +172,18 @@ public class DriverDeliveryService {
             }
         }
 
-        Order order = delivery.getOrder();
-        BigDecimal destinationLat = order != null ? order.getDropoffLat() : null;
-        BigDecimal destinationLng = order != null ? order.getDropoffLng() : null;
-
-        var routeSnapshot = osrmRoutingService.computeRoute(
-                originLat,
-                originLng,
-                destinationLat,
-                destinationLng,
-                transitStartedAt
-        );
-        if (routeSnapshot.isPresent()) {
-            var route = routeSnapshot.get();
-            delivery.setRouteGeometry(route.geometry());
-            delivery.setRouteDistanceKm(route.distanceKm());
-            delivery.setRouteDurationMinutes(route.durationMinutes());
-            delivery.setRouteEtaAt(route.etaAt());
-            delivery.setTransitSlaMinutesComputed(route.computedTransitSlaMinutes());
-            delivery.setRouteProvider(route.provider());
-            delivery.setRouteLastComputedAt(LocalDateTime.now());
-            } else {
-                log.warn("Route snapshot empty for delivery={} originLat={} originLng={} destinationLat={} destinationLng={}",
-                    delivery.getId(), originLat, originLng, destinationLat, destinationLng);
-        }
-
-        delivery = deliveryRepo.save(delivery);
-
-        String transitNote = routeSnapshot.isPresent()
-                ? "Driver started transit. Route ETA calculated."
-                : "Driver started transit";
+        String transitNote = "Driver started transit";
         appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
                 delivery,
                 originLat,
                 originLng,
-                delivery.getRouteDistanceKm(),
-                delivery.getRouteDurationMinutes(),
-                delivery.getTransitSlaMinutesComputed(),
-                delivery.getRouteEtaAt(),
-                delivery.getRouteProvider()
+                null,
+                null,
+                null,
+                null,
+                null
         );
 
         return toDriverDeliveryResponse(delivery);
@@ -458,6 +436,9 @@ public class DriverDeliveryService {
         delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
         delivery.setDriverId(null);
         delivery.setAssignedAt(null);
+        delivery.setWaitingSlaMinutes(null);
+        delivery.setAssignSlaMinutes(null);
+        delivery.setPickupSlaMinutes(null);
         delivery = deliveryRepo.save(delivery);
 
         // Release driver + increment stat (best-effort)
@@ -514,6 +495,9 @@ public class DriverDeliveryService {
                 delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
+                delivery.setWaitingSlaMinutes(null);
+                delivery.setAssignSlaMinutes(null);
+                delivery.setPickupSlaMinutes(null);
                 deliveryRepo.save(delivery);
                 appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, "SYSTEM", Role.SYSTEM, "Workflow: timeout reset");
             }

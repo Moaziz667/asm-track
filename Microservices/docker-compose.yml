@@ -216,8 +216,6 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      osrm:
-        condition: service_started
     restart: unless-stopped
     networks:
       - asm-network

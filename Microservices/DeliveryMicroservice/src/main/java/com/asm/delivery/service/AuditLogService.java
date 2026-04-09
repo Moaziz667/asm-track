@@ -18,7 +18,7 @@ public class AuditLogService {
     public void logAction(UserPrincipal principal, String action, String resourceId, String details) {
         AuditLog log = AuditLog.builder()
                 .actorName(principal != null ? principal.getName() : "SYSTEM")
-                .actorRole(principal != null ? principal.getAuthorities().toString() : "SYSTEM")
+            .actorRole(principal != null && principal.getRole() != null ? principal.getRole() : "SYSTEM")
                 .action(action)
                 .resourceId(resourceId)
                 .details(details)

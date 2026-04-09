@@ -89,6 +89,14 @@ public class Route {
     @Column(name = "route_geometry", columnDefinition = "TEXT")
     private String routeGeometry;
 
+    /** Cumulative delay in minutes for completed stops: Σ max(0, T5 - EW). */
+    @Column(name = "cumulative_delay_minutes")
+    private Integer cumulativeDelayMinutes;
+
+    /** On-time completion rate using strict EW boundary. */
+    @Column(name = "route_on_time_completion_rate", precision = 5, scale = 2)
+    private java.math.BigDecimal routeOnTimeCompletionRate;
+
     @Column(name = "zone_id")
     private UUID zoneId;
 

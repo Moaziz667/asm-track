@@ -5,7 +5,6 @@ import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.RouteResponse;
 import com.asm.delivery.dto.response.RouteStopResponse;
 import com.asm.delivery.dto.response.SlaSummaryResponse;
-import com.asm.delivery.entity.SlaStatus;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
@@ -34,6 +33,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -155,12 +155,12 @@ public class RouteService {
             int index = 1;
             for (CreateRouteRequest.StopConfig config : request.getStopConfigs()) {
                 addStopInternal(route, config.getDeliveryId(), index++, 
-                    config.getStartTimeWindow(), config.getEndTimeWindow(), config.getBufferMinutes(), false);
+                    config.getStartTimeWindow(), config.getEndTimeWindow(), config.getBufferMinutes());
             }
         } else if (request.getDeliveryIds() != null) {
             int index = 1;
             for (UUID deliveryId : request.getDeliveryIds()) {
-                addStopInternal(route, deliveryId, index++, null, null, 30, false);
+                addStopInternal(route, deliveryId, index++, null, null, 30);
             }
         }
 
@@ -217,25 +217,30 @@ public class RouteService {
 
         // --- UPDATE STOPS IF PROVIDED ---
         if (request.getStopConfigs() != null && !request.getStopConfigs().isEmpty()) {
-            // 1. Validate chronology (re-using existing logic)
             validateUpdateStopChronology(request.getStopConfigs(), effectiveStart);
-            
-            // 2. Wipe old stops and add new ones (clean Slate)
+
             this.deleteByRouteId(route.getId());
-            routeStopRepository.flush(); // ensure deletes are processed
+            routeStopRepository.flush();
 
             int index = 1;
             for (UpdateRouteRequest.StopConfig config : request.getStopConfigs()) {
-                addStopInternal(route, config.getDeliveryId(), index++, 
-                    config.getStartTimeWindow(), config.getEndTimeWindow(), config.getBufferMinutes());
+                addStopInternal(
+                        route,
+                        config.getDeliveryId(),
+                        index++,
+                        LocalTime.parse(config.getStartTimeWindow()),
+                        LocalTime.parse(config.getEndTimeWindow()),
+                        config.getBufferMinutes()
+                );
             }
         } else if (request.getDeliveryIds() != null) {
-             this.deleteByRouteId(route.getId());
-             routeStopRepository.flush();
+            this.deleteByRouteId(route.getId());
+            routeStopRepository.flush();
+
+            int index = 1;
+            for (UUID deliveryId : request.getDeliveryIds()) {
                 addStopInternal(route, deliveryId, index++, null, null, 30);
-             for (UUID deliveryId : request.getDeliveryIds()) {
-                 addStopInternal(route, deliveryId, index++, null, null, 30, true);
-             }
+            }
         }
 
         assertRouteWeightWithinVehicleCapacity(route);
@@ -250,14 +255,23 @@ public class RouteService {
         int i = 1;
         for (UpdateRouteRequest.StopConfig config : configs) {
             String startStr = config.getStartTimeWindow();
-                    LocalTime.parse(config.getStartTimeWindow()), LocalTime.parse(config.getEndTimeWindow()), config.getBufferMinutes());
-            if (startStr == null || startStr.isEmpty() || endStr == null || endStr.isEmpty()) {
+            String endStr = config.getEndTimeWindow();
+
+            if (!StringUtils.hasText(startStr) || !StringUtils.hasText(endStr)) {
                 throw AppException.badRequest("Stop #" + i + ": Start/End time windows are required");
             }
-            LocalTime start = LocalTime.parse(startStr);
-            LocalTime end = LocalTime.parse(endStr);
+
+            LocalTime start;
+            LocalTime end;
+            try {
+                start = LocalTime.parse(startStr);
+                end = LocalTime.parse(endStr);
+            } catch (DateTimeParseException ex) {
+                throw AppException.badRequest("Stop #" + i + ": Invalid time format, expected HH:mm[:ss]");
+            }
+
             if (start.isBefore(lastEnd)) {
-                 addStopInternal(route, deliveryId, index++, null, null, 30);
+                throw AppException.badRequest("Stop #" + i + ": Start time (" + start + ") is before previous stop ends (" + lastEnd + ")");
             }
             if (!start.isBefore(end)) {
                 throw AppException.badRequest("Stop #" + i + ": End time must be after start time");
@@ -365,6 +379,7 @@ public class RouteService {
                 delivery.setDriverId(route.getDriverId());
                 delivery.setStatus(DeliveryStatus.ASSIGNED);
                 delivery.setAssignedAt(LocalDateTime.now());
+                delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
                 deliveryRepository.save(delivery);
             }
         }
@@ -444,6 +459,7 @@ public class RouteService {
         route.setStatus(RouteStatus.IN_PROGRESS);
         LocalDateTime now = LocalDateTime.now();
         route.setStartedAt(now);
+        routeRepository.save(route);
 
         // Auto-pickup all ASSIGNED deliveries so driver doesn't need per-stop pickup action
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
@@ -452,12 +468,13 @@ public class RouteService {
                 if (delivery.getStatus() == DeliveryStatus.ASSIGNED) {
                     delivery.setStatus(DeliveryStatus.PICKED_UP);
                     delivery.setPickedUpAt(now);
+                    delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
                     deliveryRepository.save(delivery);
                 }
             });
         }
 
-        return toResponse(routeRepository.save(route));
+        return toResponse(route);
     }
 
     @Transactional
@@ -474,6 +491,7 @@ public class RouteService {
 
         stop.setStatus(RouteStopStatus.ARRIVED);
         stop.setArrivedAt(LocalDateTime.now());
+        stop.setActualArrivalAt(stop.getArrivedAt());
         routeStopRepository.save(stop);
 
         if (route.getStatus() == RouteStatus.VALIDATED) {
@@ -493,16 +511,18 @@ public class RouteService {
                 return;
             }
 
+            Route route = stop.getRoute();
+
             stop.setStatus(mappedStatus);
             if (isTerminalStopStatus(mappedStatus)) {
                 stop.setCompletedAt(eventAt != null ? eventAt : LocalDateTime.now());
+                stop.setActualDwellMinutes(delayCalculationService.calculateStopDurationMinutes(stop));
+                stop.setCompletionStatus(delayCalculationService.calculateCompletionStatus(stop, route));
             }
             if (StringUtils.hasText(note)) {
                 stop.setNotes(note.trim());
             }
             routeStopRepository.save(stop);
-
-            Route route = stop.getRoute();
             if (route == null) {
                 return;
             }
@@ -511,6 +531,13 @@ public class RouteService {
                 route.setStatus(RouteStatus.IN_PROGRESS);
                 routeRepository.save(route);
             }
+
+            List<RouteStop> routeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+            Integer cumulativeDelayMinutes = delayCalculationService.calculateCumulativeDelayMinutes(route, routeStops);
+            Double onTimeCompletionRate = delayCalculationService.calculateOnTimeCompletionRate(route, routeStops);
+            route.setCumulativeDelayMinutes(cumulativeDelayMinutes);
+            route.setRouteOnTimeCompletionRate(java.math.BigDecimal.valueOf(onTimeCompletionRate));
+            routeRepository.save(route);
 
             maybeAutoCloseRoute(route);
         });
@@ -768,6 +795,8 @@ public class RouteService {
                     .driveDistanceMeters(stop.getDriveDistanceMeters())
                     .actualArrivalAt(stop.getActualArrivalAt())
                     .dwellMinutes(stop.getDwellMinutes())
+                    .actualDwellMinutes(stop.getActualDwellMinutes())
+                    .completionStatus(stop.getCompletionStatus())
                     .bufferMinutes(stop.getBufferMinutes())
                     .startTimeWindow(stop.getStartTimeWindow())
                     .endTimeWindow(stop.getEndTimeWindow())
@@ -812,6 +841,8 @@ public class RouteService {
 
                 // Calculate route start delay
                 Integer routeStartDelayMinutes = delayCalculationService.calculateRouteStartDelay(route);
+                Integer cumulativeDelayMinutes = delayCalculationService.calculateCumulativeDelayMinutes(route, activeStops);
+                Double onTimeCompletionRate = delayCalculationService.calculateOnTimeCompletionRate(route, activeStops);
 
                 LocalDateTime plannedEndDateTime = route.getDate() != null && route.getPlannedEndTime() != null
                     ? route.getDate().atTime(route.getPlannedEndTime())
@@ -861,6 +892,8 @@ public class RouteService {
                 .pendingStops(pendingStops)
                 .progressPercent(progressPercent)
                 .etaDriftMinutes(etaDriftMinutes)
+                .cumulativeDelayMinutes(cumulativeDelayMinutes)
+                .onTimeCompletionRate(onTimeCompletionRate)
                 .stops(stops)
                 .depotId(route.getDepotId())
                 .departureTime(route.getDepartureTime())
@@ -879,51 +912,15 @@ public class RouteService {
 
     @Transactional(readOnly = true)
     public SlaSummaryResponse getSlaSummary() {
-        List<RouteStop> stops = routeStopRepository.findActivePendingStopsWithSla();
-
-        int onTime = 0, atRisk = 0, breached = 0;
-        List<RouteStop> atRiskList = new ArrayList<>();
-        List<RouteStop> breachedList = new ArrayList<>();
-
-        for (RouteStop stop : stops) {
-            if (stop.getSlaStatus() == SlaStatus.ON_TIME)       onTime++;
-            else if (stop.getSlaStatus() == SlaStatus.AT_RISK)  { atRisk++;   atRiskList.add(stop); }
-            else if (stop.getSlaStatus() == SlaStatus.BREACHED) { breached++; breachedList.add(stop); }
-        }
-
-        // Load client names for urgent stops only
-        List<UUID> urgentIds = new ArrayList<>();
-        atRiskList.stream().map(RouteStop::getDeliveryId).forEach(urgentIds::add);
-        breachedList.stream().map(RouteStop::getDeliveryId).forEach(urgentIds::add);
-
-        Map<UUID, Delivery> deliveryMap = urgentIds.isEmpty()
-                ? Collections.emptyMap()
-                : deliveryRepository.findAllByIdInWithOrder(urgentIds).stream()
-                        .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+        int onTime = routeStopRepository.findActivePendingStops().size();
 
         return SlaSummaryResponse.builder()
                 .onTime(onTime)
-                .atRisk(atRisk)
-                .breached(breached)
-                .total(onTime + atRisk + breached)
-                .atRiskStops(toSlaItems(atRiskList.stream().limit(10).toList(), deliveryMap))
-                .breachedStops(toSlaItems(breachedList.stream().limit(10).toList(), deliveryMap))
+                .atRisk(0)
+                .breached(0)
+                .total(onTime)
+                .atRiskStops(List.of())
+                .breachedStops(List.of())
                 .build();
-    }
-
-    private List<SlaSummaryResponse.SlaStopItem> toSlaItems(List<RouteStop> stops, Map<UUID, Delivery> deliveryMap) {
-        return stops.stream().map(stop -> {
-            Delivery d = deliveryMap.get(stop.getDeliveryId());
-            String clientName = (d != null && d.getOrder() != null) ? d.getOrder().getClientName() : null;
-            return SlaSummaryResponse.SlaStopItem.builder()
-                    .stopId(stop.getId())
-                    .deliveryId(stop.getDeliveryId())
-                    .routeId(stop.getRoute().getId())
-                    .clientName(clientName)
-                    .etaAt(stop.getEtaAt())
-                    .slaDeadline(stop.getSlaDeadline())
-                    .slaStatus(stop.getSlaStatus().name())
-                    .build();
-        }).toList();
     }
 }
