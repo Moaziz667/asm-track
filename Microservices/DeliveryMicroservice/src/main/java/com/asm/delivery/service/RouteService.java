@@ -3,8 +3,16 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.RouteResponse;
+import com.asm.delivery.dto.response.RouteFullResponse;
+import com.asm.delivery.dto.response.RouteStopFullResponse;
 import com.asm.delivery.dto.response.RouteStopResponse;
 import com.asm.delivery.dto.response.SlaSummaryResponse;
+import com.asm.delivery.dto.response.AdminDriverResponse;
+import com.asm.delivery.dto.response.DeliveryResponse;
+import com.asm.delivery.dto.response.OrderResponse;
+import com.asm.delivery.dto.response.StatusHistoryResponse;
+import com.asm.delivery.entity.DeliveryStatusHistory;
+import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
@@ -15,7 +23,11 @@ import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.odoo.OdooSyncService;
+import com.asm.delivery.service.ProofOfDeliveryService;
+import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
+import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.entity.Zone;
+import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
@@ -66,6 +78,8 @@ public class RouteService {
     private final ZoneRepository zoneRepository;
     private final DelayCalculationService delayCalculationService;
     private final AuditLogService auditLogService;
+    private final ProofOfDeliveryService proofOfDeliveryService;
+    private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
 
     @Transactional(readOnly = true)
     public List<RouteResponse> list() {
@@ -100,6 +114,12 @@ public class RouteService {
     @Transactional(readOnly = true)
     public RouteResponse get(UUID id) {
         return toResponse(getRoute(id));
+    }
+
+    @Transactional(readOnly = true)
+    public RouteFullResponse getRouteFull(UUID id) {
+        Route route = getRoute(id);
+        return toFullResponse(route);
     }
 
     @Transactional(readOnly = true)
@@ -905,6 +925,220 @@ public class RouteService {
                 .detectedZoneNames(detectedZoneNames)
                 .routeStartDelayMinutes(routeStartDelayMinutes)
                 .legacyStops(legacyStopResponses.isEmpty() ? null : legacyStopResponses)
+                .build();
+    }
+
+    private RouteFullResponse toFullResponse(Route route) {
+        // --- Same initial logic as toResponse ---
+        List<RouteStop> activeStops = route.getStops().stream()
+                .filter(stop -> stop.getStatus() != RouteStopStatus.REMOVED)
+                .toList();
+
+        List<RouteStopFullResponse> stops = activeStops.stream()
+                .map(stop -> toFullStopResponse(stop, route, activeStops)) // Pass activeStops to calculate delay properly
+                .toList();
+
+        List<RouteStopFullResponse> legacyStops = route.getStops().stream()
+                .filter(stop -> stop.getStatus() == RouteStopStatus.REMOVED)
+                .map(stop -> toFullStopResponse(stop, route, activeStops))
+                .toList();
+
+        int totalActiveStops = activeStops.size();
+
+        long completed = route.getStops().stream()
+                .filter(s -> s.getStatus() == RouteStopStatus.COMPLETED)
+                .count();
+        long failed = route.getStops().stream()
+                .filter(s -> s.getStatus() == RouteStopStatus.FAILED)
+                .count();
+        long partial = route.getStops().stream()
+                .filter(s -> s.getStatus() == RouteStopStatus.PARTIAL)
+                .count();
+        long pending = totalActiveStops - (completed + failed + partial);
+
+        double progress = totalActiveStops == 0 ? 0.0 :
+                (double) (completed + failed + partial) / totalActiveStops * 100.0;
+
+        List<String> deliveryIds = activeStops.stream()
+                .map(s -> s.getDeliveryId().toString())
+                .toList();
+
+        String detectedZoneLabel = null;
+        List<String> detectedZoneNames = new java.util.ArrayList<>();
+        if (route.getZoneId() != null) {
+            com.asm.delivery.entity.Zone z = zoneRepository.findById(route.getZoneId()).orElse(null);
+            if (z != null) {
+                detectedZoneNames.add(z.getName());
+            }
+            detectedZoneLabel = detectedZoneNames.isEmpty() ? null : detectedZoneNames.get(0);
+        } else if (!deliveryIds.isEmpty()) {
+            List<Delivery> deliveries = deliveryRepository.findAllById(
+                    deliveryIds.stream().map(UUID::fromString).toList()
+            );
+            detectedZoneNames = deliveries.stream()
+                    .map(d -> {
+                        if (d.getOrder() != null && d.getOrder().getZoneId() != null) {
+                            return zoneRepository.findById(d.getOrder().getZoneId())
+                                .map(com.asm.delivery.entity.Zone::getName)
+                                .orElse(null);
+                        }
+                        return null;
+                    })
+                    .filter(z -> z != null && !z.trim().isEmpty())
+                    .distinct()
+                    .toList();
+            if (!detectedZoneNames.isEmpty()) {
+                detectedZoneLabel = String.join(", ", detectedZoneNames);
+            }
+        }
+
+        Integer routeStartDelayMinutes = route.getStartedAt() != null && route.getPlannedStartTime() != null
+                ? (int) java.time.Duration.between(LocalDateTime.of(route.getDate(), route.getPlannedStartTime()), route.getStartedAt()).toMinutes()
+                : null;
+        // ----------------------------------------
+        
+        Integer cumulativeDelayMinutes = null;
+        Double onTimeCompletionRate = null;
+
+        if (route.getStatus() == RouteStatus.IN_PROGRESS || route.getStatus() == RouteStatus.CLOSED) {
+            cumulativeDelayMinutes = delayCalculationService.calculateCumulativeDelayMinutes(route, activeStops);
+            onTimeCompletionRate = delayCalculationService.calculateOnTimeCompletionRate(route, activeStops);
+        }
+
+        return RouteFullResponse.builder()
+                .id(route.getId())
+                .name(route.getName())
+                .date(route.getDate())
+                .plannedStartTime(route.getPlannedStartTime())
+                .plannedEndTime(route.getPlannedEndTime())
+                .city(route.getCity())
+                .status(route.getStatus())
+                .createdBy(route.getCreatedBy())
+                .createdAt(route.getCreatedAt())
+                .validatedAt(route.getValidatedAt())
+                .startedAt(route.getStartedAt())
+                .closedAt(route.getClosedAt())
+                .totalStops(totalActiveStops)
+                .completedStops((int) completed)
+                .failedStops((int) failed)
+                .partialStops((int) partial)
+                .pendingStops((int) pending)
+                .progressPercent(Math.round(progress * 100.0) / 100.0)
+                .cumulativeDelayMinutes(cumulativeDelayMinutes != null ? cumulativeDelayMinutes : route.getCumulativeDelayMinutes())
+                .onTimeCompletionRate(onTimeCompletionRate != null ? onTimeCompletionRate : (route.getRouteOnTimeCompletionRate() != null ? route.getRouteOnTimeCompletionRate().doubleValue() : null))
+                .routeStartDelayMinutes(routeStartDelayMinutes)
+                .stops(stops)
+                .legacyStops(legacyStops.isEmpty() ? null : legacyStops)
+                .driver(route.getDriverId() != null ? AdminDriverResponse.builder()
+                        .id(route.getDriverId())
+                        .build() : null)
+                .vehicle(route.getVehicleId() != null ? com.asm.delivery.dto.response.VehicleResponse.builder()
+                        .id(route.getVehicleId())
+                        .build() : null)
+                .depot(route.getDepotId() != null ? com.asm.delivery.dto.response.DepotResponse.builder()
+                        .id(route.getDepotId())
+                        .build() : null)
+                .departureTime(route.getDepartureTime())
+                .totalDurationSeconds(route.getTotalDurationSeconds())
+                .totalDistanceMeters(route.getTotalDistanceMeters())
+                .isOptimized(route.getIsOptimized())
+                .routeGeometry(route.getRouteGeometry())
+                .detectedZoneLabel(detectedZoneLabel)
+                .detectedZoneNames(detectedZoneNames)
+                .build();
+    }
+
+    private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops) {
+        Delivery delivery = deliveryRepository.findById(stop.getDeliveryId())
+                .orElseThrow(() -> new com.asm.delivery.exception.AppException(org.springframework.http.HttpStatus.NO_CONTENT, "Delivery not found for stop " + stop.getId()));
+
+        com.asm.delivery.entity.Order orderInfo = delivery.getOrder();
+        
+        // Calculate delay details
+        DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
+        Integer delayMinutes = delayInfo != null ? delayInfo.delayMinutes : null;
+        String delayStatus = delayInfo != null ? delayInfo.delayStatus : null;
+        String delayReason = delayInfo != null ? delayInfo.delayReason : null;
+        Integer transitSlaMinutesComputed = null; // Removed as it is not in DelayInfo
+
+
+        return RouteStopFullResponse.builder()
+                .id(stop.getId())
+                .stopOrder(stop.getStopOrder())
+                .status(stop.getStatus())
+                .arrivedAt(stop.getArrivedAt())
+                .completedAt(stop.getCompletedAt())
+                .notes(stop.getNotes())
+                .deliveryAddress(orderInfo != null ? orderInfo.getDropoffAddress() : null)
+                .deliveryCity(orderInfo != null ? orderInfo.getDropoffCity() : null)
+                .deliveryPostalCode(orderInfo != null ? orderInfo.getDropoffPostalCode() : null)
+                .deliveryCountryCode(orderInfo != null ? orderInfo.getDropoffCountryCode() : null)
+                .dropoffLat(orderInfo != null ? orderInfo.getDropoffLat() : null)
+                .dropoffLng(orderInfo != null ? orderInfo.getDropoffLng() : null)
+                .dropoffPinned(orderInfo != null && orderInfo.getDropoffLat() != null && orderInfo.getDropoffLng() != null)
+                .routeGeometry(stop.getRouteGeometry())
+                .routeDistanceKm(stop.getDriveDistanceMeters() != null ? java.math.BigDecimal.valueOf(stop.getDriveDistanceMeters() / 1000.0) : null)
+                .routeDurationMinutes(stop.getDriveDurationSeconds() != null ? stop.getDriveDurationSeconds() / 60 : null)
+                .routeEtaAt(stop.getEtaAt())
+                .transitSlaMinutesComputed(transitSlaMinutesComputed) 
+                .slaStatus(stop.getSlaStatus())
+                .delayMinutes(delayMinutes)
+                .delayStatus(delayStatus)
+                .delayReason(delayReason)
+                .startTimeWindow(stop.getStartTimeWindow())
+                .endTimeWindow(stop.getEndTimeWindow())
+                .delivery(com.asm.delivery.dto.response.DeliveryResponse.builder()
+                        .id(delivery.getId())
+                        .orderId(orderInfo != null ? orderInfo.getId() : null)
+                        .status(delivery.getStatus() != null ? delivery.getStatus().name() : null)
+                        .assignedAt(delivery.getAssignedAt())
+                        .pickedUpAt(delivery.getPickedUpAt())
+                        .inTransitAt(delivery.getInTransitAt())
+                        .completedAt(delivery.getCompletedAt())
+                        .failedAt(delivery.getFailedAt())
+                        .cancelledAt(delivery.getCancelledAt())
+                        .failReason(delivery.getFailReason())
+                        .cancelReason(delivery.getCancelReason())
+                        .createdAt(delivery.getCreatedAt())
+                        .build())
+                .order(orderInfo != null ? com.asm.delivery.dto.response.OrderResponse.builder()
+                        .id(orderInfo.getId())
+                        .source(orderInfo.getSource() != null ? orderInfo.getSource().name() : null)
+                        .clientId(orderInfo.getClientId())
+                        .clientName(orderInfo.getClientName())
+                        .clientPhone(orderInfo.getClientPhone())
+                        .dropoffAddress(orderInfo.getDropoffAddress())
+                        .dropoffCity(orderInfo.getDropoffCity())
+                        .dropoffLat(orderInfo.getDropoffLat())
+                        .dropoffLng(orderInfo.getDropoffLng())
+                        .deliveryInstructions(orderInfo.getDeliveryInstructions())
+                        .totalAmount(orderInfo.getTotalAmount())
+                        .currency(orderInfo.getCurrency())
+                        .priority(orderInfo.getPriority() != null ? orderInfo.getPriority().name() : null)
+                        .scheduledAt(orderInfo.getScheduledAt())
+                        .totalQuantity(orderInfo.getTotalQuantity())
+                        .totalWeightKg(orderInfo.getTotalWeightKg())
+                        .status(orderInfo.getStatus() != null ? orderInfo.getStatus().name() : null)
+                        .deliveryId(delivery.getId())
+                        .deliveryStatus(delivery.getStatus() != null ? delivery.getStatus().name() : null)
+                        .erpOrderId(orderInfo.getErpOrderId())
+                        .odooSyncStatus(orderInfo.getOdooSyncStatus())
+                        .createdAt(orderInfo.getCreatedAt())
+                        .updatedAt(orderInfo.getUpdatedAt())
+                        .build() : null)
+                .proofOfDelivery(null) 
+                .statusHistory(
+                        deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
+                                .stream()
+                                .map(h -> StatusHistoryResponse.builder()
+                                        .id(h.getId() != null ? h.getId().toString() : null)
+                                        .status(h.getStatus().name())
+                                        .note(h.getNote())
+                                        .changedAt(h.getChangedAt())
+                                        .changedBy(h.getChangedBy())
+                                        .build())
+                                .toList()
+                )
                 .build();
     }
 

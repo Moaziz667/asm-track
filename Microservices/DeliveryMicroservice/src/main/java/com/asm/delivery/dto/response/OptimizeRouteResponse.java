@@ -11,6 +11,7 @@ public class OptimizeRouteResponse {
     private List<RouteStopEtaResponse> optimizedStops;
     private double totalDurationSeconds;
     private double totalDistanceMeters;
+    private String routeGeometry;
     private SavingsInfo savings;
 
     @Data

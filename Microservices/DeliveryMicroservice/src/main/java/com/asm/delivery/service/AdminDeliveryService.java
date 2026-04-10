@@ -112,7 +112,8 @@ public class AdminDeliveryService {
     private final GeocodingService geocodingService;
     private final AuditLogService auditLogService;
     private final SystemSettingsService systemSettingsService;
-        private final DelayCalculationService delayCalculationService;
+                private final DelayCalculationService delayCalculationService;
+        private final RouteOptimizationService routeOptimizationService;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -519,15 +520,14 @@ public class AdminDeliveryService {
 
                 DeliveryStatus previousStatus = delivery.getStatus();
                 UUID previousDriverId = delivery.getDriverId();
-                if (delivery.getDriverId() != null && !delivery.getDriverId().equals(request.getDriverId())) {
-                        transportPort.setAvailability(delivery.getDriverId().toString(), true);
-                }
-                transportPort.setAvailability(request.getDriverId().toString(), false);
 
                 LocalDateTime now = LocalDateTime.now();
                 delivery.setDriverId(request.getDriverId());
                 delivery.setStatus(DeliveryStatus.ASSIGNED);
                 delivery.setAssignedAt(now);
+                delivery.setPickedUpAt(null);
+                delivery.setInTransitAt(null);
+                delivery.setCompletedAt(null);
                 delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
                 delivery.setAssignSlaMinutes(null);
                 delivery.setPickupSlaMinutes(null);
@@ -546,7 +546,18 @@ public class AdminDeliveryService {
                     delivery.getId(), previousDriverId, request.getDriverId(), request.getNote()));
 
                 // Keep route plan consistent with ownership change: move stop to the new driver's route.
-                moveStopToDriverRoute(delivery, request.getDriverId(), actor.name());
+                Set<UUID> affectedRouteIds = moveStopToDriverRoute(delivery, request.getDriverId(), actor.name(), request.getStartTimeWindow(), request.getEndTimeWindow());
+
+                // Recompute ETAs/geometries on both source and target routes after ownership change.
+                for (UUID routeId : affectedRouteIds) {
+                        if (routeId == null) continue;
+                        routeOptimizationService.recalculate(routeId);
+                }
+
+                if (previousDriverId != null && !previousDriverId.equals(request.getDriverId())) {
+                        transportPort.setAvailability(previousDriverId.toString(), true);
+                }
+                transportPort.setAvailability(request.getDriverId().toString(), false);
 
                 appendHistory(delivery,
                                 DeliveryStatus.ASSIGNED,
@@ -1432,7 +1443,8 @@ public class AdminDeliveryService {
                 });
         }
 
-        private void moveStopToDriverRoute(Delivery delivery, UUID targetDriverId, String actorName) {
+        private Set<UUID> moveStopToDriverRoute(Delivery delivery, UUID targetDriverId, String actorName, java.time.LocalTime requestedStartTime, java.time.LocalTime requestedEndTime) {
+                Set<UUID> affectedRouteIds = new LinkedHashSet<>();
                 routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(currentStop -> {
                         Route sourceRoute = currentStop.getRoute();
                         if (sourceRoute == null) {
@@ -1444,11 +1456,45 @@ public class AdminDeliveryService {
                         }
 
                         UUID sourceRouteId = sourceRoute.getId();
+                        affectedRouteIds.add(sourceRouteId);
                         routeStopRepository.delete(currentStop);
                         repackStopOrder(sourceRouteId);
 
                         Route targetRoute = findOrCreateRouteForDriver(targetDriverId, sourceRoute, actorName);
-                        int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId()).size() + 1;
+                        affectedRouteIds.add(targetRoute.getId());
+                        List<RouteStop> targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+                        
+                        // User-requested boundary validation
+                        if (requestedStartTime != null && !targetStops.isEmpty()) {
+                                RouteStop lastTargetStop = targetStops.get(targetStops.size() - 1);
+                                java.time.LocalTime referenceTime = lastTargetStop.getEndTimeWindow() != null 
+                                            ? lastTargetStop.getEndTimeWindow() 
+                                            : (lastTargetStop.getEtaAt() != null ? lastTargetStop.getEtaAt().toLocalTime() : targetRoute.getPlannedStartTime());
+                                
+                                if (referenceTime != null && requestedStartTime.isBefore(referenceTime)) {
+                                        throw AppException.badRequest("Reassigned stop start time (" + requestedStartTime + ") must be after current route's last stop time (" + referenceTime + ")");
+                                }
+                        }
+
+                        // Determine final windows
+                        java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : currentStop.getStartTimeWindow();
+                        java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : currentStop.getEndTimeWindow();
+
+                        // Extend Route boundaries if the newly placed window is outside Current bounds
+                        boolean routeModified = false;
+                        if (finalStartTime != null && finalStartTime.isBefore(targetRoute.getPlannedStartTime())) {
+                                targetRoute.setPlannedStartTime(finalStartTime);
+                                routeModified = true;
+                        }
+                        if (finalEndTime != null && finalEndTime.isAfter(targetRoute.getPlannedEndTime())) {
+                                targetRoute.setPlannedEndTime(finalEndTime);
+                                routeModified = true;
+                        }
+                        if (routeModified) {
+                                routeRepository.save(targetRoute);
+                        }
+
+                        int nextOrder = targetStops.size() + 1;
 
                         routeStopRepository.save(RouteStop.builder()
                                         .route(targetRoute)
@@ -1456,8 +1502,12 @@ public class AdminDeliveryService {
                                         .stopOrder(nextOrder)
                                         .status(RouteStopStatus.PENDING)
                                         .notes("Moved by dispatch via reassign")
+                                        .startTimeWindow(finalStartTime)
+                                        .endTimeWindow(finalEndTime)
+                                        .bufferMinutes(currentStop.getBufferMinutes())
                                         .build());
                 });
+                return affectedRouteIds;
         }
 
         private Route findOrCreateRouteForDriver(UUID driverId, Route sourceRoute, String actorName) {
@@ -1475,6 +1525,8 @@ public class AdminDeliveryService {
                                 .date(sourceRoute.getDate())
                                 .plannedStartTime(sourceRoute.getPlannedStartTime() != null ? sourceRoute.getPlannedStartTime() : LocalTime.of(8, 0))
                                 .plannedEndTime(sourceRoute.getPlannedEndTime() != null ? sourceRoute.getPlannedEndTime() : LocalTime.of(18, 0))
+                                .depotId(sourceRoute.getDepotId())
+                                .departureTime(sourceRoute.getDepartureTime())
                                 .city(sourceRoute.getCity())
                                 .status(RouteStatus.DRAFT)
                                 .createdBy(creator)

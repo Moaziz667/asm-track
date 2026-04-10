@@ -21,7 +21,15 @@
       "Bash(grep -E \"^[^/]*$|lib|src\")",
       "Bash(powershell -ExecutionPolicy Bypass -File run_scenarios.ps1)",
       "Bash(powershell -ExecutionPolicy Bypass -File create_odoo_test_orders.ps1)",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(node -e ':*)",
+      "Bash(printf %s 'const fs = require\\(\"fs\"\\);:*)",
+      "Bash(node /tmp/tb_check.cjs)",
+      "Bash(node /tmp/tb2.cjs)",
+      "Bash(node /tmp/tb3.cjs)",
+      "Bash(node /tmp/tb4.cjs)",
+      "Bash(node /tmp/tb5.cjs)",
+      "Bash(node \"c:/Users/M S I/OneDrive/Documents/PFE/ios_style.cjs\")"
     ]
   }
 }

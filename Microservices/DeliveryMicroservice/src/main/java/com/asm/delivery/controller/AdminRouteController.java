@@ -7,6 +7,7 @@ import com.asm.delivery.dto.request.ReorderStopsRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.OptimizeRouteResponse;
 import com.asm.delivery.dto.response.RouteResponse;
+import com.asm.delivery.dto.response.RouteFullResponse;
 import com.asm.delivery.dto.response.RouteStopEtaResponse;
 import com.asm.delivery.dto.response.SlaSummaryResponse;
 import com.asm.delivery.entity.RouteStatus;
@@ -63,6 +64,12 @@ public class AdminRouteController {
     @Operation(summary = "Get route")
     public ResponseEntity<RouteResponse> get(@PathVariable UUID id) {
         return ResponseEntity.ok(routeService.get(id));
+    }
+
+    @GetMapping("/{id}/full")
+    @Operation(summary = "Get full aggregated route")
+    public ResponseEntity<RouteFullResponse> getRouteFull(@PathVariable UUID id) {
+        return ResponseEntity.ok(routeService.getRouteFull(id));
     }
 
     @PostMapping

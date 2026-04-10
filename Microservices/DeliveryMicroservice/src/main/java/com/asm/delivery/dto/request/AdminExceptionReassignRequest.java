@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
+import java.time.LocalTime;
 import java.util.UUID;
 
 @Data
@@ -13,4 +14,7 @@ public class AdminExceptionReassignRequest {
 
     @Size(max = 500)
     private String note;
+
+    private LocalTime startTimeWindow;
+    private LocalTime endTimeWindow;
 }

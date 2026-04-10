@@ -28,9 +28,8 @@ spring:
 
   sql:
     init:
-      mode: always
+      mode: never
       schema-locations: classpath:schema.sql
-      continue-on-error: true
 
 app:
   jwt:

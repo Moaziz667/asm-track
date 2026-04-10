@@ -75,10 +75,15 @@ public class RouteOptimizationService {
                 .mapToDouble(s -> s.getDriveDistanceMeters() != null ? s.getDriveDistanceMeters() : 0)
                 .sum();
 
+        String suggestedGeometry = osrmRoutingService
+            .routeFullGeometry(buildCoordinateList(depot, reorderedStops, orderMap))
+            .orElse(null);
+
         return OptimizeRouteResponse.builder()
                 .optimizedStops(etaList)
                 .totalDurationSeconds(newTotalDuration)
                 .totalDistanceMeters(newTotalDistance)
+            .routeGeometry(suggestedGeometry)
                 .savings(OptimizeRouteResponse.SavingsInfo.builder()
                         .durationSavedSeconds(Math.max(0, currentTotals[0] - newTotalDuration))
                         .distanceSavedMeters(Math.max(0, currentTotals[1] - newTotalDistance))
