@@ -9,6 +9,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -34,10 +35,14 @@ public class ProofOfDeliveryService {
     }
 
     @Transactional(readOnly = true)
+    public Optional<ProofOfDeliveryResponse> findPodAdmin(UUID deliveryId) {
+        return podRepo.findByDeliveryId(deliveryId).map(this::toResponse);
+    }
+
+    @Transactional(readOnly = true)
     public ProofOfDeliveryResponse getPodAdmin(UUID deliveryId) {
-        ProofOfDelivery pod = podRepo.findByDeliveryId(deliveryId)
+        return findPodAdmin(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Proof of delivery not found"));
-        return toResponse(pod);
     }
 
     private ProofOfDeliveryResponse toResponse(ProofOfDelivery pod) {

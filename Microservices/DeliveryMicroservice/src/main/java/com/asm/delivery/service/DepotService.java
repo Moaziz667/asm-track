@@ -5,6 +5,7 @@ import com.asm.delivery.dto.response.DepotResponse;
 import com.asm.delivery.entity.Depot;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DepotRepository;
+import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class DepotService {
 
     private final DepotRepository depotRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<DepotResponse> list() {
@@ -38,7 +40,7 @@ public class DepotService {
     }
 
     @Transactional
-    public DepotResponse create(DepotRequest request) {
+    public DepotResponse create(UserPrincipal principal, DepotRequest request) {
         Depot depot = Depot.builder()
                 .name(request.getName().trim())
                 .address(request.getAddress())
@@ -46,11 +48,14 @@ public class DepotService {
                 .longitude(request.getLongitude())
                 .isActive(true)
                 .build();
-        return toResponse(depotRepository.save(depot));
+        Depot saved = depotRepository.save(depot);
+        auditLogService.logAction(principal, "CREATE_DEPOT", saved.getId().toString(),
+                "Depot created: " + saved.getName() + " @ " + saved.getAddress());
+        return toResponse(saved);
     }
 
     @Transactional
-    public DepotResponse update(UUID id, DepotRequest request) {
+    public DepotResponse update(UUID id, UserPrincipal principal, DepotRequest request) {
         Depot depot = getDepot(id);
         depot.setName(request.getName().trim());
         depot.setAddress(request.getAddress());
@@ -59,12 +64,17 @@ public class DepotService {
         if (request.getIsActive() != null) {
             depot.setIsActive(request.getIsActive());
         }
-        return toResponse(depotRepository.save(depot));
+        Depot saved = depotRepository.save(depot);
+        auditLogService.logAction(principal, "UPDATE_DEPOT", saved.getId().toString(),
+                "Depot updated: " + saved.getName() + " @ " + saved.getAddress());
+        return toResponse(saved);
     }
 
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID id, UserPrincipal principal) {
         Depot depot = getDepot(id);
+        auditLogService.logAction(principal, "DELETE_DEPOT", id.toString(),
+                "Depot deleted: " + depot.getName());
         depotRepository.delete(depot);
     }
 

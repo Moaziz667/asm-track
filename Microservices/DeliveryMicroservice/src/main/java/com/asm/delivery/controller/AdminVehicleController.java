@@ -4,6 +4,7 @@ import com.asm.delivery.dto.request.AssignVehicleRequest;
 import com.asm.delivery.dto.request.CreateVehicleRequest;
 import com.asm.delivery.dto.request.UpdateVehicleRequest;
 import com.asm.delivery.dto.response.VehicleResponse;
+import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.VehicleService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -12,6 +13,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -40,26 +42,36 @@ public class AdminVehicleController {
 
     @PostMapping
     @Operation(summary = "Create vehicle")
-    public ResponseEntity<VehicleResponse> create(@Valid @RequestBody CreateVehicleRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(vehicleService.create(request));
+    public ResponseEntity<VehicleResponse> create(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CreateVehicleRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(vehicleService.create(principal, request));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update vehicle")
-    public ResponseEntity<VehicleResponse> update(@PathVariable UUID id, @RequestBody UpdateVehicleRequest request) {
-        return ResponseEntity.ok(vehicleService.update(id, request));
+    public ResponseEntity<VehicleResponse> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @RequestBody UpdateVehicleRequest request) {
+        return ResponseEntity.ok(vehicleService.update(id, principal, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete vehicle")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        vehicleService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        vehicleService.delete(id, principal);
         return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/{id}/assign")
     @Operation(summary = "Assign vehicle to driver")
-    public ResponseEntity<VehicleResponse> assign(@PathVariable UUID id, @Valid @RequestBody AssignVehicleRequest request) {
-        return ResponseEntity.ok(vehicleService.assign(id, request));
+    public ResponseEntity<VehicleResponse> assign(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody AssignVehicleRequest request) {
+        return ResponseEntity.ok(vehicleService.assign(id, principal, request));
     }
 }

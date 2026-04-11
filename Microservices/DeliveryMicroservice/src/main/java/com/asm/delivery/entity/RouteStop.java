@@ -62,7 +62,7 @@ public class RouteStop {
     @Column(name = "actual_arrival_at")
     private LocalDateTime actualArrivalAt;
 
-    /** Computed SLA status: ON_TIME, AT_RISK, BREACHED. */
+    /** Computed SLA status: ON_TIME, EARLY, LATE. */
     @Enumerated(EnumType.STRING)
     @Column(name = "sla_status", length = 20)
     private SlaStatus slaStatus;

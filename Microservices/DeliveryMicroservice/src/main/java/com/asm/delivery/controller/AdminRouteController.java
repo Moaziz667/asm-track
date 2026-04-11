@@ -226,7 +226,7 @@ public class AdminRouteController {
     }
 
     @GetMapping("/sla-summary")
-    @Operation(summary = "Aggregated SLA status (ON_TIME / AT_RISK / BREACHED) across all active route stops")
+    @Operation(summary = "Aggregated SLA status (ON_TIME / LATE) across all active route stops")
     public ResponseEntity<SlaSummaryResponse> slaSummary() {
         return ResponseEntity.ok(routeService.getSlaSummary());
     }

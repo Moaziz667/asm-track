@@ -2,6 +2,7 @@ package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.DepotRequest;
 import com.asm.delivery.dto.response.DepotResponse;
+import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.DepotService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,21 +46,27 @@ public class DepotController {
 
     @PostMapping
     @Operation(summary = "Create depot")
-    public ResponseEntity<DepotResponse> create(@Valid @RequestBody DepotRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(depotService.create(request));
+    public ResponseEntity<DepotResponse> create(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DepotRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(depotService.create(principal, request));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update depot")
-    public ResponseEntity<DepotResponse> update(@PathVariable UUID id,
-                                                @Valid @RequestBody DepotRequest request) {
-        return ResponseEntity.ok(depotService.update(id, request));
+    public ResponseEntity<DepotResponse> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody DepotRequest request) {
+        return ResponseEntity.ok(depotService.update(id, principal, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete depot")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        depotService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        depotService.delete(id, principal);
         return ResponseEntity.noContent().build();
     }
 }

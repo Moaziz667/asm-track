@@ -5,6 +5,7 @@ import com.asm.delivery.dto.response.ZoneResponse;
 import com.asm.delivery.entity.Zone;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.ZoneRepository;
+import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,6 +19,7 @@ import java.util.UUID;
 public class ZoneService {
 
     private final ZoneRepository zoneRepository;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<ZoneResponse> list() {
@@ -39,7 +41,7 @@ public class ZoneService {
     }
 
     @Transactional
-    public ZoneResponse create(ZoneRequest request) {
+    public ZoneResponse create(UserPrincipal principal, ZoneRequest request) {
         Zone zone = Zone.builder()
                 .name(request.getName().trim())
                 .color(request.getColor())
@@ -48,11 +50,14 @@ public class ZoneService {
                 .postalCodes(request.getPostalCodes() != null ? request.getPostalCodes() : new ArrayList<>())
                 .isActive(true)
                 .build();
-        return toResponse(zoneRepository.save(zone));
+        Zone saved = zoneRepository.save(zone);
+        auditLogService.logAction(principal, "CREATE_ZONE", saved.getId().toString(),
+                "Zone created: " + saved.getName());
+        return toResponse(saved);
     }
 
     @Transactional
-    public ZoneResponse update(UUID id, ZoneRequest request) {
+    public ZoneResponse update(UUID id, UserPrincipal principal, ZoneRequest request) {
         Zone zone = getZone(id);
         zone.setName(request.getName().trim());
         if (request.getColor() != null) {
@@ -70,13 +75,18 @@ public class ZoneService {
         if (request.getIsActive() != null) {
             zone.setIsActive(request.getIsActive());
         }
-        return toResponse(zoneRepository.save(zone));
+        Zone saved = zoneRepository.save(zone);
+        auditLogService.logAction(principal, "UPDATE_ZONE", saved.getId().toString(),
+                "Zone updated: " + saved.getName());
+        return toResponse(saved);
     }
 
     /** Soft delete — sets isActive = false. Hard delete is not allowed. */
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID id, UserPrincipal principal) {
         Zone zone = getZone(id);
+        auditLogService.logAction(principal, "DELETE_ZONE", id.toString(),
+                "Zone deactivated: " + zone.getName());
         zone.setIsActive(false);
         zoneRepository.save(zone);
     }

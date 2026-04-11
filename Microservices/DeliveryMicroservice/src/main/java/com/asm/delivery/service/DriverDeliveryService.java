@@ -135,6 +135,8 @@ public class DriverDeliveryService {
         delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
+        auditLogService.logAction(null, "DRIVER_PICKUP", delivery.getId().toString(),
+                "Driver " + driverId + " picked up delivery");
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
@@ -173,6 +175,8 @@ public class DriverDeliveryService {
         }
 
         String transitNote = "Driver started transit";
+        auditLogService.logAction(null, "DRIVER_TRANSIT", delivery.getId().toString(),
+                "Driver " + driverId + " started transit for delivery");
         appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
@@ -445,6 +449,8 @@ public class DriverDeliveryService {
         transportPort.setAvailability(driverId.toString(), true);
         transportPort.incrementStat(driverId.toString(), "cancelled");
 
+        auditLogService.logAction(null, "DRIVER_CANCEL", delivery.getId().toString(),
+                "Driver " + driverId + " cancelled delivery. Reason: " + (StringUtils.hasText(reason) ? reason : "none"));
         appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, driverId.toString(), Role.DRIVER,
                 StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
 
@@ -465,6 +471,9 @@ public class DriverDeliveryService {
                 .reportType(reportType)
                 .description(description)
                 .build());
+
+        auditLogService.logAction(null, "DRIVER_REPORT", deliveryId.toString(),
+                "Driver " + driverId + " filed report. Type: " + reportType + ". Details: " + description);
     }
 
     // ── Location update ───────────────────────────────────────────────────────

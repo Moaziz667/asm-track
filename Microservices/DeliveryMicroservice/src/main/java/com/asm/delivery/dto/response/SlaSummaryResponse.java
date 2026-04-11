@@ -12,15 +12,10 @@ import java.util.UUID;
 public class SlaSummaryResponse {
 
     private int onTime;
-    private int atRisk;
-    private int breached;
+    private int late;
     private int total;
-
-    /** AT_RISK stops (up to 10), ordered by etaAt ascending. */
-    private List<SlaStopItem> atRiskStops;
-
-    /** BREACHED stops (up to 10), ordered by etaAt ascending. */
-    private List<SlaStopItem> breachedStops;
+    /** LATE stops (up to 10), ordered by etaAt ascending. */
+    private List<SlaStopItem> lateStops;
 
     @Data
     @Builder

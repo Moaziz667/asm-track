@@ -10,6 +10,8 @@ import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.VehicleRepository;
+import com.asm.delivery.security.UserPrincipal;
+import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.storage.MinioStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,8 +28,9 @@ import java.util.stream.Collectors;
 public class VehicleService {
 
     private final VehicleRepository vehicleRepository;
-        private final RouteRepository routeRepository;
+    private final RouteRepository routeRepository;
     private final MinioStorageService minioStorageService;
+    private final AuditLogService auditLogService;
 
         private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
             RouteStatus.DRAFT,
@@ -50,7 +53,7 @@ public class VehicleService {
     }
 
     @Transactional
-    public VehicleResponse create(CreateVehicleRequest request) {
+    public VehicleResponse create(UserPrincipal principal, CreateVehicleRequest request) {
         String normalizedPlate = normalizePlate(request.getPlate());
         if (vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
             throw AppException.conflict("Vehicle plate already exists");
@@ -80,11 +83,14 @@ public class VehicleService {
             vehicle = vehicleRepository.save(vehicle);
         }
 
+        auditLogService.logAction(principal, "CREATE_VEHICLE", vehicle.getId().toString(),
+                "Vehicle created: " + vehicle.getPlate() + " (" + vehicle.getName() + ")");
+
         return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
 
     @Transactional
-    public VehicleResponse update(UUID id, UpdateVehicleRequest request) {
+    public VehicleResponse update(UUID id, UserPrincipal principal, UpdateVehicleRequest request) {
         Vehicle vehicle = getVehicle(id);
 
         if (StringUtils.hasText(request.getMake())) {
@@ -157,12 +163,16 @@ public class VehicleService {
         vehicle.setName(buildDisplayName(vehicle.getMake(), vehicle.getModel(), vehicle.getManufactureYear()));
 
         Vehicle saved = vehicleRepository.save(vehicle);
+        auditLogService.logAction(principal, "UPDATE_VEHICLE", saved.getId().toString(),
+                "Vehicle updated: " + saved.getPlate() + " (" + saved.getName() + ")");
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
     @Transactional
-    public void delete(UUID id) {
+    public void delete(UUID id, UserPrincipal principal) {
         Vehicle vehicle = getVehicle(id);
+        auditLogService.logAction(principal, "DELETE_VEHICLE", id.toString(),
+                "Vehicle deleted: " + vehicle.getPlate() + " (" + vehicle.getName() + ")");
         if (StringUtils.hasText(vehicle.getImageUrl())) {
             minioStorageService.deleteFile(vehicle.getImageUrl());
         }
@@ -170,10 +180,13 @@ public class VehicleService {
     }
 
     @Transactional
-    public VehicleResponse assign(UUID id, AssignVehicleRequest request) {
+    public VehicleResponse assign(UUID id, UserPrincipal principal, AssignVehicleRequest request) {
         Vehicle vehicle = getVehicle(id);
+        String driverInfo = request.getDriverId() != null ? request.getDriverId().toString() : "unassigned";
         vehicle.setDriverId(request.getDriverId());
         Vehicle saved = vehicleRepository.save(vehicle);
+        auditLogService.logAction(principal, "ASSIGN_VEHICLE", saved.getId().toString(),
+                "Vehicle " + saved.getPlate() + " assigned to driver " + driverInfo);
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 

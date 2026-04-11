@@ -29,7 +29,7 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
     @Query("""
         SELECT rs FROM RouteStop rs JOIN FETCH rs.route r
         WHERE r.status IN ('VALIDATED', 'IN_PROGRESS')
-        AND rs.status IN ('PENDING', 'ARRIVED')
+        AND rs.status IN ('PENDING', 'ASSIGNED', 'ARRIVED', 'PICKED_UP', 'IN_TRANSIT')
         ORDER BY r.date ASC, r.plannedStartTime ASC, rs.stopOrder ASC
     """)
     List<RouteStop> findActivePendingStops();

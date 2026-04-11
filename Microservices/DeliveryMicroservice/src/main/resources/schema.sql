@@ -458,7 +458,17 @@ BEGIN
     ALTER TABLE route_stops DROP CONSTRAINT ck_route_stops_status;
   END IF;
   ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_status
-    CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL', 'REMOVED'));
+    CHECK (status IN (
+      'PENDING',
+      'ASSIGNED',
+      'PICKED_UP',
+      'IN_TRANSIT',
+      'ARRIVED',
+      'COMPLETED',
+      'FAILED',
+      'PARTIAL',
+      'REMOVED'
+    ));
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;
@@ -554,5 +564,6 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS completion_status VARCHAR(10);
 
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS cumulative_delay_minutes INTEGER;
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_on_time_completion_rate NUMERIC(5,2);
-C R E A T E   T A B L E   I F   N O T   E X I S T S   a u d i t _ l o g s   ( i d   U U I D   P R I M A R Y   K E Y ,   a c t o r _ n a m e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t o r _ r o l e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t i o n   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   r e s o u r c e _ i d   T E X T ,   d e t a i l s   T E X T ,   i p _ a d d r e s s   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   c r e a t e d _ a t   T I M E S T A M P   D E F A U L T   C U R R E N T _ T I M E S T A M P ) ;  
+C R E A T E   T A B L E   I F   N O T   E X I S T S   a u d i t _ l o g s   ( i d   U U I D   P R I M A R Y   K E Y ,   a c t o r _ n a m e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t o r _ r o l e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t i o n   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   r e s o u r c e _ i d   T E X T ,   d e t a i l s   T E X T ,   i p _ a d d r e s s   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   c r e a t e d _ a t   T I M E S T A M P   D E F A U L T   C U R R E N T _ T I M E S T A M P ) ; 
+ 
  

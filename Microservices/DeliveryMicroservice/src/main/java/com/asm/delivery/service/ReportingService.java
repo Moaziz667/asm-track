@@ -5,9 +5,11 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.SlaStatus;
+import com.asm.delivery.entity.Zone;
 import com.asm.delivery.repository.AuditLogRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteStopRepository;
+import com.asm.delivery.repository.ZoneRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +30,7 @@ public class ReportingService {
     private final RouteStopRepository routeStopRepository;
     private final AuditLogRepository auditLogRepository;
     private final DelayCalculationService delayCalculationService;
+    private final ZoneRepository zoneRepository;
 
     public DashboardKpiResponse getGlobalKpis() {
         List<Delivery> allDeliveries = deliveryRepository.findAll();
@@ -63,10 +66,16 @@ public class ReportingService {
 
         double slaRate = measurableCount == 0 ? 100.0 : (double) onTimeCompleted / measurableCount * 100.0;
 
-        // 3. Zones les plus actives (basé sur la ville de destination de l'Order)
+        // 3. Zones les plus actives — groupés par nom de zone réel (via zoneId sur l'Order)
+        Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
+                .collect(Collectors.toMap(Zone::getId, Zone::getName));
+
         Map<String, Long> ordersByZone = allDeliveries.stream()
-                .filter(d -> d.getOrder() != null && d.getOrder().getDropoffCity() != null)
-                .collect(Collectors.groupingBy(d -> d.getOrder().getDropoffCity(), Collectors.counting()));
+                .filter(d -> d.getOrder() != null && d.getOrder().getZoneId() != null
+                        && zoneNameById.containsKey(d.getOrder().getZoneId()))
+                .collect(Collectors.groupingBy(
+                        d -> zoneNameById.get(d.getOrder().getZoneId()),
+                        Collectors.counting()));
 
         // 4. Exception Tracking (Audit Logs)
         long reassignments = auditLogRepository.countAllByActionContaining("REASSIGN");

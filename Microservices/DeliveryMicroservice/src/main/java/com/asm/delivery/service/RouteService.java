@@ -18,16 +18,17 @@ import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.entity.RouteStop;
+import com.asm.delivery.entity.SlaStatus;
 import com.asm.delivery.entity.RouteStopStatus;
+import com.asm.delivery.entity.Role;
 import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.odoo.OdooSyncService;
 import com.asm.delivery.service.ProofOfDeliveryService;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
-import com.asm.delivery.repository.ZoneRepository;
+import com.asm.delivery.repository.DepotRepository;
 import com.asm.delivery.entity.Zone;
-import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
@@ -35,8 +36,10 @@ import com.asm.delivery.repository.VehicleRepository;
 import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -46,7 +49,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
-import java.time.temporal.ChronoUnit;
+
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -58,6 +61,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class RouteService {
 
     private static final LocalTime DEFAULT_PLANNED_START = LocalTime.of(8, 0);
@@ -67,12 +71,13 @@ public class RouteService {
     public void deleteByRouteId(UUID routeId) {
         routeStopRepository.deleteByRouteId(routeId);
     }
-    private static final long MIN_ROUTE_WINDOW_MINUTES = 15;
+    
 
     private final RouteRepository routeRepository;
     private final RouteStopRepository routeStopRepository;
     private final VehicleRepository vehicleRepository;
     private final DeliveryRepository deliveryRepository;
+    private final DepotRepository depotRepository;
     private final TransportPort transportPort;
     private final OdooSyncService odooSyncService;
     private final ZoneRepository zoneRepository;
@@ -118,8 +123,13 @@ public class RouteService {
 
     @Transactional(readOnly = true)
     public RouteFullResponse getRouteFull(UUID id) {
-        Route route = getRoute(id);
-        return toFullResponse(route);
+        try {
+            Route route = getRoute(id);
+            return toFullResponse(route);
+        } catch (Exception ex) {
+            log.error("Failed to load full route {}", id, ex);
+            throw ex;
+        }
     }
 
     @Transactional(readOnly = true)
@@ -342,6 +352,7 @@ public class RouteService {
         for (int i = 0; i < stops.size(); i++) {
             stops.get(i).setStopOrder(i + 1);
         }
+        routeStopRepository.saveAll(stops);
 
         return toResponse(route);
     }
@@ -364,6 +375,7 @@ public class RouteService {
             }
             stop.setStopOrder(i + 1);
         }
+        routeStopRepository.saveAll(new java.util.ArrayList<>(byId.values()));
 
         return toResponse(route);
     }
@@ -401,6 +413,11 @@ public class RouteService {
                 delivery.setAssignedAt(LocalDateTime.now());
                 delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
                 deliveryRepository.save(delivery);
+                appendHistory(delivery, DeliveryStatus.ASSIGNED, "SYSTEM", Role.SYSTEM, "Route validated and delivery assigned");
+                routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(routeStop -> {
+                    routeStop.setStatus(RouteStopStatus.ASSIGNED);
+                    routeStopRepository.save(routeStop);
+                });
             }
         }
 
@@ -479,6 +496,8 @@ public class RouteService {
         route.setStatus(RouteStatus.IN_PROGRESS);
         LocalDateTime now = LocalDateTime.now();
         route.setStartedAt(now);
+        auditLogService.logAction(null, "START_ROUTE", routeId.toString(),
+                "Driver " + driverId + " started route: " + route.getName());
         routeRepository.save(route);
 
         // Auto-pickup all ASSIGNED deliveries so driver doesn't need per-stop pickup action
@@ -490,6 +509,8 @@ public class RouteService {
                     delivery.setPickedUpAt(now);
                     delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
                     deliveryRepository.save(delivery);
+                    appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Route started and package auto-picked up");
+                    syncStopFromDelivery(delivery.getId(), delivery.getStatus(), now, "Route started and package auto-picked up");
                 }
             });
         }
@@ -513,6 +534,8 @@ public class RouteService {
         stop.setArrivedAt(LocalDateTime.now());
         stop.setActualArrivalAt(stop.getArrivedAt());
         routeStopRepository.save(stop);
+        auditLogService.logAction(null, "ARRIVE_STOP", routeId.toString(),
+                "Driver " + driverId + " arrived at stop " + stopId + " on route " + route.getName());
 
         if (route.getStatus() == RouteStatus.VALIDATED) {
             route.setStatus(RouteStatus.IN_PROGRESS);
@@ -521,6 +544,26 @@ public class RouteService {
         }
 
         return toResponse(route);
+    }
+
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
+        deliveryStatusHistoryRepository.save(DeliveryStatusHistory.builder()
+                .deliveryId(delivery.getId())
+                .status(status)
+                .changedBy(changedBy)
+                .changedByRole(role)
+                .note(note)
+                .changedAt(LocalDateTime.now())
+                .build());
+    }
+
+    private RouteStopStatus resolveStopStatus(RouteStop stop, Delivery delivery) {
+        RouteStopStatus current = stop.getStatus();
+        if (current == RouteStopStatus.PENDING) {
+            RouteStopStatus fallback = mapDeliveryToRouteStopStatus(delivery.getStatus());
+            return fallback != null ? fallback : current;
+        }
+        return current;
     }
 
     @Transactional
@@ -670,6 +713,9 @@ public class RouteService {
             return null;
         }
         return switch (status) {
+            case ASSIGNED -> RouteStopStatus.ASSIGNED;
+            case PICKED_UP -> RouteStopStatus.PICKED_UP;
+            case IN_TRANSIT -> RouteStopStatus.IN_TRANSIT;
             case DELIVERED -> RouteStopStatus.COMPLETED;
             case PARTIALLY_DELIVERED -> RouteStopStatus.PARTIAL;
             case FAILED -> RouteStopStatus.FAILED;
@@ -710,10 +756,6 @@ public class RouteService {
         }
         if (!startTime.isBefore(endTime)) {
             throw AppException.badRequest("Route start time must be before end time");
-        }
-        long minutes = ChronoUnit.MINUTES.between(startTime, endTime);
-        if (minutes < MIN_ROUTE_WINDOW_MINUTES) {
-            throw AppException.badRequest("Route schedule window must be at least 15 minutes");
         }
     }
 
@@ -784,10 +826,13 @@ public class RouteService {
             Order order = delivery != null ? delivery.getOrder() : null;
             boolean isPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
 
-            // Calculate delay info for this stop
-            DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
+                // Calculate delay info for this stop
+                DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
+                SlaStatus preferredSla = delayInfo != null && delayInfo.delayStatus != null
+                    ? SlaStatus.valueOf(delayInfo.delayStatus)
+                    : stop.getSlaStatus();
 
-            stops.add(RouteStopResponse.builder()
+                stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
                     .stopOrder(stop.getStopOrder())
@@ -810,7 +855,7 @@ public class RouteService {
                     .routeProvider(delivery != null ? delivery.getRouteProvider() : null)
                     .etaAt(stop.getEtaAt())
                     .slaDeadline(stop.getSlaDeadline())
-                    .slaStatus(stop.getSlaStatus())
+                    .slaStatus(preferredSla)
                     .driveDurationSeconds(stop.getDriveDurationSeconds())
                     .driveDistanceMeters(stop.getDriveDistanceMeters())
                     .actualArrivalAt(stop.getActualArrivalAt())
@@ -930,7 +975,9 @@ public class RouteService {
 
     private RouteFullResponse toFullResponse(Route route) {
         // --- Same initial logic as toResponse ---
-        List<RouteStop> activeStops = route.getStops().stream()
+        // Load stops from repository (guarantees stopOrder ASC, consistent with toResponse)
+        List<RouteStop> allStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        List<RouteStop> activeStops = allStops.stream()
                 .filter(stop -> stop.getStatus() != RouteStopStatus.REMOVED)
                 .toList();
 
@@ -938,20 +985,20 @@ public class RouteService {
                 .map(stop -> toFullStopResponse(stop, route, activeStops)) // Pass activeStops to calculate delay properly
                 .toList();
 
-        List<RouteStopFullResponse> legacyStops = route.getStops().stream()
+        List<RouteStopFullResponse> legacyStops = allStops.stream()
                 .filter(stop -> stop.getStatus() == RouteStopStatus.REMOVED)
                 .map(stop -> toFullStopResponse(stop, route, activeStops))
                 .toList();
 
         int totalActiveStops = activeStops.size();
 
-        long completed = route.getStops().stream()
+        long completed = activeStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.COMPLETED)
                 .count();
-        long failed = route.getStops().stream()
+        long failed = activeStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.FAILED)
                 .count();
-        long partial = route.getStops().stream()
+        long partial = activeStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.PARTIAL)
                 .count();
         long pending = totalActiveStops - (completed + failed + partial);
@@ -1029,15 +1076,20 @@ public class RouteService {
                 .routeStartDelayMinutes(routeStartDelayMinutes)
                 .stops(stops)
                 .legacyStops(legacyStops.isEmpty() ? null : legacyStops)
-                .driver(route.getDriverId() != null ? AdminDriverResponse.builder()
-                        .id(route.getDriverId())
-                        .build() : null)
-                .vehicle(route.getVehicleId() != null ? com.asm.delivery.dto.response.VehicleResponse.builder()
-                        .id(route.getVehicleId())
-                        .build() : null)
-                .depot(route.getDepotId() != null ? com.asm.delivery.dto.response.DepotResponse.builder()
-                        .id(route.getDepotId())
-                        .build() : null)
+                .driver(buildDriverResponse(route.getDriverId()))
+                .vehicle(buildVehicleResponse(route.getVehicleId()))
+                .depot(route.getDepotId() != null ? depotRepository.findById(route.getDepotId())
+                        .map(depot -> com.asm.delivery.dto.response.DepotResponse.builder()
+                                .id(depot.getId())
+                                .name(depot.getName())
+                                .address(depot.getAddress())
+                                .latitude(depot.getLatitude())
+                                .longitude(depot.getLongitude())
+                                .isActive(depot.getIsActive())
+                                .createdAt(depot.getCreatedAt())
+                                .updatedAt(depot.getUpdatedAt())
+                                .build())
+                        .orElse(null) : null)
                 .departureTime(route.getDepartureTime())
                 .totalDurationSeconds(route.getTotalDurationSeconds())
                 .totalDistanceMeters(route.getTotalDistanceMeters())
@@ -1046,6 +1098,38 @@ public class RouteService {
                 .detectedZoneLabel(detectedZoneLabel)
                 .detectedZoneNames(detectedZoneNames)
                 .build();
+    }
+
+    private AdminDriverResponse buildDriverResponse(UUID driverId) {
+        if (driverId == null) return null;
+        com.asm.delivery.transport.DriverDTO dto = transportPort.getDriver(driverId.toString());
+        if (dto == null) return AdminDriverResponse.builder().id(driverId).build();
+        return AdminDriverResponse.builder()
+                .id(driverId)
+                .name(dto.getName())
+                .phone(dto.getPhone())
+                .available(dto.isAvailable())
+                .currentLat(dto.getCurrentLat() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLat()) : null)
+                .currentLng(dto.getCurrentLng() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLng()) : null)
+                .build();
+    }
+
+    private com.asm.delivery.dto.response.VehicleResponse buildVehicleResponse(UUID vehicleId) {
+        if (vehicleId == null) return null;
+        return vehicleRepository.findById(vehicleId).map(v ->
+                com.asm.delivery.dto.response.VehicleResponse.builder()
+                        .id(v.getId())
+                        .name(v.getName())
+                        .plate(v.getPlate())
+                        .make(v.getMake())
+                        .model(v.getModel())
+                        .payloadKg(v.getPayloadKg())
+                        .volumeM3(v.getVolumeM3())
+                        .type(v.getType())
+                        .active(v.getActive())
+                        .driverId(v.getDriverId())
+                        .build()
+        ).orElse(com.asm.delivery.dto.response.VehicleResponse.builder().id(vehicleId).build());
     }
 
     private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops) {
@@ -1065,7 +1149,7 @@ public class RouteService {
         return RouteStopFullResponse.builder()
                 .id(stop.getId())
                 .stopOrder(stop.getStopOrder())
-                .status(stop.getStatus())
+                .status(resolveStopStatus(stop, delivery))
                 .arrivedAt(stop.getArrivedAt())
                 .completedAt(stop.getCompletedAt())
                 .notes(stop.getNotes())
@@ -1081,7 +1165,7 @@ public class RouteService {
                 .routeDurationMinutes(stop.getDriveDurationSeconds() != null ? stop.getDriveDurationSeconds() / 60 : null)
                 .routeEtaAt(stop.getEtaAt())
                 .transitSlaMinutesComputed(transitSlaMinutesComputed) 
-                .slaStatus(stop.getSlaStatus())
+                .slaStatus(delayStatus != null ? SlaStatus.valueOf(delayStatus) : stop.getSlaStatus())
                 .delayMinutes(delayMinutes)
                 .delayStatus(delayStatus)
                 .delayReason(delayReason)
@@ -1116,6 +1200,7 @@ public class RouteService {
                         .currency(orderInfo.getCurrency())
                         .priority(orderInfo.getPriority() != null ? orderInfo.getPriority().name() : null)
                         .scheduledAt(orderInfo.getScheduledAt())
+                        .items(orderInfo.getItems() != null ? new ArrayList<>(orderInfo.getItems()) : null)
                         .totalQuantity(orderInfo.getTotalQuantity())
                         .totalWeightKg(orderInfo.getTotalWeightKg())
                         .status(orderInfo.getStatus() != null ? orderInfo.getStatus().name() : null)
@@ -1126,7 +1211,7 @@ public class RouteService {
                         .createdAt(orderInfo.getCreatedAt())
                         .updatedAt(orderInfo.getUpdatedAt())
                         .build() : null)
-                .proofOfDelivery(null) 
+                .proofOfDelivery(fetchDeliveryPod(delivery.getId()))
                 .statusHistory(
                         deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
                                 .stream()
@@ -1142,19 +1227,49 @@ public class RouteService {
                 .build();
     }
 
+    private ProofOfDeliveryResponse fetchDeliveryPod(UUID deliveryId) {
+        try {
+            return proofOfDeliveryService.findPodAdmin(deliveryId).orElse(null);
+        } catch (Exception ex) {
+            log.warn("Skipping POD lookup for delivery {} due to error: {}", deliveryId, ex.getMessage(), ex);
+            return null;
+        }
+    }
+
     // ─── SLA Summary ─────────────────────────────────────────────────────────────
 
     @Transactional(readOnly = true)
     public SlaSummaryResponse getSlaSummary() {
-        int onTime = routeStopRepository.findActivePendingStops().size();
+        List<RouteStop> stops = routeStopRepository.findActivePendingStops();
+        int total = stops.size();
+        int late = (int) stops.stream().filter(s -> s.getSlaStatus() == SlaStatus.LATE).count();
+        int onTime = (int) stops.stream().filter(s -> s.getSlaStatus() == SlaStatus.ON_TIME || s.getSlaStatus() == SlaStatus.EARLY).count();
+
+        List<SlaSummaryResponse.SlaStopItem> lateStops = stops.stream()
+            .filter(s -> s.getSlaStatus() == SlaStatus.LATE)
+            .sorted((a, b) -> {
+                if (a.getEtaAt() == null && b.getEtaAt() == null) return 0;
+                if (a.getEtaAt() == null) return 1;
+                if (b.getEtaAt() == null) return -1;
+                return a.getEtaAt().compareTo(b.getEtaAt());
+            })
+            .limit(10)
+            .map(s -> SlaSummaryResponse.SlaStopItem.builder()
+                .stopId(s.getId())
+                .deliveryId(s.getDeliveryId())
+                .routeId(s.getRoute() != null ? s.getRoute().getId() : null)
+                .clientName(null)
+                .etaAt(s.getEtaAt())
+                .slaDeadline(s.getSlaDeadline())
+                .slaStatus(s.getSlaStatus() != null ? s.getSlaStatus().name() : null)
+                .build())
+            .collect(Collectors.toList());
 
         return SlaSummaryResponse.builder()
-                .onTime(onTime)
-                .atRisk(0)
-                .breached(0)
-                .total(onTime)
-                .atRiskStops(List.of())
-                .breachedStops(List.of())
-                .build();
+            .onTime(onTime)
+            .late(late)
+            .total(total)
+            .lateStops(lateStops)
+            .build();
     }
 }

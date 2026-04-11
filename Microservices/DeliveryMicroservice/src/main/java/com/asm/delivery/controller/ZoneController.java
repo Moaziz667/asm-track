@@ -2,6 +2,7 @@ package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.ZoneRequest;
 import com.asm.delivery.dto.response.ZoneResponse;
+import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.ZoneService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -10,6 +11,7 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -44,21 +46,27 @@ public class ZoneController {
 
     @PostMapping
     @Operation(summary = "Create zone")
-    public ResponseEntity<ZoneResponse> create(@Valid @RequestBody ZoneRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(zoneService.create(request));
+    public ResponseEntity<ZoneResponse> create(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ZoneRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(zoneService.create(principal, request));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update zone")
-    public ResponseEntity<ZoneResponse> update(@PathVariable UUID id,
-                                               @Valid @RequestBody ZoneRequest request) {
-        return ResponseEntity.ok(zoneService.update(id, request));
+    public ResponseEntity<ZoneResponse> update(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ZoneRequest request) {
+        return ResponseEntity.ok(zoneService.update(id, principal, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Soft-delete zone (sets isActive = false)")
-    public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        zoneService.delete(id);
+    public ResponseEntity<Void> delete(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        zoneService.delete(id, principal);
         return ResponseEntity.noContent().build();
     }
 }
