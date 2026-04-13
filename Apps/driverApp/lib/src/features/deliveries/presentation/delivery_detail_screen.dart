@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
@@ -513,7 +514,7 @@ class _TimestampCard extends StatelessWidget {
 
   String _keyLabel(String key) {
     switch (key) {
-      case 'assignedAt': return 'Assigned';
+      case 'scheduledAt': return 'Scheduled';
       case 'pickedUpAt': return 'Picked up';
       case 'inTransitAt': return 'In transit';
       case 'completedAt': return 'Delivered';
@@ -558,20 +559,57 @@ class _ActionPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final buttons = <Widget>[];
 
+    Future<void> launchNav() async {
+      final lat = delivery.lat;
+      final lng = delivery.lng;
+      if (lat == null || lng == null) return;
+      final url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
+      if (await canLaunchUrlString(url)) {
+        await launchUrlString(url, mode: LaunchMode.externalApplication);
+      }
+    }
+
+    final hasGeo = delivery.lat != null && delivery.lng != null;
+
     switch (delivery.status) {
-      case DeliveryStatus.waitingDriver:
-        buttons.add(SizedBox(
-          width: double.infinity,
-          child: AsmDriveButton(
-            label: 'Accept Mission',
-              icon: PhosphorIconsBold.checkCircle,
-            variant: AsmDriveButtonVariant.success,
-            isLoading: isWorking,
-            onPressed: isWorking ? null : onAccept,
-          ),
-        ));
+      case DeliveryStatus.unscheduled:
+        buttons.add(
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.muted),
+                const SizedBox(width: 8),
+                Text(
+                  'En attente de dispatch',
+                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                ),
+              ],
+            ),
+          )
+        );
         break;
-      case DeliveryStatus.assigned:
+      case DeliveryStatus.scheduled:
+        if (hasGeo) {
+          buttons.add(
+            SizedBox(
+              width: double.infinity,
+              child: AsmDriveButton(
+                label: 'Naviguer',
+                icon: PhosphorIconsBold.navigationArrow,
+                variant: AsmDriveButtonVariant.secondary,
+                onPressed: launchNav,
+              ),
+            ),
+          );
+          buttons.add(const SizedBox(height: 10));
+        }
         buttons.addAll([
           SizedBox(
             width: double.infinity,
@@ -595,6 +633,20 @@ class _ActionPanel extends StatelessWidget {
         ]);
         break;
       case DeliveryStatus.pickedUp:
+        if (hasGeo) {
+          buttons.add(
+            SizedBox(
+              width: double.infinity,
+              child: AsmDriveButton(
+                label: 'Naviguer',
+                icon: PhosphorIconsBold.navigationArrow,
+                variant: AsmDriveButtonVariant.secondary,
+                onPressed: launchNav,
+              ),
+            ),
+          );
+          buttons.add(const SizedBox(height: 10));
+        }
         buttons.addAll([
           SizedBox(
             width: double.infinity,
@@ -618,6 +670,20 @@ class _ActionPanel extends StatelessWidget {
         ]);
         break;
       case DeliveryStatus.inTransit:
+        if (hasGeo) {
+          buttons.add(
+            SizedBox(
+              width: double.infinity,
+              child: AsmDriveButton(
+                label: 'Naviguer',
+                icon: PhosphorIconsBold.navigationArrow,
+                variant: AsmDriveButtonVariant.secondary,
+                onPressed: launchNav,
+              ),
+            ),
+          );
+          buttons.add(const SizedBox(height: 10));
+        }
         buttons.addAll([
           SizedBox(
             width: double.infinity,

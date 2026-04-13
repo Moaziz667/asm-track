@@ -9,7 +9,8 @@ import com.asm.delivery.dto.response.AdminOpsLanesResponse;
 import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.analytics.OpsAnalyticsService;
+import com.asm.delivery.service.dispatch.ExceptionResolutionService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -35,9 +36,8 @@ import java.util.UUID;
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class AdminOpsController {
-
-    private final AdminDeliveryService adminDeliveryService;
-
+    private final OpsAnalyticsService opsAnalyticsService;
+    private final ExceptionResolutionService exceptionResolutionService;
     @GetMapping("/overview")
     @Operation(summary = "Ops overview with SLA, lanes and prioritized alerts")
     public ResponseEntity<AdminOpsOverviewResponse> overview(
@@ -47,7 +47,7 @@ public class AdminOpsController {
             @RequestParam(required = false) Integer waitingSlaMinutes,
             @RequestParam(required = false) Integer transitSlaMinutes
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/lanes")
@@ -60,7 +60,7 @@ public class AdminOpsController {
             @RequestParam(required = false) Integer waitingSlaMinutes,
             @RequestParam(required = false) Integer transitSlaMinutes
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsLanes(period, from, to, topItems, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsLanes(period, from, to, topItems, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/alerts")
@@ -73,7 +73,7 @@ public class AdminOpsController {
             @RequestParam(required = false) Integer waitingSlaMinutes,
             @RequestParam(required = false) Integer transitSlaMinutes
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsAlerts(period, from, to, limit, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsAlerts(period, from, to, limit, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/audit")
@@ -87,7 +87,7 @@ public class AdminOpsController {
             @RequestParam(required = false) String role,
             @RequestParam(required = false) DeliveryStatus status
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsAudit(period, from, to, limit, actor, role, status));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsAudit(period, from, to, limit, actor, role, status));
     }
 
     @GetMapping("/exceptions")
@@ -101,7 +101,7 @@ public class AdminOpsController {
             @RequestParam(required = false) UUID driverId,
             @RequestParam(required = false) String zone
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsExceptions(period, from, to, limit, motif, driverId, zone));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsExceptions(period, from, to, limit, motif, driverId, zone));
     }
 
     @PostMapping("/exceptions/{deliveryId}/reassign")
@@ -111,7 +111,7 @@ public class AdminOpsController {
             @Valid @RequestBody AdminExceptionReassignRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(adminDeliveryService.reassignException(deliveryId, request, principal));
+        return ResponseEntity.ok(exceptionResolutionService.reassignException(deliveryId, request, principal));
     }
 
     @PostMapping("/exceptions/{deliveryId}/replan")
@@ -121,7 +121,7 @@ public class AdminOpsController {
             @Valid @RequestBody AdminExceptionReplanRequest request,
             @AuthenticationPrincipal UserPrincipal principal
     ) {
-        return ResponseEntity.ok(adminDeliveryService.replanException(deliveryId, request, principal));
+        return ResponseEntity.ok(exceptionResolutionService.replanException(deliveryId, request, principal));
     }
 
 }

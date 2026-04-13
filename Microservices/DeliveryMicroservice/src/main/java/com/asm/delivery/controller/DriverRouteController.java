@@ -2,7 +2,8 @@ package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.response.RouteResponse;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.RouteService;
+import com.asm.delivery.service.route.RouteExecutionService;
+import com.asm.delivery.service.route.RoutePlanningService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -20,24 +21,25 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class DriverRouteController {
 
-    private final RouteService routeService;
+    private final RouteExecutionService routeExecutionService;
+    private final RoutePlanningService routePlanningService;
 
     @GetMapping("/today")
     @Operation(summary = "Get today's route for authenticated driver")
     public ResponseEntity<RouteResponse> getToday(@AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(routeService.getTodayForDriver(UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(routeExecutionService.getTodayForDriver(UUID.fromString(principal.getUserId())));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get route detail")
     public ResponseEntity<RouteResponse> get(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(routeService.getForDriver(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(routePlanningService.getForDriver(id, UUID.fromString(principal.getUserId())));
     }
 
     @PostMapping("/{id}/start")
     @Operation(summary = "Start route (VALIDATED -> IN_PROGRESS)")
     public ResponseEntity<RouteResponse> start(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(routeService.start(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(routeExecutionService.start(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/stops/{stopId}/arrive")
@@ -46,6 +48,6 @@ public class DriverRouteController {
             @PathVariable UUID id,
             @PathVariable UUID stopId,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(routeService.arrive(id, stopId, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(routeExecutionService.arrive(id, stopId, UUID.fromString(principal.getUserId()), principal));
     }
 }

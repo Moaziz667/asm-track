@@ -1,8 +1,8 @@
 package com.asm.delivery.entity;
 
 public enum DeliveryStatus {
-    WAITING_DRIVER,
-    ASSIGNED,
+    UNSCHEDULED,
+    SCHEDULED,
     PICKED_UP,
     IN_TRANSIT,
     DELIVERED,

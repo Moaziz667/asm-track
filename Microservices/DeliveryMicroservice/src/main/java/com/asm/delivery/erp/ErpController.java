@@ -71,12 +71,4 @@ public class ErpController {
     ) {
         return ResponseEntity.ok(erpLookupService.importPendingOrder(erpOrderId));
     }
-
-    @PostMapping("/map-ready-order")
-    @Operation(summary = "Create a map-ready Odoo order with mappable address coordinates")
-    public ResponseEntity<ErpMapOrderResponse> createMapReadyOrder(
-            @Valid @RequestBody CreateErpMapOrderRequest request
-    ) {
-        return ResponseEntity.ok(erpLookupService.createMapReadyOrder(request));
-    }
 }

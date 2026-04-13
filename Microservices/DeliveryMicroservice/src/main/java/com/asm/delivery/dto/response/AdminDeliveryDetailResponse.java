@@ -29,8 +29,8 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Delivery status", example = "PICKED_UP")
     private String status;
 
-    @Schema(description = "Failure classification when delivery failed")
-    private FailureCode failureCode;
+    @Schema(description = "Failure classification when delivery failed", example = "ADDRESS_NOT_FOUND")
+    private String failureCode;
 
     @Schema(description = "Failure comment/details")
     private String failureComment;

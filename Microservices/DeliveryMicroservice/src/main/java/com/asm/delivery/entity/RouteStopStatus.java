@@ -2,7 +2,7 @@ package com.asm.delivery.entity;
 
 public enum RouteStopStatus {
     PENDING,
-    ASSIGNED,
+    SCHEDULED,
     PICKED_UP,
     IN_TRANSIT,
     ARRIVED,

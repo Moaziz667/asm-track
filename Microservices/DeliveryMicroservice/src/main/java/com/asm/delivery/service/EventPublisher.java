@@ -19,8 +19,8 @@ public class EventPublisher {
                 order != null ? order.getId() : null, delivery.getId());
     }
 
-    public void publishDeliveryAssigned(Order order, Delivery delivery, UUID driverId) {
-        log.info("EVENT delivery.assigned orderId={} deliveryId={} driverId={}",
+    public void publishDeliveryScheduled(Order order, Delivery delivery, UUID driverId) {
+        log.info("EVENT delivery.scheduled orderId={} deliveryId={} driverId={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), driverId);
     }

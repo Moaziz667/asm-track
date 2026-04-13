@@ -33,7 +33,7 @@ public class AdminOpsExceptionsResponse {
         private UUID routeId;
         private String routeName;
         private DeliveryStatus status;
-        private FailureCode failureCode;
+        private String failureCode;
         private String motif;
         private UUID driverId;
         private String driverName;

@@ -46,15 +46,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId = :driverId AND d.status IN :statuses ORDER BY d.updatedAt DESC")
     List<Delivery> findHistoryForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
-    /** Atomic accept: sets driver and transitions WAITING_DRIVER → ASSIGNED.
+    /** Atomic accept: sets driver and transitions UNSCHEDULED → SCHEDULED.
      *  Returns 1 if successful, 0 if already taken (race condition). */
     @Modifying(clearAutomatically = true)
     @Transactional
     @Query(value = """
         UPDATE deliveries
-        SET status = 'ASSIGNED', driver_id = :driverId,
+        SET status = 'SCHEDULED', driver_id = :driverId,
             assigned_at = NOW(), updated_at = NOW()
-        WHERE id = :id AND status = 'WAITING_DRIVER'
+        WHERE id = :id AND status = 'UNSCHEDULED'
         """, nativeQuery = true)
     int atomicAccept(@Param("id") UUID id, @Param("driverId") UUID driverId);
 }

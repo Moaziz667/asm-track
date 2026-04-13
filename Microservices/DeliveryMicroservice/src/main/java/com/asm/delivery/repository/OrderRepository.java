@@ -3,8 +3,11 @@ package com.asm.delivery.repository;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.OrderStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -21,4 +24,25 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     boolean existsByErpOrderId(String erpOrderId);
 
     List<Order> findTop100ByOdooSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
+
+    /**
+     * Find orders whose ERP sync has failed and are due for a retry attempt.
+     *
+     * <p>Selects orders where:
+     * <ul>
+     *   <li>Sync status is {@code PENDING_RETRY} or {@code PENDING_CANCEL}</li>
+     *   <li>The retry backoff window has elapsed ({@code nextSyncRetryAt <= now})</li>
+     *   <li>Retry count is below {@code maxRetries} (not permanently failed)</li>
+     * </ul>
+     */
+    @Query("""
+           SELECT o FROM Order o
+           WHERE o.odooSyncStatus IN ('PENDING_RETRY', 'PENDING_CANCEL')
+             AND (o.nextSyncRetryAt IS NULL OR o.nextSyncRetryAt <= :now)
+             AND o.syncRetryCount < :maxRetries
+           ORDER BY o.nextSyncRetryAt ASC NULLS FIRST
+           """)
+    List<Order> findOrdersPendingSync(@Param("now") LocalDateTime now,
+                                      @Param("maxRetries") int maxRetries);
 }
+

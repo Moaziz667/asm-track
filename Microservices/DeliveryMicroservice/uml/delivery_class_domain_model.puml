@@ -52,7 +52,7 @@ package "Domain Entities" {
 		- order: Order
 		- driverId: UUID
 		- status: DeliveryStatus
-		- assignedAt: LocalDateTime
+		- scheduledAt: LocalDateTime
 		- pickedUpAt: LocalDateTime
 		- inTransitAt: LocalDateTime
 		- completedAt: LocalDateTime
@@ -127,8 +127,8 @@ package "Domain Entities" {
 	}
 
 	enum DeliveryStatus {
-		WAITING_DRIVER
-		ASSIGNED
+		UNSCHEDULED
+		SCHEDULED
 		PICKED_UP
 		IN_TRANSIT
 		DELIVERED

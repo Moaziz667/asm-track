@@ -17,7 +17,8 @@ import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.repository.TrackingRepository;
 import com.asm.delivery.service.RouteOptimizationService;
-import com.asm.delivery.service.RouteService;
+import com.asm.delivery.service.route.RoutePlanningService;
+import com.asm.delivery.service.route.RouteExecutionService;
 import com.asm.delivery.service.RoutePdfService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -41,7 +42,8 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdminRouteController {
 
-    private final RouteService routeService;
+    private final RoutePlanningService routePlanningService;
+    private final RouteExecutionService routeExecutionService;
     private final RoutePdfService routePdfService;
     private final RouteOptimizationService routeOptimizationService;
     private final RouteStopRepository routeStopRepository;
@@ -57,19 +59,19 @@ public class AdminRouteController {
             @RequestParam(required = false) LocalDate date,
             @RequestParam(required = false) String city
     ) {
-        return ResponseEntity.ok(routeService.list(status, driverId, date, city));
+        return ResponseEntity.ok(routePlanningService.list(status, driverId, date, city));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get route")
     public ResponseEntity<RouteResponse> get(@PathVariable UUID id) {
-        return ResponseEntity.ok(routeService.get(id));
+        return ResponseEntity.ok(routePlanningService.get(id));
     }
 
     @GetMapping("/{id}/full")
     @Operation(summary = "Get full aggregated route")
     public ResponseEntity<RouteFullResponse> getRouteFull(@PathVariable UUID id) {
-        return ResponseEntity.ok(routeService.getRouteFull(id));
+        return ResponseEntity.ok(routePlanningService.getRouteFull(id));
     }
 
     @PostMapping
@@ -78,19 +80,19 @@ public class AdminRouteController {
     public ResponseEntity<RouteResponse> create(
             @Valid @RequestBody CreateRouteRequest request,
             @RequestHeader(value = "X-User-Id", required = false) String createdBy) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(routeService.create(request, createdBy));
+        return ResponseEntity.status(HttpStatus.CREATED).body(routePlanningService.create(request, createdBy));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "Update route")
     public ResponseEntity<RouteResponse> update(@PathVariable UUID id, @RequestBody UpdateRouteRequest request) {
-        return ResponseEntity.ok(routeService.update(id, request));
+        return ResponseEntity.ok(routePlanningService.update(id, request));
     }
 
     @DeleteMapping("/{id}")
     @Operation(summary = "Delete route (draft only)")
     public ResponseEntity<Void> delete(@PathVariable UUID id) {
-        routeService.delete(id);
+        routePlanningService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
@@ -98,13 +100,13 @@ public class AdminRouteController {
     @Operation(summary = "Add stop to route")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> addStop(@PathVariable UUID id, @Valid @RequestBody AddRouteStopRequest request) {
-        return ResponseEntity.ok(routeService.addStop(id, request));
+        return ResponseEntity.ok(routePlanningService.addStop(id, request));
     }
 
     @DeleteMapping("/{id}/stops/{stopId}")
     @Operation(summary = "Remove stop from route")
     public ResponseEntity<RouteResponse> removeStop(@PathVariable UUID id, @PathVariable UUID stopId) {
-        return ResponseEntity.ok(routeService.removeStop(id, stopId));
+        return ResponseEntity.ok(routePlanningService.removeStop(id, stopId));
     }
 
     @PutMapping("/{id}/stops/reorder")
@@ -112,21 +114,21 @@ public class AdminRouteController {
     @IdempotentOperation
     public ResponseEntity<RouteResponse> reorderDraft(@PathVariable UUID id,
                                                       @Valid @RequestBody ReorderRouteStopsRequest request) {
-        return ResponseEntity.ok(routeService.reorderStops(id, request.getStopIds()));
+        return ResponseEntity.ok(routePlanningService.reorderStops(id, request.getStopIds()));
     }
 
     @PutMapping("/{id}/validate")
     @Operation(summary = "Validate route")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> validate(@PathVariable UUID id) {
-        return ResponseEntity.ok(routeService.validate(id));
+        return ResponseEntity.ok(routePlanningService.validate(id));
     }
 
     @PostMapping("/{id}/close")
     @Operation(summary = "Close route")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> close(@PathVariable UUID id) {
-        return ResponseEntity.ok(routeService.close(id));
+        return ResponseEntity.ok(routeExecutionService.close(id));
     }
 
     @GetMapping("/{id}/pdf")
@@ -151,7 +153,7 @@ public class AdminRouteController {
     @Operation(summary = "Apply optimized stop order and recalculate ETAs/SLAs")
     public ResponseEntity<RouteResponse> applyOptimization(@PathVariable UUID id) {
         routeOptimizationService.applyOptimization(id);
-        return ResponseEntity.ok(routeService.get(id));
+        return ResponseEntity.ok(routePlanningService.get(id));
     }
 
     @PutMapping("/{id}/reorder")
@@ -159,13 +161,13 @@ public class AdminRouteController {
     public ResponseEntity<RouteResponse> reorder(@PathVariable UUID id,
                                                  @Valid @RequestBody ReorderStopsRequest request) {
         routeOptimizationService.applyManualReorder(id, request.getStopIds());
-        return ResponseEntity.ok(routeService.get(id));
+        return ResponseEntity.ok(routePlanningService.get(id));
     }
 
     @GetMapping("/{id}/eta-details")
     @Operation(summary = "Get ETA and SLA details for all stops")
     public ResponseEntity<List<RouteStopEtaResponse>> etaDetails(@PathVariable UUID id) {
-        RouteResponse route = routeService.get(id);
+        RouteResponse route = routePlanningService.get(id);
         List<RouteStopEtaResponse> details = route.getStops().stream()
                 .map(s -> RouteStopEtaResponse.builder()
                         .stopId(s.getId())
@@ -188,13 +190,13 @@ public class AdminRouteController {
     @Operation(summary = "Recalculate ETAs and SLAs from current departure time")
     public ResponseEntity<RouteResponse> recalculate(@PathVariable UUID id) {
         routeOptimizationService.recalculate(id);
-        return ResponseEntity.ok(routeService.get(id));
+        return ResponseEntity.ok(routePlanningService.get(id));
     }
 
     @GetMapping("/{id}/driver-location")
     @Operation(summary = "Latest driver GPS location for an in-progress route (from tracking table)")
     public ResponseEntity<java.util.Map<String, Object>> driverLocation(@PathVariable UUID id) {
-        RouteResponse route = routeService.get(id);
+        RouteResponse route = routePlanningService.get(id);
         // Find the most recent non-terminal stop's delivery, then its latest tracking point
         java.util.Optional<UUID> activeDeliveryId = routeStopRepository
                 .findByRouteIdOrderByStopOrderAsc(id)
@@ -228,6 +230,6 @@ public class AdminRouteController {
     @GetMapping("/sla-summary")
     @Operation(summary = "Aggregated SLA status (ON_TIME / LATE) across all active route stops")
     public ResponseEntity<SlaSummaryResponse> slaSummary() {
-        return ResponseEntity.ok(routeService.getSlaSummary());
+        return ResponseEntity.ok(routePlanningService.getSlaSummary());
     }
 }

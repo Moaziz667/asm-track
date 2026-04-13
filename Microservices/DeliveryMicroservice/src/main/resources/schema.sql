@@ -267,6 +267,8 @@ ALTER TABLE drivers ADD COLUMN IF NOT EXISTS city VARCHAR(100);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS odoo_sync_status VARCHAR(20) DEFAULT 'SYNCED';
 ALTER TABLE orders ALTER COLUMN odoo_sync_status TYPE VARCHAR(40);
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS odoo_backorder_id INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS sync_retry_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS next_sync_retry_at TIMESTAMP;
 
 DO $$
 BEGIN
@@ -564,6 +566,16 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS completion_status VARCHAR(10);
 
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS cumulative_delay_minutes INTEGER;
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_on_time_completion_rate NUMERIC(5,2);
-C R E A T E   T A B L E   I F   N O T   E X I S T S   a u d i t _ l o g s   ( i d   U U I D   P R I M A R Y   K E Y ,   a c t o r _ n a m e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t o r _ r o l e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t i o n   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   r e s o u r c e _ i d   T E X T ,   d e t a i l s   T E X T ,   i p _ a d d r e s s   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   c r e a t e d _ a t   T I M E S T A M P   D E F A U L T   C U R R E N T _ T I M E S T A M P ) ; 
- 
- 
+
+-- ── Audit Logs ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_name VARCHAR(255) NOT NULL,
+    actor_role VARCHAR(255) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    target_entity VARCHAR(50),
+    resource_id TEXT,
+    details TEXT,
+    ip_address VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

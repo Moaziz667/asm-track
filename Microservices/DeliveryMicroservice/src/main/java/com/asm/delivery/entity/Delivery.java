@@ -28,7 +28,7 @@ public class Delivery {
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default
-    private DeliveryStatus status = DeliveryStatus.WAITING_DRIVER;
+    private DeliveryStatus status = DeliveryStatus.UNSCHEDULED;
 
     @Column(name = "assigned_at")
     private LocalDateTime assignedAt;

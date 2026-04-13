@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 enum DeliveryStatus {
-  waitingDriver,
-  assigned,
+  unscheduled,
+  scheduled,
   pickedUp,
   inTransit,
   delivered,
@@ -14,8 +14,10 @@ enum DeliveryStatus {
 extension DeliveryStatusX on DeliveryStatus {
   static DeliveryStatus fromApi(String? value) {
     switch (value) {
-      case 'ASSIGNED':
-        return DeliveryStatus.assigned;
+      case 'SCHEDULED':
+        return DeliveryStatus.scheduled;
+      case 'UNSCHEDULED':
+        return DeliveryStatus.unscheduled;
       case 'PICKED_UP':
         return DeliveryStatus.pickedUp;
       case 'IN_TRANSIT':
@@ -29,16 +31,16 @@ extension DeliveryStatusX on DeliveryStatus {
       case 'CANCELLED':
         return DeliveryStatus.cancelled;
       default:
-        return DeliveryStatus.waitingDriver;
+        return DeliveryStatus.unscheduled;
     }
   }
 
   String get label {
     switch (this) {
-      case DeliveryStatus.waitingDriver:
-        return 'Waiting';
-      case DeliveryStatus.assigned:
-        return 'Assigned';
+      case DeliveryStatus.unscheduled:
+        return 'Unscheduled';
+      case DeliveryStatus.scheduled:
+        return 'Scheduled';
       case DeliveryStatus.pickedUp:
         return 'Picked up';
       case DeliveryStatus.inTransit:
@@ -56,9 +58,9 @@ extension DeliveryStatusX on DeliveryStatus {
 
   Color get badgeColor {
     switch (this) {
-      case DeliveryStatus.waitingDriver:
+      case DeliveryStatus.unscheduled:
         return const Color(0xFF8EA1C0);
-      case DeliveryStatus.assigned:
+      case DeliveryStatus.scheduled:
         return const Color(0xFF6B8CFF);
       case DeliveryStatus.pickedUp:
         return const Color(0xFF1BD6A0);
@@ -160,7 +162,7 @@ class DriverDelivery {
   factory DriverDelivery.fromJson(Map<String, dynamic> json) {
     final timestamps = <String, DateTime?>{};
     for (final key in [
-      'assignedAt',
+      'scheduledAt',
       'pickedUpAt',
       'inTransitAt',
       'completedAt',

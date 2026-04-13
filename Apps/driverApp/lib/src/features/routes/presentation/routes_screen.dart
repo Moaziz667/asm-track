@@ -651,16 +651,19 @@ class _StopListItem extends StatelessWidget {
         bgColor = AppColors.surface;
     }
 
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: borderColor),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+    return GestureDetector(
+      onTap: () => onOpenDetails(stop.deliveryId),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: bgColor,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: borderColor),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
           // Row 1: stop bubble + client name + status badge
           Row(
             children: [
@@ -751,69 +754,8 @@ class _StopListItem extends StatelessWidget {
             ),
           ],
 
-          // Action row
-          if (!isTerminal) ...[
-            const SizedBox(height: 10),
-            if (ds == DeliveryStatus.pickedUp)
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Démarrer transit',
-                      icon: Icons.play_arrow_rounded,
-                      color: AppColors.success,
-                      onTap: () => onStartTransit(stop.deliveryId),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _ActionButton(
-                    label: 'Détails',
-                    icon: Icons.open_in_new_rounded,
-                    color: AppColors.textSecondary,
-                    onTap: () => onOpenDetails(stop.deliveryId),
-                  ),
-                ],
-              )
-            else if (ds == DeliveryStatus.inTransit)
-              Row(
-                children: [
-                  Expanded(
-                    child: _ActionButton(
-                      label: 'Soumettre POD',
-                      icon: Icons.check_circle_outline_rounded,
-                      color: AppColors.success,
-                      onTap: () => onOpenPod(stop.deliveryId),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  _ActionButton(
-                    label: 'Échec',
-                    icon: Icons.cancel_outlined,
-                    color: AppColors.danger,
-                    onTap: () => onOpenDetails(stop.deliveryId),
-                  ),
-                ],
-              )
-            else
-              _ActionButton(
-                label: 'Détails',
-                icon: Icons.open_in_new_rounded,
-                color: AppColors.textSecondary,
-                onTap: () => onOpenDetails(stop.deliveryId),
-              ),
-          ] else ...[
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Text('Mission terminée', style: TextStyle(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w500)),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }

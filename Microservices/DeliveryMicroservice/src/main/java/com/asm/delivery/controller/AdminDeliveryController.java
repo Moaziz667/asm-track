@@ -12,10 +12,14 @@ import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.OrderSource;
 import com.asm.delivery.idempotency.IdempotentOperation;
-import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.analytics.OpsAnalyticsService;
+import com.asm.delivery.service.dispatch.DispatchService;
+import com.asm.delivery.service.dispatch.ExceptionResolutionService;
 import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.GeocodingService;
 import com.asm.delivery.service.ProofOfDeliveryService;
+import com.asm.delivery.security.UserPrincipal;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -38,9 +42,9 @@ import java.util.UUID;
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class AdminDeliveryController {
-
-    private final AdminDeliveryService adminDeliveryService;
-    private final ProofOfDeliveryService podService;
+    private final DispatchService dispatchService;
+    private final OpsAnalyticsService opsAnalyticsService;
+    private final ExceptionResolutionService exceptionResolutionService;    private final ProofOfDeliveryService podService;
     private final GeocodingService geocodingService;
     private final BonLivraisonPdfService bonLivraisonPdfService;
 
@@ -58,19 +62,19 @@ public class AdminDeliveryController {
             @RequestParam(required = false) Boolean unpinned,
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(adminDeliveryService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, pageable));
     }
 
     @GetMapping("/{id}")
     @Operation(summary = "Get delivery detail including order and history")
     public ResponseEntity<AdminDeliveryDetailResponse> detail(@PathVariable UUID id) {
-        return ResponseEntity.ok(adminDeliveryService.getDeliveryDetail(id));
+        return ResponseEntity.ok(dispatchService.getDeliveryDetail(id));
     }
 
     @GetMapping("/{id}/geocode")
     @Operation(summary = "Attempt Nominatim geocoding of the delivery dropoff address (always show map for confirmation)")
     public ResponseEntity<GeocodeSuggestionResponse> geocode(@PathVariable UUID id) {
-        AdminDeliveryDetailResponse delivery = adminDeliveryService.getDeliveryDetail(id);
+        AdminDeliveryDetailResponse delivery = dispatchService.getDeliveryDetail(id);
         String query = buildGeocodeQuery(delivery.getDropoffAddress(), delivery.getDropoffCity());
         return ResponseEntity.ok(geocodingService.geocode(query));
     }
@@ -99,8 +103,9 @@ public class AdminDeliveryController {
     @IdempotentOperation
     public ResponseEntity<AdminDeliveryDetailResponse> assign(
             @PathVariable UUID id,
-            @Valid @RequestBody AssignDeliveryRequest request) {
-        return ResponseEntity.ok(adminDeliveryService.assignDelivery(id, request));
+            @Valid @RequestBody AssignDeliveryRequest request,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(dispatchService.assignDelivery(id, request, principal));
     }
 
     @PostMapping("/{id}/pin-dropoff")
@@ -109,7 +114,7 @@ public class AdminDeliveryController {
     public ResponseEntity<AdminDeliveryDetailResponse> pinDropoff(
             @PathVariable UUID id,
             @Valid @RequestBody PinDropoffRequest request) {
-        return ResponseEntity.ok(adminDeliveryService.pinDropoff(id, request));
+        return ResponseEntity.ok(dispatchService.pinDropoff(id, request));
     }
 
     @PostMapping("/{id}/cancel")
@@ -118,7 +123,7 @@ public class AdminDeliveryController {
     public ResponseEntity<Void> cancel(
             @PathVariable UUID id,
             @RequestParam(required = false) String reason) {
-        adminDeliveryService.cancelDelivery(id, reason);
+        exceptionResolutionService.cancelDelivery(id, reason);
         return ResponseEntity.ok().build();
     }
 
@@ -126,13 +131,13 @@ public class AdminDeliveryController {
     @Operation(summary = "Create a new Delivery task for the backordered items")
     @IdempotentOperation
     public ResponseEntity<AdminDeliveryDetailResponse> createBackorder(@PathVariable UUID id) {
-        return ResponseEntity.ok(adminDeliveryService.createBackorderDelivery(id));
+        return ResponseEntity.ok(exceptionResolutionService.createBackorderDelivery(id));
     }
 
     @GetMapping("/drivers")
     @Operation(summary = "List drivers with availability and active deliveries")
     public ResponseEntity<List<AdminDriverResponse>> drivers() {
-        return ResponseEntity.ok(adminDeliveryService.getDrivers());
+        return ResponseEntity.ok(dispatchService.getDrivers());
     }
 
     @GetMapping("/stats")
@@ -142,7 +147,7 @@ public class AdminDeliveryController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getStats(period, from, to));
+        return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
     }
 
     @GetMapping("/ops-overview")
@@ -154,7 +159,7 @@ public class AdminDeliveryController {
             @RequestParam(required = false) Integer waitingSlaMinutes,
             @RequestParam(required = false) Integer transitSlaMinutes
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/{id}/pod")

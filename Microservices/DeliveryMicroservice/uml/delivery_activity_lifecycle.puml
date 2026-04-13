@@ -6,17 +6,17 @@ title DeliveryMicroservice - Activity Diagram (Delivery Lifecycle)
 start
 :Order created;
 :Create delivery task;
-:Set status = WAITING_DRIVER;
+:Set status = UNSCHEDULED;
 
 repeat
   :Driver checks available deliveries;
 repeat while (No driver accepted?) is (yes)
 
 :Assign driver;
-:Set status = ASSIGNED;
+:Set status = SCHEDULED;
 
 if (Driver cancels?) then (yes)
-  :Set status = WAITING_DRIVER;
+  :Set status = UNSCHEDULED;
   :Publish delivery.cancelled;
   back to repeat
 else (no)

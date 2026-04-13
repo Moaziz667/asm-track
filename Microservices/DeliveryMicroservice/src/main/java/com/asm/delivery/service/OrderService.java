@@ -7,7 +7,7 @@ import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.erp.ErpLookupService;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.odoo.OdooSyncService;
+import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +33,7 @@ public class OrderService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
-    private final OdooSyncService    odooSyncService;
+    private final ErpSyncService    erpSyncService;
     private final ErpLookupService   erpLookupService;
     private final AuditLogService    auditLogService;
 
@@ -106,13 +106,6 @@ public class OrderService {
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
-
-        try {
-            odooSyncService.syncOrderCreation(order);
-        } catch (RuntimeException e) {
-            log.error("Odoo sync failed on order creation, rolling back. orderId={}", order.getId(), e);
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable");
-        }
 
         return toOrderResponse(order, delivery);
     }
@@ -208,7 +201,7 @@ public class OrderService {
             }
 
             // Release driver if assigned
-            if (ds == DeliveryStatus.ASSIGNED && delivery.getDriverId() != null) {
+            if (ds == DeliveryStatus.SCHEDULED && delivery.getDriverId() != null) {
                 // driver will be released via event / workflow — for now just cancel
             }
 
@@ -225,7 +218,7 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        odooSyncService.syncOrderCancellation(order);
+        erpSyncService.syncOrderCancellation(order);
     }
 
     @Transactional(readOnly = true)
@@ -243,7 +236,7 @@ public class OrderService {
         }
 
         return switch (delivery.getStatus()) {
-            case WAITING_DRIVER, ASSIGNED -> new CancellableResponse(true, null);
+            case UNSCHEDULED, SCHEDULED -> new CancellableResponse(true, null);
             case PICKED_UP, IN_TRANSIT    -> new CancellableResponse(false, "Delivery is already in progress");
             default -> new CancellableResponse(false, "Order is in terminal state");
         };
@@ -299,11 +292,11 @@ public class OrderService {
     private Delivery createDeliveryTask(Order order, String changedBy, String note) {
         Delivery delivery = Delivery.builder()
                 .order(order)
-                .status(DeliveryStatus.WAITING_DRIVER)
+                .status(DeliveryStatus.UNSCHEDULED)
                 .build();
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, changedBy, Role.SYSTEM, note);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, changedBy, Role.SYSTEM, note);
         return delivery;
     }
 

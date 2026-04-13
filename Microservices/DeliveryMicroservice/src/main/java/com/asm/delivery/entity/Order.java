@@ -138,16 +138,27 @@ public class Order {
     @Column(name = "zone_id")
     private UUID zoneId;
 
-    // ── Odoo integration ──────────────────────────────────────────────────────
+    // ── ERP sync state ────────────────────────────────────────────────────────
     @Column(name = "erp_client_id", length = 100)
     private String erpClientId;
 
+    /** SYNCED | PENDING_RETRY | PENDING_CANCEL | SYNC_FAILED */
     @Column(name = "odoo_sync_status", length = 40)
     @Builder.Default
     private String odooSyncStatus = "SYNCED";
 
+    /** Odoo stock.picking ID from the last partial delivery (backorder). */
     @Column(name = "odoo_backorder_id")
     private Integer odooBackorderId;
+
+    /** Number of failed sync attempts since last SYNCED state. */
+    @Column(name = "sync_retry_count", nullable = false)
+    @Builder.Default
+    private Integer syncRetryCount = 0;
+
+    /** Earliest time the scheduler may attempt the next retry (exponential backoff). */
+    @Column(name = "next_sync_retry_at")
+    private LocalDateTime nextSyncRetryAt;
 
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")

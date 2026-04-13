@@ -44,3 +44,10 @@ springdoc:
   api-docs:
     path: /v3/api-docs
   default-produces-media-type: application/json
+
+delivery:
+  service:
+    url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
+
+internal:
+  secret: ${INTERNAL_SECRET:asm-internal-2026}

@@ -19,14 +19,17 @@ public class AuditLog {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false)
+    @Column(name = "actor_name", nullable = false)
     private String actorName;
 
-    @Column(nullable = false)
+    @Column(name = "actor_role", nullable = false)
     private String actorRole;
 
     @Column(nullable = false)
     private String action; // e.g., "DELETE_ROUTE", "UPDATE_SLA", "FORCE_REASSIGN"
+
+    @Column(name = "target_entity", length = 50)
+    private String targetEntity; // e.g., "DELIVERY", "ROUTE", "VEHICLE"
 
     @Column(columnDefinition = "TEXT")
     private String resourceId; // ID of the route, delivery, etc.

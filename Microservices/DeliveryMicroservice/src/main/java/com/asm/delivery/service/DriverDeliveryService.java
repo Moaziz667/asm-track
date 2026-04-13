@@ -4,7 +4,8 @@ import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.odoo.OdooSyncService;
+import com.asm.delivery.erp.ErpSyncService;
+import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.storage.StorageException;
@@ -35,16 +36,16 @@ public class DriverDeliveryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
-    private final OdooSyncService                 odooSyncService;
+    private final ErpSyncService                 ErpSyncService;
     private final ProofOfDeliveryRepository       podRepo;
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
-    private final RouteService                    routeService;
+    private final com.asm.delivery.service.route.RouteExecutionService routeExecutionService;
     private final DelayCalculationService         delayCalculationService;
     private final AuditLogService                  auditLogService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
-            DeliveryStatus.ASSIGNED,
+            DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
             DeliveryStatus.IN_TRANSIT
     );
@@ -53,7 +54,7 @@ public class DriverDeliveryService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getAvailable(UUID driverId) {
-        return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.WAITING_DRIVER).stream()
+        return deliveryRepo.findAllWaitingWithOrder(DeliveryStatus.UNSCHEDULED).stream()
                 .map(this::toDriverDeliveryResponse)
                 .toList();
     }
@@ -75,7 +76,7 @@ public class DriverDeliveryService {
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
         if (delivery.getDriverId() != null && !delivery.getDriverId().equals(driverId)
-                && delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
+                && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
             throw AppException.forbidden("Not your delivery");
         }
 
@@ -85,7 +86,7 @@ public class DriverDeliveryService {
     // ── Accept delivery (atomic) ──────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId) {
+    public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         // Check driver doesn't already have an active delivery
         boolean hasActive = deliveryRepo.existsActiveDeliveryForDriver(driverId, ACTIVE_STATUSES);
         if (hasActive) {
@@ -95,7 +96,7 @@ public class DriverDeliveryService {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        if (delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
+        if (delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
             throw AppException.conflict("Delivery is no longer available");
         }
 
@@ -115,10 +116,12 @@ public class DriverDeliveryService {
         // Mark driver unavailable via Driver Service (best-effort)
         transportPort.setAvailability(driverId.toString(), false);
 
-        auditLogService.logAction(null, "DRIVER_ACCEPT", deliveryId.toString(), "Driver " + driverId + " accepted delivery");
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = deliveryId.toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_ACCEPT", deliveryId.toString(), "Driver " + driverLabel + " accepted delivery #" + shortId);
 
-        appendHistory(delivery, DeliveryStatus.ASSIGNED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
-        eventPublisher.publishDeliveryAssigned(delivery.getOrder(), delivery, driverId);
+        appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
+        eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -126,17 +129,19 @@ public class DriverDeliveryService {
     // ── Pickup ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId) {
+    public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        assertStatus(delivery, DeliveryStatus.ASSIGNED, "pickup");
+        assertStatus(delivery, DeliveryStatus.SCHEDULED, "pickup");
 
         delivery.setStatus(DeliveryStatus.PICKED_UP);
         delivery.setPickedUpAt(LocalDateTime.now());
         delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        auditLogService.logAction(null, "DRIVER_PICKUP", delivery.getId().toString(),
-                "Driver " + driverId + " picked up delivery");
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = delivery.getId().toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_PICKUP", delivery.getId().toString(),
+                "Driver " + driverLabel + " picked up delivery #" + shortId);
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
@@ -146,7 +151,7 @@ public class DriverDeliveryService {
     // ── Transit ───────────────────────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse transit(UUID deliveryId, UUID driverId, BigDecimal lat, BigDecimal lng) {
+    public DriverDeliveryResponse transit(UUID deliveryId, UUID driverId, BigDecimal lat, BigDecimal lng, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         assertStatus(delivery, DeliveryStatus.PICKED_UP, "start transit");
 
@@ -175,8 +180,10 @@ public class DriverDeliveryService {
         }
 
         String transitNote = "Driver started transit";
-        auditLogService.logAction(null, "DRIVER_TRANSIT", delivery.getId().toString(),
-                "Driver " + driverId + " started transit for delivery");
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = delivery.getId().toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_TRANSIT", delivery.getId().toString(),
+                "Driver " + driverLabel + " started transit for delivery #" + shortId);
         appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
@@ -196,12 +203,12 @@ public class DriverDeliveryService {
     // ── Complete ──────────────────────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId) {
-        return complete(deliveryId, driverId, false, null);
+    public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId, UserPrincipal principal) {
+        return complete(deliveryId, driverId, false, null, principal);
     }
 
     @Transactional
-    public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId, boolean isPartial, List<com.asm.delivery.dto.request.PartialDeliveryItem> partialItems) {
+    public DriverDeliveryResponse complete(UUID deliveryId, UUID driverId, boolean isPartial, List<com.asm.delivery.dto.request.PartialDeliveryItem> partialItems, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
@@ -222,12 +229,14 @@ public class DriverDeliveryService {
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        auditLogService.logAction(null, "DRIVER_COMPLETE", delivery.getId().toString(), 
-            String.format("Delivery %s marked as %s by driver %s", delivery.getId(), finalStatus, driverId));
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = delivery.getId().toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_COMPLETE", delivery.getId().toString(),
+            String.format("Delivery #%s marked as %s by %s", shortId, finalStatus, driverLabel));
 
         String message = isPartial ? "Delivery partially completed" : "Delivery completed";
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
-        routeService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), message);
+        routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), message);
         
         // TODO: eventPublisher.publishDeliveryPartiallyCompleted may be needed in the future
         // For now we can use the same event or add conditionally. 
@@ -244,12 +253,12 @@ public class DriverDeliveryService {
             if (isPartial) {
                 // If there's partial logic in Odoo sync, handle it here. Else sync normally.
                 if (normalizedPartialItems != null) {
-                    odooSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
+                    ErpSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
                 } else {
-                    odooSyncService.syncStockUpdate(delivery.getOrder());
+                    ErpSyncService.syncStockUpdate(delivery.getOrder());
                 }
             } else {
-                odooSyncService.syncStockUpdate(delivery.getOrder());
+                ErpSyncService.syncStockUpdate(delivery.getOrder());
             }
         }
 
@@ -331,7 +340,7 @@ public class DriverDeliveryService {
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req) {
+    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
@@ -388,13 +397,13 @@ public class DriverDeliveryService {
             return toDriverDeliveryResponse(latest);
         }
 
-        return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone());
+        return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
     }
 
     // ── Fail ──────────────────────────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, FailureCode failureCode, String failureComment) {
+    public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, FailureCode failureCode, String failureComment, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         if (delivery.getStatus() != DeliveryStatus.PICKED_UP && delivery.getStatus() != DeliveryStatus.IN_TRANSIT) {
@@ -407,37 +416,39 @@ public class DriverDeliveryService {
         delivery.setFailureCode(failureCode);
         delivery = deliveryRepo.save(delivery);
 
-        auditLogService.logAction(null, "DRIVER_FAIL", delivery.getId().toString(), 
-            String.format("Delivery %s failed by driver %s. Code: %s, Reason: %s", 
-            delivery.getId(), driverId, failureCode, failureComment));
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = delivery.getId().toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_FAIL", delivery.getId().toString(),
+            String.format("Delivery #%s failed by %s. Code: %s, Reason: %s",
+            shortId, driverLabel, failureCode, failureComment));
 
         // Release driver + increment stat (best-effort)
         transportPort.setAvailability(driverId.toString(), true);
         transportPort.incrementStat(driverId.toString(), "failed");
 
         appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, failureComment);
-        routeService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
+        routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
         if (delivery.getOrder() != null) {
-            odooSyncService.syncFailure(delivery.getOrder(),
+            ErpSyncService.syncFailure(delivery.getOrder(),
                     failureCode != null ? failureCode.name() : null, failureComment);
         }
 
         return toDriverDeliveryResponse(delivery);
     }
 
-    // ── Cancel (driver cancels → back to WAITING_DRIVER) ─────────────────────
+    // ── Cancel (driver cancels → back to UNSCHEDULED) ─────────────────────
 
     @Transactional
-    public DriverDeliveryResponse cancelByDriver(UUID deliveryId, UUID driverId, String reason) {
+    public DriverDeliveryResponse cancelByDriver(UUID deliveryId, UUID driverId, String reason, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        if (delivery.getStatus() != DeliveryStatus.ASSIGNED) {
-            throw AppException.badRequest("Driver can only cancel from ASSIGNED state");
+        if (delivery.getStatus() != DeliveryStatus.SCHEDULED) {
+            throw AppException.badRequest("Driver can only cancel from SCHEDULED state");
         }
 
-        delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
+        delivery.setStatus(DeliveryStatus.UNSCHEDULED);
         delivery.setDriverId(null);
         delivery.setAssignedAt(null);
         delivery.setWaitingSlaMinutes(null);
@@ -449,9 +460,11 @@ public class DriverDeliveryService {
         transportPort.setAvailability(driverId.toString(), true);
         transportPort.incrementStat(driverId.toString(), "cancelled");
 
-        auditLogService.logAction(null, "DRIVER_CANCEL", delivery.getId().toString(),
-                "Driver " + driverId + " cancelled delivery. Reason: " + (StringUtils.hasText(reason) ? reason : "none"));
-        appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, driverId.toString(), Role.DRIVER,
+        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String shortId = delivery.getId().toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_CANCEL", delivery.getId().toString(),
+                "Driver " + driverLabel + " cancelled delivery #" + shortId + ". Reason: " + (StringUtils.hasText(reason) ? reason : "none"));
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, driverId.toString(), Role.DRIVER,
                 StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
@@ -462,7 +475,7 @@ public class DriverDeliveryService {
     // ── Report ────────────────────────────────────────────────────────────────
 
     @Transactional
-    public void report(UUID deliveryId, UUID driverId, ReportType reportType, String description) {
+    public void report(UUID deliveryId, UUID driverId, ReportType reportType, String description, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         reportRepo.save(DeliveryReport.builder()
@@ -472,7 +485,7 @@ public class DriverDeliveryService {
                 .description(description)
                 .build());
 
-        auditLogService.logAction(null, "DRIVER_REPORT", deliveryId.toString(),
+        auditLogService.logAction(principal, "DRIVER_REPORT", deliveryId.toString(),
                 "Driver " + driverId + " filed report. Type: " + reportType + ". Details: " + description);
     }
 
@@ -499,16 +512,16 @@ public class DriverDeliveryService {
     @Transactional
     public void resetToWaiting(UUID deliveryId) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
-            if (delivery.getStatus() == DeliveryStatus.ASSIGNED && delivery.getDriverId() != null) {
+            if (delivery.getStatus() == DeliveryStatus.SCHEDULED && delivery.getDriverId() != null) {
                 transportPort.setAvailability(delivery.getDriverId().toString(), true);
-                delivery.setStatus(DeliveryStatus.WAITING_DRIVER);
+                delivery.setStatus(DeliveryStatus.UNSCHEDULED);
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
                 delivery.setWaitingSlaMinutes(null);
                 delivery.setAssignSlaMinutes(null);
                 delivery.setPickupSlaMinutes(null);
                 deliveryRepo.save(delivery);
-                appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, "SYSTEM", Role.SYSTEM, "Workflow: timeout reset");
+                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM, "Workflow: timeout reset");
             }
         });
     }
@@ -540,7 +553,7 @@ public class DriverDeliveryService {
             delivery.setFailReason(reason);
             deliveryRepo.save(delivery);
             appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, reason);
-            routeService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), reason);
+            routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), reason);
             eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, reason);
         });
     }

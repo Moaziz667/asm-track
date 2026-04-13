@@ -3,7 +3,7 @@ package com.asm.delivery.controller;
 import com.asm.delivery.dto.response.AdminStatsResponse;
 import com.asm.delivery.dto.response.DashboardKpiResponse;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.AdminDeliveryService;
+import com.asm.delivery.service.analytics.OpsAnalyticsService;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.ReportingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,7 +28,7 @@ import java.time.LocalDate;
 @RequiredArgsConstructor
 public class AdminReportsController {
 
-    private final AdminDeliveryService adminDeliveryService;
+    private final OpsAnalyticsService opsAnalyticsService;
     private final ReportingService reportingService;
     private final com.asm.delivery.service.SystemSettingsService systemSettingsService;
     private final AuditLogService auditLogService;
@@ -67,6 +67,6 @@ public class AdminReportsController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
-        return ResponseEntity.ok(adminDeliveryService.getStats(period, from, to));
+        return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
     }
 }

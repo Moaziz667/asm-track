@@ -77,7 +77,7 @@ public class DeliveryQueryService {
     private void assertAccessToDelivery(Delivery delivery, String requesterId, String requesterRole) {
         if ("DRIVER".equals(requesterRole)) {
             if (delivery.getDriverId() != null && !delivery.getDriverId().toString().equals(requesterId)
-                    && delivery.getStatus() != DeliveryStatus.WAITING_DRIVER) {
+                    && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
                 throw AppException.forbidden("Not your delivery");
             }
         } else if ("CLIENT".equals(requesterRole)) {

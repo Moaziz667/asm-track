@@ -10,11 +10,9 @@ import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../deliveries/models/delivery_models.dart';
-import '../../deliveries/presentation/active_tab.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../routes/models/route_models.dart';
 import '../../routes/presentation/routes_screen.dart';
-import 'dashboard_tab.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -32,10 +30,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Set<String> _knownRouteDeliveryIds = <String>{};
 
   static const _navItems = [
-    _NavItem(icon: PhosphorIconsFill.squaresFour,   label: 'Overview'),
-    _NavItem(icon: PhosphorIconsFill.path,          label: 'Route'),
-    _NavItem(icon: PhosphorIconsFill.package,       label: 'Deliveries'),
-    _NavItem(icon: PhosphorIconsFill.userCircle,    label: 'Profile'),
+    _NavItem(icon: PhosphorIconsFill.path,          label: 'Tournée'),
+    _NavItem(icon: PhosphorIconsFill.userCircle,    label: 'Profil'),
   ];
 
   @override
@@ -135,9 +131,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     });
 
     final pages = [
-      const SafeArea(child: DashboardTab()),
       const RoutesScreen(),
-      const SafeArea(child: ActiveDeliveriesTab()),
       const SafeArea(child: ProfileScreen()),
     ];
 

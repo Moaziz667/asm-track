@@ -71,7 +71,7 @@ public class DriverDeliveryController {
     public ResponseEntity<DriverDeliveryResponse> accept(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.accept(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.accept(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/pickup")
@@ -79,7 +79,7 @@ public class DriverDeliveryController {
     public ResponseEntity<DriverDeliveryResponse> pickup(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.pickup(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.pickup(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/transit")
@@ -90,7 +90,7 @@ public class DriverDeliveryController {
             @AuthenticationPrincipal UserPrincipal principal) {
         java.math.BigDecimal lat = locationReq != null ? locationReq.getLat() : null;
         java.math.BigDecimal lng = locationReq != null ? locationReq.getLng() : null;
-        return ResponseEntity.ok(deliveryService.transit(id, UUID.fromString(principal.getUserId()), lat, lng));
+        return ResponseEntity.ok(deliveryService.transit(id, UUID.fromString(principal.getUserId()), lat, lng, principal));
     }
 
     @PostMapping("/{id}/complete")
@@ -98,7 +98,7 @@ public class DriverDeliveryController {
     public ResponseEntity<DriverDeliveryResponse> complete(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.complete(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.complete(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/fail")
@@ -111,7 +111,8 @@ public class DriverDeliveryController {
             id,
             UUID.fromString(principal.getUserId()),
             req.getFailureCode(),
-            req.getFailureComment()
+            req.getFailureComment(),
+            principal
         ));
     }
 
@@ -122,7 +123,7 @@ public class DriverDeliveryController {
             @RequestBody(required = false) CancelDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         String reason = req != null ? req.getReason() : null;
-        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason));
+        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason, principal));
     }
 
     @PostMapping("/{id}/report")
@@ -131,7 +132,7 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody ReportRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription());
+        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription(), principal);
         return ResponseEntity.ok(new MessageResponse("Report submitted"));
     }
 
@@ -141,7 +142,7 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody ProofOfDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req));
+        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
     }
 
     @GetMapping("/{id}/bon-livraison")
