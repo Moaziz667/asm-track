@@ -1,6 +1,5 @@
 package com.asm.driver.controller;
 
-import com.asm.driver.dto.request.AvailabilityRequest;
 import com.asm.driver.dto.request.LocationRequest;
 import com.asm.driver.dto.request.PasswordUpdateRequest;
 import com.asm.driver.dto.request.ProfileUpdateRequest;
@@ -46,13 +45,6 @@ public class DriverController {
                                                               @Valid @RequestBody PasswordUpdateRequest req) {
         driverService.updatePassword(UUID.fromString(user.getUserId()), req.getCurrentPassword(), req.getNewPassword());
         return ResponseEntity.ok(Map.of("message", "Password updated"));
-    }
-
-    @PutMapping("/availability")
-    public ResponseEntity<Map<String, String>> updateAvailability(@AuthenticationPrincipal UserPrincipal user,
-                                                                  @Valid @RequestBody AvailabilityRequest req) {
-        driverService.updateAvailability(UUID.fromString(user.getUserId()), req.getAvailable());
-        return ResponseEntity.ok(Map.of("message", "Availability updated"));
     }
 
     @PostMapping("/location")

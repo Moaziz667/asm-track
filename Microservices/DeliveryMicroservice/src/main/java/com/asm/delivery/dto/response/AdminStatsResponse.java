@@ -50,6 +50,7 @@ public class AdminStatsResponse {
         private long delivered;
         private long failed;
         private double successRate;
+        private double avgDelayMinutes;
     }
 
     @Data

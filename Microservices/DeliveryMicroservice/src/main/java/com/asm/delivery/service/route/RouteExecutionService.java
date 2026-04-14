@@ -52,7 +52,6 @@ public class RouteExecutionService {
 
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
-        transportPort.setAvailability(route.getDriverId().toString(), true);
         return routePlanningService.get(route.getId());
     }
 
@@ -78,10 +77,10 @@ public class RouteExecutionService {
         route.setStatus(RouteStatus.IN_PROGRESS);
         LocalDateTime now = LocalDateTime.now();
         route.setStartedAt(now);
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = routeId.toString().substring(0, 8);
-        auditLogService.logAction(principal, "START_ROUTE", routeId.toString(),
-                "Driver " + driverLabel + " started route #" + shortId);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        auditLogService.logAction(principal, "START_ROUTE", "ROUTE", routeId.toString(),
+                java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),
+                       "action", "Demarrage de la tournee"));
         routeRepository.save(route);
 
         // Auto-pickup all ASSIGNED deliveries so driver doesn't need per-stop pickup action
@@ -118,11 +117,10 @@ public class RouteExecutionService {
         stop.setArrivedAt(LocalDateTime.now());
         stop.setActualArrivalAt(stop.getArrivedAt());
         routeStopRepository.save(stop);
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortRouteId = routeId.toString().substring(0, 8);
-        String shortStopId = stopId.toString().substring(0, 8);
-        auditLogService.logAction(principal, "ARRIVE_STOP", routeId.toString(),
-                "Driver " + driverLabel + " arrived at stop #" + shortStopId + " on route #" + shortRouteId);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        auditLogService.logAction(principal, "ARRIVE_STOP", "ROUTE", routeId.toString(),
+                java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),
+                       "stop", stop.getStopOrder(), "action", "Arrivee au point d'arret"));
 
         if (route.getStatus() == RouteStatus.VALIDATED) {
             route.setStatus(RouteStatus.IN_PROGRESS);
@@ -253,7 +251,6 @@ public class RouteExecutionService {
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
         routeRepository.save(route);
-        transportPort.setAvailability(route.getDriverId().toString(), true);
     }
 
 }

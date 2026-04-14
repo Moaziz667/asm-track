@@ -10,13 +10,8 @@ import java.util.List;
 @Builder
 @Schema(description = "Dashboard KPI payload used by admin analytics UI")
 public class DashboardKpiResponse {
-    // 1. Driver/Delivery Performance
     @Schema(description = "Average delay in minutes across measurable completed deliveries")
     private double avgDelayMinutes;    // Retard moyen
-    @Schema(description = "SLA on-time compliance percentage", example = "86.5")
-    private double slaComplianceRate; // % de livraisons à temps
-    @Schema(description = "Total completed deliveries in selected period")
-    private long totalCompleted;      // Total livraisons terminées
     
     // 2. Volume & Trends
     @Schema(description = "Total orders created today")

@@ -23,6 +23,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Order unique identifier")
     private UUID orderId;
 
+    @Schema(description = "Human readable order reference (ERP ID or short ID)")
+    private String orderRef;
+
     @Schema(description = "Assigned route id when available")
     private UUID routeId;
 

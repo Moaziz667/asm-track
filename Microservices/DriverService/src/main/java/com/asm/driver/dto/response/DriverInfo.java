@@ -6,5 +6,4 @@ public class DriverInfo {
     private String id;
     private String name;
     private String phone;
-    private Boolean available;
 }

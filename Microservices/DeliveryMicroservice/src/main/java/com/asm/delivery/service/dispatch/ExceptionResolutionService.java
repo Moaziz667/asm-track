@@ -95,9 +95,7 @@ public class ExceptionResolutionService {
                 delivery.setCancelledAt(null);
                 delivery.setCancelReason(null);
                 delivery.setCancelledBy(null);
-                delivery.setFailedAt(null);
-                delivery.setFailureCode(null);
-                delivery.setFailReason(null);
+                // failedAt and failureCode are kept for historical reporting
 
                 deliveryRepo.save(delivery);
 
@@ -109,7 +107,7 @@ public class ExceptionResolutionService {
                                 previousDriverName = prevDriver.getName() != null ? prevDriver.getName() : "Inconnu";
                         }
                 }
-                
+
                 String targetDriverName = targetDriver.getName() != null ? targetDriver.getName() : "Inconnu";
                 String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
 
@@ -134,9 +132,7 @@ public class ExceptionResolutionService {
                 }
 
                 if (previousDriverId != null && !previousDriverId.equals(request.getDriverId())) {
-                        transportPort.setAvailability(previousDriverId.toString(), true);
                 }
-                transportPort.setAvailability(request.getDriverId().toString(), false);
 
                 appendHistory(delivery,
                                 DeliveryStatus.SCHEDULED,
@@ -161,7 +157,6 @@ public class ExceptionResolutionService {
                 DeliveryStatus previousStatus = delivery.getStatus();
                 UUID previousDriverId = delivery.getDriverId();
                 if (delivery.getDriverId() != null) {
-                        transportPort.setAvailability(delivery.getDriverId().toString(), true);
                 }
 
                 delivery.setDriverId(null);
@@ -176,9 +171,7 @@ public class ExceptionResolutionService {
                 delivery.setCancelledAt(null);
                 delivery.setCancelReason(null);
                 delivery.setCancelledBy(null);
-                delivery.setFailedAt(null);
-                delivery.setFailureCode(null);
-                delivery.setFailReason(null);
+                // failedAt and failureCode are kept for historical reporting
 
                 deliveryRepo.save(delivery);
 
@@ -228,7 +221,6 @@ public class ExceptionResolutionService {
         }
 
         if (delivery.getDriverId() != null) {
-            transportPort.setAvailability(delivery.getDriverId().toString(), true);
         }
 
         Order order = delivery.getOrder();

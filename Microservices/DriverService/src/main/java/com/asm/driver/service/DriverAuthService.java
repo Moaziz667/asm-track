@@ -82,7 +82,6 @@ public class DriverAuthService {
                         .id(driverId)
                         .name(driver.getName())
                         .phone(driver.getPhone())
-                        .available(driver.getAvailable())
                         .build())
                 .build();
     }

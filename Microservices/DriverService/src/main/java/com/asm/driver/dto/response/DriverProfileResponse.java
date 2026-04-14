@@ -8,7 +8,6 @@ public class DriverProfileResponse {
     private String id;
     private String name;
     private String phone;
-    private Boolean available;
     private Boolean active;
     private BigDecimal currentLat;
     private BigDecimal currentLng;

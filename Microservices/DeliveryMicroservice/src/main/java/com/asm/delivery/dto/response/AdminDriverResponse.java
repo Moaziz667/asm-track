@@ -18,7 +18,6 @@ public class AdminDriverResponse {
     private String name;
     private String phone;
     private String city;
-    private Boolean available;
     private BigDecimal currentLat;
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;

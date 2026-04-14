@@ -49,8 +49,8 @@ public class DepotService {
                 .isActive(true)
                 .build();
         Depot saved = depotRepository.save(depot);
-        auditLogService.logAction(principal, "CREATE_DEPOT", saved.getId().toString(),
-                "Depot created: " + saved.getName() + " @ " + saved.getAddress());
+        auditLogService.logAction(principal, "CREATE_DEPOT", "DEPOT", saved.getId().toString(),
+                java.util.Map.of("depot", saved.getName(), "adresse", saved.getAddress() != null ? saved.getAddress() : "", "action", "Creation de depot"));
         return toResponse(saved);
     }
 
@@ -65,16 +65,16 @@ public class DepotService {
             depot.setIsActive(request.getIsActive());
         }
         Depot saved = depotRepository.save(depot);
-        auditLogService.logAction(principal, "UPDATE_DEPOT", saved.getId().toString(),
-                "Depot updated: " + saved.getName() + " @ " + saved.getAddress());
+        auditLogService.logAction(principal, "UPDATE_DEPOT", "DEPOT", saved.getId().toString(),
+                java.util.Map.of("depot", saved.getName(), "adresse", saved.getAddress() != null ? saved.getAddress() : "", "action", "Mise a jour de depot"));
         return toResponse(saved);
     }
 
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
         Depot depot = getDepot(id);
-        auditLogService.logAction(principal, "DELETE_DEPOT", id.toString(),
-                "Depot deleted: " + depot.getName());
+        auditLogService.logAction(principal, "DELETE_DEPOT", "DEPOT", id.toString(),
+                java.util.Map.of("depot", depot.getName(), "action", "Suppression de depot"));
         depotRepository.delete(depot);
     }
 

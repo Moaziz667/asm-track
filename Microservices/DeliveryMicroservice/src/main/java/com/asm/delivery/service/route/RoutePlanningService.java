@@ -56,7 +56,7 @@ public class RoutePlanningService {
     }
 
     @Transactional(readOnly = true)
-    public List<RouteResponse> list(RouteStatus status, UUID driverId, LocalDate date, String city) {
+    public List<RouteResponse> list(RouteStatus status, UUID driverId, LocalDate date, LocalDate from, LocalDate to, String city) {
         Specification<Route> spec = Specification.where(null);
 
         if (status != null) {
@@ -67,6 +67,14 @@ public class RoutePlanningService {
         }
         if (date != null) {
             spec = spec.and((root, query, cb) -> cb.equal(root.get("date"), date));
+        }
+
+        if (from != null && to != null) {
+            spec = spec.and((root, query, cb) -> cb.between(root.get("date"), from, to));
+        } else if (from != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("date"), from));
+        } else if (to != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("date"), to));
         }
         if (StringUtils.hasText(city)) {
             String normalizedCity = city.trim().toLowerCase();
@@ -137,7 +145,8 @@ public class RoutePlanningService {
 
         route = routeRepository.save(route);
 
-        auditLogService.logAction(null, "CREATE_ROUTE", route.getId().toString(), "Route created: " + route.getName());
+        auditLogService.logAction(null, "CREATE_ROUTE", "ROUTE", route.getId().toString(),
+                Map.of("tournee", route.getName(), "action", "Creation de tournee"));
 
         if (route.getVehicleId() != null) {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
@@ -239,7 +248,8 @@ public class RoutePlanningService {
 
         assertRouteWeightWithinVehicleCapacity(route);
 
-        auditLogService.logAction(null, "UPDATE_ROUTE", route.getId().toString(), "Route updated: " + route.getName());
+        auditLogService.logAction(null, "UPDATE_ROUTE", "ROUTE", route.getId().toString(),
+                Map.of("tournee", route.getName(), "action", "Mise a jour de tournee"));
 
         return toResponse(routeRepository.save(route));
     }
@@ -287,7 +297,8 @@ public class RoutePlanningService {
         Route route = getRoute(id);
         ensureDraft(route);
         routeRepository.delete(route);
-        auditLogService.logAction(null, "DELETE_ROUTE", id.toString(), "Route deleted: " + route.getName());
+        auditLogService.logAction(null, "DELETE_ROUTE", "ROUTE", id.toString(),
+                Map.of("tournee", route.getName(), "action", "Suppression de tournee"));
     }
 
     @Transactional
@@ -297,7 +308,8 @@ public class RoutePlanningService {
         int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId).size() + 1;
         addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
         assertRouteWeightWithinVehicleCapacity(route);
-        auditLogService.logAction(null, "ADD_STOP", routeId.toString(), "Added delivery " + request.getDeliveryId());
+        auditLogService.logAction(null, "ADD_STOP", "ROUTE", routeId.toString(),
+                Map.of("tournee", route.getName(), "action", "Ajout d'un arret"));
         return toResponse(route);
     }
 
@@ -309,7 +321,8 @@ public class RoutePlanningService {
         RouteStop stop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
                 .orElseThrow(() -> AppException.notFound("Route stop not found"));
         routeStopRepository.delete(stop);
-        auditLogService.logAction(null, "REMOVE_STOP", routeId.toString(), "Removed delivery " + stop.getDeliveryId());
+        auditLogService.logAction(null, "REMOVE_STOP", "ROUTE", routeId.toString(),
+                Map.of("tournee", route.getName(), "action", "Suppression d'un arret"));
 
         // Re-pack stop order after deletion
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
@@ -408,7 +421,6 @@ public class RoutePlanningService {
 
         route.setStatus(RouteStatus.VALIDATED);
         route.setValidatedAt(LocalDateTime.now());
-        transportPort.setAvailability(route.getDriverId().toString(), false);
         RouteResponse response = toResponse(routeRepository.save(route));
         if (!validationWarnings.isEmpty()) {
             response.setValidationWarnings(validationWarnings);
@@ -522,7 +534,6 @@ public class RoutePlanningService {
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
         routeRepository.save(route);
-        transportPort.setAvailability(route.getDriverId().toString(), true);
     }
     private static void validateScheduleWindow(LocalTime startTime, LocalTime endTime) {
         if (startTime == null || endTime == null) {
@@ -882,7 +893,6 @@ public class RoutePlanningService {
                 .id(driverId)
                 .name(dto.getName())
                 .phone(dto.getPhone())
-                .available(dto.isAvailable())
                 .currentLat(dto.getCurrentLat() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLat()) : null)
                 .currentLng(dto.getCurrentLng() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLng()) : null)
                 .build();

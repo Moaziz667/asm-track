@@ -36,8 +36,12 @@ public class AdminReportsController {
     @GetMapping("/dashboard")
     @Operation(summary = "Indicateurs de Performance (KPIs) de l'entreprise", 
                description = "Fournit les données de succès (SLA Compliance), volumes et statistiques de retard.")
-    public ResponseEntity<DashboardKpiResponse> getDashboard() {
-        return ResponseEntity.ok(reportingService.getGlobalKpis());
+    public ResponseEntity<DashboardKpiResponse> getDashboard(
+            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        return ResponseEntity.ok(reportingService.getGlobalKpis(period, from, to));
     }
 
     @GetMapping("/settings")
@@ -55,8 +59,8 @@ public class AdminReportsController {
             @RequestParam String key,
             @RequestParam String value) {
         systemSettingsService.upsert(key, value);
-        auditLogService.logAction(principal, "UPDATE_SYSTEM_SETTING", key,
-                "System setting updated: " + key + " = " + value);
+        auditLogService.logAction(principal, "UPDATE_SYSTEM_SETTING", "SLA_SETTINGS", key,
+                java.util.Map.of("parametre", key, "valeur", value, "action", "Mise a jour parametre systeme"));
         return ResponseEntity.ok().build();
     }
 

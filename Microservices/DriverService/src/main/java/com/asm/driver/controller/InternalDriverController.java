@@ -1,6 +1,5 @@
 package com.asm.driver.controller;
 
-import com.asm.driver.dto.request.AvailabilityRequest;
 import com.asm.driver.dto.request.IncrementStatRequest;
 import com.asm.driver.dto.request.LocationRequest;
 import com.asm.driver.dto.response.InternalDriverResponse;
@@ -36,13 +35,6 @@ public class InternalDriverController {
     @GetMapping("/batch")
     public ResponseEntity<List<InternalDriverResponse>> getDriversBatch(@RequestParam List<UUID> ids) {
         return ResponseEntity.ok(internalService.getDriversBatch(ids));
-    }
-
-    @PutMapping("/{id}/availability")
-    public ResponseEntity<Map<String, String>> setAvailability(@PathVariable UUID id,
-                                                               @Valid @RequestBody AvailabilityRequest req) {
-        internalService.setAvailability(id, req.getAvailable());
-        return ResponseEntity.ok(Map.of("message", "Availability updated"));
     }
 
     @PutMapping("/{id}/location")

@@ -51,8 +51,8 @@ public class ZoneService {
                 .isActive(true)
                 .build();
         Zone saved = zoneRepository.save(zone);
-        auditLogService.logAction(principal, "CREATE_ZONE", saved.getId().toString(),
-                "Zone created: " + saved.getName());
+        auditLogService.logAction(principal, "CREATE_ZONE", "ZONE", saved.getId().toString(),
+                java.util.Map.of("zone", saved.getName(), "action", "Creation de zone"));
         return toResponse(saved);
     }
 
@@ -76,8 +76,8 @@ public class ZoneService {
             zone.setIsActive(request.getIsActive());
         }
         Zone saved = zoneRepository.save(zone);
-        auditLogService.logAction(principal, "UPDATE_ZONE", saved.getId().toString(),
-                "Zone updated: " + saved.getName());
+        auditLogService.logAction(principal, "UPDATE_ZONE", "ZONE", saved.getId().toString(),
+                java.util.Map.of("zone", saved.getName(), "action", "Mise a jour de zone"));
         return toResponse(saved);
     }
 
@@ -85,8 +85,8 @@ public class ZoneService {
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
         Zone zone = getZone(id);
-        auditLogService.logAction(principal, "DELETE_ZONE", id.toString(),
-                "Zone deactivated: " + zone.getName());
+        auditLogService.logAction(principal, "DELETE_ZONE", "ZONE", id.toString(),
+                java.util.Map.of("zone", zone.getName(), "action", "Desactivation de zone"));
         zone.setIsActive(false);
         zoneRepository.save(zone);
     }

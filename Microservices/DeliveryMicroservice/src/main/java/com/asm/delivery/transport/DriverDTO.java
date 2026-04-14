@@ -13,7 +13,6 @@ public class DriverDTO {
     private String  id;
     private String  name;
     private String  phone;
-    private boolean available;
     private Double  currentLat;
     private Double  currentLng;
     private String  lastLocationAt;

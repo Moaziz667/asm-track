@@ -27,7 +27,7 @@ public class InternalDriverService {
     private final DriverHistoryRepository historyRepo;
 
     public List<InternalDriverResponse> getAvailableDrivers() {
-        return driverRepo.findByAvailableTrueAndActiveTrue().stream()
+        return driverRepo.findByActiveTrue().stream()
                 .map(this::mapToInternal)
                 .collect(Collectors.toList());
     }
@@ -42,14 +42,6 @@ public class InternalDriverService {
         return driverRepo.findAllById(ids).stream()
                 .map(this::mapToInternal)
                 .collect(Collectors.toList());
-    }
-
-    @Transactional
-    public void setAvailability(UUID driverId, boolean available) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        driver.setAvailable(available);
-        driverRepo.save(driver);
     }
 
     @Transactional
@@ -92,7 +84,6 @@ public class InternalDriverService {
                 .id(d.getId().toString())
                 .name(d.getName())
                 .phone(d.getPhone())
-                .available(d.getAvailable())
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())

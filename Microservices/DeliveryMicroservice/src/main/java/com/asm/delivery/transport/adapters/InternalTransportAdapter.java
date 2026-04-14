@@ -61,24 +61,6 @@ public class InternalTransportAdapter implements TransportPort {
         }
     }
 
-    // ── setAvailability ───────────────────────────────────────────────────────
-
-    @Override
-    public boolean setAvailability(String driverId, boolean available) {
-        try {
-            restTemplate.exchange(
-                    baseUrl + "/internal/drivers/" + driverId + "/availability",
-                    HttpMethod.PUT,
-                    new HttpEntity<>(Map.of("available", available), headers()),
-                    Void.class
-            );
-            return true;
-        } catch (Exception e) {
-            log.warn("Driver Service setAvailability({}, {}) failed: {}", driverId, available, e.getMessage());
-            return false;
-        }
-    }
-
     // ── updateLocation ────────────────────────────────────────────────────────
 
     @Override

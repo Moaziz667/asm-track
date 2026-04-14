@@ -30,6 +30,7 @@ public class AdminOpsExceptionsResponse {
     public static class ExceptionItem {
         private UUID deliveryId;
         private UUID orderId;
+        private String orderRef;
         private UUID routeId;
         private String routeName;
         private DeliveryStatus status;

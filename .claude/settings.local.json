@@ -31,7 +31,12 @@
       "Bash(node /tmp/tb5.cjs)",
       "Bash(node \"c:/Users/M S I/OneDrive/Documents/PFE/ios_style.cjs\")",
       "Bash(xargs grep:*)",
-      "Bash(find Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service -name \"*.java\" -exec grep -l \"appendHistory\\\\|resolveStopStatus\\\\|isTerminalStopStatus\" {} \\\\;)"
+      "Bash(find Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service -name \"*.java\" -exec grep -l \"appendHistory\\\\|resolveStopStatus\\\\|isTerminalStopStatus\" {} \\\\;)",
+      "Bash(./mvnw compile:*)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/mvnw\"*)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/\"*.cmd)",
+      "Bash(./bin/gradle compileJava)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/gradlew\"*)"
     ]
   }
 }

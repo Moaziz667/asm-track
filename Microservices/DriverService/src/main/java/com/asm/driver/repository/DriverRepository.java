@@ -9,5 +9,5 @@ import java.util.UUID;
 public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByPhone(String phone);
     boolean existsByPhone(String phone);
-    List<Driver> findByAvailableTrueAndActiveTrue();
+    List<Driver> findByActiveTrue();
 }

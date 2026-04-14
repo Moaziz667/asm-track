@@ -54,14 +54,6 @@ public class DriverService {
     }
 
     @Transactional
-    public void updateAvailability(UUID driverId, boolean available) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        driver.setAvailable(available);
-        driverRepo.save(driver);
-    }
-
-    @Transactional
     public void updateLocation(UUID driverId, LocationRequest req) {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
@@ -97,7 +89,6 @@ public class DriverService {
                 .id(d.getId().toString())
                 .name(d.getName())
                 .phone(d.getPhone())
-                .available(d.getAvailable())
                 .active(d.getActive())
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())

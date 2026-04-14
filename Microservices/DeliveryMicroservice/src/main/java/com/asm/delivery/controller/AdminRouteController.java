@@ -57,9 +57,11 @@ public class AdminRouteController {
             @RequestParam(required = false) RouteStatus status,
             @RequestParam(required = false) UUID driverId,
             @RequestParam(required = false) LocalDate date,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to,
             @RequestParam(required = false) String city
     ) {
-        return ResponseEntity.ok(routePlanningService.list(status, driverId, date, city));
+        return ResponseEntity.ok(routePlanningService.list(status, driverId, date, from, to, city));
     }
 
     @GetMapping("/{id}")

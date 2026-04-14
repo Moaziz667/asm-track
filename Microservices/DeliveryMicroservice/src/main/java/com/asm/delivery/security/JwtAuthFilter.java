@@ -53,8 +53,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     log.debug("Gateway headers verified: X-User-Id={}, X-User-Role={}", userId, role);
                     if (userId != null && role != null
                             && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        log.debug("Setting authentication from gateway headers userId={} role={}", userId, role);
-                        UserPrincipal principal = new UserPrincipal(userId, role, null, null, null);
+                        String name  = request.getHeader("X-User-Name");
+                        String odooStr = request.getHeader("X-Odoo-Partner-Id");
+                        Integer odooId = odooStr != null ? Integer.valueOf(odooStr) : null;
+                        log.debug("Setting authentication from gateway headers userId={} role={} name={}", userId, role, name);
+                        UserPrincipal principal = new UserPrincipal(userId, role, name, null, odooId);
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                                 principal, null,
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))

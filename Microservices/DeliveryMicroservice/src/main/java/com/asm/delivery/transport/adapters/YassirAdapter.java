@@ -23,12 +23,6 @@ public class YassirAdapter implements TransportPort {
     }
 
     @Override
-    public boolean setAvailability(String driverId, boolean available) {
-        log.info("TODO: Yassir API — setAvailability({}, {})", driverId, available);
-        return true;
-    }
-
-    @Override
     public boolean updateLocation(String driverId, double lat, double lng) {
         log.info("TODO: Yassir API — updateLocation({})", driverId);
         return true;

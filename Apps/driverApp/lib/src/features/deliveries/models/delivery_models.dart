@@ -156,6 +156,8 @@ class DriverDelivery {
     this.transitSlaMinutesComputed,
     this.routeEtaAt,
     this.routeProvider,
+    this.lat,
+    this.lng,
     this.timestamps = const {},
   });
 
@@ -192,6 +194,8 @@ class DriverDelivery {
       transitSlaMinutesComputed: (json['transitSlaMinutesComputed'] as num?)?.toInt(),
       routeEtaAt: json['routeEtaAt'] != null ? DateTime.tryParse(json['routeEtaAt'] as String) : null,
       routeProvider: json['routeProvider'] as String?,
+      lat: (json['dropoffLat'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble(),
+      lng: (json['dropoffLng'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble(),
       timestamps: timestamps,
     );
   }
@@ -213,6 +217,8 @@ class DriverDelivery {
   final int? transitSlaMinutesComputed;
   final DateTime? routeEtaAt;
   final String? routeProvider;
+  final double? lat;
+  final double? lng;
   final Map<String, DateTime?> timestamps;
 
   bool get isTerminal => status == DeliveryStatus.delivered || status == DeliveryStatus.failed || status == DeliveryStatus.cancelled;

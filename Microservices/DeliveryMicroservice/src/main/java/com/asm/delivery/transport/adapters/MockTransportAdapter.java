@@ -16,7 +16,6 @@ public class MockTransportAdapter implements TransportPort {
                 .id(UUID.randomUUID().toString())
                 .name("Mock Driver")
                 .phone("+21600000000")
-                .available(true)
                 .build());
     }
 
@@ -26,14 +25,7 @@ public class MockTransportAdapter implements TransportPort {
                 .id(driverId)
                 .name("Mock Driver")
                 .phone("+21600000000")
-                .available(true)
                 .build();
-    }
-
-    @Override
-    public boolean setAvailability(String driverId, boolean available) {
-        log.info("[Mock] setAvailability driverId={} available={}", driverId, available);
-        return true;
     }
 
     @Override

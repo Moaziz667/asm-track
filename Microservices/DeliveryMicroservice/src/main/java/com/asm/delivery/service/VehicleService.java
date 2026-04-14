@@ -83,8 +83,8 @@ public class VehicleService {
             vehicle = vehicleRepository.save(vehicle);
         }
 
-        auditLogService.logAction(principal, "CREATE_VEHICLE", vehicle.getId().toString(),
-                "Vehicle created: " + vehicle.getPlate() + " (" + vehicle.getName() + ")");
+        auditLogService.logAction(principal, "CREATE_VEHICLE", "VEHICLE", vehicle.getId().toString(),
+                java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Creation de vehicule"));
 
         return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
@@ -163,16 +163,16 @@ public class VehicleService {
         vehicle.setName(buildDisplayName(vehicle.getMake(), vehicle.getModel(), vehicle.getManufactureYear()));
 
         Vehicle saved = vehicleRepository.save(vehicle);
-        auditLogService.logAction(principal, "UPDATE_VEHICLE", saved.getId().toString(),
-                "Vehicle updated: " + saved.getPlate() + " (" + saved.getName() + ")");
+        auditLogService.logAction(principal, "UPDATE_VEHICLE", "VEHICLE", saved.getId().toString(),
+                java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(), "action", "Mise a jour de vehicule"));
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
         Vehicle vehicle = getVehicle(id);
-        auditLogService.logAction(principal, "DELETE_VEHICLE", id.toString(),
-                "Vehicle deleted: " + vehicle.getPlate() + " (" + vehicle.getName() + ")");
+        auditLogService.logAction(principal, "DELETE_VEHICLE", "VEHICLE", id.toString(),
+                java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Suppression de vehicule"));
         if (StringUtils.hasText(vehicle.getImageUrl())) {
             minioStorageService.deleteFile(vehicle.getImageUrl());
         }
@@ -185,8 +185,8 @@ public class VehicleService {
         String driverInfo = request.getDriverId() != null ? request.getDriverId().toString() : "unassigned";
         vehicle.setDriverId(request.getDriverId());
         Vehicle saved = vehicleRepository.save(vehicle);
-        auditLogService.logAction(principal, "ASSIGN_VEHICLE", saved.getId().toString(),
-                "Vehicle " + saved.getPlate() + " assigned to driver " + driverInfo);
+        auditLogService.logAction(principal, "ASSIGN_VEHICLE", "VEHICLE", saved.getId().toString(),
+                java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(), "chauffeur", driverInfo, "action", "Affectation de vehicule"));
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 

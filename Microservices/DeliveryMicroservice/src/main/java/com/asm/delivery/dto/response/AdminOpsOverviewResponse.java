@@ -29,9 +29,12 @@ public class AdminOpsOverviewResponse {
     @AllArgsConstructor
     public static class SlaSnapshot {
         private int waitingThresholdMinutes;
-        private int transitThresholdMinutes;
+        private int assignThresholdMinutes;
+        private int pickupThresholdMinutes;
+
         private long waitingBreaches;
-        private long transitBreaches;
+        private long assignBreaches;
+        private long pickupBreaches;
         private long totalBreaches;
     }
 
@@ -53,6 +56,7 @@ public class AdminOpsOverviewResponse {
     public static class LaneDelivery {
         private UUID deliveryId;
         private UUID orderId;
+        private String orderRef;
         private String clientName;
         private String city;
         private String driverName;
@@ -66,6 +70,7 @@ public class AdminOpsOverviewResponse {
     public static class ExceptionRow {
         private UUID deliveryId;
         private UUID orderId;
+        private String orderRef;
         private DeliveryStatus status;
         private String clientName;
         private String city;

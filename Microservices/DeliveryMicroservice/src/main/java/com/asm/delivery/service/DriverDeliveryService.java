@@ -114,11 +114,11 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.save(delivery);
 
         // Mark driver unavailable via Driver Service (best-effort)
-        transportPort.setAvailability(driverId.toString(), false);
 
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = deliveryId.toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_ACCEPT", deliveryId.toString(), "Driver " + driverLabel + " accepted delivery #" + shortId);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
+                Map.of("chauffeur", driverName, "client", clientName, "action", "Acceptation de livraison"));
 
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
@@ -138,10 +138,10 @@ public class DriverDeliveryService {
         delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = delivery.getId().toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_PICKUP", delivery.getId().toString(),
-                "Driver " + driverLabel + " picked up delivery #" + shortId);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_PICKUP", "DELIVERY", delivery.getId().toString(),
+                Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
@@ -180,10 +180,10 @@ public class DriverDeliveryService {
         }
 
         String transitNote = "Driver started transit";
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = delivery.getId().toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_TRANSIT", delivery.getId().toString(),
-                "Driver " + driverLabel + " started transit for delivery #" + shortId);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_TRANSIT", "DELIVERY", delivery.getId().toString(),
+                Map.of("chauffeur", driverName, "client", clientName, "action", "Debut du transit"));
         appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
@@ -229,10 +229,11 @@ public class DriverDeliveryService {
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = delivery.getId().toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_COMPLETE", delivery.getId().toString(),
-            String.format("Delivery #%s marked as %s by %s", shortId, finalStatus, driverLabel));
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
+            Map.of("chauffeur", driverName, "client", clientName, "statut", finalStatus.name(),
+                   "action", isPartial ? "Livraison partielle" : "Livraison completee"));
 
         String message = isPartial ? "Delivery partially completed" : "Delivery completed";
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
@@ -244,7 +245,6 @@ public class DriverDeliveryService {
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
         // Release driver + increment stat (best-effort)
-        transportPort.setAvailability(driverId.toString(), true);
         String stat = isPartial ? "partial" : "delivered";
         transportPort.incrementStat(driverId.toString(), stat);
 
@@ -416,14 +416,13 @@ public class DriverDeliveryService {
         delivery.setFailureCode(failureCode);
         delivery = deliveryRepo.save(delivery);
 
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = delivery.getId().toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_FAIL", delivery.getId().toString(),
-            String.format("Delivery #%s failed by %s. Code: %s, Reason: %s",
-            shortId, driverLabel, failureCode, failureComment));
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_FAIL", "DELIVERY", delivery.getId().toString(),
+            Map.of("chauffeur", driverName, "client", clientName, "code", String.valueOf(failureCode),
+                   "motif", failureComment != null ? failureComment : "", "action", "Livraison echouee"));
 
         // Release driver + increment stat (best-effort)
-        transportPort.setAvailability(driverId.toString(), true);
         transportPort.incrementStat(driverId.toString(), "failed");
 
         appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, failureComment);
@@ -457,13 +456,13 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.save(delivery);
 
         // Release driver + increment stat (best-effort)
-        transportPort.setAvailability(driverId.toString(), true);
         transportPort.incrementStat(driverId.toString(), "cancelled");
 
-        String driverLabel = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String shortId = delivery.getId().toString().substring(0, 8);
-        auditLogService.logAction(principal, "DRIVER_CANCEL", delivery.getId().toString(),
-                "Driver " + driverLabel + " cancelled delivery #" + shortId + ". Reason: " + (StringUtils.hasText(reason) ? reason : "none"));
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "DRIVER_CANCEL", "DELIVERY", delivery.getId().toString(),
+                Map.of("chauffeur", driverName, "client", clientName, "motif", StringUtils.hasText(reason) ? reason : "aucun",
+                       "action", "Annulation par le chauffeur"));
         appendHistory(delivery, DeliveryStatus.UNSCHEDULED, driverId.toString(), Role.DRIVER,
                 StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
 
@@ -485,8 +484,10 @@ public class DriverDeliveryService {
                 .description(description)
                 .build());
 
-        auditLogService.logAction(principal, "DRIVER_REPORT", deliveryId.toString(),
-                "Driver " + driverId + " filed report. Type: " + reportType + ". Details: " + description);
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        auditLogService.logAction(principal, "DRIVER_REPORT", "DELIVERY", deliveryId.toString(),
+                Map.of("chauffeur", driverName, "type", String.valueOf(reportType), "details", description != null ? description : "",
+                       "action", "Signalement soumis"));
     }
 
     // ── Location update ───────────────────────────────────────────────────────
@@ -513,7 +514,6 @@ public class DriverDeliveryService {
     public void resetToWaiting(UUID deliveryId) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getStatus() == DeliveryStatus.SCHEDULED && delivery.getDriverId() != null) {
-                transportPort.setAvailability(delivery.getDriverId().toString(), true);
                 delivery.setStatus(DeliveryStatus.UNSCHEDULED);
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
@@ -530,7 +530,6 @@ public class DriverDeliveryService {
     public void forceCancel(UUID deliveryId, String reason) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getDriverId() != null) {
-                transportPort.setAvailability(delivery.getDriverId().toString(), true);
             }
             delivery.setStatus(DeliveryStatus.CANCELLED);
             delivery.setCancelledAt(LocalDateTime.now());
@@ -546,7 +545,6 @@ public class DriverDeliveryService {
     public void forceFail(UUID deliveryId, String reason) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getDriverId() != null) {
-                transportPort.setAvailability(delivery.getDriverId().toString(), true);
             }
             delivery.setStatus(DeliveryStatus.FAILED);
             delivery.setFailedAt(LocalDateTime.now());

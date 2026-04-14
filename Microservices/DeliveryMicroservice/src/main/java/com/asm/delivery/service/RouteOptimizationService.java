@@ -419,24 +419,36 @@ public class RouteOptimizationService {
 
         // 1. Manual Window Check (Priority)
         if (stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
-            LocalDateTime date = stop.getRoute().getDate().atStartOfDay();
-            LocalDateTime windowStart = date.with(stop.getStartTimeWindow());
+            LocalDateTime routeDate = (stop.getRoute() != null && stop.getRoute().getDate() != null)
+                    ? stop.getRoute().getDate().atStartOfDay()
+                    : arrival.toLocalDate().atStartOfDay();
+
+            LocalDateTime windowStart = routeDate.toLocalDate().atTime(stop.getStartTimeWindow());
+            LocalDateTime windowEnd = routeDate.toLocalDate().atTime(stop.getEndTimeWindow());
 
             if (arrival.isBefore(windowStart)) return SlaStatus.EARLY;
+            if (arrival.isAfter(windowEnd)) return SlaStatus.LATE;
             return SlaStatus.ON_TIME;
         }
 
-        // 2. ETA-based fallback is deprecated in strict mode.
+        // 2. Deadline-based fallback
+        if (stop.getSlaDeadline() != null) {
+            if (arrival.isAfter(stop.getSlaDeadline())) return SlaStatus.LATE;
+            if (stop.getEtaAt() != null && arrival.isBefore(stop.getEtaAt())) return SlaStatus.EARLY;
+            return SlaStatus.ON_TIME;
+        }
+
         return SlaStatus.ON_TIME;
     }
 
     public static SlaStatus computeSlaStatus(LocalDateTime etaAt, LocalDateTime slaDeadline,
                                              LocalDateTime actualArrivalAt, LocalDateTime now) {
-        if (etaAt == null || slaDeadline == null) return SlaStatus.ON_TIME;
-
         LocalDateTime reference = actualArrivalAt != null ? actualArrivalAt : now;
 
-        return (reference.isBefore(etaAt) || reference.isEqual(etaAt)) ? SlaStatus.EARLY : SlaStatus.ON_TIME;
+        if (slaDeadline != null && reference.isAfter(slaDeadline)) return SlaStatus.LATE;
+        if (etaAt != null && (reference.isBefore(etaAt) || reference.isEqual(etaAt))) return SlaStatus.EARLY;
+
+        return SlaStatus.ON_TIME;
     }
 
     // ─── Utility helpers ──────────────────────────────────────────────────────────

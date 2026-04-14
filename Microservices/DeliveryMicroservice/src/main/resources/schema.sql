@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS deliveries (
   order_id        UUID NOT NULL UNIQUE REFERENCES orders(id),
   driver_id       UUID,
 
-  status          VARCHAR(20) NOT NULL DEFAULT 'WAITING_DRIVER' CHECK (status IN (
-    'WAITING_DRIVER',
-    'ASSIGNED',
+  status          VARCHAR(20) NOT NULL DEFAULT 'UNSCHEDULED' CHECK (status IN (
+    'UNSCHEDULED',
+    'SCHEDULED',
     'PICKED_UP',
     'IN_TRANSIT',
     'DELIVERED',
@@ -152,8 +152,8 @@ CREATE TABLE IF NOT EXISTS delivery_status_history (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_id     UUID NOT NULL REFERENCES deliveries(id),
   status          VARCHAR(20) NOT NULL CHECK (status IN (
-    'WAITING_DRIVER',
-    'ASSIGNED',
+    'UNSCHEDULED',
+    'SCHEDULED',
     'PICKED_UP',
     'IN_TRANSIT',
     'DELIVERED',
@@ -181,9 +181,13 @@ BEGIN
   ALTER TABLE orders ADD CONSTRAINT ck_orders_status
     CHECK (status IN ('PENDING', 'DELIVERED', 'PARTIALLY_DELIVERED', 'CANCELLED'));
 
-  -- Migrate legacy PARTIAL values to PARTIALLY_DELIVERED before recreating constraints
+  -- Migrate legacy status values to current Enum values
   UPDATE deliveries SET status = 'PARTIALLY_DELIVERED' WHERE status = 'PARTIAL';
   UPDATE delivery_status_history SET status = 'PARTIALLY_DELIVERED' WHERE status = 'PARTIAL';
+  UPDATE deliveries SET status = 'UNSCHEDULED' WHERE status = 'WAITING_DRIVER';
+  UPDATE deliveries SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
+  UPDATE delivery_status_history SET status = 'UNSCHEDULED' WHERE status = 'WAITING_DRIVER';
+  UPDATE delivery_status_history SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
 
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'deliveries_status_check') THEN
     ALTER TABLE deliveries DROP CONSTRAINT deliveries_status_check;
@@ -193,8 +197,8 @@ BEGIN
   END IF;
   ALTER TABLE deliveries ADD CONSTRAINT ck_deliveries_status
     CHECK (status IN (
-      'WAITING_DRIVER',
-      'ASSIGNED',
+      'UNSCHEDULED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'DELIVERED',
@@ -211,8 +215,8 @@ BEGIN
   END IF;
   ALTER TABLE delivery_status_history ADD CONSTRAINT ck_delivery_history_status
     CHECK (status IN (
-      'WAITING_DRIVER',
-      'ASSIGNED',
+      'UNSCHEDULED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'DELIVERED',
@@ -365,7 +369,7 @@ CREATE TABLE IF NOT EXISTS route_stops (
   route_id     UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   delivery_id  UUID NOT NULL UNIQUE REFERENCES deliveries(id),
   stop_order   INTEGER NOT NULL,
-  status       VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL')),
+  status       VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL')),
   arrived_at   TIMESTAMP,
   completed_at TIMESTAMP,
   notes        TEXT,
@@ -442,7 +446,7 @@ ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_geometry         TEXT;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS eta_at                TIMESTAMP;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_deadline          TIMESTAMP;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS actual_arrival_at     TIMESTAMP;
-ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(20) CHECK (sla_status IN ('ON_TIME', 'AT_RISK', 'BREACHED'));
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(20);
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_duration_seconds INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_distance_meters  INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS dwell_minutes          INTEGER NOT NULL DEFAULT 10;
@@ -450,9 +454,13 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_at            TIMESTAMP
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_reason        TEXT;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_by            VARCHAR(100);
 
--- Fix route_stops status check to include PARTIAL (legacy) and REMOVED
+-- Fix route_stops status and sla_status checks to match Java enums
 DO $$
 BEGIN
+  -- Migration of legacy values to new Enum values
+  UPDATE route_stops SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
+  UPDATE route_stops SET sla_status = 'LATE' WHERE sla_status IN ('AT_RISK', 'BREACHED');
+
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_stops_status_check') THEN
     ALTER TABLE route_stops DROP CONSTRAINT route_stops_status_check;
   END IF;
@@ -462,7 +470,7 @@ BEGIN
   ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_status
     CHECK (status IN (
       'PENDING',
-      'ASSIGNED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'ARRIVED',
@@ -471,6 +479,12 @@ BEGIN
       'PARTIAL',
       'REMOVED'
     ));
+
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_route_stops_sla_status') THEN
+    ALTER TABLE route_stops DROP CONSTRAINT ck_route_stops_sla_status;
+  END IF;
+  ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_sla_status
+    CHECK (sla_status IN ('ON_TIME', 'EARLY', 'LATE'));
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;

@@ -3,7 +3,6 @@ class DriverProfile {
     required this.id,
     required this.name,
     required this.phone,
-    required this.available,
     this.city,
     this.currentLat,
     this.currentLng,
@@ -15,7 +14,6 @@ class DriverProfile {
       id: json['id']?.toString() ?? '',
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
-      available: json['available'] as bool? ?? false,
       city: json['city'] as String?,
       currentLat: (json['currentLat'] as num?)?.toDouble(),
       currentLng: (json['currentLng'] as num?)?.toDouble(),
@@ -26,24 +24,11 @@ class DriverProfile {
   final String id;
   final String name;
   final String phone;
-  final bool available;
   final String? city;
   final double? currentLat;
   final double? currentLng;
   final DateTime? lastLocationAt;
 
-  DriverProfile copyWith({bool? available}) {
-    return DriverProfile(
-      id: id,
-      name: name,
-      phone: phone,
-      available: available ?? this.available,
-      city: city,
-      currentLat: currentLat,
-      currentLng: currentLng,
-      lastLocationAt: lastLocationAt,
-    );
-  }
 }
 
 class DriverStats {

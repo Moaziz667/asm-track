@@ -23,10 +23,6 @@ public class Driver {
     @Column(nullable = false)
     private String passwordHash;
 
-    @Column(nullable = false)
-    @Builder.Default
-    private Boolean available = true;
-
     @Column(precision = 10, scale = 7)
     private BigDecimal currentLat;
 

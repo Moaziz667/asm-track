@@ -100,8 +100,8 @@ public class OrderService {
 
         order = orderRepo.save(order);
 
-        auditLogService.logAction(null, "APP_ORDER_CREATED", order.getId().toString(), 
-            String.format("New order created via App for client %s (%s)", clientName, clientId));
+        auditLogService.logAction(null, "APP_ORDER_CREATED", "DELIVERY", order.getId().toString(),
+            java.util.Map.of("client", clientName != null ? clientName : "N/A", "source", "Application", "action", "Nouvelle commande"));
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
@@ -136,8 +136,8 @@ public class OrderService {
         applyCanonicalToOrder(order, canonical, true);
         order = orderRepo.save(order);
 
-        auditLogService.logAction(null, "ODOO_RECV_ORDER", order.getId().toString(), 
-            "Imported order from Odoo: " + erpOrderId);
+        auditLogService.logAction(null, "ODOO_RECV_ORDER", "DELIVERY", order.getId().toString(),
+            java.util.Map.of("erpId", erpOrderId != null ? erpOrderId : "N/A", "source", "Odoo", "action", "Import commande ERP"));
 
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order received from Odoo");
         eventPublisher.publishDeliveryCreated(order, delivery);

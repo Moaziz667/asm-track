@@ -13,6 +13,7 @@ import com.asm.delivery.repository.ZoneRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.time.DayOfWeek;
 import java.time.LocalDateTime;
 import java.util.Collections;
 import java.util.List;
@@ -32,21 +33,45 @@ public class ReportingService {
     private final DelayCalculationService delayCalculationService;
     private final ZoneRepository zoneRepository;
 
-    public DashboardKpiResponse getGlobalKpis() {
+    public DashboardKpiResponse getGlobalKpis(String period, java.time.LocalDate from, java.time.LocalDate to) {
         List<Delivery> allDeliveries = deliveryRepository.findAll();
         LocalDateTime now = LocalDateTime.now();
-        LocalDateTime todayStart = now.toLocalDate().atStartOfDay();
+
+        // 0. Time Filtering Logic
+        final LocalDateTime start;
+        final LocalDateTime end;
+        if (from != null) {
+            start = from.atStartOfDay();
+            end = (to != null) ? to.atTime(23, 59, 59) : now;
+        } else {
+            end = now;
+            switch (period.toLowerCase()) {
+                case "week":
+                    start = java.time.LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
+                    break;
+                case "month":
+                    start = java.time.LocalDate.now().withDayOfMonth(1).atStartOfDay();
+                    break;
+                default: // "day"
+                    start = java.time.LocalDate.now().atStartOfDay();
+                    break;
+            }
+        }
+
+        List<Delivery> filteredDeliveries = allDeliveries.stream()
+                .filter(d -> {
+                    LocalDateTime referenceDate = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
+                    return referenceDate != null && !referenceDate.isBefore(start) && !referenceDate.isAfter(end);
+                })
+                .collect(Collectors.toList());
 
         // 1. Volumes
-        long ordersToday = allDeliveries.stream()
-                .filter(d -> d.getCreatedAt() != null && !d.getCreatedAt().isBefore(todayStart))
-                .count();
+        long ordersToday = filteredDeliveries.size();
 
         // 2. Performance
-        List<Delivery> completedDeliveries = allDeliveries.stream()
+        List<Delivery> completedDeliveries = filteredDeliveries.stream()
                 .filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED)
                 .toList();
-        long totalCompleted = completedDeliveries.size();
 
         Map<UUID, RouteStop> routeStopByDeliveryId = loadRouteStopsByDeliveryId(completedDeliveries);
         List<SlaEvaluation> evaluations = completedDeliveries.stream()
@@ -66,22 +91,22 @@ public class ReportingService {
 
         double slaRate = measurableCount == 0 ? 100.0 : (double) onTimeCompleted / measurableCount * 100.0;
 
-        // 3. Zones les plus actives — groupés par nom de zone réel (via zoneId sur l'Order)
+        // 3. Zones les plus actives
         Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
 
-        Map<String, Long> ordersByZone = allDeliveries.stream()
+        Map<String, Long> ordersByZone = filteredDeliveries.stream()
                 .filter(d -> d.getOrder() != null && d.getOrder().getZoneId() != null
                         && zoneNameById.containsKey(d.getOrder().getZoneId()))
                 .collect(Collectors.groupingBy(
                         d -> zoneNameById.get(d.getOrder().getZoneId()),
                         Collectors.counting()));
 
-        // 4. Exception Tracking (Audit Logs)
+        // 4. Exception Tracking
         long reassignments = auditLogRepository.countAllByActionContaining("REASSIGN");
         long replannings = auditLogRepository.countAllByActionContaining("REPLAN");
 
-        // 5. Trend
+        // 5. Trend (Keeping original 30-day view for the chart regardless of filter)
         Map<String, Long> weeklyTrendMap = allDeliveries.stream()
                 .filter(d -> d.getCreatedAt() != null && d.getCreatedAt().isAfter(now.minusDays(30)))
                 .collect(Collectors.groupingBy(
@@ -99,9 +124,7 @@ public class ReportingService {
 
         return DashboardKpiResponse.builder()
                 .avgDelayMinutes(avgDelay)
-                .slaComplianceRate(slaRate)
-                .totalCompleted(totalCompleted)
-                .totalOrdersToday(ordersToday)
+                .totalOrdersToday(ordersToday)   // Filtered orders in period
                 .ordersByZone(ordersByZone)
                 .totalReassigned(reassignments)
                 .totalReplanned(replannings)
@@ -132,8 +155,8 @@ public class ReportingService {
         }
 
         private SlaEvaluation evaluateDeliverySla(Delivery delivery, RouteStop stop, LocalDateTime now) {
-                if (stop != null && stop.getRoute() != null) {
-                        // Unified doctrine: manual time-window first, then ETA fallback.
+                // Strict requirement: only measure SLA if manual windows are defined
+                if (stop != null && stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
                         LocalDateTime reference = delivery.getCompletedAt() != null ? delivery.getCompletedAt() : now;
                         SlaStatus status = RouteOptimizationService.computeSlaStatus(stop, reference);
                         Integer delayMinutes = resolveDelayMinutes(delivery, stop);
@@ -141,12 +164,7 @@ public class ReportingService {
                         return new SlaEvaluation(true, onTime, delayMinutes);
                 }
 
-                if (delivery.getRouteEtaAt() != null) {
-                        LocalDateTime completion = delivery.getCompletedAt() != null ? delivery.getCompletedAt() : now;
-                        int delay = Math.max(0, (int) java.time.Duration.between(delivery.getRouteEtaAt(), completion).toMinutes());
-                        return new SlaEvaluation(true, delay == 0, delay);
-                }
-
+                // If no windows, we don't measure SLA performance, even if an ETA exists.
                 return new SlaEvaluation(false, false, null);
         }
 
