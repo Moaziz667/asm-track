@@ -186,7 +186,7 @@ public class AdminDeliveryController {
             @PathVariable UUID orderId,
             @RequestParam(required = false) String reason,
             @AuthenticationPrincipal UserPrincipal principal) {
-        orderService.adminCancelOrder(orderId, principal.getUserId(), reason);
+        orderService.adminCancelOrder(orderId, principal, reason);
         return ResponseEntity.noContent().build();
     }
 }

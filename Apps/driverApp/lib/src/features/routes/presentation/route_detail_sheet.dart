@@ -4,7 +4,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../theme/app_theme.dart';
 import '../models/route_models.dart';
-import 'widgets/route_card.dart' show _StatusChip;
+import 'widgets/route_card.dart' show StatusChip;
 
 /// Read-only bottom sheet shown when the driver taps a non-active route in
 /// the calendar (e.g. a future VALIDATED route or a past CLOSED route).
@@ -76,7 +76,7 @@ class RouteDetailSheet extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _StatusChip(route.status),
+                StatusChip(route.status),
               ],
             ),
 

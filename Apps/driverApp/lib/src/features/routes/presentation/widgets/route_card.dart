@@ -74,7 +74,7 @@ class RouteCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 8),
-                _StatusChip(route.status),
+                StatusChip(route.status),
               ],
             ),
 
@@ -179,8 +179,8 @@ class RouteCard extends StatelessWidget {
   }
 }
 
-class _StatusChip extends StatelessWidget {
-  const _StatusChip(this.status);
+class StatusChip extends StatelessWidget {
+  const StatusChip(this.status);
   final DriverRouteStatus status;
 
   @override

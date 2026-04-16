@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.asm.delivery.security.UserPrincipal;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -226,9 +227,11 @@ public class OrderService {
     }
 
     @Transactional
-    public void adminCancelOrder(UUID orderId, String adminId, String reason) {
+    public void adminCancelOrder(UUID orderId, UserPrincipal principal, String reason) {
         Order order = orderRepo.findById(orderId)
                 .orElseThrow(() -> AppException.notFound("Order not found"));
+
+        String adminId = principal != null ? principal.getUserId() : "SYSTEM";
 
         Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
 
@@ -277,7 +280,7 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        auditLogService.logAction(adminId, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
+        auditLogService.logAction(principal, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
                 Map.of("reason", reason != null ? reason : ""));
 
         erpSyncService.syncOrderCancellation(order);
