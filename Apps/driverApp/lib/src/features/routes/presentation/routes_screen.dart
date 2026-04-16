@@ -214,9 +214,12 @@ class _RouteMapBody extends StatelessWidget {
           top: 0,
           left: 0,
           right: 0,
-          child: _MapTopBar(
-            route: route,
-            onRefresh: onRefresh,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _MapTopBar(route: route, onRefresh: onRefresh),
+              if (route?.fromCache == true) const _OfflineBanner(),
+            ],
           ),
         ),
 
@@ -383,6 +386,7 @@ class _StatusPill extends StatelessWidget {
       case DriverRouteStatus.validated:   color = AppColors.info; break;
       case DriverRouteStatus.inProgress:  color = AppColors.accent; break;
       case DriverRouteStatus.closed:      color = AppColors.success; break;
+      case DriverRouteStatus.cancelled:   color = AppColors.danger; break;
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -824,6 +828,34 @@ class _ActionButton extends StatelessWidget {
           ),
         ),
       );
+}
+
+class _OfflineBanner extends StatelessWidget {
+  const _OfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+      color: AppColors.warning.withValues(alpha: 0.92),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          const Icon(Icons.cloud_off_rounded, size: 13, color: Colors.white),
+          const SizedBox(width: 6),
+          Text(
+            'Données en cache — reconnectez-vous pour actualiser',
+            style: GoogleFonts.inter(
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _InfoChip extends StatelessWidget {

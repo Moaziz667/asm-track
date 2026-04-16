@@ -46,6 +46,7 @@ public class RoutePlanningService {
     private final AuditLogService auditLogService;
     private final ProofOfDeliveryService proofOfDeliveryService;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
+    private final RouteWebSocketService routeWebSocketService;
 
     public void deleteByRouteId(UUID routeId) {
         routeStopRepository.deleteByRouteId(routeId);
@@ -302,6 +303,100 @@ public class RoutePlanningService {
     }
 
     @Transactional
+    public RouteResponse cancel(UUID routeId, String reason) {
+        Route route = getRoute(routeId);
+        RouteStatus status = route.getStatus();
+        if (status != RouteStatus.VALIDATED && status != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("Only VALIDATED or IN_PROGRESS routes can be cancelled");
+        }
+
+        String cancelReason = (reason != null && !reason.isBlank()) ? reason.trim() : "CANCELLED";
+
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+        List<UUID> deliveryIds = new ArrayList<>();
+        for (RouteStop stop : stops) {
+            if (stop.getStatus() == RouteStopStatus.PENDING
+                    || stop.getStatus() == RouteStopStatus.SCHEDULED
+                    || stop.getStatus() == RouteStopStatus.ARRIVED) {
+                stop.setStatus(RouteStopStatus.REMOVED);
+                stop.setRemovedAt(LocalDateTime.now());
+                stop.setRemovedReason(cancelReason);
+                stop.setRemovedBy("ADMIN");
+                deliveryIds.add(stop.getDeliveryId());
+            }
+        }
+        routeStopRepository.saveAll(stops);
+
+        // Reset deliveries to UNSCHEDULED
+        if (!deliveryIds.isEmpty()) {
+            List<Delivery> deliveries = deliveryRepository.findAllById(deliveryIds);
+            for (Delivery delivery : deliveries) {
+                if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+                    delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+                    delivery.setDriverId(null);
+                    delivery.setAssignedAt(null);
+                    deliveryRepository.save(delivery);
+                    appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Route cancelled: " + cancelReason);
+                }
+            }
+        }
+
+        route.setStatus(RouteStatus.CANCELLED);
+        route.setClosedAt(LocalDateTime.now());
+        routeRepository.save(route);
+
+        auditLogService.logAction(null, "CANCEL_ROUTE", "ROUTE", routeId.toString(),
+                Map.of("tournee", route.getName(), "reason", cancelReason));
+
+        routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_CANCELLED", route.getId(), route.getName());
+
+        return toResponse(route);
+    }
+
+    @Transactional
+    public RouteResponse reassign(UUID routeId, UUID newDriverId) {
+        Route route = getRoute(routeId);
+        RouteStatus status = route.getStatus();
+        if (status != RouteStatus.VALIDATED && status != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("Only VALIDATED or IN_PROGRESS routes can be reassigned");
+        }
+
+        UUID oldDriverId = route.getDriverId();
+        if (newDriverId.equals(oldDriverId)) {
+            throw AppException.badRequest("New driver is the same as current driver");
+        }
+
+        route.setDriverId(newDriverId);
+        routeRepository.save(route);
+
+        // Update driverId on all SCHEDULED deliveries
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+        List<UUID> deliveryIds = stops.stream()
+                .filter(s -> s.getStatus() != RouteStopStatus.REMOVED)
+                .map(RouteStop::getDeliveryId)
+                .toList();
+        if (!deliveryIds.isEmpty()) {
+            List<Delivery> deliveries = deliveryRepository.findAllById(deliveryIds);
+            for (Delivery delivery : deliveries) {
+                if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+                    delivery.setDriverId(newDriverId);
+                    deliveryRepository.save(delivery);
+                    appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN,
+                            "Route reassigned to new driver: " + newDriverId);
+                }
+            }
+        }
+
+        auditLogService.logAction(null, "REASSIGN_ROUTE", "ROUTE", routeId.toString(),
+                Map.of("tournee", route.getName(), "oldDriverId", oldDriverId.toString(), "newDriverId", newDriverId.toString()));
+
+        routeWebSocketService.notifyDriver(oldDriverId, "ROUTE_REASSIGNED_AWAY", route.getId(), route.getName());
+        routeWebSocketService.notifyDriver(newDriverId, "ROUTE_ASSIGNED", route.getId(), route.getName());
+
+        return toResponse(route);
+    }
+
+    @Transactional
     public RouteResponse addStop(UUID routeId, com.asm.delivery.dto.request.AddRouteStopRequest request) {
         Route route = getRoute(routeId);
         ensureDraft(route);
@@ -314,22 +409,92 @@ public class RoutePlanningService {
     }
 
     @Transactional
+    public RouteResponse addStopToValidated(UUID routeId, com.asm.delivery.dto.request.AddRouteStopRequest request) {
+        Route route = getRoute(routeId);
+        RouteStatus status = route.getStatus();
+        if (status != RouteStatus.VALIDATED && status != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("This endpoint only applies to VALIDATED or IN_PROGRESS routes");
+        }
+        // Count only non-removed stops for next order
+        int nextOrder = (int) routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
+                .stream().filter(s -> s.getStatus() != RouteStopStatus.REMOVED).count() + 1;
+        addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
+        // Also schedule the delivery
+        deliveryRepository.findById(request.getDeliveryId()).ifPresent(delivery -> {
+            if (delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+                delivery.setDriverId(route.getDriverId());
+                delivery.setStatus(DeliveryStatus.SCHEDULED);
+                delivery.setAssignedAt(LocalDateTime.now());
+                deliveryRepository.save(delivery);
+                appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN, "Stop added to active route");
+            }
+        });
+        auditLogService.logAction(null, "ADD_STOP_ACTIVE", "ROUTE", routeId.toString(),
+                Map.of("tournee", route.getName(), "action", "Ajout d'un arret a une tournee active"));
+        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_ADDED", route.getId(), route.getName());
+        return toResponse(route);
+    }
+
+    @Transactional
     public RouteResponse removeStop(UUID routeId, UUID stopId) {
         Route route = getRoute(routeId);
-        ensureDraft(route);
+        RouteStatus routeStatus = route.getStatus();
+
+        if (routeStatus == RouteStatus.CLOSED || routeStatus == RouteStatus.CANCELLED) {
+            throw AppException.badRequest("Cannot modify a closed or cancelled route");
+        }
 
         RouteStop stop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
                 .orElseThrow(() -> AppException.notFound("Route stop not found"));
-        routeStopRepository.delete(stop);
+
+        if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
+            // Guard: cannot remove a stop that's already being actioned by the driver
+            RouteStopStatus stopStatus = stop.getStatus();
+            if (stopStatus == RouteStopStatus.ARRIVED
+                    || stopStatus == RouteStopStatus.COMPLETED
+                    || stopStatus == RouteStopStatus.FAILED
+                    || stopStatus == RouteStopStatus.PARTIAL) {
+                throw AppException.badRequest("Cannot remove stop that is already in progress or terminal");
+            }
+            // Soft-delete: mark as REMOVED with audit fields
+            stop.setStatus(RouteStopStatus.REMOVED);
+            stop.setRemovedAt(LocalDateTime.now());
+            stop.setRemovedReason("REPLANNED");
+            stop.setRemovedBy("ADMIN");
+            routeStopRepository.save(stop);
+        } else {
+            // DRAFT: hard delete
+            routeStopRepository.delete(stop);
+        }
+
+        // Reset delivery back to UNSCHEDULED
+        deliveryRepository.findById(stop.getDeliveryId()).ifPresent(delivery -> {
+            if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+                delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+                delivery.setDriverId(null);
+                delivery.setAssignedAt(null);
+                deliveryRepository.save(delivery);
+                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Stop removed from route — delivery replanned");
+            }
+        });
+
         auditLogService.logAction(null, "REMOVE_STOP", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Suppression d'un arret"));
 
-        // Re-pack stop order after deletion
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-        for (int i = 0; i < stops.size(); i++) {
-            stops.get(i).setStopOrder(i + 1);
+        // Re-pack stop order on remaining active stops
+        List<RouteStop> activeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
+                .stream().filter(s -> s.getStatus() != RouteStopStatus.REMOVED).toList();
+        for (int i = 0; i < activeStops.size(); i++) {
+            activeStops.get(i).setStopOrder(i + 1);
         }
-        routeStopRepository.saveAll(stops);
+        if (!activeStops.isEmpty()) {
+            routeStopRepository.saveAll(activeStops);
+        }
+
+        // Notify driver if route is active
+        if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
+            routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+        }
 
         return toResponse(route);
     }
@@ -425,6 +590,9 @@ public class RoutePlanningService {
         if (!validationWarnings.isEmpty()) {
             response.setValidationWarnings(validationWarnings);
         }
+
+        routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_ASSIGNED", route.getId(), route.getName());
+
         return response;
     }
     private void addStopInternal(Route route, UUID deliveryId, int stopOrder, LocalTime start, LocalTime end, Integer buffer) {

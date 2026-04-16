@@ -36,6 +36,10 @@ public class OrderService {
     private final ErpSyncService    erpSyncService;
     private final ErpLookupService   erpLookupService;
     private final AuditLogService    auditLogService;
+    private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
+    private final com.asm.delivery.repository.RouteRepository routeRepository;
+    private final com.asm.delivery.service.route.RoutePlanningService routePlanningService;
+    private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -217,6 +221,64 @@ public class OrderService {
 
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
+
+        erpSyncService.syncOrderCancellation(order);
+    }
+
+    @Transactional
+    public void adminCancelOrder(UUID orderId, String adminId, String reason) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> AppException.notFound("Order not found"));
+
+        Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
+
+        if (delivery != null) {
+            DeliveryStatus ds = delivery.getStatus();
+            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT) {
+                throw AppException.forbidden("Cannot cancel order that is being delivered");
+            }
+            if (ds == DeliveryStatus.DELIVERED
+                    || ds == DeliveryStatus.PARTIALLY_DELIVERED
+                    || ds == DeliveryStatus.CANCELLED
+                    || ds == DeliveryStatus.FAILED) {
+                throw AppException.conflict("Order is already in terminal state");
+            }
+
+            // If delivery is SCHEDULED (on a route), soft-remove the route stop
+            if (ds == DeliveryStatus.SCHEDULED) {
+                routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(stop -> {
+                    com.asm.delivery.entity.Route route = stop.getRoute();
+                    if (route != null
+                            && (route.getStatus() == com.asm.delivery.entity.RouteStatus.VALIDATED
+                                || route.getStatus() == com.asm.delivery.entity.RouteStatus.IN_PROGRESS)) {
+                        stop.setStatus(com.asm.delivery.entity.RouteStopStatus.REMOVED);
+                        stop.setRemovedAt(LocalDateTime.now());
+                        stop.setRemovedReason("ORDER_CANCELLED");
+                        stop.setRemovedBy(adminId);
+                        routeStopRepository.save(stop);
+                        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                    } else if (route != null && route.getStatus() == com.asm.delivery.entity.RouteStatus.DRAFT) {
+                        routeStopRepository.delete(stop);
+                    }
+                });
+            }
+
+            String cancelReason = (reason != null && !reason.isBlank()) ? reason.trim() : "Cancelled by admin";
+            delivery.setStatus(DeliveryStatus.CANCELLED);
+            delivery.setCancelledAt(LocalDateTime.now());
+            delivery.setCancelledBy(Role.ADMIN);
+            delivery.setCancelReason(cancelReason);
+            deliveryRepo.save(delivery);
+
+            appendHistory(delivery, DeliveryStatus.CANCELLED, adminId, Role.ADMIN, cancelReason);
+            eventPublisher.publishDeliveryCancelled(order, delivery, null);
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepo.save(order);
+
+        auditLogService.logAction(adminId, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
+                Map.of("reason", reason != null ? reason : ""));
 
         erpSyncService.syncOrderCancellation(order);
     }

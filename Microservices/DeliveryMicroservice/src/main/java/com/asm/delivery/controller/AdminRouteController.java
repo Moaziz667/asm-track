@@ -234,4 +234,38 @@ public class AdminRouteController {
     public ResponseEntity<SlaSummaryResponse> slaSummary() {
         return ResponseEntity.ok(routePlanningService.getSlaSummary());
     }
+
+    // ─── Cancel & Reassign ────────────────────────────────────────────────────────
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel a VALIDATED or IN_PROGRESS route — deliveries revert to UNSCHEDULED")
+    public ResponseEntity<RouteResponse> cancel(@PathVariable UUID id,
+            @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(routePlanningService.cancel(id, reason));
+    }
+
+    @PostMapping("/{id}/reassign")
+    @Operation(summary = "Reassign route to a different driver")
+    public ResponseEntity<RouteResponse> reassign(@PathVariable UUID id,
+            @RequestParam UUID newDriverId) {
+        return ResponseEntity.ok(routePlanningService.reassign(id, newDriverId));
+    }
+
+    @PostMapping("/{id}/stops/active")
+    @Operation(summary = "Add a stop to a VALIDATED or IN_PROGRESS route — notifies driver via WebSocket")
+    public ResponseEntity<RouteResponse> addStopToActive(@PathVariable UUID id,
+            @Valid @RequestBody AddRouteStopRequest request) {
+        return ResponseEntity.ok(routePlanningService.addStopToValidated(id, request));
+    }
+
+    // ─── Driver route list (date range) ──────────────────────────────────────────
+
+    @GetMapping("/driver/{driverId}")
+    @Operation(summary = "List routes for a specific driver within a date range")
+    public ResponseEntity<List<RouteResponse>> listForDriver(
+            @PathVariable UUID driverId,
+            @RequestParam(required = false) LocalDate from,
+            @RequestParam(required = false) LocalDate to) {
+        return ResponseEntity.ok(routePlanningService.list(null, driverId, null, from, to, null));
+    }
 }

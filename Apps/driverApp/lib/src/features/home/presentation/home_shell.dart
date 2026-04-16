@@ -8,10 +8,13 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/websocket_service.dart';
 import '../../../theme/app_theme.dart';
+import '../../auth/models/auth_models.dart';
 import '../../deliveries/models/delivery_models.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../routes/models/route_models.dart';
+import '../../routes/presentation/calendar_screen.dart';
 import '../../routes/presentation/routes_screen.dart';
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -29,17 +32,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   bool _isTracking = false;
   Set<String> _knownRouteDeliveryIds = <String>{};
 
-  static const _navItems = [
-    _NavItem(icon: PhosphorIconsFill.path,          label: 'Tournée'),
-    _NavItem(icon: PhosphorIconsFill.userCircle,    label: 'Profil'),
-  ];
+  final _wsService = WebSocketService();
 
-  @override
-  void dispose() {
-    _locationTimer?.cancel();
-    _assignmentRefreshTimer?.cancel();
-    super.dispose();
-  }
+  static const _navItems = [
+    _NavItem(icon: PhosphorIconsFill.path,         label: 'Tournée'),
+    _NavItem(icon: PhosphorIconsFill.calendarDots, label: 'Calendrier'),
+    _NavItem(icon: PhosphorIconsFill.userCircle,   label: 'Profil'),
+  ];
 
   @override
   void initState() {
@@ -47,6 +46,75 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     _assignmentRefreshTimer = Timer.periodic(const Duration(seconds: 15), (_) {
       _refreshAssignmentsAndNotify();
     });
+    _initWebSocket();
+  }
+
+  Future<void> _initWebSocket() async {
+    final authState = ref.read(authControllerProvider);
+    final driverId = authState.driver?.id;
+    if (driverId == null || driverId.isEmpty) return;
+
+    final token = await ref.read(tokenStorageProvider).readAccessToken();
+    if (token == null) return;
+
+    final config = ref.read(appConfigProvider);
+    _wsService.connect(
+      wsBaseUrl: config.apiBaseUrl,
+      token: token,
+      driverId: driverId,
+      onEvent: _handleWsEvent,
+    );
+  }
+
+  void _handleWsEvent(RouteWsEvent event) {
+    if (!mounted) return;
+
+    // Invalidate providers so UI refreshes automatically
+    ref.invalidate(todayRouteProvider);
+    ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
+
+    final String message;
+    switch (event.event) {
+      case 'ROUTE_ASSIGNED':
+        message = 'Nouvelle tournée assignée !';
+        break;
+      case 'ROUTE_CANCELLED':
+        message = 'Votre tournée a été annulée.';
+        break;
+      case 'ROUTE_REASSIGNED_AWAY':
+        message = 'Tournée réaffectée à un autre chauffeur.';
+        break;
+      case 'ROUTE_REASSIGNED_TO_YOU':
+        message = 'Une tournée vous a été réaffectée !';
+        break;
+      case 'STOP_ADDED':
+        message = 'Nouvel arrêt ajouté à votre tournée.';
+        break;
+      case 'STOP_REMOVED':
+        message = 'Un arrêt a été retiré de votre tournée.';
+        break;
+      case 'ROUTE_UPDATED':
+        message = 'Votre tournée a été modifiée.';
+        break;
+      default:
+        return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 4),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _locationTimer?.cancel();
+    _assignmentRefreshTimer?.cancel();
+    _wsService.disconnect();
+    super.dispose();
   }
 
   void _startTracking() {
@@ -103,6 +171,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       _knownRouteDeliveryIds = nextIds;
       ref.invalidate(todayRouteProvider);
       ref.invalidate(activeDeliveriesProvider);
+      ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
     } catch (_) {
       // Ignore background refresh errors; main screens still handle explicit fetch failures.
     }
@@ -132,6 +201,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     final pages = [
       const RoutesScreen(),
+      CalendarScreen(onNavigateToRoute: () => setState(() => _index = 0)),
       const SafeArea(child: ProfileScreen()),
     ];
 

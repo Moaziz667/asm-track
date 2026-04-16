@@ -11,6 +11,7 @@ import 'features/profile/models/profile_models.dart';
 import 'features/routes/data/route_repository.dart';
 import 'features/routes/models/route_models.dart';
 import 'services/api_client.dart';
+import 'services/route_cache_service.dart';
 import 'services/token_storage.dart';
 
 final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment());
@@ -41,11 +42,13 @@ final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
   return ProfileRepository(client);
 });
 
+final routeCacheServiceProvider = Provider<RouteCacheService>((ref) => RouteCacheService());
+
 final routeRepositoryProvider = Provider<RouteRepository>((ref) {
   final client = ref.watch(apiClientProvider);
-  return RouteRepository(client);
+  final cache = ref.watch(routeCacheServiceProvider);
+  return RouteRepository(client, cache);
 });
-
 
 final activeDeliveriesProvider = FutureProvider<List<DriverDelivery>>((ref) {
   final repo = ref.watch(deliveryRepositoryProvider);
@@ -75,4 +78,19 @@ final todayRouteProvider = FutureProvider<DriverRoute?>((ref) {
 final deliveryDetailProvider = FutureProvider.family<DriverDelivery, String>((ref, id) {
   final repo = ref.watch(deliveryRepositoryProvider);
   return repo.fetchById(id);
+});
+
+// ─── Calendar providers ───────────────────────────────────────────────────────
+
+/// Tracks the Monday of the currently displayed calendar week.
+final calendarWeekProvider = StateProvider<DateTime>((ref) {
+  final now = DateTime.now();
+  return now.subtract(Duration(days: now.weekday - 1));
+});
+
+/// Fetches all routes for a 7-day window starting from [weekStart].
+final weekRoutesProvider = FutureProvider.family<List<DriverRoute>, DateTime>((ref, weekStart) {
+  final repo = ref.watch(routeRepositoryProvider);
+  final weekEnd = weekStart.add(const Duration(days: 6));
+  return repo.fetchRange(weekStart, weekEnd);
 });

@@ -5,6 +5,7 @@ enum DriverRouteStatus {
   validated,
   inProgress,
   closed,
+  cancelled,
 }
 
 extension DriverRouteStatusX on DriverRouteStatus {
@@ -16,6 +17,8 @@ extension DriverRouteStatusX on DriverRouteStatus {
         return DriverRouteStatus.inProgress;
       case 'CLOSED':
         return DriverRouteStatus.closed;
+      case 'CANCELLED':
+        return DriverRouteStatus.cancelled;
       case 'VALIDATED':
       default:
         return DriverRouteStatus.validated;
@@ -32,6 +35,8 @@ extension DriverRouteStatusX on DriverRouteStatus {
         return 'In progress';
       case DriverRouteStatus.closed:
         return 'Closed';
+      case DriverRouteStatus.cancelled:
+        return 'Cancelled';
     }
   }
 }
@@ -156,23 +161,39 @@ class DriverRoute {
     required this.stops,
     this.zone,
     this.startedAt,
+    this.date,
+    this.city,
+    this.totalStops,
+    this.completedStops,
+    this.progressPercent,
+    this.plannedStart,
+    this.plannedEnd,
+    this.fromCache = false,
   });
 
   factory DriverRoute.fromJson(Map<String, dynamic> json) {
+    final stops = (json['stops'] as List<dynamic>? ?? [])
+        .map((e) => DriverRouteStop.fromJson(e as Map<String, dynamic>))
+        .toList()
+      ..sort((a, b) => a.stopOrder.compareTo(b.stopOrder));
     return DriverRoute(
       id: (json['id'] ?? '').toString(),
       name: (json['name'] as String?)?.trim().isNotEmpty == true
           ? json['name'] as String
-          : 'Today route',
+          : 'Tournée',
       status: DriverRouteStatusX.fromApi(json['status'] as String?),
-      zone: json['zone'] as String?,
+      zone: json['detectedZoneLabel'] as String? ?? json['zone'] as String?,
       startedAt: json['startedAt'] != null
           ? DateTime.tryParse(json['startedAt'] as String)
           : null,
-      stops: (json['stops'] as List<dynamic>? ?? [])
-          .map((e) => DriverRouteStop.fromJson(e as Map<String, dynamic>))
-          .toList()
-        ..sort((a, b) => a.stopOrder.compareTo(b.stopOrder)),
+      date: json['date'] != null ? DateTime.tryParse(json['date'] as String) : null,
+      city: json['city'] as String?,
+      totalStops: (json['totalStops'] as num?)?.toInt() ?? stops.length,
+      completedStops: (json['completedStops'] as num?)?.toInt() ?? 0,
+      progressPercent: (json['progressPercent'] as num?)?.toDouble() ?? 0.0,
+      plannedStart: json['plannedStartTime'] as String?,
+      plannedEnd: json['plannedEndTime'] as String?,
+      stops: stops,
     );
   }
 
@@ -182,4 +203,23 @@ class DriverRoute {
   final String? zone;
   final DateTime? startedAt;
   final List<DriverRouteStop> stops;
+
+  // Scheduling & calendar fields
+  final DateTime? date;
+  final String? city;
+  final int? totalStops;
+  final int? completedStops;
+  final double? progressPercent;
+  final String? plannedStart;
+  final String? plannedEnd;
+
+  /// True when this route was loaded from the local SharedPreferences cache
+  /// because the network was unavailable.
+  final bool fromCache;
+
+  bool get isToday {
+    if (date == null) return false;
+    final now = DateTime.now();
+    return date!.year == now.year && date!.month == now.month && date!.day == now.day;
+  }
 }

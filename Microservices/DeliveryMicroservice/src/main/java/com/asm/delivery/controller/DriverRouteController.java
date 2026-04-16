@@ -8,10 +8,13 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -49,5 +52,15 @@ public class DriverRouteController {
             @PathVariable UUID stopId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(routeExecutionService.arrive(id, stopId, UUID.fromString(principal.getUserId()), principal));
+    }
+
+    @GetMapping
+    @Operation(summary = "List routes for authenticated driver within a date range")
+    public ResponseEntity<List<RouteResponse>> list(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID driverId = UUID.fromString(principal.getUserId());
+        return ResponseEntity.ok(routePlanningService.list(null, driverId, null, from, to, null));
     }
 }

@@ -44,9 +44,11 @@ import java.util.UUID;
 public class AdminDeliveryController {
     private final DispatchService dispatchService;
     private final OpsAnalyticsService opsAnalyticsService;
-    private final ExceptionResolutionService exceptionResolutionService;    private final ProofOfDeliveryService podService;
+    private final ExceptionResolutionService exceptionResolutionService;
+    private final ProofOfDeliveryService podService;
     private final GeocodingService geocodingService;
     private final BonLivraisonPdfService bonLivraisonPdfService;
+    private final com.asm.delivery.service.OrderService orderService;
 
     @GetMapping
     @Operation(summary = "Recherche multicritères et monitoring des livraisons",
@@ -176,5 +178,15 @@ public class AdminDeliveryController {
                 .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
                 .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
                 .body(pdf);
+    }
+
+    @PostMapping("/orders/{orderId}/cancel")
+    @Operation(summary = "Admin cancel order — delivery reverts to CANCELLED, Odoo sync triggered")
+    public ResponseEntity<Void> adminCancelOrder(
+            @PathVariable UUID orderId,
+            @RequestParam(required = false) String reason,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        orderService.adminCancelOrder(orderId, principal.getUserId(), reason);
+        return ResponseEntity.noContent().build();
     }
 }
