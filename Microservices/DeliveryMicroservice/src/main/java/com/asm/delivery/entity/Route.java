@@ -22,6 +22,12 @@ public class Route {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    @Version
+    private Integer version;
+
+    @Column(name = "parent_route_id")
+    private UUID parentRouteId;
+
     @Column(name = "name", nullable = false, length = 150)
     private String name;
 
@@ -99,6 +105,11 @@ public class Route {
 
     @Column(name = "zone_id")
     private UUID zoneId;
+
+    /** Human-readable plan version — incremented on every significant mutation (validate, reassign, add/remove stop). */
+    @Column(name = "route_version", nullable = false)
+    @Builder.Default
+    private Integer routeVersion = 1;
 
     // ─────────────────────────────────────────────────────────────────────────────
 

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ASM Track - Manual Testing Checklist</title>
+    <style>
+        body { font-family: 'Inter', system-ui, sans-serif; line-height: 1.6; max-width: 800px; margin: 0 auto; padding: 20px; color: #333; }
+        h1 { color: #E11D58; border-bottom: 2px solid #E11D58; padding-bottom: 10px; }
+        h2 { color: #475569; margin-top: 30px; }
+        .checklist-item { display: flex; align-items: flex-start; margin-bottom: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid #e2e8f0; }
+        input[type="checkbox"] { margin-top: 5px; margin-right: 15px; transform: scale(1.2); cursor: pointer; }
+        .description { font-size: 0.9em; color: #64748b; margin-top: 4px; }
+        .success-text { color: #16a34a; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>ASM Track - Sprint 1 End-to-End Demo Script</h1>
+    <p>Use this interactive checklist to verify the PFE setup prior to defense.</p>
+
+    <h2>1. Dispatch & Backend Validations</h2>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Seed Data Generation</strong>
+            <div class="description">Verify the system generates a large volume (~20) of Deliveries, Drivers, and Routes correctly.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Capacity Enforcement Validation</strong>
+            <div class="description">Assign deliveries to a Route until capacity is exceeded. The system should block the assignment and return a 422 error.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Unified Stop Transfer - Reassign to Route</strong>
+            <div class="description">Transfer a specific stop to an existing route using the Reassign Modal.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Unified Stop Transfer - Reassign to Driver</strong>
+            <div class="description">Transfer a stop directly to a Driver. Verify a DRAFT route is automatically created.</div>
+        </div>
+    </label>
+
+    <h2>2. Admin UI Integrity (Mantine)</h2>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Dashboard & WebSockets</strong>
+            <div class="description">Log into the admin app, navigate to `/dashboard` and verify real-time updates when deliveries change states.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>UI Component Migrations</strong>
+            <div class="description">Verify there are no layout breaks on `/deliveries`, `/drivers`, `/vehicles`, `/dashboard`, `/exceptions`, and `/import`. All should reflect the Mantine/Tailwind Black & White / Red layout context.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Missing Status Badges</strong>
+            <div class="description">Check that `FAILED_ATTEMPT`, `SLA_BREACH`, and deleted statuses render correctly instead of showing raw enum string values.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Keep Route Builder</strong>
+            <div class="description">Ensure the `/route-builder` functionality continues to work.</div>
+        </div>
+    </label>
+
+    <h2>3. Driver Application (Flutter)</h2>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Proof of Delivery (POD) Existing</strong>
+            <div class="description">Verify that the standard POD mechanism (photos, comment, location base64) transmits successfully to the backend endpoint.</div>
+        </div>
+    </label>
+    <label class="checklist-item">
+        <input type="checkbox">
+        <div>
+            <strong>Offline Queue Resilience</strong>
+            <div class="description">Disable network on the emulator/device, update a delivery status, re-enable network, and verify the backend receives the synced requests (retries).</div>
+        </div>
+    </label>
+</body>
+</html>

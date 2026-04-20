@@ -315,14 +315,22 @@ public class RoutePlanningService {
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         List<UUID> deliveryIds = new ArrayList<>();
         for (RouteStop stop : stops) {
-            if (stop.getStatus() == RouteStopStatus.PENDING
-                    || stop.getStatus() == RouteStopStatus.SCHEDULED
-                    || stop.getStatus() == RouteStopStatus.ARRIVED) {
-                stop.setStatus(RouteStopStatus.REMOVED);
+            RouteStopStatus ss = stop.getStatus();
+            if (ss == RouteStopStatus.PENDING
+                    || ss == RouteStopStatus.SCHEDULED
+                    || ss == RouteStopStatus.ARRIVED) {
+                stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
                 stop.setRemovedAt(LocalDateTime.now());
                 stop.setRemovedReason(cancelReason);
                 stop.setRemovedBy("ADMIN");
                 deliveryIds.add(stop.getDeliveryId());
+            } else if (ss == RouteStopStatus.PICKED_UP || ss == RouteStopStatus.IN_TRANSIT) {
+                // Driver physically has the package — mark stop cancelled but do NOT touch the delivery.
+                // Driver must complete or fail the delivery independently.
+                stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
+                stop.setRemovedAt(LocalDateTime.now());
+                stop.setRemovedReason(cancelReason);
+                stop.setRemovedBy("ADMIN");
             }
         }
         routeStopRepository.saveAll(stops);
@@ -367,12 +375,13 @@ public class RoutePlanningService {
         }
 
         route.setDriverId(newDriverId);
+        route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
         routeRepository.save(route);
 
-        // Update driverId on all SCHEDULED deliveries
+        // Update driverId on SCHEDULED deliveries only — PICKED_UP/IN_TRANSIT stays with original driver
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         List<UUID> deliveryIds = stops.stream()
-                .filter(s -> s.getStatus() != RouteStopStatus.REMOVED)
+                .filter(s -> !isRemovedStatus(s.getStatus()))
                 .map(RouteStop::getDeliveryId)
                 .toList();
         if (!deliveryIds.isEmpty()) {
@@ -417,7 +426,7 @@ public class RoutePlanningService {
         }
         // Count only non-removed stops for next order
         int nextOrder = (int) routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
-                .stream().filter(s -> s.getStatus() != RouteStopStatus.REMOVED).count() + 1;
+                .stream().filter(s -> !isRemovedStatus(s.getStatus())).count() + 1;
         addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
         // Also schedule the delivery
         deliveryRepository.findById(request.getDeliveryId()).ifPresent(delivery -> {
@@ -429,6 +438,8 @@ public class RoutePlanningService {
                 appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN, "Stop added to active route");
             }
         });
+        route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
+        routeRepository.save(route);
         auditLogService.logAction(null, "ADD_STOP_ACTIVE", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Ajout d'un arret a une tournee active"));
         routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_ADDED", route.getId(), route.getName());
@@ -456,8 +467,8 @@ public class RoutePlanningService {
                     || stopStatus == RouteStopStatus.PARTIAL) {
                 throw AppException.badRequest("Cannot remove stop that is already in progress or terminal");
             }
-            // Soft-delete: mark as REMOVED with audit fields
-            stop.setStatus(RouteStopStatus.REMOVED);
+            // Soft-delete: mark as REMOVED_REPLANNED with audit fields
+            stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
             stop.setRemovedAt(LocalDateTime.now());
             stop.setRemovedReason("REPLANNED");
             stop.setRemovedBy("ADMIN");
@@ -481,9 +492,13 @@ public class RoutePlanningService {
         auditLogService.logAction(null, "REMOVE_STOP", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Suppression d'un arret"));
 
+        // Increment route version to track plan mutation
+        route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
+        routeRepository.save(route);
+
         // Re-pack stop order on remaining active stops
         List<RouteStop> activeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
-                .stream().filter(s -> s.getStatus() != RouteStopStatus.REMOVED).toList();
+                .stream().filter(s -> !isRemovedStatus(s.getStatus())).toList();
         for (int i = 0; i < activeStops.size(); i++) {
             activeStops.get(i).setStopOrder(i + 1);
         }
@@ -586,6 +601,7 @@ public class RoutePlanningService {
 
         route.setStatus(RouteStatus.VALIDATED);
         route.setValidatedAt(LocalDateTime.now());
+        route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
         RouteResponse response = toResponse(routeRepository.save(route));
         if (!validationWarnings.isEmpty()) {
             response.setValidationWarnings(validationWarnings);
@@ -641,6 +657,33 @@ public class RoutePlanningService {
         if (route.getVehicleId() == null) {
             throw AppException.badRequest("Route vehicle is required before this operation");
         }
+        
+        Vehicle vehicle = vehicleRepository.findById(route.getVehicleId()).orElse(null);
+        if (vehicle == null) {
+            return; // Fallback, let it pass if vehicle cannot be verified
+        }
+
+        Integer payloadKg = vehicle.getPayloadKg();
+        if (payloadKg == null || payloadKg <= 0) {
+            return; // Vehicle has no strict capacity limit set
+        }
+
+        List<UUID> deliveryIds = stops.stream()
+            .filter(s -> !isRemovedStatus(s.getStatus()))
+            .map(RouteStop::getDeliveryId)
+            .toList();
+
+        if (deliveryIds.isEmpty()) return;
+
+        java.math.BigDecimal totalWeight = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+            .filter(d -> d.getOrder() != null && d.getOrder().getTotalWeightKg() != null)
+            .map(d -> d.getOrder().getTotalWeightKg())
+            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+
+        if (totalWeight.compareTo(java.math.BigDecimal.valueOf(payloadKg)) > 0) {
+            throw AppException.unprocessableEntity(String.format("Capacity Exceeded: Attached orders weigh %.2f kg, but vehicle '%s' is limited to %d kg.",
+                    totalWeight.doubleValue(), vehicle.getPlate(), payloadKg));
+        }
     }
 
     private Route getRoute(UUID id) {
@@ -681,7 +724,13 @@ public class RoutePlanningService {
     private static boolean isTerminalStopStatus(RouteStopStatus status) {
         return status == RouteStopStatus.COMPLETED
                 || status == RouteStopStatus.FAILED
-                || status == RouteStopStatus.PARTIAL;
+                || status == RouteStopStatus.PARTIAL
+                || status == RouteStopStatus.FAILED_ATTEMPT;
+    }
+
+    static boolean isRemovedStatus(RouteStopStatus status) {
+        return status == RouteStopStatus.REMOVED_REPLANNED
+                || status == RouteStopStatus.REMOVED_CANCELLED;
     }
 
     private void maybeAutoCloseRoute(Route route) {
@@ -694,7 +743,7 @@ public class RoutePlanningService {
             return;
         }
 
-        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()));
+        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
         if (!allTerminal) {
             return;
         }
@@ -719,7 +768,7 @@ public class RoutePlanningService {
                                           UUID currentRouteId) {
         List<Route> sameDayRoutes = routeRepository.findAllByDriverIdAndDate(driverId, date);
         for (Route existing : sameDayRoutes) {
-            if (existing.getStatus() == RouteStatus.CLOSED) {
+            if (existing.getStatus() == RouteStatus.CLOSED || existing.getStatus() == RouteStatus.CANCELLED) {
                 continue;
             }
             if (currentRouteId != null && existing.getId().equals(currentRouteId)) {
@@ -767,10 +816,10 @@ public class RoutePlanningService {
 
         // Separate active and legacy stops
         List<RouteStop> activeStops = routeStops.stream()
-                .filter(s -> s.getStatus() != RouteStopStatus.REMOVED)
+                .filter(s -> !isRemovedStatus(s.getStatus()))
                 .toList();
         List<RouteStop> legacyStops = routeStops.stream()
-                .filter(s -> s.getStatus() == RouteStopStatus.REMOVED)
+                .filter(s -> isRemovedStatus(s.getStatus()))
                 .toList();
 
         List<RouteStopResponse> stops = new ArrayList<>();
@@ -923,6 +972,7 @@ public class RoutePlanningService {
                 .detectedZoneNames(detectedZoneNames)
                 .routeStartDelayMinutes(routeStartDelayMinutes)
                 .legacyStops(legacyStopResponses.isEmpty() ? null : legacyStopResponses)
+                .routeVersion(route.getRouteVersion())
                 .build();
     }
 
@@ -931,15 +981,15 @@ public class RoutePlanningService {
         // Load stops from repository (guarantees stopOrder ASC, consistent with toResponse)
         List<RouteStop> allStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
         List<RouteStop> activeStops = allStops.stream()
-                .filter(stop -> stop.getStatus() != RouteStopStatus.REMOVED)
+                .filter(stop -> !isRemovedStatus(stop.getStatus()))
                 .toList();
 
         List<RouteStopFullResponse> stops = activeStops.stream()
-                .map(stop -> toFullStopResponse(stop, route, activeStops)) // Pass activeStops to calculate delay properly
+                .map(stop -> toFullStopResponse(stop, route, activeStops))
                 .toList();
 
         List<RouteStopFullResponse> legacyStops = allStops.stream()
-                .filter(stop -> stop.getStatus() == RouteStopStatus.REMOVED)
+                .filter(stop -> isRemovedStatus(stop.getStatus()))
                 .map(stop -> toFullStopResponse(stop, route, activeStops))
                 .toList();
 
@@ -1050,6 +1100,7 @@ public class RoutePlanningService {
                 .routeGeometry(route.getRouteGeometry())
                 .detectedZoneLabel(detectedZoneLabel)
                 .detectedZoneNames(detectedZoneNames)
+                .routeVersion(route.getRouteVersion())
                 .build();
     }
 

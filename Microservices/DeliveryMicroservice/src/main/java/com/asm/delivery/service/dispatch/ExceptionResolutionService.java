@@ -83,10 +83,14 @@ public class ExceptionResolutionService {
                 UUID previousDriverId = delivery.getDriverId();
 
                 LocalDateTime now = LocalDateTime.now();
+                boolean wasPickedUp = previousStatus == DeliveryStatus.PICKED_UP;
                 delivery.setDriverId(request.getDriverId());
                 delivery.setStatus(DeliveryStatus.SCHEDULED);
                 delivery.setAssignedAt(now);
-                delivery.setPickedUpAt(null);
+                // Keep pickedUpAt as audit record if the parcel was already collected by the previous driver
+                if (!wasPickedUp) {
+                    delivery.setPickedUpAt(null);
+                }
                 delivery.setInTransitAt(null);
                 delivery.setCompletedAt(null);
                 delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
@@ -220,24 +224,43 @@ public class ExceptionResolutionService {
             throw AppException.badRequest("Cannot cancel delivery in status " + delivery.getStatus());
         }
 
-        if (delivery.getDriverId() != null) {
-        }
-
         Order order = delivery.getOrder();
+        boolean wasPickedUp = delivery.getStatus() == DeliveryStatus.PICKED_UP;
 
-        // Clean up delivery history to avoid orphan records
-        var history = historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
-        historyRepo.deleteAll(history);
+        // Soft-cancel: preserve the delivery row and its full audit history
+        delivery.setStatus(DeliveryStatus.CANCELLED);
+        delivery.setCancelledAt(LocalDateTime.now());
+        delivery.setCancelledBy(Role.ADMIN);
+        delivery.setCancelReason(reason);
+        if (wasPickedUp) {
+            // Driver physically has the parcel — flag for return-to-origin flow
+            delivery.setReturnToOrigin(true);
+        }
+        deliveryRepo.save(delivery);
 
-        // Delete the delivery entirely
-        deliveryRepo.delete(delivery);
+        // Remove the associated route stop (soft-delete)
+        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+            Route route = stop.getRoute();
+            if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
+                stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
+                stop.setRemovedAt(LocalDateTime.now());
+                stop.setRemovedReason(reason != null ? reason : "CANCELLED");
+                stop.setRemovedBy("ADMIN");
+                routeStopRepository.save(stop);
+            } else if (route != null && route.getStatus() == RouteStatus.DRAFT) {
+                routeStopRepository.delete(stop);
+            }
+        });
 
-        // To truly "return to import state", we must delete the associated Order if it came from Odoo.
-        // Otherwise, it gets stuck as PENDING locally but `alreadyImported` stays true in the dashboard.
+        appendHistory(delivery, DeliveryStatus.CANCELLED, "ADMIN", Role.ADMIN,
+                "Delivery cancelled" + (wasPickedUp ? " after pickup — return to origin required" : "") +
+                (reason != null ? ": " + reason : ""));
+
+        // For Odoo orders: delete the Order row to return to "import state"
         if (order != null && order.getSource() == OrderSource.ODOO) {
             orderRepo.delete(order);
         } else if (order != null) {
-            order.setStatus(OrderStatus.PENDING);
+            order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
         }
     }
@@ -485,7 +508,17 @@ public class ExceptionResolutionService {
         private void removeStopFromCurrentRoute(UUID deliveryId) {
                 routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
                         UUID previousRouteId = stop.getRoute().getId();
-                        routeStopRepository.delete(stop);
+                        Route route = stop.getRoute();
+                        if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
+                                // Soft-delete on active routes — keep audit trail
+                                stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
+                                stop.setRemovedAt(LocalDateTime.now());
+                                stop.setRemovedReason("REPLANNED");
+                                stop.setRemovedBy("ADMIN");
+                                routeStopRepository.save(stop);
+                        } else {
+                                routeStopRepository.delete(stop);
+                        }
                         repackStopOrder(previousRouteId);
                 });
         }
@@ -582,11 +615,17 @@ public class ExceptionResolutionService {
         }
 
         private void repackStopOrder(UUID routeId) {
-                List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-                for (int i = 0; i < stops.size(); i++) {
-                        stops.get(i).setStopOrder(i + 1);
+                List<RouteStop> activeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
+                        .stream()
+                        .filter(s -> s.getStatus() != RouteStopStatus.REMOVED_REPLANNED
+                                  && s.getStatus() != RouteStopStatus.REMOVED_CANCELLED)
+                        .toList();
+                for (int i = 0; i < activeStops.size(); i++) {
+                        activeStops.get(i).setStopOrder(i + 1);
                 }
-                routeStopRepository.saveAll(stops);
+                if (!activeStops.isEmpty()) {
+                        routeStopRepository.saveAll(activeStops);
+                }
         }
         private record ActorInfo(String name, Role role) {}
 

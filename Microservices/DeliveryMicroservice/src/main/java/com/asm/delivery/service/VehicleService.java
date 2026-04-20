@@ -32,8 +32,8 @@ public class VehicleService {
     private final MinioStorageService minioStorageService;
     private final AuditLogService auditLogService;
 
+        // DRAFT routes are planning-only — vehicle remains allocatable until the route is VALIDATED
         private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
-            RouteStatus.DRAFT,
             RouteStatus.VALIDATED,
             RouteStatus.IN_PROGRESS
         );

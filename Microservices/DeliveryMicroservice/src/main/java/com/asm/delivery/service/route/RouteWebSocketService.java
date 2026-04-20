@@ -36,6 +36,7 @@ public class RouteWebSocketService {
         );
         try {
             messaging.convertAndSend(destination, payload);
+            messaging.convertAndSend("/topic/admin/routes", payload);
             log.info("notifyDriver: sent event={} to driverId={} routeId={}", event, driverId, routeId);
         } catch (Exception e) {
             log.warn("notifyDriver: failed to send event={} to driverId={}: {}", event, driverId, e.getMessage());

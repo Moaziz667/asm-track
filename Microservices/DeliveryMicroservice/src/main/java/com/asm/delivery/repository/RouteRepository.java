@@ -22,4 +22,6 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
     Optional<Route> findByDriverIdAndDate(UUID driverId, LocalDate date);
 
     List<Route> findByDriverIdAndDateAndStatusIn(UUID driverId, LocalDate date, List<RouteStatus> statuses);
+
+    boolean existsByDriverIdAndDateAndStatusIn(UUID driverId, LocalDate date, List<RouteStatus> statuses);
 }

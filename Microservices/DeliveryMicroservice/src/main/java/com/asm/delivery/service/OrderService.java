@@ -254,7 +254,7 @@ public class OrderService {
                     if (route != null
                             && (route.getStatus() == com.asm.delivery.entity.RouteStatus.VALIDATED
                                 || route.getStatus() == com.asm.delivery.entity.RouteStatus.IN_PROGRESS)) {
-                        stop.setStatus(com.asm.delivery.entity.RouteStopStatus.REMOVED);
+                        stop.setStatus(com.asm.delivery.entity.RouteStopStatus.REMOVED_CANCELLED);
                         stop.setRemovedAt(LocalDateTime.now());
                         stop.setRemovedReason("ORDER_CANCELLED");
                         stop.setRemovedBy(adminId);

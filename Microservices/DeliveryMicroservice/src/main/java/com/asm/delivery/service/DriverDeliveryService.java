@@ -8,6 +8,7 @@ import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
+import java.time.LocalDate;
 import com.asm.delivery.storage.StorageException;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.transport.DriverDTO;
@@ -43,6 +44,8 @@ public class DriverDeliveryService {
     private final com.asm.delivery.service.route.RouteExecutionService routeExecutionService;
     private final DelayCalculationService         delayCalculationService;
     private final AuditLogService                  auditLogService;
+    private final RouteRepository                 routeRepository;
+    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
@@ -85,12 +88,19 @@ public class DriverDeliveryService {
 
     // ── Accept delivery (atomic) ──────────────────────────────────────────────
 
+    private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
+            RouteStatus.VALIDATED,
+            RouteStatus.IN_PROGRESS
+    );
+
     @Transactional
     public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId, UserPrincipal principal) {
-        // Check driver doesn't already have an active delivery
-        boolean hasActive = deliveryRepo.existsActiveDeliveryForDriver(driverId, ACTIVE_STATUSES);
-        if (hasActive) {
-            throw AppException.badRequest("You already have an active delivery");
+        // Driver cannot accept standalone deliveries while assigned to an active route today.
+        // Route-level check is correct — a driver may have many deliveries within a single route.
+        boolean hasActiveRoute = routeRepository.existsByDriverIdAndDateAndStatusIn(
+                driverId, LocalDate.now(), ACTIVE_ROUTE_STATUSES);
+        if (hasActiveRoute) {
+            throw AppException.badRequest("Driver is assigned to an active route — standalone accept is not allowed");
         }
 
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
@@ -123,6 +133,8 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "SCHEDULED")); } catch(Exception ignored){}
+        
         return toDriverDeliveryResponse(delivery);
     }
 
@@ -144,6 +156,8 @@ public class DriverDeliveryService {
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
+
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "PICKED_UP")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -196,6 +210,8 @@ public class DriverDeliveryService {
                 null,
                 null
         );
+
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "IN_TRANSIT")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -261,6 +277,8 @@ public class DriverDeliveryService {
                 ErpSyncService.syncStockUpdate(delivery.getOrder());
             }
         }
+
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", finalStatus.name())); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -434,6 +452,8 @@ public class DriverDeliveryService {
                     failureCode != null ? failureCode.name() : null, failureComment);
         }
 
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "FAILED")); } catch(Exception ignored){}
+
         return toDriverDeliveryResponse(delivery);
     }
 
@@ -467,6 +487,8 @@ public class DriverDeliveryService {
                 StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
+
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "UNSCHEDULED")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }

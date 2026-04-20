@@ -92,6 +92,11 @@ public class Delivery {
     @Column(name = "cancelled_by", length = 10)
     private Role cancelledBy;
 
+    /** True when cancellation occurred after pickup — driver must return parcel to origin depot. */
+    @Column(name = "return_to_origin", nullable = false)
+    @Builder.Default
+    private Boolean returnToOrigin = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

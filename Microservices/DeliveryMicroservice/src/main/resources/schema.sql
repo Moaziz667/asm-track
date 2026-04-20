@@ -137,6 +137,8 @@ CREATE TABLE IF NOT EXISTS deliveries (
   cancel_reason   TEXT,
   cancelled_by    VARCHAR(10) CHECK (cancelled_by IN ('CLIENT', 'DRIVER', 'SYSTEM')),
 
+  return_to_origin BOOLEAN NOT NULL DEFAULT FALSE,
+
   created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -345,6 +347,7 @@ CREATE TABLE IF NOT EXISTS routes (
   name         VARCHAR(150) NOT NULL,
   driver_id    UUID NOT NULL,
   vehicle_id   UUID REFERENCES vehicles(id),
+  version      INTEGER DEFAULT 0,
   date         DATE NOT NULL,
   planned_start_time TIME NOT NULL DEFAULT TIME '08:00',
   planned_end_time   TIME NOT NULL DEFAULT TIME '18:00',
@@ -354,7 +357,9 @@ CREATE TABLE IF NOT EXISTS routes (
   created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
   validated_at TIMESTAMP,
   closed_at    TIMESTAMP,
-  updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  parent_route_id UUID,
+  route_version INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_routes_driver_date ON routes(driver_id, date);
@@ -373,6 +378,9 @@ CREATE TABLE IF NOT EXISTS route_stops (
   arrived_at   TIMESTAMP,
   completed_at TIMESTAMP,
   notes        TEXT,
+  start_time_window TIME,
+  end_time_window   TIME,
+  buffer_minutes    INTEGER NOT NULL DEFAULT 30,
   created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );

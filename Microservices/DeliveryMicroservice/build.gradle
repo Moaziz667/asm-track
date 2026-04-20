@@ -36,6 +36,8 @@ dependencies {
 
     // Database
     runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
 
     // JSONB / JSON type support for Hibernate 6
     implementation 'io.hypersistence:hypersistence-utils-hibernate-63:3.7.3'

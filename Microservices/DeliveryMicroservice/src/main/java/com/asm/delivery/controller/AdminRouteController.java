@@ -48,6 +48,7 @@ public class AdminRouteController {
     private final RouteOptimizationService routeOptimizationService;
     private final RouteStopRepository routeStopRepository;
     private final TrackingRepository trackingRepository;
+    private final com.asm.delivery.service.dispatch.DispatchService dispatchService;
 
     // ─── Existing CRUD ────────────────────────────────────────────────────────────
 
@@ -244,11 +245,20 @@ public class AdminRouteController {
         return ResponseEntity.ok(routePlanningService.cancel(id, reason));
     }
 
+    /** @deprecated Use /transfer-stops instead */
+    @Deprecated
     @PostMapping("/{id}/reassign")
-    @Operation(summary = "Reassign route to a different driver")
+    @Operation(summary = "Reassign route to a different driver (Deprecated — use /transfer-stops)")
     public ResponseEntity<RouteResponse> reassign(@PathVariable UUID id,
             @RequestParam UUID newDriverId) {
         return ResponseEntity.ok(routePlanningService.reassign(id, newDriverId));
+    }
+
+    @PostMapping("/transfer-stops")
+    @Operation(summary = "Unified endpoint to transfer specific stops from one route/driver to another")
+    public ResponseEntity<com.asm.delivery.dto.response.TransferStopsResponse> transferStops(
+            @Valid @RequestBody com.asm.delivery.dto.request.TransferStopsRequest request) {
+        return ResponseEntity.ok(dispatchService.transferStops(request));
     }
 
     @PostMapping("/{id}/stops/active")

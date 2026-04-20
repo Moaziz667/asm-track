@@ -115,4 +115,7 @@ public class RouteFullResponse {
 
     @Schema(description = "Validation warnings to display in UI")
     private List<String> validationWarnings;
+
+    @Schema(description = "Human-readable plan version — incremented on validate, reassign, add/remove stop")
+    private Integer routeVersion;
 }
