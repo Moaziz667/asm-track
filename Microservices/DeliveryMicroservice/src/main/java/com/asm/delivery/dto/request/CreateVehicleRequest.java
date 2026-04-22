@@ -41,4 +41,5 @@ public class CreateVehicleRequest {
     private VehicleType type;
 
     private String imageBase64;
+    private Boolean active;
 }

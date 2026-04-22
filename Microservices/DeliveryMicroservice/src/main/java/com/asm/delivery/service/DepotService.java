@@ -46,7 +46,7 @@ public class DepotService {
                 .address(request.getAddress())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
-                .isActive(true)
+                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .build();
         Depot saved = depotRepository.save(depot);
         auditLogService.logAction(principal, "CREATE_DEPOT", "DEPOT", saved.getId().toString(),

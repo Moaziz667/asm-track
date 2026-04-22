@@ -366,6 +366,7 @@ public class DispatchService {
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
+                .erpOrderId(order != null ? order.getErpOrderId() : null)
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
                 .status(d.getStatus().name())

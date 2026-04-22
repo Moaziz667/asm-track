@@ -19,5 +19,7 @@ public class ZoneRequest {
 
     private List<String> postalCodes;
 
+    private String geometry;
+
     private Boolean isActive;
 }

@@ -352,7 +352,7 @@ CREATE TABLE IF NOT EXISTS routes (
   planned_start_time TIME NOT NULL DEFAULT TIME '08:00',
   planned_end_time   TIME NOT NULL DEFAULT TIME '18:00',
   city         VARCHAR(100),
-  status       VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALIDATED', 'IN_PROGRESS', 'CLOSED')),
+  status       VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALIDATED', 'IN_PROGRESS', 'CLOSED', 'CANCELLED')),
   created_by   VARCHAR(100) NOT NULL,
   created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
   validated_at TIMESTAMP,
@@ -485,7 +485,9 @@ BEGIN
       'COMPLETED',
       'FAILED',
       'PARTIAL',
-      'REMOVED'
+      'FAILED_ATTEMPT',
+      'REMOVED_REPLANNED',
+      'REMOVED_CANCELLED'
     ));
 
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_route_stops_sla_status') THEN

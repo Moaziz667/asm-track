@@ -669,8 +669,11 @@ public class OpsAnalyticsService {
                                 .zoneName(order != null && order.getZoneId() != null ? zoneNameById.get(order.getZoneId()) : null)
                                 .severity(classification.severity())
                                 .comment(classification.comment())
+                                .returnToOrigin(Boolean.TRUE.equals(delivery.getReturnToOrigin()))
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
+                                .dropoffLat(order != null ? order.getDropoffLat() : null)
+                                .dropoffLng(order != null ? order.getDropoffLng() : null)
                                 .build();
         }
         private ExceptionClassification classifyException(Delivery delivery, LocalDateTime now) {
@@ -798,6 +801,8 @@ public class OpsAnalyticsService {
                                 .comment(comment)
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
+                                .dropoffLat(order != null ? order.getDropoffLat() : null)
+                                .dropoffLng(order != null ? order.getDropoffLng() : null)
                                 .build();
         }
 

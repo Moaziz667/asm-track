@@ -42,6 +42,9 @@ public class Zone {
     @Builder.Default
     private List<String> postalCodes = new ArrayList<>();
 
+    @Column(name = "geometry", columnDefinition = "TEXT")
+    private String geometry;
+
     @Builder.Default
     @Column(name = "is_active", nullable = false)
     private Boolean isActive = true;

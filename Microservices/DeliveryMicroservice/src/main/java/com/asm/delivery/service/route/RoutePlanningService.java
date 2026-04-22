@@ -7,8 +7,10 @@ import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.transport.TransportPort;
+import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.DelayCalculationService;
+import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.service.ProofOfDeliveryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +47,8 @@ public class RoutePlanningService {
     private final DelayCalculationService delayCalculationService;
     private final AuditLogService auditLogService;
     private final ProofOfDeliveryService proofOfDeliveryService;
+    private final EventPublisher eventPublisher;
+    private final ErpSyncService erpSyncService;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final RouteWebSocketService routeWebSocketService;
 
@@ -303,61 +307,59 @@ public class RoutePlanningService {
     }
 
     @Transactional
-    public RouteResponse cancel(UUID routeId, String reason) {
+    public RouteResponse cancelStop(UUID routeId, UUID stopId, String reason) {
         Route route = getRoute(routeId);
-        RouteStatus status = route.getStatus();
-        if (status != RouteStatus.VALIDATED && status != RouteStatus.IN_PROGRESS) {
-            throw AppException.badRequest("Only VALIDATED or IN_PROGRESS routes can be cancelled");
+        RouteStatus routeStatus = route.getStatus();
+        if (routeStatus != RouteStatus.VALIDATED && routeStatus != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("Stop cancellation only allowed on VALIDATED or IN_PROGRESS routes");
+        }
+
+        RouteStop stop = routeStopRepository.findById(stopId)
+                .orElseThrow(() -> AppException.notFound("Stop not found: " + stopId));
+        if (!stop.getRoute().getId().equals(routeId)) {
+            throw AppException.badRequest("Stop does not belong to this route");
+        }
+
+        RouteStopStatus ss = stop.getStatus();
+        if (ss == RouteStopStatus.IN_TRANSIT) {
+            throw AppException.badRequest("Cannot cancel an IN_TRANSIT stop — driver must fail it from the app");
+        }
+        Set<RouteStopStatus> cancellable = Set.of(
+                RouteStopStatus.PENDING, RouteStopStatus.SCHEDULED,
+                RouteStopStatus.ARRIVED, RouteStopStatus.PICKED_UP);
+        if (!cancellable.contains(ss)) {
+            throw AppException.badRequest("Stop in status " + ss + " cannot be cancelled");
         }
 
         String cancelReason = (reason != null && !reason.isBlank()) ? reason.trim() : "CANCELLED";
 
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-        List<UUID> deliveryIds = new ArrayList<>();
-        for (RouteStop stop : stops) {
-            RouteStopStatus ss = stop.getStatus();
-            if (ss == RouteStopStatus.PENDING
-                    || ss == RouteStopStatus.SCHEDULED
-                    || ss == RouteStopStatus.ARRIVED) {
-                stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
-                stop.setRemovedAt(LocalDateTime.now());
-                stop.setRemovedReason(cancelReason);
-                stop.setRemovedBy("ADMIN");
-                deliveryIds.add(stop.getDeliveryId());
-            } else if (ss == RouteStopStatus.PICKED_UP || ss == RouteStopStatus.IN_TRANSIT) {
-                // Driver physically has the package — mark stop cancelled but do NOT touch the delivery.
-                // Driver must complete or fail the delivery independently.
-                stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
-                stop.setRemovedAt(LocalDateTime.now());
-                stop.setRemovedReason(cancelReason);
-                stop.setRemovedBy("ADMIN");
-            }
-        }
-        routeStopRepository.saveAll(stops);
+        stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
+        stop.setRemovedAt(LocalDateTime.now());
+        stop.setRemovedReason(cancelReason);
+        stop.setRemovedBy("ADMIN");
+        routeStopRepository.save(stop);
 
-        // Reset deliveries to UNSCHEDULED
-        if (!deliveryIds.isEmpty()) {
-            List<Delivery> deliveries = deliveryRepository.findAllById(deliveryIds);
-            for (Delivery delivery : deliveries) {
-                if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
-                    delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-                    delivery.setDriverId(null);
-                    delivery.setAssignedAt(null);
-                    deliveryRepository.save(delivery);
-                    appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Route cancelled: " + cancelReason);
-                }
-            }
+        Delivery delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
+                .orElseThrow(() -> AppException.notFound("Delivery not found: " + stop.getDeliveryId()));
+
+        if (ss == RouteStopStatus.PICKED_UP) {
+            delivery.setReturnToOrigin(true);
+            deliveryRepository.save(delivery);
+            appendHistory(delivery, delivery.getStatus(), "ADMIN", Role.ADMIN,
+                    "Stop cancelled — return to origin required: " + cancelReason);
+        } else {
+            delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+            delivery.setDriverId(null);
+            delivery.setAssignedAt(null);
+            deliveryRepository.save(delivery);
+            appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN,
+                    "Stop cancelled: " + cancelReason);
         }
 
-        route.setStatus(RouteStatus.CANCELLED);
-        route.setClosedAt(LocalDateTime.now());
-        routeRepository.save(route);
+        auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
+                Map.of("routeId", routeId.toString(), "reason", cancelReason));
 
-        auditLogService.logAction(null, "CANCEL_ROUTE", "ROUTE", routeId.toString(),
-                Map.of("tournee", route.getName(), "reason", cancelReason));
-
-        routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_CANCELLED", route.getId(), route.getName());
-
+        maybeAutoCloseRoute(route);
         return toResponse(route);
     }
 
@@ -509,6 +511,31 @@ public class RoutePlanningService {
         // Notify driver if route is active
         if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
             routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+        }
+
+        maybeAutoCloseRoute(route);
+        return toResponse(route);
+    }
+
+    @Transactional
+    public RouteResponse patchStop(UUID routeId, UUID stopId, com.asm.delivery.dto.request.PatchRouteStopRequest request) {
+        Route route = getRoute(routeId);
+        RouteStop stop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
+                .orElseThrow(() -> AppException.notFound("Route stop not found"));
+
+        if (request.getStartTimeWindow() != null) stop.setStartTimeWindow(request.getStartTimeWindow());
+        if (request.getEndTimeWindow()   != null) stop.setEndTimeWindow(request.getEndTimeWindow());
+        if (request.getBufferMinutes()   != null) stop.setBufferMinutes(request.getBufferMinutes());
+
+        if (stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null
+                && !stop.getStartTimeWindow().isBefore(stop.getEndTimeWindow())) {
+            throw AppException.badRequest("startTimeWindow must be before endTimeWindow");
+        }
+
+        routeStopRepository.save(stop);
+
+        if (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS) {
+            routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_UPDATED", route.getId(), route.getName());
         }
 
         return toResponse(route);
@@ -739,13 +766,9 @@ public class RoutePlanningService {
         }
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        if (stops.isEmpty()) {
-            return;
-        }
-
-        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
-        if (!allTerminal) {
-            return;
+        if (!stops.isEmpty()) {
+            boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
+            if (!allTerminal) return;
         }
 
         route.setStatus(RouteStatus.CLOSED);

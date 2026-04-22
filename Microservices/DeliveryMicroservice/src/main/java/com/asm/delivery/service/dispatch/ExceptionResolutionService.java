@@ -14,10 +14,12 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
+import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.DelayCalculationService;
 import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.service.RouteOptimizationService;
+import com.asm.delivery.service.route.RouteWebSocketService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -54,6 +56,8 @@ public class ExceptionResolutionService {
     private final RouteOptimizationService routeOptimizationService;
     private final ZoneRepository zoneRepository;
     private final DispatchService dispatchService;
+    private final RouteWebSocketService routeWebSocketService;
+    private final ErpSyncService erpSyncService;
 
         @Transactional
         public AdminOpsExceptionsResponse.ExceptionItem reassignException(UUID deliveryId,
@@ -136,6 +140,9 @@ public class ExceptionResolutionService {
                 }
 
                 if (previousDriverId != null && !previousDriverId.equals(request.getDriverId())) {
+                        auditLogService.logAction(principal, "DELIVERY_REMOVED_FROM_ROUTE", "DELIVERY", delivery.getId().toString(),
+                                Map.of("action", "removed_by_reassign", "fromDriver", previousDriverName, "toDriver", targetDriverName,
+                                        "client", clientName));
                 }
 
                 appendHistory(delivery,
@@ -213,6 +220,38 @@ public class ExceptionResolutionService {
 
                 return mapActionResult(delivery, "WARNING", "REPLANNED", "Delivery sent back to waiting lane");
         }
+    // ── Confirm return-to-origin ──────────────────────────────────────────────
+
+    @Transactional
+    public void confirmReturn(UUID deliveryId, String note, UserPrincipal principal) {
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+
+        if (!Boolean.TRUE.equals(delivery.getReturnToOrigin())) {
+            throw AppException.badRequest("Delivery does not have a pending return-to-origin");
+        }
+
+        delivery.setReturnToOrigin(false);
+        delivery.setDriverId(null);
+        // Parcel is back at depot — make available for re-dispatch unless order was cancelled
+        Order order = delivery.getOrder();
+        boolean orderCancelled = order != null && order.getStatus() == OrderStatus.CANCELLED;
+        if (!orderCancelled) {
+            delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+            delivery.setAssignedAt(null);
+            delivery.setPickedUpAt(null);
+        }
+        deliveryRepo.save(delivery);
+
+        ActorInfo actor = resolveActor(principal);
+        String resolvedNote = StringUtils.hasText(note) ? note.trim() : "Return to origin confirmed by admin";
+        appendHistory(delivery, delivery.getStatus(), actor.name(), actor.role(),
+                "Return to origin confirmed — parcel received at depot. " + resolvedNote);
+
+        auditLogService.logAction(principal, "CONFIRM_RETURN", "DELIVERY", deliveryId.toString(),
+                Map.of("action", "return_confirmed", "orderCancelled", String.valueOf(orderCancelled)));
+    }
+
     // ── Cancel ────────────────────────────────────────────────────────────────
 
     @Transactional
@@ -247,6 +286,7 @@ public class ExceptionResolutionService {
                 stop.setRemovedReason(reason != null ? reason : "CANCELLED");
                 stop.setRemovedBy("ADMIN");
                 routeStopRepository.save(stop);
+                routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
             } else if (route != null && route.getStatus() == RouteStatus.DRAFT) {
                 routeStopRepository.delete(stop);
             }
@@ -256,12 +296,15 @@ public class ExceptionResolutionService {
                 "Delivery cancelled" + (wasPickedUp ? " after pickup — return to origin required" : "") +
                 (reason != null ? ": " + reason : ""));
 
-        // For Odoo orders: delete the Order row to return to "import state"
-        if (order != null && order.getSource() == OrderSource.ODOO) {
-            orderRepo.delete(order);
-        } else if (order != null) {
+        eventPublisher.publishDeliveryCancelled(order, delivery, delivery.getDriverId());
+
+        // Standardize: preserve record for audit logs and avoid FK violations with the deliveries table.
+        if (order != null) {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
+            if (order.getSource() == OrderSource.ODOO) {
+                erpSyncService.syncOrderCancellation(order);
+            }
         }
     }
 
@@ -425,6 +468,7 @@ public class ExceptionResolutionService {
                                 .zoneName(zoneName)
                                 .severity(severity)
                                 .comment(comment)
+                                .returnToOrigin(Boolean.TRUE.equals(delivery.getReturnToOrigin()))
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
                                 .build();
@@ -598,6 +642,10 @@ public class ExceptionResolutionService {
                 }
 
                 String creator = StringUtils.hasText(actorName) ? actorName : "SYSTEM";
+                // Inherit active status so the driver sees the new route immediately
+                RouteStatus inheritedStatus = (sourceRoute.getStatus() == RouteStatus.VALIDATED
+                        || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS)
+                        ? RouteStatus.VALIDATED : RouteStatus.DRAFT;
                 Route draftRoute = Route.builder()
                                 .name("Dispatch route " + sourceRoute.getDate() + " " + driverId.toString().substring(0, 8))
                                 .driverId(driverId)
@@ -608,7 +656,7 @@ public class ExceptionResolutionService {
                                 .depotId(sourceRoute.getDepotId())
                                 .departureTime(sourceRoute.getDepartureTime())
                                 .city(sourceRoute.getCity())
-                                .status(RouteStatus.DRAFT)
+                                .status(inheritedStatus)
                                 .createdBy(creator)
                                 .build();
                 return routeRepository.save(draftRoute);

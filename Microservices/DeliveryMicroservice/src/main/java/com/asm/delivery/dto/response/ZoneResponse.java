@@ -16,6 +16,7 @@ public class ZoneResponse {
     private String description;
     private List<String> cities;
     private List<String> postalCodes;
+    private String geometry;
     private Boolean isActive;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

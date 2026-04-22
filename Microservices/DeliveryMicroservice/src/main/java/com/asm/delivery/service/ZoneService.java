@@ -48,7 +48,8 @@ public class ZoneService {
                 .description(request.getDescription())
                 .cities(request.getCities() != null ? request.getCities() : new ArrayList<>())
                 .postalCodes(request.getPostalCodes() != null ? request.getPostalCodes() : new ArrayList<>())
-                .isActive(true)
+                .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                .geometry(request.getGeometry())
                 .build();
         Zone saved = zoneRepository.save(zone);
         auditLogService.logAction(principal, "CREATE_ZONE", "ZONE", saved.getId().toString(),
@@ -74,6 +75,9 @@ public class ZoneService {
         }
         if (request.getIsActive() != null) {
             zone.setIsActive(request.getIsActive());
+        }
+        if (request.getGeometry() != null) {
+            zone.setGeometry(request.getGeometry());
         }
         Zone saved = zoneRepository.save(zone);
         auditLogService.logAction(principal, "UPDATE_ZONE", "ZONE", saved.getId().toString(),
@@ -105,6 +109,7 @@ public class ZoneService {
                 .cities(zone.getCities())
                 .postalCodes(zone.getPostalCodes())
                 .isActive(zone.getIsActive())
+                .geometry(zone.getGeometry())
                 .createdAt(zone.getCreatedAt())
                 .updatedAt(zone.getUpdatedAt())
                 .build();

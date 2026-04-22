@@ -119,6 +119,16 @@ public class AdminDeliveryController {
         return ResponseEntity.ok(dispatchService.pinDropoff(id, request));
     }
 
+    @PostMapping("/{id}/confirm-return")
+    @Operation(summary = "Confirm that a return-to-origin parcel has been physically received at depot. Clears the flag and unblocks re-dispatch.")
+    public ResponseEntity<Void> confirmReturn(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String note,
+            @org.springframework.security.core.annotation.AuthenticationPrincipal com.asm.delivery.security.UserPrincipal principal) {
+        exceptionResolutionService.confirmReturn(id, note, principal);
+        return ResponseEntity.ok().build();
+    }
+
     @PostMapping("/{id}/cancel")
     @Operation(summary = "Cancel a delivery before it is in transit. Deletes the delivery and reverts order to PENDING.")
     @IdempotentOperation

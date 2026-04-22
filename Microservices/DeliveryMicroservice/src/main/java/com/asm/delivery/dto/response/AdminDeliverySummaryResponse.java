@@ -26,6 +26,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Human readable order reference (ERP ID or short ID)")
     private String orderRef;
 
+    @Schema(description = "Odoo/ERP order identifier (e.g. S00123)")
+    private String erpOrderId;
+
     @Schema(description = "Assigned route id when available")
     private UUID routeId;
 

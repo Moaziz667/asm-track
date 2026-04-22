@@ -112,6 +112,14 @@ public class AdminRouteController {
         return ResponseEntity.ok(routePlanningService.removeStop(id, stopId));
     }
 
+    @PatchMapping("/{id}/stops/{stopId}")
+    @Operation(summary = "Patch stop time windows / buffer")
+    public ResponseEntity<RouteResponse> patchStop(@PathVariable UUID id,
+                                                    @PathVariable UUID stopId,
+                                                    @RequestBody com.asm.delivery.dto.request.PatchRouteStopRequest request) {
+        return ResponseEntity.ok(routePlanningService.patchStop(id, stopId, request));
+    }
+
     @PutMapping("/{id}/stops/reorder")
     @Operation(summary = "Reorder route stops (draft only)")
     @IdempotentOperation
@@ -236,13 +244,15 @@ public class AdminRouteController {
         return ResponseEntity.ok(routePlanningService.getSlaSummary());
     }
 
-    // ─── Cancel & Reassign ────────────────────────────────────────────────────────
+    // ─── Stop cancellation ────────────────────────────────────────────────────────
 
-    @PostMapping("/{id}/cancel")
-    @Operation(summary = "Cancel a VALIDATED or IN_PROGRESS route — deliveries revert to UNSCHEDULED")
-    public ResponseEntity<RouteResponse> cancel(@PathVariable UUID id,
+    @PostMapping("/{id}/stops/{stopId}/cancel")
+    @Operation(summary = "Cancel a single stop — SCHEDULED/PENDING/ARRIVED → UNSCHEDULED, PICKED_UP → returnToOrigin. IN_TRANSIT is rejected.")
+    public ResponseEntity<RouteResponse> cancelStop(
+            @PathVariable UUID id,
+            @PathVariable UUID stopId,
             @RequestParam(required = false) String reason) {
-        return ResponseEntity.ok(routePlanningService.cancel(id, reason));
+        return ResponseEntity.ok(routePlanningService.cancelStop(id, stopId, reason));
     }
 
     /** @deprecated Use /transfer-stops instead */

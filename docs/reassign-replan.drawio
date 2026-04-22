@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- ═══════════════════════════════════ REASSIGN ═══════════════════════════════════ -->
+
+    <mxCell id="r0" value="REASSIGN (Livraison individuelle)" style="text;fontStyle=1;fontSize=14;fillColor=#dae8fc;strokeColor=#6c8ebf;align=center;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="30" width="480" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r1" value="POST /api/admin/exceptions/{id}/reassign&#xa;body: { driverId, note?, startTimeWindow?, endTimeWindow? }" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="60" y="100" width="480" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r2" value="Status = SCHEDULED or PICKED_UP?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="110" y="190" width="380" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r3" value="400 — status not allowed" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="560" y="200" width="180" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r4" value="Was PICKED_UP and no note?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="110" y="290" width="380" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r5" value="400 — handover note required" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="560" y="300" width="200" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r6" value="Same driver?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="160" y="390" width="280" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r7" value="400 — already assigned" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="560" y="400" width="180" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r8" value="Delivery → SCHEDULED&#xa;driverId = newDriver&#xa;assignedAt = now&#xa;Reset: inTransitAt, completedAt, cancelFields&#xa;If was NOT PICKED_UP: clear pickedUpAt" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="100" y="490" width="400" height="90" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r9" value="Stop moved to target driver's route&#xa;(find or create DRAFT route for driver)&#xa;Stop order appended at end&#xa;Source route stop: hard deleted" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="100" y="620" width="400" height="80" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r10" value="routeOptimizationService.recalculate()&#xa;on both source and target routes" style="rounded=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="130" y="740" width="340" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="r11" value="Audit: REASSIGN_DELIVERY&#xa;History entry appended&#xa;Event: publishDeliveryReassigned" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="130" y="830" width="340" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Reassign edges -->
+    <mxCell id="re1" edge="1" source="r1" target="r2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re2" value="No" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="r2" target="r3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re3" value="Yes" edge="1" source="r2" target="r4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re4" value="Yes" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="r4" target="r5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re5" value="No" edge="1" source="r4" target="r6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re6" value="Yes" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="r6" target="r7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re7" value="No" edge="1" source="r6" target="r8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re8" edge="1" source="r8" target="r9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re9" edge="1" source="r9" target="r10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="re10" edge="1" source="r10" target="r11" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- ═══════════════════════════════════ REPLAN ═══════════════════════════════════ -->
+
+    <mxCell id="p0" value="REPLAN (Livraison individuelle)" style="text;fontStyle=1;fontSize=14;fillColor=#ffe6cc;strokeColor=#d79b00;align=center;rounded=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="30" width="480" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p1" value="POST /api/admin/exceptions/{id}/replan&#xa;body: { note? }" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="800" y="100" width="480" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p2" value="Status = SCHEDULED, PICKED_UP or FAILED?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="840" y="190" width="400" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p3" value="400 — status not allowed" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;" vertex="1" parent="1">
+      <mxGeometry x="1310" y="200" width="180" height="40" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p4" value="Delivery → UNSCHEDULED&#xa;driverId = null&#xa;Reset: assignedAt, pickedUpAt, inTransitAt&#xa;completedAt, cancelFields, SLA fields&#xa;(failedAt / failureCode kept for reporting)" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="860" y="300" width="360" height="100" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p5" value="Route was VALIDATED or IN_PROGRESS?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="860" y="440" width="360" height="60" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p6" value="Stop → REMOVED_REPLANNED&#xa;(soft-delete, keep audit trail)" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="780" y="550" width="250" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p7" value="Stop → hard deleted&#xa;(DRAFT route)" style="rounded=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="1060" y="550" width="200" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p8" value="Stop order re-packed&#xa;on remaining active stops" style="rounded=1;whiteSpace=wrap;fillColor=#e1d5e7;strokeColor=#9673a6;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="870" y="640" width="300" height="44" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="p9" value="Audit: REPLAN_DELIVERY&#xa;History entry appended&#xa;Event: publishDeliveryReplanned&#xa;Delivery available in dispatch pool" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="860" y="730" width="360" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- Replan edges -->
+    <mxCell id="pe1" edge="1" source="p1" target="p2" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe2" value="No" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p2" target="p3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe3" value="Yes" edge="1" source="p2" target="p4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe4" edge="1" source="p4" target="p5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe5" value="Yes" edge="1" source="p5" target="p6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe6" value="No (DRAFT)" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="p5" target="p7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe7" edge="1" source="p6" target="p8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe8" edge="1" source="p7" target="p8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="pe9" edge="1" source="p8" target="p9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+  </root>
+</mxGraphModel>

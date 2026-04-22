@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- START -->
+    <mxCell id="2" value="POST /api/admin/deliveries/{id}/cancel&#xa;body: { reason }" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+      <mxGeometry x="360" y="40" width="320" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- Check status -->
+    <mxCell id="3" value="Status in [UNSCHEDULED, SCHEDULED, PICKED_UP]?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="310" y="130" width="420" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- 400 -->
+    <mxCell id="4" value="400 Bad Request" style="rounded=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="800" y="145" width="160" height="40" as="geometry"/>
+    </mxCell>
+
+    <!-- Set cancelled -->
+    <mxCell id="5" value="Delivery → CANCELLED&#xa;cancelledAt = now, cancelledBy = ADMIN&#xa;cancelReason = reason" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="340" y="240" width="360" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- PICKED_UP? -->
+    <mxCell id="6" value="Was PICKED_UP?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="360" y="340" width="300" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Return to origin flag -->
+    <mxCell id="7" value="returnToOrigin = true&#xa;⚠ Driver must return parcel to depot" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="730" y="350" width="260" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- Has stop? -->
+    <mxCell id="8" value="Associated RouteStop exists?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="350" y="440" width="340" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- No stop -->
+    <mxCell id="9" value="(No stop — UNSCHEDULED case)&#xa;Continue to order handling" style="rounded=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontSize=10;" vertex="1" parent="1">
+      <mxGeometry x="750" y="450" width="220" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- Route DRAFT? -->
+    <mxCell id="10" value="Route status = DRAFT?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="350" y="540" width="300" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Hard delete -->
+    <mxCell id="11" value="Stop → hard deleted" style="rounded=1;whiteSpace=wrap;fillColor=#f5f5f5;strokeColor=#666666;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="160" y="650" width="200" height="44" as="geometry"/>
+    </mxCell>
+
+    <!-- Soft delete -->
+    <mxCell id="12" value="Stop → REMOVED_CANCELLED&#xa;removedAt/By/Reason set&#xa;WS → driver: STOP_REMOVED" style="rounded=1;whiteSpace=wrap;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="430" y="650" width="250" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Order source ODOO? -->
+    <mxCell id="13" value="Order source = ODOO?" style="rhombus;whiteSpace=wrap;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="350" y="760" width="320" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- ODOO branch -->
+    <mxCell id="14" value="syncOrderCancellation(order)&#xa;+ orderRepo.delete(order)&#xa;(row removed, re-importable)" style="rounded=1;whiteSpace=wrap;fillColor=#f8cecc;strokeColor=#b85450;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="120" y="870" width="250" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- Manual branch -->
+    <mxCell id="15" value="order.status → CANCELLED&#xa;orderRepo.save(order)" style="rounded=1;whiteSpace=wrap;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="650" y="870" width="220" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- History + Event -->
+    <mxCell id="16" value="Append history entry&#xa;Event: publishDeliveryCancelled" style="rounded=1;whiteSpace=wrap;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;fontSize=11;" vertex="1" parent="1">
+      <mxGeometry x="350" y="980" width="320" height="50" as="geometry"/>
+    </mxCell>
+
+    <!-- Edges -->
+    <mxCell id="e1" edge="1" source="2" target="3" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e2" value="No" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="3" target="4" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e3" value="Yes" edge="1" source="3" target="5" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e4" edge="1" source="5" target="6" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e5" value="Yes" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="6" target="7" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e6" value="No" edge="1" source="6" target="8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e7" value="Yes" edge="1" source="7" target="8" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e8" value="No" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="8" target="9" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e9" value="Yes" edge="1" source="8" target="10" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e10" edge="1" source="9" target="13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e11" value="Yes (DRAFT)" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="10" target="11" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e12" value="No (active)" edge="1" source="10" target="12" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e13" edge="1" source="11" target="13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e14" edge="1" source="12" target="13" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e15" value="Yes (ODOO)" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="13" target="14" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e16" value="No (Manual)" style="edgeStyle=orthogonalEdgeStyle;" edge="1" source="13" target="15" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e17" edge="1" source="14" target="16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e18" edge="1" source="15" target="16" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+  </root>
+</mxGraphModel>

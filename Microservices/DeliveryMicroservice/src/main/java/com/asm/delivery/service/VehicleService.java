@@ -72,7 +72,7 @@ public class VehicleService {
                 .mileageKm(request.getMileageKm())
                 .plate(normalizedPlate)
                 .type(request.getType())
-                .active(true)
+                .active(request.getActive() != null ? request.getActive() : true)
                 .build();
 
         vehicle = vehicleRepository.save(vehicle);

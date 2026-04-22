@@ -42,16 +42,21 @@ public class RouteExecutionService {
         }
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        if (stops.isEmpty()) {
-            throw AppException.badRequest("Cannot close route without stops");
-        }
-        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()));
-        if (!allTerminal) {
-            throw AppException.badRequest("Admin can close only after driver has terminated all stops");
+        List<RouteStop> blocking = stops.stream()
+                .filter(s -> !isTerminalStopStatus(s.getStatus()) && !isRemovedStatus(s.getStatus()))
+                .toList();
+        if (!blocking.isEmpty()) {
+            String blockingStatuses = blocking.stream()
+                    .map(s -> "#" + s.getStopOrder() + " " + s.getStatus())
+                    .reduce((a, b) -> a + ", " + b).orElse("");
+            throw AppException.badRequest("Cannot close: stops still active — " + blockingStatuses);
         }
 
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
+        routeRepository.save(route);
+        auditLogService.logAction(null, "CLOSE_ROUTE", "ROUTE", routeId.toString(),
+                java.util.Map.of("tournee", route.getName() != null ? route.getName() : routeId.toString(), "action", "Cloture manuelle par admin"));
         return routePlanningService.get(route.getId());
     }
 
@@ -229,6 +234,11 @@ public class RouteExecutionService {
                 || status == RouteStopStatus.PARTIAL;
     }
 
+    private static boolean isRemovedStatus(RouteStopStatus status) {
+        return status == RouteStopStatus.REMOVED_REPLANNED
+                || status == RouteStopStatus.REMOVED_CANCELLED;
+    }
+
     private RouteResponse toResponse(Route route) {
         return routePlanningService.get(route.getId());
     }
@@ -239,12 +249,10 @@ public class RouteExecutionService {
         }
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        if (stops.isEmpty()) {
-            return;
-        }
-
-        boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()));
-        if (!allTerminal) {
+        // A route with no stops at all (or all removed) auto-closes
+        boolean allDone = stops.stream()
+                .allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
+        if (!allDone) {
             return;
         }
 
