@@ -118,6 +118,13 @@ public class RouteExecutionService {
         RouteStop stop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
                 .orElseThrow(() -> AppException.notFound("Route stop not found"));
 
+        if (isTerminalStopStatus(stop.getStatus())) {
+            throw AppException.badRequest("Stop is already completed — cannot mark as arrived");
+        }
+        if (stop.getStatus() == RouteStopStatus.ARRIVED) {
+            return toResponse(route); // idempotent
+        }
+
         stop.setStatus(RouteStopStatus.ARRIVED);
         stop.setArrivedAt(LocalDateTime.now());
         stop.setActualArrivalAt(stop.getArrivedAt());
@@ -162,6 +169,9 @@ public class RouteExecutionService {
             RouteStopStatus mappedStatus = mapDeliveryToRouteStopStatus(deliveryStatus);
             if (mappedStatus == null) {
                 return;
+            }
+            if (!isStatusAdvance(stop.getStatus(), mappedStatus)) {
+                return; // never move a stop backward
             }
 
             Route route = stop.getRoute();
@@ -211,6 +221,23 @@ public class RouteExecutionService {
         if (!route.getDriverId().equals(driverId)) {
             throw AppException.forbidden("Route is not assigned to this driver");
         }
+    }
+
+    private static final java.util.Map<RouteStopStatus, Integer> STOP_STATUS_ORDER = java.util.Map.of(
+            RouteStopStatus.PENDING, 0,
+            RouteStopStatus.SCHEDULED, 1,
+            RouteStopStatus.PICKED_UP, 2,
+            RouteStopStatus.IN_TRANSIT, 3,
+            RouteStopStatus.ARRIVED, 4,
+            RouteStopStatus.COMPLETED, 5,
+            RouteStopStatus.FAILED, 5,
+            RouteStopStatus.PARTIAL, 5
+    );
+
+    private static boolean isStatusAdvance(RouteStopStatus current, RouteStopStatus next) {
+        int currentOrd = STOP_STATUS_ORDER.getOrDefault(current, -1);
+        int nextOrd = STOP_STATUS_ORDER.getOrDefault(next, -1);
+        return nextOrd > currentOrd;
     }
 
     private static RouteStopStatus mapDeliveryToRouteStopStatus(DeliveryStatus status) {

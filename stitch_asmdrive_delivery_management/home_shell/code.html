@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-primary-container": "#758dd5",
+                    "on-background": "#1a1b20",
+                    "secondary": "#5e5e5e",
+                    "on-secondary-container": "#646464",
+                    "surface-dim": "#dad9e0",
+                    "outline": "#757682",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e3e2e8",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#dbe1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "primary": "#00113a",
+                    "tertiary": "#121515",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "primary-fixed-dim": "#b3c5ff",
+                    "surface-container": "#efedf3",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-tint": "#435b9f",
+                    "surface-container-low": "#f4f3f9",
+                    "tertiary-container": "#272929",
+                    "surface-container-high": "#e9e7ee",
+                    "on-secondary-fixed-variant": "#474747",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "primary-container": "#002366",
+                    "on-tertiary-container": "#8f9090",
+                    "on-primary-fixed": "#00174a",
+                    "inverse-primary": "#b3c5ff",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#e3e2e8",
+                    "surface-bright": "#faf8ff",
+                    "on-error-container": "#93000a",
+                    "background": "#faf8ff",
+                    "secondary-container": "#e2e2e2",
+                    "surface": "#faf8ff",
+                    "on-surface-variant": "#444650",
+                    "outline-variant": "#c5c6d2",
+                    "on-surface": "#1a1b20",
+                    "inverse-on-surface": "#f1f0f6",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3035",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-primary-fixed-variant": "#2a4386"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "8px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "margin-mobile": "16px",
+                    "touch-target-min": "48px",
+                    "stack-sm": "8px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "status-indicator": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h3": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h2": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "status-indicator": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "h1": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background min-h-screen pb-20 pt-16">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-white dark:bg-black border-b-2 border-slate-200 dark:border-zinc-800 flat no shadows">
+<button class="active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="font-inter font-bold tracking-tight text-xl font-black text-blue-900 dark:text-blue-600 uppercase tracking-wider">AsmDrive</span>
+<button class="active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</header>
+<main class="px-4 py-6 max-w-4xl mx-auto space-y-6">
+<!-- Persistent Status Bar (GPS/Connection) -->
+<section class="bg-surface-container border-2 border-outline-variant p-4 flex items-center justify-between">
+<div class="flex items-center gap-4">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-900" data-icon="satellite_alt">satellite_alt</span>
+<span class="font-label-caps text-label-caps uppercase text-primary">GPS ACTIVE</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-blue-900" data-icon="signal_cellular_alt">signal_cellular_alt</span>
+<span class="font-label-caps text-label-caps uppercase text-primary">STABLE</span>
+</div>
+</div>
+<div class="flex items-center gap-2">
+<div class="w-3 h-3 rounded-full bg-green-600 animate-pulse"></div>
+<span class="font-label-caps text-label-caps text-on-surface-variant uppercase">Operator Online</span>
+</div>
+</section>
+<!-- Notification Area -->
+<div class="bg-primary-container p-4 flex items-center gap-4 text-white">
+<span class="material-symbols-outlined text-on-primary-container" data-icon="warning" style="font-variation-settings: 'FILL' 1;">warning</span>
+<div class="flex-1">
+<p class="font-h3 text-h3 leading-tight">Route Update Required</p>
+<p class="font-body-md text-body-md text-primary-fixed-dim">Heavy traffic detected on Main St. Alternative route ready.</p>
+</div>
+<button class="bg-white text-primary px-4 py-2 font-label-caps text-label-caps rounded-sm uppercase">View</button>
+</div>
+<!-- Dashboard Grid (Bento Style) -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+<!-- Main Route Card -->
+<div class="md:col-span-2 border-2 border-outline-variant bg-white p-6 relative overflow-hidden h-64">
+<div class="absolute inset-0 opacity-10 bg-no-repeat bg-cover grayscale" data-location="Chicago" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBpdDoyWyq9DnZfBawWUsR4EhS3ctMmzz5pq_GdwLBM_L3fjJUXvsCmch8IY-9hG6IH9Njy1xEKXktSvJbLovzF7RCbDiSw9laNjE76SMNsWnyGEJJ_u_-uLj_zpMf5wnkGElkSMifex1Vofp5tfsyd8K6t5B5Dbzcbck2z1b4HJtwGg9-uH44pbjZvai1D5Z8q_C_tbXa4J7etMoZibKUGhLVVI9l7FxGKMwKY5fFFL2pGvv2Awe7tf4m0H5ONn4soAA9glTxAlFBM')"></div>
+<div class="relative z-10 flex flex-col h-full justify-between">
+<div>
+<span class="inline-block bg-primary text-white font-status-indicator text-status-indicator px-3 py-1 rounded-full uppercase mb-4">TRANSIT</span>
+<h2 class="font-h1 text-h1 text-primary">Current Trip: #TR-9901</h2>
+<p class="font-body-lg text-body-lg text-secondary">Terminal A → West Distribution Hub</p>
+</div>
+<div class="flex items-end justify-between">
+<div>
+<p class="font-label-caps text-label-caps text-secondary-fixed-variant uppercase">ETA</p>
+<p class="font-h2 text-h2 text-primary">14:45 PM</p>
+</div>
+<button class="bg-primary text-white h-12 px-8 font-label-caps text-label-caps active:scale-95 transition-transform uppercase">Full Details</button>
+</div>
+</div>
+</div>
+<!-- Stats Column -->
+<div class="flex flex-col gap-4">
+<div class="border-2 border-outline-variant bg-white p-4 flex-1">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="local_shipping">local_shipping</span>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Stops Remaining</p>
+<p class="font-h1 text-h1 text-primary">12 / 18</p>
+</div>
+<div class="border-2 border-outline-variant bg-white p-4 flex-1">
+<span class="material-symbols-outlined text-primary mb-2" data-icon="timer">timer</span>
+<p class="font-label-caps text-label-caps text-secondary uppercase">Shift Duration</p>
+<p class="font-h1 text-h1 text-primary">06:22:15</p>
+</div>
+</div>
+</div>
+<!-- Secondary Journey Section -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="border-2 border-outline-variant bg-white p-6 flex items-start gap-4">
+<div class="w-16 h-16 bg-surface-container-high flex items-center justify-center border-2 border-slate-200">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="package_2">package_2</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-primary">Vehicle Maintenance</h3>
+<p class="font-body-md text-body-md text-secondary">Next checkup scheduled in 450 miles.</p>
+<div class="mt-4 w-full bg-surface-variant h-2">
+<div class="bg-blue-900 h-full w-[85%]"></div>
+</div>
+</div>
+</div>
+<div class="border-2 border-outline-variant bg-white p-6 flex items-start gap-4">
+<div class="w-16 h-16 bg-surface-container-high flex items-center justify-center border-2 border-slate-200">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="speed" style="font-variation-settings: 'FILL' 1;">speed</span>
+</div>
+<div>
+<h3 class="font-h3 text-h3 text-primary">Efficiency Score</h3>
+<p class="font-body-md text-body-md text-secondary">Top 5% of fleet drivers this week.</p>
+<div class="flex gap-1 mt-3">
+<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-primary" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-secondary-fixed" data-icon="star">star</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-2 pb-safe bg-white dark:bg-black border-t-2 border-slate-200 dark:border-zinc-800 flat no shadows">
+<!-- Routes - Active -->
+<a class="flex flex-col items-center justify-center bg-blue-900 dark:bg-blue-600 text-white rounded-md p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors" href="#">
+<span class="material-symbols-outlined" data-icon="directions_car" style="font-variation-settings: 'FILL' 1;">directions_car</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Routes</span>
+</a>
+<!-- Calendar -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors hover:text-blue-800 dark:hover:text-blue-400" href="#">
+<span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Calendar</span>
+</a>
+<!-- Profile -->
+<a class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors hover:text-blue-800 dark:hover:text-blue-400" href="#">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Profile</span>
+</a>
+</nav>
+<!-- Contextual FAB - Appears only on relevant screens -->
+<button class="fixed bottom-24 right-4 w-14 h-14 bg-primary text-white flex items-center justify-center rounded-full shadow-lg active:scale-90 transition-transform">
+<span class="material-symbols-outlined" data-icon="add_location_alt">add_location_alt</span>
+</button>
+</body></html>

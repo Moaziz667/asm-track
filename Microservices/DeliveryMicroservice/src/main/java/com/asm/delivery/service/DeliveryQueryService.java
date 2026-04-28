@@ -59,17 +59,36 @@ public class DeliveryQueryService {
         assertAccessToDelivery(delivery, requesterId, requesterRole);
 
         return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId).stream()
-            .map(h -> StatusHistoryResponse.builder()
-                .id(h.getId() != null ? h.getId().toString() : null)
-                .status(h.getStatus().name())
-                .actor(h.getChangedBy())
-                .timestamp(h.getChangedAt())
-                .changedBy(h.getChangedBy())
-                .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                .note(h.getNote())
-                .changedAt(h.getChangedAt())
-                .build())
+            .map(h -> {
+                String actorDisplay = resolveActorName(h.getChangedBy(), h.getChangedByRole());
+                return StatusHistoryResponse.builder()
+                    .id(h.getId() != null ? h.getId().toString() : null)
+                    .status(h.getStatus().name())
+                    .actor(actorDisplay)
+                    .timestamp(h.getChangedAt())
+                    .changedBy(actorDisplay)
+                    .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
+                    .note(h.getNote())
+                    .changedAt(h.getChangedAt())
+                    .build();
+            })
                 .collect(Collectors.toList());
+    }
+
+    private String resolveActorName(String changedBy, com.asm.delivery.entity.Role role) {
+        if (changedBy == null) return null;
+        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
+        try {
+            UUID.fromString(changedBy);
+            if (role == com.asm.delivery.entity.Role.DRIVER) {
+                DriverDTO driver = transportPort.getDriver(changedBy);
+                if (driver != null && driver.getName() != null) return driver.getName();
+            }
+            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN) return "Dispatching";
+            return changedBy.substring(0, 8).toUpperCase();
+        } catch (IllegalArgumentException e) {
+            return changedBy;
+        }
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

@@ -45,6 +45,7 @@ public class DriverDeliveryService {
     private final DelayCalculationService         delayCalculationService;
     private final AuditLogService                  auditLogService;
     private final RouteRepository                 routeRepository;
+    private final RouteStopRepository             routeStopRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
@@ -510,6 +511,59 @@ public class DriverDeliveryService {
         auditLogService.logAction(principal, "DRIVER_REPORT", "DELIVERY", deliveryId.toString(),
                 Map.of("chauffeur", driverName, "type", String.valueOf(reportType), "details", description != null ? description : "",
                        "action", "Signalement soumis"));
+    }
+
+    // ── Handoff confirmation (Driver B confirms physical receipt) ──────────────
+
+    @Transactional
+    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, UserPrincipal principal) {
+        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+
+        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+                .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
+
+        if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
+            throw AppException.badRequest("This delivery does not require a handoff confirmation");
+        }
+
+        if (stop.getHandoffConfirmedAt() != null) {
+            // Already confirmed — idempotent return
+            return toDriverDeliveryResponse(delivery);
+        }
+
+        if (!driverId.equals(stop.getHandoffToDriverId())) {
+            throw AppException.forbidden("Only the receiving driver can confirm the handoff");
+        }
+
+        stop.setHandoffConfirmedAt(LocalDateTime.now());
+        stop.setRequiresHandoff(false);
+        routeStopRepository.save(stop);
+
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        auditLogService.logAction(principal, "HANDOFF_CONFIRMED", "DELIVERY", deliveryId.toString(),
+                Map.of("chauffeur", driverName, "client", clientName,
+                       "fromDriver", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : "unknown",
+                       "action", "Confirmation de remise du colis"));
+
+        appendHistory(delivery, delivery.getStatus(), driverId.toString(), Role.DRIVER,
+                "Handoff confirmed — package received from driver " +
+                (stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString().substring(0, 8) : "unknown"));
+
+        // Notify admin dashboard
+        try {
+            messagingTemplate.convertAndSend("/topic/admin/routes", Map.of(
+                    "event", "HANDOFF_CONFIRMED",
+                    "deliveryId", deliveryId.toString(),
+                    "routeId", stop.getRoute().getId().toString(),
+                    "driverId", driverId.toString()
+            ));
+        } catch (Exception ignored) {}
+
+        log.info("HANDOFF_CONFIRMED deliveryId={} fromDriver={} toDriver={}",
+                deliveryId, stop.getHandoffFromDriverId(), driverId);
+
+        return toDriverDeliveryResponse(delivery);
     }
 
     // ── Location update ───────────────────────────────────────────────────────

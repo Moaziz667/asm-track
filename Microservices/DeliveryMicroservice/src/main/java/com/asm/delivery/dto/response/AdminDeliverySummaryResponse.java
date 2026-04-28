@@ -9,7 +9,9 @@ import lombok.NoArgsConstructor;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
+import com.asm.delivery.entity.OrderItem;
 
 @Data
 @Builder
@@ -124,4 +126,7 @@ public class AdminDeliverySummaryResponse {
 
     @Schema(description = "Last update timestamp")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "List of items in the order")
+    private List<OrderItem> items;
 }

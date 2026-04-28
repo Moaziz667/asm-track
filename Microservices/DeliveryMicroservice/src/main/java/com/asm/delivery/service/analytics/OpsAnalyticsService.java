@@ -588,7 +588,7 @@ public class OpsAnalyticsService {
         }
 
         private Long resolveAssignSlaElapsedMinutes(AdminDeliverySummaryResponse s, LocalDateTime now) {
-                return routeStopRepository.findByDeliveryId(s.getDeliveryId())
+                return routeStopRepository.findActiveByDeliveryId(s.getDeliveryId())
                                 .map(RouteStop::getRoute)
                                 .map(route -> {
                                         if (route == null) {
@@ -685,7 +685,7 @@ public class OpsAnalyticsService {
                 }
                 if (status == DeliveryStatus.SCHEDULED) {
                         int effectiveAssignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
-                        Optional<RouteStop> currentStopOpt = routeStopRepository.findByDeliveryId(delivery.getId());
+                        Optional<RouteStop> currentStopOpt = routeStopRepository.findActiveByDeliveryId(delivery.getId());
                         LocalDateTime baseline = delivery.getAssignedAt();
 
                         if (currentStopOpt.isPresent()) {
@@ -746,11 +746,12 @@ public class OpsAnalyticsService {
                 if (status == DeliveryStatus.PARTIALLY_DELIVERED) {
                         return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Livraison partielle signalée");
                 }
-                if (status == DeliveryStatus.UNSCHEDULED && delivery.getCreatedAt() != null) {
-                        long elapsed = Duration.between(delivery.getCreatedAt(), now).toMinutes();
+                if (status == DeliveryStatus.UNSCHEDULED) {
+                        long elapsed = delivery.getCreatedAt() != null ? Duration.between(delivery.getCreatedAt(), now).toMinutes() : 0;
                         if (elapsed > waitingSlaMinutes) {
                                 return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED", "SLA Planification dépassé");
                         }
+                        return new ExceptionClassification("INFO", "UNSCHEDULED", "À planifier");
                 }
                 if (status == DeliveryStatus.IN_TRANSIT) {
                         Optional<RouteStop> stopOpt = routeStopRepository.findByDeliveryId(delivery.getId());

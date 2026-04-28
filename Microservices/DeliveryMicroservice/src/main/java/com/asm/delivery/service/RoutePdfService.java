@@ -57,23 +57,55 @@ public class RoutePdfService {
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
             PDPageContentStream stream = new PDPageContentStream(doc, page);
-            float y = 800f;
+            float pageW = PDRectangle.A4.getWidth();
+            float margin = 50f;
 
-            y = writeLine(stream, 16, true, 50, y, "Feuille de Route");
-            y = writeLine(stream, 11, false, 50, y - 4, "Route: " + nullSafe(route.getName()));
-            y = writeLine(stream, 10, false, 50, y - 2, "Date: " + (route.getDate() != null ? route.getDate().toString() : "-"));
-            y = writeLine(stream, 10, false, 50, y - 2, "Plage: " + formatTime(route.getPlannedStartTime()) + " - " + formatTime(route.getPlannedEndTime()));
-            y = writeLine(stream, 10, false, 50, y - 2, "Ville: " + nullSafe(route.getCity()));
-            y = writeLine(stream, 10, false, 50, y - 2, "Driver: " + (driver != null ? driver.getName() : route.getDriverId()));
-            y = writeLine(stream, 10, false, 50, y - 2, "Vehicule: " + (vehicle != null ? (nullSafe(vehicle.getName()) + " (" + nullSafe(vehicle.getPlate()) + ")") : "-"));
+            // ── Branded header bar ────────────────────────────────────────────
+            stream.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+            stream.addRect(0, 800f, pageW, 42f);
+            stream.fill();
 
-            y = writeLine(stream, 12, true, 50, y - 10, "Stops");
+            stream.setNonStrokingColor(1f, 1f, 1f);
+            writeLine(stream, 14, true, margin, 822f, "ASM Track");
+            writeLine(stream, 11, true, 350f, 822f, "FEUILLE DE ROUTE");
 
+            stream.setNonStrokingColor(0.929f, 0.231f, 0.031f);
+            stream.addRect(0, 798f, pageW, 2f);
+            stream.fill();
+            stream.setNonStrokingColor(0f, 0f, 0f);
+
+            float y = 778f;
+
+            // Route metadata block
+            y = writeLine(stream, 11, true, margin, y, sanitize(nullSafe(route.getName())));
+            y = writeLine(stream, 9, false, margin, y - 2,
+                    "Date : " + (route.getDate() != null ? route.getDate().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")) : "-")
+                    + "   Horaires : " + formatTime(route.getPlannedStartTime()) + " - " + formatTime(route.getPlannedEndTime())
+                    + "   Ville : " + sanitize(nullSafe(route.getCity())));
+            y = writeLine(stream, 9, false, margin, y - 2,
+                    "Chauffeur : " + (driver != null ? sanitize(driver.getName()) : "-")
+                    + "   Vehicule : " + (vehicle != null ? sanitize(nullSafe(vehicle.getName()) + " (" + nullSafe(vehicle.getPlate()) + ")") : "-"));
+            y -= 10;
+
+            // "ARRETS" section label
+            stream.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+            y = writeLine(stream, 10, true, margin, y, "ARRETS");
+            stream.setNonStrokingColor(0f, 0f, 0f);
+
+            // Header row background
+            stream.setNonStrokingColor(0.96f, 0.96f, 0.96f);
+            stream.addRect(margin, y - 13f, pageW - 2 * margin, 13f);
+            stream.fill();
+            stream.setNonStrokingColor(0f, 0f, 0f);
+            y = writeLine(stream, 9, true, margin, y - 2, "#   Client                           Ville             Statut");
+
+            boolean odd = false;
             for (RouteStop stop : stops) {
                 Delivery delivery = deliveriesById.get(stop.getDeliveryId());
-                String client = delivery != null && delivery.getOrder() != null ? nullSafe(delivery.getOrder().getClientName()) : "Client inconnu";
-                String city = delivery != null && delivery.getOrder() != null ? nullSafe(delivery.getOrder().getDropoffCity()) : "-";
-                String address = delivery != null && delivery.getOrder() != null ? nullSafe(delivery.getOrder().getDropoffAddress()) : "-";
+                String client  = delivery != null && delivery.getOrder() != null ? sanitize(delivery.getOrder().getClientName()) : "Client inconnu";
+                String city    = delivery != null && delivery.getOrder() != null ? sanitize(delivery.getOrder().getDropoffCity()) : "-";
+                String address = delivery != null && delivery.getOrder() != null ? sanitize(delivery.getOrder().getDropoffAddress()) : "-";
+                String statusLabel = stop.getStatus() != null ? stop.getStatus().name() : "-";
 
                 if (y < 90f) {
                     stream.close();
@@ -81,21 +113,35 @@ public class RoutePdfService {
                     doc.addPage(page);
                     stream = new PDPageContentStream(doc, page);
                     y = 800f;
-                    y = writeLine(stream, 12, true, 50, y, "Stops (suite)");
+                    stream.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+                    y = writeLine(stream, 10, true, margin, y, "ARRETS (suite)");
+                    stream.setNonStrokingColor(0f, 0f, 0f);
+                    odd = false;
                 }
 
-                y = writeLine(stream, 10, true, 50, y - 6,
-                        "#" + stop.getStopOrder() + " - " + client + " [" + stop.getStatus().name() + "]");
-                y = writeLine(stream, 9, false, 58, y - 2, "Delivery: " + stop.getDeliveryId());
-                y = writeLine(stream, 9, false, 58, y - 2, "Ville: " + city);
-                y = writeLine(stream, 9, false, 58, y - 2, "Adresse: " + address);
+                // Alternate row shading
+                if (odd) {
+                    stream.setNonStrokingColor(0.98f, 0.98f, 0.98f);
+                    stream.addRect(margin, y - 36f, pageW - 2 * margin, 36f);
+                    stream.fill();
+                    stream.setNonStrokingColor(0f, 0f, 0f);
+                }
+                odd = !odd;
+
+                y = writeLine(stream, 10, true, margin, y - 6,
+                        padR(String.valueOf(stop.getStopOrder()), 4)
+                        + padR(client, 33)
+                        + padR(city, 18)
+                        + statusLabel);
+                y = writeLine(stream, 8, false, margin + 12, y - 2, address);
                 if (stop.getArrivedAt() != null) {
-                    y = writeLine(stream, 9, false, 58, y - 2, "Arrivee: " + stop.getArrivedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    y = writeLine(stream, 8, false, margin + 12, y - 1,
+                            "Arrivee : " + stop.getArrivedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm"))
+                            + (stop.getCompletedAt() != null ? "   Termine : " + stop.getCompletedAt().format(DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm")) : ""));
+                } else {
+                    y -= (8 + 3f);
                 }
-                if (stop.getCompletedAt() != null) {
-                    y = writeLine(stream, 9, false, 58, y - 2, "Fin: " + stop.getCompletedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
-                }
-                y -= 2;
+                y -= 3;
             }
 
             stream.close();
@@ -121,5 +167,20 @@ public class RoutePdfService {
 
     private static String nullSafe(Object value) {
         return value != null ? value.toString() : "-";
+    }
+
+    private static String sanitize(String s) {
+        if (s == null) return "-";
+        StringBuilder sb = new StringBuilder(s.length());
+        for (char c : s.toCharArray()) {
+            sb.append(c < 256 ? c : '?');
+        }
+        return sb.toString();
+    }
+
+    private static String padR(String s, int n) {
+        if (s == null) s = "";
+        if (s.length() > n) return s.substring(0, n);
+        return String.format("%-" + n + "s", s);
     }
 }

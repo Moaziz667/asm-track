@@ -275,7 +275,7 @@ public class DispatchService {
         orderRepo.save(order);
 
         // Mark associated route as needing recalculation if already in a route
-        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+        routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
             Route route = stop.getRoute();
             if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
                 route.setIsOptimized(false);
@@ -399,6 +399,7 @@ public class DispatchService {
                 .failedAt(d.getFailedAt())
                 .cancelledAt(d.getCancelledAt())
                 .updatedAt(d.getUpdatedAt())
+                .items(order != null && order.getItems() != null ? new ArrayList<>(order.getItems()) : null)
                 .build();
     }
 
@@ -476,17 +477,35 @@ public class DispatchService {
     }
 
     private StatusHistoryResponse toHistoryResponse(DeliveryStatusHistory h) {
+        String actorDisplay = resolveActorName(h.getChangedBy(), h.getChangedByRole());
         return StatusHistoryResponse.builder()
-                                .id(h.getId() != null ? h.getId().toString() : null)
+                .id(h.getId() != null ? h.getId().toString() : null)
                 .status(h.getStatus().name())
-                                .actor(h.getChangedBy())
-                                .timestamp(h.getChangedAt())
-                .changedBy(h.getChangedBy())
+                .actor(actorDisplay)
+                .timestamp(h.getChangedAt())
+                .changedBy(actorDisplay)
                 .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
                 .note(h.getNote())
                 .changedAt(h.getChangedAt())
                 .build();
     }
+
+    private String resolveActorName(String changedBy, Role role) {
+        if (changedBy == null) return null;
+        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
+        try {
+            UUID.fromString(changedBy);
+            if (role == Role.DRIVER) {
+                DriverDTO driver = transportPort.getDriver(changedBy);
+                if (driver != null && driver.getName() != null) return driver.getName();
+            }
+            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            return changedBy.substring(0, 8).toUpperCase();
+        } catch (IllegalArgumentException e) {
+            return changedBy;
+        }
+    }
+
     private static UUID parseUuid(String id) {
         if (id == null) return null;
         try { return UUID.fromString(id); } catch (IllegalArgumentException e) { return null; }
@@ -551,6 +570,12 @@ public class DispatchService {
                 if (!StringUtils.hasText(req.getReason())) {
                     throw AppException.badRequest("Reason is required when transferring picked up packages");
                 }
+                // Flag for formal handoff — Driver B must confirm physical receipt
+                stop.setRequiresHandoff(true);
+                stop.setHandoffFromDriverId(sourceRoute.getDriverId());
+                stop.setHandoffToDriverId(targetRoute.getDriverId());
+                stop.setHandoffConfirmedAt(null);
+
                 warnings.add(com.asm.delivery.dto.response.TransferStopsResponse.Warning.builder()
                         .stopId(stopId)
                         .code("HANDOFF")
@@ -577,29 +602,25 @@ public class DispatchService {
         }
 
         // Validate Capacity if target is active
-        if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
-            Vehicle vehicle = targetRoute.getVehicleId() != null ? vehicleRepository.findById(targetRoute.getVehicleId()).orElse(null) : null;
-            if (vehicle != null && vehicle.getPayloadKg() != null && vehicle.getPayloadKg() > 0) {
-                targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
-                List<UUID> totalDelIds = targetStops.stream().map(RouteStop::getDeliveryId).toList();
-                if (!totalDelIds.isEmpty()) {
-                    java.math.BigDecimal totalWeight = deliveryRepo.findAllByIdInWithOrder(totalDelIds).stream()
-                        .filter(d -> d.getOrder() != null && d.getOrder().getTotalWeightKg() != null)
-                        .map(d -> d.getOrder().getTotalWeightKg())
-                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
-                    if (totalWeight.compareTo(java.math.BigDecimal.valueOf(vehicle.getPayloadKg())) > 0 && !req.getAcknowledgeWarnings()) {
-                        throw AppException.unprocessableEntity(String.format("Transfer exceeds capacity. Vehicle max %d kg but route will be %.2f kg", vehicle.getPayloadKg(), totalWeight.doubleValue()));
-                    }
-                }
-            }
-        }
+        validateCapacity(targetRoute, req.getAcknowledgeWarnings());
 
         sourceRoute.setRouteVersion(sourceRoute.getRouteVersion() != null ? sourceRoute.getRouteVersion() + 1 : 2);
         routeRepository.save(sourceRoute);
 
+        if (sourceRoute.getStops().isEmpty()) {
+            sourceRoute.setStatus(RouteStatus.CLOSED);
+            sourceRoute.setClosedAt(LocalDateTime.now());
+            routeRepository.save(sourceRoute);
+            auditLogService.logAction(null, "CLOSE_ROUTE", "ROUTE", sourceRoute.getId().toString(),
+                    Map.of("tournee", sourceRoute.getName(), "reason", "Empty after transfer"));
+        }
+
         targetRoute.setRouteVersion(targetRoute.getRouteVersion() != null ? targetRoute.getRouteVersion() + 1 : 2);
         routeRepository.save(targetRoute);
 
+        routeWebSocketService.notifyRouteUpdate(sourceRoute.getId());
+        routeWebSocketService.notifyRouteUpdate(targetRoute.getId());
+        
         auditLogService.logAction(null, "TRANSFER_STOPS", "ROUTE", sourceRoute.getId().toString(),
                 Map.of("targetRoute", targetRoute.getId().toString(), "count", String.valueOf(transferredStops.size())));
 
@@ -612,5 +633,47 @@ public class DispatchService {
                 .sourceRouteStatus(sourceRoute.getStatus().name())
                 .warnings(warnings)
                 .build();
+    }
+
+    /**
+     * Enforces vehicle payload and volume constraints.
+     * Throws AppException if constraints are breached and not acknowledged.
+     */
+    public void validateCapacity(Route route, boolean acknowledge) {
+        if (route.getStatus() == RouteStatus.DRAFT || route.getVehicleId() == null) {
+            return;
+        }
+
+        Vehicle vehicle = vehicleRepository.findById(route.getVehicleId()).orElse(null);
+        if (vehicle == null) return;
+
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        if (stops.isEmpty()) return;
+
+        List<UUID> deliveryIds = stops.stream()
+                .filter(s -> !s.getStatus().name().startsWith("REMOVED"))
+                .map(RouteStop::getDeliveryId)
+                .toList();
+        
+        List<Delivery> deliveries = deliveryRepo.findAllByIdInWithOrder(deliveryIds);
+        
+        BigDecimal totalWeight = BigDecimal.ZERO;
+
+        for (Delivery d : deliveries) {
+            if (d.getOrder() != null) {
+                if (d.getOrder().getTotalWeightKg() != null) {
+                    totalWeight = totalWeight.add(d.getOrder().getTotalWeightKg());
+                }
+            }
+        }
+
+        // Weight Check
+        if (vehicle.getPayloadKg() != null && vehicle.getPayloadKg() > 0) {
+            if (totalWeight.compareTo(BigDecimal.valueOf(vehicle.getPayloadKg())) > 0 && !acknowledge) {
+                throw AppException.unprocessableEntity(String.format(
+                        "Weight limit exceeded: Vehicle %dkg vs Route %.2fkg", 
+                        vehicle.getPayloadKg(), totalWeight.doubleValue()));
+            }
+        }
     }
 }

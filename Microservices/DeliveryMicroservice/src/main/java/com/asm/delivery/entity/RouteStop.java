@@ -22,7 +22,7 @@ public class RouteStop {
     @JoinColumn(name = "route_id", nullable = false)
     private Route route;
 
-    @Column(name = "delivery_id", nullable = false, unique = true)
+    @Column(name = "delivery_id", nullable = false)
     private UUID deliveryId;
 
     @Column(name = "stop_order", nullable = false)
@@ -119,6 +119,25 @@ public class RouteStop {
     @Builder.Default
     @Column(name = "buffer_minutes", nullable = false)
     private Integer bufferMinutes = 30;
+
+    // ── Handoff fields (custody transfer between drivers) ────────────────────────
+
+    /** True when a PICKED_UP stop is transferred — Driver B must confirm receipt. */
+    @Builder.Default
+    @Column(name = "requires_handoff", nullable = false)
+    private Boolean requiresHandoff = false;
+
+    /** The driver who currently has the physical package. */
+    @Column(name = "handoff_from_driver_id")
+    private UUID handoffFromDriverId;
+
+    /** The driver who should receive the physical package. */
+    @Column(name = "handoff_to_driver_id")
+    private UUID handoffToDriverId;
+
+    /** Timestamp when Driver B confirmed physical receipt of the package. */
+    @Column(name = "handoff_confirmed_at")
+    private LocalDateTime handoffConfirmedAt;
 
     // ─────────────────────────────────────────────────────────────────────────────
 

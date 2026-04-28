@@ -65,30 +65,65 @@ public class BonLivraisonPdfService {
             PDPage page = new PDPage(PDRectangle.A4);
             doc.addPage(page);
             PDPageContentStream cs = new PDPageContentStream(doc, page);
-            float y = 800f;
+            float pageW = PDRectangle.A4.getWidth();   // 595
             float margin = 50f;
 
-            // ── Header ────────────────────────────────────────────────────────
-            y = line(cs, 20, true, margin, y, "BON DE LIVRAISON");
-            y = line(cs, 10, false, margin, y - 2, "Ref: " + ref);
-            y = line(cs, 10, false, margin, y - 2, "Date: " + LocalDateTime.now().format(DATE_FMT));
-            y -= 8;
+            // ── Branded header bar ────────────────────────────────────────────
+            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);   // #FF5722
+            cs.addRect(0, 800f, pageW, 42f);
+            cs.fill();
+
+            // Company name (white)
+            cs.setNonStrokingColor(1f, 1f, 1f);
+            line(cs, 14, true, margin, 822f, "ASM Track");
+
+            // Document type right-aligned (white)
+            line(cs, 11, true, 370f, 822f, "BON DE LIVRAISON");
+
+            // Thin accent line below header
+            cs.setNonStrokingColor(0.929f, 0.231f, 0.031f); // #ED3B08
+            cs.addRect(0, 798f, pageW, 2f);
+            cs.fill();
+
+            // Reset to black
+            cs.setNonStrokingColor(0f, 0f, 0f);
+
+            float y = 778f;
+
+            // Ref + date under header
+            y = line(cs, 9, false, margin, y, "Ref : " + ref
+                    + "     Date : " + LocalDateTime.now().format(DATE_FMT));
+            y -= 10;
 
             // ── Client ────────────────────────────────────────────────────────
-            y = line(cs, 12, true, margin, y, "Client");
+            // Section label in brand color
+            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+            y = line(cs, 10, true, margin, y, "CLIENT");
+            cs.setNonStrokingColor(0f, 0f, 0f);
             y = line(cs, 10, false, margin, y - 2, "Nom:        " + clientName);
-            y = line(cs, 10, false, margin, y - 2, "Telephone:  " + clientPhone);
+            y = line(cs, 10, false, margin, y - 2, "Tel.:       " + clientPhone);
             y = line(cs, 10, false, margin, y - 2, "Adresse:    " + address);
             y = line(cs, 10, false, margin, y - 2, "Ville:      " + city);
             y -= 8;
 
             // ── Driver ────────────────────────────────────────────────────────
-            y = line(cs, 12, true, margin, y, "Livreur");
+            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+            y = line(cs, 10, true, margin, y, "LIVREUR");
+            cs.setNonStrokingColor(0f, 0f, 0f);
             y = line(cs, 10, false, margin, y - 2, "Nom: " + driverName);
             y -= 8;
 
             // ── Items table header ────────────────────────────────────────────
-            y = line(cs, 12, true, margin, y, "Articles");
+            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+            y = line(cs, 10, true, margin, y, "ARTICLES");
+            cs.setNonStrokingColor(0f, 0f, 0f);
+
+            // Table header row background
+            cs.setNonStrokingColor(0.96f, 0.96f, 0.96f);
+            cs.addRect(margin, y - 14f, pageW - 2 * margin, 14f);
+            cs.fill();
+            cs.setNonStrokingColor(0f, 0f, 0f);
+
             y = line(cs, 9, true, margin, y - 2,
                     padR("Designation", 32) + padL("Qte", 6) + padL("P.U.", 12) + padL("Total", 12));
             y -= 2;
@@ -116,13 +151,26 @@ public class BonLivraisonPdfService {
             y -= 6;
 
             // ── Grand total ──────────────────────────────────────────────────
+            y -= 4;
             if (total != null) {
-                y = line(cs, 11, true, margin, y, "TOTAL:  " + total.toPlainString() + " TND");
+                cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
+                cs.addRect(margin, y - 14f, pageW - 2 * margin, 14f);
+                cs.fill();
+                cs.setNonStrokingColor(1f, 1f, 1f);
+                y = line(cs, 11, true, margin, y - 2, "TOTAL  " + total.toPlainString() + " TND");
+                cs.setNonStrokingColor(0f, 0f, 0f);
             }
-            y -= 14;
+            y -= 20;
 
-            // ── Signature line ────────────────────────────────────────────────
-            y = line(cs, 10, false, margin, y, "Signature du client: _______________________________   Date: ___________");
+            // ── Signature box ─────────────────────────────────────────────────
+            cs.setStrokingColor(0.7f, 0.7f, 0.7f);
+            cs.addRect(margin, y - 48f, 160f, 48f);
+            cs.stroke();
+            cs.addRect(pageW - margin - 160f, y - 48f, 160f, 48f);
+            cs.stroke();
+            cs.setStrokingColor(0f, 0f, 0f);
+            y = line(cs, 8, false, margin + 4, y - 4, "Signature du client");
+            line(cs, 8, false, pageW - margin - 156f, y + (8 + 3f), "Signature du livreur");
 
             cs.close();
             doc.save(out);

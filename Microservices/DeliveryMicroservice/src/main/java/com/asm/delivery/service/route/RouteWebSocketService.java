@@ -17,11 +17,6 @@ public class RouteWebSocketService {
 
     /**
      * Pushes a route lifecycle event to the driver's personal topic.
-     *
-     * @param driverId  target driver (skipped if null)
-     * @param event     event name e.g. "ROUTE_ASSIGNED", "STOP_REMOVED"
-     * @param routeId   the route involved
-     * @param routeName display name for the route
      */
     public void notifyDriver(UUID driverId, String event, UUID routeId, String routeName) {
         if (driverId == null) {
@@ -40,6 +35,22 @@ public class RouteWebSocketService {
             log.info("notifyDriver: sent event={} to driverId={} routeId={}", event, driverId, routeId);
         } catch (Exception e) {
             log.warn("notifyDriver: failed to send event={} to driverId={}: {}", event, driverId, e.getMessage());
+        }
+    }
+
+    /**
+     * Pushes a general route update signal to the admin dashboard.
+     */
+    public void notifyRouteUpdate(UUID routeId) {
+        if (routeId == null) return;
+        try {
+            messaging.convertAndSend("/topic/admin/routes", Map.of(
+                    "event", "ROUTE_UPDATED",
+                    "routeId", routeId.toString()
+            ));
+            log.info("notifyRouteUpdate: sent update for routeId={} to admin", routeId);
+        } catch (Exception e) {
+            log.warn("notifyRouteUpdate: failed for routeId={}: {}", routeId, e.getMessage());
         }
     }
 }

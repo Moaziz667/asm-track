@@ -8,6 +8,7 @@ import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DepotRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
+import com.asm.delivery.service.route.RouteWebSocketService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -29,6 +30,7 @@ public class RouteOptimizationService {
     private final DeliveryRepository deliveryRepository;
     private final DepotRepository depotRepository;
     private final OsrmRoutingService osrmRoutingService;
+    private final RouteWebSocketService routeWebSocketService;
 
     @Value("${app.route.default-dwell-minutes:10}")
     private int defaultDwellMinutes;
@@ -149,10 +151,31 @@ public class RouteOptimizationService {
 
         Map<UUID, Order> orderMap = loadOrderMap(existing);
         List<RouteStop> reordered = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+
+        // Chronological validation
+        java.time.LocalTime lastRef = null;
+        for (int i = 0; i < reordered.size(); i++) {
+            RouteStop s = reordered.get(i);
+            java.time.LocalTime start = s.getStartTimeWindow();
+            java.time.LocalTime end = s.getEndTimeWindow();
+
+            if (start != null && lastRef != null && start.isBefore(lastRef)) {
+                throw AppException.badRequest("Incohérence temporelle : L'arrêt n°" + (i + 1) + " (" + start + ") commence avant la fin de l'arrêt précédent (" + lastRef + ")");
+            }
+            if (end != null) lastRef = end;
+            else if (s.getEtaAt() != null) lastRef = s.getEtaAt().toLocalTime();
+        }
+
         calculateAndSaveETAs(route, depot, reordered, orderMap);
 
         route.setIsOptimized(false);
         routeRepository.save(route);
+
+        // Notify driver in real-time when the route they're carrying is reordered
+        if (route.getDriverId() != null
+                && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
+            routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_REORDERED", route.getId(), route.getName());
+        }
     }
 
     // ─── Part 5: POST /routes/{id}/recalculate ────────────────────────────────────
@@ -329,10 +352,13 @@ public class RouteOptimizationService {
 
             int dwell = stop.getDwellMinutes() != null ? stop.getDwellMinutes() : defaultDwellMinutes;
 
+            // Move time forward by driving duration to get Arrival Time (ETA)
+            currentTime = currentTime.plusSeconds(driveSec);
+
             result.add(RouteStopEtaResponse.builder()
                     .stopId(stop.getId())
                     .sequenceOrder(i + 1)
-                    .etaAt(null)
+                    .etaAt(currentTime) // Correctly set the ETA
                     .slaDeadline(null)
                     .slaStatus(null)
                     .driveDurationSeconds(driveSec)
@@ -343,7 +369,8 @@ public class RouteOptimizationService {
                     .bufferMinutes(stop.getBufferMinutes())
                     .build());
 
-                currentTime = currentTime.plusSeconds(driveSec).plusMinutes(dwell);
+            // Advance time by dwell duration for the next leg
+            currentTime = currentTime.plusMinutes(dwell);
         }
         return result;
     }

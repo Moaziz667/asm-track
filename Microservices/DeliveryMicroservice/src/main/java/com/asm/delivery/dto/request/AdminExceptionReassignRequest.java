@@ -17,4 +17,7 @@ public class AdminExceptionReassignRequest {
 
     private LocalTime startTimeWindow;
     private LocalTime endTimeWindow;
+
+    private UUID targetRouteId;
+    private Integer insertAtOrder;
 }

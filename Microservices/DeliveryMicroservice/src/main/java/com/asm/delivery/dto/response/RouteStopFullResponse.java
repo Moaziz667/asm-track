@@ -23,6 +23,9 @@ public class RouteStopFullResponse {
     @Schema(description = "Route stop id")
     private UUID id;
 
+    @Schema(description = "Linked delivery id")
+    private UUID deliveryId;
+
     @Schema(description = "Sequence order in route")
     private Integer stopOrder;
 
@@ -99,4 +102,15 @@ public class RouteStopFullResponse {
     
     // Full audit history trail
     private List<StatusHistoryResponse> statusHistory;
+    // ── Legacy stop fields (reassigned/replanned) ─────────────────────────────
+    @Schema(description = "Timestamp when stop was removed from active route")
+    private LocalDateTime removedAt;
+    @Schema(description = "Removal reason", example = "REASSIGNED")
+    private String removedReason;           // "REASSIGNED" or "REPLANNED"
+    @Schema(description = "Actor that removed the stop")
+    private String removedBy;
+    @Schema(description = "Inlined client name for simple display")
+    private String clientName;
+    @Schema(description = "Inlined order reference (ERP/Odoo) for simple display")
+    private String orderRef;
 }

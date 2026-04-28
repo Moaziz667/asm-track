@@ -223,7 +223,17 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        erpSyncService.syncOrderCancellation(order);
+        final UUID orderIdForSync = order.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
+                    });
+                }
+            }
+        );
     }
 
     @Transactional
@@ -249,7 +259,7 @@ public class OrderService {
 
             // If delivery is SCHEDULED (on a route), soft-remove the route stop
             if (ds == DeliveryStatus.SCHEDULED) {
-                routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(stop -> {
+                routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(stop -> {
                     com.asm.delivery.entity.Route route = stop.getRoute();
                     if (route != null
                             && (route.getStatus() == com.asm.delivery.entity.RouteStatus.VALIDATED
@@ -281,9 +291,19 @@ public class OrderService {
         orderRepo.save(order);
 
         auditLogService.logAction(principal, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
-                Map.of("reason", reason != null ? reason : ""));
+                java.util.Map.of("reason", reason != null ? reason : ""));
 
-        erpSyncService.syncOrderCancellation(order);
+        final UUID orderIdForSync = order.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
+                    });
+                }
+            }
+        );
     }
 
     @Transactional(readOnly = true)

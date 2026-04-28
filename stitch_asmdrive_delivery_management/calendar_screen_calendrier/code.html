@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-primary-container": "#758dd5",
+                    "on-background": "#1a1b20",
+                    "secondary": "#5e5e5e",
+                    "on-secondary-container": "#646464",
+                    "surface-dim": "#dad9e0",
+                    "outline": "#757682",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e3e2e8",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#dbe1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "primary": "#00113a",
+                    "tertiary": "#121515",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "primary-fixed-dim": "#b3c5ff",
+                    "surface-container": "#efedf3",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-tint": "#435b9f",
+                    "surface-container-low": "#f4f3f9",
+                    "tertiary-container": "#272929",
+                    "surface-container-high": "#e9e7ee",
+                    "on-secondary-fixed-variant": "#474747",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "primary-container": "#002366",
+                    "on-tertiary-container": "#8f9090",
+                    "on-primary-fixed": "#00174a",
+                    "inverse-primary": "#b3c5ff",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#e3e2e8",
+                    "surface-bright": "#faf8ff",
+                    "on-error-container": "#93000a",
+                    "background": "#faf8ff",
+                    "secondary-container": "#e2e2e2",
+                    "surface": "#faf8ff",
+                    "on-surface-variant": "#444650",
+                    "outline-variant": "#c5c6d2",
+                    "on-surface": "#1a1b20",
+                    "inverse-on-surface": "#f1f0f6",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3035",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-primary-fixed-variant": "#2a4386"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "8px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "margin-mobile": "16px",
+                    "touch-target-min": "48px",
+                    "stack-sm": "8px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "status-indicator": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h3": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h2": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "status-indicator": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "h1": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .active-day-border {
+            box-shadow: inset 0 0 0 2px #00113a;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md min-h-screen pb-24 pt-16">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-white dark:bg-black border-b-2 border-slate-200 dark:border-zinc-800">
+<div class="flex items-center gap-4">
+<button class="p-2 active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<span class="text-xl font-black text-blue-900 dark:text-blue-600 uppercase tracking-wider font-inter">AsmDrive</span>
+</div>
+<div class="flex items-center">
+<button class="p-2 active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+</header>
+<main class="max-w-4xl mx-auto px-4 py-6 space-y-6">
+<!-- Calendar Header Section -->
+<section class="flex justify-between items-center bg-white border border-slate-200 p-4 rounded-lg shadow-sm">
+<div class="flex flex-col">
+<h1 class="font-h2 text-h2 text-primary">October 2023</h1>
+<p class="font-body-md text-secondary">Week 42 • North Division</p>
+</div>
+<div class="flex gap-2">
+<button class="h-12 w-12 flex items-center justify-center border-2 border-primary text-primary active:bg-primary-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="chevron_left">chevron_left</span>
+</button>
+<button class="h-12 w-12 flex items-center justify-center border-2 border-primary text-primary active:bg-primary-container transition-colors rounded">
+<span class="material-symbols-outlined" data-icon="chevron_right">chevron_right</span>
+</button>
+</div>
+</section>
+<!-- Week Grid View -->
+<section class="grid grid-cols-7 gap-2">
+<!-- Day 1: Past -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-surface-container-low rounded-lg opacity-60">
+<span class="font-label-caps text-label-caps text-secondary mb-1">MON</span>
+<span class="font-h3 text-h3">23</span>
+<div class="mt-2 flex gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-secondary"></div>
+</div>
+</button>
+<!-- Day 2: Past -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-surface-container-low rounded-lg opacity-60">
+<span class="font-label-caps text-label-caps text-secondary mb-1">TUE</span>
+<span class="font-h3 text-h3">24</span>
+</button>
+<!-- Day 3: Today/Active -->
+<button class="flex flex-col items-center justify-center p-3 border-2 border-primary bg-white rounded-lg ring-4 ring-primary-fixed ring-opacity-30">
+<span class="font-label-caps text-label-caps text-primary mb-1">WED</span>
+<span class="font-h3 text-h3 text-primary">25</span>
+<div class="mt-2 flex gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-primary"></div>
+</div>
+</button>
+<!-- Day 4: Future -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-white rounded-lg">
+<span class="font-label-caps text-label-caps text-secondary mb-1">THU</span>
+<span class="font-h3 text-h3">26</span>
+<div class="mt-2 flex gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container"></div>
+</div>
+</button>
+<!-- Day 5: Future -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-white rounded-lg">
+<span class="font-label-caps text-label-caps text-secondary mb-1">FRI</span>
+<span class="font-h3 text-h3">27</span>
+<div class="mt-2 flex gap-1">
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container"></div>
+<div class="w-1.5 h-1.5 rounded-full bg-primary-container"></div>
+</div>
+</button>
+<!-- Day 6: Future -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-white rounded-lg">
+<span class="font-label-caps text-label-caps text-secondary mb-1">SAT</span>
+<span class="font-h3 text-h3">28</span>
+</button>
+<!-- Day 7: Future -->
+<button class="flex flex-col items-center justify-center p-3 border border-slate-200 bg-white rounded-lg">
+<span class="font-label-caps text-label-caps text-secondary mb-1">SUN</span>
+<span class="font-h3 text-h3">29</span>
+</button>
+</section>
+<!-- Daily Route Summary -->
+<section class="space-y-4">
+<div class="flex justify-between items-end border-b-2 border-primary pb-2">
+<h2 class="font-h2 text-h2 text-primary">Wednesday, Oct 25</h2>
+<span class="font-label-caps text-label-caps bg-primary text-white px-2 py-0.5 rounded">3 ROUTES</span>
+</div>
+<!-- Logistics Card 1 -->
+<div class="bg-white border border-slate-200 p-4 rounded shadow-sm hover:border-primary transition-colors flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-primary">ROUTE #DRV-8821</span>
+<span class="font-status-indicator text-status-indicator bg-primary text-white px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="sync" style="font-variation-settings: 'FILL' 0;">sync</span>
+                        TRANSIT
+                    </span>
+</div>
+<div class="space-y-1">
+<h3 class="font-h2 text-h2 leading-tight">402 Industrial Pkwy, Logistics Hub A</h3>
+<p class="font-body-md text-secondary">Est. Delivery: 09:45 AM — 11:30 AM</p>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-slate-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="package_2">package_2</span>
+<span class="font-body-md font-bold">14 Packages</span>
+</div>
+<button class="font-label-caps text-label-caps border-2 border-primary text-primary px-4 py-2 hover:bg-primary-container transition-colors">
+                        VIEW DETAILS
+                    </button>
+</div>
+</div>
+<!-- Logistics Card 2 -->
+<div class="bg-white border border-slate-200 p-4 rounded shadow-sm hover:border-primary transition-colors flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-primary">ROUTE #DRV-9012</span>
+<span class="font-status-indicator text-status-indicator bg-surface-container-highest text-secondary px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="schedule">schedule</span>
+                        SCHEDULED
+                    </span>
+</div>
+<div class="space-y-1">
+<h3 class="font-h2 text-h2 leading-tight">88 West End Plaza, Central Terminal</h3>
+<p class="font-body-md text-secondary">Est. Delivery: 01:15 PM — 02:45 PM</p>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-slate-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="local_shipping">local_shipping</span>
+<span class="font-body-md font-bold">8 Packages</span>
+</div>
+<button class="font-label-caps text-label-caps border-2 border-primary text-primary px-4 py-2 hover:bg-primary-container transition-colors">
+                        VIEW DETAILS
+                    </button>
+</div>
+</div>
+<!-- Logistics Card 3 -->
+<div class="bg-white border border-slate-200 p-4 rounded shadow-sm hover:border-primary transition-colors flex flex-col gap-4">
+<div class="flex justify-between items-start">
+<span class="font-label-caps text-label-caps text-primary">ROUTE #DRV-7734</span>
+<span class="font-status-indicator text-status-indicator bg-surface-container-highest text-secondary px-3 py-1 rounded-full flex items-center gap-1">
+<span class="material-symbols-outlined text-[16px]" data-icon="schedule">schedule</span>
+                        SCHEDULED
+                    </span>
+</div>
+<div class="space-y-1">
+<h3 class="font-h2 text-h2 leading-tight">Terminal 4, Gate B, Regional Airport</h3>
+<p class="font-body-md text-secondary">Est. Delivery: 04:00 PM — 05:30 PM</p>
+</div>
+<div class="flex justify-between items-center pt-2 border-t border-slate-100">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-primary" data-icon="forklift">forklift</span>
+<span class="font-body-md font-bold">Heavy Load (4)</span>
+</div>
+<button class="font-label-caps text-label-caps border-2 border-primary text-primary px-4 py-2 hover:bg-primary-container transition-colors">
+                        VIEW DETAILS
+                    </button>
+</div>
+</div>
+</section>
+<!-- Stats Bento Section -->
+<section class="grid grid-cols-2 gap-4">
+<div class="bg-tertiary-container text-white p-4 rounded-lg flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-on-tertiary-container" data-icon="map" style="font-variation-settings: 'FILL' 1;">map</span>
+<div>
+<span class="font-h1 text-h1">142</span>
+<p class="font-label-caps text-label-caps text-on-tertiary-container">MILES PLANNED</p>
+</div>
+</div>
+<div class="bg-primary-container text-white p-4 rounded-lg flex flex-col justify-between aspect-square">
+<span class="material-symbols-outlined text-on-primary-container" data-icon="timer" style="font-variation-settings: 'FILL' 1;">timer</span>
+<div>
+<span class="font-h1 text-h1">6.5</span>
+<p class="font-label-caps text-label-caps text-on-primary-container">HOURS EST.</p>
+</div>
+</div>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-2 pb-safe bg-white dark:bg-black border-t-2 border-slate-200 dark:border-zinc-800">
+<button class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors hover:text-blue-800 dark:hover:text-blue-400">
+<span class="material-symbols-outlined mb-1" data-icon="directions_car">directions_car</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Routes</span>
+</button>
+<button class="flex flex-col items-center justify-center bg-blue-900 dark:bg-blue-600 text-white rounded-md p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors">
+<span class="material-symbols-outlined mb-1" data-icon="calendar_month" style="font-variation-settings: 'FILL' 1;">calendar_month</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Calendar</span>
+</button>
+<button class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full active:bg-slate-200 dark:active:bg-zinc-800 transition-colors hover:text-blue-800 dark:hover:text-blue-400">
+<span class="material-symbols-outlined mb-1" data-icon="person">person</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Profile</span>
+</button>
+</nav>
+</body></html>

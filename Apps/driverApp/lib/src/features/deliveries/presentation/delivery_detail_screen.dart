@@ -77,6 +77,8 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                 const SizedBox(height: 16),
               ],
               _TimestampCard(delivery: delivery),
+              const SizedBox(height: 16),
+              _BonLivraisonCard(deliveryId: delivery.id),
               const SizedBox(height: 24),
               _ActionPanel(
                 delivery: delivery,
@@ -738,5 +740,55 @@ class _ActionPanel extends StatelessWidget {
 
     if (buttons.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: buttons);
+  }
+}
+
+class _BonLivraisonCard extends ConsumerWidget {
+  const _BonLivraisonCard({required this.deliveryId});
+  final String deliveryId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.info.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.info, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Bon de livraison', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                const SizedBox(height: 2),
+                const Text('Ouvrir le PDF pour impression', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+              ],
+            ),
+          ),
+          TextButton(
+            onPressed: () async {
+              final config = ref.read(appConfigProvider);
+              final url = '${config.apiBaseUrl}/api/driver/deliveries/$deliveryId/bon-livraison';
+              if (await canLaunchUrlString(url)) {
+                await launchUrlString(url, mode: LaunchMode.externalApplication);
+              }
+            },
+            child: const Text('Ouvrir'),
+          ),
+        ],
+      ),
+    );
   }
 }

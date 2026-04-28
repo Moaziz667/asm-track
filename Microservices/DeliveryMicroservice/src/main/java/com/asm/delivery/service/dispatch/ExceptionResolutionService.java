@@ -2,6 +2,7 @@ package com.asm.delivery.service.dispatch;
 
 import com.asm.delivery.entity.Order;
 import java.time.LocalTime;
+import java.time.LocalDate;
 import java.util.stream.Collectors;
 
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
@@ -34,14 +35,15 @@ import java.util.*;
 public class ExceptionResolutionService {
 
     private static final List<DeliveryStatus> REASSIGN_ALLOWED_STATUSES = List.of(
+            DeliveryStatus.UNSCHEDULED,
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP
     );
 
     private static final List<DeliveryStatus> REPLAN_ALLOWED_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
-            DeliveryStatus.PICKED_UP,
-            DeliveryStatus.FAILED
+            DeliveryStatus.FAILED,
+            DeliveryStatus.PARTIALLY_DELIVERED
     );
 
     private final DeliveryRepository deliveryRepo;
@@ -75,7 +77,13 @@ public class ExceptionResolutionService {
                 }
 
                 if (request.getDriverId().equals(delivery.getDriverId())) {
-                        throw AppException.badRequest("Delivery is already assigned to this driver");
+                        Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryId(delivery.getId());
+                        if (currentStop.isPresent()) {
+                            UUID currentRouteId = currentStop.get().getRoute().getId();
+                            if (request.getTargetRouteId() == null || request.getTargetRouteId().equals(currentRouteId)) {
+                                throw AppException.badRequest("Delivery is already assigned to this driver on this route");
+                            }
+                        }
                 }
 
                 DriverDTO targetDriver = transportPort.getDriver(request.getDriverId().toString());
@@ -86,10 +94,44 @@ public class ExceptionResolutionService {
                 DeliveryStatus previousStatus = delivery.getStatus();
                 UUID previousDriverId = delivery.getDriverId();
 
+                // Determine the target route and its status early to apply the correct business rules
+                Route targetRoute = null;
+                if (request.getTargetRouteId() != null) {
+                    targetRoute = routeRepository.findById(request.getTargetRouteId())
+                            .orElseThrow(() -> AppException.notFound("Target route not found"));
+                    if (!request.getDriverId().equals(targetRoute.getDriverId())) {
+                        throw AppException.badRequest("Target route does not belong to the selected driver");
+                    }
+                }
+
+                RouteStatus targetRouteStatus;
+                if (targetRoute != null) {
+                    targetRouteStatus = targetRoute.getStatus();
+                } else {
+                    // Logic equivalent to findOrCreateRouteForDriver inheritance
+                    Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryId(delivery.getId());
+                    Route sourceRoute = currentStop.map(RouteStop::getRoute).orElse(null);
+                    targetRouteStatus = (sourceRoute != null && (sourceRoute.getStatus() == RouteStatus.VALIDATED || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS))
+                            ? RouteStatus.VALIDATED : RouteStatus.DRAFT;
+                }
+
+                // If assigning to a DRAFT route, we must ensure it's pinned (same as Builder logic)
+                if (targetRouteStatus == RouteStatus.DRAFT) {
+                    assertPinned(delivery);
+                }
+
                 LocalDateTime now = LocalDateTime.now();
                 boolean wasPickedUp = previousStatus == DeliveryStatus.PICKED_UP;
                 delivery.setDriverId(request.getDriverId());
-                delivery.setStatus(DeliveryStatus.SCHEDULED);
+                
+                // CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning). 
+                // If target is VALIDATED/IN_PROGRESS, it becomes SCHEDULED immediately (Execution Reassign).
+                if (targetRouteStatus == RouteStatus.DRAFT) {
+                    delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+                } else {
+                    delivery.setStatus(DeliveryStatus.SCHEDULED);
+                }
+
                 delivery.setAssignedAt(now);
                 // Keep pickedUpAt as audit record if the parcel was already collected by the previous driver
                 if (!wasPickedUp) {
@@ -131,7 +173,15 @@ public class ExceptionResolutionService {
                 auditLogService.logAction(principal, "REASSIGN_DELIVERY", "DELIVERY", delivery.getId().toString(), auditDetails);
 
                 // Keep route plan consistent with ownership change: move stop to the new driver's route.
-                Set<UUID> affectedRouteIds = moveStopToDriverRoute(delivery, request.getDriverId(), actor.name(), request.getStartTimeWindow(), request.getEndTimeWindow());
+                Set<UUID> affectedRouteIds = moveStopToDriverRoute(
+                        delivery, 
+                        request.getDriverId(), 
+                        request.getTargetRouteId(), 
+                        request.getInsertAtOrder(), 
+                        actor.name(), 
+                        request.getStartTimeWindow(), 
+                        request.getEndTimeWindow()
+                );
 
                 // Recompute ETAs/geometries on both source and target routes after ownership change.
                 for (UUID routeId : affectedRouteIds) {
@@ -145,15 +195,33 @@ public class ExceptionResolutionService {
                                         "client", clientName));
                 }
 
-                appendHistory(delivery,
-                                DeliveryStatus.SCHEDULED,
-                                actor.name(),
-                                actor.role(),
-                                buildReassignOpsNote(previousStatus, previousDriverName, targetDriverName, request.getNote()));
+                if (targetRouteStatus == RouteStatus.DRAFT) {
+                    appendHistory(delivery,
+                                    DeliveryStatus.UNSCHEDULED,
+                                    actor.name(),
+                                    actor.role(),
+                                    String.format("Livraison ajoutée à la tournée brouillon %s pour planification.", 
+                                        targetRoute != null ? targetRoute.getName() : "par le dispatch"));
+                } else {
+                    appendHistory(delivery,
+                                    DeliveryStatus.SCHEDULED,
+                                    actor.name(),
+                                    actor.role(),
+                                    buildReassignOpsNote(previousStatus, previousDriverName, targetDriverName, request.getNote()));
+                }
 
-                eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
+                if (targetRouteStatus != RouteStatus.DRAFT) {
+                    if (previousStatus == DeliveryStatus.UNSCHEDULED) {
+                        eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, request.getDriverId());
+                    } else {
+                        eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
+                    }
+                }
 
-                return mapActionResult(delivery, "WARNING", "RESCHEDULED", "Delivery reassigned to a new driver");
+                String successMsg = targetRouteStatus == RouteStatus.DRAFT 
+                    ? "Delivery added to draft route for planning" 
+                    : "Delivery reassigned to a new driver";
+                return mapActionResult(delivery, "WARNING", "RESCHEDULED", successMsg);
         }
 
         @Transactional
@@ -167,7 +235,9 @@ public class ExceptionResolutionService {
 
                 DeliveryStatus previousStatus = delivery.getStatus();
                 UUID previousDriverId = delivery.getDriverId();
-                if (delivery.getDriverId() != null) {
+                if (previousDriverId != null) {
+                        auditLogService.logAction(principal, "DELIVERY_REMOVED_FROM_ROUTE", "DELIVERY", delivery.getId().toString(),
+                                Map.of("action", "removed_by_replan", "driverId", previousDriverId.toString()));
                 }
 
                 delivery.setDriverId(null);
@@ -278,7 +348,7 @@ public class ExceptionResolutionService {
         deliveryRepo.save(delivery);
 
         // Remove the associated route stop (soft-delete)
-        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+        routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
             Route route = stop.getRoute();
             if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
                 stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
@@ -302,8 +372,18 @@ public class ExceptionResolutionService {
         if (order != null) {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
-            if (order.getSource() == OrderSource.ODOO) {
-                erpSyncService.syncOrderCancellation(order);
+            if (order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
+                final java.util.UUID orderIdForSync = order.getId();
+                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                    new org.springframework.transaction.support.TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            java.util.concurrent.CompletableFuture.runAsync(() -> {
+                                orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
+                            });
+                        }
+                    }
+                );
             }
         }
     }
@@ -505,6 +585,8 @@ public class ExceptionResolutionService {
                 String message;
                 if (previousStatus == DeliveryStatus.PICKED_UP) {
                         message = String.format("Livraison déjà ramassée réassignée avec confirmation de passation. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
+                } else if (previousStatus == DeliveryStatus.UNSCHEDULED) {
+                        message = String.format("Livraison assignée par le dispatch. Nouveau chauffeur: %s.", newDriver);
                 } else {
                         message = String.format("Livraison réassignée par le dispatch. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
                 }
@@ -537,6 +619,15 @@ public class ExceptionResolutionService {
                 String raw = deliveryId.toString();
                 return raw.length() <= 8 ? raw : raw.substring(0, 8);
         }
+        private void assertPinned(Delivery delivery) {
+            Order order = delivery.getOrder();
+            if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
+                String ref = order != null && org.springframework.util.StringUtils.hasText(order.getErpOrderId())
+                        ? order.getErpOrderId() : delivery.getId().toString().substring(0, 8);
+                throw AppException.badRequest("L'ordre " + ref + " n'est pas épinglé. Veuillez épingler l'adresse sur la carte avant de l'ajouter à un brouillon.");
+            }
+        }
+
         private void assertReassignAllowed(Delivery delivery) {
                 if (!REASSIGN_ALLOWED_STATUSES.contains(delivery.getStatus())) {
                         throw AppException.badRequest("Reassign is allowed only for SCHEDULED or PICKED_UP deliveries");
@@ -550,112 +641,159 @@ public class ExceptionResolutionService {
         }
 
         private void removeStopFromCurrentRoute(UUID deliveryId) {
-                routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
-                        UUID previousRouteId = stop.getRoute().getId();
+                routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
                         Route route = stop.getRoute();
-                        if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
+                        if (route == null) return;
+                        
+                        UUID previousRouteId = route.getId();
+                        if (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS) {
                                 // Soft-delete on active routes — keep audit trail
                                 stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
                                 stop.setRemovedAt(LocalDateTime.now());
                                 stop.setRemovedReason("REPLANNED");
                                 stop.setRemovedBy("ADMIN");
                                 routeStopRepository.save(stop);
+                                
+                                // Notify driver in real-time
+                                routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
                         } else {
+                                // Draft routes — hard delete
                                 routeStopRepository.delete(stop);
                         }
                         repackStopOrder(previousRouteId);
                 });
         }
 
-        private Set<UUID> moveStopToDriverRoute(Delivery delivery, UUID targetDriverId, String actorName, java.time.LocalTime requestedStartTime, java.time.LocalTime requestedEndTime) {
+        private Set<UUID> moveStopToDriverRoute(Delivery delivery, UUID targetDriverId, UUID targetRouteId, Integer insertAtOrder, String actorName, java.time.LocalTime requestedStartTime, java.time.LocalTime requestedEndTime) {
                 Set<UUID> affectedRouteIds = new LinkedHashSet<>();
-                routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(currentStop -> {
-                        Route sourceRoute = currentStop.getRoute();
-                        if (sourceRoute == null) {
-                                return;
-                        }
+                Optional<RouteStop> currentStopOpt = routeStopRepository.findActiveByDeliveryId(delivery.getId());
+                Route sourceRoute = null;
 
-                        if (targetDriverId.equals(sourceRoute.getDriverId())) {
-                                return;
-                        }
-
-                        UUID sourceRouteId = sourceRoute.getId();
-                        affectedRouteIds.add(sourceRouteId);
-                        routeStopRepository.delete(currentStop);
-                        repackStopOrder(sourceRouteId);
-
-                        Route targetRoute = findOrCreateRouteForDriver(targetDriverId, sourceRoute, actorName);
-                        affectedRouteIds.add(targetRoute.getId());
-                        List<RouteStop> targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+                if (currentStopOpt.isPresent()) {
+                        RouteStop currentStop = currentStopOpt.get();
+                        sourceRoute = currentStop.getRoute();
                         
-                        // User-requested boundary validation
-                        if (requestedStartTime != null && !targetStops.isEmpty()) {
-                                RouteStop lastTargetStop = targetStops.get(targetStops.size() - 1);
-                                java.time.LocalTime referenceTime = lastTargetStop.getEndTimeWindow() != null 
-                                            ? lastTargetStop.getEndTimeWindow() 
-                                            : (lastTargetStop.getEtaAt() != null ? lastTargetStop.getEtaAt().toLocalTime() : targetRoute.getPlannedStartTime());
-                                
-                                if (referenceTime != null && requestedStartTime.isBefore(referenceTime)) {
-                                        throw AppException.badRequest("Reassigned stop start time (" + requestedStartTime + ") must be after current route's last stop time (" + referenceTime + ")");
+                        if (sourceRoute != null) {
+                            if (targetDriverId.equals(sourceRoute.getDriverId()) && (targetRouteId == null || targetRouteId.equals(sourceRoute.getId()))) {
+                                    return affectedRouteIds; // Already exactly where it needs to be
+                            }
+
+                            UUID sourceRouteId = sourceRoute.getId();
+                            affectedRouteIds.add(sourceRouteId);
+                            routeStopRepository.delete(currentStop);
+                            repackStopOrder(sourceRouteId);
+                        }
+                }
+
+                Route targetRoute;
+                if (targetRouteId != null) {
+                        targetRoute = routeRepository.findById(targetRouteId)
+                                .orElseThrow(() -> AppException.notFound("Target route not found"));
+                        if (!targetDriverId.equals(targetRoute.getDriverId())) {
+                                throw AppException.badRequest("Target route does not belong to the selected driver");
+                        }
+                } else {
+                        targetRoute = findOrCreateRouteForDriver(targetDriverId, sourceRoute, delivery, actorName);
+                }
+
+                affectedRouteIds.add(targetRoute.getId());
+                List<RouteStop> targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+                
+                // Determine final windows
+                java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getStartTimeWindow() : null);
+                java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getEndTimeWindow() : null);
+
+                // User-requested boundary validation (Chronological Check)
+                if (finalStartTime != null && !targetStops.isEmpty()) {
+                    int pos = (insertAtOrder != null) ? insertAtOrder : targetStops.size() + 1;
+                    
+                    // Check against previous stop (if any)
+                    if (pos > 1) {
+                        RouteStop prev = targetStops.get(pos - 2);
+                        java.time.LocalTime prevRef = prev.getEndTimeWindow() != null ? prev.getEndTimeWindow() 
+                                          : (prev.getEtaAt() != null ? prev.getEtaAt().toLocalTime() : targetRoute.getPlannedStartTime());
+                        if (prevRef != null && finalStartTime.isBefore(prevRef)) {
+                            throw AppException.badRequest("Conflit d'horaire : L'arrêt précédent finit à " + prevRef + ". L'heure de début (" + finalStartTime + ") est invalide.");
+                        }
+                    }
+                    
+                    // Check against next stop (if any)
+                    if (pos <= targetStops.size()) {
+                        RouteStop next = targetStops.get(pos - 1);
+                        java.time.LocalTime nextRef = next.getStartTimeWindow() != null ? next.getStartTimeWindow() 
+                                          : (next.getEtaAt() != null ? next.getEtaAt().toLocalTime() : targetRoute.getPlannedEndTime());
+                        if (nextRef != null && finalEndTime != null && finalEndTime.isAfter(nextRef)) {
+                            throw AppException.badRequest("Conflit d'horaire : L'arrêt suivant commence à " + nextRef + ". L'heure de fin (" + finalEndTime + ") est invalide.");
+                        }
+                    }
+                }
+
+                // Extend Route boundaries if the newly placed window is outside Current bounds
+                boolean routeModified = false;
+                if (finalStartTime != null && targetRoute.getPlannedStartTime() != null && finalStartTime.isBefore(targetRoute.getPlannedStartTime())) {
+                        targetRoute.setPlannedStartTime(finalStartTime);
+                        routeModified = true;
+                }
+                if (finalEndTime != null && targetRoute.getPlannedEndTime() != null && finalEndTime.isAfter(targetRoute.getPlannedEndTime())) {
+                        targetRoute.setPlannedEndTime(finalEndTime);
+                        routeModified = true;
+                }
+                if (routeModified) {
+                        routeRepository.save(targetRoute);
+                }
+
+                int nextOrder;
+                if (insertAtOrder != null && insertAtOrder >= 1 && insertAtOrder <= targetStops.size() + 1) {
+                        nextOrder = insertAtOrder;
+                        // Shift subsequent stops down
+                        for (RouteStop s : targetStops) {
+                                if (s.getStopOrder() >= nextOrder) {
+                                        s.setStopOrder(s.getStopOrder() + 1);
+                                        routeStopRepository.save(s);
                                 }
                         }
+                } else {
+                        nextOrder = targetStops.size() + 1;
+                }
 
-                        // Determine final windows
-                        java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : currentStop.getStartTimeWindow();
-                        java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : currentStop.getEndTimeWindow();
+                routeStopRepository.save(RouteStop.builder()
+                                .route(targetRoute)
+                                .deliveryId(delivery.getId())
+                                .stopOrder(nextOrder)
+                                .status(RouteStopStatus.PENDING)
+                                .notes(currentStopOpt.isPresent() ? "Moved by dispatch via reassign" : "Assigned by dispatch from pool")
+                                .startTimeWindow(finalStartTime)
+                                .endTimeWindow(finalEndTime)
+                                .bufferMinutes(currentStopOpt.isPresent() && currentStopOpt.get().getBufferMinutes() != null ? currentStopOpt.get().getBufferMinutes() : 10)
+                                .build());
 
-                        // Extend Route boundaries if the newly placed window is outside Current bounds
-                        boolean routeModified = false;
-                        if (finalStartTime != null && finalStartTime.isBefore(targetRoute.getPlannedStartTime())) {
-                                targetRoute.setPlannedStartTime(finalStartTime);
-                                routeModified = true;
-                        }
-                        if (finalEndTime != null && finalEndTime.isAfter(targetRoute.getPlannedEndTime())) {
-                                targetRoute.setPlannedEndTime(finalEndTime);
-                                routeModified = true;
-                        }
-                        if (routeModified) {
-                                routeRepository.save(targetRoute);
-                        }
-
-                        int nextOrder = targetStops.size() + 1;
-
-                        routeStopRepository.save(RouteStop.builder()
-                                        .route(targetRoute)
-                                        .deliveryId(delivery.getId())
-                                        .stopOrder(nextOrder)
-                                        .status(RouteStopStatus.PENDING)
-                                        .notes("Moved by dispatch via reassign")
-                                        .startTimeWindow(finalStartTime)
-                                        .endTimeWindow(finalEndTime)
-                                        .bufferMinutes(currentStop.getBufferMinutes())
-                                        .build());
-                });
                 return affectedRouteIds;
         }
 
-        private Route findOrCreateRouteForDriver(UUID driverId, Route sourceRoute, String actorName) {
+        private Route findOrCreateRouteForDriver(UUID driverId, Route sourceRoute, Delivery delivery, String actorName) {
+                LocalDate date = sourceRoute != null ? sourceRoute.getDate() : LocalDate.now();
                 List<RouteStatus> activeStatuses = List.of(RouteStatus.DRAFT, RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
-                List<Route> routes = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, sourceRoute.getDate(), activeStatuses);
+                List<Route> routes = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, date, activeStatuses);
                 if (!routes.isEmpty()) {
                         return routes.get(0);
                 }
 
                 String creator = StringUtils.hasText(actorName) ? actorName : "SYSTEM";
-                // Inherit active status so the driver sees the new route immediately
-                RouteStatus inheritedStatus = (sourceRoute.getStatus() == RouteStatus.VALIDATED
-                        || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS)
+                RouteStatus inheritedStatus = (sourceRoute != null && (sourceRoute.getStatus() == RouteStatus.VALIDATED
+                        || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS))
                         ? RouteStatus.VALIDATED : RouteStatus.DRAFT;
+                
+                String city = sourceRoute != null ? sourceRoute.getCity() : (delivery.getOrder() != null ? delivery.getOrder().getDropoffCity() : null);
+
                 Route draftRoute = Route.builder()
-                                .name("Dispatch route " + sourceRoute.getDate() + " " + driverId.toString().substring(0, 8))
+                                .name("Dispatch route " + date + " " + driverId.toString().substring(0, 8))
                                 .driverId(driverId)
                                 .vehicleId(null)
-                                .date(sourceRoute.getDate())
-                                .plannedStartTime(sourceRoute.getPlannedStartTime() != null ? sourceRoute.getPlannedStartTime() : LocalTime.of(8, 0))
-                                .plannedEndTime(sourceRoute.getPlannedEndTime() != null ? sourceRoute.getPlannedEndTime() : LocalTime.of(18, 0))
-                                .depotId(sourceRoute.getDepotId())
-                                .departureTime(sourceRoute.getDepartureTime())
-                                .city(sourceRoute.getCity())
+                                .date(date)
+                                .plannedStartTime(sourceRoute != null && sourceRoute.getPlannedStartTime() != null ? sourceRoute.getPlannedStartTime() : LocalTime.of(8, 0))
+                                .plannedEndTime(sourceRoute != null && sourceRoute.getPlannedEndTime() != null ? sourceRoute.getPlannedEndTime() : LocalTime.of(18, 0))
+                                .depotId(sourceRoute != null ? sourceRoute.getDepotId() : null)
+                                .city(city)
                                 .status(inheritedStatus)
                                 .createdBy(creator)
                                 .build();

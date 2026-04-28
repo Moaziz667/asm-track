@@ -145,6 +145,14 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
     }
 
+    @PostMapping("/{id}/handoff")
+    @Operation(summary = "Confirm handoff receipt", description = "DRIVER only. Called by Driver B to confirm physical receipt of a package transferred from Driver A.")
+    public ResponseEntity<DriverDeliveryResponse> confirmHandoff(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()), principal));
+    }
+
     @GetMapping("/{id}/bon-livraison")
     @Operation(summary = "Download bon de livraison PDF for a delivery")
     public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {

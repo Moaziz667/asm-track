@@ -466,8 +466,10 @@ public class RoutePlanningService {
             if (stopStatus == RouteStopStatus.ARRIVED
                     || stopStatus == RouteStopStatus.COMPLETED
                     || stopStatus == RouteStopStatus.FAILED
+                    || stopStatus == RouteStopStatus.PICKED_UP
+                    || stopStatus == RouteStopStatus.IN_TRANSIT
                     || stopStatus == RouteStopStatus.PARTIAL) {
-                throw AppException.badRequest("Cannot remove stop that is already in progress or terminal");
+                throw AppException.badRequest("Cannot remove stop that is already in progress, terminal or picked up");
             }
             // Soft-delete: mark as REMOVED_REPLANNED with audit fields
             stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
@@ -482,7 +484,9 @@ public class RoutePlanningService {
 
         // Reset delivery back to UNSCHEDULED
         deliveryRepository.findById(stop.getDeliveryId()).ifPresent(delivery -> {
-            if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+            if (delivery.getStatus() == DeliveryStatus.SCHEDULED || 
+                delivery.getStatus() == DeliveryStatus.FAILED ||
+                delivery.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED) {
                 delivery.setStatus(DeliveryStatus.UNSCHEDULED);
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
@@ -639,7 +643,7 @@ public class RoutePlanningService {
         return response;
     }
     private void addStopInternal(Route route, UUID deliveryId, int stopOrder, LocalTime start, LocalTime end, Integer buffer) {
-        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(existingStop -> {
+        routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(existingStop -> {
             UUID existingRouteId = existingStop.getRoute() != null ? existingStop.getRoute().getId() : null;
             UUID currentRouteId = route.getId();
             if (existingRouteId == null || !existingRouteId.equals(currentRouteId)) {
@@ -914,6 +918,7 @@ public class RoutePlanningService {
                     .deliveryAddress(order != null ? order.getDropoffAddress() : null)
                     .deliveryCity(order != null ? order.getDropoffCity() : null)
                     .clientName(order != null ? order.getClientName() : null)
+                    .orderRef(order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getErpExternalRef()) : null)
                     .removedAt(stop.getRemovedAt())
                     .removedReason(stop.getRemovedReason())
                     .removedBy(stop.getRemovedBy())
@@ -1174,6 +1179,7 @@ public class RoutePlanningService {
 
         return RouteStopFullResponse.builder()
                 .id(stop.getId())
+                .deliveryId(stop.getDeliveryId())
                 .stopOrder(stop.getStopOrder())
                 .status(resolveStopStatus(stop, delivery))
                 .arrivedAt(stop.getArrivedAt())
@@ -1241,15 +1247,26 @@ public class RoutePlanningService {
                 .statusHistory(
                         deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
                                 .stream()
-                                .map(h -> StatusHistoryResponse.builder()
+                                .map(h -> {
+                                    String actorName = resolveActorName(h.getChangedBy(), h.getChangedByRole());
+                                    return StatusHistoryResponse.builder()
                                         .id(h.getId() != null ? h.getId().toString() : null)
                                         .status(h.getStatus().name())
                                         .note(h.getNote())
                                         .changedAt(h.getChangedAt())
-                                        .changedBy(h.getChangedBy())
-                                        .build())
+                                        .changedBy(actorName)
+                                        .actor(actorName)
+                                        .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
+                                        .timestamp(h.getChangedAt())
+                                        .build();
+                                })
                                 .toList()
                 )
+                .removedAt(stop.getRemovedAt())
+                .removedReason(stop.getRemovedReason())
+                .removedBy(stop.getRemovedBy())
+                .clientName(orderInfo != null ? orderInfo.getClientName() : null)
+                .orderRef(orderInfo != null ? (orderInfo.getErpOrderId() != null ? orderInfo.getErpOrderId() : orderInfo.getErpExternalRef()) : null)
                 .build();
     }
 
@@ -1297,6 +1314,22 @@ public class RoutePlanningService {
             .total(total)
             .lateStops(lateStops)
             .build();
+    }
+
+    private String resolveActorName(String changedBy, Role role) {
+        if (changedBy == null) return null;
+        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
+        try {
+            UUID.fromString(changedBy);
+            if (role == Role.DRIVER) {
+                com.asm.delivery.transport.DriverDTO driver = transportPort.getDriver(changedBy);
+                if (driver != null && driver.getName() != null) return driver.getName();
+            }
+            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            return changedBy.substring(0, 8).toUpperCase();
+        } catch (IllegalArgumentException e) {
+            return changedBy;
+        }
     }
 
     private void appendHistory(Delivery d, DeliveryStatus status, String changedBy, Role role, String note) {
