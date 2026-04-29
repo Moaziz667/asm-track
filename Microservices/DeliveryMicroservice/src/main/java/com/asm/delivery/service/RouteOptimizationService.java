@@ -352,13 +352,10 @@ public class RouteOptimizationService {
 
             int dwell = stop.getDwellMinutes() != null ? stop.getDwellMinutes() : defaultDwellMinutes;
 
-            // Move time forward by driving duration to get Arrival Time (ETA)
-            currentTime = currentTime.plusSeconds(driveSec);
-
             result.add(RouteStopEtaResponse.builder()
                     .stopId(stop.getId())
                     .sequenceOrder(i + 1)
-                    .etaAt(currentTime) // Correctly set the ETA
+                    .etaAt(null)
                     .slaDeadline(null)
                     .slaStatus(null)
                     .driveDurationSeconds(driveSec)
@@ -369,8 +366,7 @@ public class RouteOptimizationService {
                     .bufferMinutes(stop.getBufferMinutes())
                     .build());
 
-            // Advance time by dwell duration for the next leg
-            currentTime = currentTime.plusMinutes(dwell);
+                currentTime = currentTime.plusSeconds(driveSec).plusMinutes(dwell);
         }
         return result;
     }

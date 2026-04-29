@@ -22,8 +22,12 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
         return findFirstByDeliveryIdOrderByCreatedAtDesc(deliveryId);
     }
     
-    @Query("SELECT rs FROM RouteStop rs WHERE rs.deliveryId = :deliveryId AND rs.status NOT IN ('REMOVED_REPLANNED', 'REMOVED_CANCELLED')")
-    Optional<RouteStop> findActiveByDeliveryId(@Param("deliveryId") UUID deliveryId);
+    @Query("SELECT rs FROM RouteStop rs WHERE rs.deliveryId = :deliveryId AND rs.status NOT IN ('REMOVED_REPLANNED', 'REMOVED_CANCELLED') ORDER BY rs.createdAt DESC")
+    List<RouteStop> findActiveStopsByDeliveryId(@Param("deliveryId") UUID deliveryId);
+
+    default Optional<RouteStop> findActiveByDeliveryId(UUID deliveryId) {
+        return findActiveStopsByDeliveryId(deliveryId).stream().findFirst();
+    }
 
     @Query("SELECT rs FROM RouteStop rs JOIN FETCH rs.route r WHERE rs.deliveryId IN :deliveryIds AND rs.status NOT IN ('REMOVED_REPLANNED', 'REMOVED_CANCELLED')")
     List<RouteStop> findAllByDeliveryIdInWithRoute(@Param("deliveryIds") List<UUID> deliveryIds);

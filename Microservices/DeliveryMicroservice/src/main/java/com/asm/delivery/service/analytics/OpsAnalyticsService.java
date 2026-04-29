@@ -74,7 +74,7 @@ public class OpsAnalyticsService {
                                                                                                    LocalDate to,
                                                                                                    Integer waitingSlaOverride,
                                                                                                    Integer transitSlaOverride) {
-                return buildOpsOverview(period, from, to, 4, 30, waitingSlaOverride, transitSlaOverride);
+                return buildOpsOverview(period, from, to, 200, 100, waitingSlaOverride, transitSlaOverride);
     }
 
         public AdminOpsOverviewResponse getOpsOverview(String period, LocalDate from, LocalDate to) {
@@ -87,8 +87,8 @@ public class OpsAnalyticsService {
                                                                                          Integer topItems,
                                                                                          Integer waitingSlaOverride,
                                                                                          Integer transitSlaOverride) {
-        int top = topItems == null || topItems < 1 ? 4 : Math.min(topItems, 20);
-                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, top, 30, waitingSlaOverride, transitSlaOverride);
+        int top = topItems == null || topItems < 1 ? 100 : Math.min(topItems, 500);
+                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, top, 100, waitingSlaOverride, transitSlaOverride);
         return AdminOpsLanesResponse.builder()
                 .generatedAt(overview.getGeneratedAt())
                 .period(overview.getPeriod())
@@ -108,8 +108,8 @@ public class OpsAnalyticsService {
                                                                                            Integer limit,
                                                                                            Integer waitingSlaOverride,
                                                                                            Integer transitSlaOverride) {
-        int max = limit == null || limit < 1 ? 30 : Math.min(limit, 200);
-                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, 4, max, waitingSlaOverride, transitSlaOverride);
+        int max = limit == null || limit < 1 ? 100 : Math.min(limit, 500);
+                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, 100, max, waitingSlaOverride, transitSlaOverride);
         return AdminOpsAlertsResponse.builder()
                 .generatedAt(overview.getGeneratedAt())
                 .period(overview.getPeriod())

@@ -399,6 +399,14 @@ public class DispatchService {
                 .failedAt(d.getFailedAt())
                 .cancelledAt(d.getCancelledAt())
                 .updatedAt(d.getUpdatedAt())
+                .totalQuantity(order != null ? (order.getTotalQuantity() != null && order.getTotalQuantity() > 0 
+                    ? order.getTotalQuantity() 
+                    : (order.getItems() != null ? order.getItems().stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum() : 0)) : null)
+                .itemsSummary(order != null && order.getItems() != null 
+                    ? order.getItems().stream()
+                        .map(i -> i.getQuantity() + "x " + (i.getName() != null ? i.getName() : "Item"))
+                        .collect(Collectors.joining(", "))
+                    : null)
                 .items(order != null && order.getItems() != null ? new ArrayList<>(order.getItems()) : null)
                 .build();
     }

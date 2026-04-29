@@ -1,5 +1,6 @@
 package com.asm.delivery.dto.response;
 
+import com.asm.delivery.entity.OrderItem;
 import com.asm.delivery.entity.OrderSource;
 import io.swagger.v3.oas.annotations.media.Schema;
 import lombok.AllArgsConstructor;
@@ -11,7 +12,6 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.UUID;
-import com.asm.delivery.entity.OrderItem;
 
 @Data
 @Builder
@@ -127,6 +127,12 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Last update timestamp")
     private LocalDateTime updatedAt;
 
-    @Schema(description = "List of items in the order")
+    @Schema(description = "Total number of items in the order")
+    private Integer totalQuantity;
+
+    @Schema(description = "Comma-separated summary of items (e.g. '3x Item A, 1x Item B')")
+    private String itemsSummary;
+
+    @Schema(description = "Detailed list of items in the order")
     private List<OrderItem> items;
 }

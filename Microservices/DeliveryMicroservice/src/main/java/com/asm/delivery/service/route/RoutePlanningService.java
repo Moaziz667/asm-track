@@ -279,9 +279,11 @@ public class RoutePlanningService {
                 throw AppException.badRequest("Stop #" + i + ": Invalid time format, expected HH:mm[:ss]");
             }
 
+            /*
             if (start.isBefore(lastEnd)) {
                 throw AppException.badRequest("Stop #" + i + ": Start time (" + start + ") is before previous stop ends (" + lastEnd + ")");
             }
+            */
             if (!start.isBefore(end)) {
                 throw AppException.badRequest("Stop #" + i + ": End time must be after start time");
             }
