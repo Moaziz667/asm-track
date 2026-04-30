@@ -4,6 +4,7 @@ import com.asm.delivery.dto.request.AddRouteStopRequest;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.ReorderRouteStopsRequest;
 import com.asm.delivery.dto.request.ReorderStopsRequest;
+import com.asm.delivery.dto.request.SetRouteLockRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.OptimizeRouteResponse;
 import com.asm.delivery.dto.response.RouteResponse;
@@ -133,6 +134,13 @@ public class AdminRouteController {
     @IdempotentOperation
     public ResponseEntity<RouteResponse> validate(@PathVariable UUID id) {
         return ResponseEntity.ok(routePlanningService.validate(id));
+    }
+
+    @PatchMapping("/{id}/lock")
+    @Operation(summary = "Lock or unlock a route (excluded from batch optimization when locked)")
+    public ResponseEntity<RouteResponse> setLocked(@PathVariable UUID id,
+                                                   @Valid @RequestBody SetRouteLockRequest request) {
+        return ResponseEntity.ok(routePlanningService.setLocked(id, Boolean.TRUE.equals(request.getLocked())));
     }
 
     @PostMapping("/{id}/close")

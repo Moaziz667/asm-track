@@ -120,4 +120,7 @@ public class RouteResponse {
 
     @Schema(description = "Human-readable plan version — incremented on validate, reassign, add/remove stop")
     private Integer routeVersion;
+
+    @Schema(description = "When true, route is excluded from batch optimization runs")
+    private Boolean locked;
 }

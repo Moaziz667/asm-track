@@ -106,6 +106,11 @@ public class Route {
     @Column(name = "zone_id")
     private UUID zoneId;
 
+    /** When true, this route is excluded from batch optimization runs. */
+    @Builder.Default
+    @Column(name = "locked", nullable = false)
+    private Boolean locked = false;
+
     /** Human-readable plan version — incremented on every significant mutation (validate, reassign, add/remove stop). */
     @Column(name = "route_version", nullable = false)
     @Builder.Default
@@ -128,6 +133,9 @@ public class Route {
         }
         if (isOptimized == null) {
             isOptimized = false;
+        }
+        if (locked == null) {
+            locked = false;
         }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();

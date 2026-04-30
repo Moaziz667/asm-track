@@ -108,9 +108,9 @@ CREATE TABLE IF NOT EXISTS deliveries (
   order_id        UUID NOT NULL UNIQUE REFERENCES orders(id),
   driver_id       UUID,
 
-  status          VARCHAR(20) NOT NULL DEFAULT 'WAITING_DRIVER' CHECK (status IN (
-    'WAITING_DRIVER',
-    'ASSIGNED',
+  status          VARCHAR(20) NOT NULL DEFAULT 'UNSCHEDULED' CHECK (status IN (
+    'UNSCHEDULED',
+    'SCHEDULED',
     'PICKED_UP',
     'IN_TRANSIT',
     'DELIVERED',
@@ -137,6 +137,8 @@ CREATE TABLE IF NOT EXISTS deliveries (
   cancel_reason   TEXT,
   cancelled_by    VARCHAR(10) CHECK (cancelled_by IN ('CLIENT', 'DRIVER', 'SYSTEM')),
 
+  return_to_origin BOOLEAN NOT NULL DEFAULT FALSE,
+
   created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -152,8 +154,8 @@ CREATE TABLE IF NOT EXISTS delivery_status_history (
   id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   delivery_id     UUID NOT NULL REFERENCES deliveries(id),
   status          VARCHAR(20) NOT NULL CHECK (status IN (
-    'WAITING_DRIVER',
-    'ASSIGNED',
+    'UNSCHEDULED',
+    'SCHEDULED',
     'PICKED_UP',
     'IN_TRANSIT',
     'DELIVERED',
@@ -181,9 +183,13 @@ BEGIN
   ALTER TABLE orders ADD CONSTRAINT ck_orders_status
     CHECK (status IN ('PENDING', 'DELIVERED', 'PARTIALLY_DELIVERED', 'CANCELLED'));
 
-  -- Migrate legacy PARTIAL values to PARTIALLY_DELIVERED before recreating constraints
+  -- Migrate legacy status values to current Enum values
   UPDATE deliveries SET status = 'PARTIALLY_DELIVERED' WHERE status = 'PARTIAL';
   UPDATE delivery_status_history SET status = 'PARTIALLY_DELIVERED' WHERE status = 'PARTIAL';
+  UPDATE deliveries SET status = 'UNSCHEDULED' WHERE status = 'WAITING_DRIVER';
+  UPDATE deliveries SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
+  UPDATE delivery_status_history SET status = 'UNSCHEDULED' WHERE status = 'WAITING_DRIVER';
+  UPDATE delivery_status_history SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
 
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'deliveries_status_check') THEN
     ALTER TABLE deliveries DROP CONSTRAINT deliveries_status_check;
@@ -193,8 +199,8 @@ BEGIN
   END IF;
   ALTER TABLE deliveries ADD CONSTRAINT ck_deliveries_status
     CHECK (status IN (
-      'WAITING_DRIVER',
-      'ASSIGNED',
+      'UNSCHEDULED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'DELIVERED',
@@ -211,8 +217,8 @@ BEGIN
   END IF;
   ALTER TABLE delivery_status_history ADD CONSTRAINT ck_delivery_history_status
     CHECK (status IN (
-      'WAITING_DRIVER',
-      'ASSIGNED',
+      'UNSCHEDULED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'DELIVERED',
@@ -341,16 +347,19 @@ CREATE TABLE IF NOT EXISTS routes (
   name         VARCHAR(150) NOT NULL,
   driver_id    UUID NOT NULL,
   vehicle_id   UUID REFERENCES vehicles(id),
+  version      INTEGER DEFAULT 0,
   date         DATE NOT NULL,
   planned_start_time TIME NOT NULL DEFAULT TIME '08:00',
   planned_end_time   TIME NOT NULL DEFAULT TIME '18:00',
   city         VARCHAR(100),
-  status       VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALIDATED', 'IN_PROGRESS', 'CLOSED')),
+  status       VARCHAR(20) NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT', 'VALIDATED', 'IN_PROGRESS', 'CLOSED', 'CANCELLED')),
   created_by   VARCHAR(100) NOT NULL,
   created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
   validated_at TIMESTAMP,
   closed_at    TIMESTAMP,
-  updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
+  updated_at   TIMESTAMP NOT NULL DEFAULT NOW(),
+  parent_route_id UUID,
+  route_version INTEGER NOT NULL DEFAULT 1
 );
 
 CREATE INDEX IF NOT EXISTS idx_routes_driver_date ON routes(driver_id, date);
@@ -365,10 +374,13 @@ CREATE TABLE IF NOT EXISTS route_stops (
   route_id     UUID NOT NULL REFERENCES routes(id) ON DELETE CASCADE,
   delivery_id  UUID NOT NULL UNIQUE REFERENCES deliveries(id),
   stop_order   INTEGER NOT NULL,
-  status       VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL')),
+  status       VARCHAR(20) NOT NULL DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'ARRIVED', 'COMPLETED', 'FAILED', 'PARTIAL')),
   arrived_at   TIMESTAMP,
   completed_at TIMESTAMP,
   notes        TEXT,
+  start_time_window TIME,
+  end_time_window   TIME,
+  buffer_minutes    INTEGER NOT NULL DEFAULT 30,
   created_at   TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at   TIMESTAMP NOT NULL DEFAULT NOW()
 );
@@ -442,7 +454,7 @@ ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_geometry         TEXT;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS eta_at                TIMESTAMP;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_deadline          TIMESTAMP;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS actual_arrival_at     TIMESTAMP;
-ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(20) CHECK (sla_status IN ('ON_TIME', 'AT_RISK', 'BREACHED'));
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS sla_status            VARCHAR(20);
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_duration_seconds INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS drive_distance_meters  INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS dwell_minutes          INTEGER NOT NULL DEFAULT 10;
@@ -450,9 +462,13 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_at            TIMESTAMP
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_reason        TEXT;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS removed_by            VARCHAR(100);
 
--- Fix route_stops status check to include PARTIAL (legacy) and REMOVED
+-- Fix route_stops status and sla_status checks to match Java enums
 DO $$
 BEGIN
+  -- Migration of legacy values to new Enum values
+  UPDATE route_stops SET status = 'SCHEDULED' WHERE status = 'ASSIGNED';
+  UPDATE route_stops SET sla_status = 'LATE' WHERE sla_status IN ('AT_RISK', 'BREACHED');
+
   IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'route_stops_status_check') THEN
     ALTER TABLE route_stops DROP CONSTRAINT route_stops_status_check;
   END IF;
@@ -462,15 +478,23 @@ BEGIN
   ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_status
     CHECK (status IN (
       'PENDING',
-      'ASSIGNED',
+      'SCHEDULED',
       'PICKED_UP',
       'IN_TRANSIT',
       'ARRIVED',
       'COMPLETED',
       'FAILED',
       'PARTIAL',
-      'REMOVED'
+      'FAILED_ATTEMPT',
+      'REMOVED_REPLANNED',
+      'REMOVED_CANCELLED'
     ));
+
+  IF EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'ck_route_stops_sla_status') THEN
+    ALTER TABLE route_stops DROP CONSTRAINT ck_route_stops_sla_status;
+  END IF;
+  ALTER TABLE route_stops ADD CONSTRAINT ck_route_stops_sla_status
+    CHECK (sla_status IN ('ON_TIME', 'EARLY', 'LATE'));
 END $$;
 
 CREATE INDEX IF NOT EXISTS idx_route_stops_eta ON route_stops(eta_at) WHERE eta_at IS NOT NULL;
@@ -566,6 +590,16 @@ ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS completion_status VARCHAR(10);
 
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS cumulative_delay_minutes INTEGER;
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_on_time_completion_rate NUMERIC(5,2);
-C R E A T E   T A B L E   I F   N O T   E X I S T S   a u d i t _ l o g s   ( i d   U U I D   P R I M A R Y   K E Y ,   a c t o r _ n a m e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t o r _ r o l e   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   a c t i o n   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   r e s o u r c e _ i d   T E X T ,   d e t a i l s   T E X T ,   i p _ a d d r e s s   V A R C H A R ( 2 5 5 )   N O T   N U L L ,   c r e a t e d _ a t   T I M E S T A M P   D E F A U L T   C U R R E N T _ T I M E S T A M P ) ; 
- 
- 
+
+-- ── Audit Logs ─────────────────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS audit_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    actor_name VARCHAR(255) NOT NULL,
+    actor_role VARCHAR(255) NOT NULL,
+    action VARCHAR(255) NOT NULL,
+    target_entity VARCHAR(50),
+    resource_id TEXT,
+    details TEXT,
+    ip_address VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);

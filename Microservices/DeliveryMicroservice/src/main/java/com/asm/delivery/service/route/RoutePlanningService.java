@@ -570,6 +570,19 @@ public class RoutePlanningService {
         return toResponse(route);
     }
 
+    /**
+     * Toggle the `locked` flag on a route. Locked routes are excluded from
+     * batch optimization runs ("Optimiser la sélection") so dispatchers can
+     * freeze tournées they have already handed off to drivers.
+     */
+    @Transactional
+    public RouteResponse setLocked(UUID routeId, boolean locked) {
+        Route route = getRoute(routeId);
+        route.setLocked(locked);
+        routeRepository.save(route);
+        return toResponse(route);
+    }
+
     @Transactional
     public RouteResponse validate(UUID routeId) {
         Route route = getRoute(routeId);
@@ -1003,6 +1016,7 @@ public class RoutePlanningService {
                 .routeStartDelayMinutes(routeStartDelayMinutes)
                 .legacyStops(legacyStopResponses.isEmpty() ? null : legacyStopResponses)
                 .routeVersion(route.getRouteVersion())
+                .locked(Boolean.TRUE.equals(route.getLocked()))
                 .build();
     }
 

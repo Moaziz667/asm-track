@@ -15,6 +15,10 @@ spring:
     password: ${DB_PASS:delivery}
     driver-class-name: org.postgresql.Driver
 
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+
   jpa:
     hibernate:
       ddl-auto: none
