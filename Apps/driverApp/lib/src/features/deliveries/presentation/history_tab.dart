@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
 import '../../../theme/app_theme.dart';
@@ -19,6 +20,32 @@ class HistoryTab extends ConsumerStatefulWidget {
 
 class _HistoryTabState extends ConsumerState<HistoryTab> {
   _HistoryFilter _filter = _HistoryFilter.all;
+  DateTimeRange? _dateRange;
+
+  void _selectDateRange() async {
+    final picked = await showDateRangePicker(
+      context: context,
+      initialDateRange: _dateRange,
+      firstDate: DateTime(2024),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.dark(
+              primary: AppColors.cyberLime,
+              onPrimary: Colors.black,
+              surface: AppColors.surface,
+              onSurface: AppColors.textPrimary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+    if (picked != null) {
+      setState(() => _dateRange = picked);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,7 +56,21 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
       onRefresh: () async => ref.invalidate(driverHistoryProvider),
       child: historyAsync.when(
         data: (history) {
-          final filtered = history.where((d) => _filter.matches(d.status)).toList();
+          final filtered = history.where((d) {
+            final matchesStatus = _filter.matches(d.status);
+            if (!matchesStatus) return false;
+            
+            if (_dateRange != null) {
+              final timestamp = d.timestamps['completedAt'] ??
+                  d.timestamps['failedAt'] ??
+                  d.timestamps['cancelledAt'] ??
+                  d.timestamps['createdAt'];
+              if (timestamp == null) return false;
+              return timestamp.isAfter(_dateRange!.start) && 
+                     timestamp.isBefore(_dateRange!.end.add(const Duration(days: 1)));
+            }
+            return true;
+          }).toList();
           return ListView.builder(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 120),
             itemCount: filtered.isEmpty ? 2 : filtered.length + 1,
@@ -38,7 +79,10 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
                 return _ArchiveHeader(
                   total: filtered.length,
                   filter: _filter,
+                  dateRange: _dateRange,
                   onFilterChanged: (v) => setState(() => _filter = v),
+                  onDateRangeTap: _selectDateRange,
+                  onClearDates: () => setState(() => _dateRange = null),
                 );
               }
               if (filtered.isEmpty) {
@@ -77,7 +121,10 @@ class _ArchiveHeader extends StatelessWidget {
 
   final int total;
   final _HistoryFilter filter;
+  final DateTimeRange? dateRange;
   final ValueChanged<_HistoryFilter> onFilterChanged;
+  final VoidCallback onDateRangeTap;
+  final VoidCallback onClearDates;
 
   @override
   Widget build(BuildContext context) {
@@ -86,12 +133,15 @@ class _ArchiveHeader extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(top: 20, bottom: 20),
+            child: Text(
+              'HISTORY',
+              style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
+            ),
+          ),
           Row(
             children: [
-              Text(
-                'Mission Archive',
-                style: GoogleFonts.sora(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-              ),
               const Spacer(),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
@@ -105,6 +155,55 @@ class _ArchiveHeader extends StatelessWidget {
                   style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: GestureDetector(
+                  onTap: onDateRangeTap,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: dateRange != null ? AppColors.cyberLime : AppColors.border),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(LucideIcons.calendar, size: 14, color: dateRange != null ? AppColors.cyberLime : AppColors.muted),
+                        const SizedBox(width: 8),
+                        Text(
+                          dateRange == null 
+                              ? 'Filter by date...' 
+                              : '${DateFormat('MMM d').format(dateRange!.start)} - ${DateFormat('MMM d').format(dateRange!.end)}',
+                          style: GoogleFonts.manrope(
+                            fontSize: 13, 
+                            fontWeight: FontWeight.w600, 
+                            color: dateRange != null ? AppColors.textPrimary : AppColors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              if (dateRange != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onClearDates,
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: const Icon(LucideIcons.x, size: 14, color: AppColors.muted),
+                  ),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: 16),

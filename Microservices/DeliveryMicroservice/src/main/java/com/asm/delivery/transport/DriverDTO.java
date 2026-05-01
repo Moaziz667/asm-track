@@ -16,4 +16,5 @@ public class DriverDTO {
     private Double  currentLat;
     private Double  currentLng;
     private String  lastLocationAt;
+    private String  createdAt;
 }

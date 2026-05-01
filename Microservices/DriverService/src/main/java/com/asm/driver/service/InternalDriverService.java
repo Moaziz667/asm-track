@@ -87,6 +87,7 @@ public class InternalDriverService {
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())
+                .createdAt(d.getCreatedAt())
                 .build();
     }
 }

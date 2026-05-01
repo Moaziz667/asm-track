@@ -13,7 +13,12 @@ import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
 import '../../deliveries/presentation/delivery_detail_screen.dart';
+import '../../vehicle/presentation/vehicle_inspection_screen.dart';
 import '../models/route_models.dart';
+import 'package:dio/dio.dart';
+import 'package:lucide_icons/lucide_icons.dart';
+import '../../deliveries/presentation/handoff_scanner_screen.dart';
+import '../../../services/offline_queue_service.dart';
 
 // Default map center — Tunisia (Tunis)
 const _kDefaultCenter = LatLng(36.8065, 10.1815);
@@ -54,11 +59,30 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   }
 
   Future<void> _startRoute(String id) => _doAction(() async {
-        final pt = await LocationService().currentPosition();
-        if (pt != null) {
-          await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
+        try {
+          final pt = await LocationService().currentPosition();
+          if (pt != null) {
+            await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
+          }
+          await ref.read(routeRepositoryProvider).start(id);
+        } on DioException catch (e) {
+          if (e.response?.statusCode == 403 && 
+              e.response?.data is Map && 
+              (e.response?.data as Map)['error'] == 'INSPECTION_REQUIRED') {
+            
+            // Navigate to inspection screen
+            final success = await Navigator.of(context).push<bool>(
+              MaterialPageRoute(builder: (_) => const VehicleInspectionScreen()),
+            );
+            
+            if (success == true) {
+              // Retry starting the route
+              await _startRoute(id);
+            }
+          } else {
+            rethrow;
+          }
         }
-        await ref.read(routeRepositoryProvider).start(id);
       });
 
   Future<void> _arriveStop(String routeId, String stopId) => _doAction(() async {
@@ -114,6 +138,20 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         loading: () => const _MapPlaceholderLoading(),
         error: (_, __) => _MapError(onRetry: _refresh),
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+          );
+          if (result == true) _refresh();
+        },
+        backgroundColor: AppColors.neonYellow,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Tactical 4px
+        icon: const Icon(LucideIcons.qrCode, size: 20),
+        label: Text('RECEIVE', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+      ),
     );
   }
 }
@@ -153,6 +191,14 @@ class _RouteMapBody extends StatelessWidget {
     // Map center: first pinned stop, or Tunisia default
     final mapCenter = stopCoords.isNotEmpty ? stopCoords.first : _kDefaultCenter;
 
+    // Route polyline: prefer OSRM geometry, fallback to point-to-point
+    final List<LatLng> polyPoints;
+    if (route?.routeGeometry != null && route!.routeGeometry!.isNotEmpty) {
+      polyPoints = DriverRoute.decodePolyline(route!.routeGeometry!);
+    } else {
+      polyPoints = stopCoords;
+    }
+
     return Stack(
       children: [
         // ── Full-screen OSM Map ──────────────────────────────────────────────
@@ -170,15 +216,16 @@ class _RouteMapBody extends StatelessWidget {
               urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
               userAgentPackageName: 'com.asm.driverapp',
             ),
-            // Route polyline connecting pinned stops in order
-            if (stopCoords.length > 1)
+            // Route polyline
+            if (polyPoints.length > 1)
               PolylineLayer(
-                polylines: [
+                polylines: <Polyline>[
                   Polyline(
-                    points: stopCoords,
-                    color: AppColors.accent,
-                    strokeWidth: 3.5,
-                    pattern: const StrokePattern.dotted(),
+                    points: polyPoints,
+                    strokeWidth: 4,
+                    color: AppColors.neonYellow,
+                    borderColor: Colors.black,
+                    borderStrokeWidth: 1.5,
                   ),
                 ],
               ),
@@ -258,38 +305,42 @@ class _StopMarker extends StatelessWidget {
   Widget build(BuildContext context) {
     final Color bg;
     final Color fg;
+    final double size = isNext ? 32 : 28;
+    
     if (isDone) {
       bg = AppColors.success;
-      fg = Colors.white;
+      fg = Colors.black;
     } else if (isNext) {
-      bg = AppColors.accent;
-      fg = Colors.white;
+      bg = AppColors.neonYellow;
+      fg = Colors.black;
     } else {
-      bg = AppColors.surface;
+      bg = AppColors.surfaceElevated;
       fg = AppColors.textPrimary;
     }
 
     return Container(
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         color: bg,
-        shape: BoxShape.circle,
-        border: Border.all(color: Colors.white, width: isNext ? 2.5 : 2),
-        boxShadow: [
+        borderRadius: BorderRadius.circular(2), // Sharp tactical corner
+        border: Border.all(color: Colors.black, width: 1.5),
+        boxShadow: isNext ? [
           BoxShadow(
-            color: bg.withValues(alpha: 0.4),
-            blurRadius: isNext ? 12 : 6,
-            spreadRadius: isNext ? 2 : 0,
+            color: bg.withValues(alpha: 0.6),
+            blurRadius: 10,
+            spreadRadius: 2,
           ),
-        ],
+        ] : null,
       ),
       child: isDone
-          ? Icon(Icons.check_rounded, size: isNext ? 20 : 15, color: fg)
+          ? Icon(LucideIcons.check, size: isNext ? 18 : 14, color: fg)
           : Center(
               child: Text(
                 '$order',
-                style: GoogleFonts.inter(
+                style: GoogleFonts.spaceGrotesk(
                   fontSize: isNext ? 14 : 12,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w900,
                   color: fg,
                 ),
               ),
@@ -299,14 +350,15 @@ class _StopMarker extends StatelessWidget {
 }
 
 // ─── Map Top Bar ──────────────────────────────────────────────────────────────
-class _MapTopBar extends StatelessWidget {
+class _MapTopBar extends ConsumerWidget {
   const _MapTopBar({required this.route, required this.onRefresh});
   final DriverRoute? route;
   final VoidCallback onRefresh;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now();
+    final pendingSync = ref.watch(offlineQueueProvider);
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final label = '${days[today.weekday - 1]}, ${months[today.month - 1]} ${today.day}';
@@ -321,24 +373,24 @@ class _MapTopBar extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AppColors.border),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.08),
-                      blurRadius: 12,
-                      offset: const Offset(0, 2),
+                      color: Colors.black.withValues(alpha: 0.5),
+                      blurRadius: 10,
                     ),
                   ],
                 ),
                 child: Row(
                   children: [
-                    const Icon(PhosphorIconsFill.path, size: 16, color: AppColors.accent),
-                    const SizedBox(width: 8),
+                    const Icon(LucideIcons.navigation, size: 14, color: AppColors.neonYellow),
+                    const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        route?.name ?? label,
-                        style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                        route?.name ?? label.toUpperCase(),
+                        style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 0.5),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -351,6 +403,31 @@ class _MapTopBar extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
+            // Sync status
+            if (pendingSync > 0)
+              GestureDetector(
+                onTap: () => ref.read(offlineQueueProvider.notifier).processQueue(),
+                child: Container(
+                  height: 40,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  decoration: BoxDecoration(
+                    color: AppColors.background,
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(color: AppColors.warning.withValues(alpha: 0.5)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(LucideIcons.refreshCw, size: 14, color: AppColors.warning),
+                      const SizedBox(width: 6),
+                      Text(
+                        '$pendingSync',
+                        style: GoogleFonts.outfit(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.warning),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            const SizedBox(width: 8),
             // Refresh
             GestureDetector(
               onTap: onRefresh,
@@ -358,11 +435,9 @@ class _MapTopBar extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(color: Colors.black.withValues(alpha: 0.12), blurRadius: 16, offset: const Offset(0, 3)),
-                  ],
+                  color: AppColors.background,
+                  borderRadius: BorderRadius.circular(4),
+                  border: Border.all(color: AppColors.border),
                 ),
                 child: const Icon(PhosphorIconsBold.arrowsClockwise, size: 18, color: AppColors.textSecondary),
               ),
@@ -434,11 +509,12 @@ class _BottomSheet extends StatelessWidget {
 
     return Container(
       decoration: const BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+        color: AppColors.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(4)), // Tactical 4px
         boxShadow: [
-          BoxShadow(color: Color(0x1A0F172A), blurRadius: 24, offset: Offset(0, -4)),
+          BoxShadow(color: Colors.black, blurRadius: 40, spreadRadius: 10),
         ],
+        border: Border(top: BorderSide(color: AppColors.border, width: 1.5)),
       ),
       child: ListView(
         controller: scrollController,
@@ -449,9 +525,9 @@ class _BottomSheet extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(color: AppColors.surfaceDim, borderRadius: BorderRadius.circular(2)),
+                width: 40,
+                height: 2,
+                decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(1)),
               ),
             ),
           ),
@@ -466,17 +542,17 @@ class _BottomSheet extends StatelessWidget {
                     width: 56,
                     height: 56,
                     decoration: BoxDecoration(
-                      color: AppColors.surfaceElevated,
-                      borderRadius: BorderRadius.circular(16),
+                      color: AppColors.surface,
+                      borderRadius: BorderRadius.circular(4),
                       border: Border.all(color: AppColors.border),
                     ),
-                    child: const Icon(PhosphorIconsRegular.path, size: 26, color: AppColors.muted),
+                    child: const Icon(LucideIcons.ban, size: 26, color: AppColors.muted),
                   ),
-                  const SizedBox(height: 12),
-                  Text('No route assigned', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-                  const SizedBox(height: 4),
-                  Text('Your ops team will assign a route once it is validated.',
-                      style: const TextStyle(fontSize: 13, color: AppColors.muted, height: 1.4),
+                  const SizedBox(height: 16),
+                  Text('NO MISSION ASSIGNED', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
+                  const SizedBox(height: 8),
+                  Text('STAND BY FOR DISPATCH COMMANDS',
+                      style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center),
                 ],
               ),
@@ -518,17 +594,11 @@ class _BottomSheet extends StatelessWidget {
             const SizedBox(height: 20),
             Row(
               children: [
-                Text('Stop List', style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
-                const SizedBox(width: 8),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Text('${route!.stops.length}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.textSecondary)),
-                ),
+                Text('STOP LOG', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+                const SizedBox(width: 12),
+                Expanded(child: Container(height: 1, color: AppColors.border)),
+                const SizedBox(width: 12),
+                Text('${route!.stops.length}', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.neonYellow)),
               ],
             ),
             const SizedBox(height: 12),
@@ -568,13 +638,13 @@ class _RouteSummaryBar extends StatelessWidget {
           children: [
             Expanded(
               child: Text(
-                route.name,
-                style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary, letterSpacing: -0.3),
+                route.name.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0.5),
               ),
             ),
             Text(
-              '$done/$total',
-              style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.accent),
+              '$done / $total',
+              style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
             ),
           ],
         ),
@@ -594,16 +664,16 @@ class _RouteSummaryBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(3),
                 child: LinearProgressIndicator(
                   value: progress,
-                  minHeight: 5,
-                  backgroundColor: AppColors.surfaceDim,
-                  valueColor: const AlwaysStoppedAnimation(AppColors.accent),
+                  minHeight: 3,
+                  backgroundColor: AppColors.surface,
+                  valueColor: const AlwaysStoppedAnimation(AppColors.neonYellow),
                 ),
               ),
             ),
             const SizedBox(width: 10),
             Text(
               '${(progress * 100).toStringAsFixed(0)}%',
-              style: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.accent),
+              style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
             ),
           ],
         ),
@@ -661,9 +731,9 @@ class _StopListItem extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: borderColor),
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: borderColor, width: ds == DeliveryStatus.inTransit ? 1.5 : 1),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -676,20 +746,20 @@ class _StopListItem extends StatelessWidget {
                 height: 30,
                 decoration: BoxDecoration(
                   color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(2),
                 ),
                 child: Center(
                   child: Text(
                     '${stop.stopOrder}',
-                    style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+                    style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
                   ),
                 ),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  stop.clientName ?? 'Client',
-                  style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  (stop.clientName ?? 'CLIENT').toUpperCase(),
+                  style: GoogleFonts.spaceGrotesk(fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -792,10 +862,11 @@ class _DeliveryStatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(5),
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: color.withValues(alpha: 0.3), width: 0.5),
       ),
-      child: Text(label, style: GoogleFonts.inter(fontSize: 9, fontWeight: FontWeight.w700, color: color, letterSpacing: 0.3)),
+      child: Text(label.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 9, fontWeight: FontWeight.w900, color: color, letterSpacing: 1)),
     );
   }
 }

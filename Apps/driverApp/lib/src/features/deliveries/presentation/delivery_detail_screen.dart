@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
@@ -10,6 +11,7 @@ import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
+import 'handoff_token_sheet.dart';
 
 class DeliveryDetailArgs {
   const DeliveryDetailArgs({required this.deliveryId});
@@ -669,6 +671,22 @@ class _ActionPanel extends StatelessWidget {
               onPressed: isWorking ? null : onFail,
             ),
           ),
+          if (delivery.requiresHandoff && delivery.handoffConfirmedAt == null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: DriveButton(
+                label: 'Generate Handoff Code',
+                icon: LucideIcons.qrCode,
+                variant: DriveButtonVariant.secondary,
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
+                ),
+              ),
+            ),
+          ],
         ]);
         break;
       case DeliveryStatus.inTransit:
@@ -707,6 +725,22 @@ class _ActionPanel extends StatelessWidget {
               onPressed: isWorking ? null : onFail,
             ),
           ),
+          if (delivery.requiresHandoff && delivery.handoffConfirmedAt == null) ...[
+            const SizedBox(height: 10),
+            SizedBox(
+              width: double.infinity,
+              child: DriveButton(
+                label: 'Generate Handoff Code',
+                icon: LucideIcons.qrCode,
+                variant: DriveButtonVariant.secondary,
+                onPressed: () => showModalBottomSheet(
+                  context: context,
+                  isScrollControlled: true,
+                  builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
+                ),
+              ),
+            ),
+          ],
         ]);
         break;
       case DeliveryStatus.delivered:

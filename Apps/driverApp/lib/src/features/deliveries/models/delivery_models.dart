@@ -158,6 +158,10 @@ class DriverDelivery {
     this.routeProvider,
     this.lat,
     this.lng,
+    this.requiresHandoff = false,
+    this.handoffConfirmedAt,
+    this.handoffToDriverId,
+    this.handoffFromDriverId,
     this.timestamps = const {},
   });
 
@@ -196,6 +200,10 @@ class DriverDelivery {
       routeProvider: json['routeProvider'] as String?,
       lat: (json['dropoffLat'] as num?)?.toDouble() ?? (json['lat'] as num?)?.toDouble(),
       lng: (json['dropoffLng'] as num?)?.toDouble() ?? (json['lng'] as num?)?.toDouble(),
+      requiresHandoff: json['requiresHandoff'] as bool? ?? false,
+      handoffConfirmedAt: json['handoffConfirmedAt'] != null ? DateTime.tryParse(json['handoffConfirmedAt'] as String) : null,
+      handoffToDriverId: json['handoffToDriverId'] as String?,
+      handoffFromDriverId: json['handoffFromDriverId'] as String?,
       timestamps: timestamps,
     );
   }
@@ -219,6 +227,10 @@ class DriverDelivery {
   final String? routeProvider;
   final double? lat;
   final double? lng;
+  final bool requiresHandoff;
+  final DateTime? handoffConfirmedAt;
+  final String? handoffToDriverId;
+  final String? handoffFromDriverId;
   final Map<String, DateTime?> timestamps;
 
   bool get isTerminal => status == DeliveryStatus.delivered || status == DeliveryStatus.failed || status == DeliveryStatus.cancelled;

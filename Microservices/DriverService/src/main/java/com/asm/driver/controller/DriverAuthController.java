@@ -3,7 +3,9 @@ package com.asm.driver.controller;
 import com.asm.driver.dto.request.LoginRequest;
 import com.asm.driver.dto.request.RefreshTokenRequest;
 import com.asm.driver.dto.request.RegisterRequest;
+import com.asm.driver.dto.request.ChangePasswordRequest;
 import com.asm.driver.dto.response.AuthResponse;
+import com.asm.driver.security.UserPrincipal;
 import com.asm.driver.service.DriverAuthService;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -34,5 +36,13 @@ public class DriverAuthController {
     @PostMapping("/refresh-token")
     public ResponseEntity<Map<String, String>> refreshToken(@Valid @RequestBody RefreshTokenRequest req) {
         return ResponseEntity.ok(authService.refreshToken(req.getRefreshToken()));
+    }
+
+    @PutMapping("/change-password")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @org.springframework.security.core.annotation.AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody ChangePasswordRequest req) {
+        authService.changePassword(UUID.fromString(principal.getId()), req.getOldPassword(), req.getNewPassword(), req.getConfirmPassword());
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 }

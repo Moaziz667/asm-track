@@ -69,6 +69,23 @@ public class DriverAuthService {
         return Map.of("token", newAccess);
     }
 
+    @Transactional
+    public void changePassword(UUID driverId, String oldPassword, String newPassword, String confirmPassword) {
+        if (!newPassword.equals(confirmPassword)) {
+            throw AppException.badRequest("New passwords do not match");
+        }
+
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+
+        if (!passwordEncoder.matches(oldPassword, driver.getPasswordHash())) {
+            throw AppException.unauthorized("Current password is incorrect");
+        }
+
+        driver.setPasswordHash(passwordEncoder.encode(newPassword));
+        driverRepo.save(driver);
+    }
+
     private AuthResponse buildResponse(Driver driver) {
         String driverId = driver.getId().toString();
         String accessToken = jwtService.generateAccessToken(driverId, "DRIVER",

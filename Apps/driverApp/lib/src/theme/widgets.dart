@@ -35,16 +35,16 @@ class DriveButton extends StatelessWidget {
     switch (variant) {
       case DriveButtonVariant.primary:
         bg = disabled ? AppColors.accent.withValues(alpha: 0.45) : AppColors.accent;
-        fg = Colors.white;
+        fg = Colors.black;
         borderColor = Colors.transparent;
         break;
       case DriveButtonVariant.secondary:
-        bg = AppColors.ink;
+        bg = AppColors.surfaceElevated;
         fg = Colors.white;
-        borderColor = Colors.transparent;
+        borderColor = AppColors.borderDark;
         break;
       case DriveButtonVariant.ghost:
-        bg = AppColors.surfaceElevated;
+        bg = Colors.transparent;
         fg = disabled ? AppColors.muted : AppColors.textPrimary;
         borderColor = AppColors.border;
         break;
@@ -63,13 +63,13 @@ class DriveButton extends StatelessWidget {
     final double vp, hp, fs, radius;
     switch (size) {
       case DriveButtonSize.sm:
-        vp = 9; hp = 14; fs = 13; radius = 9;
+        vp = 9; hp = 14; fs = 13; radius = 4; // Tactical 4px
         break;
       case DriveButtonSize.md:
-        vp = 13; hp = 20; fs = 14.5; radius = 12;
+        vp = 13; hp = 20; fs = 14.5; radius = 4;
         break;
       case DriveButtonSize.lg:
-        vp = 16; hp = 24; fs = 16; radius = 14;
+        vp = 16; hp = 24; fs = 16; radius = 4;
         break;
     }
 
@@ -88,12 +88,12 @@ class DriveButton extends StatelessWidget {
                 const SizedBox(width: 7),
               ],
               Text(
-                label,
-                style: GoogleFonts.manrope(
+                label.toUpperCase(),
+                style: GoogleFonts.spaceGrotesk(
                   fontSize: fs,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w900,
                   color: fg,
-                  letterSpacing: -0.1,
+                  letterSpacing: 0.5,
                 ),
               ),
             ],
@@ -149,14 +149,14 @@ class DriveCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final decoration = BoxDecoration(
       color: color,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(4), // Tactical 4px
       border: Border.all(color: AppColors.border, width: 1),
       boxShadow: shadow
           ? [
               BoxShadow(
-                color: const Color(0xFF101014).withValues(alpha: 0.07),
-                blurRadius: 16,
-                offset: const Offset(0, 5),
+                color: Colors.black.withValues(alpha: 0.2),
+                blurRadius: 12,
+                offset: const Offset(0, 4),
               ),
             ]
           : null,
@@ -171,7 +171,7 @@ class DriveCard extends StatelessWidget {
     if (onTap == null) return content;
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(4),
       child: content,
     );
   }
@@ -198,7 +198,7 @@ class StatusBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: BorderRadius.circular(2), // Sharp status
         border: Border.all(color: color.withValues(alpha: 0.25), width: 1),
       ),
       child: Row(
@@ -213,12 +213,12 @@ class StatusBadge extends StatelessWidget {
             const SizedBox(width: 5),
           ],
           Text(
-            label,
-            style: GoogleFonts.manrope(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
+            label.toUpperCase(),
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
               color: color,
-              letterSpacing: 0.2,
+              letterSpacing: 1,
             ),
           ),
         ],
@@ -263,15 +263,15 @@ class MetricTile extends StatelessWidget {
           ],
           Text(
             value,
-            style: GoogleFonts.sora(
-              fontSize: 26,
-              fontWeight: FontWeight.w800,
+            style: GoogleFonts.spaceGrotesk(
+              fontSize: 28,
+              fontWeight: FontWeight.w900,
               color: AppColors.textPrimary,
-              letterSpacing: -1,
+              letterSpacing: -0.5,
             ),
           ),
           const SizedBox(height: 2),
-          Text(label, style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500)),
+          Text(label.toUpperCase(), style: GoogleFonts.spaceGrotesk(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w900, letterSpacing: 1)),
         ],
       ),
     );
@@ -408,7 +408,7 @@ class EmptyState extends StatelessWidget {
               height: 64,
               decoration: BoxDecoration(
                 color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(18),
+                borderRadius: BorderRadius.circular(4), // Tactical 4px
                 border: Border.all(color: AppColors.border),
               ),
               child: Icon(icon, size: 28, color: AppColors.muted),

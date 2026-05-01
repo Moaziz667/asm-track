@@ -19,32 +19,14 @@ class SplashScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.navy,
+      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Subtle pattern — concentric circles
-          Positioned(
-            right: -120,
-            bottom: -120,
-            child: Container(
-              width: 400,
-              height: 400,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.04), width: 60),
-              ),
-            ),
-          ),
-          Positioned(
-            right: -40,
-            bottom: -40,
-            child: Container(
-              width: 220,
-              height: 220,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white.withValues(alpha: 0.06), width: 40),
-              ),
+          // Tactical pattern — scanning lines or grid
+          Positioned.fill(
+            child: Opacity(
+              opacity: 0.05,
+              child: CustomPaint(painter: _GridPainter()),
             ),
           ),
           // Content
@@ -54,63 +36,101 @@ class SplashScreen extends ConsumerWidget {
               children: [
                 // Logo
                 Container(
-                  width: 76,
-                  height: 76,
+                  width: 96,
+                  height: 96,
                   decoration: BoxDecoration(
-                    color: AppColors.accent,
-                    borderRadius: BorderRadius.circular(22),
+                    color: AppColors.neonYellow,
+                    borderRadius: BorderRadius.circular(4), // Tactical 4px
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.neonYellow.withValues(alpha: 0.3),
+                        blurRadius: 40,
+                        spreadRadius: 5,
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 36),
+                  child: const Icon(Icons.local_shipping_rounded, color: Colors.black, size: 52),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 48),
                 Text(
-                  'asmDrive',
-                  style: GoogleFonts.inter(
-                    fontSize: 30,
+                  'ASMONE',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 48,
+                    fontWeight: FontWeight.w900,
+                    color: AppColors.textPrimary,
+                    letterSpacing: -2,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'HIGH-VIS LOGISTICS HUB',
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 12,
+                    color: AppColors.neonYellow,
                     fontWeight: FontWeight.w800,
-                    color: Colors.white,
-                    letterSpacing: -1,
+                    letterSpacing: 3,
                   ),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  'Driver Operations Platform',
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: Colors.white.withValues(alpha: 0.5),
-                    fontWeight: FontWeight.w400,
-                    letterSpacing: 0.2,
-                  ),
-                ),
-                const SizedBox(height: 52),
-                SizedBox(
-                  width: 22,
-                  height: 22,
+                const SizedBox(height: 80),
+                const SizedBox(
+                  width: 32,
+                  height: 32,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Colors.white.withValues(alpha: 0.5),
+                    strokeWidth: 3,
+                    color: AppColors.neonYellow,
                   ),
                 ),
               ],
             ),
           ),
           Positioned(
-            bottom: 36,
+            bottom: 50,
             left: 0,
             right: 0,
-            child: Text(
-              'ASM LOGISTICS',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                letterSpacing: 3,
-                color: Colors.white.withValues(alpha: 0.2),
-                fontWeight: FontWeight.w600,
-              ),
+            child: Column(
+              children: [
+                Text(
+                  'SYSTEM INITIALIZING',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 10,
+                    letterSpacing: 5,
+                    color: AppColors.muted,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  '© 2026 ASM LOGISTICS OPERATIONS',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.spaceGrotesk(
+                    fontSize: 9,
+                    letterSpacing: 1.5,
+                    color: AppColors.muted.withValues(alpha: 0.6),
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+}
+
+class _GridPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = AppColors.textPrimary..strokeWidth = 1;
+    const step = 40.0;
+    for (double x = 0; x < size.width; x += step) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);
+    }
+    for (double y = 0; y < size.height; y += step) {
+      canvas.drawLine(Offset(0, y), Offset(size.width, y), paint);
+    }
+  }
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

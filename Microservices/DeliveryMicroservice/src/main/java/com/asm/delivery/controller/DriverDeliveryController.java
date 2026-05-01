@@ -4,9 +4,12 @@ import com.asm.delivery.dto.request.CancelDeliveryRequest;
 import com.asm.delivery.dto.request.FailDeliveryRequest;
 import com.asm.delivery.dto.request.LocationUpdateRequest;
 import com.asm.delivery.dto.request.ReportRequest;
+import com.asm.delivery.dto.request.IncidentReportRequest;
 import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.MessageResponse;
+import com.asm.delivery.dto.response.HandoffTokenResponse;
+import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.DriverDeliveryService;
@@ -136,6 +139,15 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(new MessageResponse("Report submitted"));
     }
 
+    @PostMapping("/report-incident")
+    @Operation(summary = "Submit a professional incident report (multi-photo, GPS, general)")
+    public ResponseEntity<MessageResponse> reportIncident(
+            @Valid @RequestBody IncidentReportRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        deliveryService.reportIncident(UUID.fromString(principal.getUserId()), req, principal);
+        return ResponseEntity.ok(new MessageResponse("Incident report submitted"));
+    }
+
     @PostMapping("/{id}/pod")
     @Operation(summary = "Submit proof of delivery (POD)", description = "DRIVER only. Delivery must be IN_TRANSIT. Saves POD, completes delivery, triggers Odoo sync. Returns DELIVERED status.")
     public ResponseEntity<DriverDeliveryResponse> submitPod(
@@ -145,12 +157,21 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
     }
 
-    @PostMapping("/{id}/handoff")
-    @Operation(summary = "Confirm handoff receipt", description = "DRIVER only. Called by Driver B to confirm physical receipt of a package transferred from Driver A.")
-    public ResponseEntity<DriverDeliveryResponse> confirmHandoff(
+    @GetMapping("/{id}/handoff-token")
+    @Operation(summary = "Generate a secure token for handoff", description = "DRIVER only. Called by Driver A to show a QR code.")
+    public ResponseEntity<HandoffTokenResponse> generateHandoffToken(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()), principal));
+        return ResponseEntity.ok(deliveryService.generateHandoffToken(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/handoff")
+    @Operation(summary = "Confirm handoff receipt with token", description = "DRIVER only. Called by Driver B to confirm physical receipt of a package using Driver A's token.")
+    public ResponseEntity<DriverDeliveryResponse> confirmHandoff(
+            @PathVariable UUID id,
+            @Valid @RequestBody HandoffConfirmRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()), req.getToken(), principal));
     }
 
     @GetMapping("/{id}/bon-livraison")

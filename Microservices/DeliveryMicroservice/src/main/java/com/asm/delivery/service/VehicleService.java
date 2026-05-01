@@ -52,6 +52,13 @@ public class VehicleService {
         return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
 
+    @Transactional(readOnly = true)
+    public VehicleResponse getByDriver(UUID driverId) {
+        Vehicle vehicle = vehicleRepository.findFirstByDriverIdAndActiveTrue(driverId)
+                .orElseThrow(() -> AppException.notFound("No active vehicle assigned to this driver"));
+        return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
+    }
+
     @Transactional
     public VehicleResponse create(UserPrincipal principal, CreateVehicleRequest request) {
         String normalizedPlate = normalizePlate(request.getPlate());

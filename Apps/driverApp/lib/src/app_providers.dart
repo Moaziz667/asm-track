@@ -13,6 +13,7 @@ import 'features/routes/models/route_models.dart';
 import 'services/api_client.dart';
 import 'services/route_cache_service.dart';
 import 'services/token_storage.dart';
+import 'services/vehicle_service.dart';
 
 final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment());
 
@@ -48,6 +49,15 @@ final routeRepositoryProvider = Provider<RouteRepository>((ref) {
   final client = ref.watch(apiClientProvider);
   final cache = ref.watch(routeCacheServiceProvider);
   return RouteRepository(client, cache);
+});
+
+final vehicleServiceProvider = Provider<VehicleService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return VehicleService(client);
+});
+
+final myVehicleProvider = FutureProvider<Map<String, dynamic>>((ref) {
+  return ref.watch(vehicleServiceProvider).getMyVehicle();
 });
 
 final activeDeliveriesProvider = FutureProvider<List<DriverDelivery>>((ref) {

@@ -22,8 +22,19 @@ void main() async {
     final response = await request.close();
     final body = await response.transform(utf8.decoder).join();
     
-    print(body);
+    final data = jsonDecode(body);
+    final tools = data['result']['tools'] as List<dynamic>;
+    for (var tool in tools) {
+      if (tool['name'] == 'generate_screen_from_text') {
+        print('Tool: ${tool['name']}');
+        print('Full Schema: ${jsonPrettyPrint(tool['inputSchema'])}');
+      }
+    }
   } finally {
     client.close();
   }
+}
+
+String jsonPrettyPrint(dynamic json) {
+  return const JsonEncoder.withIndent('  ').convert(json);
 }

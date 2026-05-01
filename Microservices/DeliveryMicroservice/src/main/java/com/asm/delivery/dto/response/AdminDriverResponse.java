@@ -23,4 +23,5 @@ public class AdminDriverResponse {
     private LocalDateTime lastLocationAt;
     private UUID activeDeliveryId;
     private UUID activeRouteId;
+    private LocalDateTime createdAt;
 }

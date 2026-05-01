@@ -33,6 +33,7 @@ public class RouteExecutionService {
     private final RoutePlanningService routePlanningService;
     private final TransportPort transportPort;
     private final DelayCalculationService delayCalculationService;
+    private final com.asm.delivery.service.VehicleInspectionService inspectionService;
 
     @Transactional
     public RouteResponse close(UUID routeId) {
@@ -77,6 +78,14 @@ public class RouteExecutionService {
 
         if (route.getStatus() != RouteStatus.VALIDATED) {
             throw AppException.badRequest("Only validated routes can be started");
+        }
+
+        // Enforce Vehicle Inspection
+        if (route.getVehicleId() != null) {
+            boolean hasInspection = inspectionService.hasValidRecentInspection(route.getVehicleId(), driverId);
+            if (!hasInspection) {
+                throw AppException.forbidden("Safety check required: Please complete vehicle inspection before starting the route");
+            }
         }
 
         route.setStatus(RouteStatus.IN_PROGRESS);

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app.dart';
@@ -53,105 +54,108 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ── Navy header band ──────────────────────────────────────────────
+          // ── High-Vis header band ──────────────────────────────────────────────
           Container(
-            color: AppColors.ink,
+            color: AppColors.background, // Absolute Black
+            width: double.infinity,
             child: SafeArea(
               bottom: false,
               child: Padding(
-                padding: const EdgeInsets.fromLTRB(28, 32, 28, 36),
+                padding: const EdgeInsets.fromLTRB(28, 40, 28, 30),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Container(
-                      width: 44,
-                      height: 44,
+                      width: 52,
+                      height: 52,
                       decoration: BoxDecoration(
-                        color: AppColors.accent,
-                        borderRadius: BorderRadius.circular(13),
+                        color: AppColors.neonYellow,
+                        borderRadius: BorderRadius.circular(4), // Tactical 4px
                       ),
-                      child: const Icon(PhosphorIconsFill.van, color: Colors.white, size: 22),
+                      child: const Icon(LucideIcons.truck, color: Colors.black, size: 28),
                     ),
-                    const SizedBox(height: 20),
+                    const SizedBox(height: 24),
                     Text(
-                      'Welcome back',
-                      style: GoogleFonts.sora(fontSize: 26, fontWeight: FontWeight.w800, color: Colors.white, letterSpacing: -0.6),
+                      'ASMONE LOGIN',
+                      style: GoogleFonts.spaceGrotesk(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -1.5),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Sign in to your driver account',
-                      style: GoogleFonts.manrope(fontSize: 14, color: Colors.white.withValues(alpha: 0.62), fontWeight: FontWeight.w500),
+                      'SECURE DRIVER AUTHENTICATION',
+                      style: GoogleFonts.spaceGrotesk(fontSize: 12, color: AppColors.neonYellow, fontWeight: FontWeight.w800, letterSpacing: 1.5),
                     ),
                   ],
                 ),
               ),
             ),
           ),
+          
+          const Divider(height: 1, color: AppColors.border),
 
           // ── Form area ─────────────────────────────────────────────────────
           Expanded(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(24, 28, 24, 40),
+              padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
               child: Form(
                 key: _formKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _Label('Phone number'),
-                    const SizedBox(height: 8),
+                    Text('IDENTIFICATION', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
-                      decoration: InputDecoration(
-                        hintText: '+213 6xx xxx xxx',
-                        prefixIcon: Icon(PhosphorIconsRegular.phone, size: 18),
+                      style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
+                      decoration: const InputDecoration(
+                        hintText: 'Phone number',
+                        prefixIcon: Icon(LucideIcons.phone, size: 20),
                       ),
                       validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
                     ),
-                    const SizedBox(height: 20),
-                    _Label('Password'),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 24),
+                    Text('SECURITY', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscure,
+                      style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
-                        hintText: '••••••••',
-                        prefixIcon: Icon(PhosphorIconsRegular.lockKey, size: 18),
+                        hintText: 'Password',
+                        prefixIcon: const Icon(LucideIcons.lock, size: 20),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscure ? PhosphorIconsRegular.eye : PhosphorIconsRegular.eyeSlash,
+                            _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                             size: 18,
+                            color: AppColors.muted,
                           ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
                       validator: (v) => (v == null || v.length < 6) ? 'Min 6 characters' : null,
                     ),
-                    const SizedBox(height: 28),
+                    const SizedBox(height: 40),
                     DriveButton(
-                      label: 'Sign In',
-                      icon: PhosphorIconsBold.arrowRight,
+                      label: 'AUTHORIZE ACCESS',
+                      icon: LucideIcons.shieldCheck,
                       isLoading: auth.isLoading,
                       onPressed: auth.isLoading ? null : _onSubmit,
                       fullWidth: true,
                       size: DriveButtonSize.lg,
                     ),
                     if (auth.error != null) ...[
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 20),
                       _ErrorBanner(auth.error!),
                     ],
-                    const SizedBox(height: 24),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text("Don't have an account?",
-                            style: GoogleFonts.manrope(fontSize: 13, color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
-                        TextButton(
-                          onPressed: () => Navigator.of(context).pushNamed('/register'),
-                          style: TextButton.styleFrom(foregroundColor: AppColors.accent, padding: const EdgeInsets.only(left: 4)),
-                          child: Text('Register', style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 48),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => Navigator.of(context).pushNamed('/register'),
+                        child: Text(
+                          "REQUEST ACCESS",
+                          style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 2),
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 ),

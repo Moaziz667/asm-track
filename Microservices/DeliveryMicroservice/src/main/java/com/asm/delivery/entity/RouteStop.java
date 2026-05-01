@@ -139,6 +139,14 @@ public class RouteStop {
     @Column(name = "handoff_confirmed_at")
     private LocalDateTime handoffConfirmedAt;
 
+    /** Secure token for digital handshake (QR scanning). */
+    @Column(name = "handoff_token", length = 100)
+    private String handoffToken;
+
+    /** Expiration for the handoff token. */
+    @Column(name = "handoff_token_expires_at")
+    private LocalDateTime handoffTokenExpiresAt;
+
     // ─────────────────────────────────────────────────────────────────────────────
 
     @PrePersist

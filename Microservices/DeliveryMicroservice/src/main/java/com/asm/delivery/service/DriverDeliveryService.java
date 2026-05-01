@@ -1,7 +1,9 @@
 package com.asm.delivery.service;
 
 import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
+import com.asm.delivery.dto.request.IncidentReportRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
+import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.erp.ErpSyncService;
@@ -513,10 +515,73 @@ public class DriverDeliveryService {
                        "action", "Signalement soumis"));
     }
 
+    @Transactional
+    public void reportIncident(UUID driverId, IncidentReportRequest req, UserPrincipal principal) {
+        java.util.List<String> photoUrls = new java.util.ArrayList<>();
+        
+        if (req.getPhotosBase64() != null) {
+            for (int i = 0; i < req.getPhotosBase64().size(); i++) {
+                String objectPath = "reports/" + driverId + "/" + System.currentTimeMillis() + "-" + i + ".png";
+                photoUrls.add(minioStorageService.uploadBase64(req.getPhotosBase64().get(i), objectPath));
+            }
+        }
+
+        DeliveryReport report = DeliveryReport.builder()
+                .deliveryId(req.getDeliveryId())
+                .driverId(driverId)
+                .reportType(req.getReportType())
+                .description(req.getDescription())
+                .lat(req.getLat())
+                .lng(req.getLng())
+                .photoUrls(photoUrls)
+                .build();
+
+        reportRepo.save(report);
+
+        String targetId = req.getDeliveryId() != null ? req.getDeliveryId().toString() : "GENERAL";
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        
+        auditLogService.logAction(principal, "REPORT_INCIDENT", "INCIDENT", targetId,
+                java.util.Map.of(
+                    "chauffeur", driverName,
+                    "type", req.getReportType().name(), 
+                    "photos", photoUrls.size(), 
+                    "action", "Signalement d'incident pro"
+                ));
+    }
+
     // ── Handoff confirmation (Driver B confirms physical receipt) ──────────────
 
     @Transactional
-    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, UserPrincipal principal) {
+    public HandoffTokenResponse generateHandoffToken(UUID deliveryId, UUID driverId) {
+        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+        
+        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+                .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
+
+        if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
+            throw AppException.badRequest("This delivery is not marked for handoff");
+        }
+
+        // Generate a 6-character alphanumeric secure token
+        String token = java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase();
+        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
+
+        stop.setHandoffToken(token);
+        stop.setHandoffTokenExpiresAt(expiresAt);
+        routeStopRepository.save(stop);
+
+        log.info("HANDOFF_TOKEN_GENERATED deliveryId={} driverId={} token={}", deliveryId, driverId, token);
+
+        return HandoffTokenResponse.builder()
+                .token(token)
+                .deliveryId(deliveryId.toString())
+                .expiresAt(expiresAt)
+                .build();
+    }
+
+    @Transactional
+    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
@@ -533,6 +598,14 @@ public class DriverDeliveryService {
 
         if (!driverId.equals(stop.getHandoffToDriverId())) {
             throw AppException.forbidden("Only the receiving driver can confirm the handoff");
+        }
+
+        // Validate Token
+        if (stop.getHandoffToken() == null || !stop.getHandoffToken().equals(token)) {
+            throw AppException.badRequest("Invalid handoff token");
+        }
+        if (stop.getHandoffTokenExpiresAt() != null && stop.getHandoffTokenExpiresAt().isBefore(LocalDateTime.now())) {
+            throw AppException.badRequest("Handoff token has expired. Please ask the sender to generate a new one.");
         }
 
         stop.setHandoffConfirmedAt(LocalDateTime.now());

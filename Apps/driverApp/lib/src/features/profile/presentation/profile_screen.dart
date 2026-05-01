@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app.dart';
 import '../../../app_providers.dart';
@@ -10,6 +11,8 @@ import '../../../services/location_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../auth/models/auth_models.dart';
+import '../../deliveries/presentation/incident_report_screen.dart';
+import 'change_password_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -71,8 +74,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 20),
           child: Text(
-            'Profile',
-            style: GoogleFonts.sora(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
+            'PROFILE',
+            style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
           ),
         ),
         profileAsync.when(
@@ -91,13 +94,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     // Top section with avatar
                     Container(
                       padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppColors.accentSubtle, AppColors.surface],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+                      decoration: const BoxDecoration(
+                        color: AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.vertical(top: Radius.circular(4)), // Tactical 4px
                       ),
                       child: Row(
                         children: [
@@ -105,14 +104,15 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             width: 60,
                             height: 60,
                             decoration: BoxDecoration(
-                              color: AppColors.accent.withValues(alpha: 0.2),
-                              shape: BoxShape.circle,
-                              border: Border.all(color: AppColors.accent.withValues(alpha: 0.4), width: 2),
+                              color: AppColors.neonYellow.withValues(alpha: 0.1),
+                              shape: BoxShape.rectangle,
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(color: AppColors.neonYellow.withValues(alpha: 0.3), width: 1.5),
                             ),
                             child: Center(
                               child: Text(
                                 profile.name.isNotEmpty ? profile.name[0].toUpperCase() : 'D',
-                                style: GoogleFonts.sora(fontSize: 26, fontWeight: FontWeight.w800, color: AppColors.accent),
+                                style: GoogleFonts.spaceGrotesk(fontSize: 26, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
                               ),
                             ),
                           ),
@@ -122,11 +122,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  profile.name,
-                                  style: GoogleFonts.sora(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                  profile.name.toUpperCase(),
+                                  style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0.5),
                                 ),
                                 const SizedBox(height: 2),
-                                Text(profile.phone, style: const TextStyle(fontSize: 13, color: AppColors.muted)),
+                                Text(profile.phone, style: GoogleFonts.spaceGrotesk(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.w700)),
                                 if (profile.city != null) ...[
                                   const SizedBox(height: 2),
                                   Row(
@@ -143,11 +143,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.successSubtle,
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: AppColors.success.withValues(alpha: 0.3)),
+                              color: AppColors.neonYellowSubtle,
+                              borderRadius: BorderRadius.circular(2),
+                              border: Border.all(color: AppColors.neonYellow.withValues(alpha: 0.3)),
                             ),
-                            child: const Text('Active', style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: AppColors.success)),
+                            child: const Text('ACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.neonYellow, letterSpacing: 1)),
                           ),
                         ],
                       ),
@@ -197,12 +197,14 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                 error: (_, __) => const SizedBox.shrink(),
               ),
               const SizedBox(height: 20),
-              // Actions
+              const SizedBox(height: 32),
+              Text('ACTIONS', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+              const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                child: AsmDriveButton(
+                child: DriveButton(
                   label: 'Broadcast Location',
-                  icon: PhosphorIconsBold.crosshair,
+                  icon: LucideIcons.mapPin,
                   isLoading: _locationSending,
                   onPressed: _locationSending ? null : _sendLocation,
                 ),
@@ -210,10 +212,36 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
-                child: AsmDriveButton(
+                child: DriveButton(
+                  label: 'Report General Incident',
+                  icon: LucideIcons.alertTriangle,
+                  variant: DriveButtonVariant.secondary,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const IncidentReportScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 32),
+              Text('SECURITY', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: DriveButton(
+                  label: 'Change Password',
+                  icon: LucideIcons.lock,
+                  variant: DriveButtonVariant.ghost,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: DriveButton(
                   label: 'Sign Out',
-                  icon: PhosphorIconsBold.signOut,
-                  variant: AsmDriveButtonVariant.ghost,
+                  icon: LucideIcons.logOut,
+                  variant: DriveButtonVariant.danger,
                   onPressed: _logout,
                 ),
               ),

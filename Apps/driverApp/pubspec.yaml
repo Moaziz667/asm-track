@@ -49,6 +49,9 @@ dependencies:
   hive_flutter: ^1.1.0
   path_provider: ^2.1.5
   mcp_dart: ^2.1.1
+  qr_flutter: ^4.1.0
+  mobile_scanner: ^5.1.1
+  lucide_icons: ^0.257.0
 
 dev_dependencies:
   flutter_test:

@@ -180,6 +180,7 @@ public class DispatchService {
                         .currentLng(d.getCurrentLng() != null ? BigDecimal.valueOf(d.getCurrentLng()) : null)
                         .activeDeliveryId(activeDeliveryMap.get(d.getId()))
                         .activeRouteId(activeRouteMap.get(d.getId()))
+                        .createdAt(d.getCreatedAt() != null ? parseDateTime(d.getCreatedAt()) : null)
                         .build())
                 .toList();
     }
@@ -517,6 +518,11 @@ public class DispatchService {
     private static UUID parseUuid(String id) {
         if (id == null) return null;
         try { return UUID.fromString(id); } catch (IllegalArgumentException e) { return null; }
+    }
+
+    private static LocalDateTime parseDateTime(String dt) {
+        if (dt == null) return null;
+        try { return LocalDateTime.parse(dt); } catch (Exception e) { return null; }
     }
 
     @Transactional

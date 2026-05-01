@@ -11,4 +11,5 @@ public class InternalDriverResponse {
     private BigDecimal currentLat;
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;
+    private LocalDateTime createdAt;
 }

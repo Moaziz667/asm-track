@@ -63,4 +63,11 @@ public class DriverController {
     public ResponseEntity<HistoryResponse> getHistory(@AuthenticationPrincipal UserPrincipal user) {
         return ResponseEntity.ok(driverService.getHistory(UUID.fromString(user.getUserId())));
     }
+
+    @PostMapping("/duty-status")
+    public ResponseEntity<Map<String, Object>> toggleDuty(@AuthenticationPrincipal UserPrincipal user,
+                                                          @RequestParam boolean onDuty) {
+        driverService.toggleDuty(UUID.fromString(user.getUserId()), onDuty);
+        return ResponseEntity.ok(Map.of("onDuty", onDuty, "message", "Duty status updated"));
+    }
 }
