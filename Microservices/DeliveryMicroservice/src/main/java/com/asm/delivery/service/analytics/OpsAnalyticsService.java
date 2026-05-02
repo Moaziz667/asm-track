@@ -443,7 +443,7 @@ public class OpsAnalyticsService {
                 .filter(routeStop -> routeStop.getRoute() != null)
                 .collect(Collectors.toMap(
                         com.asm.delivery.entity.RouteStop::getDeliveryId,
-                        routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName()),
+                        routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName(), routeStop.getRoute().getStatus()),
                         (existing, replacement) -> existing
                 ));
     }
@@ -498,7 +498,7 @@ public class OpsAnalyticsService {
                 .build();
     }
 
-        private record RouteInfo(UUID routeId, String routeName) {}
+        private record RouteInfo(UUID routeId, String routeName, com.asm.delivery.entity.RouteStatus routeStatus) {}
         private String normalizeText(String value) {
                 if (!StringUtils.hasText(value)) {
                         return null;
@@ -659,6 +659,7 @@ public class OpsAnalyticsService {
                                 .orderRef(orderRef)
                                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
+                                .routeStatus(routeInfo != null && routeInfo.routeStatus() != null ? routeInfo.routeStatus().name() : null)
                                 .status(delivery.getStatus())
                                 .failureCode(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null)
                                 .motif(classification.motif())
@@ -717,7 +718,7 @@ public class OpsAnalyticsService {
                                                 return new ExceptionClassification(
                                                                 "WARNING",
                                                         "SCHEDULED_MONITORING",
-                                                                "Assigned delivery is queued behind a previous route stop"
+                                                                "Le chauffeur est sur un arrêt précédent — cette livraison sera traitée ensuite"
                                                 );
                                         }
 
@@ -866,6 +867,9 @@ public class OpsAnalyticsService {
                 LocalDateTime now = LocalDateTime.now();
                 String normalized = period == null ? "day" : period.trim().toLowerCase(Locale.ROOT);
                 return switch (normalized) {
+                        case "all" -> {
+                                yield new StatsRange("all", LocalDateTime.of(2000, 1, 1, 0, 0), now);
+                        }
                         case "week" -> {
                                 LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
                                 yield new StatsRange("week", monday.atStartOfDay(), now);

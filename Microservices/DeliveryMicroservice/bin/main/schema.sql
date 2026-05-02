@@ -587,6 +587,12 @@ ALTER TABLE deliveries ADD COLUMN IF NOT EXISTS pickup_sla_minutes INTEGER;
 
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS actual_dwell_minutes INTEGER;
 ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS completion_status VARCHAR(10);
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS requires_handoff BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS handoff_from_driver_id UUID;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS handoff_to_driver_id UUID;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS handoff_confirmed_at TIMESTAMP;
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS handoff_token VARCHAR(100);
+ALTER TABLE route_stops ADD COLUMN IF NOT EXISTS handoff_token_expires_at TIMESTAMP;
 
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS cumulative_delay_minutes INTEGER;
 ALTER TABLE routes ADD COLUMN IF NOT EXISTS route_on_time_completion_rate NUMERIC(5,2);

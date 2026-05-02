@@ -33,6 +33,7 @@ public class AdminOpsExceptionsResponse {
         private String orderRef;
         private UUID routeId;
         private String routeName;
+        private String routeStatus;
         private DeliveryStatus status;
         private String failureCode;
         private String motif;

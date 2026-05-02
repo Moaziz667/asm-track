@@ -46,6 +46,9 @@ public class ReportingService {
         } else {
             end = now;
             switch (period.toLowerCase()) {
+                case "all":
+                    start = java.time.LocalDate.of(2000, 1, 1).atStartOfDay();
+                    break;
                 case "week":
                     start = java.time.LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
                     break;

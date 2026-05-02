@@ -7,32 +7,33 @@ import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
+import com.google.zxing.BarcodeFormat;
+import com.google.zxing.EncodeHintType;
+import com.google.zxing.client.j2se.MatrixToImageWriter;
+import com.google.zxing.common.BitMatrix;
+import com.google.zxing.qrcode.QRCodeWriter;
+import com.lowagie.text.*;
+import com.lowagie.text.pdf.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.font.PDType1Font;
 import org.springframework.stereotype.Service;
 
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import javax.imageio.ImageIO;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class BonLivraisonPdfService {
+public class BonLivraisonPdfService extends BasePdfService {
 
     private final DeliveryRepository deliveryRepository;
-    private final TransportPort transportPort;
-
-    private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+    private final TransportPort      transportPort;
 
     public byte[] generate(UUID deliveryId) {
         Delivery delivery = deliveryRepository.findByIdWithOrder(deliveryId)
@@ -43,173 +44,213 @@ public class BonLivraisonPdfService {
         String driverName = "-";
         if (delivery.getDriverId() != null) {
             try {
-                DriverDTO driver = transportPort.getDriver(delivery.getDriverId().toString());
-                if (driver != null && driver.getName() != null) driverName = driver.getName();
+                DriverDTO d = transportPort.getDriver(delivery.getDriverId().toString());
+                if (d != null && d.getName() != null) driverName = d.getName();
             } catch (Exception e) {
-                log.warn("Could not fetch driver name for {}: {}", delivery.getDriverId(), e.getMessage());
+                log.warn("Driver fetch failed for {}: {}", delivery.getDriverId(), e.getMessage());
             }
         }
 
-        String ref = order != null
-                ? (order.getErpOrderId() != null ? order.getErpOrderId() : ns(order.getErpExternalRef()))
-                : deliveryId.toString().substring(0, 8).toUpperCase();
-
-        String clientName  = order != null ? ns(order.getClientName())  : "-";
-        String clientPhone = order != null ? ns(order.getClientPhone()) : "-";
-        String address     = order != null ? ns(order.getDropoffAddress()) : "-";
-        String city        = order != null ? ns(order.getDropoffCity()) : "-";
-        BigDecimal total   = order != null ? order.getTotalAmount() : null;
+        String ref         = resolveRef(delivery, order);
+        String clientName  = order != null ? safe(order.getClientName())    : "-";
+        String clientPhone = order != null ? safe(order.getClientPhone())   : "-";
+        String address     = order != null ? safe(order.getDropoffAddress()): "-";
+        String city        = order != null ? safe(order.getDropoffCity())   : "-";
+        BigDecimal total   = order != null ? order.getTotalAmount()         : null;
         List<OrderItem> items = order != null && order.getItems() != null ? order.getItems() : List.of();
 
-        try (PDDocument doc = new PDDocument(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
-            PDPage page = new PDPage(PDRectangle.A4);
-            doc.addPage(page);
-            PDPageContentStream cs = new PDPageContentStream(doc, page);
-            float pageW = PDRectangle.A4.getWidth();   // 595
-            float margin = 50f;
+        try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
+            Document  doc    = newA4Document();
+            PdfWriter writer = PdfWriter.getInstance(doc, out);
+            writer.setPageEvent(new ReportPageEvent("BON DE LIVRAISON", ref));
+            doc.open();
 
-            // ── Branded header bar ────────────────────────────────────────────
-            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);   // #FF5722
-            cs.addRect(0, 800f, pageW, 42f);
-            cs.fill();
+            // ── Reference + QR code row ───────────────────────────────────────
+            PdfPTable refRow = new PdfPTable(new float[]{3, 1});
+            refRow.setWidthPercentage(100);
+            refRow.setSpacingAfter(8f);
 
-            // Company name (white)
-            cs.setNonStrokingColor(1f, 1f, 1f);
-            line(cs, 14, true, margin, 822f, "ASM Track");
+            PdfPCell refCell = new PdfPCell();
+            refCell.setBorder(Rectangle.NO_BORDER);
+            refCell.addElement(new Paragraph("Référence : " + ref, bold(10)));
+            refCell.addElement(new Paragraph("Date : " + LocalDateTime.now().format(DT_FR), regular(8)));
+            refRow.addCell(refCell);
 
-            // Document type right-aligned (white)
-            line(cs, 11, true, 370f, 822f, "BON DE LIVRAISON");
+            // QR code
+            byte[] qrBytes = generateQr(ref);
+            if (qrBytes != null) {
+                Image qr = Image.getInstance(qrBytes);
+                qr.scaleToFit(64, 64);
+                PdfPCell qrCell = new PdfPCell(qr);
+                qrCell.setBorder(Rectangle.NO_BORDER);
+                qrCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                refRow.addCell(qrCell);
+            } else {
+                refRow.addCell(emptyCell());
+            }
+            doc.add(refRow);
 
-            // Thin accent line below header
-            cs.setNonStrokingColor(0.929f, 0.231f, 0.031f); // #ED3B08
-            cs.addRect(0, 798f, pageW, 2f);
-            cs.fill();
+            // ── COD box (most prominent element) ─────────────────────────────
+            if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+                doc.add(buildCodBox(total));
+            }
 
-            // Reset to black
-            cs.setNonStrokingColor(0f, 0f, 0f);
+            // ── Two-column layout: CLIENT | LIVREUR ──────────────────────────
+            doc.add(sectionLabel("DESTINATAIRE"));
+            PdfPTable parties = new PdfPTable(new float[]{1, 1});
+            parties.setWidthPercentage(100);
+            parties.setSpacingAfter(8f);
 
-            float y = 778f;
+            PdfPCell clientBox = buildInfoBox("CLIENT", new String[][]{
+                {"Nom",      clientName},
+                {"Tél.",     clientPhone},
+                {"Adresse",  address},
+                {"Ville",    city}
+            });
+            PdfPCell driverBox = buildInfoBox("LIVREUR", new String[][]{
+                {"Nom",      driverName}
+            });
+            parties.addCell(clientBox);
+            parties.addCell(driverBox);
+            doc.add(parties);
 
-            // Ref + date under header
-            y = line(cs, 9, false, margin, y, "Ref : " + ref
-                    + "     Date : " + LocalDateTime.now().format(DATE_FMT));
-            y -= 10;
+            // ── Items table ───────────────────────────────────────────────────
+            doc.add(sectionLabel("ARTICLES"));
+            PdfPTable itemTable = new PdfPTable(new float[]{3.5f, 0.8f, 1.2f, 1.2f});
+            itemTable.setWidthPercentage(100);
+            itemTable.setHeaderRows(1);
+            itemTable.addCell(hdrCell("Désignation"));
+            itemTable.addCell(hdrCellR("Qté"));
+            itemTable.addCell(hdrCellR("Prix unit."));
+            itemTable.addCell(hdrCellR("Total"));
 
-            // ── Client ────────────────────────────────────────────────────────
-            // Section label in brand color
-            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
-            y = line(cs, 10, true, margin, y, "CLIENT");
-            cs.setNonStrokingColor(0f, 0f, 0f);
-            y = line(cs, 10, false, margin, y - 2, "Nom:        " + clientName);
-            y = line(cs, 10, false, margin, y - 2, "Tel.:       " + clientPhone);
-            y = line(cs, 10, false, margin, y - 2, "Adresse:    " + address);
-            y = line(cs, 10, false, margin, y - 2, "Ville:      " + city);
-            y -= 8;
-
-            // ── Driver ────────────────────────────────────────────────────────
-            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
-            y = line(cs, 10, true, margin, y, "LIVREUR");
-            cs.setNonStrokingColor(0f, 0f, 0f);
-            y = line(cs, 10, false, margin, y - 2, "Nom: " + driverName);
-            y -= 8;
-
-            // ── Items table header ────────────────────────────────────────────
-            cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
-            y = line(cs, 10, true, margin, y, "ARTICLES");
-            cs.setNonStrokingColor(0f, 0f, 0f);
-
-            // Table header row background
-            cs.setNonStrokingColor(0.96f, 0.96f, 0.96f);
-            cs.addRect(margin, y - 14f, pageW - 2 * margin, 14f);
-            cs.fill();
-            cs.setNonStrokingColor(0f, 0f, 0f);
-
-            y = line(cs, 9, true, margin, y - 2,
-                    padR("Designation", 32) + padL("Qte", 6) + padL("P.U.", 12) + padL("Total", 12));
-            y -= 2;
-
-            // ── Items rows ────────────────────────────────────────────────────
+            boolean alt = false;
             for (OrderItem item : items) {
-                if (y < 100f) {
-                    cs.close();
-                    page = new PDPage(PDRectangle.A4);
-                    doc.addPage(page);
-                    cs = new PDPageContentStream(doc, page);
-                    y = 800f;
-                }
-                int qty     = item.getQuantity() != null ? item.getQuantity() : 0;
+                int qty       = item.getQuantity() != null ? item.getQuantity() : 0;
                 BigDecimal up = item.getUnitPrice();
-                BigDecimal rowTotal = up != null ? up.multiply(BigDecimal.valueOf(qty)) : null;
-
-                String row = padR(ns(item.getName()), 32)
-                           + padL(String.valueOf(qty), 6)
-                           + padL(up != null ? up.toPlainString() : "-", 12)
-                           + padL(rowTotal != null ? rowTotal.toPlainString() : "-", 12);
-                y = line(cs, 9, false, margin, y - 2, row);
+                BigDecimal rt = up != null ? up.multiply(BigDecimal.valueOf(qty)) : null;
+                itemTable.addCell(cellAlt(safe(item.getName()), alt));
+                itemTable.addCell(cellRAlt(String.valueOf(qty), alt));
+                itemTable.addCell(cellRAlt(up  != null ? up.toPlainString()  + " TND" : "-", alt));
+                itemTable.addCell(cellRAlt(rt  != null ? rt.toPlainString()  + " TND" : "-", alt));
+                alt = !alt;
             }
 
-            y -= 6;
-
-            // ── Grand total ──────────────────────────────────────────────────
-            y -= 4;
+            // Total row at bottom of table
             if (total != null) {
-                cs.setNonStrokingColor(1.0f, 0.341f, 0.133f);
-                cs.addRect(margin, y - 14f, pageW - 2 * margin, 14f);
-                cs.fill();
-                cs.setNonStrokingColor(1f, 1f, 1f);
-                y = line(cs, 11, true, margin, y - 2, "TOTAL  " + total.toPlainString() + " TND");
-                cs.setNonStrokingColor(0f, 0f, 0f);
+                PdfPCell totalLbl = new PdfPCell(new Phrase("TOTAL", bold(9)));
+                totalLbl.setColspan(3);
+                totalLbl.setPadding(6f);
+                totalLbl.setBorderColor(BORDER_GRAY);
+                totalLbl.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                totalLbl.setBackgroundColor(BG_HEADER_ROW);
+
+                PdfPCell totalVal = new PdfPCell(new Phrase(total.toPlainString() + " TND", bold(9)));
+                totalVal.setPadding(6f);
+                totalVal.setBorderColor(BORDER_GRAY);
+                totalVal.setHorizontalAlignment(Element.ALIGN_RIGHT);
+                totalVal.setBackgroundColor(BG_HEADER_ROW);
+
+                itemTable.addCell(totalLbl);
+                itemTable.addCell(totalVal);
             }
-            y -= 20;
+            doc.add(itemTable);
 
-            // ── Signature box ─────────────────────────────────────────────────
-            cs.setStrokingColor(0.7f, 0.7f, 0.7f);
-            cs.addRect(margin, y - 48f, 160f, 48f);
-            cs.stroke();
-            cs.addRect(pageW - margin - 160f, y - 48f, 160f, 48f);
-            cs.stroke();
-            cs.setStrokingColor(0f, 0f, 0f);
-            y = line(cs, 8, false, margin + 4, y - 4, "Signature du client");
-            line(cs, 8, false, pageW - margin - 156f, y + (8 + 3f), "Signature du livreur");
+            // ── Signature boxes ───────────────────────────────────────────────
+            doc.add(sectionLabel("SIGNATURES"));
+            PdfPTable sigTable = new PdfPTable(new float[]{1, 1});
+            sigTable.setWidthPercentage(100);
+            sigTable.setSpacingBefore(4f);
 
-            cs.close();
-            doc.save(out);
+            sigTable.addCell(sigBox("Signature du client"));
+            sigTable.addCell(sigBox("Signature du livreur"));
+            doc.add(sigTable);
+
+            doc.close();
             return out.toByteArray();
-        } catch (IOException e) {
-            throw AppException.serviceUnavailable("Failed to generate bon de livraison PDF");
+        } catch (Exception e) {
+            throw AppException.serviceUnavailable("Erreur génération bon de livraison: " + e.getMessage());
         }
     }
 
-    private static float line(PDPageContentStream cs, int size, boolean bold, float x, float y, String text) throws IOException {
-        cs.beginText();
-        cs.setFont(bold ? PDType1Font.HELVETICA_BOLD : PDType1Font.HELVETICA, size);
-        cs.newLineAtOffset(x, y);
-        cs.showText(text == null ? "" : sanitize(text));
-        cs.endText();
-        return y - (size + 3f);
+    // ── Private helpers ───────────────────────────────────────────────────────
+
+    private static Element buildCodBox(BigDecimal total) throws DocumentException {
+        PdfPTable box = new PdfPTable(1);
+        box.setWidthPercentage(100);
+        box.setSpacingAfter(10f);
+
+        PdfPCell lbl = new PdfPCell(new Phrase("MONTANT À ENCAISSER (COD)", new Font(Font.HELVETICA, 8, Font.BOLD, BaseColor.WHITE)));
+        lbl.setBackgroundColor(BRAND_ORANGE);
+        lbl.setPaddingTop(6f);
+        lbl.setPaddingLeft(10f);
+        lbl.setPaddingBottom(2f);
+        lbl.setBorder(Rectangle.NO_BORDER);
+
+        PdfPCell val = new PdfPCell(new Phrase(total.toPlainString() + " TND", new Font(Font.HELVETICA_BOLD, 22, Font.BOLD, BRAND_ORANGE)));
+        val.setBorderColor(BRAND_ORANGE);
+        val.setBorderWidth(2f);
+        val.setPaddingTop(4f);
+        val.setPaddingLeft(10f);
+        val.setPaddingBottom(8f);
+
+        box.addCell(lbl);
+        box.addCell(val);
+        return box;
     }
 
-    /** Strip non-WinAnsi characters that PDType1Font cannot encode. */
-    private static String sanitize(String s) {
-        if (s == null) return "";
-        StringBuilder sb = new StringBuilder(s.length());
-        for (char c : s.toCharArray()) {
-            sb.append(c < 256 ? c : '?');
+    private static PdfPCell buildInfoBox(String title, String[][] rows) {
+        PdfPCell outer = new PdfPCell();
+        outer.setPadding(6f);
+        outer.setBorderColor(BORDER_GRAY);
+
+        outer.addElement(new Paragraph(title, orange(8)));
+        for (String[] row : rows) {
+            Paragraph p = new Paragraph();
+            p.add(new Chunk(row[0] + ": ", muted(8)));
+            p.add(new Chunk(safe(row[1]), regular(8)));
+            p.setSpacingBefore(2f);
+            outer.addElement(p);
         }
-        return sb.toString();
+        return outer;
     }
 
-    private static String ns(String v) { return v != null ? v : "-"; }
-
-    private static String padR(String s, int len) {
-        if (s == null) s = "";
-        if (s.length() >= len) return s.substring(0, len);
-        return s + " ".repeat(len - s.length());
+    private static PdfPCell sigBox(String label) {
+        PdfPCell c = new PdfPCell(new Phrase(label + "\n\n\n\n", regular(8)));
+        c.setPadding(6f);
+        c.setBorderColor(BORDER_GRAY);
+        return c;
     }
 
-    private static String padL(String s, int len) {
-        if (s == null) s = "";
-        if (s.length() >= len) return s.substring(0, len);
-        return " ".repeat(len - s.length()) + s;
+    private static PdfPCell emptyCell() {
+        PdfPCell c = new PdfPCell();
+        c.setBorder(Rectangle.NO_BORDER);
+        return c;
+    }
+
+    private static String resolveRef(Delivery delivery, Order order) {
+        if (order != null && order.getErpOrderId() != null && !order.getErpOrderId().isBlank())
+            return order.getErpOrderId();
+        if (order != null && order.getErpExternalRef() != null && !order.getErpExternalRef().isBlank())
+            return order.getErpExternalRef();
+        return delivery.getId().toString().substring(0, 8).toUpperCase();
+    }
+
+    private static byte[] generateQr(String content) {
+        try {
+            QRCodeWriter writer = new QRCodeWriter();
+            Map<EncodeHintType, Object> hints = Map.of(
+                    EncodeHintType.MARGIN, 1,
+                    EncodeHintType.CHARACTER_SET, "UTF-8"
+            );
+            BitMatrix matrix = writer.encode(content, BarcodeFormat.QR_CODE, 120, 120, hints);
+            BufferedImage img = MatrixToImageWriter.toBufferedImage(matrix);
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            ImageIO.write(img, "PNG", baos);
+            return baos.toByteArray();
+        } catch (Exception e) {
+            log.warn("QR generation failed: {}", e.getMessage());
+            return null;
+        }
     }
 }
