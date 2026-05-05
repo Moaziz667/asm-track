@@ -61,7 +61,7 @@ public class AnalyticsPdfService extends BasePdfService {
         long inTransit = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT || d.getStatus() == DeliveryStatus.PICKED_UP).count();
         double successRate = total == 0 ? 0.0 : (double) delivered / total * 100.0;
 
-        Map<String, Long> zoneNameById = zoneRepository.findAll().stream()
+        Map<String, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(z -> z.getId().toString(), Zone::getName));
 
         // Volume by hour (using completedAt)
@@ -123,7 +123,7 @@ public class AnalyticsPdfService extends BasePdfService {
             doc.add(sectionLabel("VOLUME DE LIVRAISONS PAR HEURE"));
             byte[] chartPng = buildHourChart(byHour);
             if (chartPng != null) {
-                Image chartImg = Image.getInstance(chartPng);
+                com.lowagie.text.Image chartImg = com.lowagie.text.Image.getInstance(chartPng);
                 chartImg.setWidthPercentage(100);
                 chartImg.setSpacingAfter(12f);
                 doc.add(chartImg);
@@ -216,7 +216,7 @@ public class AnalyticsPdfService extends BasePdfService {
             renderer.setBarPainter(new StandardBarPainter());
             renderer.setItemMargin(0.02);
 
-            Font axisFont = new Font("SansSerif", Font.PLAIN, 9);
+            java.awt.Font axisFont = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 9);
             CategoryAxis domainAxis = plot.getDomainAxis();
             domainAxis.setTickLabelFont(axisFont);
             domainAxis.setAxisLineVisible(false);
@@ -240,7 +240,7 @@ public class AnalyticsPdfService extends BasePdfService {
 
     private static PdfPCell wrapKpi(PdfPTable inner) {
         PdfPCell c = new PdfPCell(inner);
-        c.setBorder(Rectangle.NO_BORDER);
+        c.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
         c.setPadding(3f);
         return c;
     }

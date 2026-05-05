@@ -53,8 +53,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
                 // v1 endpoints (depots, optimization) — ADMIN + DISPATCHER + MANAGER
                 .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                // WebSocket endpoint — allow all authenticated
-                .requestMatchers("/ws/**").authenticated()
+                // WebSocket/SockJS — permit all at HTTP level; auth is in STOMP CONNECT frame
+                .requestMatchers("/ws/**").permitAll()
                 // Deliveries — client, driver, dispatcher, admin
                 .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER", "DISPATCHER", "ADMIN")
                 // Anything else requires authentication

@@ -180,14 +180,14 @@ public class BonLivraisonPdfService extends BasePdfService {
         box.setWidthPercentage(100);
         box.setSpacingAfter(10f);
 
-        PdfPCell lbl = new PdfPCell(new Phrase("MONTANT À ENCAISSER (COD)", new Font(Font.HELVETICA, 8, Font.BOLD, BaseColor.WHITE)));
+        PdfPCell lbl = new PdfPCell(new Phrase("MONTANT À ENCAISSER (COD)", new Font(Font.HELVETICA, 8, Font.BOLD, java.awt.Color.WHITE)));
         lbl.setBackgroundColor(BRAND_ORANGE);
         lbl.setPaddingTop(6f);
         lbl.setPaddingLeft(10f);
         lbl.setPaddingBottom(2f);
         lbl.setBorder(Rectangle.NO_BORDER);
 
-        PdfPCell val = new PdfPCell(new Phrase(total.toPlainString() + " TND", new Font(Font.HELVETICA_BOLD, 22, Font.BOLD, BRAND_ORANGE)));
+        PdfPCell val = new PdfPCell(new Phrase(total.toPlainString() + " TND", new Font(Font.HELVETICA, 22, Font.BOLD, BRAND_ORANGE)));
         val.setBorderColor(BRAND_ORANGE);
         val.setBorderWidth(2f);
         val.setPaddingTop(4f);

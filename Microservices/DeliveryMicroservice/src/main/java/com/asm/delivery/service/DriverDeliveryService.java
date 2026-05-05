@@ -733,11 +733,36 @@ public class DriverDeliveryService {
                 .build());
     }
 
+    @Transactional
+    public DriverDeliveryResponse recordCodCollection(UUID deliveryId, UUID driverId,
+                                                      com.asm.delivery.dto.request.CodCollectionRequest req) {
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+        if (!driverId.equals(delivery.getDriverId())) {
+            throw AppException.forbidden("Not your delivery");
+        }
+        if (delivery.getOrder() == null || !Boolean.TRUE.equals(delivery.getOrder().getIsCod())) {
+            throw AppException.badRequest("This delivery is not a COD order");
+        }
+        delivery.setCodCollected(req.getCodCollected());
+        delivery.setCodAmountCollected(Boolean.TRUE.equals(req.getCodCollected()) ? req.getCodAmountCollected() : null);
+        delivery = deliveryRepo.save(delivery);
+        return toDriverDeliveryResponse(delivery);
+    }
+
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
         Order order = delivery.getOrder();
+        String erpId = order != null ? order.getErpOrderId() : null;
+        String orderRef = (erpId != null && !erpId.isBlank())
+                ? erpId
+                : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : null);
+
         return DriverDeliveryResponse.builder()
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
+                .orderRef(orderRef)
+                .clientName(order != null ? order.getClientName() : null)
+                .clientPhone(order != null ? order.getClientPhone() : null)
                 .status(delivery.getStatus().name())
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .dropoffCity(order != null ? order.getDropoffCity() : null)
@@ -746,6 +771,9 @@ public class DriverDeliveryService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .currency(order != null ? order.getCurrency() : null)
+                .isCod(order != null && Boolean.TRUE.equals(order.getIsCod()))
+                .codCollected(delivery.getCodCollected())
+                .codAmountCollected(delivery.getCodAmountCollected())
                 .items(order != null ? order.getItems() : null)
                 .totalQuantity(order != null ? order.getTotalQuantity() : null)
                 .priority(order != null ? order.getPriority().name() : null)

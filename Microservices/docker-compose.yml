@@ -51,9 +51,11 @@ services:
     image: rabbitmq:3-management-alpine
     container_name: rabbitmq
     ports:
+      # PROD: remove "15672:15672" — management console must not be publicly accessible
       - "5672:5672"
       - "15672:15672"
     environment:
+      # PROD: change these — default guest/guest is a well-known RabbitMQ vulnerability
       RABBITMQ_DEFAULT_USER: guest
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
@@ -72,9 +74,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres-app
     ports:
+      # PROD: remove these port mappings — databases must not be exposed outside Docker network
       - "5435:5432"
     environment:
       POSTGRES_USER: app_user
+      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${APP_DB_PASS}
       POSTGRES_PASSWORD: app_password
       POSTGRES_DB: app_db
     volumes:
@@ -92,9 +96,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres-delivery
     ports:
+      # PROD: remove this port mapping
       - "5434:5432"
     environment:
       POSTGRES_USER: delivery
+      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${DELIVERY_DB_PASS}
       POSTGRES_PASSWORD: delivery
       POSTGRES_DB: delivery_db
     volumes:
@@ -112,9 +118,11 @@ services:
     image: postgres:16-alpine
     container_name: postgres-driver
     ports:
+      # PROD: remove this port mapping
       - "5437:5432"
     environment:
       POSTGRES_USER: driver
+      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${DRIVER_DB_PASS}
       POSTGRES_PASSWORD: driver
       POSTGRES_DB: driver_db
     volumes:
@@ -136,8 +144,10 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
+      # PROD: set strong credentials via .env file: MINIO_ROOT_USER=${MINIO_USER} MINIO_ROOT_PASSWORD=${MINIO_PASS}
       MINIO_ROOT_USER: asmtracking
       MINIO_ROOT_PASSWORD: asmtracking2026
+    # PROD: remove port 9001 — MinIO console must not be publicly accessible
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -215,6 +225,10 @@ services:
       ROUTING_TRANSIT_SLA_BUFFER_MINUTES: "8"
       ERP_ADAPTER_URL: http://erp-adapter:8088
       ERP_DEFAULT_PROVIDER: odoo
+      FCM_ENABLED: "true"
+      FCM_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
+    volumes:
+      - ./DeliveryMicroservice/firebase-service-account.json:/app/firebase-service-account.json:ro
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8082"]
       interval: 10s

@@ -85,6 +85,15 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Order total amount")
     private BigDecimal totalAmount;
 
+    @Schema(description = "True when order payment term is Immediate Payment — driver collects cash")
+    private Boolean isCod;
+
+    @Schema(description = "Whether driver collected COD cash — null if not COD, true/false after driver confirms")
+    private Boolean codCollected;
+
+    @Schema(description = "Actual amount collected by driver")
+    private BigDecimal codAmountCollected;
+
     @Schema(description = "Order total weight in kilograms")
     private BigDecimal totalWeightKg;
 

@@ -29,6 +29,9 @@ app:
   jwt:
     secret: ${JWT_SECRET:asmsecret2026}
     access-expiry-ms: ${APP_JWT_ACCESS_EXPIRY_MS:3600000}
+  # PROD: set COOKIE_SECURE=true when the admin app is served over HTTPS
+  cookie:
+    secure: ${COOKIE_SECURE:false}
 
 odoo:
   url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}

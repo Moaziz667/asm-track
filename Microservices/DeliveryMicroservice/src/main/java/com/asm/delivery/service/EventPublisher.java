@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -14,6 +15,9 @@ import java.util.UUID;
 @Slf4j
 public class EventPublisher {
 
+    @Autowired(required = false)
+    private FcmNotificationService fcm;
+
     public void publishDeliveryCreated(Order order, Delivery delivery) {
         log.info("EVENT delivery.created orderId={} deliveryId={}",
                 order != null ? order.getId() : null, delivery.getId());
@@ -23,6 +27,12 @@ public class EventPublisher {
         log.info("EVENT delivery.scheduled orderId={} deliveryId={} driverId={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), driverId);
+        if (fcm != null && driverId != null) {
+            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
+            fcm.sendToDriver(driverId.toString(),
+                    "Nouvelle livraison assignée",
+                    ref + " est prête à être récupérée");
+        }
     }
 
     public void publishDeliveryPickedUp(Order order, Delivery delivery) {
@@ -79,6 +89,12 @@ public class EventPublisher {
         log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), previousDriverId, newDriverId);
+        if (fcm != null && newDriverId != null) {
+            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
+            fcm.sendToDriver(newDriverId.toString(),
+                    "Livraison réassignée",
+                    ref + " vous a été attribuée");
+        }
     }
 
     public void publishDeliveryReplanned(Order order, Delivery delivery, UUID previousDriverId) {

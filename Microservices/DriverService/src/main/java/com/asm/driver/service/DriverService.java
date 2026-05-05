@@ -63,6 +63,14 @@ public class DriverService {
         driverRepo.save(driver);
     }
 
+    @Transactional
+    public void updateFcmToken(UUID driverId, String token) {
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+        driver.setFcmToken(token);
+        driverRepo.save(driver);
+    }
+
     public StatsResponse getStats(UUID driverId) {
         DriverStats stats = statsRepo.findByDriverId(driverId)
                 .orElse(DriverStats.builder().totalDeliveries(0).delivered(0).failed(0).cancelled(0).build());
@@ -72,6 +80,14 @@ public class DriverService {
                 .failed(stats.getFailed())
                 .cancelled(stats.getCancelled())
                 .build();
+    }
+
+    @Transactional
+    public void toggleDuty(UUID driverId, boolean onDuty) {
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+        driver.setActive(onDuty);
+        driverRepo.save(driver);
     }
 
     public HistoryResponse getHistory(UUID driverId) {

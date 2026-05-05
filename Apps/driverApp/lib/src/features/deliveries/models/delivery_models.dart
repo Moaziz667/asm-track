@@ -142,11 +142,17 @@ class DriverDelivery {
     required this.id,
     required this.status,
     this.orderId,
+    this.orderRef,
+    this.clientName,
+    this.clientPhone,
     this.address,
     this.city,
     this.instructions,
     this.totalAmount,
     this.currency,
+    this.isCod = false,
+    this.codCollected,
+    this.codAmountCollected,
     this.items = const [],
     this.priority,
     this.scheduledAt,
@@ -181,12 +187,18 @@ class DriverDelivery {
     return DriverDelivery(
       id: (json['deliveryId'] ?? json['id']).toString(),
       orderId: (json['orderId'])?.toString(),
+      orderRef: json['orderRef'] as String?,
+      clientName: json['clientName'] as String?,
+      clientPhone: json['clientPhone'] as String?,
       status: DeliveryStatusX.fromApi(json['status'] as String?),
       address: json['dropoffAddress'] as String?,
       city: json['dropoffCity'] as String?,
       instructions: json['deliveryInstructions'] as String?,
       totalAmount: (json['totalAmount'] as num?)?.toDouble(),
       currency: json['currency'] as String?,
+      isCod: json['isCod'] as bool? ?? false,
+      codCollected: json['codCollected'] as bool?,
+      codAmountCollected: (json['codAmountCollected'] as num?)?.toDouble(),
       items: (json['items'] as List<dynamic>? ?? [])
           .map((item) => OrderItemModel.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -210,12 +222,18 @@ class DriverDelivery {
 
   final String id;
   final String? orderId;
+  final String? orderRef;
+  final String? clientName;
+  final String? clientPhone;
   final DeliveryStatus status;
   final String? address;
   final String? city;
   final String? instructions;
   final double? totalAmount;
   final String? currency;
+  final bool isCod;
+  final bool? codCollected;
+  final double? codAmountCollected;
   final List<OrderItemModel> items;
   final String? priority;
   final DateTime? scheduledAt;
@@ -234,6 +252,7 @@ class DriverDelivery {
   final Map<String, DateTime?> timestamps;
 
   bool get isTerminal => status == DeliveryStatus.delivered || status == DeliveryStatus.failed || status == DeliveryStatus.cancelled;
+  bool get needsCodConfirmation => isCod && status == DeliveryStatus.delivered && codCollected == null;
 }
 
 class PartialDeliveryItem {

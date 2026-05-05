@@ -13,7 +13,9 @@ public class CorsConfig {
     @Bean
     public CorsWebFilter corsWebFilter() {
         CorsConfiguration corsConfig = new CorsConfiguration();
-        // Use allowedOriginPatterns to allow all origins (Flutter Web random ports, mobile emulators) while keeping allowCredentials=true
+        // PROD: replace "*" with your actual frontend origins to lock down who can call the API
+        // e.g. Arrays.asList("https://admin.yourdomain.com", "https://driver.yourdomain.com")
+        // Wildcard works during dev but lets ANY origin make credentialed requests in production
         corsConfig.setAllowedOriginPatterns(Arrays.asList("*"));
         corsConfig.setMaxAge(3600L);
         corsConfig.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

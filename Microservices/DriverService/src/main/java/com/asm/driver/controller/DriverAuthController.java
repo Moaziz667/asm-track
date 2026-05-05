@@ -14,6 +14,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/auth/driver")
@@ -42,7 +43,7 @@ public class DriverAuthController {
     public ResponseEntity<Map<String, String>> changePassword(
             @org.springframework.security.core.annotation.AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody ChangePasswordRequest req) {
-        authService.changePassword(UUID.fromString(principal.getId()), req.getOldPassword(), req.getNewPassword(), req.getConfirmPassword());
+        authService.changePassword(UUID.fromString(principal.getUserId()), req.getOldPassword(), req.getNewPassword(), req.getConfirmPassword());
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 }

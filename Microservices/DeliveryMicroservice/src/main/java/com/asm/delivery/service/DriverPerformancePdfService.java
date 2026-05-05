@@ -50,7 +50,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         LocalDateTime end   = to != null ? to.atTime(23, 59, 59) : now;
 
         // Driver deliveries in period
-        List<Delivery> allStatuses = List.of(
+        List<DeliveryStatus> allStatuses = List.of(
                 DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
                 DeliveryStatus.FAILED, DeliveryStatus.CANCELLED,
                 DeliveryStatus.SCHEDULED, DeliveryStatus.IN_TRANSIT,
@@ -119,13 +119,13 @@ public class DriverPerformancePdfService extends BasePdfService {
             identity.setSpacingAfter(8f);
 
             PdfPCell nameCell = new PdfPCell();
-            nameCell.setBorder(Rectangle.NO_BORDER);
+            nameCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
             nameCell.addElement(new Paragraph(safe(driver.getName()), bold(14)));
             nameCell.addElement(new Paragraph("Tél. : " + safe(driver.getPhone()), regular(9)));
             nameCell.addElement(new Paragraph("Période : " + periodLabel, muted(8)));
 
             PdfPCell fleetCell = new PdfPCell();
-            fleetCell.setBorder(Rectangle.NO_BORDER);
+            fleetCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
             fleetCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
             fleetCell.addElement(buildComparisonBar(successRate, fleetRate));
 
@@ -149,7 +149,7 @@ public class DriverPerformancePdfService extends BasePdfService {
             doc.add(sectionLabel("VOLUME (7 DERNIERS JOURS)"));
             byte[] chartPng = buildTrendChart(dailyVolume);
             if (chartPng != null) {
-                Image chartImg = Image.getInstance(chartPng);
+                com.lowagie.text.Image chartImg = com.lowagie.text.Image.getInstance(chartPng);
                 chartImg.setWidthPercentage(100);
                 chartImg.setSpacingAfter(12f);
                 doc.add(chartImg);
@@ -224,7 +224,7 @@ public class DriverPerformancePdfService extends BasePdfService {
             renderer.setShadowVisible(false);
             renderer.setBarPainter(new StandardBarPainter());
 
-            Font axisFont = new Font("SansSerif", Font.PLAIN, 9);
+            java.awt.Font axisFont = new java.awt.Font("SansSerif", java.awt.Font.PLAIN, 9);
             CategoryAxis domain = plot.getDomainAxis();
             domain.setTickLabelFont(axisFont);
             domain.setAxisLineVisible(false);
@@ -250,7 +250,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         t.setWidthPercentage(100);
 
         PdfPCell title = new PdfPCell(new Phrase("COMPARAISON FLOTTE", muted(7)));
-        title.setBorder(Rectangle.NO_BORDER);
+        title.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
         title.setPaddingBottom(2f);
 
         Paragraph vals = new Paragraph();
@@ -259,7 +259,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         vals.add(new Chunk("   Flotte : ", muted(8)));
         vals.add(new Chunk(String.format("%.1f%%", fleetRate), regular(9)));
         PdfPCell valCell = new PdfPCell(vals);
-        valCell.setBorder(Rectangle.NO_BORDER);
+        valCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
 
         t.addCell(title);
         t.addCell(valCell);
@@ -270,7 +270,7 @@ public class DriverPerformancePdfService extends BasePdfService {
 
     private static PdfPCell wrapKpi(PdfPTable inner) {
         PdfPCell c = new PdfPCell(inner);
-        c.setBorder(Rectangle.NO_BORDER);
+        c.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
         c.setPadding(3f);
         return c;
     }

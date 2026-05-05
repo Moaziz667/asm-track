@@ -15,12 +15,12 @@ import java.time.format.DateTimeFormatter;
 public abstract class BasePdfService {
 
     // ── Brand palette ─────────────────────────────────────────────────────────
-    protected static final BaseColor BRAND_ORANGE   = new BaseColor(255, 87,  34);
-    protected static final BaseColor BRAND_ORANGE_D = new BaseColor(220, 70,  20);
-    protected static final BaseColor ROW_ALT        = new BaseColor(250, 250, 250);
-    protected static final BaseColor BORDER_GRAY    = new BaseColor(220, 220, 220);
-    protected static final BaseColor TEXT_MUTED     = new BaseColor(113, 113, 122);
-    protected static final BaseColor BG_HEADER_ROW  = new BaseColor(245, 245, 245);
+    protected static final java.awt.Color BRAND_ORANGE   = new java.awt.Color(255, 87,  34);
+    protected static final java.awt.Color BRAND_ORANGE_D = new java.awt.Color(220, 70,  20);
+    protected static final java.awt.Color ROW_ALT        = new java.awt.Color(250, 250, 250);
+    protected static final java.awt.Color BORDER_GRAY    = new java.awt.Color(220, 220, 220);
+    protected static final java.awt.Color TEXT_MUTED     = new java.awt.Color(113, 113, 122);
+    protected static final java.awt.Color BG_HEADER_ROW  = new java.awt.Color(245, 245, 245);
 
     // ── Page geometry ─────────────────────────────────────────────────────────
     protected static final float MARGIN_H  = 40f;   // horizontal
@@ -43,12 +43,12 @@ public abstract class BasePdfService {
         }
     }
 
-    protected static Font regular(int size)  { return new Font(BF_REG,  size, Font.NORMAL, BaseColor.BLACK); }
-    protected static Font bold(int size)      { return new Font(BF_BOLD, size, Font.NORMAL, BaseColor.BLACK); }
-    protected static Font white(int size)     { return new Font(BF_BOLD, size, Font.NORMAL, BaseColor.WHITE); }
+    protected static Font regular(int size)  { return new Font(BF_REG,  size, Font.NORMAL, java.awt.Color.BLACK); }
+    protected static Font bold(int size)      { return new Font(BF_BOLD, size, Font.NORMAL, java.awt.Color.BLACK); }
+    protected static Font white(int size)     { return new Font(BF_BOLD, size, Font.NORMAL, java.awt.Color.WHITE); }
     protected static Font muted(int size)     { return new Font(BF_REG,  size, Font.NORMAL, TEXT_MUTED); }
     protected static Font orange(int size)    { return new Font(BF_BOLD, size, Font.NORMAL, BRAND_ORANGE); }
-    protected static Font boldWhite(int size) { return new Font(BF_BOLD, size, Font.NORMAL, BaseColor.WHITE); }
+    protected static Font boldWhite(int size) { return new Font(BF_BOLD, size, Font.NORMAL, java.awt.Color.WHITE); }
 
     // ── Document bootstrap ────────────────────────────────────────────────────
     protected static Document newA4Document() {
@@ -201,7 +201,7 @@ public abstract class BasePdfService {
             // Subtitle under company name (small white)
             if (subtitle != null && !subtitle.isBlank()) {
                 ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                        new Phrase(subtitle, new Font(Font.HELVETICA, 7, Font.NORMAL, BaseColor.WHITE)),
+                        new Phrase(subtitle, new Font(Font.HELVETICA, 7, Font.NORMAL, java.awt.Color.WHITE)),
                         MARGIN_H, ph - 43, 0);
             }
 
@@ -216,10 +216,10 @@ public abstract class BasePdfService {
             String pageInfo = "Page " + writer.getPageNumber();
             String genDate  = "Généré le " + LocalDateTime.now().format(DT_FR);
             ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                    new Phrase(pageInfo, new Font(Font.HELVETICA, 7, Font.NORMAL, new BaseColor(113, 113, 122))),
+                    new Phrase(pageInfo, new Font(Font.HELVETICA, 7, Font.NORMAL, new java.awt.Color(113, 113, 122))),
                     MARGIN_H, 20, 0);
             ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT,
-                    new Phrase(genDate,  new Font(Font.HELVETICA, 7, Font.NORMAL, new BaseColor(113, 113, 122))),
+                    new Phrase(genDate,  new Font(Font.HELVETICA, 7, Font.NORMAL, new java.awt.Color(113, 113, 122))),
                     pw - MARGIN_H, 20, 0);
         }
     }

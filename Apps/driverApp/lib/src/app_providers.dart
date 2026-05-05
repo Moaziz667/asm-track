@@ -11,6 +11,8 @@ import 'features/profile/models/profile_models.dart';
 import 'features/routes/data/route_repository.dart';
 import 'features/routes/models/route_models.dart';
 import 'services/api_client.dart';
+import 'services/fcm_service.dart';
+import 'services/pdf_service.dart';
 import 'services/route_cache_service.dart';
 import 'services/token_storage.dart';
 import 'services/vehicle_service.dart';
@@ -31,7 +33,11 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 });
 
 final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController(ref.watch(authRepositoryProvider), ref.watch(tokenStorageProvider)));
+    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController(
+          ref.watch(authRepositoryProvider),
+          ref.watch(tokenStorageProvider),
+          ref.watch(fcmServiceProvider),
+        ));
 
 final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
   final client = ref.watch(apiClientProvider);
@@ -54,6 +60,16 @@ final routeRepositoryProvider = Provider<RouteRepository>((ref) {
 final vehicleServiceProvider = Provider<VehicleService>((ref) {
   final client = ref.watch(apiClientProvider);
   return VehicleService(client);
+});
+
+final pdfServiceProvider = Provider<PdfService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return PdfService(client);
+});
+
+final fcmServiceProvider = Provider<FcmService>((ref) {
+  final client = ref.watch(apiClientProvider);
+  return FcmService(client);
 });
 
 final myVehicleProvider = FutureProvider<Map<String, dynamic>>((ref) {

@@ -27,6 +27,7 @@ public class ErpPendingOrderPreviewDTO {
     private BigDecimal totalAmount;
     private String currency;
     private String priority;
+    private String paymentTermName;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;
     private List<OrderItem> items;

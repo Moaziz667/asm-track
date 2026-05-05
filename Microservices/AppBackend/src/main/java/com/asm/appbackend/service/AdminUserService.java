@@ -37,13 +37,47 @@ public class AdminUserService {
         }
 
         String token = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName());
+        String refreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName());
 
         return AdminLoginResponse.builder()
                 .token(token)
+                .refreshToken(refreshToken)
                 .tokenType("Bearer")
                 .expiresInMs(jwtService.getAccessExpiryMs())
                 .user(toResponse(user))
                 .build();
+    }
+
+    @Transactional(readOnly = true)
+    public AdminLoginResponse refreshToken(String refreshToken) {
+        try {
+            var claims = jwtService.parseToken(refreshToken);
+            if (!"refresh".equals(claims.get("type"))) {
+                throw new AppException(HttpStatus.UNAUTHORIZED, "Invalid refresh token type");
+            }
+            String subject = claims.getSubject();
+
+            AdminUser user = adminUserRepo.findById(java.util.UUID.fromString(subject))
+                    .orElseThrow(() -> new AppException(HttpStatus.UNAUTHORIZED, "User not found"));
+
+            if (!user.isActive()) {
+                throw new AppException(HttpStatus.FORBIDDEN, "Account is disabled");
+            }
+
+            // Rotate: issue both a new access token AND a new refresh token
+            String newAccessToken  = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName());
+            String newRefreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName());
+
+            return AdminLoginResponse.builder()
+                    .token(newAccessToken)
+                    .refreshToken(newRefreshToken)
+                    .tokenType("Bearer")
+                    .expiresInMs(jwtService.getAccessExpiryMs())
+                    .user(toResponse(user))
+                    .build();
+        } catch (Exception e) {
+            throw new AppException(HttpStatus.UNAUTHORIZED, "Invalid refresh token");
+        }
     }
 
     @Transactional

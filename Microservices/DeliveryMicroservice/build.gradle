@@ -51,6 +51,8 @@ dependencies {
     implementation 'com.google.zxing:core:3.5.3'
     implementation 'com.google.zxing:javase:3.5.3'
     implementation 'org.jfree:jfreechart:1.5.4'
+    // FCM push notifications (Firebase Admin SDK)
+    implementation 'com.google.firebase:firebase-admin:9.2.0'
 
     // Swagger UI (springdoc-openapi 2.x)
     implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.6.0'

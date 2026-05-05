@@ -12,4 +12,5 @@ public class InternalDriverResponse {
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;
     private LocalDateTime createdAt;
+    private String fcmToken;
 }

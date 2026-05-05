@@ -13,6 +13,145 @@ import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
 import 'handoff_token_sheet.dart';
 
+// ─── COD Collection Card ──────────────────────────────────────────────────────
+class _CodCollectionCard extends ConsumerStatefulWidget {
+  const _CodCollectionCard({required this.delivery, required this.onDone});
+  final DriverDelivery delivery;
+  final VoidCallback onDone;
+
+  @override
+  ConsumerState<_CodCollectionCard> createState() => _CodCollectionCardState();
+}
+
+class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
+  bool _submitting = false;
+  final _amountCtrl = TextEditingController();
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.delivery.totalAmount != null) {
+      _amountCtrl.text = widget.delivery.totalAmount!.toStringAsFixed(3);
+    }
+  }
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit(bool collected) async {
+    if (_submitting) return;
+    setState(() => _submitting = true);
+    try {
+      double? amount;
+      if (collected) {
+        amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.'));
+      }
+      await ref.read(deliveryRepositoryProvider).recordCod(
+        widget.delivery.id,
+        collected: collected,
+        amountCollected: amount,
+      );
+      widget.onDone();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erreur: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1A1200),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFFFF8C00).withValues(alpha: 0.5), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF8C00).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.payments_outlined, color: Color(0xFFFF8C00), size: 18),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Encaissement COD requis',
+                        style: GoogleFonts.spaceGrotesk(
+                            fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+                    const Text('Confirmez la collecte du paiement en espèces',
+                        style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _amountCtrl,
+            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+            style: GoogleFonts.spaceGrotesk(
+                fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+            decoration: InputDecoration(
+              labelText: 'Montant encaissé (TND)',
+              suffixText: 'TND',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton.icon(
+                  onPressed: _submitting ? null : () => _submit(false),
+                  icon: const Icon(Icons.close, size: 16, color: AppColors.danger),
+                  label: const Text('Non encaissé', style: TextStyle(color: AppColors.danger)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.danger),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: _submitting ? null : () => _submit(true),
+                  icon: _submitting
+                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                      : const Icon(Icons.check, size: 16, color: Colors.black),
+                  label: Text(_submitting ? 'En cours…' : 'Encaissé',
+                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFFF8C00),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class DeliveryDetailArgs {
   const DeliveryDetailArgs({required this.deliveryId});
   final String deliveryId;
@@ -72,6 +211,10 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
               const SizedBox(height: 16),
               if (delivery.instructions != null && delivery.instructions!.isNotEmpty) ...[
                 _InstructionsCard(text: delivery.instructions!),
+                const SizedBox(height: 16),
+              ],
+              if (delivery.needsCodConfirmation) ...[
+                _CodCollectionCard(delivery: delivery, onDone: _refresh),
                 const SizedBox(height: 16),
               ],
               if (delivery.items.isNotEmpty) ...[
@@ -301,17 +444,45 @@ class _HeroCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (delivery.orderId != null)
+                    if (delivery.isCod) ...[
+                      _CodBadge(delivery.codCollected),
+                      const SizedBox(width: 8),
+                    ],
+                    if (delivery.orderRef != null)
                       Text(
-                        '#${delivery.orderId}',
-                        style: const TextStyle(fontSize: 13, color: AppColors.muted, fontWeight: FontWeight.w500),
+                        delivery.orderRef!,
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted),
                       ),
                   ],
                 ),
                 const SizedBox(height: 16),
+                if (delivery.clientName != null) ...[
+                  Row(
+                    children: [
+                      const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.muted),
+                      const SizedBox(width: 4),
+                      Text(delivery.clientName!, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      if (delivery.clientPhone != null) ...[
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => launchUrlString('tel:${delivery.clientPhone}'),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.phone_outlined, size: 13, color: AppColors.accent),
+                              const SizedBox(width: 3),
+                              Text(delivery.clientPhone!, style: const TextStyle(fontSize: 13, color: AppColors.accent, fontWeight: FontWeight.w500)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
                 Text(
                   delivery.address ?? 'No address provided',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 if (delivery.city != null) ...[
                   const SizedBox(height: 4),
@@ -777,12 +948,74 @@ class _ActionPanel extends StatelessWidget {
   }
 }
 
-class _BonLivraisonCard extends ConsumerWidget {
+// ─── COD Badge ────────────────────────────────────────────────────────────────
+class _CodBadge extends StatelessWidget {
+  const _CodBadge(this.codCollected);
+  final bool? codCollected;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color color;
+    final String label;
+    if (codCollected == true) {
+      color = AppColors.success; label = 'COD ✓';
+    } else if (codCollected == false) {
+      color = AppColors.danger; label = 'COD ✗';
+    } else {
+      color = const Color(0xFFFF8C00); label = 'COD';
+    }
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.4)),
+      ),
+      child: Text(label,
+          style: GoogleFonts.spaceGrotesk(
+              fontSize: 10, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.5)),
+    );
+  }
+}
+
+// ─── Bon de Livraison Card ────────────────────────────────────────────────────
+class _BonLivraisonCard extends ConsumerStatefulWidget {
   const _BonLivraisonCard({required this.deliveryId});
   final String deliveryId;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BonLivraisonCard> createState() => _BonLivraisonCardState();
+}
+
+class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
+  bool _loading = false;
+
+  Future<void> _open() async {
+    if (_loading) return;
+    setState(() => _loading = true);
+    try {
+      final ok = await ref.read(pdfServiceProvider).downloadAndOpen(
+        '/api/driver/deliveries/${widget.deliveryId}/bon-livraison',
+        fileName: 'bon-livraison-${widget.deliveryId}.pdf',
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Aucune application PDF installée.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur téléchargement du bon de livraison.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -805,21 +1038,20 @@ class _BonLivraisonCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Bon de livraison', style: GoogleFonts.plusJakartaSans(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                Text('Bon de livraison',
+                    style: GoogleFonts.plusJakartaSans(
+                        fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                 const SizedBox(height: 2),
-                const Text('Ouvrir le PDF pour impression', style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                const Text('Ouvrir le PDF pour impression',
+                    style: TextStyle(color: AppColors.muted, fontSize: 11)),
               ],
             ),
           ),
           TextButton(
-            onPressed: () async {
-              final config = ref.read(appConfigProvider);
-              final url = '${config.apiBaseUrl}/api/driver/deliveries/$deliveryId/bon-livraison';
-              if (await canLaunchUrlString(url)) {
-                await launchUrlString(url, mode: LaunchMode.externalApplication);
-              }
-            },
-            child: const Text('Ouvrir'),
+            onPressed: _loading ? null : _open,
+            child: _loading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                : const Text('Ouvrir'),
           ),
         ],
       ),

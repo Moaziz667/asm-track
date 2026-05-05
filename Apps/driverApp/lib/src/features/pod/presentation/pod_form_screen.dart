@@ -4,10 +4,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_providers.dart';
-import '../../../config/app_config.dart';
 import '../../../services/location_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
@@ -59,11 +57,35 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
   bool get _canSubmit => _bonLivraisonBytes != null && _packageBytes != null;
 
+  bool _openingBl = false;
+
+  Future<void> _openBonLivraison() async {
+    if (_openingBl) return;
+    setState(() => _openingBl = true);
+    try {
+      final deliveryId = widget.args.delivery.id;
+      final ok = await ref.read(pdfServiceProvider).downloadAndOpen(
+        '/api/driver/deliveries/$deliveryId/bon-livraison',
+        fileName: 'bon-livraison-$deliveryId.pdf',
+      );
+      if (!ok && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible d\'ouvrir le PDF. Aucune application PDF installée.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Erreur lors du téléchargement du bon de livraison.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _openingBl = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final config = ref.read(appConfigProvider);
-    final blUrl = '${config.apiBaseUrl}/api/driver/deliveries/${widget.args.delivery.id}/bon-livraison';
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -96,14 +118,11 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
             // View bon de livraison button
             OutlinedButton.icon(
-              onPressed: () async {
-                final uri = Uri.parse(blUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri, mode: LaunchMode.externalApplication);
-                }
-              },
-              icon: const Icon(Icons.picture_as_pdf_outlined),
-              label: const Text('Voir / Imprimer bon de livraison'),
+              onPressed: _openingBl ? null : _openBonLivraison,
+              icon: _openingBl
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(Icons.picture_as_pdf_outlined),
+              label: Text(_openingBl ? 'Téléchargement…' : 'Voir / Imprimer bon de livraison'),
             ),
             const SizedBox(height: 20),
 

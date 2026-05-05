@@ -21,8 +21,12 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ErrorResponse> handleApp(AppException ex) {
         log.warn("AppException [{}]: {}", ex.getStatus(), ex.getMessage());
+        String error = null;
+        if (ex.getMessage() != null && ex.getMessage().contains("inspection")) {
+            error = "INSPECTION_REQUIRED";
+        }
         return ResponseEntity.status(ex.getStatus())
-                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage()));
+                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage(), error));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -59,7 +63,26 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
     }
 
-    public record ErrorResponse(int status, String message) {
-        public LocalDateTime timestamp() { return LocalDateTime.now(); }
+    @lombok.Getter
+    @lombok.Setter
+    public static class ErrorResponse {
+        private final int status;
+        private final String message;
+        private final String error;
+        private final LocalDateTime timestamp = LocalDateTime.now();
+
+        public ErrorResponse(int status, String message) {
+            this(status, message, null);
+        }
+
+        public ErrorResponse(int status, String message, String error) {
+            this.status = status;
+            this.message = message;
+            this.error = error;
+        }
+
+        public LocalDateTime getTimestamp() {
+            return timestamp;
+        }
     }
 }

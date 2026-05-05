@@ -59,30 +59,11 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   }
 
   Future<void> _startRoute(String id) => _doAction(() async {
-        try {
-          final pt = await LocationService().currentPosition();
-          if (pt != null) {
-            await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
-          }
-          await ref.read(routeRepositoryProvider).start(id);
-        } on DioException catch (e) {
-          if (e.response?.statusCode == 403 && 
-              e.response?.data is Map && 
-              (e.response?.data as Map)['error'] == 'INSPECTION_REQUIRED') {
-            
-            // Navigate to inspection screen
-            final success = await Navigator.of(context).push<bool>(
-              MaterialPageRoute(builder: (_) => const VehicleInspectionScreen()),
-            );
-            
-            if (success == true) {
-              // Retry starting the route
-              await _startRoute(id);
-            }
-          } else {
-            rethrow;
-          }
+        final pt = await LocationService().currentPosition();
+        if (pt != null) {
+          await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
+        await ref.read(routeRepositoryProvider).start(id);
       });
 
   Future<void> _arriveStop(String routeId, String stopId) => _doAction(() async {
@@ -199,6 +180,9 @@ class _RouteMapBody extends StatelessWidget {
       polyPoints = stopCoords;
     }
 
+    // Depot marker: first point of OSRM polyline (depot is always origin of optimization)
+    final LatLng? depotCoord = polyPoints.isNotEmpty ? polyPoints.first : null;
+
     return Stack(
       children: [
         // ── Full-screen OSM Map ──────────────────────────────────────────────
@@ -226,6 +210,18 @@ class _RouteMapBody extends StatelessWidget {
                     color: AppColors.neonYellow,
                     borderColor: Colors.black,
                     borderStrokeWidth: 1.5,
+                  ),
+                ],
+              ),
+            // Depot marker (start of OSRM polyline = depot origin)
+            if (depotCoord != null)
+              MarkerLayer(
+                markers: [
+                  Marker(
+                    point: depotCoord,
+                    width: 40,
+                    height: 40,
+                    child: const _DepotMarker(),
                   ),
                 ],
               ),
@@ -290,6 +286,33 @@ class _RouteMapBody extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Depot Marker ─────────────────────────────────────────────────────────────
+class _DepotMarker extends StatelessWidget {
+  const _DepotMarker();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 34,
+      height: 34,
+      decoration: BoxDecoration(
+        color: AppColors.background,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: AppColors.neonYellow, width: 2),
+        boxShadow: [
+          BoxShadow(color: AppColors.neonYellow.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1),
+        ],
+      ),
+      child: Center(
+        child: Text(
+          'D',
+          style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
+        ),
+      ),
     );
   }
 }

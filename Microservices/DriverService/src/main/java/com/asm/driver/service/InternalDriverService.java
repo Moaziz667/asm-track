@@ -88,6 +88,7 @@ public class InternalDriverService {
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())
                 .createdAt(d.getCreatedAt())
+                .fcmToken(d.getFcmToken())
                 .build();
     }
 }

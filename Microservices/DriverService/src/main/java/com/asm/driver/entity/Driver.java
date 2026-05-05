@@ -35,6 +35,9 @@ public class Driver {
     @Builder.Default
     private Boolean active = true;
 
+    @Column(length = 500)
+    private String fcmToken;
+
     @Column(nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

@@ -6,6 +6,7 @@ import com.asm.appbackend.dto.admin.AdminUserResponse;
 @Builder
 public record AdminLoginResponse(
         String token,
+        String refreshToken,
         String tokenType,
         long expiresInMs,
         AdminUserResponse user

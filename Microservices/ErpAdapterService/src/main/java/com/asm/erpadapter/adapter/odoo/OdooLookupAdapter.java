@@ -172,6 +172,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .deliveryInstructions(asString(row.get("note")))
                 .totalAmount(asBigDecimal(row.get("amount_total")))
                 .currency(resolveCurrency(row))
+                .paymentTermName(resolvePaymentTermName(row))
                 .priority("NORMAL")
                 .dateOrder(parseOdooDateTime(row.get("date_order")))
                 .scheduledAt(parseOdooDateTime(row.get("commitment_date")))
@@ -216,7 +217,8 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 List.of(List.of("name", "=", normalized)),
                 List.of("id", "name", "client_order_ref", "partner_id", "partner_shipping_id",
                         "amount_total", "currency_id", "state", "invoice_status",
-                        "date_order", "commitment_date", "note", "order_line", "invoice_ids"),
+                        "date_order", "commitment_date", "note", "order_line", "invoice_ids",
+                        "payment_term_id"),
                 1, "id desc");
         return rows.isEmpty() ? null : rows.get(0);
     }
@@ -306,6 +308,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
     private String resolveCustomerPhone(Map<String, Object> partner) {
         if (partner == null) return null;
         return firstNonBlank(asString(partner.get("phone")), asString(partner.get("mobile")));
+    }
+
+    private String resolvePaymentTermName(Map<String, Object> order) {
+        // payment_term_id is a Many2one — Odoo returns [id, "Term Name"] or false
+        return asRelName(order.get("payment_term_id"));
     }
 
     private String resolveCurrency(Map<String, Object> order) {

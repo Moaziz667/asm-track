@@ -51,7 +51,7 @@ public class ProofOfDeliveryService {
                 .deliveryId(pod.getDeliveryId())
                 .photoBase64(null)
                 .signatureBase64(null)
-                .signatureUrl(pod.getSignatureUrl())
+                .signatureUrl(pod.getBonLivraisonPhotoUrl() != null ? pod.getBonLivraisonPhotoUrl() : pod.getSignatureUrl())
                 .photoUrl(pod.getPhotoUrl())
                 .comment(pod.getComment())
                 .collectedAt(pod.getCollectedAt())

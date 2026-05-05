@@ -97,6 +97,13 @@ public class Delivery {
     @Builder.Default
     private Boolean returnToOrigin = false;
 
+    // NULL = not a COD order, TRUE = cash collected, FALSE = cash not collected
+    @Column(name = "cod_collected")
+    private Boolean codCollected;
+
+    @Column(name = "cod_amount_collected", precision = 10, scale = 3)
+    private java.math.BigDecimal codAmountCollected;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

@@ -134,6 +134,7 @@ public class ErpLookupService {
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
+                .isCod("Immediate Payment".equalsIgnoreCase(preview.getPaymentTermName()))
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.NORMAL)
                 .items(new ArrayList<>())

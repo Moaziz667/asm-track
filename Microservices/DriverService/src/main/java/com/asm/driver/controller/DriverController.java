@@ -64,6 +64,17 @@ public class DriverController {
         return ResponseEntity.ok(driverService.getHistory(UUID.fromString(user.getUserId())));
     }
 
+    @PutMapping("/fcm-token")
+    public ResponseEntity<Map<String, String>> updateFcmToken(@AuthenticationPrincipal UserPrincipal user,
+                                                              @RequestBody Map<String, String> body) {
+        String token = body.getOrDefault("fcmToken", body.get("token"));
+        if (token == null || token.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "fcmToken is required"));
+        }
+        driverService.updateFcmToken(UUID.fromString(user.getUserId()), token);
+        return ResponseEntity.ok(Map.of("message", "FCM token updated"));
+    }
+
     @PostMapping("/duty-status")
     public ResponseEntity<Map<String, Object>> toggleDuty(@AuthenticationPrincipal UserPrincipal user,
                                                           @RequestParam boolean onDuty) {
