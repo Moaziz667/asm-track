@@ -6,18 +6,18 @@ Microservices/asm-canonical-model/
 node_modules/
 .pnp
 .pnp.js
-
+agent.md
 # Build outputs
 dist/
 build/
 .next/
 out/
-
+CahierDeCharge.md
 # Environment files
 .env
 .env.*
 !.env.example
-
+MDS/
 # Logs
 logs/
 *.log

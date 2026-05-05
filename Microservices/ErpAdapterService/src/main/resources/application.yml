@@ -1,0 +1,35 @@
+server:
+  port: 8088
+
+spring:
+  application:
+    name: erp-adapter-service
+
+# ── Odoo Connection ──────────────────────────────────────────────────────────
+odoo:
+  url:      ${ODOO_URL:http://odoo:8069/jsonrpc}
+  db:       ${ODOO_DB:odoo}
+  username: ${ODOO_USERNAME:admin}
+  password: ${ODOO_PASSWORD:admin}
+  uid:      ${ODOO_UID:1}
+
+  # Timeouts for Odoo JSON-RPC calls.
+  # connect-ms: max time to establish TCP with Odoo (5s)
+  # read-ms:    max time to wait for Odoo response (15s — stock ops can be slow)
+  timeout:
+    connect-ms: ${ODOO_CONNECT_TIMEOUT_MS:5000}
+    read-ms:    ${ODOO_READ_TIMEOUT_MS:15000}
+
+# ── Security ─────────────────────────────────────────────────────────────────
+internal:
+  secret: ${INTERNAL_SECRET:asm-internal-2026}
+
+# ── OpenAPI / Swagger ─────────────────────────────────────────────────────────
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  default-produces-media-type: application/json

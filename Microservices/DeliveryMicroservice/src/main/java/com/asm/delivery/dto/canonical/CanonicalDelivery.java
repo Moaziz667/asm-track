@@ -91,8 +91,6 @@ public class CanonicalDelivery {
     public static class Financial {
         private BigDecimal totalAmount;
         private String     currency;
-        private String     paymentType;
-        private BigDecimal amountToCollect;
     }
 
     @Data @NoArgsConstructor @JsonIgnoreProperties(ignoreUnknown = true)

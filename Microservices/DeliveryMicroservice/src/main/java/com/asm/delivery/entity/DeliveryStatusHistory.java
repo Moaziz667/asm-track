@@ -8,8 +8,7 @@ import java.util.UUID;
 
 @Entity
 @Table(name = "delivery_status_history")
-@Getter
-@Setter
+@Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder

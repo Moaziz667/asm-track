@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "primary-container": "#002366",
+                        "secondary": "#b8c4ff",
+                        "error": "#ffb4ab",
+                        "tertiary-fixed": "#b7eaff",
+                        "outline": "#8e909c",
+                        "background": "#101415",
+                        "on-primary-fixed": "#00174a",
+                        "inverse-on-surface": "#2d3133",
+                        "tertiary": "#4cd6ff",
+                        "on-tertiary-fixed-variant": "#004e60",
+                        "surface-dim": "#101415",
+                        "surface-container": "#1d2022",
+                        "error-container": "#93000a",
+                        "on-primary": "#0d2c6e",
+                        "surface-container-low": "#191c1e",
+                        "inverse-primary": "#435b9f",
+                        "on-secondary-fixed": "#001453",
+                        "surface-container-lowest": "#0b0f10",
+                        "tertiary-fixed-dim": "#4cd6ff",
+                        "surface": "#101415",
+                        "secondary-container": "#173bab",
+                        "on-error-container": "#ffdad6",
+                        "outline-variant": "#444650",
+                        "surface-tint": "#b3c5ff",
+                        "on-secondary": "#002584",
+                        "on-surface-variant": "#c5c6d2",
+                        "on-tertiary-fixed": "#001f28",
+                        "on-surface": "#e0e3e5",
+                        "tertiary-container": "#002d39",
+                        "primary-fixed": "#dbe1ff",
+                        "primary": "#b3c5ff",
+                        "on-error": "#690005",
+                        "on-secondary-fixed-variant": "#173bab",
+                        "on-background": "#e0e3e5",
+                        "inverse-surface": "#e0e3e5",
+                        "on-tertiary-container": "#009cc0",
+                        "surface-container-highest": "#323537",
+                        "on-tertiary": "#003543",
+                        "on-secondary-container": "#a0b1ff",
+                        "secondary-fixed": "#dde1ff",
+                        "on-primary-container": "#758dd5",
+                        "surface-bright": "#363a3b",
+                        "on-primary-fixed-variant": "#2a4386",
+                        "surface-variant": "#323537",
+                        "surface-container-high": "#272a2c",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "secondary-fixed-dim": "#b8c4ff"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "xl": "48px",
+                        "margin": "24px",
+                        "lg": "24px",
+                        "gutter": "16px",
+                        "base": "4px",
+                        "md": "16px",
+                        "xs": "4px",
+                        "sm": "8px"
+                    },
+                    "fontFamily": {
+                        "headline-md": ["Space Grotesk"],
+                        "body-lg": ["Inter"],
+                        "label-md": ["Inter"],
+                        "body-sm": ["Inter"],
+                        "display-lg": ["Space Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                        "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400"}],
+                        "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                        "body-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400"}],
+                        "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+                    }
+                }
+            }
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #101415;
+            color: #e0e3e5;
+        }
+        .zebra-list div:nth-child(even) {
+            background-color: #1d2022;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-lg text-on-background selection:bg-primary selection:text-on-primary">
+<!-- Top Navigation Anchor -->
+<header class="bg-black text-blue-900 dark:text-blue-600 font-['Space_Grotesk'] font-bold tracking-tight docked full-width top-0 border-b border-zinc-800 flex justify-between items-center w-full px-4 h-16 fixed z-50">
+<div class="flex items-center gap-4">
+<button class="material-symbols-outlined hover:bg-zinc-900 transition-colors p-2 rounded-md active:opacity-80">menu</button>
+<span class="text-xl font-black text-blue-800 dark:text-white tracking-widest">ASMDRIVE</span>
+</div>
+<div class="flex items-center gap-2">
+<button class="material-symbols-outlined hover:bg-zinc-900 transition-colors p-2 rounded-md active:opacity-80">notifications</button>
+</div>
+</header>
+<main class="min-h-screen pt-24 pb-12 px-gutter max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-xl">
+<!-- Brand & Context Section -->
+<section class="lg:col-span-5 flex flex-col justify-center space-y-lg">
+<div class="space-y-sm">
+<span class="text-blue-500 font-headline-md text-label-md uppercase tracking-widest">Operator Onboarding</span>
+<h1 class="font-display-lg text-display-lg text-on-surface leading-tight">Join the Elite Logistics Network.</h1>
+<p class="font-body-lg text-on-surface-variant max-w-md">Access high-precision routing tools, real-time vehicle telemetry, and the industry's most secure driver ecosystem.</p>
+</div>
+<div class="p-lg bg-surface-container-high rounded-xl border border-zinc-800 space-y-md shadow-2xl">
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-primary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">security</span>
+</div>
+<div>
+<h3 class="font-headline-md text-body-lg font-bold">Secure Verification</h3>
+<p class="font-body-sm text-on-surface-variant">Your license and credentials are encrypted.</p>
+</div>
+</div>
+<div class="flex items-center gap-md">
+<div class="w-12 h-12 rounded-lg bg-secondary-container flex items-center justify-center">
+<span class="material-symbols-outlined text-secondary" style="font-variation-settings: 'FILL' 1;">speed</span>
+</div>
+<div>
+<h3 class="font-headline-md text-body-lg font-bold">Zero-Latency Sync</h3>
+<p class="font-body-sm text-on-surface-variant">Instant updates across all delivery nodes.</p>
+</div>
+</div>
+</div>
+<!-- Decorative Visual -->
+<div class="relative h-48 rounded-xl overflow-hidden grayscale contrast-125 opacity-40 border border-zinc-800">
+<img class="w-full h-full object-cover" data-alt="Cinematic long exposure of a semi-truck on a dark highway at night with streaking tail lights and technical atmosphere" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBAeTr6qkfMSisXIxyzawQnIImWbHTcfNXy-hbxT_eAHcOmxA9rFBFyLgCLYQol3wWk3x942uTzBRHRMRO7HGNQnv8imR-MszFag7DikbhKjFfQq4AtwSIhKJIiECjK6ibuU_A8aHr6cXGyNUM4yXnfYIw0Njbe262H1LghcpfDPIELYA9Rwrqz5S3vMElzaoFLGY4mrfsJAg_KclxPy4bObBP6oFdgFZt-tt6Dhx-jTQRS-z8uHkZ4-HwTFJ4wKAdu2tjTBT1rbV-7"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background to-transparent"></div>
+</div>
+</section>
+<!-- Registration Form Section -->
+<section class="lg:col-span-7">
+<div class="bg-surface-container rounded-xl p-xl border border-zinc-800 shadow-2xl space-y-xl">
+<div class="space-y-sm border-b border-zinc-800 pb-md">
+<h2 class="font-headline-md text-headline-md text-on-surface">Operator Credentials</h2>
+<p class="font-body-sm text-on-surface-variant">Complete all fields to initiate background verification.</p>
+</div>
+<form class="space-y-lg">
+<!-- Standard Info Fields -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">FULL NAME</label>
+<input class="w-full bg-background border border-zinc-700 rounded-lg px-md py-sm text-on-surface focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-all placeholder:text-zinc-600" placeholder="Johnathan Doe" type="text"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">EMAIL ADDRESS</label>
+<input class="w-full bg-background border border-zinc-700 rounded-lg px-md py-sm text-on-surface focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-all placeholder:text-zinc-600" placeholder="j.doe@asmdrive.com" type="email"/>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-md">
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">LICENSE NUMBER (CDL)</label>
+<input class="w-full bg-background border border-zinc-700 rounded-lg px-md py-sm text-on-surface focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-all placeholder:text-zinc-600" placeholder="TX-99281-00X" type="text"/>
+</div>
+<div class="space-y-xs">
+<label class="font-label-md text-label-md text-on-surface-variant">PASSWORD</label>
+<input class="w-full bg-background border border-zinc-700 rounded-lg px-md py-sm text-on-surface focus:border-blue-600 focus:ring-1 focus:ring-blue-600 outline-none transition-all placeholder:text-zinc-600" placeholder="••••••••••••" type="password"/>
+</div>
+</div>
+<!-- Vehicle Classification Grid -->
+<div class="space-y-md">
+<label class="font-label-md text-label-md text-on-surface-variant block">VEHICLE CLASSIFICATION</label>
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-md">
+<!-- Class Card 1 -->
+<label class="relative cursor-pointer group">
+<input checked="" class="sr-only peer" name="vehicle_type" type="radio"/>
+<div class="p-md bg-surface-container-high border border-zinc-800 rounded-lg peer-checked:border-blue-500 peer-checked:bg-primary-container/20 hover:bg-zinc-800 transition-all text-center space-y-sm">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-white transition-colors">local_shipping</span>
+<p class="font-label-md text-on-surface">LIGHT CARGO</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Class B/C</p>
+</div>
+</label>
+<!-- Class Card 2 -->
+<label class="relative cursor-pointer group">
+<input class="sr-only peer" name="vehicle_type" type="radio"/>
+<div class="p-md bg-surface-container-high border border-zinc-800 rounded-lg peer-checked:border-blue-500 peer-checked:bg-primary-container/20 hover:bg-zinc-800 transition-all text-center space-y-sm">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-white transition-colors">airport_shuttle</span>
+<p class="font-label-md text-on-surface">HEAVY RIG</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Class A</p>
+</div>
+</label>
+<!-- Class Card 3 -->
+<label class="relative cursor-pointer group">
+<input class="sr-only peer" name="vehicle_type" type="radio"/>
+<div class="p-md bg-surface-container-high border border-zinc-800 rounded-lg peer-checked:border-blue-500 peer-checked:bg-primary-container/20 hover:bg-zinc-800 transition-all text-center space-y-sm">
+<span class="material-symbols-outlined text-on-surface-variant group-hover:text-white transition-colors">dangerous</span>
+<p class="font-label-md text-on-surface">HAZMAT</p>
+<p class="text-[10px] text-on-surface-variant uppercase">Specialized</p>
+</div>
+</label>
+</div>
+</div>
+<!-- Terms & Submit -->
+<div class="space-y-lg pt-md">
+<div class="flex items-start gap-sm">
+<input class="mt-1 rounded bg-background border-zinc-700 text-blue-600 focus:ring-blue-600" type="checkbox"/>
+<p class="font-body-sm text-on-surface-variant">I agree to the <a class="text-blue-500 hover:underline" href="#">Terms of Service</a> and acknowledge the ASMDRIVE telemetry tracking requirements.</p>
+</div>
+<button class="w-full py-md bg-blue-900 text-white font-headline-md font-bold text-body-lg rounded-lg shadow-lg shadow-blue-900/20 hover:bg-blue-800 active:scale-[0.98] transition-all tracking-wider uppercase" type="submit">
+                            REGISTER AS OPERATOR
+                        </button>
+<div class="text-center">
+<p class="font-body-sm text-on-surface-variant">Already an operator? <a class="text-blue-500 font-bold hover:underline" href="#">LOG IN</a></p>
+</div>
+</div>
+</form>
+</div>
+</section>
+</main>
+<!-- Bottom Nav Shell (Suppressed on large screens) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 pb-safe h-20 bg-zinc-950 border-t border-zinc-800 md:hidden shadow-2xl">
+<a class="flex flex-col items-center justify-center text-zinc-500 py-2 hover:text-zinc-200 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">directions_bus</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium">Routes</span>
+</a>
+<a class="flex flex-col items-center justify-center text-zinc-500 py-2 hover:text-zinc-200 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined">calendar_month</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium">Calendar</span>
+</a>
+<a class="flex flex-col items-center justify-center text-blue-500 font-bold py-2 active:scale-95 transition-transform" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium">Profile</span>
+</a>
+</nav>
+<!-- Background Decoration Grid -->
+<div class="fixed inset-0 pointer-events-none -z-10 opacity-20">
+<div class="absolute inset-0 bg-[linear-gradient(to_right,#80808012_1px,transparent_1px),linear-gradient(to_bottom,#80808012_1px,transparent_1px)] bg-[size:40px_40px]"></div>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+</div>
+</body></html>

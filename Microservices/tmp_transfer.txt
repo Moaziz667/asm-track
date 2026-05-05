@@ -1,0 +1,122 @@
+    @Transactional
+    public com.asm.delivery.dto.response.TransferStopsResponse transferStops(com.asm.delivery.dto.request.TransferStopsRequest req) {
+        Route sourceRoute = routeRepository.findById(req.getSourceRouteId())
+                .orElseThrow(() -> AppException.notFound("Source route not found"));
+
+        if (sourceRoute.getStatus() == RouteStatus.CLOSED || sourceRoute.getStatus() == RouteStatus.CANCELLED) {
+            throw AppException.badRequest("Cannot transfer from a closed or cancelled route");
+        }
+
+        Route targetRoute;
+        if (req.getTargetRouteId() != null) {
+            targetRoute = routeRepository.findById(req.getTargetRouteId())
+                    .orElseThrow(() -> AppException.notFound("Target route not found"));
+            if (targetRoute.getStatus() == RouteStatus.CLOSED || targetRoute.getStatus() == RouteStatus.CANCELLED) {
+                throw AppException.badRequest("Cannot transfer to a closed or cancelled route");
+            }
+        } else {
+            if (req.getTargetDriverId() == null) {
+                throw AppException.badRequest("targetDriverId is required when creating a new route");
+            }
+            targetRoute = Route.builder()
+                    .name("Transfer from " + sourceRoute.getName())
+                    .driverId(req.getTargetDriverId())
+                    .vehicleId(req.getTargetVehicleId())
+                    .date(LocalDate.now())
+                    .status(RouteStatus.DRAFT)
+                    .createdBy("ADMIN")
+                    .build();
+            targetRoute = routeRepository.save(targetRoute);
+            auditLogService.logAction(null, "CREATE_ROUTE", "ROUTE", targetRoute.getId().toString(),
+                    Map.of("tournee", targetRoute.getName(), "reason", "Auto-created for transfer"));
+        }
+
+        List<RouteStop> sourceStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(sourceRoute.getId());
+        Map<UUID, RouteStop> sourceStopMap = sourceStops.stream()
+                .collect(Collectors.toMap(RouteStop::getId, s -> s));
+
+        List<RouteStop> targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+        int startOrder = req.getInsertAtOrder() != null ? req.getInsertAtOrder() : targetStops.size() + 1;
+
+        List<com.asm.delivery.dto.response.TransferStopsResponse.Warning> warnings = new ArrayList<>();
+        List<UUID> transferredStops = new ArrayList<>();
+
+        int currentOrder = startOrder;
+        for (UUID stopId : req.getStopIds()) {
+            RouteStop stop = sourceStopMap.get(stopId);
+            if (stop == null) {
+                throw AppException.badRequest("Stop " + stopId + " not found in source route");
+            }
+
+            RouteStopStatus status = stop.getStatus();
+            if (status == RouteStopStatus.COMPLETED || status == RouteStopStatus.FAILED || status == RouteStopStatus.PARTIAL) {
+                throw AppException.badRequest("Cannot transfer a completed or failed stop");
+            }
+
+            if (status == RouteStopStatus.PICKED_UP || status == RouteStopStatus.IN_TRANSIT) {
+                if (!StringUtils.hasText(req.getReason())) {
+                    throw AppException.badRequest("Reason is required when transferring picked up packages");
+                }
+                warnings.add(com.asm.delivery.dto.response.TransferStopsResponse.Warning.builder()
+                        .stopId(stopId)
+                        .code("HANDOFF")
+                        .detail("Stop is already picked up. Hand-off required.")
+                        .build());
+            }
+
+            stop.setRoute(targetRoute);
+            stop.setStopOrder(currentOrder++);
+            stop.setStatus(RouteStopStatus.PENDING);
+            routeStopRepository.save(stop);
+
+            Delivery delivery = deliveryRepo.findById(stop.getDeliveryId()).orElse(null);
+            if (delivery != null) {
+                delivery.setDriverId(targetRoute.getDriverId());
+                if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
+                    delivery.setStatus(DeliveryStatus.SCHEDULED);
+                } else {
+                    delivery.setStatus(DeliveryStatus.UNSCHEDULED); // pending validation
+                }
+                deliveryRepo.save(delivery);
+            }
+            transferredStops.add(stopId);
+        }
+
+        // Validate Capacity if target is active
+        if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
+            Vehicle vehicle = targetRoute.getVehicleId() != null ? vehicleRepository.findById(targetRoute.getVehicleId()).orElse(null) : null;
+            if (vehicle != null && vehicle.getPayloadKg() != null && vehicle.getPayloadKg() > 0) {
+                targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+                List<UUID> totalDelIds = targetStops.stream().map(RouteStop::getDeliveryId).toList();
+                if (!totalDelIds.isEmpty()) {
+                    java.math.BigDecimal totalWeight = deliveryRepo.findAllByIdInWithOrder(totalDelIds).stream()
+                        .filter(d -> d.getOrder() != null && d.getOrder().getTotalWeightKg() != null)
+                        .map(d -> d.getOrder().getTotalWeightKg())
+                        .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+                    if (totalWeight.compareTo(java.math.BigDecimal.valueOf(vehicle.getPayloadKg())) > 0 && !req.getAcknowledgeWarnings()) {
+                        throw AppException.unprocessableEntity(String.format("Transfer exceeds capacity. Vehicle max %d kg but route will be %.2f kg", vehicle.getPayloadKg(), totalWeight.doubleValue()));
+                    }
+                }
+            }
+        }
+
+        sourceRoute.setRouteVersion(sourceRoute.getRouteVersion() != null ? sourceRoute.getRouteVersion() + 1 : 2);
+        routeRepository.save(sourceRoute);
+
+        targetRoute.setRouteVersion(targetRoute.getRouteVersion() != null ? targetRoute.getRouteVersion() + 1 : 2);
+        routeRepository.save(targetRoute);
+
+        auditLogService.logAction(null, "TRANSFER_STOPS", "ROUTE", sourceRoute.getId().toString(),
+                Map.of("targetRoute", targetRoute.getId().toString(), "count", String.valueOf(transferredStops.size())));
+
+        routeWebSocketService.notifyDriver(sourceRoute.getDriverId(), "STOPS_TRANSFERRED_OUT", sourceRoute.getId(), sourceRoute.getName());
+        routeWebSocketService.notifyDriver(targetRoute.getDriverId(), "STOPS_TRANSFERRED_IN", targetRoute.getId(), targetRoute.getName());
+
+        return com.asm.delivery.dto.response.TransferStopsResponse.builder()
+                .targetRouteId(targetRoute.getId())
+                .transferredStopIds(transferredStops)
+                .sourceRouteStatus(sourceRoute.getStatus().name())
+                .warnings(warnings)
+                .build();
+    }
+}

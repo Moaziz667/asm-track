@@ -37,4 +37,12 @@ public class AppException extends RuntimeException {
     public static AppException unauthorized(String message) {
         return new AppException(HttpStatus.UNAUTHORIZED, message);
     }
+
+    public static AppException serviceUnavailable(String message) {
+        return new AppException(HttpStatus.SERVICE_UNAVAILABLE, message);
+    }
+
+    public static AppException unprocessableEntity(String message) {
+        return new AppException(HttpStatus.UNPROCESSABLE_ENTITY, message);
+    }
 }

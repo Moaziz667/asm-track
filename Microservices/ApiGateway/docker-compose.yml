@@ -11,6 +11,7 @@ services:
     environment:
       APP_BACKEND_URL: http://app-backend-service:8080
       DELIVERY_SERVICE_URL: http://delivery-service:8082
+      DRIVER_SERVICE_URL: http://driver-service:8086
       ODOO_QUERY_URL: http://odoo-query:3100
       JWT_SECRET: asmsecret2026
     networks:

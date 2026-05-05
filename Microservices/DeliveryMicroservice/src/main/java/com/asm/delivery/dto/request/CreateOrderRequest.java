@@ -2,7 +2,6 @@ package com.asm.delivery.dto.request;
 
 import com.asm.delivery.entity.OrderItem;
 import com.asm.delivery.entity.OrderPriority;
-import com.asm.delivery.entity.PaymentType;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.*;
 import lombok.Data;
@@ -27,13 +26,6 @@ public class CreateOrderRequest {
     @NotNull
     @DecimalMin("0.000")
     private BigDecimal totalAmount;
-
-    @NotNull
-    private PaymentType paymentType;
-
-    @NotNull
-    @DecimalMin("0.000")
-    private BigDecimal amountToCollect;
 
     @NotEmpty
     @Valid

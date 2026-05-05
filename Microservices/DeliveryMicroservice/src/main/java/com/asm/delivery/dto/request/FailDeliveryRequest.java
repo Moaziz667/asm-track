@@ -1,10 +1,13 @@
 package com.asm.delivery.dto.request;
 
-import jakarta.validation.constraints.NotBlank;
+import com.asm.delivery.entity.FailureCode;
+import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class FailDeliveryRequest {
-    @NotBlank
-    private String reason;
+    @NotNull
+    private FailureCode failureCode;
+
+    private String failureComment;
 }

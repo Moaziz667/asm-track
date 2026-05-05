@@ -1,13 +1,22 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.CancelDeliveryRequest;
+import com.asm.delivery.dto.request.CodCollectionRequest;
 import com.asm.delivery.dto.request.FailDeliveryRequest;
 import com.asm.delivery.dto.request.LocationUpdateRequest;
 import com.asm.delivery.dto.request.ReportRequest;
+import com.asm.delivery.dto.request.IncidentReportRequest;
+import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.MessageResponse;
+import com.asm.delivery.dto.response.HandoffTokenResponse;
+import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
+import com.asm.delivery.service.BonLivraisonPdfService;
 import com.asm.delivery.service.DriverDeliveryService;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import jakarta.validation.Valid;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -28,6 +37,7 @@ import java.util.UUID;
 public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
+    private final BonLivraisonPdfService bonLivraisonPdfService;
 
     @GetMapping("/available")
     @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
@@ -51,12 +61,21 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(deliveryService.getDelivery(id, UUID.fromString(principal.getUserId())));
     }
 
+    @PostMapping("/location")
+    @Operation(summary = "Update driver location and record tracking for active delivery")
+    public ResponseEntity<MessageResponse> updateLocation(
+            @Valid @RequestBody LocationUpdateRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        deliveryService.updateLocation(UUID.fromString(principal.getUserId()), req.getLat(), req.getLng());        
+        return ResponseEntity.ok(new MessageResponse("Location updated"));
+    }
+
     @PostMapping("/{id}/accept")
     @Operation(summary = "Accept a delivery (atomic — 409 if taken)")
     public ResponseEntity<DriverDeliveryResponse> accept(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.accept(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.accept(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/pickup")
@@ -64,7 +83,7 @@ public class DriverDeliveryController {
     public ResponseEntity<DriverDeliveryResponse> pickup(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.pickup(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.pickup(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/transit")
@@ -75,15 +94,15 @@ public class DriverDeliveryController {
             @AuthenticationPrincipal UserPrincipal principal) {
         java.math.BigDecimal lat = locationReq != null ? locationReq.getLat() : null;
         java.math.BigDecimal lng = locationReq != null ? locationReq.getLng() : null;
-        return ResponseEntity.ok(deliveryService.transit(id, UUID.fromString(principal.getUserId()), lat, lng));
+        return ResponseEntity.ok(deliveryService.transit(id, UUID.fromString(principal.getUserId()), lat, lng, principal));
     }
 
     @PostMapping("/{id}/complete")
-    @Operation(summary = "Mark delivery as completed")
+    @Operation(summary = "Mark delivery as completed", description = "@Deprecated: Use /pod endpoint instead. Still works for backward compatibility.")
     public ResponseEntity<DriverDeliveryResponse> complete(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.complete(id, UUID.fromString(principal.getUserId())));
+        return ResponseEntity.ok(deliveryService.complete(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/fail")
@@ -92,7 +111,13 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody FailDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.fail(id, UUID.fromString(principal.getUserId()), req.getReason()));
+        return ResponseEntity.ok(deliveryService.fail(
+            id,
+            UUID.fromString(principal.getUserId()),
+            req.getFailureCode(),
+            req.getFailureComment(),
+            principal
+        ));
     }
 
     @PostMapping("/{id}/cancel")
@@ -102,7 +127,7 @@ public class DriverDeliveryController {
             @RequestBody(required = false) CancelDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         String reason = req != null ? req.getReason() : null;
-        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason));
+        return ResponseEntity.ok(deliveryService.cancelByDriver(id, UUID.fromString(principal.getUserId()), reason, principal));
     }
 
     @PostMapping("/{id}/report")
@@ -111,7 +136,62 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody ReportRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription());
+        deliveryService.report(id, UUID.fromString(principal.getUserId()), req.getReportType(), req.getDescription(), principal);
         return ResponseEntity.ok(new MessageResponse("Report submitted"));
+    }
+
+    @PostMapping("/report-incident")
+    @Operation(summary = "Submit a professional incident report (multi-photo, GPS, general)")
+    public ResponseEntity<MessageResponse> reportIncident(
+            @Valid @RequestBody IncidentReportRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        deliveryService.reportIncident(UUID.fromString(principal.getUserId()), req, principal);
+        return ResponseEntity.ok(new MessageResponse("Incident report submitted"));
+    }
+
+    @PostMapping("/{id}/pod")
+    @Operation(summary = "Submit proof of delivery (POD)", description = "DRIVER only. Delivery must be IN_TRANSIT. Saves POD, completes delivery, triggers Odoo sync. Returns DELIVERED status.")
+    public ResponseEntity<DriverDeliveryResponse> submitPod(
+            @PathVariable UUID id,
+            @Valid @RequestBody ProofOfDeliveryRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
+    }
+
+    @GetMapping("/{id}/handoff-token")
+    @Operation(summary = "Generate a secure token for handoff", description = "DRIVER only. Called by Driver A to show a QR code.")
+    public ResponseEntity<HandoffTokenResponse> generateHandoffToken(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.generateHandoffToken(id, UUID.fromString(principal.getUserId())));
+    }
+
+    @PostMapping("/{id}/handoff")
+    @Operation(summary = "Confirm handoff receipt with token", description = "DRIVER only. Called by Driver B to confirm physical receipt of a package using Driver A's token.")
+    public ResponseEntity<DriverDeliveryResponse> confirmHandoff(
+            @PathVariable UUID id,
+            @Valid @RequestBody HandoffConfirmRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()), req.getToken(), principal));
+    }
+
+    @PatchMapping("/{id}/cod")
+    @Operation(summary = "Record COD cash collection for a delivery",
+               description = "DRIVER only. Call after completing a COD delivery. Sets whether cash was collected and the actual amount.")
+    public ResponseEntity<DriverDeliveryResponse> recordCod(
+            @PathVariable UUID id,
+            @Valid @RequestBody CodCollectionRequest req,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(deliveryService.recordCodCollection(id, UUID.fromString(principal.getUserId()), req));
+    }
+
+    @GetMapping("/{id}/bon-livraison")
+    @Operation(summary = "Download bon de livraison PDF for a delivery")
+    public ResponseEntity<byte[]> bonLivraison(@PathVariable UUID id) {
+        byte[] pdf = bonLivraisonPdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=bon-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

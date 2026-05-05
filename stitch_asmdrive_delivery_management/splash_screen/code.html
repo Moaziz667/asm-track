@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-secondary": "#ffffff",
+                        "secondary-fixed": "#e2e2e2",
+                        "on-primary-container": "#758dd5",
+                        "on-background": "#1a1b20",
+                        "secondary": "#5e5e5e",
+                        "on-secondary-container": "#646464",
+                        "surface-dim": "#dad9e0",
+                        "outline": "#757682",
+                        "on-error": "#ffffff",
+                        "surface-variant": "#e3e2e8",
+                        "error": "#ba1a1a",
+                        "primary-fixed": "#dbe1ff",
+                        "surface-container-lowest": "#ffffff",
+                        "on-tertiary-fixed-variant": "#454747",
+                        "primary": "#00113a",
+                        "tertiary": "#121515",
+                        "on-tertiary-fixed": "#1a1c1c",
+                        "primary-fixed-dim": "#b3c5ff",
+                        "surface-container": "#efedf3",
+                        "tertiary-fixed": "#e2e2e2",
+                        "surface-tint": "#435b9f",
+                        "surface-container-low": "#f4f3f9",
+                        "tertiary-container": "#272929",
+                        "surface-container-high": "#e9e7ee",
+                        "on-secondary-fixed-variant": "#474747",
+                        "on-primary": "#ffffff",
+                        "tertiary-fixed-dim": "#c6c6c7",
+                        "primary-container": "#002366",
+                        "on-tertiary-container": "#8f9090",
+                        "on-primary-fixed": "#00174a",
+                        "inverse-primary": "#b3c5ff",
+                        "on-tertiary": "#ffffff",
+                        "surface-container-highest": "#e3e2e8",
+                        "surface-bright": "#faf8ff",
+                        "on-error-container": "#93000a",
+                        "background": "#faf8ff",
+                        "secondary-container": "#e2e2e2",
+                        "surface": "#faf8ff",
+                        "on-surface-variant": "#444650",
+                        "outline-variant": "#c5c6d2",
+                        "on-surface": "#1a1b20",
+                        "inverse-on-surface": "#f1f0f6",
+                        "error-container": "#ffdad6",
+                        "on-secondary-fixed": "#1b1b1b",
+                        "inverse-surface": "#2f3035",
+                        "secondary-fixed-dim": "#c6c6c6",
+                        "on-primary-fixed-variant": "#2a4386"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.125rem",
+                        "lg": "0.25rem",
+                        "xl": "0.5rem",
+                        "full": "0.75rem"
+                    },
+                    "spacing": {
+                        "unit": "8px",
+                        "stack-md": "16px",
+                        "stack-lg": "24px",
+                        "margin-mobile": "16px",
+                        "touch-target-min": "48px",
+                        "stack-sm": "8px",
+                        "gutter": "12px"
+                    },
+                    "fontFamily": {
+                        "body-md": ["Inter"],
+                        "status-indicator": ["Inter"],
+                        "label-caps": ["Inter"],
+                        "h3": ["Inter"],
+                        "h1": ["Inter"],
+                        "body-lg": ["Inter"],
+                        "h2": ["Inter"]
+                    },
+                    "fontSize": {
+                        "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                        "status-indicator": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                        "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                        "h1": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                        "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "400"}],
+                        "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+                    }
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .loading-bar-animation {
+            width: 100%;
+            height: 4px;
+            background: #e2e2e8;
+            overflow: hidden;
+            position: relative;
+        }
+        .loading-bar-animation::after {
+            content: '';
+            position: absolute;
+            left: -50%;
+            height: 100%;
+            width: 50%;
+            background: #00113a;
+            animation: progress 1.5s infinite linear;
+        }
+        @keyframes progress {
+            0% { left: -50%; }
+            100% { left: 100%; }
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="bg-background text-on-background font-body-md antialiased overflow-hidden">
+<!-- Splash Screen Container -->
+<main class="relative flex flex-col items-center justify-center min-h-screen w-full bg-white px-margin-mobile">
+<!-- Top Visual Accent (Subtle Tonal Layer) -->
+<div class="absolute top-0 left-0 w-full h-1 bg-primary"></div>
+<!-- Brand Identity Section -->
+<section class="flex flex-col items-center justify-center space-y-stack-lg max-w-md w-full">
+<!-- Hero Brand Asset -->
+<div class="mb-stack-lg flex items-center justify-center">
+<!-- Branding using exact strings from JSON instructions -->
+<div class="flex flex-col items-center">
+<div class="p-stack-md bg-white border-2 border-primary mb-stack-sm rounded-none">
+<span class="material-symbols-outlined text-primary text-6xl" data-icon="local_shipping">local_shipping</span>
+</div>
+<h1 class="font-h1 text-h1 text-primary tracking-wider uppercase font-black">AsmDrive</h1>
+</div>
+</div>
+<!-- Loading & Auth State Section -->
+<div class="w-full space-y-stack-md">
+<!-- Status List (Utilitarian) -->
+<div class="flex flex-col space-y-stack-sm w-full border-t border-b border-outline-variant py-stack-md">
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Connecting to Satellite</span>
+<span class="material-symbols-outlined text-primary text-sm" data-icon="check_circle" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Checking Driver Auth</span>
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+</div>
+<div class="flex items-center justify-between opacity-40">
+<span class="font-label-caps text-label-caps text-secondary uppercase">Fetching Route Data</span>
+<span class="material-symbols-outlined text-sm" data-icon="pending">pending</span>
+</div>
+</div>
+<!-- Custom Professional Loading Bar -->
+<div class="loading-bar-animation"></div>
+<p class="font-body-md text-body-md text-center text-on-surface-variant">
+                    Initializing secure logistics environment...
+                </p>
+</div>
+</section>
+<!-- Bottom Footer Info -->
+<footer class="absolute bottom-12 w-full text-center px-margin-mobile">
+<div class="flex flex-col items-center space-y-stack-sm">
+<span class="font-label-caps text-label-caps text-secondary uppercase tracking-widest">Version 4.2.0-Production</span>
+<div class="flex space-x-gutter">
+<div class="w-12 h-1 bg-primary-container"></div>
+<div class="w-12 h-1 bg-outline-variant"></div>
+<div class="w-12 h-1 bg-outline-variant"></div>
+</div>
+</div>
+</footer>
+<!-- Background Decorative Element (Subtle Grain/Map Motif) -->
+<div class="absolute inset-0 pointer-events-none opacity-[0.03] z-[-1]" data-alt="subtle dark carbon fiber texture for a professional industrial logistics feel" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCcWuQZNJEB1mvngfLIb2EAi6IAzbgEKauCxYIXak4r57q9GNPLwzpz1U8LFd0KGlFzs7Gs9iCpaKIHwDDk9iWeavCRs9OPIRVdndg3hc5B2Vykwn8f-CoXiz48v8C9wcnAMkZwqBWkUzlfFjCd0Jz5bAPz6rMbFanZoxva-S4SovWVXRdNeIabeJGQ50fJlsDVDcpJ0mo7ue4X7twShUDjrL1FzeeXjiexNxckXU-tL_rmW4ar13eczN0qAciX3vxyuZ83HprMgs1J');"></div>
+</main>
+<!-- Navigation Shell Suppression (As per 'Destination' Rule: Suppress on Transactional/Splash) -->
+<!-- The TopAppBar and BottomNavBar are omitted here as this is a focused journey screen -->
+</body></html>

@@ -28,8 +28,6 @@ public class OrderResponse {
     private String        deliveryInstructions;
     private BigDecimal    totalAmount;
     private String        currency;
-    private String        paymentType;
-    private BigDecimal    amountToCollect;
     private String        priority;
     private LocalDateTime scheduledAt;
     private List<OrderItem> items;
@@ -39,6 +37,8 @@ public class OrderResponse {
     private UUID          deliveryId;
     private String        deliveryStatus;   // delivery status
     private String        erpOrderId;
+    private String        odooSyncStatus;
+    private Integer       odooBackorderId;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

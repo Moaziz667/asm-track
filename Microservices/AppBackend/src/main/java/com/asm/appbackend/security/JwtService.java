@@ -50,6 +50,31 @@ public class JwtService {
         return builder.signWith(key).compact();
     }
 
+    public String generateAdminToken(String subject, String role, String name) {
+        return Jwts.builder()
+                .subject(subject)
+                .claim("role", role)
+                .claim("name", name)
+                .claim("type", "access")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + accessExpiryMs))
+                .signWith(key)
+                .compact();
+    }
+
+    public String generateRefreshToken(String subject, String role, String name) {
+        long refreshExpiryMs = 7L * 24 * 60 * 60 * 1000;
+        return Jwts.builder()
+                .subject(subject)
+                .claim("role", role)
+                .claim("name", name)
+                .claim("type", "refresh")
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + refreshExpiryMs))
+                .signWith(key)
+                .compact();
+    }
+
     public Claims parseToken(String token) {
         return Jwts.parser()
                 .verifyWith(key)

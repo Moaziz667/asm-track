@@ -28,3 +28,14 @@ CREATE INDEX IF NOT EXISTS idx_client_otp_created_at ON client_otp(created_at DE
 
 -- Odoo integration
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS odoo_partner_id INTEGER;
+
+-- Admin / Dispatcher / Manager accounts
+CREATE TABLE IF NOT EXISTS admin_users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name          VARCHAR(100) NOT NULL,
+  email         VARCHAR(100) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role          VARCHAR(20) NOT NULL,
+  active        BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+);

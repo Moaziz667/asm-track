@@ -12,4 +12,8 @@ public class AppException extends RuntimeException {
         super(message);
         this.status = status;
     }
+
+    public static AppException forbidden(String message) {
+        return new AppException(HttpStatus.FORBIDDEN, message);
+    }
 }

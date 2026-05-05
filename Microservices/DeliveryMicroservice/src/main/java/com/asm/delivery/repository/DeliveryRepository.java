@@ -29,26 +29,28 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId = :driverId AND d.status IN :statuses")
     List<Delivery> findActiveForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
-    /** Returns true if the driver already has an active delivery. */
-    @Query("SELECT COUNT(d) > 0 FROM Delivery d WHERE d.driverId = :driverId AND d.status IN :statuses")
-    boolean existsActiveDeliveryForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
+    @Query("SELECT d FROM Delivery d WHERE d.driverId IS NOT NULL AND d.status IN :statuses")
+    List<Delivery> findActiveDeliveries(@Param("statuses") List<DeliveryStatus> statuses);
 
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.id = :id")
     Optional<Delivery> findByIdWithOrder(@Param("id") UUID id);
+
+    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.id IN :ids")
+    List<Delivery> findAllByIdInWithOrder(@Param("ids") List<UUID> ids);
 
     /** Driver history - completed/failed/cancelled deliveries. */
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId = :driverId AND d.status IN :statuses ORDER BY d.updatedAt DESC")
     List<Delivery> findHistoryForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
-    /** Atomic accept: sets driver and transitions WAITING_DRIVER → ASSIGNED.
+    /** Atomic accept: sets driver and transitions UNSCHEDULED → SCHEDULED.
      *  Returns 1 if successful, 0 if already taken (race condition). */
     @Modifying(clearAutomatically = true)
     @Transactional
     @Query(value = """
         UPDATE deliveries
-        SET status = 'ASSIGNED', driver_id = :driverId,
+        SET status = 'SCHEDULED', driver_id = :driverId,
             assigned_at = NOW(), updated_at = NOW()
-        WHERE id = :id AND status = 'WAITING_DRIVER'
+        WHERE id = :id AND status = 'UNSCHEDULED'
         """, nativeQuery = true)
     int atomicAccept(@Param("id") UUID id, @Param("driverId") UUID driverId);
 }

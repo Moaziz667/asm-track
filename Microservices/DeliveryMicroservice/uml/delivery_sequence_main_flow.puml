@@ -20,9 +20,9 @@ Client -> OC: POST /api/orders
 OC -> OS: createFromApp(req, clientId, name, phone)
 OS -> OR: save(Order status=PENDING)
 OR --> OS: order
-OS -> DR: save(Delivery status=WAITING_DRIVER)
+OS -> DR: save(Delivery status=UNSCHEDULED)
 DR --> OS: delivery
-OS -> HR: save(WAITING_DRIVER history)
+OS -> HR: save(UNSCHEDULED history)
 OS -> EP: publishDeliveryCreated(order, delivery)
 EP -> MQ: delivery.created
 OS --> OC: OrderResponse
@@ -32,9 +32,9 @@ OC --> Client: 201 Created
 Driver -> DDC: POST /api/driver/deliveries/{id}/accept
 DDC -> DDS: accept(deliveryId, driverId)
 DDS -> DR: atomicAccept(deliveryId, driverId)
-DDS -> HR: save(ASSIGNED history)
-DDS -> EP: publishDeliveryAssigned(...)
-EP -> MQ: delivery.assigned
+DDS -> HR: save(SCHEDULED history)
+DDS -> EP: publishDeliveryScheduled(...)
+EP -> MQ: delivery.scheduled
 DDS --> DDC: DriverDeliveryResponse
 DDC --> Driver: 200 OK
 

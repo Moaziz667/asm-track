@@ -19,7 +19,12 @@ import java.util.UUID;
 public class DriverDeliveryResponse {
     private UUID          deliveryId;
     private UUID          orderId;
+    private String        orderRef;       // human-readable: erpOrderId or short UUID
     private String        status;
+
+    // client info (driver needs to confirm identity)
+    private String        clientName;
+    private String        clientPhone;
 
     // destination info (driver needs this)
     private String        dropoffAddress;
@@ -28,11 +33,12 @@ public class DriverDeliveryResponse {
     private BigDecimal    dropoffLng;
     private String        deliveryInstructions;
 
-    // financial info (driver needs this for COD)
+    // financial / COD info
     private BigDecimal    totalAmount;
-    private String        paymentType;
-    private BigDecimal    amountToCollect;
     private String        currency;
+    private Boolean       isCod;              // true = driver must collect cash
+    private Boolean       codCollected;       // null=not yet, true=collected, false=not collected
+    private BigDecimal    codAmountCollected;
 
     // items
     private List<OrderItem> items;
@@ -46,6 +52,12 @@ public class DriverDeliveryResponse {
     private LocalDateTime assignedAt;
     private LocalDateTime pickedUpAt;
     private LocalDateTime inTransitAt;
+    private String        routeGeometry;
+    private BigDecimal    routeDistanceKm;
+    private Integer       routeDurationMinutes;
+    private Integer       transitSlaMinutesComputed;
+    private LocalDateTime routeEtaAt;
+    private String        routeProvider;
     private LocalDateTime completedAt;
     private LocalDateTime failedAt;
     private LocalDateTime cancelledAt;

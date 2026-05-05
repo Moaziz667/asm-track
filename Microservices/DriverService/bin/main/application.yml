@@ -1,0 +1,23 @@
+server:
+  port: 8086
+
+spring:
+  application:
+    name: driver-service
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5437/driver_db}
+    username: ${DB_USER:driver}
+    password: ${DB_PASS:driver}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:asmsecret2026}
+      access-expiration: 86400000
+      refresh-expiration: 604800000
+    internal:
+      secret: ${INTERNAL_SECRET:asm-internal-2026}

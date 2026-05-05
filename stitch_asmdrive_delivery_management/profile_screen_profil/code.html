@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "on-secondary": "#ffffff",
+                    "secondary-fixed": "#e2e2e2",
+                    "on-primary-container": "#758dd5",
+                    "on-background": "#1a1b20",
+                    "secondary": "#5e5e5e",
+                    "on-secondary-container": "#646464",
+                    "surface-dim": "#dad9e0",
+                    "outline": "#757682",
+                    "on-error": "#ffffff",
+                    "surface-variant": "#e3e2e8",
+                    "error": "#ba1a1a",
+                    "primary-fixed": "#dbe1ff",
+                    "surface-container-lowest": "#ffffff",
+                    "on-tertiary-fixed-variant": "#454747",
+                    "primary": "#00113a",
+                    "tertiary": "#121515",
+                    "on-tertiary-fixed": "#1a1c1c",
+                    "primary-fixed-dim": "#b3c5ff",
+                    "surface-container": "#efedf3",
+                    "tertiary-fixed": "#e2e2e2",
+                    "surface-tint": "#435b9f",
+                    "surface-container-low": "#f4f3f9",
+                    "tertiary-container": "#272929",
+                    "surface-container-high": "#e9e7ee",
+                    "on-secondary-fixed-variant": "#474747",
+                    "on-primary": "#ffffff",
+                    "tertiary-fixed-dim": "#c6c6c7",
+                    "primary-container": "#002366",
+                    "on-tertiary-container": "#8f9090",
+                    "on-primary-fixed": "#00174a",
+                    "inverse-primary": "#b3c5ff",
+                    "on-tertiary": "#ffffff",
+                    "surface-container-highest": "#e3e2e8",
+                    "surface-bright": "#faf8ff",
+                    "on-error-container": "#93000a",
+                    "background": "#faf8ff",
+                    "secondary-container": "#e2e2e2",
+                    "surface": "#faf8ff",
+                    "on-surface-variant": "#444650",
+                    "outline-variant": "#c5c6d2",
+                    "on-surface": "#1a1b20",
+                    "inverse-on-surface": "#f1f0f6",
+                    "error-container": "#ffdad6",
+                    "on-secondary-fixed": "#1b1b1b",
+                    "inverse-surface": "#2f3035",
+                    "secondary-fixed-dim": "#c6c6c6",
+                    "on-primary-fixed-variant": "#2a4386"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "unit": "8px",
+                    "stack-md": "16px",
+                    "stack-lg": "24px",
+                    "margin-mobile": "16px",
+                    "touch-target-min": "48px",
+                    "stack-sm": "8px",
+                    "gutter": "12px"
+            },
+            "fontFamily": {
+                    "body-md": ["Inter"],
+                    "status-indicator": ["Inter"],
+                    "label-caps": ["Inter"],
+                    "h3": ["Inter"],
+                    "h1": ["Inter"],
+                    "body-lg": ["Inter"],
+                    "h2": ["Inter"]
+            },
+            "fontSize": {
+                    "body-md": ["16px", {"lineHeight": "24px", "fontWeight": "400"}],
+                    "status-indicator": ["14px", {"lineHeight": "20px", "fontWeight": "600"}],
+                    "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "700"}],
+                    "h3": ["20px", {"lineHeight": "28px", "fontWeight": "600"}],
+                    "h1": ["32px", {"lineHeight": "40px", "letterSpacing": "-0.02em", "fontWeight": "700"}],
+                    "body-lg": ["18px", {"lineHeight": "26px", "fontWeight": "400"}],
+                    "h2": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            background-color: #faf8ff;
+            color: #1a1b20;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-md bg-background text-on-surface">
+<!-- TopAppBar -->
+<header class="fixed top-0 left-0 w-full z-50 flex justify-between items-center px-4 h-16 bg-white dark:bg-black border-b-2 border-slate-200 dark:border-zinc-800">
+<div class="flex items-center gap-4">
+<button class="p-2 active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="menu">menu</span>
+</button>
+<h1 class="font-inter font-bold tracking-tight text-xl font-black text-blue-900 dark:text-blue-600 uppercase tracking-wider">AsmDrive</h1>
+</div>
+<div class="flex items-center">
+<button class="p-2 active:scale-95 transition-all duration-150 text-blue-900 dark:text-blue-600">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+</button>
+</div>
+</header>
+<!-- Main Content Area -->
+<main class="pt-20 pb-24 px-margin-mobile max-w-2xl mx-auto">
+<!-- Profile Header Section -->
+<section class="flex flex-col items-center mb-stack-lg">
+<div class="relative mb-stack-md">
+<div class="w-32 h-32 rounded-lg border-2 border-primary overflow-hidden shadow-2xl">
+<img alt="Driver Profile Picture" class="w-full h-full object-cover" data-alt="Close-up portrait of a professional male driver wearing a dark polo shirt, neutral background, sharp studio lighting, high contrast." src="https://lh3.googleusercontent.com/aida-public/AB6AXuBvCRU9v3s_9lYuVoGl1EoK1RdiURW-GB826gwg1Rv_LRkRsOpjCRcUTm3n0MzVfyZ6rQdiNsmk7yiddk7HdjKPmYmwAT1fj15v2_S35HTlbeRPynR6BitmpnMEmJbGfyDh997Uc6tyDIrIP6XuDX2jDeUwsie_E5Nv6gZVwK6in7cHoFXIMFaz62lMqGOfkf9sPaRfq5VqcXmjpOiX684TMOYcKAe-8AqxndYXFRtmsrJzbdEWyT1nUuGbnWtC8cX07fs6v3vZIfQ3"/>
+</div>
+<div class="absolute bottom-0 right-0 bg-green-500 w-6 h-6 rounded-full border-4 border-white shadow-sm"></div>
+</div>
+<div class="text-center">
+<h2 class="font-h1 text-h1 text-primary">AsmDrive Operator</h2>
+<p class="font-body-md text-secondary mt-1">ID: 99281-X</p>
+<div class="mt-4 inline-flex items-center px-3 py-1 bg-primary text-white rounded-full font-status-indicator text-status-indicator">
+<span class="material-symbols-outlined text-[16px] mr-2" data-icon="verified" style="font-variation-settings: 'FILL' 1;">verified</span>
+                    ACTIVE IN TRANSIT
+                </div>
+</div>
+</section>
+<!-- Stats Bento Grid -->
+<section class="grid grid-cols-2 gap-gutter mb-stack-lg">
+<div class="bg-white border-2 border-slate-200 p-4 rounded-lg flex flex-col items-center justify-center">
+<span class="font-label-caps text-secondary">DELIVERIES</span>
+<span class="font-h2 text-h2 text-primary mt-2">1,248</span>
+<span class="material-symbols-outlined text-blue-900 mt-2" data-icon="local_shipping" style="font-variation-settings: 'FILL' 1;">local_shipping</span>
+</div>
+<div class="bg-white border-2 border-slate-200 p-4 rounded-lg flex flex-col items-center justify-center">
+<span class="font-label-caps text-secondary">RATING</span>
+<span class="font-h2 text-h2 text-primary mt-2">4.96</span>
+<span class="material-symbols-outlined text-blue-900 mt-2" data-icon="star" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</section>
+<!-- Settings Options -->
+<section class="space-y-stack-sm mb-stack-lg">
+<h3 class="font-label-caps text-secondary px-2 mb-2">SYSTEM SETTINGS</h3>
+<!-- Notification Item -->
+<button class="w-full flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-lg active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="notifications">notifications</span>
+<span class="font-body-lg text-body-lg text-on-surface">Notifications</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-secondary">Enabled</span>
+<span class="material-symbols-outlined text-slate-400" data-icon="chevron_right">chevron_right</span>
+</div>
+</button>
+<!-- Language Item -->
+<button class="w-full flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-lg active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="language">language</span>
+<span class="font-body-lg text-body-lg text-on-surface">Language</span>
+</div>
+<div class="flex items-center gap-2">
+<span class="font-body-md text-secondary">English (US)</span>
+<span class="material-symbols-outlined text-slate-400" data-icon="chevron_right">chevron_right</span>
+</div>
+</button>
+<!-- Vehicle Info Item (From NavigationDrawer Data) -->
+<button class="w-full flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-lg active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="local_shipping">local_shipping</span>
+<span class="font-body-lg text-body-lg text-on-surface">Vehicle Info</span>
+</div>
+<span class="material-symbols-outlined text-slate-400" data-icon="chevron_right">chevron_right</span>
+</button>
+<!-- History Item (From NavigationDrawer Data) -->
+<button class="w-full flex items-center justify-between p-4 bg-white border-2 border-slate-200 rounded-lg active:bg-slate-50 transition-colors">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-primary" data-icon="history">history</span>
+<span class="font-body-lg text-body-lg text-on-surface">History</span>
+</div>
+<span class="material-symbols-outlined text-slate-400" data-icon="chevron_right">chevron_right</span>
+</button>
+</section>
+<!-- Danger Zone -->
+<section class="mt-stack-lg">
+<button class="w-full h-[48px] flex items-center justify-center gap-3 bg-black text-white font-bold rounded-lg border-2 border-black active:opacity-80 transition-opacity">
+<span class="material-symbols-outlined" data-icon="logout">logout</span>
+                Logout
+            </button>
+<p class="text-center text-secondary font-label-caps mt-4">App Version 2.4.12-pro</p>
+</section>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-2 pb-safe bg-white dark:bg-black border-t-2 border-slate-200 dark:border-zinc-800">
+<!-- Routes Tab -->
+<button class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full hover:text-blue-800 dark:hover:text-blue-400 transition-colors active:bg-slate-200 dark:active:bg-zinc-800">
+<span class="material-symbols-outlined mb-1" data-icon="directions_car">directions_car</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Routes</span>
+</button>
+<!-- Calendar Tab -->
+<button class="flex flex-col items-center justify-center text-slate-400 dark:text-zinc-500 p-2 w-full h-full hover:text-blue-800 dark:hover:text-blue-400 transition-colors active:bg-slate-200 dark:active:bg-zinc-800">
+<span class="material-symbols-outlined mb-1" data-icon="calendar_month">calendar_month</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Calendar</span>
+</button>
+<!-- Profile Tab (ACTIVE) -->
+<button class="flex flex-col items-center justify-center bg-blue-900 dark:bg-blue-600 text-white rounded-md p-2 w-full h-full transition-colors">
+<span class="material-symbols-outlined mb-1" data-icon="person" style="font-variation-settings: 'FILL' 1;">person</span>
+<span class="font-inter text-[12px] font-bold uppercase tracking-tighter">Profile</span>
+</button>
+</nav>
+</body></html>

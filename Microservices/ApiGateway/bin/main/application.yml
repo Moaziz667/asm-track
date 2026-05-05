@@ -6,24 +6,6 @@ spring:
     name: api-gateway
   cloud:
     gateway:
-      globalcors:
-        corsConfigurations:
-          '[/**]':
-            allowedOriginPatterns:
-              - "http://localhost:*"
-              - "http://127.0.0.1:*"
-            allowedMethods:
-              - GET
-              - POST
-              - PUT
-              - PATCH
-              - DELETE
-              - OPTIONS
-            allowedHeaders:
-              - "*"
-            exposedHeaders:
-              - Authorization
-            allowCredentials: false
       routes:
         - id: app-backend-client-auth
           uri: ${APP_BACKEND_URL:http://localhost:8080}
@@ -41,10 +23,90 @@ spring:
             - Path=/api/products
             - Path=/api/products/**
 
-        - id: delivery-driver-auth
-          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+        - id: app-backend-dispatcher-auth
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/auth/dispatcher/**
+
+        - id: app-backend-admin-auth
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/auth/admin/**
+
+        - id: app-backend-manager-auth
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/auth/manager/**
+
+        - id: driver-auth
+          uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
           predicates:
             - Path=/api/auth/driver/**
+
+        - id: app-backend-admin-clients
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/admin/clients/**
+
+        - id: app-backend-admin-users
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/admin/users/**
+
+        - id: delivery-admin
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/deliveries/**
+
+        - id: delivery-admin-erp
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/erp/**
+
+        - id: delivery-admin-routes
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/routes/**
+
+        - id: delivery-admin-vehicles
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/vehicles/**
+
+        - id: delivery-admin-reports
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/reports/**
+
+        - id: delivery-admin-ops
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/ops/**
+
+        - id: delivery-admin-stats
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/stats/**
+
+        - id: delivery-admin-audit
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/audit/**
+
+        - id: delivery-v1-depots
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/depots/**
+
+        - id: delivery-v1-zones
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/zones/**
+
+        - id: delivery-ws
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/ws/**
 
         - id: delivery-orders
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
@@ -56,10 +118,30 @@ spring:
           predicates:
             - Path=/api/deliveries/**
 
-        - id: delivery-driver
+        - id: delivery-driver-deliveries
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:
+            - Path=/api/driver/deliveries/**
+
+        - id: delivery-driver-routes
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/driver/routes/**
+
+        - id: driver-service
+          uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
+          predicates:
             - Path=/api/driver/**
+
+        - id: internal-app-backend
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/internal/users/**
+
+        - id: internal-driver-service
+          uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/internal/drivers/**
 
 app:
   jwt:

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>AsmDrive | Operator Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            "colors": {
+                    "primary-container": "#002366",
+                    "secondary": "#b8c4ff",
+                    "error": "#ffb4ab",
+                    "tertiary-fixed": "#b7eaff",
+                    "outline": "#8e909c",
+                    "background": "#101415",
+                    "on-primary-fixed": "#00174a",
+                    "inverse-on-surface": "#2d3133",
+                    "tertiary": "#4cd6ff",
+                    "on-tertiary-fixed-variant": "#004e60",
+                    "surface-dim": "#101415",
+                    "surface-container": "#1d2022",
+                    "error-container": "#93000a",
+                    "on-primary": "#0d2c6e",
+                    "surface-container-low": "#191c1e",
+                    "inverse-primary": "#435b9f",
+                    "on-secondary-fixed": "#001453",
+                    "surface-container-lowest": "#0b0f10",
+                    "tertiary-fixed-dim": "#4cd6ff",
+                    "surface": "#101415",
+                    "secondary-container": "#173bab",
+                    "on-error-container": "#ffdad6",
+                    "outline-variant": "#444650",
+                    "surface-tint": "#b3c5ff",
+                    "on-secondary": "#002584",
+                    "on-surface-variant": "#c5c6d2",
+                    "on-tertiary-fixed": "#001f28",
+                    "on-surface": "#e0e3e5",
+                    "tertiary-container": "#002d39",
+                    "primary-fixed": "#dbe1ff",
+                    "primary": "#b3c5ff",
+                    "on-error": "#690005",
+                    "on-secondary-fixed-variant": "#173bab",
+                    "on-background": "#e0e3e5",
+                    "inverse-surface": "#e0e3e5",
+                    "on-tertiary-container": "#009cc0",
+                    "surface-container-highest": "#323537",
+                    "on-tertiary": "#003543",
+                    "on-secondary-container": "#a0b1ff",
+                    "secondary-fixed": "#dde1ff",
+                    "on-primary-container": "#758dd5",
+                    "surface-bright": "#363a3b",
+                    "on-primary-fixed-variant": "#2a4386",
+                    "surface-variant": "#323537",
+                    "surface-container-high": "#272a2c",
+                    "primary-fixed-dim": "#b3c5ff",
+                    "secondary-fixed-dim": "#b8c4ff"
+            },
+            "borderRadius": {
+                    "DEFAULT": "0.125rem",
+                    "lg": "0.25rem",
+                    "xl": "0.5rem",
+                    "full": "0.75rem"
+            },
+            "spacing": {
+                    "xl": "48px",
+                    "margin": "24px",
+                    "lg": "24px",
+                    "gutter": "16px",
+                    "base": "4px",
+                    "md": "16px",
+                    "xs": "4px",
+                    "sm": "8px"
+            },
+            "fontFamily": {
+                    "headline-md": ["Space Grotesk"],
+                    "body-lg": ["Inter"],
+                    "label-md": ["Inter"],
+                    "body-sm": ["Inter"],
+                    "display-lg": ["Space Grotesk"]
+            },
+            "fontSize": {
+                    "headline-md": ["24px", {"lineHeight": "32px", "letterSpacing": "-0.01em", "fontWeight": "600"}],
+                    "body-lg": ["16px", {"lineHeight": "24px", "letterSpacing": "0", "fontWeight": "400"}],
+                    "label-md": ["12px", {"lineHeight": "16px", "letterSpacing": "0.05em", "fontWeight": "600"}],
+                    "body-sm": ["14px", {"lineHeight": "20px", "letterSpacing": "0", "fontWeight": "400"}],
+                    "display-lg": ["48px", {"lineHeight": "56px", "letterSpacing": "-0.02em", "fontWeight": "700"}]
+            }
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            vertical-align: middle;
+        }
+        body {
+            background-color: #101415;
+            color: #e0e3e5;
+        }
+    </style>
+<style>
+    body {
+      min-height: max(884px, 100dvh);
+    }
+  </style>
+  </head>
+<body class="font-body-lg text-body-lg">
+<!-- TopAppBar -->
+<header class="bg-black text-zinc-500 font-['Space_Grotesk'] font-bold tracking-tight docked full-width top-0 border-b border-zinc-800 flex justify-between items-center w-full px-4 h-16 sticky top-0 z-50">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined hover:bg-zinc-900 transition-colors p-2 rounded-lg cursor-pointer" data-icon="menu">menu</span>
+<h1 class="text-xl font-black text-white tracking-widest">ASMDRIVE</h1>
+</div>
+<div class="flex items-center gap-2">
+<div class="hidden md:flex gap-6 mr-6">
+<span class="text-white cursor-pointer transition-all">Dashboard</span>
+<span class="text-zinc-500 hover:text-white cursor-pointer transition-all">Fleet</span>
+<span class="text-zinc-500 hover:text-white cursor-pointer transition-all">Analytics</span>
+</div>
+<span class="material-symbols-outlined hover:bg-zinc-900 transition-colors p-2 rounded-lg cursor-pointer" data-icon="notifications">notifications</span>
+</div>
+</header>
+<main class="max-w-7xl mx-auto px-4 py-8 pb-32">
+<!-- Bento Grid Dashboard -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-gutter">
+<!-- GPS Status & Map Hero -->
+<div class="md:col-span-8 bg-surface-container rounded-xl overflow-hidden border border-outline-variant relative h-[400px]">
+<div class="absolute inset-0 opacity-40 bg-cover bg-center" data-alt="Modern dark themed digital map interface with glowing blue route lines and navigation data overlays" data-location="Berlin" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuDgJb6vzWWTrhcX4q_sMeUu8GThNzWOM_vcy5Nmws79rur03C-v6bJT0z7g1hfgaSLSUBttHG718nqroRsN5GREy2EGAEDV0KT4RAEUq0b84zVjNEOOx3u_fLXRpKIL80vocc0x9CgRYgURstbsRb_yY6cjTed6bzHdVT7Hcau0DdC6LhFrKIOh5BLveR2VfYdeBxqC2aN_y751rBgK_3fcB-gxbIM7cyfjryT9daXrTx-O5cFMoaWLJK9IUWZuyPeEwEXVhU5j9_r9')">
+</div>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute top-4 left-4 right-4 flex justify-between items-start">
+<div class="bg-surface-container-highest/90 backdrop-blur-md p-4 rounded-lg border border-zinc-700">
+<div class="flex items-center gap-2 mb-1">
+<span class="material-symbols-outlined text-tertiary" data-icon="gps_fixed">gps_fixed</span>
+<span class="font-headline-md text-headline-md text-white">Live Signal Strength</span>
+</div>
+<div class="flex items-center gap-2">
+<div class="h-2 w-12 bg-tertiary rounded-full"></div>
+<div class="h-2 w-12 bg-tertiary rounded-full"></div>
+<div class="h-2 w-12 bg-tertiary rounded-full"></div>
+<div class="h-2 w-12 bg-zinc-700 rounded-full"></div>
+<span class="text-label-md font-label-md text-zinc-400 ml-2">EXCELLENT</span>
+</div>
+</div>
+<div class="bg-primary-container p-4 rounded-lg border border-primary/20 shadow-xl">
+<p class="text-label-md font-label-md text-secondary uppercase tracking-widest">Active Route</p>
+<h2 class="text-headline-md font-headline-md text-white">A-402 Logistics Hub</h2>
+</div>
+</div>
+</div>
+<!-- Efficiency Score Card -->
+<div class="md:col-span-4 bg-surface-container-high rounded-xl border border-outline-variant p-6 flex flex-col justify-between">
+<div>
+<h3 class="text-label-md font-label-md text-zinc-400 uppercase tracking-widest mb-4">Driving Efficiency</h3>
+<div class="flex items-center gap-4 mb-2">
+<span class="text-5xl font-display-lg font-black text-tertiary">94.2</span>
+<div class="flex flex-col">
+<div class="flex text-tertiary">
+<span class="material-symbols-outlined" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-icon="star" data-weight="fill" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined" data-icon="star_half">star_half</span>
+</div>
+<span class="text-body-sm font-body-sm text-zinc-400">Top 5% of Operators</span>
+</div>
+</div>
+</div>
+<div class="space-y-4">
+<div class="bg-background/50 p-3 rounded border border-zinc-800">
+<div class="flex justify-between text-body-sm mb-1">
+<span>Fuel Consumption</span>
+<span class="text-tertiary">Optimal</span>
+</div>
+<div class="w-full bg-zinc-800 h-1.5 rounded-full">
+<div class="bg-tertiary h-1.5 rounded-full w-[88%]"></div>
+</div>
+</div>
+<div class="bg-background/50 p-3 rounded border border-zinc-800">
+<div class="flex justify-between text-body-sm mb-1">
+<span>Braking Force</span>
+<span class="text-secondary">Smooth</span>
+</div>
+<div class="w-full bg-zinc-800 h-1.5 rounded-full">
+<div class="bg-secondary h-1.5 rounded-full w-[95%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Route Updates Card -->
+<div class="md:col-span-5 bg-surface-container rounded-xl border border-outline-variant p-6">
+<div class="flex justify-between items-center mb-6">
+<h3 class="text-headline-md font-headline-md text-white">Route Updates</h3>
+<span class="bg-error-container/20 text-error text-[10px] font-bold px-2 py-0.5 rounded border border-error/30">2 NEW</span>
+</div>
+<div class="space-y-4">
+<div class="flex gap-4 items-start p-3 bg-surface-container-low rounded-lg border-l-4 border-error">
+<span class="material-symbols-outlined text-error" data-icon="warning">warning</span>
+<div>
+<p class="text-body-sm font-bold text-white">Traffic Congestion on I-95</p>
+<p class="text-body-sm text-zinc-400">Rerouting suggested (+12 min delay)</p>
+<button class="mt-3 bg-primary-container text-white text-label-md font-label-md px-4 py-2 rounded hover:bg-on-primary-fixed-variant transition-colors">VIEW</button>
+</div>
+</div>
+<div class="flex gap-4 items-start p-3 bg-surface-container-low rounded-lg border-l-4 border-tertiary">
+<span class="material-symbols-outlined text-tertiary" data-icon="check_circle">check_circle</span>
+<div>
+<p class="text-body-sm font-bold text-white">Warehouse Access Granted</p>
+<p class="text-body-sm text-zinc-400">Bay 14 is ready for your arrival</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Trip Summary -->
+<div class="md:col-span-7 bg-surface-container rounded-xl border border-outline-variant p-6">
+<h3 class="text-headline-md font-headline-md text-white mb-6">Current Trip Summary</h3>
+<div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-zinc-800">
+<p class="text-label-md font-label-md text-zinc-500 mb-1">ETA</p>
+<p class="text-headline-md font-headline-md text-white">14:45</p>
+<p class="text-body-sm text-tertiary">On Time</p>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-zinc-800">
+<p class="text-label-md font-label-md text-zinc-500 mb-1">STOPS</p>
+<p class="text-headline-md font-headline-md text-white">03/05</p>
+<p class="text-body-sm text-zinc-400">2 Remaining</p>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-zinc-800">
+<p class="text-label-md font-label-md text-zinc-500 mb-1">CARGO</p>
+<p class="text-headline-md font-headline-md text-white">18.4t</p>
+<p class="text-body-sm text-zinc-400">Secured</p>
+</div>
+<div class="bg-surface-container-lowest p-4 rounded-lg border border-zinc-800">
+<p class="text-label-md font-label-md text-zinc-500 mb-1">TEMP</p>
+<p class="text-headline-md font-headline-md text-white">-18°C</p>
+<p class="text-body-sm text-secondary">Optimal</p>
+</div>
+</div>
+<!-- Horizontal Timeline -->
+<div class="mt-8 relative pt-10">
+<div class="absolute top-14 left-0 w-full h-0.5 bg-zinc-800"></div>
+<div class="absolute top-14 left-0 w-3/5 h-0.5 bg-tertiary shadow-[0_0_10px_rgba(76,214,255,0.5)]"></div>
+<div class="flex justify-between relative">
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 bg-tertiary rounded-full mb-2"></div>
+<span class="text-body-sm font-bold text-white">Hub A</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 bg-tertiary rounded-full mb-2"></div>
+<span class="text-body-sm font-bold text-white">Stop 1</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 bg-tertiary rounded-full mb-2"></div>
+<span class="text-body-sm font-bold text-white">Stop 2</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-8 h-8 -mt-2 bg-on-tertiary-container border-4 border-background rounded-full mb-2 z-10 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px] text-white" data-icon="local_shipping">local_shipping</span>
+</div>
+<span class="text-body-sm font-bold text-tertiary">In Transit</span>
+</div>
+<div class="flex flex-col items-center">
+<div class="w-4 h-4 bg-zinc-800 rounded-full mb-2"></div>
+<span class="text-body-sm font-bold text-zinc-500">Stop 4</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- BottomNavBar -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-2 pb-safe h-20 bg-zinc-950 border-t border-zinc-800 shadow-2xl">
+<div class="flex flex-col items-center justify-center text-blue-500 font-bold py-2 active:scale-95 transition-transform cursor-pointer">
+<span class="material-symbols-outlined" data-icon="directions_truck" data-weight="fill" style="font-variation-settings: 'FILL' 1;">directions_bus</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium mt-1">Routes</span>
+</div>
+<div class="flex flex-col items-center justify-center text-zinc-500 py-2 hover:text-zinc-200 active:scale-95 transition-transform cursor-pointer">
+<span class="material-symbols-outlined" data-icon="calendar_month">calendar_month</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium mt-1">Calendar</span>
+</div>
+<div class="flex flex-col items-center justify-center text-zinc-500 py-2 hover:text-zinc-200 active:scale-95 transition-transform cursor-pointer">
+<span class="material-symbols-outlined" data-icon="person">person</span>
+<span class="font-['Space_Grotesk'] text-[12px] font-medium mt-1">Profile</span>
+</div>
+</nav>
+<!-- Floating Action Button Contextual -->
+<button class="fixed bottom-24 right-6 w-16 h-16 bg-primary-container text-white rounded-full shadow-2xl flex items-center justify-center active:scale-90 transition-transform border border-primary/20 hover:bg-on-primary-fixed-variant group z-40">
+<span class="material-symbols-outlined text-3xl group-hover:rotate-90 transition-transform" data-icon="add">add</span>
+</button>
+</body></html>

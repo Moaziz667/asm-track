@@ -5,8 +5,9 @@ import com.asm.delivery.dto.request.CreateOrderRequest;
 import com.asm.delivery.dto.response.CancellableResponse;
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.*;
+import com.asm.delivery.erp.ErpLookupService;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.odoo.OdooSyncService;
+import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -17,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.asm.delivery.security.UserPrincipal;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
@@ -32,7 +34,13 @@ public class OrderService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
-    private final OdooSyncService    odooSyncService;
+    private final ErpSyncService    erpSyncService;
+    private final ErpLookupService   erpLookupService;
+    private final AuditLogService    auditLogService;
+    private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
+    private final com.asm.delivery.repository.RouteRepository routeRepository;
+    private final com.asm.delivery.service.route.RoutePlanningService routePlanningService;
+    private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -45,12 +53,12 @@ public class OrderService {
     @Value("${app.origin.country-code:TN}")
     private String originCountryCode;
 
-    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED);
+    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.PARTIALLY_DELIVERED);
 
     // ── Client REST entry point ───────────────────────────────────────────────
 
     @Transactional
-    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone, Integer odooPartnerId) {
+    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone) {
         // Build items and calculate totals
         List<OrderItem> items = req.getItems() != null ? req.getItems() : List.of();
         int totalQty = items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
@@ -73,7 +81,6 @@ public class OrderService {
                 .clientId(clientId)
                 .clientName(clientName)
                 .clientPhone(clientPhone)
-                .clientOdooPartnerId(odooPartnerId)
                 .originName(originName)
                 .originAddress(originAddress)
                 .originCity(originCity)
@@ -88,8 +95,6 @@ public class OrderService {
                 .deliveryInstructions(req.getDeliveryInstructions())
                 .totalAmount(req.getTotalAmount())
                 .currency("TND")
-                .paymentType(req.getPaymentType())
-                .amountToCollect(req.getAmountToCollect())
                 .scheduledAt(parseDateTime(req.getScheduledAt()))
                 .priority(req.getPriority() != null ? req.getPriority() : OrderPriority.NORMAL)
                 .items(items)
@@ -100,15 +105,12 @@ public class OrderService {
 
         order = orderRepo.save(order);
 
+        auditLogService.logAction(null, "APP_ORDER_CREATED", "DELIVERY", order.getId().toString(),
+            java.util.Map.of("client", clientName != null ? clientName : "N/A", "source", "Application", "action", "Nouvelle commande"));
+
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
         eventPublisher.publishDeliveryCreated(order, delivery);
-
-        try {
-            odooSyncService.syncOrderCreation(order);
-        } catch (RuntimeException e) {
-            log.error("Odoo sync failed on order creation, rolling back. orderId={}", order.getId(), e);
-            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable");
-        }
+        erpLookupService.invalidateCache();
 
         return toOrderResponse(order, delivery);
     }
@@ -139,8 +141,12 @@ public class OrderService {
         applyCanonicalToOrder(order, canonical, true);
         order = orderRepo.save(order);
 
+        auditLogService.logAction(null, "ODOO_RECV_ORDER", "DELIVERY", order.getId().toString(),
+            java.util.Map.of("erpId", erpOrderId != null ? erpOrderId : "N/A", "source", "Odoo", "action", "Import commande ERP"));
+
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order received from Odoo");
         eventPublisher.publishDeliveryCreated(order, delivery);
+        erpLookupService.invalidateCache();
 
         log.info("Created Odoo order id={} erpOrderId={}", order.getId(), erpOrderId);
     }
@@ -189,15 +195,18 @@ public class OrderService {
 
         if (delivery != null) {
             DeliveryStatus ds = delivery.getStatus();
-            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT || ds == DeliveryStatus.DELIVERED) {
+            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT) {
                 throw AppException.forbidden("Cannot cancel order that is being delivered");
             }
-            if (ds == DeliveryStatus.CANCELLED || ds == DeliveryStatus.FAILED) {
+            if (ds == DeliveryStatus.DELIVERED
+                    || ds == DeliveryStatus.PARTIALLY_DELIVERED
+                    || ds == DeliveryStatus.CANCELLED
+                    || ds == DeliveryStatus.FAILED) {
                 throw AppException.conflict("Order is already in terminal state");
             }
 
             // Release driver if assigned
-            if (ds == DeliveryStatus.ASSIGNED && delivery.getDriverId() != null) {
+            if (ds == DeliveryStatus.SCHEDULED && delivery.getDriverId() != null) {
                 // driver will be released via event / workflow — for now just cancel
             }
 
@@ -214,7 +223,87 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        odooSyncService.syncOrderCancellation(order);
+        final UUID orderIdForSync = order.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
+                    });
+                }
+            }
+        );
+    }
+
+    @Transactional
+    public void adminCancelOrder(UUID orderId, UserPrincipal principal, String reason) {
+        Order order = orderRepo.findById(orderId)
+                .orElseThrow(() -> AppException.notFound("Order not found"));
+
+        String adminId = principal != null ? principal.getUserId() : "SYSTEM";
+
+        Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
+
+        if (delivery != null) {
+            DeliveryStatus ds = delivery.getStatus();
+            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT) {
+                throw AppException.forbidden("Cannot cancel order that is being delivered");
+            }
+            if (ds == DeliveryStatus.DELIVERED
+                    || ds == DeliveryStatus.PARTIALLY_DELIVERED
+                    || ds == DeliveryStatus.CANCELLED
+                    || ds == DeliveryStatus.FAILED) {
+                throw AppException.conflict("Order is already in terminal state");
+            }
+
+            // If delivery is SCHEDULED (on a route), soft-remove the route stop
+            if (ds == DeliveryStatus.SCHEDULED) {
+                routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(stop -> {
+                    com.asm.delivery.entity.Route route = stop.getRoute();
+                    if (route != null
+                            && (route.getStatus() == com.asm.delivery.entity.RouteStatus.VALIDATED
+                                || route.getStatus() == com.asm.delivery.entity.RouteStatus.IN_PROGRESS)) {
+                        stop.setStatus(com.asm.delivery.entity.RouteStopStatus.REMOVED_CANCELLED);
+                        stop.setRemovedAt(LocalDateTime.now());
+                        stop.setRemovedReason("ORDER_CANCELLED");
+                        stop.setRemovedBy(adminId);
+                        routeStopRepository.save(stop);
+                        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                    } else if (route != null && route.getStatus() == com.asm.delivery.entity.RouteStatus.DRAFT) {
+                        routeStopRepository.delete(stop);
+                    }
+                });
+            }
+
+            String cancelReason = (reason != null && !reason.isBlank()) ? reason.trim() : "Cancelled by admin";
+            delivery.setStatus(DeliveryStatus.CANCELLED);
+            delivery.setCancelledAt(LocalDateTime.now());
+            delivery.setCancelledBy(Role.ADMIN);
+            delivery.setCancelReason(cancelReason);
+            deliveryRepo.save(delivery);
+
+            appendHistory(delivery, DeliveryStatus.CANCELLED, adminId, Role.ADMIN, cancelReason);
+            eventPublisher.publishDeliveryCancelled(order, delivery, null);
+        }
+
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepo.save(order);
+
+        auditLogService.logAction(principal, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
+                java.util.Map.of("reason", reason != null ? reason : ""));
+
+        final UUID orderIdForSync = order.getId();
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    java.util.concurrent.CompletableFuture.runAsync(() -> {
+                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
+                    });
+                }
+            }
+        );
     }
 
     @Transactional(readOnly = true)
@@ -232,7 +321,7 @@ public class OrderService {
         }
 
         return switch (delivery.getStatus()) {
-            case WAITING_DRIVER, ASSIGNED -> new CancellableResponse(true, null);
+            case UNSCHEDULED, SCHEDULED -> new CancellableResponse(true, null);
             case PICKED_UP, IN_TRANSIT    -> new CancellableResponse(false, "Delivery is already in progress");
             default -> new CancellableResponse(false, "Order is in terminal state");
         };
@@ -269,8 +358,6 @@ public class OrderService {
                 .deliveryInstructions(original.getDeliveryInstructions())
                 .totalAmount(original.getTotalAmount())
                 .currency(original.getCurrency())
-                .paymentType(original.getPaymentType())
-                .amountToCollect(original.getAmountToCollect())
                 .priority(original.getPriority())
                 .items(original.getItems())
                 .totalQuantity(original.getTotalQuantity())
@@ -290,11 +377,11 @@ public class OrderService {
     private Delivery createDeliveryTask(Order order, String changedBy, String note) {
         Delivery delivery = Delivery.builder()
                 .order(order)
-                .status(DeliveryStatus.WAITING_DRIVER)
+                .status(DeliveryStatus.UNSCHEDULED)
                 .build();
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, DeliveryStatus.WAITING_DRIVER, changedBy, Role.SYSTEM, note);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, changedBy, Role.SYSTEM, note);
         return delivery;
     }
 
@@ -327,8 +414,6 @@ public class OrderService {
                 .deliveryInstructions(order.getDeliveryInstructions())
                 .totalAmount(order.getTotalAmount())
                 .currency(order.getCurrency())
-                .paymentType(order.getPaymentType().name())
-                .amountToCollect(order.getAmountToCollect())
                 .priority(order.getPriority().name())
                 .scheduledAt(order.getScheduledAt())
                 .items(order.getItems())
@@ -338,6 +423,8 @@ public class OrderService {
                 .deliveryId(delivery != null ? delivery.getId() : null)
                 .deliveryStatus(delivery != null ? delivery.getStatus().name() : null)
                 .erpOrderId(order.getErpOrderId())
+                .odooSyncStatus(order.getOdooSyncStatus())
+                .odooBackorderId(order.getOdooBackorderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();
@@ -414,8 +501,6 @@ public class OrderService {
 
             order.setTotalAmount(fin != null && fin.getTotalAmount() != null ? fin.getTotalAmount() : BigDecimal.ZERO);
             order.setCurrency(fin != null && StringUtils.hasText(fin.getCurrency()) ? fin.getCurrency() : "TND");
-            order.setPaymentType(parsePaymentType(fin != null ? fin.getPaymentType() : null));
-            order.setAmountToCollect(fin != null && fin.getAmountToCollect() != null ? fin.getAmountToCollect() : BigDecimal.ZERO);
 
             order.setScheduledAt(plan != null ? parseDateTime(plan.getScheduledAt()) : null);
             order.setPriority(parsePriority(plan != null ? plan.getPriority() : null));
@@ -429,15 +514,6 @@ public class OrderService {
                 order.setStatus(OrderStatus.PENDING);
             }
             }
-
-    private PaymentType parsePaymentType(String value) {
-        if (!StringUtils.hasText(value)) return PaymentType.COD;
-        try {
-            return PaymentType.valueOf(value.trim().toUpperCase());
-        } catch (IllegalArgumentException ex) {
-            return PaymentType.COD;
-        }
-    }
 
     private OrderPriority parsePriority(String value) {
         if (!StringUtils.hasText(value)) return OrderPriority.NORMAL;

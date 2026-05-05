@@ -4,7 +4,6 @@ import com.asm.appbackend.dto.auth.*;
 import com.asm.appbackend.entity.Client;
 import com.asm.appbackend.entity.ClientOtp;
 import com.asm.appbackend.exception.AppException;
-import com.asm.appbackend.odoo.OdooClient;
 import com.asm.appbackend.repository.ClientOtpRepository;
 import com.asm.appbackend.repository.ClientRepository;
 import com.asm.appbackend.security.JwtService;
@@ -28,7 +27,6 @@ public class AuthService {
     private final ClientOtpRepository clientOtpRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
-    private final OdooClient odooClient;
 
     @Transactional
     public RegisterResponse register(RegisterRequest request) {
@@ -58,22 +56,6 @@ public class AuthService {
                 .used(false)
                 .build();
         clientOtpRepository.save(otp);
-
-        // Sync to Odoo — best effort, never fail registration
-        try {
-            Integer partnerId = odooClient.createPartner(client.getName(), client.getPhone());
-            if (partnerId != null) {
-                client.setOdooPartnerId(partnerId);
-                clientRepository.save(client);
-                log.info("Odoo partner created for clientId={} partnerId={}", client.getId(), partnerId);
-            } else {
-                log.warn("Odoo partner creation returned null for clientId={} — continuing without Odoo link",
-                        client.getId());
-            }
-        } catch (Exception e) {
-            log.warn("Odoo partner creation failed for clientId={} — continuing registration: {}",
-                    client.getId(), e.getMessage());
-        }
 
         return RegisterResponse.builder()
                 .clientId(client.getId().toString())

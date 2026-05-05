@@ -1,0 +1,55 @@
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
+import '../models/auth_tokens.dart';
+
+class TokenStorage {
+  TokenStorage() : _secureStorage = const FlutterSecureStorage();
+
+  final FlutterSecureStorage _secureStorage;
+  AuthTokens? _cached;
+
+  static const _kAccessTokenKey = 'access_token';
+  static const _kRefreshTokenKey = 'refresh_token';
+  static const _kTokenTypeKey = 'token_type';
+  static const _kExpiresAtKey = 'expires_at';
+
+  Future<AuthTokens?> readTokens() async {
+    if (_cached != null) {
+      return _cached;
+    }
+    final access = await _secureStorage.read(key: _kAccessTokenKey);
+    final refresh = await _secureStorage.read(key: _kRefreshTokenKey);
+    if (access == null || refresh == null) {
+      return null;
+    }
+    final tokenType = await _secureStorage.read(key: _kTokenTypeKey) ?? 'Bearer';
+    final expiresIso = await _secureStorage.read(key: _kExpiresAtKey);
+    final expiresAt = expiresIso != null ? DateTime.tryParse(expiresIso) : null;
+    _cached = AuthTokens(
+      accessToken: access,
+      refreshToken: refresh,
+      tokenType: tokenType,
+      expiresAt: expiresAt,
+    );
+    return _cached;
+  }
+
+  Future<void> saveTokens(AuthTokens tokens) async {
+    _cached = tokens;
+    await _secureStorage.write(key: _kAccessTokenKey, value: tokens.accessToken);
+    await _secureStorage.write(key: _kRefreshTokenKey, value: tokens.refreshToken);
+    await _secureStorage.write(key: _kTokenTypeKey, value: tokens.tokenType);
+    await _secureStorage.write(key: _kExpiresAtKey, value: tokens.expiresAt?.toIso8601String());
+  }
+
+  Future<void> clear() async {
+    _cached = null;
+    await _secureStorage.delete(key: _kAccessTokenKey);
+    await _secureStorage.delete(key: _kRefreshTokenKey);
+    await _secureStorage.delete(key: _kTokenTypeKey);
+    await _secureStorage.delete(key: _kExpiresAtKey);
+  }
+
+  Future<String?> readAccessToken() async => (await readTokens())?.accessToken;
+  Future<String?> readRefreshToken() async => (await readTokens())?.refreshToken;
+}

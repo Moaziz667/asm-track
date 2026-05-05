@@ -12,7 +12,10 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StatusHistoryResponse {
+    private String        id;
     private String        status;
+    private String        actor;
+    private LocalDateTime timestamp;
     private String        changedBy;
     private String        changedByRole;
     private String        note;

@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  driver-service:
+    build: .
+    ports:
+      - "8086:8086"
+    depends_on:
+      - postgres-driver
+    environment:
+      - JWT_SECRET=asmsecret2026
+      - INTERNAL_SECRET=asm-internal-2026
+      - DB_URL=jdbc:postgresql://postgres-driver:5432/driver_db
+      - DB_USER=driver
+      - DB_PASS=driver
+
+  postgres-driver:
+    image: postgres:15
+    ports:
+      - "5437:5432"
+    environment:
+      - POSTGRES_DB=driver_db
+      - POSTGRES_USER=driver
+      - POSTGRES_PASSWORD=driver

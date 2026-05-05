@@ -32,6 +32,7 @@ public class SecurityConfig {
                 .requestMatchers(
                     "/api/auth/driver/**",
                     "/api/dev/**",
+                    "/internal/**",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
@@ -40,9 +41,22 @@ public class SecurityConfig {
                 // Client-only routes
                 .requestMatchers("/api/orders/**").hasRole("CLIENT")
                 // Driver-only routes
+                .requestMatchers("/api/driver/deliveries/**").hasRole("DRIVER")
+                .requestMatchers("/api/driver/profile/**").hasRole("DRIVER")
+                .requestMatchers("/api/driver/location/**").hasRole("DRIVER")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
-                // Both client and driver
-                .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER")
+                // Admin stats — also allowed for MANAGER
+                .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                // Admin endpoints — ADMIN + DISPATCHER
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
+                // v1 endpoints (depots, optimization) — ADMIN + DISPATCHER + MANAGER
+                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                // WebSocket/SockJS — permit all at HTTP level; auth is in STOMP CONNECT frame
+                .requestMatchers("/ws/**").permitAll()
+                // Deliveries — client, driver, dispatcher, admin
+                .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER", "DISPATCHER", "ADMIN")
                 // Anything else requires authentication
                 .anyRequest().authenticated()
             )

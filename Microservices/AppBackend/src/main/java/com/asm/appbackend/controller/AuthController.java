@@ -1,6 +1,7 @@
 package com.asm.appbackend.controller;
 
 import com.asm.appbackend.dto.auth.*;
+import com.asm.appbackend.exception.AppException;
 import com.asm.appbackend.service.AuthService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -16,21 +17,21 @@ public class AuthController {
 
     @PostMapping("/register")
     public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
-        return ResponseEntity.ok(authService.register(request));
+        throw AppException.forbidden("Client auth is disabled: clients are managed in ERP only");
     }
 
     @PostMapping("/verify-otp")
     public ResponseEntity<VerifyOtpResponse> verifyOtp(@Valid @RequestBody VerifyOtpRequest request) {
-        return ResponseEntity.ok(authService.verifyOtp(request));
+        throw AppException.forbidden("Client auth is disabled: clients are managed in ERP only");
     }
 
     @PostMapping("/resend-otp")
     public ResponseEntity<ResendOtpResponse> resendOtp(@Valid @RequestBody ResendOtpRequest request) {
-        return ResponseEntity.ok(authService.resendOtp(request));
+        throw AppException.forbidden("Client auth is disabled: clients are managed in ERP only");
     }
 
     @PostMapping("/login")
     public ResponseEntity<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
-        return ResponseEntity.ok(authService.login(request));
+        throw AppException.forbidden("Client auth is disabled: clients are managed in ERP only");
     }
 }

@@ -11,7 +11,32 @@
       "Bash(APP_BACKEND_DB_HOST_PORT=5435 docker compose build --no-cache)",
       "Bash(docker build:*)",
       "Bash(docker images:*)",
-      "Bash(docker exec:*)"
+      "Bash(docker exec:*)",
+      "Bash(find 'c:/Users/M S I/OneDrive/Documents/PFE' -name *.java -path */AppBackend/*)",
+      "Bash(npm install:*)",
+      "Bash(npx next:*)",
+      "Bash(npx shadcn@latest add sheet badge separator textarea switch label alert -y)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(find /c/Users/M S I/OneDrive/Documents/PFE/Microservices/DriverService -type f \\\\\\(-name *.sql -o -name *.properties -o -name *.yml \\\\\\))",
+      "Bash(grep -E \"^[^/]*$|lib|src\")",
+      "Bash(powershell -ExecutionPolicy Bypass -File run_scenarios.ps1)",
+      "Bash(powershell -ExecutionPolicy Bypass -File create_odoo_test_orders.ps1)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e ':*)",
+      "Bash(printf %s 'const fs = require\\(\"fs\"\\);:*)",
+      "Bash(node /tmp/tb_check.cjs)",
+      "Bash(node /tmp/tb2.cjs)",
+      "Bash(node /tmp/tb3.cjs)",
+      "Bash(node /tmp/tb4.cjs)",
+      "Bash(node /tmp/tb5.cjs)",
+      "Bash(node \"c:/Users/M S I/OneDrive/Documents/PFE/ios_style.cjs\")",
+      "Bash(xargs grep:*)",
+      "Bash(find Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service -name \"*.java\" -exec grep -l \"appendHistory\\\\|resolveStopStatus\\\\|isTerminalStopStatus\" {} \\\\;)",
+      "Bash(./mvnw compile:*)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/mvnw\"*)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/\"*.cmd)",
+      "Bash(./bin/gradle compileJava)",
+      "Bash(ls \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/gradlew\"*)"
     ]
   }
 }
