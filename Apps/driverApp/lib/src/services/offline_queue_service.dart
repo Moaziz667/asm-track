@@ -1,23 +1,42 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app_providers.dart';
 import 'api_client.dart';
+import 'connectivity_service.dart';
 
 final offlineQueueProvider = StateNotifierProvider<OfflineQueueService, int>((ref) {
-  return OfflineQueueService(ref.read(apiClientProvider));
+  final apiClient = ref.read(apiClientProvider);
+  final connectivity = ref.read(connectivityServiceProvider);
+  return OfflineQueueService(apiClient, connectivity);
 });
 
 class OfflineQueueService extends StateNotifier<int> {
   final ApiClient _apiClient;
+  final ConnectivityService _connectivityService;
   static const String _boxName = 'offline_queue';
+  StreamSubscription<bool>? _connectivitySub;
 
-  OfflineQueueService(this._apiClient) : super(0) {
+  OfflineQueueService(this._apiClient, this._connectivityService) : super(0) {
     _init();
   }
 
   void _init() {
     state = _box.length;
+
+    // Auto-replay queued requests when connectivity is restored
+    _connectivitySub = _connectivityService.onlineStream.listen((isOnline) {
+      if (isOnline && _box.isNotEmpty) {
+        processQueue();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectivitySub?.cancel();
+    super.dispose();
   }
 
   Box<Map<dynamic, dynamic>> get _box => Hive.box<Map<dynamic, dynamic>>(_boxName);

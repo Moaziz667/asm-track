@@ -38,21 +38,21 @@ extension DeliveryStatusX on DeliveryStatus {
   String get label {
     switch (this) {
       case DeliveryStatus.unscheduled:
-        return 'Unscheduled';
+        return 'Non planifié';
       case DeliveryStatus.scheduled:
-        return 'Scheduled';
+        return 'Planifié';
       case DeliveryStatus.pickedUp:
-        return 'Picked up';
+        return 'Ramassé';
       case DeliveryStatus.inTransit:
-        return 'In transit';
+        return 'En transit';
       case DeliveryStatus.delivered:
-        return 'Delivered';
+        return 'Livré';
       case DeliveryStatus.partially_delivered:
-        return 'Partially delivered';
+        return 'Partiellement livré';
       case DeliveryStatus.failed:
-        return 'Failed';
+        return 'Échoué';
       case DeliveryStatus.cancelled:
-        return 'Cancelled';
+        return 'Annulé';
     }
   }
 
@@ -101,13 +101,13 @@ extension FailureReasonX on FailureReason {
       case FailureReason.clientAbsent:
         return 'Client absent';
       case FailureReason.refused:
-        return 'Client refused';
+        return 'Refusé par le client';
       case FailureReason.wrongAddress:
-        return 'Wrong address';
+        return 'Mauvaise adresse';
       case FailureReason.damaged:
-        return 'Damaged package';
+        return 'Colis endommagé';
       case FailureReason.other:
-        return 'Other';
+        return 'Autre';
     }
   }
 }

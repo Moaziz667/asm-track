@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.ZoneRequest;
 import com.asm.delivery.dto.response.ZoneResponse;
 import com.asm.delivery.entity.Zone;
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -42,6 +43,7 @@ public class ZoneService {
 
     @Transactional
     public ZoneResponse create(UserPrincipal principal, ZoneRequest request) {
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Zone zone = Zone.builder()
                 .name(request.getName().trim())
                 .color(request.getColor())
@@ -50,6 +52,7 @@ public class ZoneService {
                 .postalCodes(request.getPostalCodes() != null ? request.getPostalCodes() : new ArrayList<>())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .geometry(request.getGeometry())
+                .companyId(companyId)
                 .build();
         Zone saved = zoneRepository.save(zone);
         auditLogService.logAction(principal, "CREATE_ZONE", "ZONE", saved.getId().toString(),

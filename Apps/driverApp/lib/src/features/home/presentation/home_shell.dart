@@ -8,6 +8,7 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/offline_queue_service.dart';
 import '../../../services/websocket_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../auth/models/auth_models.dart';
@@ -31,6 +32,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Timer? _assignmentRefreshTimer;
   bool _isTracking = false;
   Set<String> _knownRouteDeliveryIds = <String>{};
+  bool _isOffline = false;
+  StreamSubscription<bool>? _connectivitySub;
 
   final _wsService = WebSocketService();
 
@@ -47,6 +50,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       _refreshAssignmentsAndNotify();
     });
     _initWebSocket();
+    _initConnectivityListener();
   }
 
   Future<void> _initWebSocket() async {
@@ -109,10 +113,27 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     );
   }
 
+  void _initConnectivityListener() {
+    final connectivity = ref.read(connectivityServiceProvider);
+    _connectivitySub = connectivity.onlineStream.listen((isOnline) {
+      if (!mounted) return;
+      setState(() => _isOffline = !isOnline);
+      if (isOnline) {
+        // Belt + suspenders: trigger queue replay on reconnect
+        ref.read(offlineQueueProvider.notifier).processQueue();
+      }
+    });
+    // Initial check
+    connectivity.isOnline.then((online) {
+      if (mounted) setState(() => _isOffline = !online);
+    });
+  }
+
   @override
   void dispose() {
     _locationTimer?.cancel();
     _assignmentRefreshTimer?.cancel();
+    _connectivitySub?.cancel();
     _wsService.disconnect();
     super.dispose();
   }
@@ -152,7 +173,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         if (added.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('New delivery assigned (${added.length}). Please check Route tab.'),
+              content: Text('Nouvelle livraison assignée (${added.length}). Veuillez vérifier l\'onglet Tournée.'),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),
             ),
@@ -160,7 +181,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         } else if (removed.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('A delivery was reassigned/replanned by dispatch.'),
+              content: Text('Une livraison a été réaffectée/replanifiée par le dispatch.'),
               behavior: SnackBarBehavior.floating,
               duration: const Duration(seconds: 3),
             ),
@@ -214,7 +235,43 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: IndexedStack(index: _index, children: pages),
+        body: Column(
+          children: [
+            // Global offline banner
+            if (_isOffline)
+              Container(
+                width: double.infinity,
+                padding: EdgeInsets.only(
+                  top: MediaQuery.of(context).padding.top + 6,
+                  bottom: 8,
+                  left: 16,
+                  right: 16,
+                ),
+                color: AppColors.warning.withValues(alpha: 0.92),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.cloud_off_rounded, size: 14, color: Colors.black),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: Text(
+                        'Hors ligne — les actions seront synchronisées à la reconnexion',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: Colors.black,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            Expanded(
+              child: IndexedStack(index: _index, children: pages),
+            ),
+          ],
+        ),
         bottomNavigationBar: _BottomNav(
           index: _index,
           items: _navItems,

@@ -9,6 +9,11 @@ spring:
   application:
     name: delivery-service
 
+  security:
+    user:
+      name: disabled
+      password: disabled
+
   datasource:
     # PROD: set DB_HOST to your PostgreSQL server hostname/IP
     # PROD: set DB_PORT to 5432 (standard), DB_NAME to your production database name
@@ -27,11 +32,11 @@ spring:
       ddl-auto: none
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           lob:
             non_contextual_creation: true
     show-sql: false
+    open-in-view: false
 
   sql:
     init:

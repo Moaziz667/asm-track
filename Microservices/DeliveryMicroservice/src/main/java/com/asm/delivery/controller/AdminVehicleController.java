@@ -16,6 +16,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,9 +31,18 @@ public class AdminVehicleController {
     private final VehicleService vehicleService;
 
     @GetMapping
-    @Operation(summary = "List vehicles")
+    @Operation(summary = "List all vehicles")
     public ResponseEntity<List<VehicleResponse>> list() {
         return ResponseEntity.ok(vehicleService.list());
+    }
+
+    @GetMapping("/available")
+    @Operation(summary = "List vehicles available for a given date and time window")
+    public ResponseEntity<List<VehicleResponse>> available(
+            @RequestParam LocalDate date,
+            @RequestParam LocalTime startTime,
+            @RequestParam LocalTime endTime) {
+        return ResponseEntity.ok(vehicleService.getAvailable(date, startTime, endTime));
     }
 
     @GetMapping("/{id}")

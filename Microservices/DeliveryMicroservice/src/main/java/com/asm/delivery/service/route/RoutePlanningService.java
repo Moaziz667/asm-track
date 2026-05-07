@@ -1,5 +1,6 @@
 package com.asm.delivery.service.route;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.*;
@@ -134,6 +135,7 @@ public class RoutePlanningService {
         validateScheduleWindow(plannedStartTime, plannedEndTime);
         ensureNoScheduleConflict(request.getDriverId(), request.getDate(), plannedStartTime, plannedEndTime, null);
 
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Route route = Route.builder()
                 .name(request.getName().trim())
                 .driverId(request.getDriverId())
@@ -143,6 +145,7 @@ public class RoutePlanningService {
                 .plannedEndTime(plannedEndTime)
                 .city(normalizeNullableText(request.getCity()))
                 .status(RouteStatus.DRAFT)
+                .companyId(companyId)
                 .createdBy(StringUtils.hasText(createdBy) ? createdBy : "SYSTEM")
                 .depotId(request.getDepotId())
                 .departureTime(request.getDepartureTime())
@@ -447,6 +450,10 @@ public class RoutePlanningService {
         auditLogService.logAction(null, "ADD_STOP_ACTIVE", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Ajout d'un arret a une tournee active"));
         routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_ADDED", route.getId(), route.getName());
+        String addedClientName = deliveryRepository.findById(request.getDeliveryId())
+                .map(d -> d.getOrder() != null ? d.getOrder().getClientName() : null)
+                .orElse(null);
+        eventPublisher.publishRouteStopAdded(route, addedClientName);
         return toResponse(route);
     }
 
@@ -517,6 +524,10 @@ public class RoutePlanningService {
         // Notify driver if route is active
         if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
             routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+            String removedClientName = deliveryRepository.findById(stop.getDeliveryId())
+                    .map(d -> d.getOrder() != null ? d.getOrder().getClientName() : null)
+                    .orElse(null);
+            eventPublisher.publishRouteStopRemoved(route, removedClientName);
         }
 
         maybeAutoCloseRoute(route);
@@ -654,6 +665,7 @@ public class RoutePlanningService {
         }
 
         routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_ASSIGNED", route.getId(), route.getName());
+        eventPublisher.publishRouteValidated(route);
 
         return response;
     }

@@ -36,7 +36,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SECURITY SETTINGS'),
+        title: const Text('PARAMÈTRES DE SÉCURITÉ'),
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
@@ -48,17 +48,17 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
               const Icon(LucideIcons.shieldAlert, size: 40, color: AppColors.neonYellow),
               const SizedBox(height: 16),
               Text(
-                'UPDATE PASSWORD',
+                'MODIFIER LE MOT DE PASSE',
                 style: GoogleFonts.spaceGrotesk(fontSize: 24, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
               ),
               const SizedBox(height: 8),
               const Text(
-                'Ensure your account remains secure by using a strong, unique password.',
+                'Assurez la sécurité de votre compte en utilisant un mot de passe fort et unique.',
                 style: TextStyle(color: AppColors.muted, fontSize: 13, height: 1.4),
               ),
               const SizedBox(height: 32),
               
-              Text('CURRENT PASSWORD', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+              Text('MOT DE PASSE ACTUEL', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _oldPasswordController,
@@ -71,17 +71,17 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                     onPressed: () => setState(() => _obscureOld = !_obscureOld),
                   ),
                 ),
-                validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+                validator: (v) => v == null || v.isEmpty ? 'Requis' : null,
               ),
               
               const SizedBox(height: 24),
-              Text('NEW PASSWORD', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+              Text('NOUVEAU MOT DE PASSE', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
               const SizedBox(height: 12),
               TextFormField(
                 controller: _newPasswordController,
                 obscureText: _obscureNew,
                 decoration: InputDecoration(
-                  hintText: 'New password',
+                  hintText: 'Nouveau mot de passe',
                   prefixIcon: const Icon(LucideIcons.lock),
                   suffixIcon: IconButton(
                     icon: Icon(_obscureNew ? LucideIcons.eye : LucideIcons.eyeOff, size: 18),
@@ -89,7 +89,7 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                   ),
                 ),
                 validator: (v) {
-                  if (v == null || v.length < 8) return 'Minimum 8 characters';
+                  if (v == null || v.length < 8) return 'Minimum 8 caractères';
                   return null;
                 },
               ),
@@ -99,18 +99,18 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 controller: _confirmPasswordController,
                 obscureText: _obscureNew,
                 decoration: const InputDecoration(
-                  hintText: 'Confirm new password',
+                  hintText: 'Confirmer le nouveau mot de passe',
                   prefixIcon: Icon(LucideIcons.checkCircle),
                 ),
                 validator: (v) {
-                  if (v != _newPasswordController.text) return 'Passwords do not match';
+                  if (v != _newPasswordController.text) return 'Les mots de passe ne correspondent pas';
                   return null;
                 },
               ),
               
               const SizedBox(height: 40),
               DriveButton(
-                label: 'UPDATE PASSWORD',
+                label: 'MODIFIER LE MOT DE PASSE',
                 fullWidth: true,
                 size: DriveButtonSize.lg,
                 isLoading: _isWorking,
@@ -136,14 +136,14 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Password updated successfully.')),
+          const SnackBar(content: Text('Mot de passe mis à jour avec succès.')),
         );
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Update failed: $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Échec de la mise à jour : $e'), backgroundColor: AppColors.danger),
         );
       }
     } finally {

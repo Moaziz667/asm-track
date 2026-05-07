@@ -37,6 +37,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Assigned route name")
     private String routeName;
 
+    @Schema(description = "Assigned route status")
+    private String routeStatus;
+
     @Schema(description = "Delivery status", example = "IN_TRANSIT")
     private String status;
 

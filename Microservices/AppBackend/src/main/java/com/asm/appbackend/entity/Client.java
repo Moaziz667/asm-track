@@ -42,6 +42,9 @@ public class Client {
     @Column(name = "odoo_partner_id")
     private Integer odooPartnerId;
 
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @CreationTimestamp
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;

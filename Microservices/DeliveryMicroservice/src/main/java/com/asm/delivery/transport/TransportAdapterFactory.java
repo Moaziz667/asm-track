@@ -24,10 +24,8 @@ public class TransportAdapterFactory {
         String p = provider.trim().toLowerCase();
         log.info("TransportPort provider: {}", p);
         return switch (p) {
-            case "lalamove" -> new LalamoveAdapter();
-            case "yassir"   -> new YassirAdapter();
-            case "mock"     -> new MockTransportAdapter();
-            default         -> new InternalTransportAdapter(driverServiceUrl, internalSecret);
+            case "mock"  -> new MockTransportAdapter();
+            default      -> new InternalTransportAdapter(driverServiceUrl, internalSecret);
         };
     }
 }

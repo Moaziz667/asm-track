@@ -465,6 +465,7 @@ public class OpsAnalyticsService {
                 .orderRef(orderRef)
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
+                .routeStatus(routeInfo != null && routeInfo.routeStatus() != null ? routeInfo.routeStatus().name() : null)
                 .status(d.getStatus().name())
                 .source(order != null ? order.getSource() : null)
                 .clientName(order != null ? order.getClientName() : null)
@@ -534,6 +535,7 @@ public class OpsAnalyticsService {
                                                 .city(s.getDropoffCity())
                                                 .driverName(s.getDriverName())
                                                 .createdAt(s.getCreatedAt())
+                                                .routeId(s.getRouteId())
                                                 .build())
                                 .toList();
 
@@ -628,6 +630,9 @@ public class OpsAnalyticsService {
                                 .severity(severity)
                                 .message(message)
                                 .createdAt(s.getCreatedAt())
+                                .routeId(s.getRouteId())
+                                .routeName(s.getRouteName())
+                                .routeStatus(s.getRouteStatus())
                                 .build();
         }
 

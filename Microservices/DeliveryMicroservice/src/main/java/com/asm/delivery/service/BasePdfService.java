@@ -1,12 +1,19 @@
 package com.asm.delivery.service;
 
+import com.asm.delivery.entity.Company;
+import com.asm.delivery.repository.CompanyRepository;
+import com.asm.delivery.security.UserPrincipal;
 import com.lowagie.text.*;
 import com.lowagie.text.pdf.*;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.awt.Color;
 import java.io.IOException;
+import java.net.URL;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.UUID;
 
 /**
  * Shared PDF utilities for all report services.
@@ -148,6 +155,22 @@ public abstract class BasePdfService {
         return t;
     }
 
+    // ── Company resolution ────────────────────────────────────────────────────
+
+    protected static ReportPageEvent pageEvent(String docType, String subtitle,
+                                               CompanyRepository companyRepo) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal
+                && principal.getCompanyId() != null) {
+            Company company = companyRepo.findById(UUID.fromString(principal.getCompanyId()))
+                    .orElse(null);
+            if (company != null) {
+                return new ReportPageEvent(docType, subtitle, company.getName(), company.getLogoUrl());
+            }
+        }
+        return new ReportPageEvent(docType, subtitle, "ASM Track", null);
+    }
+
     // ── String safety ─────────────────────────────────────────────────────────
     protected static String safe(String s) {
         return s != null ? s : "-";
@@ -163,12 +186,29 @@ public abstract class BasePdfService {
     // ── Header/footer page event ──────────────────────────────────────────────
     public static class ReportPageEvent extends PdfPageEventHelper {
 
-        private final String docType;
-        private final String subtitle;
+        private final String  docType;
+        private final String  subtitle;
+        private final String  companyName;
+        private final String  logoUrl;
+        private       Image   logoImage;   // loaded once on first page
 
-        public ReportPageEvent(String docType, String subtitle) {
-            this.docType  = docType;
-            this.subtitle = subtitle;
+        public ReportPageEvent(String docType, String subtitle, String companyName, String logoUrl) {
+            this.docType     = docType;
+            this.subtitle    = subtitle;
+            this.companyName = companyName != null ? companyName : "ASM Track";
+            this.logoUrl     = logoUrl;
+        }
+
+        @Override
+        public void onOpenDocument(PdfWriter writer, Document document) {
+            if (logoUrl != null && !logoUrl.isBlank()) {
+                try {
+                    logoImage = Image.getInstance(new URL(logoUrl));
+                    logoImage.scaleToFit(80, 28);
+                } catch (Exception e) {
+                    logoImage = null; // fall back to text name
+                }
+            }
         }
 
         @Override
@@ -184,21 +224,30 @@ public abstract class BasePdfService {
             cb.rectangle(0, ph - 50, pw, 50);
             cb.fill();
 
-            // Thin accent line below bar
             cb.setColorFill(new Color(220, 70, 20));
             cb.rectangle(0, ph - 52, pw, 2);
             cb.fill();
             cb.restoreState();
 
-            // Company name — left (white bold)
-            ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
-                    new Phrase("ASM Track", boldWhite(13)), MARGIN_H, ph - 31, 0);
+            // Logo or company name — left
+            if (logoImage != null) {
+                try {
+                    logoImage.setAbsolutePosition(MARGIN_H, ph - 43);
+                    cb.addImage(logoImage);
+                } catch (Exception e) {
+                    ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
+                            new Phrase(companyName, boldWhite(13)), MARGIN_H, ph - 31, 0);
+                }
+            } else {
+                ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
+                        new Phrase(companyName, boldWhite(13)), MARGIN_H, ph - 31, 0);
+            }
 
             // Document type — right (white)
             ColumnText.showTextAligned(cb, Element.ALIGN_RIGHT,
                     new Phrase(docType, boldWhite(10)), pw - MARGIN_H, ph - 31, 0);
 
-            // Subtitle under company name (small white)
+            // Subtitle (small white)
             if (subtitle != null && !subtitle.isBlank()) {
                 ColumnText.showTextAligned(cb, Element.ALIGN_LEFT,
                         new Phrase(subtitle, new Font(Font.HELVETICA, 7, Font.NORMAL, java.awt.Color.WHITE)),

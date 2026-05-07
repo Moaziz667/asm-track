@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
@@ -13,11 +14,9 @@ import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
 import '../../deliveries/presentation/delivery_detail_screen.dart';
-import '../../vehicle/presentation/vehicle_inspection_screen.dart';
-import '../models/route_models.dart';
-import 'package:dio/dio.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../deliveries/presentation/handoff_scanner_screen.dart';
+import '../models/route_models.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../services/offline_queue_service.dart';
 
 // Default map center — Tunisia (Tunis)
@@ -58,11 +57,73 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
     }
   }
 
+  Future<void> _downloadPdf(String routeId) => _doAction(() async {
+        // Offline check
+        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+        if (!isOnline) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Non disponible hors ligne')),
+            );
+          }
+          return;
+        }
+        final ok = await ref.read(pdfServiceProvider).downloadAndOpen(
+          '/api/driver/routes/$routeId/pdf',
+          fileName: 'route-$routeId.pdf',
+        );
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Échec du téléchargement du PDF')),
+          );
+        }
+      });
+
+  Future<void> _openMaps(List<DriverRouteStop> stops) async {
+    final pinned = stops.where((s) => s.hasPinned).toList();
+    if (pinned.isEmpty) return;
+    final dest = pinned.last;
+    final waypoints = pinned.length > 1
+        ? pinned.sublist(0, pinned.length - 1).map((s) => '${s.lat},${s.lng}').join('|')
+        : null;
+    final buffer = StringBuffer(
+      'https://www.google.com/maps/dir/?api=1&travelmode=driving'
+      '&destination=${dest.lat},${dest.lng}',
+    );
+    if (waypoints != null) buffer.write('&waypoints=$waypoints');
+    final uri = Uri.parse(buffer.toString());
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Fallback to geo: URI for devices without Google Maps
+      final geoUri = Uri.parse('geo:${dest.lat},${dest.lng}?q=${dest.lat},${dest.lng}');
+      try {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
+    }
+  }
+
   Future<void> _startRoute(String id) => _doAction(() async {
         final pt = await LocationService().currentPosition();
         if (pt != null) {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
+
+        // Offline check
+        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+        if (!isOnline) {
+          ref.read(offlineQueueProvider.notifier).enqueueRequest(
+            path: '/api/driver/routes/$id/start',
+            method: 'POST',
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
+            );
+          }
+          return;
+        }
+
         await ref.read(routeRepositoryProvider).start(id);
       });
 
@@ -71,11 +132,44 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         if (pt != null) {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
+
+        // Offline check
+        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+        if (!isOnline) {
+          ref.read(offlineQueueProvider.notifier).enqueueRequest(
+            path: '/api/driver/routes/$routeId/stops/$stopId/arrive',
+            method: 'POST',
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
+            );
+          }
+          return;
+        }
+
         await ref.read(routeRepositoryProvider).arrive(routeId, stopId);
       });
 
   Future<void> _startTransit(String deliveryId) => _doAction(() async {
         final pt = await LocationService().currentPosition();
+
+        // Offline check
+        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+        if (!isOnline) {
+          ref.read(offlineQueueProvider.notifier).enqueueRequest(
+            path: '/api/driver/deliveries/$deliveryId/transit',
+            method: 'POST',
+            data: pt != null ? {'lat': pt.lat, 'lng': pt.lng} : null,
+          );
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
+            );
+          }
+          return;
+        }
+
         await ref.read(deliveryRepositoryProvider).startTransit(
           deliveryId,
           lat: pt?.lat,
@@ -100,6 +194,10 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   @override
   Widget build(BuildContext context) {
     final routeAsync = ref.watch(todayRouteProvider);
+    final deliveries = ref.watch(activeDeliveriesProvider).value ?? [];
+    final hasPendingHandoff = deliveries.any(
+      (d) => d.requiresHandoff && d.handoffConfirmedAt == null,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -115,24 +213,38 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           onOpenPod: (deliveryId) => _openPod(context, deliveryId),
           onOpenDetails: (deliveryId) => _openDetails(context, deliveryId),
           onRefresh: _refresh,
+          onDownloadPdf: route == null ? null : () => _downloadPdf(route.id),
+          onNavigate: route == null ? null : () => _openMaps(route.stops),
         ),
         loading: () => const _MapPlaceholderLoading(),
         error: (_, __) => _MapError(onRetry: _refresh),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
-          );
-          if (result == true) _refresh();
-        },
-        backgroundColor: AppColors.neonYellow,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Tactical 4px
-        icon: const Icon(LucideIcons.qrCode, size: 20),
-        label: Text('RECEIVE', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
-      ),
+      floatingActionButton: hasPendingHandoff
+          ? FloatingActionButton.extended(
+              onPressed: () async {
+                // Offline check — scanner requires server validation
+                final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+                if (!isOnline) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Scanner non disponible hors ligne')),
+                    );
+                  }
+                  return;
+                }
+                final result = await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+                );
+                if (result == true) _refresh();
+              },
+              backgroundColor: AppColors.neonYellow,
+              foregroundColor: Colors.black,
+              elevation: 0,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+              icon: const Icon(LucideIcons.qrCode, size: 20),
+              label: Text('SCANNER', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+            )
+          : null,
     );
   }
 }
@@ -150,6 +262,8 @@ class _RouteMapBody extends StatelessWidget {
     required this.onOpenPod,
     required this.onOpenDetails,
     required this.onRefresh,
+    this.onDownloadPdf,
+    this.onNavigate,
   });
 
   final DriverRoute? route;
@@ -162,6 +276,8 @@ class _RouteMapBody extends StatelessWidget {
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
   final VoidCallback onRefresh;
+  final VoidCallback? onDownloadPdf;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -283,6 +399,8 @@ class _RouteMapBody extends StatelessWidget {
             onStartTransit: onStartTransit,
             onOpenPod: onOpenPod,
             onOpenDetails: onOpenDetails,
+            onDownloadPdf: onDownloadPdf,
+            onNavigate: onNavigate,
           ),
         ),
       ],
@@ -511,6 +629,8 @@ class _BottomSheet extends StatelessWidget {
     required this.onStartTransit,
     required this.onOpenPod,
     required this.onOpenDetails,
+    this.onDownloadPdf,
+    this.onNavigate,
   });
 
   final ScrollController scrollController;
@@ -521,6 +641,8 @@ class _BottomSheet extends StatelessWidget {
   final ValueChanged<String> onStartTransit;
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
+  final VoidCallback? onDownloadPdf;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -572,9 +694,9 @@ class _BottomSheet extends StatelessWidget {
                     child: const Icon(LucideIcons.ban, size: 26, color: AppColors.muted),
                   ),
                   const SizedBox(height: 16),
-                  Text('NO MISSION ASSIGNED', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
+                  Text('AUCUNE MISSION ASSIGNÉE', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
                   const SizedBox(height: 8),
-                  Text('STAND BY FOR DISPATCH COMMANDS',
+                  Text('EN ATTENTE DES INSTRUCTIONS DU DISPATCH',
                       style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center),
                 ],
@@ -588,7 +710,7 @@ class _BottomSheet extends StatelessWidget {
             // CTA button
             if (route!.status == DriverRouteStatus.validated)
               DriveButton(
-                label: 'Start Route',
+                label: 'Démarrer la tournée',
                 icon: PhosphorIconsBold.play,
                 variant: DriveButtonVariant.success,
                 fullWidth: true,
@@ -600,7 +722,7 @@ class _BottomSheet extends StatelessWidget {
             if (route!.status == DriverRouteStatus.inProgress) ...[
               if (nextPendingStop != null)
                 DriveButton(
-                  label: 'Arrived at Stop ${nextPendingStop.stopOrder}',
+                  label: 'Arrivé à l\'arrêt ${nextPendingStop.stopOrder}',
                   icon: PhosphorIconsBold.flagPennant,
                   fullWidth: true,
                   size: DriveButtonSize.lg,
@@ -608,16 +730,45 @@ class _BottomSheet extends StatelessWidget {
                   onPressed: isWorking ? null : () => onArrive?.call(nextPendingStop.id),
                 )
               else
-                _InfoChip(label: 'All stops reached — awaiting closure from ops', color: AppColors.success),
+                _InfoChip(label: 'Tous les arrêts atteints — en attente de clôture par le dispatch', color: AppColors.success),
+            ],
+
+            // Secondary actions row (PDF + Maps)
+            if (route!.status == DriverRouteStatus.validated ||
+                route!.status == DriverRouteStatus.inProgress) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (route!.status == DriverRouteStatus.validated) ...[
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Télécharger PDF',
+                        icon: LucideIcons.fileDown,
+                        color: AppColors.info,
+                        onTap: () => onDownloadPdf?.call(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Naviguer',
+                      icon: LucideIcons.navigation2,
+                      color: AppColors.neonYellow,
+                      onTap: () => onNavigate?.call(),
+                    ),
+                  ),
+                ],
+              ),
             ],
 
             if (route!.status == DriverRouteStatus.closed)
-              _InfoChip(label: 'Route closed for today', color: AppColors.muted),
+              _InfoChip(label: 'Tournée clôturée pour aujourd\'hui', color: AppColors.muted),
 
             const SizedBox(height: 20),
             Row(
               children: [
-                Text('STOP LOG', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+                Text('JOURNAL DES ARRÊTS', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
                 const SizedBox(width: 12),
                 Expanded(child: Container(height: 1, color: AppColors.border)),
                 const SizedBox(width: 12),
@@ -626,7 +777,7 @@ class _BottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (route!.stops.isEmpty)
-              Text('No stops configured.', style: const TextStyle(color: AppColors.muted))
+              Text('Aucun arrêt configuré.', style: const TextStyle(color: AppColors.muted))
             else
               ...route!.stops.map((stop) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -721,31 +872,21 @@ class _StopListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = stop.parsedDeliveryStatus;
-    final isTerminal = ds == DeliveryStatus.delivered ||
-        ds == DeliveryStatus.partially_delivered ||
-        ds == DeliveryStatus.failed ||
-        ds == DeliveryStatus.cancelled;
-
     final Color borderColor;
-    final Color bgColor;
     switch (ds) {
       case DeliveryStatus.inTransit:
         borderColor = AppColors.accent.withValues(alpha: 0.3);
-        bgColor = AppColors.accent.withValues(alpha: 0.04);
         break;
       case DeliveryStatus.delivered:
       case DeliveryStatus.partially_delivered:
         borderColor = AppColors.success.withValues(alpha: 0.25);
-        bgColor = AppColors.success.withValues(alpha: 0.04);
         break;
       case DeliveryStatus.failed:
       case DeliveryStatus.cancelled:
         borderColor = AppColors.danger.withValues(alpha: 0.25);
-        bgColor = AppColors.danger.withValues(alpha: 0.04);
         break;
       default:
         borderColor = AppColors.border;
-        bgColor = AppColors.surface;
     }
 
     return GestureDetector(
@@ -977,7 +1118,7 @@ class _MapPlaceholderLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Scaffold(
         backgroundColor: AppColors.surfaceElevated,
-        body: LoadingState(message: 'Loading route...'),
+        body: LoadingState(message: 'Chargement de la tournée...'),
       );
 }
 
@@ -990,9 +1131,9 @@ class _MapError extends StatelessWidget {
         backgroundColor: AppColors.background,
         body: EmptyState(
           icon: PhosphorIconsRegular.cloudSlash,
-          title: 'Could not load route',
+          title: 'Impossible de charger la tournée',
           action: onRetry,
-          actionLabel: 'Retry',
+          actionLabel: 'Réessayer',
         ),
       );
 }

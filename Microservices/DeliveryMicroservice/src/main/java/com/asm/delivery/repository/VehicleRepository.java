@@ -17,4 +17,6 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
     boolean existsByPlateIgnoreCase(String plate);
 
     Optional<Vehicle> findFirstByDriverIdAndActiveTrue(UUID driverId);
+
+    List<Vehicle> findByActiveTrue();
 }

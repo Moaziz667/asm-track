@@ -35,7 +35,7 @@ public class JwtService {
         }
     }
 
-    public String generateClientToken(String subject, String name, Integer odooPartnerId) {
+    public String generateClientToken(String subject, String name, Integer odooPartnerId, String companyId) {
         var builder = Jwts.builder()
                 .subject(subject)
                 .claim("role", "CLIENT")
@@ -46,29 +46,36 @@ public class JwtService {
         if (odooPartnerId != null) {
             builder.claim("odooPartnerId", odooPartnerId);
         }
+        if (companyId != null) {
+            builder.claim("companyId", companyId);
+        }
 
         return builder.signWith(key).compact();
     }
 
-    public String generateAdminToken(String subject, String role, String name) {
-        return Jwts.builder()
+    public String generateAdminToken(String subject, String role, String name, String companyId) {
+        var builder = Jwts.builder()
                 .subject(subject)
                 .claim("role", role)
                 .claim("name", name)
-                .claim("type", "access")
+                .claim("type", "access");
+        if (companyId != null) builder.claim("companyId", companyId);
+        return builder
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessExpiryMs))
                 .signWith(key)
                 .compact();
     }
 
-    public String generateRefreshToken(String subject, String role, String name) {
+    public String generateRefreshToken(String subject, String role, String name, String companyId) {
         long refreshExpiryMs = 7L * 24 * 60 * 60 * 1000;
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(subject)
                 .claim("role", role)
                 .claim("name", name)
-                .claim("type", "refresh")
+                .claim("type", "refresh");
+        if (companyId != null) builder.claim("companyId", companyId);
+        return builder
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + refreshExpiryMs))
                 .signWith(key)

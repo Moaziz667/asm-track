@@ -64,7 +64,11 @@ public class DriverAuthService {
                 
         String newAccess = jwtService.generateAccessToken(
                 driver.getId().toString(), "DRIVER",
-                Map.of("name", driver.getName(), "phone", driver.getPhone())
+                Map.of(
+                    "name", driver.getName(),
+                    "phone", driver.getPhone(),
+                    "companyId", ""
+                )
         );
         return Map.of("token", newAccess);
     }
@@ -89,7 +93,11 @@ public class DriverAuthService {
     private AuthResponse buildResponse(Driver driver) {
         String driverId = driver.getId().toString();
         String accessToken = jwtService.generateAccessToken(driverId, "DRIVER",
-                Map.of("name", driver.getName(), "phone", driver.getPhone()));
+                Map.of(
+                    "name", driver.getName(),
+                    "phone", driver.getPhone(),
+                    "companyId", ""
+                ));
         String refreshToken = jwtService.generateRefreshToken(driverId, "DRIVER");
 
         return AuthResponse.builder()

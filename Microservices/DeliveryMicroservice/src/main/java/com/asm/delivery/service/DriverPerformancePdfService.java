@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
@@ -37,10 +38,12 @@ import javax.imageio.ImageIO;
 public class DriverPerformancePdfService extends BasePdfService {
 
     private final DeliveryRepository deliveryRepository;
+    private final CompanyRepository  companyRepository;
     private final TransportPort      transportPort;
 
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM");
 
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public byte[] generate(UUID driverId, String period, LocalDate from, LocalDate to) {
         DriverDTO driver = transportPort.getDriver(driverId.toString());
         if (driver == null) throw AppException.notFound("Chauffeur introuvable: " + driverId);
@@ -110,7 +113,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(new ReportPageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName())));
+            writer.setPageEvent(pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()), companyRepository));
             doc.open();
 
             // ── Driver identity block ─────────────────────────────────────────

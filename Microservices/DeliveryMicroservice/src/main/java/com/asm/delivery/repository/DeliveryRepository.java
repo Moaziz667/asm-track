@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 
 @Repository
@@ -41,6 +42,14 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     /** Driver history - completed/failed/cancelled deliveries. */
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId = :driverId AND d.status IN :statuses ORDER BY d.updatedAt DESC")
     List<Delivery> findHistoryForDriver(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
+
+    /** Distinct driver IDs that have deliveries in this company (companyFilter applies). */
+    @Query("SELECT DISTINCT d.driverId FROM Delivery d WHERE d.driverId IS NOT NULL AND d.status IN :statuses")
+    Set<UUID> findDistinctDriverIds(@Param("statuses") List<DeliveryStatus> statuses);
+
+    /** All deliveries for a driver scoped by company filter. */
+    @Query("SELECT d FROM Delivery d WHERE d.driverId = :driverId AND d.status IN :statuses")
+    List<Delivery> findByDriverIdAndStatuses(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
     /** Atomic accept: sets driver and transitions UNSCHEDULED → SCHEDULED.
      *  Returns 1 if successful, 0 if already taken (race condition). */

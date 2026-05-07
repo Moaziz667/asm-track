@@ -2,6 +2,9 @@ package com.asm.delivery.erp;
 
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.DeliveryStatusHistory;
 import com.asm.delivery.entity.Order;
@@ -52,8 +55,15 @@ public class ErpLookupService {
 
     private static final long CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
 
+    private String companyKey() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal p && p.getCompanyId() != null)
+            return p.getCompanyId();
+        return "global";
+    }
+
     public List<ErpClientDTO> searchClients(String search, int limit) {
-        String cacheKey = "clients-" + search + "-" + limit;
+        String cacheKey = companyKey() + "-clients-" + search + "-" + limit;
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -66,7 +76,7 @@ public class ErpLookupService {
     }
 
     public List<ErpProductDTO> searchProducts(String search, int limit) {
-        String cacheKey = "products-" + search + "-" + limit;
+        String cacheKey = companyKey() + "-products-" + search + "-" + limit;
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -79,7 +89,7 @@ public class ErpLookupService {
     }
 
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
-        String cacheKey = "pending-" + limit;
+        String cacheKey = companyKey() + "-pending-" + limit;
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 

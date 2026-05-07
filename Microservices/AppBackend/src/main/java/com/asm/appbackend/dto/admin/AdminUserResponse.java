@@ -3,6 +3,7 @@ package com.asm.appbackend.dto.admin;
 import lombok.Builder;
 
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Builder
 public record AdminUserResponse(
@@ -10,6 +11,7 @@ public record AdminUserResponse(
         String name,
         String email,
         String role,
+        UUID companyId,
         boolean active,
         LocalDateTime createdAt
 ) {}

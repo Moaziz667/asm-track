@@ -5,6 +5,7 @@ import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
@@ -31,6 +32,7 @@ public class RoutePdfService extends BasePdfService {
     private final DeliveryRepository     deliveryRepository;
     private final VehicleRepository      vehicleRepository;
     private final TransportPort          transportPort;
+    private final CompanyRepository      companyRepository;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -66,7 +68,7 @@ public class RoutePdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(new ReportPageEvent("FEUILLE DE ROUTE", subtitle));
+            writer.setPageEvent(pageEvent("FEUILLE DE ROUTE", subtitle, companyRepository));
             doc.open();
 
             // ── Route info block ──────────────────────────────────────────────
@@ -172,11 +174,18 @@ public class RoutePdfService extends BasePdfService {
     private static String statusLabel(RouteStop stop) {
         if (stop.getStatus() == null) return "-";
         return switch (stop.getStatus().name()) {
-            case "COMPLETED"  -> "Livré";
-            case "FAILED"     -> "Échoué";
-            case "IN_PROGRESS"-> "En cours";
-            case "PENDING"    -> "En attente";
-            default           -> stop.getStatus().name();
+            case "PENDING"            -> "En attente";
+            case "SCHEDULED"          -> "Planifié";
+            case "ASSIGNED"           -> "Assigné";
+            case "PICKED_UP"          -> "Ramassé";
+            case "IN_TRANSIT"         -> "En transit";
+            case "ARRIVED"            -> "Arrivé";
+            case "COMPLETED"          -> "Livré";
+            case "FAILED"             -> "Échoué";
+            case "PARTIAL"            -> "Partiel";
+            case "REMOVED_REPLANNED"  -> "Replanifié";
+            case "REMOVED_CANCELLED"  -> "Retiré";
+            default                   -> stop.getStatus().name();
         };
     }
 }

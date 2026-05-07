@@ -136,7 +136,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "SCHEDULED")); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "SCHEDULED")); } catch(Exception ignored){}
         
         return toDriverDeliveryResponse(delivery);
     }
@@ -160,7 +160,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "PICKED_UP")); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "PICKED_UP")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -214,7 +214,7 @@ public class DriverDeliveryService {
                 null
         );
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "IN_TRANSIT")); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "IN_TRANSIT")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -281,7 +281,7 @@ public class DriverDeliveryService {
             }
         }
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", finalStatus.name())); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, finalStatus.name())); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -455,7 +455,7 @@ public class DriverDeliveryService {
                     failureCode != null ? failureCode.name() : null, failureComment);
         }
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "FAILED")); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "FAILED")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -491,7 +491,7 @@ public class DriverDeliveryService {
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "UNSCHEDULED")); } catch(Exception ignored){}
+        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "UNSCHEDULED")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -706,6 +706,23 @@ public class DriverDeliveryService {
     }
 
     // ── Private ───────────────────────────────────────────────────────────────
+
+    private Map<String, String> deliveryPayload(Delivery delivery, String status) {
+        Order order = delivery.getOrder();
+        String clientName = (order != null && order.getClientName() != null) ? order.getClientName() : "";
+        String orderId = "";
+        if (order != null) {
+            if (order.getErpOrderId() != null) orderId = order.getErpOrderId();
+            else if (order.getErpExternalRef() != null) orderId = order.getErpExternalRef();
+            else if (order.getId() != null) orderId = order.getId().toString().substring(0, 8).toUpperCase();
+        }
+        Map<String, String> map = new HashMap<>();
+        map.put("deliveryId", delivery.getId().toString());
+        map.put("status", status);
+        map.put("clientName", clientName);
+        map.put("orderId", orderId);
+        return map;
+    }
 
     private Delivery loadAndAuthorize(UUID deliveryId, UUID driverId) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)

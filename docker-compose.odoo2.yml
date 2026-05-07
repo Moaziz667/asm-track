@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  postgres-odoo-2:
+    image: postgres:15
+    container_name: postgres-odoo-2
+    environment:
+      POSTGRES_DB: odoo2
+      POSTGRES_USER: odoo2
+      POSTGRES_PASSWORD: odoo2
+    volumes:
+      - postgres_odoo2_data:/var/lib/postgresql/data
+    ports:
+      - "5439:5432"
+    networks:
+      - asm-network
+    restart: always
+
+  odoo-2:
+    image: odoo:16
+    container_name: odoo-2
+    depends_on:
+      - postgres-odoo-2
+    ports:
+      - "8070:8069"
+    environment:
+      HOST: postgres-odoo-2
+      USER: odoo2
+      PASSWORD: odoo2
+    volumes:
+      - odoo2_data:/var/lib/odoo
+      - odoo2_addons:/mnt/extra-addons
+    networks:
+      - asm-network
+    restart: always
+
+volumes:
+  postgres_odoo2_data:
+  odoo2_data:
+  odoo2_addons:
+
+networks:
+  asm-network:
+    external: true
+    name: microservices_asm-network

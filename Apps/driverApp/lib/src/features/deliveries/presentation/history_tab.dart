@@ -88,8 +88,8 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
               if (filtered.isEmpty) {
                 return EmptyState(
                     icon: PhosphorIconsRegular.package,
-                  title: 'No records yet',
-                  subtitle: 'Completed deliveries will appear here.',
+                  title: 'Aucun enregistrement',
+                  subtitle: 'Les livraisons terminées apparaîtront ici.',
                 );
               }
               final delivery = filtered[index - 1];
@@ -100,12 +100,12 @@ class _HistoryTabState extends ConsumerState<HistoryTab> {
             },
           );
         },
-        loading: () => const LoadingState(message: 'Loading archive…'),
+        loading: () => const LoadingState(message: 'Chargement de l\'archive…'),
         error: (_, __) => EmptyState(
           icon: PhosphorIconsRegular.cloudSlash,
-          title: 'History offline',
+          title: 'Historique hors ligne',
           action: () => ref.invalidate(driverHistoryProvider),
-          actionLabel: 'Retry',
+          actionLabel: 'Réessayer',
         ),
       ),
     );
@@ -117,6 +117,9 @@ class _ArchiveHeader extends StatelessWidget {
     required this.total,
     required this.filter,
     required this.onFilterChanged,
+    this.dateRange,
+    required this.onDateRangeTap,
+    required this.onClearDates,
   });
 
   final int total;
@@ -136,7 +139,7 @@ class _ArchiveHeader extends StatelessWidget {
           Padding(
             padding: const EdgeInsets.only(top: 20, bottom: 20),
             child: Text(
-              'HISTORY',
+              'HISTORIQUE',
               style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
             ),
           ),
@@ -151,7 +154,7 @@ class _ArchiveHeader extends StatelessWidget {
                   border: Border.all(color: AppColors.border),
                 ),
                 child: Text(
-                  '$total records',
+                  '$total enregistrements',
                   style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
                 ),
               ),
@@ -176,7 +179,7 @@ class _ArchiveHeader extends StatelessWidget {
                         const SizedBox(width: 8),
                         Text(
                           dateRange == null 
-                              ? 'Filter by date...' 
+                              ? 'Filtrer par date...' 
                               : '${DateFormat('MMM d').format(dateRange!.start)} - ${DateFormat('MMM d').format(dateRange!.end)}',
                           style: GoogleFonts.manrope(
                             fontSize: 13, 
@@ -313,7 +316,7 @@ class _HistoryTile extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             Text(
-              delivery.address ?? 'No address',
+              delivery.address ?? 'Aucune adresse',
               style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             ),
             if (delivery.city != null) ...[
@@ -323,8 +326,8 @@ class _HistoryTile extends StatelessWidget {
             const SizedBox(height: 12),
             Row(
               children: [
-                _HistoryStat(label: 'Order', value: delivery.orderId ?? delivery.id.substring(0, 8)),
-                _HistoryStat(label: 'Items', value: '${delivery.items.length}'),
+                _HistoryStat(label: 'Commande', value: delivery.orderId ?? delivery.id.substring(0, 8)),
+                _HistoryStat(label: 'Articles', value: '${delivery.items.length}'),
               ],
             ),
           ],
@@ -335,10 +338,9 @@ class _HistoryTile extends StatelessWidget {
 }
 
 class _HistoryStat extends StatelessWidget {
-  const _HistoryStat({required this.label, required this.value, this.valueColor});
+  const _HistoryStat({required this.label, required this.value});
   final String label;
   final String value;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) {
@@ -350,7 +352,7 @@ class _HistoryStat extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor ?? AppColors.textPrimary),
+            style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -365,13 +367,13 @@ extension on _HistoryFilter {
   String get label {
     switch (this) {
       case _HistoryFilter.all:
-        return 'All';
+        return 'Tout';
       case _HistoryFilter.delivered:
-        return 'Delivered';
+        return 'Livrée';
       case _HistoryFilter.failed:
-        return 'Failed';
+        return 'Échouée';
       case _HistoryFilter.cancelled:
-        return 'Cancelled';
+        return 'Annulée';
     }
   }
 

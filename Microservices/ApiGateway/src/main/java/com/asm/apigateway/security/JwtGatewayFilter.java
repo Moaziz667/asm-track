@@ -89,6 +89,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             if (claims.get("odooPartnerId", Integer.class) != null) {
                 reqBuilder.header("X-Odoo-Partner-Id", String.valueOf(claims.get("odooPartnerId", Integer.class)));
             }
+            if (claims.get("companyId", String.class) != null) {
+                reqBuilder.header("X-Company-Id", claims.get("companyId", String.class));
+            }
             ServerHttpRequest mutatedRequest = reqBuilder.build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -111,6 +114,8 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isAuthorized(String path, String role) {
+        if ("SUPER_ADMIN".equals(role)) return true; // super-admin has full access
+
         if (path.startsWith("/api/orders/")) {
             return "CLIENT".equals(role);
         }

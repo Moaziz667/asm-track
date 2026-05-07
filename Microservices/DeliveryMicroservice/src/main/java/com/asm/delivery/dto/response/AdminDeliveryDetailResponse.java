@@ -26,6 +26,12 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Order unique identifier")
     private UUID orderId;
 
+    @Schema(description = "Assigned route unique identifier")
+    private UUID routeId;
+
+    @Schema(description = "Assigned route name")
+    private String routeName;
+
     @Schema(description = "Delivery status", example = "PICKED_UP")
     private String status;
 

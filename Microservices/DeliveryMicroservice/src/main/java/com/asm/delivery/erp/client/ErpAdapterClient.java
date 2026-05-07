@@ -2,8 +2,11 @@ package com.asm.delivery.erp.client;
 
 import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.security.UserPrincipal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -186,6 +189,11 @@ public class ErpAdapterClient {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("X-Internal-Secret", internalSecret);
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal
+                && principal.getCompanyId() != null) {
+            headers.set("X-Company-Id", principal.getCompanyId());
+        }
         return headers;
     }
 

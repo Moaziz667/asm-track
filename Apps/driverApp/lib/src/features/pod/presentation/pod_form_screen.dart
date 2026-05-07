@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/offline_queue_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
@@ -89,7 +90,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Proof of Delivery'),
+        title: const Text('Preuve de livraison'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => Navigator.of(context).pop(),
@@ -417,14 +418,31 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         isPartial: _isPartial,
         itemsDone: itemsArray,
       );
+
+      // Offline check
+      final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+      if (!isOnline) {
+        ref.read(offlineQueueProvider.notifier).enqueueRequest(
+          path: '/api/driver/deliveries/${widget.args.delivery.id}/pod',
+          method: 'POST',
+          data: payload.toJson(),
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Preuve de livraison enregistr\u00e9e hors ligne')),
+        );
+        Navigator.of(context).pop(true);
+        return;
+      }
+
       await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succès.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succ\u00e8s.')));
       Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Échec de soumission du POD : $error')));
+          .showSnackBar(SnackBar(content: Text('\u00c9chec de soumission du POD : $error')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

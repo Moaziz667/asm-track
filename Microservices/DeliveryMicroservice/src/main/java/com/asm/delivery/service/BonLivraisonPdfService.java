@@ -4,6 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.OrderItem;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
@@ -34,6 +35,7 @@ public class BonLivraisonPdfService extends BasePdfService {
 
     private final DeliveryRepository deliveryRepository;
     private final TransportPort      transportPort;
+    private final CompanyRepository  companyRepository;
 
     public byte[] generate(UUID deliveryId) {
         Delivery delivery = deliveryRepository.findByIdWithOrder(deliveryId)
@@ -62,7 +64,7 @@ public class BonLivraisonPdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(new ReportPageEvent("BON DE LIVRAISON", ref));
+            writer.setPageEvent(pageEvent("BON DE LIVRAISON", ref, companyRepository));
             doc.open();
 
             // ── Reference + QR code row ───────────────────────────────────────
@@ -126,7 +128,8 @@ public class BonLivraisonPdfService extends BasePdfService {
 
             boolean alt = false;
             for (OrderItem item : items) {
-                int qty       = item.getQuantity() != null ? item.getQuantity() : 0;
+                int qty       = item.getQuantityDone() != null ? item.getQuantityDone()
+                              : (item.getQuantity() != null ? item.getQuantity() : 0);
                 BigDecimal up = item.getUnitPrice();
                 BigDecimal rt = up != null ? up.multiply(BigDecimal.valueOf(qty)) : null;
                 itemTable.addCell(cellAlt(safe(item.getName()), alt));

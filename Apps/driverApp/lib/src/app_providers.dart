@@ -11,6 +11,7 @@ import 'features/profile/models/profile_models.dart';
 import 'features/routes/data/route_repository.dart';
 import 'features/routes/models/route_models.dart';
 import 'services/api_client.dart';
+import 'services/connectivity_service.dart';
 import 'services/fcm_service.dart';
 import 'services/pdf_service.dart';
 import 'services/route_cache_service.dart';
@@ -20,6 +21,10 @@ import 'services/vehicle_service.dart';
 final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment());
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+
+final connectivityServiceProvider = Provider<ConnectivityService>(
+  (ref) => ConnectivityService(),
+);
 
 final apiClientProvider = Provider<ApiClient>((ref) {
   final config = ref.watch(appConfigProvider);

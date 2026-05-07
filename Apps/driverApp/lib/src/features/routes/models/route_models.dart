@@ -29,15 +29,15 @@ extension DriverRouteStatusX on DriverRouteStatus {
   String get label {
     switch (this) {
       case DriverRouteStatus.draft:
-        return 'Draft';
+        return 'Brouillon';
       case DriverRouteStatus.validated:
-        return 'Validated';
+        return 'Validée';
       case DriverRouteStatus.inProgress:
-        return 'In progress';
+        return 'En cours';
       case DriverRouteStatus.closed:
-        return 'Closed';
+        return 'Clôturée';
       case DriverRouteStatus.cancelled:
-        return 'Cancelled';
+        return 'Annulée';
     }
   }
 }
@@ -70,15 +70,15 @@ extension DriverRouteStopStatusX on DriverRouteStopStatus {
   String get label {
     switch (this) {
       case DriverRouteStopStatus.pending:
-        return 'Pending';
+        return 'En attente';
       case DriverRouteStopStatus.arrived:
-        return 'Arrived';
+        return 'Arrivé';
       case DriverRouteStopStatus.completed:
-        return 'Completed';
+        return 'Terminé';
       case DriverRouteStopStatus.failed:
-        return 'Failed';
+        return 'Échoué';
       case DriverRouteStopStatus.partial:
-        return 'Partial';
+        return 'Partiel';
     }
   }
 }

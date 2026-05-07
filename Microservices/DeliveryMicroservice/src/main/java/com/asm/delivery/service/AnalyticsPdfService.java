@@ -4,6 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Zone;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.transport.DriverDTO;
@@ -39,6 +40,7 @@ public class AnalyticsPdfService extends BasePdfService {
 
     private final DeliveryRepository deliveryRepository;
     private final ZoneRepository     zoneRepository;
+    private final CompanyRepository  companyRepository;
     private final TransportPort      transportPort;
 
     public byte[] generate(String period, LocalDate from, LocalDate to) {
@@ -99,7 +101,7 @@ public class AnalyticsPdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(new ReportPageEvent("RAPPORT D'ACTIVITÉ", periodLabel));
+            writer.setPageEvent(pageEvent("RAPPORT D'ACTIVITÉ", periodLabel, companyRepository));
             doc.open();
 
             // ── Period header ─────────────────────────────────────────────────

@@ -4,20 +4,21 @@ import com.asm.delivery.dto.request.AssignVehicleRequest;
 import com.asm.delivery.dto.request.CreateVehicleRequest;
 import com.asm.delivery.dto.request.UpdateVehicleRequest;
 import com.asm.delivery.dto.response.VehicleResponse;
-import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
+import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.VehicleRepository;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.storage.MinioStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -32,17 +33,14 @@ public class VehicleService {
     private final MinioStorageService minioStorageService;
     private final AuditLogService auditLogService;
 
-        // DRAFT routes are planning-only — vehicle remains allocatable until the route is VALIDATED
-        private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
-            RouteStatus.VALIDATED,
-            RouteStatus.IN_PROGRESS
-        );
+    private static final List<RouteStatus> ACTIVE_STATUSES = List.of(
+            RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
 
     @Transactional(readOnly = true)
     public List<VehicleResponse> list() {
-        Set<UUID> busyVehicleIds = getBusyVehicleIds();
+        Set<UUID> busyIds = getBusyVehicleIds();
         return vehicleRepository.findAllByOrderByCreatedAtDesc().stream()
-                .map(v -> toResponse(v, busyVehicleIds.contains(v.getId())))
+                .map(v -> toResponse(v, busyIds.contains(v.getId())))
                 .toList();
     }
 
@@ -59,8 +57,19 @@ public class VehicleService {
         return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
     }
 
+    @Transactional(readOnly = true)
+    public List<VehicleResponse> getAvailable(LocalDate date, LocalTime startTime, LocalTime endTime) {
+        Set<UUID> busyIds = routeRepository.findConflictingVehicleIds(date, startTime, endTime, ACTIVE_STATUSES);
+        return vehicleRepository.findByActiveTrue().stream()
+                .filter(v -> !busyIds.contains(v.getId()))
+                .map(v -> toResponse(v, false))
+                .toList();
+    }
+
     @Transactional
     public VehicleResponse create(UserPrincipal principal, CreateVehicleRequest request) {
+        requireSuperAdmin(principal);
+
         String normalizedPlate = normalizePlate(request.getPlate());
         if (vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
             throw AppException.conflict("Vehicle plate already exists");
@@ -93,63 +102,33 @@ public class VehicleService {
         auditLogService.logAction(principal, "CREATE_VEHICLE", "VEHICLE", vehicle.getId().toString(),
                 java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Creation de vehicule"));
 
-        return toResponse(vehicle, getBusyVehicleIds().contains(vehicle.getId()));
+        return toResponse(vehicle, false);
     }
 
     @Transactional
     public VehicleResponse update(UUID id, UserPrincipal principal, UpdateVehicleRequest request) {
+        requireSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
 
-        if (StringUtils.hasText(request.getMake())) {
-            vehicle.setMake(request.getMake().trim());
-        }
-
-        if (StringUtils.hasText(request.getModel())) {
-            vehicle.setModel(request.getModel().trim());
-        }
-
-        if (request.getManufactureYear() != null) {
-            vehicle.setManufactureYear(request.getManufactureYear());
-        }
-
-        if (request.getColor() != null) {
-            vehicle.setColor(trimOrNull(request.getColor()));
-        }
-
-        if (request.getVin() != null) {
-            vehicle.setVin(normalizeVin(request.getVin()));
-        }
-
-        if (request.getFuelType() != null) {
-            vehicle.setFuelType(trimOrNull(request.getFuelType()));
-        }
-
-        if (request.getPayloadKg() != null) {
-            vehicle.setPayloadKg(request.getPayloadKg());
-        }
-
-        if (request.getVolumeM3() != null) {
-            vehicle.setVolumeM3(request.getVolumeM3());
-        }
-
-        if (request.getMileageKm() != null) {
-            vehicle.setMileageKm(request.getMileageKm());
-        }
+        if (StringUtils.hasText(request.getMake()))  vehicle.setMake(request.getMake().trim());
+        if (StringUtils.hasText(request.getModel())) vehicle.setModel(request.getModel().trim());
+        if (request.getManufactureYear() != null)    vehicle.setManufactureYear(request.getManufactureYear());
+        if (request.getColor()    != null)           vehicle.setColor(trimOrNull(request.getColor()));
+        if (request.getVin()      != null)           vehicle.setVin(normalizeVin(request.getVin()));
+        if (request.getFuelType() != null)           vehicle.setFuelType(trimOrNull(request.getFuelType()));
+        if (request.getPayloadKg() != null)          vehicle.setPayloadKg(request.getPayloadKg());
+        if (request.getVolumeM3()  != null)          vehicle.setVolumeM3(request.getVolumeM3());
+        if (request.getMileageKm() != null)          vehicle.setMileageKm(request.getMileageKm());
+        if (request.getType()      != null)          vehicle.setType(request.getType());
+        if (request.getActive()    != null)          vehicle.setActive(request.getActive());
 
         if (StringUtils.hasText(request.getPlate())) {
             String normalizedPlate = normalizePlate(request.getPlate());
-            if (!normalizedPlate.equalsIgnoreCase(vehicle.getPlate()) && vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
+            if (!normalizedPlate.equalsIgnoreCase(vehicle.getPlate())
+                    && vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
                 throw AppException.conflict("Vehicle plate already exists");
             }
             vehicle.setPlate(normalizedPlate);
-        }
-
-        if (request.getType() != null) {
-            vehicle.setType(request.getType());
-        }
-
-        if (request.getActive() != null) {
-            vehicle.setActive(request.getActive());
         }
 
         if (request.getImageBase64() != null) {
@@ -177,34 +156,42 @@ public class VehicleService {
 
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
+        requireSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
-        auditLogService.logAction(principal, "DELETE_VEHICLE", "VEHICLE", id.toString(),
-                java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Suppression de vehicule"));
         if (StringUtils.hasText(vehicle.getImageUrl())) {
             minioStorageService.deleteFile(vehicle.getImageUrl());
         }
+        auditLogService.logAction(principal, "DELETE_VEHICLE", "VEHICLE", id.toString(),
+                java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Suppression de vehicule"));
         vehicleRepository.delete(vehicle);
     }
 
     @Transactional
     public VehicleResponse assign(UUID id, UserPrincipal principal, AssignVehicleRequest request) {
+        requireSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
-        String driverInfo = request.getDriverId() != null ? request.getDriverId().toString() : "unassigned";
         vehicle.setDriverId(request.getDriverId());
         Vehicle saved = vehicleRepository.save(vehicle);
+        String driverInfo = request.getDriverId() != null ? request.getDriverId().toString() : "unassigned";
         auditLogService.logAction(principal, "ASSIGN_VEHICLE", "VEHICLE", saved.getId().toString(),
                 java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(), "chauffeur", driverInfo, "action", "Affectation de vehicule"));
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
+    private void requireSuperAdmin(UserPrincipal principal) {
+        if (!"SUPER_ADMIN".equals(principal.getRole())) {
+            throw AppException.forbidden("Only ASM super-admin can manage vehicles");
+        }
+    }
+
     private Set<UUID> getBusyVehicleIds() {
-        return routeRepository.findByStatusIn(ACTIVE_ROUTE_STATUSES).stream()
+        return routeRepository.findByStatusIn(ACTIVE_STATUSES).stream()
                 .map(Route::getVehicleId)
                 .filter(v -> v != null)
                 .collect(Collectors.toSet());
     }
 
-    private Vehicle getVehicle(UUID id) {
+    public Vehicle getVehicle(UUID id) {
         return vehicleRepository.findById(id).orElseThrow(() -> AppException.notFound("Vehicle not found"));
     }
 
@@ -217,19 +204,13 @@ public class VehicleService {
     }
 
     private static String trimOrNull(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        return value.trim();
+        return StringUtils.hasText(value) ? value.trim() : null;
     }
 
     private static String buildDisplayName(String make, String model, Integer year) {
-        String safeMake = StringUtils.hasText(make) ? make.trim() : "Vehicle";
+        String safeMake  = StringUtils.hasText(make)  ? make.trim()  : "Vehicle";
         String safeModel = StringUtils.hasText(model) ? model.trim() : "Model";
-        if (year == null) {
-            return safeMake + " " + safeModel;
-        }
-        return year + " " + safeMake + " " + safeModel;
+        return year == null ? safeMake + " " + safeModel : year + " " + safeMake + " " + safeModel;
     }
 
     private VehicleResponse toResponse(Vehicle vehicle, boolean assigned) {

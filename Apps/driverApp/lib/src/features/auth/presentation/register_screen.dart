@@ -69,7 +69,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     ),
                     const SizedBox(width: 16),
                     Text(
-                      'Create account',
+                      'Créer un compte',
                       style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.white),
                     ),
                   ],
@@ -85,26 +85,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Driver Registration',
+                    Text('Inscription Chauffeur',
                         style: GoogleFonts.inter(fontSize: 22, fontWeight: FontWeight.w700, color: AppColors.textPrimary, letterSpacing: -0.4)),
                     const SizedBox(height: 4),
-                    const Text('Fill in your details to get started.',
+                    const Text('Remplissez vos informations pour commencer.',
                         style: TextStyle(fontSize: 14, color: AppColors.muted)),
                     const SizedBox(height: 28),
-                    _Field(label: 'Full name', child: TextFormField(
+                    _Field(label: 'Nom complet', child: TextFormField(
                       controller: _nameCtrl,
                       decoration: const InputDecoration(hintText: 'John Doe', prefixIcon: Icon(Icons.person_outline_rounded, size: 18)),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
                     )),
                     const SizedBox(height: 18),
-                    _Field(label: 'Phone number', child: TextFormField(
+                    _Field(label: 'Numéro de téléphone', child: TextFormField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
                       decoration: const InputDecoration(hintText: '+213 6xx xxx xxx', prefixIcon: Icon(Icons.phone_outlined, size: 18)),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
                     )),
                     const SizedBox(height: 18),
-                    _Field(label: 'Password', child: TextFormField(
+                    _Field(label: 'Mot de passe', child: TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       decoration: InputDecoration(
@@ -115,11 +115,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 caractères' : null,
                     )),
                     const SizedBox(height: 28),
                     DriveButton(
-                      label: 'Create Account',
+                      label: 'Créer un compte',
                       icon: Icons.arrow_forward_rounded,
                       isLoading: auth.isLoading,
                       onPressed: auth.isLoading ? null : _onSubmit,
@@ -146,11 +146,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text('Already have an account?', style: TextStyle(fontSize: 13, color: AppColors.muted)),
+                        const Text('Vous avez déjà un compte ?', style: TextStyle(fontSize: 13, color: AppColors.muted)),
                         TextButton(
                           onPressed: () => Navigator.of(context).pop(),
                           style: TextButton.styleFrom(foregroundColor: AppColors.accent),
-                          child: Text('Sign in', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+                          child: Text('Se connecter', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
                         ),
                       ],
                     ),

@@ -36,8 +36,9 @@ public class AdminUserService {
             throw new AppException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        String token = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName());
-        String refreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName());
+        String companyId = user.getCompanyId() != null ? user.getCompanyId().toString() : null;
+        String token = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName(), companyId);
+        String refreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName(), companyId);
 
         return AdminLoginResponse.builder()
                 .token(token)
@@ -65,8 +66,9 @@ public class AdminUserService {
             }
 
             // Rotate: issue both a new access token AND a new refresh token
-            String newAccessToken  = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName());
-            String newRefreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName());
+            String companyId = user.getCompanyId() != null ? user.getCompanyId().toString() : null;
+            String newAccessToken  = jwtService.generateAdminToken(user.getId().toString(), user.getRole(), user.getName(), companyId);
+            String newRefreshToken = jwtService.generateRefreshToken(user.getId().toString(), user.getRole(), user.getName(), companyId);
 
             return AdminLoginResponse.builder()
                     .token(newAccessToken)
@@ -91,6 +93,7 @@ public class AdminUserService {
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .role(req.role())
+                .companyId(req.companyId())
                 .active(true)
                 .build();
 
@@ -110,6 +113,7 @@ public class AdminUserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
+                .companyId(user.getCompanyId())
                 .active(user.isActive())
                 .createdAt(user.getCreatedAt())
                 .build();

@@ -2,6 +2,7 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.entity.Route;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -89,11 +90,16 @@ public class EventPublisher {
         log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), previousDriverId, newDriverId);
+        String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
         if (fcm != null && newDriverId != null) {
-            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
             fcm.sendToDriver(newDriverId.toString(),
                     "Livraison réassignée",
                     ref + " vous a été attribuée");
+        }
+        if (fcm != null && previousDriverId != null) {
+            fcm.sendToDriver(previousDriverId.toString(),
+                    "Livraison retirée",
+                    ref + " a été attribuée à un autre livreur");
         }
     }
 
@@ -101,5 +107,87 @@ public class EventPublisher {
         log.info("EVENT delivery.replanned orderId={} deliveryId={} previousDriverId={}",
                 order != null ? order.getId() : null,
                 delivery.getId(), previousDriverId);
+    }
+
+    // ── Route lifecycle ───────────────────────────────────────────────────────
+
+    public void publishRouteValidated(Route route) {
+        log.info("EVENT route.validated routeId={} driverId={}", route.getId(), route.getDriverId());
+        if (fcm != null && route.getDriverId() != null) {
+            fcm.sendToDriver(route.getDriverId().toString(),
+                    "Tournée prête à démarrer",
+                    "\"" + route.getName() + "\" est validée — consultez-la avant de partir");
+        }
+    }
+
+    public void publishRouteScheduleChanged(Route route) {
+        log.info("EVENT route.schedule_changed routeId={} driverId={}", route.getId(), route.getDriverId());
+        if (fcm != null && route.getDriverId() != null) {
+            fcm.sendToDriver(route.getDriverId().toString(),
+                    "Horaire modifié",
+                    "L'heure de départ de \"" + route.getName() + "\" a été mise à jour");
+        }
+    }
+
+    public void publishRouteStopAdded(Route route, String clientName) {
+        log.info("EVENT route.stop_added routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
+        if (fcm != null && route.getDriverId() != null) {
+            String client = clientName != null ? clientName : "nouveau client";
+            fcm.sendToDriver(route.getDriverId().toString(),
+                    "Nouvel arrêt ajouté",
+                    client + " ajouté à votre tournée en cours");
+        }
+    }
+
+    public void publishRouteStopRemoved(Route route, String clientName) {
+        log.info("EVENT route.stop_removed routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
+        if (fcm != null && route.getDriverId() != null) {
+            String client = clientName != null ? clientName : "Un arrêt";
+            fcm.sendToDriver(route.getDriverId().toString(),
+                    "Arrêt supprimé",
+                    client + " a été retiré de votre tournée");
+        }
+    }
+
+    public void publishDeliveryReassignedAway(Order order, Delivery delivery, UUID previousDriverId) {
+        log.info("EVENT delivery.reassigned_away deliveryId={} previousDriverId={}", delivery.getId(), previousDriverId);
+        if (fcm != null && previousDriverId != null) {
+            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Une livraison";
+            fcm.sendToDriver(previousDriverId.toString(),
+                    "Livraison retirée",
+                    ref + " a été attribuée à un autre livreur");
+        }
+    }
+
+    public void publishHandoffRequired(Order order, Delivery delivery, UUID newDriverId) {
+        log.info("EVENT delivery.handoff_required deliveryId={} newDriverId={}", delivery.getId(), newDriverId);
+        String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Colis";
+        if (fcm != null && newDriverId != null) {
+            fcm.sendToDriver(newDriverId.toString(),
+                    "Transfert de colis en attente",
+                    ref + " — scannez le QR du livreur précédent pour recevoir");
+        }
+    }
+
+    public void publishStopsTransferred(UUID sourceDriverId, UUID targetDriverId, int count, boolean requiresHandoff) {
+        log.info("EVENT stops.transferred sourceDriver={} targetDriver={} count={} handoff={}", sourceDriverId, targetDriverId, count, requiresHandoff);
+        if (fcm == null) return;
+        String countLabel = count + " arrêt" + (count > 1 ? "s" : "");
+        if (sourceDriverId != null) {
+            fcm.sendToDriver(sourceDriverId.toString(),
+                    "Arrêts transférés",
+                    countLabel + " retiré" + (count > 1 ? "s" : "") + " de votre tournée");
+        }
+        if (targetDriverId != null) {
+            if (requiresHandoff) {
+                fcm.sendToDriver(targetDriverId.toString(),
+                        "Transfert de colis en attente",
+                        countLabel + " à récupérer — scannez le QR du livreur précédent");
+            } else {
+                fcm.sendToDriver(targetDriverId.toString(),
+                        "Arrêts ajoutés",
+                        countLabel + " ajouté" + (count > 1 ? "s" : "") + " à votre tournée");
+            }
+        }
     }
 }

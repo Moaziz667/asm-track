@@ -335,3 +335,4 @@ volumes:
 networks:
   asm-network:
     driver: bridge
+    name: microservices_asm-network

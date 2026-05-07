@@ -17,6 +17,7 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.service.DriverDeliveryService;
+import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.service.GeocodingService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -59,6 +60,7 @@ public class DispatchService {
     private final VehicleRepository vehicleRepository;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final com.asm.delivery.service.AuditLogService auditLogService;
+    private final EventPublisher eventPublisher;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -436,9 +438,16 @@ public class DispatchService {
         Zone zone = (order != null && order.getZoneId() != null)
                 ? zoneRepository.findById(order.getZoneId()).orElse(null)
                 : null;
+        RouteInfo routeInfo = routeStopRepository.findActiveByDeliveryId(d.getId())
+                .filter(rs -> rs.getRoute() != null)
+                .map(rs -> new RouteInfo(rs.getRoute().getId(), rs.getRoute().getName()))
+                .orElse(null);
+
         return AdminDeliveryDetailResponse.builder()
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
+                .routeId(routeInfo != null ? routeInfo.routeId() : null)
+                .routeName(routeInfo != null ? routeInfo.routeName() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failureComment(d.getFailReason())
@@ -640,6 +649,14 @@ public class DispatchService {
 
         routeWebSocketService.notifyDriver(sourceRoute.getDriverId(), "STOPS_TRANSFERRED_OUT", sourceRoute.getId(), sourceRoute.getName());
         routeWebSocketService.notifyDriver(targetRoute.getDriverId(), "STOPS_TRANSFERRED_IN", targetRoute.getId(), targetRoute.getName());
+
+        // FCM: notify both drivers
+        boolean anyHandoff = warnings.stream().anyMatch(w -> "HANDOFF".equals(w.getCode()));
+        eventPublisher.publishStopsTransferred(
+                sourceRoute.getDriverId(),
+                targetRoute.getDriverId(),
+                transferredStops.size(),
+                anyHandoff);
 
         return com.asm.delivery.dto.response.TransferStopsResponse.builder()
                 .targetRouteId(targetRoute.getId())

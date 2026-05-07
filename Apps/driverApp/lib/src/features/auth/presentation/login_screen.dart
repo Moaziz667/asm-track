@@ -41,7 +41,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication failed. Check credentials.')),
+          const SnackBar(content: Text('Échec de l\'authentification. Vérifiez vos identifiants.')),
         );
       }
     }
@@ -76,12 +76,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'ASMONE LOGIN',
+                      'CONNEXION ASMONE',
                       style: GoogleFonts.spaceGrotesk(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -1.5),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'SECURE DRIVER AUTHENTICATION',
+                      'AUTHENTIFICATION CHAUFFEUR SÉCURISÉE',
                       style: GoogleFonts.spaceGrotesk(fontSize: 12, color: AppColors.neonYellow, fontWeight: FontWeight.w800, letterSpacing: 1.5),
                     ),
                   ],
@@ -108,20 +108,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       keyboardType: TextInputType.phone,
                       style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                       decoration: const InputDecoration(
-                        hintText: 'Phone number',
+                        hintText: 'Numéro de téléphone',
                         prefixIcon: Icon(LucideIcons.phone, size: 20),
                       ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Required' : null,
+                      validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
                     ),
                     const SizedBox(height: 24),
-                    Text('SECURITY', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    Text('SÉCURITÉ', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscure,
                       style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
-                        hintText: 'Password',
+                        hintText: 'Mot de passe',
                         prefixIcon: const Icon(LucideIcons.lock, size: 20),
                         suffixIcon: IconButton(
                           icon: Icon(
@@ -132,11 +132,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 characters' : null,
+                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 caractères' : null,
                     ),
                     const SizedBox(height: 40),
                     DriveButton(
-                      label: 'AUTHORIZE ACCESS',
+                      label: 'AUTORISER L\'ACCÈS',
                       icon: LucideIcons.shieldCheck,
                       isLoading: auth.isLoading,
                       onPressed: auth.isLoading ? null : _onSubmit,
@@ -152,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pushNamed('/register'),
                         child: Text(
-                          "REQUEST ACCESS",
+                          "DEMANDER L'ACCÈS",
                           style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 2),
                         ),
                       ),

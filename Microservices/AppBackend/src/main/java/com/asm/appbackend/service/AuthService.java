@@ -133,7 +133,8 @@ public class AuthService {
             throw new AppException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
         }
 
-        String token = jwtService.generateClientToken(client.getId().toString(), client.getName(), client.getOdooPartnerId());
+        String companyId = client.getCompanyId() != null ? client.getCompanyId().toString() : null;
+        String token = jwtService.generateClientToken(client.getId().toString(), client.getName(), client.getOdooPartnerId(), companyId);
 
         return LoginResponse.builder()
                 .accessToken(token)

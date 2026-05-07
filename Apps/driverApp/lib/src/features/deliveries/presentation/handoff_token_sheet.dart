@@ -63,19 +63,19 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
           const Icon(LucideIcons.arrowLeftRight, color: AppColors.neonYellow, size: 32),
           const SizedBox(height: 16),
           Text(
-            'HANDOFF AUTHENTICATION',
+            'AUTHENTIFICATION DU TRANSFERT',
             style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0.5),
           ),
           const SizedBox(height: 4),
           const Text(
-            'Ask Driver B to scan this code to confirm custody transfer.',
+            'Demandez à l\'autre chauffeur de scanner ce code pour confirmer le transfert de responsabilité.',
             style: TextStyle(color: AppColors.muted, fontSize: 13),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
           
           if (_isLoading)
-            const SizedBox(height: 200, child: LoadingState(message: 'Generating secure token...'))
+            const SizedBox(height: 200, child: LoadingState(message: 'Génération du jeton sécurisé…'))
           else if (_error != null)
             _buildError()
           else if (_token != null)
@@ -85,7 +85,7 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
 
           const SizedBox(height: 32),
           DriveButton(
-            label: 'DISMISS',
+            label: 'FERMER',
             variant: DriveButtonVariant.ghost,
             fullWidth: true,
             onPressed: () => Navigator.pop(context),
@@ -123,7 +123,7 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'TOKEN: ',
+                'JETON : ',
                 style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted, letterSpacing: 1),
               ),
               Text(
@@ -139,7 +139,7 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
           children: [
             Icon(LucideIcons.clock, size: 14, color: AppColors.muted),
             SizedBox(width: 6),
-            Text('Expires in 5 minutes', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            Text('Expire dans 5 minutes', style: TextStyle(color: AppColors.muted, fontSize: 12)),
           ],
         ),
       ],
@@ -153,7 +153,7 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
         const SizedBox(height: 16),
         Text(_error!, style: const TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
         const SizedBox(height: 24),
-        DriveButton(label: 'RETRY', onPressed: _fetchToken, size: DriveButtonSize.sm),
+        DriveButton(label: 'RÉESSAYER', onPressed: _fetchToken, size: DriveButtonSize.sm),
       ],
     );
   }

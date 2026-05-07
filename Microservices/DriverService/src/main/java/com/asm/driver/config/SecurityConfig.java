@@ -31,6 +31,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/driver/**").permitAll()
                 .requestMatchers("/internal/**").permitAll() // filter checks header
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
                 .anyRequest().authenticated()
             )
