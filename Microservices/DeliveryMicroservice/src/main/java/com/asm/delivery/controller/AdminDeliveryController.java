@@ -199,4 +199,11 @@ public class AdminDeliveryController {
         orderService.adminCancelOrder(orderId, principal, reason);
         return ResponseEntity.noContent().build();
     }
+
+    @PostMapping("/sync-zones")
+    @Operation(summary = "Recalculate zones for all deliveries based on current zone definitions")
+    public ResponseEntity<Void> syncZones() {
+        dispatchService.syncAllZones();
+        return ResponseEntity.noContent().build();
+    }
 }

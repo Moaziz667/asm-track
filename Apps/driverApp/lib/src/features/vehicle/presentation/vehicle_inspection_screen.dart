@@ -15,7 +15,7 @@ class VehicleInspectionScreen extends ConsumerStatefulWidget {
 }
 
 class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>(debugLabel: 'vehicle_inspection_form');
   
   double _odometer = 0;
   double _fuelLevel = 0.5;

@@ -58,3 +58,33 @@ coverage/
 # Package lock files (optional - remove if you want to keep them)
 # package-lock.json
 # yarn.lock
+
+# Turbo
+.turbo/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+
+# Editor
+.vscode/
+.idea/
+*.iml
+*.iws
+
+# Docker
+*.tar.zst
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mobile
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+build/

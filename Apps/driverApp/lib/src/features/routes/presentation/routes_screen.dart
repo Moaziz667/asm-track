@@ -1,10 +1,12 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -337,7 +339,10 @@ class _RouteMapBody extends StatelessWidget {
                     point: depotCoord,
                     width: 40,
                     height: 40,
-                    child: const _DepotMarker(),
+                    child: GestureDetector(
+                      onTap: () => mapController.move(depotCoord, 15.5),
+                      child: const _DepotMarker(),
+                    ),
                   ),
                 ],
               ),
@@ -355,12 +360,19 @@ class _RouteMapBody extends StatelessWidget {
                         stop);
                 return Marker(
                   point: coord,
-                  width: isNext ? 46 : 36,
-                  height: isNext ? 46 : 36,
-                  child: _StopMarker(
-                    order: stop.stopOrder,
-                    isDone: isDone,
-                    isNext: isNext,
+                  width: isNext ? 32 : 28,
+                  height: isNext ? 42 : 36,
+                  alignment: Alignment.bottomCenter,
+                  child: GestureDetector(
+                    onTap: () {
+                      mapController.move(coord, 15.5);
+                    },
+                    child: _StopMarker(
+                      order: stop.stopOrder,
+                      isDone: isDone,
+                      isNext: isNext,
+                      etaAt: stop.etaAt,
+                    ),
                   ),
                 );
               }).toList(),
@@ -378,6 +390,7 @@ class _RouteMapBody extends StatelessWidget {
             children: [
               _MapTopBar(route: route, onRefresh: onRefresh),
               if (route?.fromCache == true) const _OfflineBanner(),
+              _MapSearchBar(mapController: mapController),
             ],
           ),
         ),
@@ -408,6 +421,131 @@ class _RouteMapBody extends StatelessWidget {
   }
 }
 
+// ─── Map Search Bar ───────────────────────────────────────────────────────────
+class _MapSearchBar extends StatefulWidget {
+  const _MapSearchBar({required this.mapController});
+  final MapController mapController;
+
+  @override
+  State<_MapSearchBar> createState() => _MapSearchBarState();
+}
+
+class _MapSearchBarState extends State<_MapSearchBar> {
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+  List<Map<String, dynamic>> _results = [];
+  Timer? _debounce;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _search(String q) async {
+    _debounce?.cancel();
+    if (q.trim().length < 3) {
+      setState(() { _results = []; });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      setState(() => _loading = true);
+      try {
+        final client = HttpClient();
+        final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+          'format': 'json', 'q': q, 'limit': '5', 'accept-language': 'fr',
+        });
+        final req = await client.getUrl(uri);
+        req.headers.set('User-Agent', 'ASMTrack/1.0');
+        final res = await req.close();
+        final body = await res.transform(utf8.decoder).join();
+        final data = (jsonDecode(body) as List).cast<Map<String, dynamic>>();
+        if (mounted) setState(() { _results = data; _loading = false; });
+      } catch (_) {
+        if (mounted) setState(() => _loading = false);
+      }
+    });
+  }
+
+  void _pick(Map<String, dynamic> r) {
+    final lat = double.tryParse(r['lat'] as String? ?? '') ?? 0;
+    final lon = double.tryParse(r['lon'] as String? ?? '') ?? 0;
+    widget.mapController.move(LatLng(lat, lon), 15);
+    final name = (r['display_name'] as String).split(',').first;
+    _controller.text = name;
+    _focus.unfocus();
+    setState(() => _results = []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final shadow = [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2))];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: shadow,
+            ),
+            child: TextField(
+              controller: _controller,
+              focusNode: _focus,
+              onChanged: _search,
+              style: TextStyle(fontSize: 13, color: cs.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Rechercher un lieu…',
+                hintStyle: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                prefixIcon: Icon(Icons.search, size: 18, color: cs.onSurfaceVariant),
+                suffixIcon: _loading
+                    ? Padding(padding: const EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+                    : _controller.text.isNotEmpty
+                        ? IconButton(icon: Icon(Icons.close, size: 16, color: cs.onSurfaceVariant), onPressed: () { _controller.clear(); setState(() => _results = []); })
+                        : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                isDense: true,
+              ),
+            ),
+          ),
+          if (_results.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: shadow,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _results.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: cs.outlineVariant),
+                itemBuilder: (_, i) {
+                  final r = _results[i];
+                  return InkWell(
+                    onTap: () => _pick(r),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Text(r['display_name'] as String, style: TextStyle(fontSize: 12, color: cs.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
 // ─── Depot Marker ─────────────────────────────────────────────────────────────
 class _DepotMarker extends StatelessWidget {
   const _DepotMarker();
@@ -415,79 +553,190 @@ class _DepotMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 34,
-      height: 34,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: AppColors.neonYellow, width: 2),
+        color: const Color(0xFF111827), // Admin Dark
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
-          BoxShadow(color: AppColors.neonYellow.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 3)),
         ],
       ),
       child: Center(
-        child: Text(
-          'D',
-          style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
+        child: CustomPaint(
+          size: const Size(22, 20),
+          painter: _WarehousePainter(),
         ),
       ),
     );
   }
 }
 
+class _WarehousePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.95)
+      ..style = PaintingStyle.fill;
+
+    // Roof
+    final roof = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(0, size.height * 0.45)
+      ..lineTo(size.width, size.height * 0.45)
+      ..close();
+    canvas.drawPath(roof, paint);
+
+    // Body
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.45, size.width * 0.8, size.height * 0.55),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(bodyRect, paint);
+
+    // Door
+    final doorPaint = Paint()..color = const Color(0xFF111827);
+    final doorRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.38, size.height * 0.65, size.width * 0.24, size.height * 0.35),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(doorRect, doorPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 // ─── Stop Marker ──────────────────────────────────────────────────────────────
 class _StopMarker extends StatelessWidget {
-  const _StopMarker({required this.order, required this.isDone, required this.isNext});
+  const _StopMarker({required this.order, required this.isDone, required this.isNext, this.etaAt});
   final int order;
   final bool isDone;
   final bool isNext;
+  final String? etaAt;
+
+  String? get _time {
+    if (etaAt == null) return null;
+    try {
+      final dt = DateTime.parse(etaAt!).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) { return null; }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Color bg;
-    final Color fg;
-    final double size = isNext ? 32 : 28;
-    
+    final Color color;
+    // Use Admin Dashboard Route Builder Colors
     if (isDone) {
-      bg = AppColors.success;
-      fg = Colors.black;
+      color = const Color(0xFF16A34A); // Success Green
     } else if (isNext) {
-      bg = AppColors.neonYellow;
-      fg = Colors.black;
+      color = const Color(0xFF2563EB); // Admin Blue (Primary)
     } else {
-      bg = AppColors.surfaceElevated;
-      fg = AppColors.textPrimary;
+      color = const Color(0xFFD97706); // Warning Orange
     }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(2), // Sharp tactical corner
-        border: Border.all(color: Colors.black, width: 1.5),
-        boxShadow: isNext ? [
-          BoxShadow(
-            color: bg.withValues(alpha: 0.6),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ] : null,
-      ),
-      child: isDone
-          ? Icon(LucideIcons.check, size: isNext ? 18 : 14, color: fg)
-          : Center(
-              child: Text(
-                '$order',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: isNext ? 14 : 12,
-                  fontWeight: FontWeight.w900,
-                  color: fg,
-                ),
+    final time = _time;
+    final double width = isNext ? 32 : 28;
+    final double height = isNext ? 42 : 36;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CustomPaint(
+          size: Size(width, height),
+          painter: _RouteBuilderPinPainter(color: color, isSelected: isNext),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: height * 0.25),
+                child: isDone
+                    ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
+                    : Text(
+                        '$order',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: isNext ? 13 : 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
               ),
             ),
+          ),
+        ),
+        if (time != null)
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+              ],
+            ),
+            child: Text(
+              time,
+              style: GoogleFonts.inter(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w800, height: 1),
+            ),
+          ),
+      ],
     );
   }
+}
+
+class _RouteBuilderPinPainter extends CustomPainter {
+  _RouteBuilderPinPainter({required this.color, required this.isSelected});
+  final Color color;
+  final bool isSelected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Drop shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: isSelected ? 0.4 : 0.25)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, isSelected ? 4 : 2);
+    
+    final path = Path();
+    // Scaling factors based on original 28x36 SVG from RouteBuilderMap.tsx
+    final sw = size.width / 28;
+    final sh = size.height / 36;
+
+    path.moveTo(14 * sw, 0 * sh);
+    path.cubicTo(6.268 * sw, 0 * sh, 0 * sw, 6.268 * sh, 0 * sw, 14 * sh);
+    path.cubicTo(0 * sw, 19.746 * sh, 3.44 * sw, 24.71 * sh, 8.44 * sw, 27.07 * sh);
+    path.lineTo(14 * sw, 36 * sh);
+    path.lineTo(19.56 * sw, 27.07 * sh);
+    path.cubicTo(24.56 * sw, 24.71 * sh, 28 * sw, 19.746 * sh, 28 * sw, 14 * sh);
+    path.cubicTo(28 * sw, 6.268 * sh, 21.732 * sw, 0 * sh, 14 * sw, 0 * sh);
+    path.close();
+
+    // Draw shadow slightly offset
+    canvas.save();
+    canvas.translate(0, 2);
+    canvas.drawPath(path, shadowPaint);
+    canvas.restore();
+
+    canvas.drawPath(path, paint);
+
+    if (isSelected) {
+      final borderPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawPath(path, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 // ─── Map Top Bar ──────────────────────────────────────────────────────────────
@@ -496,12 +745,16 @@ class _MapTopBar extends ConsumerWidget {
   final DriverRoute? route;
   final VoidCallback onRefresh;
 
+  static const months = [
+    'JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN',
+    'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'
+  ];
+  static const days = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now();
     final pendingSync = ref.watch(offlineQueueProvider);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final label = '${days[today.weekday - 1]}, ${months[today.month - 1]} ${today.day}';
 
     return SafeArea(
@@ -694,9 +947,9 @@ class _BottomSheet extends StatelessWidget {
                     child: const Icon(LucideIcons.ban, size: 26, color: AppColors.muted),
                   ),
                   const SizedBox(height: 16),
-                  Text('AUCUNE MISSION ASSIGNÉE', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
+                  Text('AUCUNE TOURNÉE ASSIGNÉE', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
                   const SizedBox(height: 8),
-                  Text('EN ATTENTE DES INSTRUCTIONS DU DISPATCH',
+                  Text('EN ATTENTE D\'INSTRUCTIONS DU DISPATCH',
                       style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center),
                 ],
@@ -708,21 +961,10 @@ class _BottomSheet extends StatelessWidget {
             const SizedBox(height: 16),
 
             // CTA button
-            if (route!.status == DriverRouteStatus.validated)
-              DriveButton(
-                label: 'Démarrer la tournée',
-                icon: PhosphorIconsBold.play,
-                variant: DriveButtonVariant.success,
-                fullWidth: true,
-                size: DriveButtonSize.lg,
-                isLoading: isWorking,
-                onPressed: isWorking ? null : onStart,
-              ),
-
             if (route!.status == DriverRouteStatus.inProgress) ...[
               if (nextPendingStop != null)
                 DriveButton(
-                  label: 'Arrivé à l\'arrêt ${nextPendingStop.stopOrder}',
+                  label: 'Arrivé au point ${nextPendingStop.stopOrder}',
                   icon: PhosphorIconsBold.flagPennant,
                   fullWidth: true,
                   size: DriveButtonSize.lg,
@@ -730,7 +972,7 @@ class _BottomSheet extends StatelessWidget {
                   onPressed: isWorking ? null : () => onArrive?.call(nextPendingStop.id),
                 )
               else
-                _InfoChip(label: 'Tous les arrêts atteints — en attente de clôture par le dispatch', color: AppColors.success),
+                _InfoChip(label: 'Tous les arrêts validés', color: AppColors.success),
             ],
 
             // Secondary actions row (PDF + Maps)
@@ -763,7 +1005,7 @@ class _BottomSheet extends StatelessWidget {
             ],
 
             if (route!.status == DriverRouteStatus.closed)
-              _InfoChip(label: 'Tournée clôturée pour aujourd\'hui', color: AppColors.muted),
+              _InfoChip(label: 'Tournée terminée', color: AppColors.muted),
 
             const SizedBox(height: 20),
             Row(

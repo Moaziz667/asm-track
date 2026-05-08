@@ -1,6 +1,7 @@
 package com.asm.delivery.service.dispatch;
 
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.config.TenantContext;
 import java.time.LocalDateTime;
 
 import com.asm.delivery.dto.request.AssignDeliveryRequest;
@@ -195,6 +196,45 @@ public class DispatchService {
     }
 
     @Transactional
+    public void syncAllZones() {
+        UUID companyId = getCompanyId();
+        List<Delivery> deliveries = deliveryRepo.findAll();
+        List<Zone> activeZones = zoneRepository.findByCompanyIdAndIsActiveTrueOrderByNameAsc(companyId);
+        
+        for (Delivery delivery : deliveries) {
+            Order order = delivery.getOrder();
+            if (order == null) continue;
+
+            String postalCode = normalizePostalCode(order.getDropoffPostalCode());
+            String city = normalizeText(order.getDropoffCity());
+            
+            UUID newZoneId = null;
+            boolean found = false;
+
+            if (StringUtils.hasText(postalCode)) {
+                Optional<Zone> zoneByPostal = zoneRepository.findActiveByPostalCodeMember(companyId, postalCode);
+                if (zoneByPostal.isPresent()) {
+                    newZoneId = zoneByPostal.get().getId();
+                    found = true;
+                }
+            }
+
+            if (!found && StringUtils.hasText(city)) {
+                Optional<Zone> zoneByCity = zoneRepository.findActiveByCityMember(companyId, city.trim());
+                if (zoneByCity.isPresent()) {
+                    newZoneId = zoneByCity.get().getId();
+                }
+            }
+
+            if ((order.getZoneId() == null && newZoneId != null) || 
+                (order.getZoneId() != null && !order.getZoneId().equals(newZoneId))) {
+                order.setZoneId(newZoneId);
+                orderRepo.save(order);
+            }
+        }
+    }
+
+    @Transactional
     public AdminDeliveryDetailResponse pinDropoff(UUID deliveryId, PinDropoffRequest request) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
@@ -258,16 +298,17 @@ public class DispatchService {
                 if (StringUtils.hasText(city)) {
                         order.setDropoffCity(city);
                 }
+        UUID companyId = getCompanyId();
         boolean zoneFound = false;
         if (StringUtils.hasText(postalCode)) {
-                        var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode);
+            var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(companyId, postalCode);
             if (zoneByPostal.isPresent()) {
                 order.setZoneId(zoneByPostal.get().getId());
                 zoneFound = true;
             }
         }
         if (!zoneFound && StringUtils.hasText(city)) {
-            zoneRepository.findActiveByCityMember(city.trim()).ifPresentOrElse(
+            zoneRepository.findActiveByCityMember(companyId, city.trim()).ifPresentOrElse(
                     zone -> order.setZoneId(zone.getId()),
                     () -> order.setZoneId(null)
             );
@@ -363,8 +404,9 @@ public class DispatchService {
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        UUID companyId = getCompanyId();
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneRepository.findByCompanyIdAndId(companyId, order.getZoneId()).orElse(null)
                 : null;
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(d.getId())
@@ -435,8 +477,9 @@ public class DispatchService {
                                                          boolean podExists) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        UUID companyId = getCompanyId();
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneRepository.findByCompanyIdAndId(companyId, order.getZoneId()).orElse(null)
                 : null;
         RouteInfo routeInfo = routeStopRepository.findActiveByDeliveryId(d.getId())
                 .filter(rs -> rs.getRoute() != null)
@@ -517,7 +560,7 @@ public class DispatchService {
                 DriverDTO driver = transportPort.getDriver(changedBy);
                 if (driver != null && driver.getName() != null) return driver.getName();
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;
@@ -706,5 +749,13 @@ public class DispatchService {
                         vehicle.getPayloadKg(), totalWeight.doubleValue()));
             }
         }
+    }
+
+    private UUID getCompanyId() {
+        String cid = TenantContext.get();
+        if (cid == null) {
+            throw AppException.unauthorized("Company context missing");
+        }
+        return UUID.fromString(cid);
     }
 }

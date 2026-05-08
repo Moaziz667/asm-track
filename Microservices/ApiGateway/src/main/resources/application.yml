@@ -153,10 +153,20 @@ spring:
           predicates:
             - Path=/internal/users/**
 
+        - id: internal-app-backend-admin-users
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/internal/admin-users/**
+
         - id: internal-driver-service
           uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
           predicates:
             - Path=/internal/drivers/**
+
+        - id: delivery-public-tracking
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/public/**
 
 app:
   jwt:

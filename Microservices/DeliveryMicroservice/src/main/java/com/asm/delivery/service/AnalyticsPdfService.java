@@ -3,9 +3,11 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Zone;
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
@@ -38,10 +40,11 @@ import javax.imageio.ImageIO;
 @RequiredArgsConstructor
 public class AnalyticsPdfService extends BasePdfService {
 
-    private final DeliveryRepository deliveryRepository;
-    private final ZoneRepository     zoneRepository;
-    private final CompanyRepository  companyRepository;
-    private final TransportPort      transportPort;
+    private final DeliveryRepository  deliveryRepository;
+    private final ZoneRepository      zoneRepository;
+    private final CompanyRepository   companyRepository;
+    private final TransportPort       transportPort;
+    private final MinioStorageService minioStorageService;
 
     public byte[] generate(String period, LocalDate from, LocalDate to) {
         LocalDateTime now   = LocalDateTime.now();
@@ -63,7 +66,8 @@ public class AnalyticsPdfService extends BasePdfService {
         long inTransit = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT || d.getStatus() == DeliveryStatus.PICKED_UP).count();
         double successRate = total == 0 ? 0.0 : (double) delivered / total * 100.0;
 
-        Map<String, String> zoneNameById = zoneRepository.findAll().stream()
+        UUID companyId = getCompanyId();
+        Map<String, String> zoneNameById = zoneRepository.findByCompanyId(companyId).stream()
                 .collect(Collectors.toMap(z -> z.getId().toString(), Zone::getName));
 
         // Volume by hour (using completedAt)
@@ -101,46 +105,48 @@ public class AnalyticsPdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(pageEvent("RAPPORT D'ACTIVITÉ", periodLabel, companyRepository));
+            ReportPageEvent event = pageEvent("RAPPORT D'ACTIVITÉ", periodLabel, companyRepository, minioStorageService);
+            writer.setPageEvent(event);
+            Color brand = event.getPrimaryColor();
             doc.open();
 
             // ── Period header ─────────────────────────────────────────────────
-            Paragraph periodPara = new Paragraph("Période : " + periodLabel, regular(9));
-            periodPara.setSpacingAfter(6f);
+            Paragraph periodPara = new Paragraph("Période : " + periodLabel, muted(9));
+            periodPara.setSpacingAfter(8f);
             doc.add(periodPara);
 
             // ── KPI summary ───────────────────────────────────────────────────
-            doc.add(sectionLabel("SYNTHÈSE"));
+            doc.add(sectionLabel("SYNTHÈSE", brand));
             PdfPTable kpiGrid = new PdfPTable(new float[]{1, 1, 1, 1, 1});
             kpiGrid.setWidthPercentage(100);
-            kpiGrid.setSpacingAfter(12f);
-            kpiGrid.addCell(wrapKpi(kpiBox("VOLUME TOTAL",    String.valueOf(total))));
-            kpiGrid.addCell(wrapKpi(kpiBox("LIVRÉES",         String.valueOf(delivered))));
-            kpiGrid.addCell(wrapKpi(kpiBox("ÉCHOUÉES",        String.valueOf(failed))));
-            kpiGrid.addCell(wrapKpi(kpiBox("EN TRANSIT",      String.valueOf(inTransit))));
-            kpiGrid.addCell(wrapKpi(kpiBox("TAUX SUCCÈS",     String.format("%.1f%%", successRate))));
+            kpiGrid.setSpacingAfter(14f);
+            kpiGrid.addCell(wrapKpi(kpiBox("VOLUME TOTAL",    String.valueOf(total),     brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("LIVRÉES",         String.valueOf(delivered), brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("ÉCHOUÉES",        String.valueOf(failed),    brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("EN TRANSIT",      String.valueOf(inTransit), brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("TAUX SUCCÈS",     String.format("%.1f%%", successRate), brand)));
             doc.add(kpiGrid);
 
             // ── Volume by hour chart ──────────────────────────────────────────
-            doc.add(sectionLabel("VOLUME DE LIVRAISONS PAR HEURE"));
-            byte[] chartPng = buildHourChart(byHour);
+            doc.add(sectionLabel("VOLUME DE LIVRAISONS PAR HEURE", brand));
+            byte[] chartPng = buildHourChart(byHour, brand);
             if (chartPng != null) {
                 com.lowagie.text.Image chartImg = com.lowagie.text.Image.getInstance(chartPng);
                 chartImg.setWidthPercentage(100);
-                chartImg.setSpacingAfter(12f);
+                chartImg.setSpacingAfter(14f);
                 doc.add(chartImg);
             }
 
             // ── Failure breakdown ─────────────────────────────────────────────
             if (!byFailureCode.isEmpty()) {
-                doc.add(sectionLabel("RÉPARTITION DES ÉCHECS"));
+                doc.add(sectionLabel("RÉPARTITION DES ÉCHECS", brand));
                 PdfPTable failTable = new PdfPTable(new float[]{3, 1, 1});
                 failTable.setWidthPercentage(100);
                 failTable.setSpacingAfter(12f);
                 failTable.setHeaderRows(1);
-                failTable.addCell(hdrCell("Raison"));
-                failTable.addCell(hdrCellR("Nb"));
-                failTable.addCell(hdrCellR("%"));
+                failTable.addCell(hdrCell("Raison", brand));
+                failTable.addCell(hdrCellR("Nb", brand));
+                failTable.addCell(hdrCellR("%", brand));
                 boolean alt = false;
                 List<Map.Entry<String, Long>> sortedFails = byFailureCode.entrySet().stream()
                         .sorted(Map.Entry.<String, Long>comparingByValue().reversed()).toList();
@@ -156,15 +162,15 @@ public class AnalyticsPdfService extends BasePdfService {
 
             // ── Driver ranking ────────────────────────────────────────────────
             if (!driverTotal.isEmpty()) {
-                doc.add(sectionLabel("CLASSEMENT CHAUFFEURS"));
+                doc.add(sectionLabel("CLASSEMENT CHAUFFEURS", brand));
                 PdfPTable driverTable = new PdfPTable(new float[]{0.4f, 2.5f, 1f, 1f, 1.2f});
                 driverTable.setWidthPercentage(100);
                 driverTable.setHeaderRows(1);
-                driverTable.addCell(hdrCell("#"));
-                driverTable.addCell(hdrCell("Chauffeur"));
-                driverTable.addCell(hdrCellR("Volume"));
-                driverTable.addCell(hdrCellR("Livrées"));
-                driverTable.addCell(hdrCellR("Taux succès"));
+                driverTable.addCell(hdrCell("#", brand));
+                driverTable.addCell(hdrCell("Chauffeur", brand));
+                driverTable.addCell(hdrCellR("Volume", brand));
+                driverTable.addCell(hdrCellR("Livrées", brand));
+                driverTable.addCell(hdrCellR("Taux succès", brand));
 
                 List<UUID> ranked = driverTotal.entrySet().stream()
                         .sorted(Map.Entry.<UUID, Long>comparingByValue().reversed())
@@ -195,7 +201,7 @@ public class AnalyticsPdfService extends BasePdfService {
 
     // ── Chart builder ─────────────────────────────────────────────────────────
 
-    private static byte[] buildHourChart(Map<Integer, Long> byHour) {
+    private static byte[] buildHourChart(Map<Integer, Long> byHour, Color brand) {
         try {
             DefaultCategoryDataset ds = new DefaultCategoryDataset();
             for (int h = 6; h <= 22; h++) {
@@ -213,7 +219,7 @@ public class AnalyticsPdfService extends BasePdfService {
             plot.setDomainGridlinesVisible(false);
 
             BarRenderer renderer = (BarRenderer) plot.getRenderer();
-            renderer.setSeriesPaint(0, new Color(255, 87, 34));
+            renderer.setSeriesPaint(0, brand);
             renderer.setShadowVisible(false);
             renderer.setBarPainter(new StandardBarPainter());
             renderer.setItemMargin(0.02);
@@ -281,5 +287,11 @@ public class AnalyticsPdfService extends BasePdfService {
             case "WRONG_ADDRESS"       -> "Adresse incorrecte";
             default                    -> code;
         };
+    }
+
+    private UUID getCompanyId() {
+        String cid = TenantContext.get();
+        if (cid == null) return null;
+        return UUID.fromString(cid);
     }
 }

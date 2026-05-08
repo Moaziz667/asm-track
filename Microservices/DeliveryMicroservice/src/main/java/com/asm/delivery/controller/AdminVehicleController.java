@@ -3,6 +3,7 @@ package com.asm.delivery.controller;
 import com.asm.delivery.dto.request.AssignVehicleRequest;
 import com.asm.delivery.dto.request.CreateVehicleRequest;
 import com.asm.delivery.dto.request.UpdateVehicleRequest;
+import com.asm.delivery.dto.request.VehicleStatusRequest;
 import com.asm.delivery.dto.response.VehicleResponse;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.VehicleService;
@@ -75,6 +76,15 @@ public class AdminVehicleController {
             @AuthenticationPrincipal UserPrincipal principal) {
         vehicleService.delete(id, principal);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/status")
+    @Operation(summary = "Update vehicle operational status")
+    public ResponseEntity<VehicleResponse> updateStatus(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody VehicleStatusRequest request) {
+        return ResponseEntity.ok(vehicleService.updateStatus(id, principal, request));
     }
 
     @PutMapping("/{id}/assign")

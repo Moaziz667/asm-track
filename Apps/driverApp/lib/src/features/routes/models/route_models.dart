@@ -74,9 +74,9 @@ extension DriverRouteStopStatusX on DriverRouteStopStatus {
       case DriverRouteStopStatus.arrived:
         return 'Arrivé';
       case DriverRouteStopStatus.completed:
-        return 'Terminé';
+        return 'Mission terminée';
       case DriverRouteStopStatus.failed:
-        return 'Échoué';
+        return 'Échec';
       case DriverRouteStopStatus.partial:
         return 'Partiel';
     }
@@ -235,6 +235,7 @@ class DriverRoute {
     while (index < len) {
       int b, shift = 0, result = 0;
       do {
+        if (index >= len) return points;
         b = encoded.codeUnitAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
@@ -245,6 +246,7 @@ class DriverRoute {
       shift = 0;
       result = 0;
       do {
+        if (index >= len) return points;
         b = encoded.codeUnitAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;

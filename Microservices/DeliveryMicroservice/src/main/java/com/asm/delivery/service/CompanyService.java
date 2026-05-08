@@ -5,8 +5,14 @@ import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -16,10 +22,18 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CompanyService {
 
     private final CompanyRepository repo;
     private final MinioStorageService minioStorageService;
+    private final RestTemplate restTemplate;
+
+    @Value("${app.backend.url:http://app-backend:8080}")
+    private String appBackendUrl;
+
+    @Value("${internal.secret:asm-internal-2026}")
+    private String internalSecret;
 
     public Optional<Company> findById(UUID id) {
         return repo.findById(id);
@@ -48,7 +62,8 @@ public class CompanyService {
         if (patch.getErpDbName()    != null) existing.setErpDbName(patch.getErpDbName());
         if (patch.getErpUsername()  != null) existing.setErpUsername(patch.getErpUsername());
         if (patch.getErpUid()       != null) existing.setErpUid(patch.getErpUid());
-        existing.setActive(patch.isActive());
+        if (patch.getSupportEmail() != null) existing.setSupportEmail(patch.getSupportEmail());
+        if (patch.getActive() != null) existing.setActive(patch.getActive());
         return repo.save(existing);
     }
 
@@ -58,6 +73,15 @@ public class CompanyService {
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));
         company.setActive(false);
         repo.save(company);
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("X-Internal-Secret", internalSecret);
+            restTemplate.exchange(
+                    appBackendUrl + "/internal/admin-users/deactivate-by-company/" + id,
+                    HttpMethod.POST, new HttpEntity<>(headers), Void.class);
+        } catch (Exception e) {
+            log.warn("Could not deactivate admin users for company {}: {}", id, e.getMessage());
+        }
     }
 
     @Transactional

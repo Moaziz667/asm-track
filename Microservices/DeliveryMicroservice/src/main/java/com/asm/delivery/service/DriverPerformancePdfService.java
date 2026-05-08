@@ -5,6 +5,7 @@ import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import com.lowagie.text.*;
@@ -37,9 +38,10 @@ import javax.imageio.ImageIO;
 @RequiredArgsConstructor
 public class DriverPerformancePdfService extends BasePdfService {
 
-    private final DeliveryRepository deliveryRepository;
-    private final CompanyRepository  companyRepository;
-    private final TransportPort      transportPort;
+    private final DeliveryRepository  deliveryRepository;
+    private final CompanyRepository   companyRepository;
+    private final TransportPort       transportPort;
+    private final MinioStorageService minioStorageService;
 
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM");
 
@@ -113,16 +115,21 @@ public class DriverPerformancePdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()), companyRepository));
+            ReportPageEvent event = pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()), companyRepository, minioStorageService);
+            writer.setPageEvent(event);
+            Color brand = event.getPrimaryColor();
             doc.open();
 
             // ── Driver identity block ─────────────────────────────────────────
             PdfPTable identity = new PdfPTable(new float[]{1, 1});
             identity.setWidthPercentage(100);
-            identity.setSpacingAfter(8f);
+            identity.setSpacingAfter(10f);
 
             PdfPCell nameCell = new PdfPCell();
             nameCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
+            nameCell.setBorderWidthLeft(3f);
+            nameCell.setBorderColorLeft(brand);
+            nameCell.setPaddingLeft(10f);
             nameCell.addElement(new Paragraph(safe(driver.getName()), bold(14)));
             nameCell.addElement(new Paragraph("Tél. : " + safe(driver.getPhone()), regular(9)));
             nameCell.addElement(new Paragraph("Période : " + periodLabel, muted(8)));
@@ -130,27 +137,27 @@ public class DriverPerformancePdfService extends BasePdfService {
             PdfPCell fleetCell = new PdfPCell();
             fleetCell.setBorder(com.lowagie.text.Rectangle.NO_BORDER);
             fleetCell.setHorizontalAlignment(Element.ALIGN_RIGHT);
-            fleetCell.addElement(buildComparisonBar(successRate, fleetRate));
+            fleetCell.addElement(buildComparisonBar(successRate, fleetRate, brand));
 
             identity.addCell(nameCell);
             identity.addCell(fleetCell);
             doc.add(identity);
 
             // ── KPI grid ──────────────────────────────────────────────────────
-            doc.add(sectionLabel("INDICATEURS CLÉS"));
+            doc.add(sectionLabel("INDICATEURS CLÉS", brand));
             PdfPTable kpiGrid = new PdfPTable(new float[]{1, 1, 1, 1, 1});
             kpiGrid.setWidthPercentage(100);
             kpiGrid.setSpacingAfter(12f);
-            kpiGrid.addCell(wrapKpi(kpiBox("VOLUME",         String.valueOf(total))));
-            kpiGrid.addCell(wrapKpi(kpiBox("LIVRÉES",        String.valueOf(delivered))));
-            kpiGrid.addCell(wrapKpi(kpiBox("ÉCHOUÉES",       String.valueOf(failed))));
-            kpiGrid.addCell(wrapKpi(kpiBox("TAUX SUCCÈS",    String.format("%.1f%%", successRate))));
-            kpiGrid.addCell(wrapKpi(kpiBox("RETARD MOY.",    fmtDuration(avgDelay))));
+            kpiGrid.addCell(wrapKpi(kpiBox("VOLUME",         String.valueOf(total),     brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("LIVRÉES",        String.valueOf(delivered), brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("ÉCHOUÉES",       String.valueOf(failed),    brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("TAUX SUCCÈS",    String.format("%.1f%%", successRate), brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("RETARD MOY.",    fmtDuration(avgDelay),     brand)));
             doc.add(kpiGrid);
 
             // ── 7-day trend chart ─────────────────────────────────────────────
-            doc.add(sectionLabel("VOLUME (7 DERNIERS JOURS)"));
-            byte[] chartPng = buildTrendChart(dailyVolume);
+            doc.add(sectionLabel("VOLUME (7 DERNIERS JOURS)", brand));
+            byte[] chartPng = buildTrendChart(dailyVolume, brand);
             if (chartPng != null) {
                 com.lowagie.text.Image chartImg = com.lowagie.text.Image.getInstance(chartPng);
                 chartImg.setWidthPercentage(100);
@@ -159,15 +166,15 @@ public class DriverPerformancePdfService extends BasePdfService {
             }
 
             // ── Delivery history table ────────────────────────────────────────
-            doc.add(sectionLabel("HISTORIQUE DES LIVRAISONS"));
+            doc.add(sectionLabel("HISTORIQUE DES LIVRAISONS", brand));
             PdfPTable histTable = new PdfPTable(new float[]{1.2f, 2.5f, 1.5f, 1f, 1.2f});
             histTable.setWidthPercentage(100);
             histTable.setHeaderRows(1);
-            histTable.addCell(hdrCell("Date"));
-            histTable.addCell(hdrCell("Client"));
-            histTable.addCell(hdrCell("Ville"));
-            histTable.addCell(hdrCell("Statut"));
-            histTable.addCell(hdrCellR("Retard"));
+            histTable.addCell(hdrCell("Date", brand));
+            histTable.addCell(hdrCell("Client", brand));
+            histTable.addCell(hdrCell("Ville", brand));
+            histTable.addCell(hdrCell("Statut", brand));
+            histTable.addCell(hdrCellR("Retard", brand));
 
             List<Delivery> recent = filtered.stream()
                     .filter(d -> d.getOrder() != null)
@@ -206,7 +213,7 @@ public class DriverPerformancePdfService extends BasePdfService {
 
     // ── Chart builder ─────────────────────────────────────────────────────────
 
-    private static byte[] buildTrendChart(Map<String, Long> dailyVolume) {
+    private static byte[] buildTrendChart(Map<String, Long> dailyVolume, Color brand) {
         try {
             DefaultCategoryDataset ds = new DefaultCategoryDataset();
             dailyVolume.forEach((day, count) -> ds.addValue(count, "Volume", day));
@@ -223,7 +230,7 @@ public class DriverPerformancePdfService extends BasePdfService {
             plot.setDomainGridlinesVisible(false);
 
             BarRenderer renderer = (BarRenderer) plot.getRenderer();
-            renderer.setSeriesPaint(0, new Color(255, 87, 34));
+            renderer.setSeriesPaint(0, brand);
             renderer.setShadowVisible(false);
             renderer.setBarPainter(new StandardBarPainter());
 
@@ -248,7 +255,7 @@ public class DriverPerformancePdfService extends BasePdfService {
     }
 
     // Inline comparison bar: driver rate vs fleet average
-    private static Element buildComparisonBar(double driverRate, double fleetRate) {
+    private static Element buildComparisonBar(double driverRate, double fleetRate, Color brand) {
         PdfPTable t = new PdfPTable(1);
         t.setWidthPercentage(100);
 
@@ -258,7 +265,7 @@ public class DriverPerformancePdfService extends BasePdfService {
 
         Paragraph vals = new Paragraph();
         vals.add(new Chunk("Ce chauffeur : ", muted(8)));
-        vals.add(new Chunk(String.format("%.1f%%", driverRate), bold(9)));
+        vals.add(new Chunk(String.format("%.1f%%", driverRate), colored(9, brand)));
         vals.add(new Chunk("   Flotte : ", muted(8)));
         vals.add(new Chunk(String.format("%.1f%%", fleetRate), regular(9)));
         PdfPCell valCell = new PdfPCell(vals);

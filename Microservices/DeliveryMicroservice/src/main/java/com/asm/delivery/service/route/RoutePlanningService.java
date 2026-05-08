@@ -6,6 +6,7 @@ import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.*;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.erp.ErpSyncService;
@@ -133,7 +134,10 @@ public class RoutePlanningService {
             ? request.getPlannedEndTime()
             : DEFAULT_PLANNED_END;
         validateScheduleWindow(plannedStartTime, plannedEndTime);
+        ensureDriverActive(request.getDriverId());
         ensureNoScheduleConflict(request.getDriverId(), request.getDate(), plannedStartTime, plannedEndTime, null);
+        ensureVehicleAvailable(request.getVehicleId());
+        ensureNoVehicleConflict(request.getVehicleId(), request.getDate(), plannedStartTime, plannedEndTime, null);
 
         UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Route route = Route.builder()
@@ -220,7 +224,10 @@ public class RoutePlanningService {
         route.setPlannedStartTime(effectiveStart);
         route.setPlannedEndTime(effectiveEnd);
         validateScheduleWindow(effectiveStart, effectiveEnd);
+        ensureDriverActive(route.getDriverId());
         ensureNoScheduleConflict(route.getDriverId(), route.getDate(), effectiveStart, effectiveEnd, route.getId());
+        ensureVehicleAvailable(route.getVehicleId());
+        ensureNoVehicleConflict(route.getVehicleId(), route.getDate(), effectiveStart, effectiveEnd, route.getId());
 
         if (route.getVehicleId() != null) {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
@@ -646,9 +653,10 @@ public class RoutePlanningService {
                     .distinct()
                     .toList();
 
+            UUID companyId = route.getCompanyId();
             List<Zone> detectedZones = postalCodes.isEmpty()
                     ? List.of()
-                    : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+                    : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
 
             if (detectedZones.size() > 1) {
                 String label = detectedZones.stream().map(Zone::getName).collect(Collectors.joining(" · "));
@@ -812,6 +820,48 @@ public class RoutePlanningService {
         }
         if (!startTime.isBefore(endTime)) {
             throw AppException.badRequest("Route start time must be before end time");
+        }
+    }
+
+    private void ensureDriverActive(UUID driverId) {
+        if (driverId == null) return;
+        try {
+            DriverDTO driver = transportPort.getDriver(driverId.toString());
+            if (driver != null && Boolean.FALSE.equals(driver.getActive())) {
+                throw AppException.conflict("Driver is inactive and cannot be assigned to a route");
+            }
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Could not verify driver active status for {}: {}", driverId, e.getMessage());
+        }
+    }
+
+    private void ensureVehicleAvailable(UUID vehicleId) {
+        if (vehicleId == null) return;
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> AppException.badRequest("Vehicle not found"));
+        if (!Boolean.TRUE.equals(vehicle.getActive())) {
+            throw AppException.conflict("Vehicle is inactive and cannot be assigned to a route");
+        }
+        if (vehicle.getVehicleStatus() != VehicleStatus.AVAILABLE) {
+            throw AppException.conflict("Vehicle is not available (status: " + vehicle.getVehicleStatus().name() + ")");
+        }
+    }
+
+    private void ensureNoVehicleConflict(UUID vehicleId, LocalDate date,
+                                         LocalTime startTime, LocalTime endTime,
+                                         UUID currentRouteId) {
+        if (vehicleId == null) return;
+        List<Route> sameDayRoutes = routeRepository.findAllByVehicleIdAndDate(vehicleId, date);
+        for (Route existing : sameDayRoutes) {
+            if (existing.getStatus() == RouteStatus.CLOSED || existing.getStatus() == RouteStatus.CANCELLED) continue;
+            if (currentRouteId != null && existing.getId().equals(currentRouteId)) continue;
+            LocalTime existingStart = existing.getPlannedStartTime() != null ? existing.getPlannedStartTime() : DEFAULT_PLANNED_START;
+            LocalTime existingEnd   = existing.getPlannedEndTime()   != null ? existing.getPlannedEndTime()   : DEFAULT_PLANNED_END;
+            if (startTime.isBefore(existingEnd) && existingStart.isBefore(endTime)) {
+                throw AppException.conflict("Vehicle is already assigned to another route during this time window");
+            }
         }
     }
 
@@ -984,9 +1034,10 @@ public class RoutePlanningService {
                 .filter(pc -> pc != null && !pc.isBlank())
                 .distinct()
                 .toList();
+        UUID companyId = route.getCompanyId();
         List<Zone> detectedZones = postalCodes.isEmpty()
                 ? List.of()
-                : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+                : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
         List<String> detectedZoneNames = detectedZones.stream().map(Zone::getName).toList();
         String detectedZoneLabel = detectedZoneNames.isEmpty()
                 ? ""
@@ -994,6 +1045,7 @@ public class RoutePlanningService {
 
         return RouteResponse.builder()
                 .id(route.getId())
+                .companyId(route.getCompanyId())
                 .name(route.getName())
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
@@ -1072,7 +1124,7 @@ public class RoutePlanningService {
         String detectedZoneLabel = null;
         List<String> detectedZoneNames = new java.util.ArrayList<>();
         if (route.getZoneId() != null) {
-            com.asm.delivery.entity.Zone z = zoneRepository.findById(route.getZoneId()).orElse(null);
+            com.asm.delivery.entity.Zone z = zoneRepository.findByCompanyIdAndId(route.getCompanyId(), route.getZoneId()).orElse(null);
             if (z != null) {
                 detectedZoneNames.add(z.getName());
             }
@@ -1353,7 +1405,7 @@ public class RoutePlanningService {
                 com.asm.delivery.transport.DriverDTO driver = transportPort.getDriver(changedBy);
                 if (driver != null && driver.getName() != null) return driver.getName();
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;

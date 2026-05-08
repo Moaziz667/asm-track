@@ -1,5 +1,6 @@
 package com.asm.delivery.service;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.entity.AuditLog;
 import com.asm.delivery.repository.AuditLogRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -13,6 +14,7 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -67,6 +69,10 @@ public class AuditLogService {
             // Ignore
         }
 
+        String rawCompanyId = TenantContext.get();
+        UUID companyId = rawCompanyId != null && !rawCompanyId.isBlank()
+                ? UUID.fromString(rawCompanyId) : null;
+
         AuditLog log = AuditLog.builder()
                 .actorName(actorName)
                 .actorRole(actorRole)
@@ -75,6 +81,7 @@ public class AuditLogService {
                 .resourceId(resourceId)
                 .details(detailsJson)
                 .ipAddress(ipAddress)
+                .companyId(companyId)
                 .build();
         auditLogRepository.save(log);
     }

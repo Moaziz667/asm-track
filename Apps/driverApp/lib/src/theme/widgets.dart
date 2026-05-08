@@ -55,7 +55,7 @@ class DriveButton extends StatelessWidget {
         break;
       case DriveButtonVariant.success:
         bg = disabled ? AppColors.success.withValues(alpha: 0.45) : AppColors.success;
-        fg = Colors.white;
+        fg = Colors.black;
         borderColor = Colors.transparent;
         break;
     }

@@ -162,14 +162,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Les deux photos sont obligatoires pour soumettre le POD.',
+                  'Les 2 photos sont obligatoires.',
                   style: TextStyle(fontSize: 12, color: AppColors.danger.withValues(alpha: 0.8)),
                   textAlign: TextAlign.center,
                 ),
               ),
 
             AsmDriveButton(
-              label: 'Soumettre le POD',
+              label: 'Confirmer la livraison',
               icon: Icons.check,
               isLoading: _submitting,
               onPressed: (_submitting || !_canSubmit) ? null : _submit,
@@ -398,8 +398,28 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       double? lng;
       if (_attachLocation) {
         final point = await _locationService.currentPosition();
-        lat = point?.lat;
-        lng = point?.lng;
+        if (point != null) {
+          // P0: Accuracy Check
+          if (point.accuracy > 100) {
+            throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
+          }
+
+          // P0: Geofence Check
+          final destLat = widget.args.delivery.lat;
+          final destLng = widget.args.delivery.lng;
+
+          if (destLat != null && destLng != null) {
+            final distance = _locationService.calculateDistance(
+              point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
+            
+            if (distance > 250) {
+              throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
+            }
+          }
+
+          lat = point.lat;
+          lng = point.lng;
+        }
       }
 
       List<PartialDeliveryItem>? itemsArray;

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -105,6 +106,14 @@ public class AdminUserService {
     @Transactional(readOnly = true)
     public List<AdminUserResponse> listUsers() {
         return adminUserRepo.findAll().stream().map(this::toResponse).toList();
+    }
+
+    @Transactional
+    public AdminUserResponse setActive(UUID id, boolean active) {
+        AdminUser user = adminUserRepo.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
+        user.setActive(active);
+        return toResponse(adminUserRepo.save(user));
     }
 
     private AdminUserResponse toResponse(AdminUser user) {

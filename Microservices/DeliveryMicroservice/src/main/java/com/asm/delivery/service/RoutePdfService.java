@@ -7,6 +7,7 @@ import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.repository.VehicleRepository;
@@ -17,6 +18,7 @@ import com.lowagie.text.pdf.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
+import java.awt.Color;
 import java.io.ByteArrayOutputStream;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -33,6 +35,7 @@ public class RoutePdfService extends BasePdfService {
     private final VehicleRepository      vehicleRepository;
     private final TransportPort          transportPort;
     private final CompanyRepository      companyRepository;
+    private final MinioStorageService    minioStorageService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -43,121 +46,154 @@ public class RoutePdfService extends BasePdfService {
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
 
         Map<UUID, Delivery> deliveriesById = new HashMap<>();
-        List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
-        if (!deliveryIds.isEmpty()) {
-            for (Delivery d : deliveryRepository.findAllByIdInWithOrder(deliveryIds)) {
-                deliveriesById.put(d.getId(), d);
-            }
+        for (Delivery d : deliveryRepository.findAllByIdInWithOrder(
+                stops.stream().map(RouteStop::getDeliveryId).toList())) {
+            deliveriesById.put(d.getId(), d);
         }
 
-        DriverDTO driver  = route.getDriverId() != null ? transportPort.getDriver(route.getDriverId().toString()) : null;
+        DriverDTO driver  = route.getDriverId()  != null ? transportPort.getDriver(route.getDriverId().toString())      : null;
         Vehicle   vehicle = route.getVehicleId() != null ? vehicleRepository.findById(route.getVehicleId()).orElse(null) : null;
 
-        // Compute totals for header summary
-        long totalStops = stops.size();
-        BigDecimal totalCod = stops.stream()
+        long       totalStops = stops.size();
+        BigDecimal totalCod   = stops.stream()
                 .map(s -> deliveriesById.get(s.getDeliveryId()))
                 .filter(d -> d != null && d.getOrder() != null && d.getOrder().getTotalAmount() != null)
                 .map(d -> d.getOrder().getTotalAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         String subtitle = (route.getDate() != null ? route.getDate().format(DATE_FR) : "-")
-                + " · " + totalStops + " arrêts"
-                + (totalCod.compareTo(BigDecimal.ZERO) > 0 ? " · COD total: " + totalCod.toPlainString() + " TND" : "");
+                + "  ·  " + totalStops + " arrêts"
+                + (totalCod.compareTo(BigDecimal.ZERO) > 0 ? "  ·  COD: " + totalCod.toPlainString() + " TND" : "");
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = newA4Document();
-            PdfWriter writer = PdfWriter.getInstance(doc, out);
-            writer.setPageEvent(pageEvent("FEUILLE DE ROUTE", subtitle, companyRepository));
+            PdfWriter pdfWriter = PdfWriter.getInstance(doc, out);
+
+            ReportPageEvent event = pageEvent("FEUILLE DE ROUTE", subtitle,
+                    route.getCompanyId(), companyRepository, minioStorageService);
+            pdfWriter.setPageEvent(event);
+            Color brand = event.getPrimaryColor();
+
             doc.open();
 
-            // ── Route info block ──────────────────────────────────────────────
-            doc.add(sectionLabel("INFORMATIONS DE LA TOURNÉE"));
+            // ── Document title ────────────────────────────────────────────────
+            Paragraph title = new Paragraph("Feuille de Route", bold(18));
+            title.setSpacingAfter(3f);
+            doc.add(title);
+            doc.add(new Paragraph(safe(route.getName()), muted(9)));
 
-            PdfPTable infoTable = new PdfPTable(new float[]{1, 2, 1, 2});
-            infoTable.setWidthPercentage(100);
-            infoTable.setSpacingAfter(10f);
+            // Brand divider
+            PdfPTable divLine = new PdfPTable(1);
+            divLine.setWidthPercentage(100);
+            divLine.setSpacingBefore(8f);
+            divLine.setSpacingAfter(10f);
+            PdfPCell divCell = new PdfPCell(new Phrase(" "));
+            divCell.setFixedHeight(2f);
+            divCell.setBackgroundColor(brand);
+            divCell.setBorder(Rectangle.NO_BORDER);
+            divLine.addCell(divCell);
+            doc.add(divLine);
 
-            addInfoRow(infoTable, "Tournée",   safe(route.getName()));
-            addInfoRow(infoTable, "Date",      route.getDate() != null ? route.getDate().format(DATE_FR) : "-");
-            addInfoRow(infoTable, "Horaires",  fmt(route.getPlannedStartTime()) + " – " + fmt(route.getPlannedEndTime()));
-            addInfoRow(infoTable, "Ville",     safe(route.getCity()));
-            addInfoRow(infoTable, "Chauffeur", driver != null ? safe(driver.getName()) : "-");
-            addInfoRow(infoTable, "Téléphone", driver != null ? safe(driver.getPhone()) : "-");
-            addInfoRow(infoTable, "Véhicule",  vehicle != null ? safe(vehicle.getName()) + " · " + safe(vehicle.getPlate()) : "-");
-            addInfoRow(infoTable, "Arrêts",    totalStops + (totalCod.compareTo(BigDecimal.ZERO) > 0 ? "   |   COD: " + totalCod.toPlainString() + " TND" : ""));
+            // ── Route info: 2 boxes side by side ─────────────────────────────
+            PdfPTable infoRow = new PdfPTable(new float[]{1f, 1f});
+            infoRow.setWidthPercentage(100);
+            infoRow.setSpacingAfter(12f);
 
-            doc.add(infoTable);
+            infoRow.addCell(infoBox("TOURNÉE", new String[][]{
+                {"Date",      route.getDate() != null ? route.getDate().format(DATE_FR) : "-"},
+                {"Horaires",  fmt(route.getPlannedStartTime()) + " – " + fmt(route.getPlannedEndTime())},
+                {"Ville",     safe(route.getCity())},
+                {"Arrêts",    String.valueOf(totalStops)},
+            }, brand));
+
+            infoRow.addCell(infoBox("VÉHICULE & CHAUFFEUR", new String[][]{
+                {"Chauffeur",  driver != null ? safe(driver.getName())   : "-"},
+                {"Téléphone",  driver != null ? safe(driver.getPhone())  : "-"},
+                {"Véhicule",   vehicle != null ? safe(vehicle.getName()) : "-"},
+                {"Plaque",     vehicle != null ? safe(vehicle.getPlate()) : "-"},
+            }, brand));
+
+            doc.add(infoRow);
+
+            // COD total highlight if applicable
+            if (totalCod.compareTo(BigDecimal.ZERO) > 0) {
+                doc.add(sectionLabel("TOTAL COD À ENCAISSER", brand));
+                PdfPTable codRow = new PdfPTable(1);
+                codRow.setWidthPercentage(40);
+                codRow.setHorizontalAlignment(Element.ALIGN_LEFT);
+                codRow.setSpacingAfter(8f);
+                PdfPCell codCell = new PdfPCell(
+                        new Phrase(totalCod.toPlainString() + " TND", colored(14, brand)));
+                codCell.setPaddingTop(6f); codCell.setPaddingBottom(6f);
+                codCell.setPaddingLeft(10f);
+                codCell.setBorderColor(brand);
+                codCell.setBorderWidth(1.5f);
+                codCell.setBackgroundColor(tint(brand));
+                codRow.addCell(codCell);
+                doc.add(codRow);
+            }
 
             // ── Stops table ───────────────────────────────────────────────────
-            doc.add(sectionLabel("ARRÊTS"));
+            doc.add(sectionLabel("ARRÊTS", brand));
 
-            PdfPTable table = new PdfPTable(new float[]{0.4f, 2.2f, 1.2f, 2.5f, 1.1f, 0.8f, 1.0f});
+            PdfPTable table = new PdfPTable(new float[]{0.4f, 2.0f, 1.0f, 2.3f, 1.1f, 0.9f, 1.0f});
             table.setWidthPercentage(100);
             table.setHeaderRows(1);
 
-            table.addCell(hdrCell("#"));
-            table.addCell(hdrCell("Client"));
-            table.addCell(hdrCell("Ville"));
-            table.addCell(hdrCell("Adresse"));
-            table.addCell(hdrCell("Créneau"));
-            table.addCell(hdrCellR("COD (TND)"));
-            table.addCell(hdrCell("Statut"));
+            table.addCell(hdrCell("#", brand));
+            table.addCell(hdrCell("Client", brand));
+            table.addCell(hdrCell("Ville", brand));
+            table.addCell(hdrCell("Adresse", brand));
+            table.addCell(hdrCell("Créneau", brand));
+            table.addCell(hdrCellR("COD (TND)", brand));
+            table.addCell(hdrCell("Statut", brand));
 
             boolean alt = false;
             for (RouteStop stop : stops) {
-                Delivery  d     = deliveriesById.get(stop.getDeliveryId());
-                String client   = d != null && d.getOrder() != null ? safe(d.getOrder().getClientName())    : "-";
-                String city     = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffCity())   : "-";
-                String address  = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffAddress()): "-";
-                String cod      = d != null && d.getOrder() != null && d.getOrder().getTotalAmount() != null
-                                    ? d.getOrder().getTotalAmount().toPlainString() : "-";
-                String creneau  = buildWindow(stop);
-                String statut   = statusLabel(stop);
+                Delivery d    = deliveriesById.get(stop.getDeliveryId());
+                String client  = d != null && d.getOrder() != null ? safe(d.getOrder().getClientName())     : "-";
+                String city    = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffCity())    : "-";
+                String address = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffAddress()) : "-";
+                String cod     = d != null && d.getOrder() != null && d.getOrder().getTotalAmount() != null
+                               ? d.getOrder().getTotalAmount().toPlainString() : "-";
 
                 table.addCell(cellAlt(String.valueOf(stop.getStopOrder()), alt));
-                table.addCell(cellAlt(client, alt));
-                table.addCell(cellAlt(city, alt));
+                table.addCell(cellAlt(client,  alt));
+                table.addCell(cellAlt(city,    alt));
                 table.addCell(cellAlt(address, alt));
-                table.addCell(cellAlt(creneau, alt));
-                table.addCell(cellRAlt(cod, alt));
-                table.addCell(cellAlt(statut, alt));
+                table.addCell(cellAlt(buildWindow(stop), alt));
+                table.addCell(cellRAlt(cod,    alt));
+                table.addCell(cellAlt(statusLabel(stop), alt));
                 alt = !alt;
             }
-
             doc.add(table);
 
-            // ── Signature block ───────────────────────────────────────────────
-            doc.add(sectionLabel("SIGNATURE DU CHAUFFEUR"));
-            PdfPTable sig = new PdfPTable(new float[]{1, 2});
-            sig.setWidthPercentage(60);
+            // ── Signature ─────────────────────────────────────────────────────
+            doc.add(sectionLabel("SIGNATURE DU CHAUFFEUR", brand));
+            PdfPTable sig = new PdfPTable(new float[]{1.2f, 2f});
+            sig.setWidthPercentage(55);
             sig.setHorizontalAlignment(Element.ALIGN_LEFT);
-            PdfPCell sigLabel = new PdfPCell(new Phrase("Nom et signature :", regular(8)));
-            sigLabel.setPadding(5f);
-            sigLabel.setBorderColor(BORDER_GRAY);
-            PdfPCell sigBox = new PdfPCell(new Phrase(" \n\n ", regular(8)));
-            sigBox.setPadding(5f);
+
+            PdfPCell sigLbl = new PdfPCell(new Phrase("Nom et signature :", muted(8)));
+            sigLbl.setPaddingTop(6f); sigLbl.setPaddingBottom(28f); sigLbl.setPaddingLeft(6f);
+            sigLbl.setBorderColor(BORDER_GRAY);
+            sigLbl.setBorderWidthTop(2f); sigLbl.setBorderColorTop(brand);
+
+            PdfPCell sigBox = new PdfPCell(new Phrase(" "));
+            sigBox.setPaddingBottom(28f);
             sigBox.setBorderColor(BORDER_GRAY);
-            sig.addCell(sigLabel);
+            sigBox.setBorderWidthTop(2f); sigBox.setBorderColorTop(brand);
+
+            sig.addCell(sigLbl);
             sig.addCell(sigBox);
             doc.add(sig);
 
             doc.close();
             return out.toByteArray();
+
         } catch (Exception e) {
             throw AppException.serviceUnavailable("Erreur génération PDF tournée: " + e.getMessage());
         }
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static void addInfoRow(PdfPTable t, String label, String value) {
-        PdfPCell lbl = new PdfPCell(new Phrase(label, muted(8)));
-        lbl.setPadding(4f); lbl.setBorderColor(BORDER_GRAY);
-        PdfPCell val = new PdfPCell(new Phrase(safe(value), regular(8)));
-        val.setPadding(4f); val.setBorderColor(BORDER_GRAY);
-        t.addCell(lbl);
-        t.addCell(val);
     }
 
     private static String fmt(java.time.LocalTime t) {

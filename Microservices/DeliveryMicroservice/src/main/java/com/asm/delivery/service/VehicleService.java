@@ -3,6 +3,8 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.AssignVehicleRequest;
 import com.asm.delivery.dto.request.CreateVehicleRequest;
 import com.asm.delivery.dto.request.UpdateVehicleRequest;
+import com.asm.delivery.dto.request.VehicleStatusRequest;
+import com.asm.delivery.entity.VehicleStatus;
 import com.asm.delivery.dto.response.VehicleResponse;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
@@ -61,6 +63,7 @@ public class VehicleService {
     public List<VehicleResponse> getAvailable(LocalDate date, LocalTime startTime, LocalTime endTime) {
         Set<UUID> busyIds = routeRepository.findConflictingVehicleIds(date, startTime, endTime, ACTIVE_STATUSES);
         return vehicleRepository.findByActiveTrue().stream()
+                .filter(v -> v.getVehicleStatus() == VehicleStatus.AVAILABLE)
                 .filter(v -> !busyIds.contains(v.getId()))
                 .map(v -> toResponse(v, false))
                 .toList();
@@ -119,8 +122,9 @@ public class VehicleService {
         if (request.getPayloadKg() != null)          vehicle.setPayloadKg(request.getPayloadKg());
         if (request.getVolumeM3()  != null)          vehicle.setVolumeM3(request.getVolumeM3());
         if (request.getMileageKm() != null)          vehicle.setMileageKm(request.getMileageKm());
-        if (request.getType()      != null)          vehicle.setType(request.getType());
-        if (request.getActive()    != null)          vehicle.setActive(request.getActive());
+        if (request.getType()          != null) vehicle.setType(request.getType());
+        if (request.getActive()        != null) vehicle.setActive(request.getActive());
+        if (request.getVehicleStatus() != null) vehicle.setVehicleStatus(request.getVehicleStatus());
 
         if (StringUtils.hasText(request.getPlate())) {
             String normalizedPlate = normalizePlate(request.getPlate());
@@ -164,6 +168,20 @@ public class VehicleService {
         auditLogService.logAction(principal, "DELETE_VEHICLE", "VEHICLE", id.toString(),
                 java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Suppression de vehicule"));
         vehicleRepository.delete(vehicle);
+    }
+
+    @Transactional
+    public VehicleResponse updateStatus(UUID id, UserPrincipal principal, VehicleStatusRequest request) {
+        requireSuperAdmin(principal);
+        Vehicle vehicle = getVehicle(id);
+        VehicleStatus previous = vehicle.getVehicleStatus();
+        vehicle.setVehicleStatus(request.getStatus());
+        Vehicle saved = vehicleRepository.save(vehicle);
+        auditLogService.logAction(principal, "UPDATE_VEHICLE_STATUS", "VEHICLE", saved.getId().toString(),
+                java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(),
+                        "ancien_statut", previous.name(), "nouveau_statut", request.getStatus().name(),
+                        "action", "Changement de statut vehicule"));
+        return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
     @Transactional
@@ -232,6 +250,7 @@ public class VehicleService {
                 .driverId(vehicle.getDriverId())
                 .assigned(assigned)
                 .active(vehicle.getActive())
+                .vehicleStatus(vehicle.getVehicleStatus())
                 .createdAt(vehicle.getCreatedAt())
                 .build();
     }

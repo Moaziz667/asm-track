@@ -19,16 +19,20 @@ public class MinioStorageService {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
+    private static final String COMPANY_LOGOS_BUCKET = "company-logos";
+
     @PostConstruct
     public void init() {
+        ensureBucket(minioConfig.getBucket());
+        ensureBucket(COMPANY_LOGOS_BUCKET);
+    }
+
+    private void ensureBucket(String bucket) {
         try {
             boolean exists = minioClient.bucketExists(
-                    BucketExistsArgs.builder().bucket(minioConfig.getBucket()).build());
+                    BucketExistsArgs.builder().bucket(bucket).build());
             if (!exists) {
-                minioClient.makeBucket(
-                        MakeBucketArgs.builder().bucket(minioConfig.getBucket()).build());
-
-                // Set public read policy
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
                 String policy = """
                         {
                           "Version": "2012-10-17",
@@ -39,20 +43,15 @@ public class MinioStorageService {
                             "Resource": ["arn:aws:s3:::%s/*"]
                           }]
                         }
-                        """.formatted(minioConfig.getBucket());
-
+                        """.formatted(bucket);
                 minioClient.setBucketPolicy(
-                        SetBucketPolicyArgs.builder()
-                                .bucket(minioConfig.getBucket())
-                                .config(policy)
-                                .build());
-
-                log.info("MinIO storage ready — bucket created: {}", minioConfig.getBucket());
+                        SetBucketPolicyArgs.builder().bucket(bucket).config(policy).build());
+                log.info("MinIO bucket created: {}", bucket);
             } else {
-                log.info("MinIO storage ready — bucket: {}", minioConfig.getBucket());
+                log.info("MinIO bucket ready: {}", bucket);
             }
         } catch (Exception e) {
-            log.error("Failed to initialize MinIO bucket: {}", e.getMessage(), e);
+            log.error("Failed to initialize MinIO bucket {}: {}", bucket, e.getMessage());
         }
     }
 
@@ -115,6 +114,21 @@ public class MinioStorageService {
                 ? minioConfig.getPublicUrl()
                 : minioConfig.getUrl();
         return baseUrl + "/" + minioConfig.getBucket() + "/" + objectPath;
+    }
+
+    public byte[] getBytes(String url) {
+        String objectPath = extractObjectPath(url);
+        if (objectPath == null) return null;
+        try (var stream = minioClient.getObject(
+                io.minio.GetObjectArgs.builder()
+                        .bucket(minioConfig.getBucket())
+                        .object(objectPath)
+                        .build())) {
+            return stream.readAllBytes();
+        } catch (Exception e) {
+            log.warn("Failed to fetch logo from MinIO {}: {}", objectPath, e.getMessage());
+            return null;
+        }
     }
 
     private String extractObjectPath(String url) {

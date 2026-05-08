@@ -173,17 +173,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         if (added.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Nouvelle livraison assignée (${added.length}). Veuillez vérifier l\'onglet Tournée.'),
+              content: const Text('NOUVELLE TOURNÉE ASSIGNÉE', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 0.5)),
+              backgroundColor: AppColors.accent,
               behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
+              action: SnackBarAction(label: 'VOIR', textColor: Colors.black, onPressed: () {}),
             ),
           );
         } else if (removed.isNotEmpty) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Une livraison a été réaffectée/replanifiée par le dispatch.'),
+            const SnackBar(
+              content: Text('TOURNÉE ANNULÉE OU MODIFIÉE'),
+              backgroundColor: AppColors.danger,
               behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
             ),
           );
         }
@@ -338,7 +339,7 @@ class _BottomNav extends StatelessWidget {
                         Icon(
                           item.icon,
                           size: 22,
-                          color: selected ? Colors.white : AppColors.muted,
+                          color: selected ? Colors.black : AppColors.muted,
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -346,7 +347,7 @@ class _BottomNav extends StatelessWidget {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                            color: selected ? Colors.white : AppColors.muted,
+                            color: selected ? Colors.black : AppColors.muted,
                           ),
                         ),
                       ],

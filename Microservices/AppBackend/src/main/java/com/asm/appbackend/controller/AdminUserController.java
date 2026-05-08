@@ -13,6 +13,8 @@ import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/users")
@@ -55,5 +57,14 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<List<AdminUserResponse>> listUsers() {
         return ResponseEntity.ok(adminUserService.listUsers());
+    }
+
+    @PatchMapping("/{id}/status")
+    public ResponseEntity<AdminUserResponse> setStatus(
+            @PathVariable UUID id,
+            @RequestBody Map<String, Boolean> body) {
+        Boolean active = body.get("active");
+        if (active == null) return ResponseEntity.badRequest().build();
+        return ResponseEntity.ok(adminUserService.setActive(id, active));
     }
 }

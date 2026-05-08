@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -15,7 +16,7 @@ class ChangePasswordScreen extends ConsumerStatefulWidget {
 }
 
 class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>(debugLabel: 'change_password_form');
   final _oldPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -90,6 +91,9 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
                 ),
                 validator: (v) {
                   if (v == null || v.length < 8) return 'Minimum 8 caractères';
+                  if (!RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$').hasMatch(v)) {
+                    return 'Doit contenir une lettre et un chiffre';
+                  }
                   return null;
                 },
               ),
@@ -141,9 +145,18 @@ class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
         Navigator.pop(context);
       }
     } catch (e) {
+      String message = 'Échec de la mise à jour';
+      if (e is DioException) {
+        final data = e.response?.data;
+        if (data is Map && data.containsKey('message')) {
+          message = data['message'];
+        } else if (data is Map && data.containsKey('error')) {
+          message = data['error'];
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Échec de la mise à jour : $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text(message), backgroundColor: AppColors.danger),
         );
       }
     } finally {

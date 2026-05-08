@@ -60,6 +60,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
         SET status = 'SCHEDULED', driver_id = :driverId,
             assigned_at = NOW(), updated_at = NOW()
         WHERE id = :id AND status = 'UNSCHEDULED'
+          AND (:companyId IS NULL OR company_id = :companyId)
         """, nativeQuery = true)
-    int atomicAccept(@Param("id") UUID id, @Param("driverId") UUID driverId);
+    int atomicAccept(@Param("id") UUID id,
+                     @Param("driverId") UUID driverId,
+                     @Param("companyId") UUID companyId);
 }

@@ -66,8 +66,7 @@ public class DriverAuthService {
                 driver.getId().toString(), "DRIVER",
                 Map.of(
                     "name", driver.getName(),
-                    "phone", driver.getPhone(),
-                    "companyId", ""
+                    "phone", driver.getPhone()
                 )
         );
         return Map.of("token", newAccess);
@@ -83,7 +82,7 @@ public class DriverAuthService {
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
         if (!passwordEncoder.matches(oldPassword, driver.getPasswordHash())) {
-            throw AppException.unauthorized("Current password is incorrect");
+            throw AppException.badRequest("Le mot de passe actuel est incorrect");
         }
 
         driver.setPasswordHash(passwordEncoder.encode(newPassword));
@@ -95,8 +94,7 @@ public class DriverAuthService {
         String accessToken = jwtService.generateAccessToken(driverId, "DRIVER",
                 Map.of(
                     "name", driver.getName(),
-                    "phone", driver.getPhone(),
-                    "companyId", ""
+                    "phone", driver.getPhone()
                 ));
         String refreshToken = jwtService.generateRefreshToken(driverId, "DRIVER");
 

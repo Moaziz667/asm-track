@@ -42,15 +42,15 @@ extension DeliveryStatusX on DeliveryStatus {
       case DeliveryStatus.scheduled:
         return 'Planifié';
       case DeliveryStatus.pickedUp:
-        return 'Ramassé';
+        return 'Chargé';
       case DeliveryStatus.inTransit:
         return 'En transit';
       case DeliveryStatus.delivered:
         return 'Livré';
       case DeliveryStatus.partially_delivered:
-        return 'Partiellement livré';
+        return 'Livré partiel';
       case DeliveryStatus.failed:
-        return 'Échoué';
+        return 'Échec';
       case DeliveryStatus.cancelled:
         return 'Annulé';
     }

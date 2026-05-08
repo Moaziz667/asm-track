@@ -1,18 +1,34 @@
 import 'package:geolocator/geolocator.dart';
 
 class LocationPoint {
-  const LocationPoint({required this.lat, required this.lng});
+  const LocationPoint({
+    required this.lat,
+    required this.lng,
+    required this.accuracy,
+  });
 
   final double lat;
   final double lng;
+  final double accuracy;
 }
 
 class LocationService {
   Future<LocationPoint?> currentPosition() async {
     final permission = await _ensurePermission();
     if (!permission) return null;
-    final position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.best);
-    return LocationPoint(lat: position.latitude, lng: position.longitude);
+    final position = await Geolocator.getCurrentPosition(
+      desiredAccuracy: LocationAccuracy.best,
+      timeLimit: const Duration(seconds: 10),
+    );
+    return LocationPoint(
+      lat: position.latitude,
+      lng: position.longitude,
+      accuracy: position.accuracy,
+    );
+  }
+
+  double calculateDistance(double lat1, double lng1, double lat2, double lng2) {
+    return Geolocator.distanceBetween(lat1, lng1, lat2, lng2);
   }
 
   Future<bool> _ensurePermission() async {

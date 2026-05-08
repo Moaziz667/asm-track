@@ -15,6 +15,7 @@ import com.asm.delivery.storage.StorageException;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.transport.DriverDTO;
 import org.springframework.dao.DataIntegrityViolationException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +40,7 @@ public class DriverDeliveryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
-    private final ErpSyncService                 ErpSyncService;
+    private final ErpSyncService                 erpSyncService;
     private final ProofOfDeliveryRepository       podRepo;
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
@@ -49,6 +50,9 @@ public class DriverDeliveryService {
     private final RouteRepository                 routeRepository;
     private final RouteStopRepository             routeStopRepository;
     private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+    private final OutboxProcessor                outboxProcessor;
+    private final ProcessedRequestRepository      idempotencyRepo;
+    private final ObjectMapper                    objectMapper;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
@@ -114,7 +118,9 @@ public class DriverDeliveryService {
         }
 
         // Atomic UPDATE — 0 rows = race condition
-        int updated = deliveryRepo.atomicAccept(deliveryId, driverId);
+        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
+                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
+        int updated = deliveryRepo.atomicAccept(deliveryId, driverId, companyId);
         if (updated == 0) {
             throw AppException.conflict("Delivery was just taken by another driver");
         }
@@ -248,6 +254,10 @@ public class DriverDeliveryService {
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
+        // P1: Transactional Outbox Pattern
+        // Side-effects (ERP Sync) are enqueued atomically with the state change
+        outboxProcessor.enqueue("ERP_SYNC_STOCK", Map.of("deliveryId", deliveryId.toString()));
+
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
@@ -272,12 +282,12 @@ public class DriverDeliveryService {
             if (isPartial) {
                 // If there's partial logic in Odoo sync, handle it here. Else sync normally.
                 if (normalizedPartialItems != null) {
-                    ErpSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
+                    erpSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
                 } else {
-                    ErpSyncService.syncStockUpdate(delivery.getOrder());
+                    erpSyncService.syncStockUpdate(delivery.getOrder());
                 }
             } else {
-                ErpSyncService.syncStockUpdate(delivery.getOrder());
+                erpSyncService.syncStockUpdate(delivery.getOrder());
             }
         }
 
@@ -360,42 +370,58 @@ public class DriverDeliveryService {
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
 
+
     @Transactional
-    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
+    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, String idempotencyKey, UserPrincipal principal) {
+        // P1: Idempotency Check
+        if (idempotencyKey != null) {
+            var existing = idempotencyRepo.findById(idempotencyKey);
+            if (existing.isPresent()) {
+                log.info("IDEMPOTENCY_HIT key={} deliveryId={}", idempotencyKey, deliveryId);
+                try {
+                    return objectMapper.readValue(existing.get().getResponseBody(), DriverDeliveryResponse.class);
+                } catch (Exception e) {
+                    log.error("Failed to parse cached response for key {}", idempotencyKey);
+                }
+            }
+        }
+
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
             throw AppException.badRequest(
-                    "Cannot submit POD from status " + delivery.getStatus());
+                    "Impossible de soumettre le POD : statut actuel " + delivery.getStatus());
         }
+
+        // P0: Geofence Enforcement
+        validateGeofence(delivery, req.getLat(), req.getLng());
 
         if (podRepo.existsByDeliveryId(deliveryId)) {
             log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
             return toDriverDeliveryResponse(delivery);
         }
 
-        // Upload 2 mandatory photos to MinIO
+        // P2: Deterministic Object Storage
         String deliveryFolder = "pod/" + deliveryId;
-        long ts = System.currentTimeMillis();
 
         String bonLivraisonPhotoUrl;
         try {
             bonLivraisonPhotoUrl = minioStorageService.uploadBase64(
                     req.getBonLivraisonPhotoBase64(),
-                    deliveryFolder + "/bon-livraison-" + ts + ".png");
+                    deliveryFolder + "/bon-livraison.png");
         } catch (StorageException e) {
             log.error("Failed to upload bon-livraison photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Failed to store bon de livraison photo. Please retry.");
+            throw AppException.serviceUnavailable("Échec du stockage de la photo. Veuillez réessayer.");
         }
 
         String packagePhotoUrl;
         try {
             packagePhotoUrl = minioStorageService.uploadBase64(
                     req.getPackagePhotoBase64(),
-                    deliveryFolder + "/package-" + (ts + 1) + ".png");
+                    deliveryFolder + "/package.png");
         } catch (StorageException e) {
             log.error("Failed to upload package photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Failed to store package photo. Please retry.");
+            throw AppException.serviceUnavailable("Échec du stockage de la photo du colis. Veuillez réessayer.");
         }
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
@@ -412,13 +438,65 @@ public class DriverDeliveryService {
         try {
             podRepo.save(pod);
         } catch (DataIntegrityViolationException ex) {
-            // Handles race condition where duplicate POD submissions arrive concurrently.
             log.warn("POD_DUPLICATE_RACE deliveryId={} driverId={} msg={}", deliveryId, driverId, ex.getMessage());
             Delivery latest = loadAndAuthorize(deliveryId, driverId);
             return toDriverDeliveryResponse(latest);
         }
 
-        return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+        DriverDeliveryResponse response = complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+
+        // P1: Cache Response for Idempotency
+        if (idempotencyKey != null) {
+            try {
+                ProcessedRequest pr = ProcessedRequest.builder()
+                        .idempotencyKey(idempotencyKey)
+                        .responseStatus(200)
+                        .responseBody(objectMapper.writeValueAsString(response))
+                        .build();
+                idempotencyRepo.save(pr);
+            } catch (Exception e) {
+                log.error("Failed to cache response for idempotency", e);
+            }
+        }
+
+        return response;
+    }
+
+    private void validateGeofence(Delivery delivery, BigDecimal driverLat, BigDecimal driverLng) {
+        if (driverLat == null || driverLng == null) {
+            throw AppException.badRequest("Coordonnées GPS requises pour valider la livraison.");
+        }
+
+        Order order = delivery.getOrder();
+        if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
+            log.warn("GEOFENCE_SKIP: Missing dropoff coordinates for delivery {}", delivery.getId());
+            return; // Cannot validate if destination has no coordinates
+        }
+
+        double distance = calculateDistance(
+            driverLat.doubleValue(), driverLng.doubleValue(),
+            order.getDropoffLat().doubleValue(), order.getDropoffLng().doubleValue()
+        );
+
+        // Max allowed radius: 4000 meters (increased for testing/flexibility)
+        double maxRadius = 4000.0; 
+
+        if (distance > maxRadius) {
+            log.warn("GEOFENCE_REJECT deliveryId={} driverId={} distance={}m", delivery.getId(), delivery.getDriverId(), (int)distance);
+            throw AppException.badRequest(String.format(
+                "Validation impossible : vous êtes trop loin du point de livraison (%d mètres).", (int)distance));
+        }
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Radius of the earth in km
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c * 1000; // convert to meters
     }
 
     // ── Fail ──────────────────────────────────────────────────────────────────
@@ -451,7 +529,7 @@ public class DriverDeliveryService {
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
         if (delivery.getOrder() != null) {
-            ErpSyncService.syncFailure(delivery.getOrder(),
+            erpSyncService.syncFailure(delivery.getOrder(),
                     failureCode != null ? failureCode.name() : null, failureComment);
         }
 

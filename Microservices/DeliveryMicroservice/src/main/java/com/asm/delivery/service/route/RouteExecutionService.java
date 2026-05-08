@@ -64,11 +64,11 @@ public class RouteExecutionService {
     @Transactional(readOnly = true)
     public RouteResponse getTodayForDriver(UUID driverId) {
         List<RouteStatus> statuses = List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
-        Route route = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, LocalDate.now(), statuses)
+        return routeRepository.findByDriverIdAndDateAndStatusIn(driverId, LocalDate.now(), statuses)
                 .stream()
                 .findFirst()
-                .orElseThrow(() -> AppException.notFound("No route assigned for today"));
-        return toResponse(route);
+                .map(this::toResponse)
+                .orElse(null);
     }
 
     @Transactional

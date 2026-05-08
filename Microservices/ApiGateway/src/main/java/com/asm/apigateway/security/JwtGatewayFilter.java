@@ -108,6 +108,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if (path.startsWith("/api/auth/")) {
             return true;
         }
+        if (path.startsWith("/api/public/")) {
+            return true;
+        }
         // WebSocket/SockJS upgrade and polling — auth handled at STOMP CONNECT frame level
         // Browser WebSocket API cannot send Authorization headers during HTTP upgrade
         return path.startsWith("/ws/") || path.equals("/ws");

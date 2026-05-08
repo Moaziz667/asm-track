@@ -1,5 +1,6 @@
 package com.asm.delivery.dto.response;
 
+import com.asm.delivery.entity.VehicleStatus;
 import com.asm.delivery.entity.VehicleType;
 import lombok.Builder;
 import lombok.Data;
@@ -27,5 +28,6 @@ public class VehicleResponse {
     private UUID driverId;
     private Boolean assigned;
     private Boolean active;
+    private VehicleStatus vehicleStatus;
     private LocalDateTime createdAt;
 }

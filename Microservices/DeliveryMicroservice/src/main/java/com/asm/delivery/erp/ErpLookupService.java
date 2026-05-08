@@ -62,6 +62,7 @@ public class ErpLookupService {
         return "global";
     }
 
+    @Transactional(readOnly = true)
     public List<ErpClientDTO> searchClients(String search, int limit) {
         String cacheKey = companyKey() + "-clients-" + search + "-" + limit;
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
@@ -75,6 +76,7 @@ public class ErpLookupService {
         return dtos;
     }
 
+    @Transactional(readOnly = true)
     public List<ErpProductDTO> searchProducts(String search, int limit) {
         String cacheKey = companyKey() + "-products-" + search + "-" + limit;
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
@@ -88,6 +90,7 @@ public class ErpLookupService {
         return dtos;
     }
 
+    @Transactional(readOnly = true)
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         String cacheKey = companyKey() + "-pending-" + limit;
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
@@ -132,10 +135,14 @@ public class ErpLookupService {
             throw AppException.badRequest("Order " + erpOrderId + " already imported");
         }
 
+        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
+                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
+
         Order order = Order.builder()
                 .source(OrderSource.ODOO)
                 .clientId(null)
                 .erpClientId(null)
+                .companyId(companyId)
                 .clientName(preview.getCustomerName())
                 .clientPhone(preview.getCustomerPhone())
                 .dropoffAddress(StringUtils.hasText(preview.getDeliveryAddress()) ? preview.getDeliveryAddress() : "Address not provided")
@@ -173,6 +180,7 @@ public class ErpLookupService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
+                .companyId(companyId)
                 .build();
         delivery = deliveryRepository.save(delivery);
 

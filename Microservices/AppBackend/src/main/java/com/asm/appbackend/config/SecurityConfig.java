@@ -40,8 +40,8 @@ public class SecurityConfig {
                                 "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/api/profile/**").hasRole("CLIENT")
-                        .requestMatchers("/api/admin/users").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/users").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/admin/clients/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

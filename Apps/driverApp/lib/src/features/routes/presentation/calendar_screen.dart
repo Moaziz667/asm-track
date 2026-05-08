@@ -231,7 +231,7 @@ class _DayCell extends StatelessWidget {
               style: GoogleFonts.manrope(
                 fontSize: 13,
                 fontWeight: FontWeight.w800,
-                color: isToday ? Colors.white : AppColors.textPrimary,
+                color: isToday ? Colors.black : AppColors.textPrimary,
               ),
             ),
           ),

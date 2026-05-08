@@ -50,8 +50,12 @@ public class Company {
     @Column(name = "erp_uid")
     private Integer erpUid;
 
+    @Column(name = "support_email", length = 255)
+    private String supportEmail;
+
     @Builder.Default
-    private boolean active = true;
+    @Column(nullable = false)
+    private Boolean active = true;
 
     @Column(name = "created_at", updatable = false)
     @Builder.Default

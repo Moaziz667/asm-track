@@ -151,7 +151,7 @@ class _InfoGrid extends StatelessWidget {
     final items = <_InfoItem>[];
 
     if (route.date != null) {
-      const months = ['Jan', 'Fév', 'Mar', 'Avr', 'Mai', 'Juin', 'Juil', 'Août', 'Sep', 'Oct', 'Nov', 'Déc'];
+      const months = ['JAN', 'FÉV', 'MAR', 'AVR', 'MAI', 'JUIN', 'JUIL', 'AOÛT', 'SEP', 'OCT', 'NOV', 'DÉC'];
       final d = route.date!;
       items.add(_InfoItem(
         icon: PhosphorIconsRegular.calendarBlank,

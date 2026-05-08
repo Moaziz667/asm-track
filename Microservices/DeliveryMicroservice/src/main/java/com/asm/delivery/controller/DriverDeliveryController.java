@@ -154,8 +154,9 @@ public class DriverDeliveryController {
     public ResponseEntity<DriverDeliveryResponse> submitPod(
             @PathVariable UUID id,
             @Valid @RequestBody ProofOfDeliveryRequest req,
+            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
+        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, idempotencyKey, principal));
     }
 
     @GetMapping("/{id}/handoff-token")

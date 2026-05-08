@@ -115,6 +115,9 @@ public class Delivery {
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 
+    @Version
+    private Long version;
+
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();

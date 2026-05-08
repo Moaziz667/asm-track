@@ -18,7 +18,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>(debugLabel: 'login_form');
   final _phoneCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _obscure = true;
@@ -76,12 +76,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'CONNEXION ASMONE',
+                      'ESPACE CHAUFFEUR',
                       style: GoogleFonts.spaceGrotesk(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -1.5),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'AUTHENTIFICATION CHAUFFEUR SÉCURISÉE',
+                      'ACCÈS SÉCURISÉ ASMONE',
                       style: GoogleFonts.spaceGrotesk(fontSize: 12, color: AppColors.neonYellow, fontWeight: FontWeight.w800, letterSpacing: 1.5),
                     ),
                   ],
@@ -136,8 +136,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                     const SizedBox(height: 40),
                     DriveButton(
-                      label: 'AUTORISER L\'ACCÈS',
-                      icon: LucideIcons.shieldCheck,
+                      label: 'SE CONNECTER',
+                      icon: LucideIcons.logIn,
                       isLoading: auth.isLoading,
                       onPressed: auth.isLoading ? null : _onSubmit,
                       fullWidth: true,
@@ -152,7 +152,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: TextButton(
                         onPressed: () => Navigator.of(context).pushNamed('/register'),
                         child: Text(
-                          "DEMANDER L'ACCÈS",
+                          "DEMANDER UN COMPTE",
                           style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 2),
                         ),
                       ),

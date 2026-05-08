@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:dio/dio.dart';
 import 'package:hive/hive.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../app_providers.dart';
@@ -45,6 +46,7 @@ class OfflineQueueService extends StateNotifier<int> {
     required String path,
     required String method,
     Map<String, dynamic>? data,
+    String? idempotencyKey,
   }) async {
     final entry = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
@@ -52,6 +54,7 @@ class OfflineQueueService extends StateNotifier<int> {
       'method': method,
       'data': data != null ? jsonEncode(data) : null,
       'timestamp': DateTime.now().toIso8601String(),
+      'idempotencyKey': idempotencyKey ?? '${DateTime.now().millisecondsSinceEpoch}-$path',
     };
     await _box.add(entry);
     state = _box.length;
@@ -70,13 +73,18 @@ class OfflineQueueService extends StateNotifier<int> {
         final method = entry['method'] as String;
         final dataStr = entry['data'] as String?;
         final data = dataStr != null ? jsonDecode(dataStr) : null;
+        final idempotencyKey = entry['idempotencyKey'] as String?;
+
+        final options = Options(
+          headers: idempotencyKey != null ? {'X-Idempotency-Key': idempotencyKey} : null,
+        );
 
         if (method.toUpperCase() == 'POST') {
-          await _apiClient.dio.post(path, data: data);
+          await _apiClient.dio.post(path, data: data, options: options);
         } else if (method.toUpperCase() == 'PUT') {
-          await _apiClient.dio.put(path, data: data);
+          await _apiClient.dio.put(path, data: data, options: options);
         } else if (method.toUpperCase() == 'PATCH') {
-          await _apiClient.dio.patch(path, data: data);
+          await _apiClient.dio.patch(path, data: data, options: options);
         }
         
         await _box.delete(key);

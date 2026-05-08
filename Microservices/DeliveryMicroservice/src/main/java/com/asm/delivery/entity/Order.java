@@ -12,7 +12,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", uniqueConstraints = {
+    @UniqueConstraint(name = "orders_erp_order_id_company_id_key", columnNames = {"erp_order_id", "company_id"})
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -49,7 +51,7 @@ public class Order {
     private String clientEmail;
 
     // ── ERP ──────────────────────────────────────────────────────────────────
-    @Column(name = "erp_order_id", unique = true, length = 100)
+    @Column(name = "erp_order_id", length = 100)
     private String erpOrderId;
 
     @Column(name = "erp_external_ref", length = 100)

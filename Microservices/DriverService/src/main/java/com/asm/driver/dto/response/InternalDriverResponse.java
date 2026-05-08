@@ -13,4 +13,5 @@ public class InternalDriverResponse {
     private LocalDateTime lastLocationAt;
     private LocalDateTime createdAt;
     private String fcmToken;
+    private Boolean active;
 }

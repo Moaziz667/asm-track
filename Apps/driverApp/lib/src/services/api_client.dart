@@ -7,7 +7,7 @@ import '../models/auth_tokens.dart';
 import 'token_storage.dart';
 
 class ApiClient {
-  ApiClient({required this.config, required this.tokenStorage}) {
+  ApiClient({required this.config, required this.tokenStorage, this.onSessionExpired}) {
     dio = Dio(
       BaseOptions(
         baseUrl: config.apiBaseUrl,
@@ -18,6 +18,17 @@ class ApiClient {
       ),
     );
 
+    // P2: SSL Pinning Infrastructure
+    // In production, you would add your server's .pem or .cer asset to the SecurityContext
+    // This prevents MITM attacks by ensuring we only talk to the real server.
+    /*
+    (dio.httpClientAdapter as IOHttpClientAdapter).onHttpClientCreate = (client) {
+      final sc = SecurityContext(withTrustedRoots: true);
+      // sc.setTrustedCertificatesBytes(utf8.encode(serverCertContent));
+      return HttpClient(context: sc);
+    };
+    */
+
     dio.interceptors.add(
       QueuedInterceptorsWrapper(
         onRequest: (options, handler) async {
@@ -25,6 +36,21 @@ class ApiClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
+          // P1: Idempotency-Key Support
+          final method = options.method.toUpperCase();
+          if (method == 'POST' || method == 'PUT' || method == 'PATCH') {
+            // Generate a unique key for the request if not already present
+            // This key survives retries within the same Dio instance
+            if (!options.headers.containsKey('X-Idempotency-Key')) {
+              options.headers['X-Idempotency-Key'] = 
+                  '${DateTime.now().millisecondsSinceEpoch}-${options.path.hashCode}';
+            }
+          }
+          // P2: Distributed Tracing & Correlation IDs
+          final correlationId = 'trace-${DateTime.now().millisecondsSinceEpoch}-${options.path.hashCode}';
+          options.headers['X-Correlation-ID'] = correlationId;
+
           handler.next(options);
         },
         onError: (error, handler) async {
@@ -34,6 +60,7 @@ class ApiClient {
               return handler.resolve(response);
             } catch (_) {
               await tokenStorage.clear();
+              onSessionExpired?.call();
             }
           }
           handler.next(error);
@@ -44,6 +71,7 @@ class ApiClient {
 
   final AppConfig config;
   final TokenStorage tokenStorage;
+  void Function()? onSessionExpired;
   late final Dio dio;
 
   Completer<void>? _refreshCompleter;

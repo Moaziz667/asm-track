@@ -1,6 +1,7 @@
 package com.asm.delivery.service.analytics;
 
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.exception.AppException;
 
 import com.asm.delivery.dto.response.*;
@@ -259,9 +260,11 @@ public class OpsAnalyticsService {
                                 .map(Order::getZoneId)
                                 .filter(Objects::nonNull)
                                 .collect(Collectors.toSet());
+                UUID companyId = getCompanyId();
                 Map<UUID, String> zoneNameById = zoneIds.isEmpty()
                                 ? Map.of()
-                                : zoneRepository.findAllById(zoneIds).stream()
+                                : zoneRepository.findByCompanyId(companyId).stream()
+                                .filter(z -> zoneIds.contains(z.getId()))
                                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
                 LocalDateTime now = LocalDateTime.now();
                 String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
@@ -456,8 +459,9 @@ public class OpsAnalyticsService {
                 : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : "-");
 
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        UUID companyId = getCompanyId();
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneRepository.findByCompanyIdAndId(companyId, order.getZoneId()).orElse(null)
                 : null;
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(d.getId())
@@ -503,6 +507,7 @@ public class OpsAnalyticsService {
     }
 
         private record RouteInfo(UUID routeId, String routeName, com.asm.delivery.entity.RouteStatus routeStatus) {}
+
         private String normalizeText(String value) {
                 if (!StringUtils.hasText(value)) {
                         return null;
@@ -792,7 +797,7 @@ public class OpsAnalyticsService {
                 RouteInfo routeInfo = loadRouteInfoMap(List.of(delivery)).get(delivery.getId());
                 String zoneName = null;
                 if (order != null && order.getZoneId() != null) {
-                        zoneName = zoneRepository.findById(order.getZoneId()).map(Zone::getName).orElse(null);
+                        zoneName = zoneRepository.findByCompanyIdAndId(getCompanyId(), order.getZoneId()).map(Zone::getName).orElse(null);
                 }
                 return AdminOpsExceptionsResponse.ExceptionItem.builder()
                                 .deliveryId(delivery.getId())
@@ -1127,6 +1132,22 @@ public class OpsAnalyticsService {
     private static UUID parseUuid(String id) {
         if (id == null) return null;
         try { return UUID.fromString(id); } catch (IllegalArgumentException e) { return null; }
+    }
+
+    private String shortDeliveryId(UUID deliveryId) {
+        if (deliveryId == null) {
+            return "UNKNOWN";
+        }
+        String raw = deliveryId.toString();
+        return raw.length() <= 8 ? raw : raw.substring(0, 8);
+    }
+
+    private UUID getCompanyId() {
+        String cid = TenantContext.get();
+        if (cid == null) {
+            throw AppException.unauthorized("Company context missing");
+        }
+        return UUID.fromString(cid);
     }
 
     private record ExceptionClassification(String severity, String motif, String comment) {}

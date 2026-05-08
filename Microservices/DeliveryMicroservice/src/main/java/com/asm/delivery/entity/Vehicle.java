@@ -66,6 +66,11 @@ public class Vehicle {
     @Column(name = "active", nullable = false)
     private Boolean active = true;
 
+    @Builder.Default
+    @Enumerated(EnumType.STRING)
+    @Column(name = "vehicle_status", nullable = false, length = 30)
+    private VehicleStatus vehicleStatus = VehicleStatus.AVAILABLE;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

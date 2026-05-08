@@ -26,25 +26,35 @@ final connectivityServiceProvider = Provider<ConnectivityService>(
   (ref) => ConnectivityService(),
 );
 
-final apiClientProvider = Provider<ApiClient>((ref) {
+final apiClientProvider = Provider<ApiClient>((Ref ref) {
   final config = ref.watch(appConfigProvider);
   final storage = ref.watch(tokenStorageProvider);
-  return ApiClient(config: config, tokenStorage: storage);
+  return ApiClient(
+    config: config,
+    tokenStorage: storage,
+  );
 });
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+final authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
   return AuthRepository(client);
 });
 
 final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController(
-          ref.watch(authRepositoryProvider),
-          ref.watch(tokenStorageProvider),
-          ref.watch(fcmServiceProvider),
-        ));
+    StateNotifierProvider<AuthController, AuthState>((Ref ref) {
+  final repo = ref.watch(authRepositoryProvider);
+  final storage = ref.watch(tokenStorageProvider);
+  final fcm = ref.watch(fcmServiceProvider);
 
-final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
+  final controller = AuthController(repo, storage, fcm);
+
+  // Wire up session expiration callback to break circularity in provider definitions
+  ref.read(apiClientProvider).onSessionExpired = () => controller.logout();
+
+  return controller;
+});
+
+final deliveryRepositoryProvider = Provider<DeliveryRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
   return DeliveryRepository(client);
 });

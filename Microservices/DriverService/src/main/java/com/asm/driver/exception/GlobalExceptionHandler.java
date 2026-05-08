@@ -13,6 +13,15 @@ public class GlobalExceptionHandler {
                 .body(Map.of("error", ex.getMessage(), "status", ex.getStatus().value()));
     }
 
+    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
+    public ResponseEntity<?> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+        String message = ex.getBindingResult().getFieldErrors().stream()
+                .map(e -> e.getField() + ": " + e.getDefaultMessage())
+                .reduce((a, b) -> a + "; " + b)
+                .orElse("Validation failed");
+        return ResponseEntity.badRequest().body(Map.of("error", message));
+    }
+
     @ExceptionHandler(Exception.class)
     public ResponseEntity<?> handleException(Exception ex) {
         return ResponseEntity.internalServerError()
