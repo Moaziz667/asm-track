@@ -49,7 +49,7 @@ public class DriverDeliveryService {
     private final AuditLogService                  auditLogService;
     private final RouteRepository                 routeRepository;
     private final RouteStopRepository             routeStopRepository;
-    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
     private final OutboxProcessor                outboxProcessor;
     private final ProcessedRequestRepository      idempotencyRepo;
     private final ObjectMapper                    objectMapper;
@@ -142,7 +142,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "SCHEDULED")); } catch(Exception ignored){}
+
         
         return toDriverDeliveryResponse(delivery);
     }
@@ -166,7 +166,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "PICKED_UP")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -220,7 +220,7 @@ public class DriverDeliveryService {
                 null
         );
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "IN_TRANSIT")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -291,7 +291,7 @@ public class DriverDeliveryService {
             }
         }
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, finalStatus.name())); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -533,7 +533,7 @@ public class DriverDeliveryService {
                     failureCode != null ? failureCode.name() : null, failureComment);
         }
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "FAILED")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -569,7 +569,7 @@ public class DriverDeliveryService {
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", deliveryPayload(delivery, "UNSCHEDULED")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -702,14 +702,8 @@ public class DriverDeliveryService {
                 (stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString().substring(0, 8) : "unknown"));
 
         // Notify admin dashboard
-        try {
-            messagingTemplate.convertAndSend("/topic/admin/routes", Map.of(
-                    "event", "HANDOFF_CONFIRMED",
-                    "deliveryId", deliveryId.toString(),
-                    "routeId", stop.getRoute().getId().toString(),
-                    "driverId", driverId.toString()
-            ));
-        } catch (Exception ignored) {}
+        eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId, delivery.getCompanyId());
+
 
         log.info("HANDOFF_CONFIRMED deliveryId={} fromDriver={} toDriver={}",
                 deliveryId, stop.getHandoffFromDriverId(), driverId);

@@ -17,6 +17,11 @@ import java.util.UUID;
 @Repository
 public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
+    @Query("SELECT DISTINCT d.companyId FROM Delivery d WHERE d.companyId IS NOT NULL")
+    List<UUID> findAllCompanyIds();
+
+    List<Delivery> findByStatus(DeliveryStatus status);
+
     Optional<Delivery> findByOrderId(UUID orderId);
 
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.order.id = :orderId")
