@@ -46,7 +46,11 @@ public class CompanyController {
     public ResponseEntity<Company> update(@PathVariable UUID id,
                                           @RequestBody Company body,
                                           @AuthenticationPrincipal UserPrincipal principal) {
-        requireSuperAdmin(principal);
+        boolean isSuperAdmin = "SUPER_ADMIN".equals(principal.getRole());
+        boolean isOwnCompany = principal.getCompanyId() != null && id.equals(UUID.fromString(principal.getCompanyId()));
+        if (!isSuperAdmin && !isOwnCompany) {
+            throw new AccessDeniedException("Access denied");
+        }
         return ResponseEntity.ok(service.update(id, body));
     }
 

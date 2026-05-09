@@ -201,6 +201,7 @@ services:
       - "8082:8082"
     environment:
       TZ: Africa/Tunis
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres-delivery
       DB_PORT: "5432"
       DB_NAME: delivery_db

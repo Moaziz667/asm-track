@@ -2,12 +2,14 @@ package com.asm.appbackend.controller;
 
 import com.asm.appbackend.dto.admin.AdminUserResponse;
 import com.asm.appbackend.dto.admin.CreateAdminUserRequest;
+import com.asm.appbackend.security.UserPrincipal;
 import com.asm.appbackend.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriComponentsBuilder;
@@ -32,8 +34,12 @@ public class AdminUserController {
     private String internalSecret;
 
     @PostMapping
-    public ResponseEntity<AdminUserResponse> createUser(@Valid @RequestBody CreateAdminUserRequest req) {
-        AdminUserResponse response = adminUserService.createUser(req);
+    public ResponseEntity<AdminUserResponse> createUser(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CreateAdminUserRequest req) {
+        UUID callerCompanyId = principal != null && principal.companyId() != null
+                ? UUID.fromString(principal.companyId()) : null;
+        AdminUserResponse response = adminUserService.createUser(req, callerCompanyId);
         // Fire-and-forget audit to DeliveryMicroservice
         try {
             var auth = org.springframework.security.core.context.SecurityContextHolder
@@ -55,8 +61,11 @@ public class AdminUserController {
     }
 
     @GetMapping
-    public ResponseEntity<List<AdminUserResponse>> listUsers() {
-        return ResponseEntity.ok(adminUserService.listUsers());
+    public ResponseEntity<List<AdminUserResponse>> listUsers(
+            @AuthenticationPrincipal UserPrincipal principal) {
+        UUID companyId = principal != null && principal.companyId() != null
+                ? UUID.fromString(principal.companyId()) : null;
+        return ResponseEntity.ok(adminUserService.listUsers(companyId));
     }
 
     @PatchMapping("/{id}/status")

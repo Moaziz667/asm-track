@@ -84,17 +84,20 @@ public class AdminUserService {
     }
 
     @Transactional
-    public AdminUserResponse createUser(CreateAdminUserRequest req) {
+    public AdminUserResponse createUser(CreateAdminUserRequest req, UUID callerCompanyId) {
         if (adminUserRepo.existsByEmail(req.email())) {
             throw new AppException(HttpStatus.CONFLICT, "Email already in use");
         }
+
+        // Use caller's companyId if request doesn't explicitly supply one
+        UUID effectiveCompanyId = req.companyId() != null ? req.companyId() : callerCompanyId;
 
         AdminUser user = AdminUser.builder()
                 .name(req.name())
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .role(req.role())
-                .companyId(req.companyId())
+                .companyId(effectiveCompanyId)
                 .active(true)
                 .build();
 
@@ -104,7 +107,11 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUserResponse> listUsers() {
+    public List<AdminUserResponse> listUsers(UUID companyId) {
+        if (companyId != null) {
+            return adminUserRepo.findByCompanyId(companyId).stream().map(this::toResponse).toList();
+        }
+        // SUPER_ADMIN (null companyId) sees all
         return adminUserRepo.findAll().stream().map(this::toResponse).toList();
     }
 

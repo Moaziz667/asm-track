@@ -855,12 +855,15 @@ public class RoutePlanningService {
         if (vehicleId == null) return;
         List<Route> sameDayRoutes = routeRepository.findAllByVehicleIdAndDate(vehicleId, date);
         for (Route existing : sameDayRoutes) {
-            if (existing.getStatus() == RouteStatus.CLOSED || existing.getStatus() == RouteStatus.CANCELLED) continue;
+            // DRAFT = tentative, pas encore validé → pas de lock de ressource
+            if (existing.getStatus() == RouteStatus.DRAFT
+                    || existing.getStatus() == RouteStatus.CLOSED
+                    || existing.getStatus() == RouteStatus.CANCELLED) continue;
             if (currentRouteId != null && existing.getId().equals(currentRouteId)) continue;
             LocalTime existingStart = existing.getPlannedStartTime() != null ? existing.getPlannedStartTime() : DEFAULT_PLANNED_START;
             LocalTime existingEnd   = existing.getPlannedEndTime()   != null ? existing.getPlannedEndTime()   : DEFAULT_PLANNED_END;
             if (startTime.isBefore(existingEnd) && existingStart.isBefore(endTime)) {
-                throw AppException.conflict("Vehicle is already assigned to another route during this time window");
+                throw AppException.conflict("Ce véhicule est déjà affecté à une tournée validée sur ce créneau horaire");
             }
         }
     }
@@ -872,7 +875,10 @@ public class RoutePlanningService {
                                           UUID currentRouteId) {
         List<Route> sameDayRoutes = routeRepository.findAllByDriverIdAndDate(driverId, date);
         for (Route existing : sameDayRoutes) {
-            if (existing.getStatus() == RouteStatus.CLOSED || existing.getStatus() == RouteStatus.CANCELLED) {
+            // DRAFT = brouillon, pas de lock — seules les routes VALIDATED/IN_PROGRESS bloquent
+            if (existing.getStatus() == RouteStatus.DRAFT
+                    || existing.getStatus() == RouteStatus.CLOSED
+                    || existing.getStatus() == RouteStatus.CANCELLED) {
                 continue;
             }
             if (currentRouteId != null && existing.getId().equals(currentRouteId)) {
