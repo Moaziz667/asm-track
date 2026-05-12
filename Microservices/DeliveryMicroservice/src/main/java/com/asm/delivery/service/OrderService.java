@@ -274,7 +274,9 @@ public class OrderService {
                         stop.setRemovedReason("ORDER_CANCELLED");
                         stop.setRemovedBy(adminId);
                         routeStopRepository.save(stop);
-                        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                        routeWebSocketService.notifyDriverStopRemoved(
+                            route.getDriverId(), route.getId(), route.getName(),
+                            order.getClientName(), order.getErpOrderId(), "ORDER_CANCELLED");
                     } else if (route != null && route.getStatus() == com.asm.delivery.entity.RouteStatus.DRAFT) {
                         routeStopRepository.delete(stop);
                     }

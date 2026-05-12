@@ -371,6 +371,14 @@ public class RoutePlanningService {
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
                 Map.of("routeId", routeId.toString(), "reason", cancelReason));
 
+        // Notify driver via WebSocket + FCM
+        if (route.getDriverId() != null) {
+            String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : null;
+            String erpOrderId = delivery.getOrder() != null ? delivery.getOrder().getErpOrderId() : null;
+            routeWebSocketService.notifyDriverStopRemoved(route.getDriverId(), route.getId(), route.getName(), clientName, erpOrderId, cancelReason);
+            eventPublisher.publishRouteStopRemoved(route, clientName, erpOrderId, cancelReason);
+        }
+
         maybeAutoCloseRoute(route);
         return toResponse(route);
     }
@@ -456,10 +464,10 @@ public class RoutePlanningService {
         routeRepository.save(route);
         auditLogService.logAction(null, "ADD_STOP_ACTIVE", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Ajout d'un arret a une tournee active"));
-        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_ADDED", route.getId(), route.getName());
         String addedClientName = deliveryRepository.findById(request.getDeliveryId())
                 .map(d -> d.getOrder() != null ? d.getOrder().getClientName() : null)
                 .orElse(null);
+        routeWebSocketService.notifyDriverStopAdded(route.getDriverId(), route.getId(), route.getName(), addedClientName);
         eventPublisher.publishRouteStopAdded(route, addedClientName);
         return toResponse(route);
     }
@@ -530,11 +538,12 @@ public class RoutePlanningService {
 
         // Notify driver if route is active
         if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
-            routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
-            String removedClientName = deliveryRepository.findById(stop.getDeliveryId())
-                    .map(d -> d.getOrder() != null ? d.getOrder().getClientName() : null)
-                    .orElse(null);
-            eventPublisher.publishRouteStopRemoved(route, removedClientName);
+            deliveryRepository.findById(stop.getDeliveryId()).ifPresent(d -> {
+                String removedClientName = d.getOrder() != null ? d.getOrder().getClientName() : null;
+                String removedErpId = d.getOrder() != null ? d.getOrder().getErpOrderId() : null;
+                routeWebSocketService.notifyDriverStopRemoved(route.getDriverId(), route.getId(), route.getName(), removedClientName, removedErpId, null);
+                eventPublisher.publishRouteStopRemoved(route, removedClientName, removedErpId, null);
+            });
         }
 
         maybeAutoCloseRoute(route);

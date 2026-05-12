@@ -102,28 +102,60 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ref.invalidate(todayRouteProvider);
     ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
 
+    final route = event.routeName.isNotEmpty ? '«${event.routeName}»' : 'votre tournée';
     final String message;
+    IconData icon;
+    Color color;
+
     switch (event.event) {
       case 'ROUTE_ASSIGNED':
-        message = 'Nouvelle tournée assignée !';
+        message = 'Tournée $route assignée — consultez-la avant de partir.';
+        icon = Icons.check_circle_outline;
+        color = const Color(0xFF16A34A);
         break;
       case 'ROUTE_CANCELLED':
-        message = 'Votre tournée a été annulée.';
+        message = 'La tournée $route a été annulée.';
+        icon = Icons.cancel_outlined;
+        color = const Color(0xFFDC2626);
         break;
       case 'ROUTE_REASSIGNED_AWAY':
-        message = 'Tournée réaffectée à un autre chauffeur.';
+        message = 'La tournée $route a été réaffectée à un autre chauffeur.';
+        icon = Icons.warning_amber_rounded;
+        color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_REASSIGNED_TO_YOU':
-        message = 'Une tournée vous a été réaffectée !';
+        message = 'La tournée $route vous a été réaffectée !';
+        icon = Icons.check_circle_outline;
+        color = const Color(0xFF16A34A);
         break;
       case 'STOP_ADDED':
-        message = 'Nouvel arrêt ajouté à votre tournée.';
+        final addedClient = event.clientName ?? 'Un arrêt';
+        message = '$addedClient ajouté à $route.';
+        icon = Icons.add_location_alt_outlined;
+        color = const Color(0xFF2563EB);
         break;
       case 'STOP_REMOVED':
-        message = 'Un arrêt a été retiré de votre tournée.';
+        final removedClient = event.clientName ?? 'Un arrêt';
+        final ref = event.erpOrderId != null ? ' [${event.erpOrderId}]' : '';
+        final why = event.reason != null ? ' — ${event.reason}' : '';
+        message = '$removedClient$ref retiré de $route$why.';
+        icon = Icons.remove_circle_outline;
+        color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_UPDATED':
-        message = 'Votre tournée a été modifiée.';
+        message = 'La tournée $route a été modifiée.';
+        icon = Icons.info_outline;
+        color = const Color(0xFF2563EB);
+        break;
+      case 'STOPS_TRANSFERRED_OUT':
+        message = 'Des arrêts ont été retirés de $route.';
+        icon = Icons.swap_horiz_rounded;
+        color = const Color(0xFFF59E0B);
+        break;
+      case 'STOPS_TRANSFERRED_IN':
+        message = 'De nouveaux arrêts ont été ajoutés à $route.';
+        icon = Icons.playlist_add_rounded;
+        color = const Color(0xFF2563EB);
         break;
       default:
         return;
@@ -131,9 +163,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+          ],
+        ),
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
   }

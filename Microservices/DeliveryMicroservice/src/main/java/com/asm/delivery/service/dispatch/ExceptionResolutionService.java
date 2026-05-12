@@ -174,14 +174,25 @@ public class ExceptionResolutionService {
 
                 // Keep route plan consistent with ownership change: move stop to the new driver's route.
                 Set<UUID> affectedRouteIds = moveStopToDriverRoute(
-                        delivery, 
-                        request.getDriverId(), 
-                        request.getTargetRouteId(), 
-                        request.getInsertAtOrder(), 
-                        actor.name(), 
-                        request.getStartTimeWindow(), 
+                        delivery,
+                        request.getDriverId(),
+                        request.getTargetRouteId(),
+                        request.getInsertAtOrder(),
+                        actor.name(),
+                        request.getStartTimeWindow(),
                         request.getEndTimeWindow()
                 );
+
+                // If the parcel was already physically picked up, flag the new stop for formal handoff.
+                if (wasPickedUp && previousDriverId != null) {
+                        routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(newStop -> {
+                                newStop.setRequiresHandoff(true);
+                                newStop.setHandoffFromDriverId(previousDriverId);
+                                newStop.setHandoffToDriverId(request.getDriverId());
+                                newStop.setHandoffConfirmedAt(null);
+                                routeStopRepository.save(newStop);
+                        });
+                }
 
                 // Recompute ETAs/geometries on both source and target routes after ownership change.
                 for (UUID routeId : affectedRouteIds) {
@@ -356,7 +367,11 @@ public class ExceptionResolutionService {
                 stop.setRemovedReason(reason != null ? reason : "CANCELLED");
                 stop.setRemovedBy("ADMIN");
                 routeStopRepository.save(stop);
-                routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                String clientName = order != null ? order.getClientName() : null;
+                String erpOrderId = order != null ? order.getErpOrderId() : null;
+                routeWebSocketService.notifyDriverStopRemoved(
+                    route.getDriverId(), route.getId(), route.getName(),
+                    clientName, erpOrderId, reason);
             } else if (route != null && route.getStatus() == RouteStatus.DRAFT) {
                 routeStopRepository.delete(stop);
             }
@@ -705,8 +720,8 @@ public class ExceptionResolutionService {
                 java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getStartTimeWindow() : null);
                 java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getEndTimeWindow() : null);
 
-                // User-requested boundary validation (Chronological Check)
-                if (finalStartTime != null && !targetStops.isEmpty()) {
+                // Chronological check only for DRAFT routes — active routes accept stops without strict ordering
+                if (finalStartTime != null && !targetStops.isEmpty() && targetRoute.getStatus() == RouteStatus.DRAFT) {
                     int pos = (insertAtOrder != null) ? insertAtOrder : targetStops.size() + 1;
                     
                     // Check against previous stop (if any)

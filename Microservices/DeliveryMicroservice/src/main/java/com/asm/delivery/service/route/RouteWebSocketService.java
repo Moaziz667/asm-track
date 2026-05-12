@@ -5,6 +5,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -35,6 +36,43 @@ public class RouteWebSocketService {
             log.info("notifyDriver: sent event={} to driverId={} routeId={}", event, driverId, routeId);
         } catch (Exception e) {
             log.warn("notifyDriver: failed to send event={} to driverId={}: {}", event, driverId, e.getMessage());
+        }
+    }
+
+    public void notifyDriverStopAdded(UUID driverId, UUID routeId, String routeName, String clientName) {
+        if (driverId == null) return;
+        String destination = "/topic/driver." + driverId;
+        Map<String, String> payload = new HashMap<>();
+        payload.put("event", "STOP_ADDED");
+        payload.put("routeId", routeId.toString());
+        payload.put("routeName", routeName != null ? routeName : "");
+        if (clientName != null) payload.put("clientName", clientName);
+        try {
+            messaging.convertAndSend(destination, payload);
+            messaging.convertAndSend("/topic/admin/routes", payload);
+            log.info("notifyDriverStopAdded: sent to driverId={} client={}", driverId, clientName);
+        } catch (Exception e) {
+            log.warn("notifyDriverStopAdded: failed for driverId={}: {}", driverId, e.getMessage());
+        }
+    }
+
+    public void notifyDriverStopRemoved(UUID driverId, UUID routeId, String routeName,
+                                         String clientName, String erpOrderId, String reason) {
+        if (driverId == null) return;
+        String destination = "/topic/driver." + driverId;
+        Map<String, String> payload = new HashMap<>();
+        payload.put("event", "STOP_REMOVED");
+        payload.put("routeId", routeId.toString());
+        payload.put("routeName", routeName != null ? routeName : "");
+        if (clientName != null) payload.put("clientName", clientName);
+        if (erpOrderId != null) payload.put("erpOrderId", erpOrderId);
+        if (reason != null && !reason.equals("CANCELLED")) payload.put("reason", reason);
+        try {
+            messaging.convertAndSend(destination, payload);
+            messaging.convertAndSend("/topic/admin/routes", payload);
+            log.info("notifyDriverStopRemoved: sent to driverId={} client={}", driverId, clientName);
+        } catch (Exception e) {
+            log.warn("notifyDriverStopRemoved: failed for driverId={}: {}", driverId, e.getMessage());
         }
     }
 

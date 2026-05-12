@@ -223,11 +223,18 @@ public class EventPublisher {
     }
 
     public void publishRouteStopRemoved(Route route, String clientName) {
+        publishRouteStopRemoved(route, clientName, null, null);
+    }
+
+    public void publishRouteStopRemoved(Route route, String clientName, String erpOrderId, String reason) {
         log.info("EVENT route.stop_removed routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
         sendRoute(routePayload("route.stop_removed", route));
         if (fcm != null && route.getDriverId() != null) {
             String client = clientName != null ? clientName : "Un arrêt";
-            fcm.sendToDriver(route.getDriverId().toString(), "Arrêt supprimé", client + " a été retiré de votre tournée", "ROUTE_UPDATED");
+            String ref = erpOrderId != null ? " [" + erpOrderId + "]" : "";
+            String note = reason != null && !reason.isBlank() ? " — " + reason : "";
+            fcm.sendToDriver(route.getDriverId().toString(), "Arrêt supprimé" + ref,
+                    client + " a été retiré de votre tournée" + note, "ROUTE_UPDATED");
         }
     }
 

@@ -706,9 +706,18 @@ public class DriverDeliveryService {
             throw AppException.badRequest("Handoff token has expired. Please ask the sender to generate a new one.");
         }
 
-        stop.setHandoffConfirmedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        stop.setHandoffConfirmedAt(now);
         stop.setRequiresHandoff(false);
         routeStopRepository.save(stop);
+
+        // Auto-advance to PICKED_UP — Driver 2 physically has the package after the scan
+        if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+            delivery.setStatus(DeliveryStatus.PICKED_UP);
+            delivery.setPickedUpAt(now);
+            deliveryRepo.save(delivery);
+            routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.PICKED_UP, now, "Handoff confirmed — package received");
+        }
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
@@ -717,7 +726,7 @@ public class DriverDeliveryService {
                        "fromDriver", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : "unknown",
                        "action", "Confirmation de remise du colis"));
 
-        appendHistory(delivery, delivery.getStatus(), driverId.toString(), Role.DRIVER,
+        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER,
                 "Handoff confirmed — package received from driver " +
                 (stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString().substring(0, 8) : "unknown"));
 

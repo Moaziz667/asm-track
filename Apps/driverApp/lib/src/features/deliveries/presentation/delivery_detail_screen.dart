@@ -13,6 +13,7 @@ import '../../../theme/widgets.dart';
 import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
 import 'handoff_token_sheet.dart';
+import 'handoff_scanner_screen.dart';
 
 // ─── COD Collection Card ──────────────────────────────────────────────────────
 class _CodCollectionCard extends ConsumerStatefulWidget {
@@ -250,6 +251,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
               _ActionPanel(
                 delivery: delivery,
                 isWorking: _isWorking,
+                currentDriverId: ref.watch(driverProfileProvider).value?.id,
+                onScanHandoff: () async {
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+                  );
+                  if (result == true) await _refresh();
+                },
                 onPickup: () => _perform(() async {
                   final isOnline = await ref.read(connectivityServiceProvider).isOnline;
                   if (!isOnline) {
@@ -765,6 +773,8 @@ class _ActionPanel extends StatelessWidget {
     required this.onTransit,
     required this.onFail,
     required this.onPod,
+    this.currentDriverId,
+    this.onScanHandoff,
   });
 
   final DriverDelivery delivery;
@@ -773,9 +783,19 @@ class _ActionPanel extends StatelessWidget {
   final Future<void> Function() onTransit;
   final Future<void> Function() onFail;
   final Future<void> Function() onPod;
+  final String? currentDriverId;
+  final Future<void> Function()? onScanHandoff;
 
   @override
   Widget build(BuildContext context) {
+    // Handoff lock: only blocks the receiver (handoffToDriverId) until QR is scanned
+    if (delivery.requiresHandoff &&
+        delivery.handoffConfirmedAt == null &&
+        currentDriverId != null &&
+        delivery.handoffToDriverId == currentDriverId) {
+      return _HandoffLockPanel(onScan: onScanHandoff);
+    }
+
     final buttons = <Widget>[];
 
     Future<void> launchNav() async {
@@ -1103,6 +1123,65 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Handoff Lock Panel ───────────────────────────────────────────────────────
+class _HandoffLockPanel extends StatelessWidget {
+  const _HandoffLockPanel({this.onScan});
+  final Future<void> Function()? onScan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: AppColors.warning, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Remise physique requise',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Ce colis vous a été transféré. Scannez le QR du chauffeur expéditeur pour confirmer la réception et débloquer les actions.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: AsmDriveButton(
+            label: 'Scanner le QR de l\'expéditeur',
+            icon: PhosphorIconsBold.qrCode,
+            onPressed: onScan,
+          ),
+        ),
+      ],
     );
   }
 }

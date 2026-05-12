@@ -17,6 +17,7 @@ import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
 import '../../deliveries/presentation/delivery_detail_screen.dart';
 import '../../deliveries/presentation/handoff_scanner_screen.dart';
+import '../../deliveries/presentation/handoff_token_sheet.dart';
 import '../models/route_models.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import '../../../services/offline_queue_service.dart';
@@ -201,9 +202,65 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   Widget build(BuildContext context) {
     final routeAsync = ref.watch(todayRouteProvider);
     final deliveries = ref.watch(activeDeliveriesProvider).value ?? [];
-    final hasPendingHandoff = deliveries.any(
-      (d) => d.requiresHandoff && d.handoffConfirmedAt == null,
-    );
+    final currentDriverId = ref.watch(driverProfileProvider).value?.id;
+
+    final pendingHandoffs = deliveries
+        .where((d) => d.requiresHandoff && d.handoffConfirmedAt == null)
+        .toList();
+
+    // Determine this driver's role in the pending handoff
+    final senderDelivery = currentDriverId != null
+        ? pendingHandoffs.where((d) => d.handoffFromDriverId == currentDriverId).firstOrNull
+        : null;
+    final isReceiver = currentDriverId != null &&
+        pendingHandoffs.any((d) => d.handoffToDriverId == currentDriverId);
+
+    Widget? fab;
+    if (senderDelivery != null) {
+      // Driver 1 (sender): show QR code for Driver 2 to scan
+      fab = FloatingActionButton.extended(
+        onPressed: () async {
+          await showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => HandoffTokenSheet(deliveryId: senderDelivery.id),
+          );
+          _refresh();
+        },
+        backgroundColor: AppColors.neonYellow,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        icon: const Icon(LucideIcons.qrCode, size: 20),
+        label: Text('GÉNÉRER QR', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+      );
+    } else if (isReceiver) {
+      // Driver 2 (receiver): scan Driver 1's QR
+      fab = FloatingActionButton.extended(
+        onPressed: () async {
+          final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+          if (!isOnline) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scanner non disponible hors ligne')),
+              );
+            }
+            return;
+          }
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+          );
+          if (result == true) _refresh();
+        },
+        backgroundColor: AppColors.neonYellow,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        icon: const Icon(LucideIcons.qrCode, size: 20),
+        label: Text('SCANNER QR', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -225,32 +282,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         loading: () => const _MapPlaceholderLoading(),
         error: (_, __) => _MapError(onRetry: _refresh),
       ),
-      floatingActionButton: hasPendingHandoff
-          ? FloatingActionButton.extended(
-              onPressed: () async {
-                // Offline check — scanner requires server validation
-                final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-                if (!isOnline) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text('Scanner non disponible hors ligne')),
-                    );
-                  }
-                  return;
-                }
-                final result = await Navigator.of(context).push<bool>(
-                  MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
-                );
-                if (result == true) _refresh();
-              },
-              backgroundColor: AppColors.neonYellow,
-              foregroundColor: Colors.black,
-              elevation: 0,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-              icon: const Icon(LucideIcons.qrCode, size: 20),
-              label: Text('SCANNER', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
-            )
-          : null,
+      floatingActionButton: fab,
     );
   }
 }

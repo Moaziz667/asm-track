@@ -151,7 +151,10 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
       }
 
       await ref.read(deliveryRepositoryProvider).confirmHandoff(deliveryId, cleanToken);
-      
+
+      // Stop scanner immediately to prevent duplicate detections
+      await _controller.stop();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Transfert réussi ! Le colis a été transféré.')),
@@ -163,9 +166,8 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Échec du transfert : $e'), backgroundColor: AppColors.danger),
         );
+        setState(() => _isProcessing = false);
       }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
     }
   }
 }

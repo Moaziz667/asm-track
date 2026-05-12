@@ -761,7 +761,11 @@ public class OpsAnalyticsService {
                         return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Livraison partielle signalée");
                 }
                 if (status == DeliveryStatus.UNSCHEDULED) {
-                        long elapsed = delivery.getCreatedAt() != null ? Duration.between(delivery.getCreatedAt(), now).toMinutes() : 0;
+                        // Use updatedAt as baseline — when a delivery returns to UNSCHEDULED after
+                        // cancel/fail, updatedAt reflects the reset moment, starting the SLA fresh.
+                        LocalDateTime baseline = delivery.getUpdatedAt() != null
+                                ? delivery.getUpdatedAt() : delivery.getCreatedAt();
+                        long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
                         if (elapsed > waitingSlaMinutes) {
                                 return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED", "SLA Planification dépassé");
                         }
