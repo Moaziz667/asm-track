@@ -115,7 +115,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         long start = System.currentTimeMillis();
         try {
-            List<Object> domain = List.of(List.of("state", "!=", "cancel"));
+            List<Object> domain = List.of(List.of("state", "=", "sale"));
 
             List<Map<String, Object>> rows = rpc.searchRead("sale.order", domain,
                     List.of("id", "name", "client_order_ref", "partner_id", "partner_shipping_id",

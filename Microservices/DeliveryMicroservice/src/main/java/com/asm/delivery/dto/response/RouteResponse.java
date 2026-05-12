@@ -91,6 +91,12 @@ public class RouteResponse {
     @Schema(description = "Departure depot id")
     private UUID depotId;
 
+    @Schema(description = "Departure depot name")
+    private String depotName;
+
+    @Schema(description = "Departure depot address")
+    private String depotAddress;
+
     @Schema(description = "Route departure datetime")
     private LocalDateTime departureTime;
 

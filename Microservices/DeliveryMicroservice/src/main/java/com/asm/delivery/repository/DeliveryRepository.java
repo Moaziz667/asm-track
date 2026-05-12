@@ -9,6 +9,8 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.annotation.Transactional;
 
+import org.springframework.data.domain.Pageable;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -70,4 +72,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     int atomicAccept(@Param("id") UUID id,
                      @Param("driverId") UUID driverId,
                      @Param("companyId") UUID companyId);
+
+    @Query("""
+            SELECT d FROM Delivery d JOIN FETCH d.order o
+            WHERE (
+                LOWER(o.clientName)  LIKE LOWER(CONCAT('%', :q, '%')) OR
+                LOWER(o.erpOrderId)  LIKE LOWER(CONCAT('%', :q, '%')) OR
+                LOWER(o.clientPhone) LIKE LOWER(CONCAT('%', :q, '%'))
+            )
+            ORDER BY d.updatedAt DESC
+            """)
+    List<Delivery> searchByQuery(@Param("q") String q, Pageable pageable);
 }

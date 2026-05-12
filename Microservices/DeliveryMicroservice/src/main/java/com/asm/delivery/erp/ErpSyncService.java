@@ -4,6 +4,7 @@ import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.erp.client.ErpAdapterClient;
 import com.asm.delivery.repository.OrderRepository;
+import com.asm.delivery.service.EventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -45,6 +46,7 @@ public class ErpSyncService {
 
     private final ErpAdapterClient erpAdapterClient;
     private final OrderRepository  orderRepo;
+    private final EventPublisher   eventPublisher;
 
     // ══════════════════════════════════════════════════════════════════════════
     //  1. Order Cancellation
@@ -207,6 +209,9 @@ public class ErpSyncService {
             order.setOdooSyncStatus(SYNC_FAILED);
             log.error("syncRetry: SYNC_FAILED — orderId={} exceeded {} max retries. Manual intervention required.",
                     order.getId(), maxRetries);
+            orderRepo.save(order);
+            eventPublisher.publishErpSyncFailed(order);
+            return;
         } else {
             // Exponential backoff: 2^n minutes, capped at 4 hours
             long delayMinutes = Math.min((long) Math.pow(2, currentCount), 240);

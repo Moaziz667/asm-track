@@ -91,7 +91,7 @@ public class EventPublisher {
         sendDelivery(p);
         if (fcm != null && driverId != null) {
             String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
-            fcm.sendToDriver(driverId.toString(), "Nouvelle livraison assignée", ref + " est prête à être récupérée");
+            fcm.sendToDriver(driverId.toString(), "Nouvelle livraison assignée", ref + " est prête à être récupérée", "DELIVERY_ASSIGNED");
         }
     }
 
@@ -150,9 +150,9 @@ public class EventPublisher {
         sendDelivery(p);
         String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
         if (fcm != null && newDriverId != null)
-            fcm.sendToDriver(newDriverId.toString(), "Livraison réassignée", ref + " vous a été attribuée");
+            fcm.sendToDriver(newDriverId.toString(), "Livraison réassignée", ref + " vous a été attribuée", "DELIVERY_ASSIGNED");
         if (fcm != null && previousDriverId != null)
-            fcm.sendToDriver(previousDriverId.toString(), "Livraison retirée", ref + " a été attribuée à un autre livreur");
+            fcm.sendToDriver(previousDriverId.toString(), "Livraison retirée", ref + " a été attribuée à un autre livreur", "ROUTE_UPDATED");
     }
 
     public void publishDeliveryReplanned(Order order, Delivery delivery, UUID previousDriverId) {
@@ -175,7 +175,24 @@ public class EventPublisher {
         sendDelivery(deliveryPayload("delivery.handoff_required", order, delivery));
         String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Colis";
         if (fcm != null && newDriverId != null)
-            fcm.sendToDriver(newDriverId.toString(), "Transfert de colis en attente", ref + " — scannez le QR du livreur précédent pour recevoir");
+            fcm.sendToDriver(newDriverId.toString(), "Transfert de colis en attente", ref + " — scannez le QR du livreur précédent pour recevoir", "HANDOFF_REQUIRED");
+    }
+
+    public void publishErpSyncFailed(Order order) {
+        log.error("EVENT erp.sync_failed orderId={} erpOrderId={}", order.getId(), order.getErpOrderId());
+        Map<String, Object> m = new HashMap<>();
+        m.put("event", "erp.sync_failed");
+        m.put("orderId", order.getId());
+        m.put("erpOrderId", order.getErpOrderId());
+        m.put("clientName", order.getClientName());
+        m.put("companyId", order.getCompanyId());
+        m.put("retryCount", order.getSyncRetryCount());
+        UUID companyId = order.getCompanyId();
+        if (companyId != null) {
+            ws.convertAndSend("/topic/admin/" + companyId + "/deliveries", m);
+        } else {
+            ws.convertAndSend("/topic/admin/deliveries", m);
+        }
     }
 
     // ── Route events ──────────────────────────────────────────────────────────
@@ -185,7 +202,7 @@ public class EventPublisher {
         sendRoute(routePayload("route.validated", route));
         if (fcm != null && route.getDriverId() != null)
             fcm.sendToDriver(route.getDriverId().toString(), "Tournée prête à démarrer",
-                    "\"" + route.getName() + "\" est validée — consultez-la avant de partir");
+                    "\"" + route.getName() + "\" est validée — consultez-la avant de partir", "ROUTE_VALIDATED");
     }
 
     public void publishRouteScheduleChanged(Route route) {
@@ -201,7 +218,7 @@ public class EventPublisher {
         sendRoute(routePayload("route.stop_added", route));
         if (fcm != null && route.getDriverId() != null) {
             String client = clientName != null ? clientName : "nouveau client";
-            fcm.sendToDriver(route.getDriverId().toString(), "Nouvel arrêt ajouté", client + " ajouté à votre tournée en cours");
+            fcm.sendToDriver(route.getDriverId().toString(), "Nouvel arrêt ajouté", client + " ajouté à votre tournée en cours", "ROUTE_UPDATED");
         }
     }
 
@@ -210,7 +227,7 @@ public class EventPublisher {
         sendRoute(routePayload("route.stop_removed", route));
         if (fcm != null && route.getDriverId() != null) {
             String client = clientName != null ? clientName : "Un arrêt";
-            fcm.sendToDriver(route.getDriverId().toString(), "Arrêt supprimé", client + " a été retiré de votre tournée");
+            fcm.sendToDriver(route.getDriverId().toString(), "Arrêt supprimé", client + " a été retiré de votre tournée", "ROUTE_UPDATED");
         }
     }
 

@@ -9,6 +9,7 @@ import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.dto.response.AdminStatsResponse;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
+import com.asm.delivery.dto.response.StatusHistoryResponse;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.OrderSource;
 import com.asm.delivery.idempotency.IdempotentOperation;
@@ -172,6 +173,12 @@ public class AdminDeliveryController {
             @RequestParam(required = false) Integer transitSlaMinutes
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Get status history for a delivery")
+    public ResponseEntity<List<StatusHistoryResponse>> history(@PathVariable UUID id) {
+        return ResponseEntity.ok(dispatchService.getDeliveryHistory(id));
     }
 
     @GetMapping("/{id}/pod")

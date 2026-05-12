@@ -6,7 +6,9 @@ import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -59,6 +61,9 @@ public class ErpSyncRetryScheduler {
     private final DeliveryRepository  deliveryRepo;
     private final ErpSyncService      erpSyncService;
 
+    @Autowired @Lazy
+    private ErpSyncRetryScheduler self;
+
     /**
      * Main retry loop. Runs every 2 minutes (configurable via
      * {@code erp.sync.retry.scheduler-delay-ms}).
@@ -83,7 +88,7 @@ public class ErpSyncRetryScheduler {
 
         for (Order order : pending) {
             try {
-                boolean dispatched = retrySingleOrder(order);
+                boolean dispatched = self.retrySingleOrder(order);
                 if (dispatched) retried++;
                 else skipped++;
             } catch (Exception e) {
@@ -111,40 +116,47 @@ public class ErpSyncRetryScheduler {
      */
     @Transactional
     public boolean retrySingleOrder(Order order) {
-        String syncStatus = order.getOdooSyncStatus();
+        // Re-fetch with pessimistic lock so concurrent threads don't double-process the same order.
+        // If another thread already claimed and processed it, the status will no longer be PENDING_*.
+        Order locked = orderRepo.findByIdForUpdate(order.getId()).orElse(null);
+        if (locked == null) return false;
+        String syncStatus = locked.getOdooSyncStatus();
+        if (!"PENDING_RETRY".equals(syncStatus) && !"PENDING_CANCEL".equals(syncStatus)) return false;
 
         // Re-attempt cancellation
         if ("PENDING_CANCEL".equals(syncStatus)) {
-            log.info("retrySync: CANCEL orderId={} attempt={}", order.getId(), order.getSyncRetryCount());
-            erpSyncService.syncOrderCancellation(order);
+            log.info("retrySync: CANCEL orderId={} attempt={}", locked.getId(), locked.getSyncRetryCount());
+            erpSyncService.syncOrderCancellation(locked);
             return true;
         }
 
         // Re-attempt delivery sync — choose operation based on order delivery status
-        if ("PENDING_RETRY".equals(syncStatus)) {
-            OrderStatus status = order.getStatus();
+        OrderStatus status = locked.getStatus();
 
-            if (status == OrderStatus.DELIVERED) {
-                log.info("retrySync: FULL_DELIVERY orderId={} attempt={}", order.getId(), order.getSyncRetryCount());
-                erpSyncService.syncStockUpdate(order);
-                return true;
-            } else if (status == OrderStatus.PARTIALLY_DELIVERED) {
-                // For partial retry, we can't recover the original partial items list,
-                // so we retry as a full delivery of whatever remains (using backorder picking).
-                log.info("retrySync: PARTIAL_AS_FULL orderId={} backorderId={} attempt={}",
-                        order.getId(), order.getOdooBackorderId(), order.getSyncRetryCount());
-                erpSyncService.syncStockUpdate(order);
-                return true;
+        if (status == OrderStatus.DELIVERED) {
+            log.info("retrySync: FULL_DELIVERY orderId={} attempt={}", locked.getId(), locked.getSyncRetryCount());
+            erpSyncService.syncStockUpdate(locked);
+            return true;
+        } else if (status == OrderStatus.PARTIALLY_DELIVERED) {
+            if (locked.getOdooBackorderId() != null) {
+                // Backorder exists in Odoo — validate remaining items
+                log.info("retrySync: PARTIAL_BACKORDER orderId={} backorderId={} attempt={}",
+                        locked.getId(), locked.getOdooBackorderId(), locked.getSyncRetryCount());
+                erpSyncService.syncStockUpdate(locked);
             } else {
-                // By elimination, if it failed in PENDING_RETRY and the order isn't successfully delivered,
-                // it means it was a failure note sync (driver failed delivery attempt).
-                log.info("retrySync: FAILURE_NOTE orderId={} attempt={}", order.getId(), order.getSyncRetryCount());
-                erpSyncService.syncFailure(order, "DELIVERY_FAILED", "Retry after previous failure note failed");
-                return true;
+                // No backorder ID means the initial partial sync never succeeded in Odoo.
+                // Doing a full delivery here would incorrectly mark undelivered items as delivered.
+                // Report the failure to Odoo so the ERP team can intervene manually.
+                log.warn("retrySync: PARTIAL_NO_BACKORDER — orderId={} has no Odoo backorder, reporting failure instead of overriding quantities",
+                        locked.getId());
+                erpSyncService.syncFailure(locked, "PARTIAL_SYNC_FAILED",
+                        "Partial delivery sync failed — quantities not confirmed in ERP, manual review required");
             }
+            return true;
+        } else {
+            log.info("retrySync: FAILURE_NOTE orderId={} attempt={}", locked.getId(), locked.getSyncRetryCount());
+            erpSyncService.syncFailure(locked, "DELIVERY_FAILED", "Retry after previous failure note failed");
+            return true;
         }
-
-        log.warn("retrySync: unexpected syncStatus={} for orderId={} — skipping", syncStatus, order.getId());
-        return false;
     }
 }

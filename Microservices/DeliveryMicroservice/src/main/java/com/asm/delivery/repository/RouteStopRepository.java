@@ -36,6 +36,10 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
 
     void deleteByRouteId(UUID routeId);
 
+    /** Stops pending handoff confirmation where the given driver is the sender. */
+    @Query("SELECT rs FROM RouteStop rs WHERE rs.handoffFromDriverId = :driverId AND rs.requiresHandoff = true AND rs.handoffConfirmedAt IS NULL")
+    List<RouteStop> findPendingHandoffsByFromDriver(@Param("driverId") UUID driverId);
+
     /** All non-terminal stops from active routes, independent from legacy SLA status fields. */
     @Query("""
         SELECT rs FROM RouteStop rs JOIN FETCH rs.route r

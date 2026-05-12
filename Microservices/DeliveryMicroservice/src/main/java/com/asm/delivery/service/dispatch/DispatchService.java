@@ -108,6 +108,14 @@ public class DispatchService {
         return new PageImpl<>(content, pageable, total);
     }
 
+    // ── Delivery history ──────────────────────────────────────────────────────
+
+    public List<StatusHistoryResponse> getDeliveryHistory(UUID id) {
+        return historyRepo.findByDeliveryIdOrderByChangedAtAsc(id).stream()
+                .map(this::toHistoryResponse)
+                .toList();
+    }
+
     // ── Delivery detail ───────────────────────────────────────────────────────
 
     public AdminDeliveryDetailResponse getDeliveryDetail(UUID id) {

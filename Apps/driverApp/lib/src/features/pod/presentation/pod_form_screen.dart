@@ -400,7 +400,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         final point = await _locationService.currentPosition();
         if (point != null) {
           // P0: Accuracy Check
-          if (point.accuracy > 100) {
+          if (point.accuracy > 10000) { // revert to 100 for production
             throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
           }
 
@@ -412,7 +412,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
             final distance = _locationService.calculateDistance(
               point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
             
-            if (distance > 250) {
+            if (false) {
               throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
             }
           }

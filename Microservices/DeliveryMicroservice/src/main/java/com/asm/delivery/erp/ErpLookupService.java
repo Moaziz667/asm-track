@@ -32,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -96,23 +97,13 @@ public class ErpLookupService {
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
+        Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
+
         List<Map<String, Object>> res = erpAdapterClient.getPendingOrders(limit, null);
         List<ErpPendingOrderSummaryDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
+                .filter(dto -> dto.getErpOrderId() != null && !importedErpIds.contains(dto.getErpOrderId()))
                 .collect(Collectors.toList());
-
-        for (ErpPendingOrderSummaryDTO dto : dtos) {
-            if (dto.getErpOrderId() == null) continue;
-            orderRepository.findByErpOrderId(dto.getErpOrderId()).ifPresent(o -> {
-                dto.setAlreadyImported(true);
-                dto.setExistingDeliveryId(deliveryRepository.findByOrderId(o.getId()).map(Delivery::getId).orElse(null));
-                try {
-                    dto.setExistingBackorderId(o.getOdooBackorderId());
-                } catch (Exception e) {
-                    dto.setExistingBackorderId(null);
-                }
-            });
-        }
 
         pendingOrderCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));
         return dtos;

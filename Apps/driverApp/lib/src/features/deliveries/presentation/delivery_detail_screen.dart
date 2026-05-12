@@ -250,6 +250,23 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
               _ActionPanel(
                 delivery: delivery,
                 isWorking: _isWorking,
+                onPickup: () => _perform(() async {
+                  final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+                  if (!isOnline) {
+                    ref.read(offlineQueueProvider.notifier).enqueueRequest(
+                      path: '/api/driver/deliveries/${delivery.id}/pickup',
+                      method: 'POST',
+                      idempotencyKey: 'pickup-${delivery.id}',
+                    );
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+                      );
+                    }
+                    return delivery;
+                  }
+                  return ref.read(deliveryRepositoryProvider).pickup(delivery.id);
+                }),
                 onTransit: () => _perform(() async {
                   final point = await _locationService.currentPosition();
 
@@ -289,6 +306,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                         'failureCode': reason.$1.apiCode.value,
                         if (reason.$2 != null && reason.$2!.isNotEmpty) 'failureComment': reason.$2,
                       },
+                      idempotencyKey: 'fail-${delivery.id}-${reason.$1.apiCode.value}',
                     );
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -743,6 +761,7 @@ class _ActionPanel extends StatelessWidget {
   const _ActionPanel({
     required this.delivery,
     required this.isWorking,
+    required this.onPickup,
     required this.onTransit,
     required this.onFail,
     required this.onPod,
@@ -750,6 +769,7 @@ class _ActionPanel extends StatelessWidget {
 
   final DriverDelivery delivery;
   final bool isWorking;
+  final Future<void> Function() onPickup;
   final Future<void> Function() onTransit;
   final Future<void> Function() onFail;
   final Future<void> Function() onPod;
@@ -801,30 +821,27 @@ class _ActionPanel extends StatelessWidget {
         );
         break;
       case DeliveryStatus.scheduled:
-        buttons.add(
-          Container(
+        buttons.addAll([
+          SizedBox(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.infoSubtle,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.info),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    'Chargé automatiquement au démarrage de la tournée',
-                    style: const TextStyle(color: AppColors.info, fontSize: 13),
-                  ),
-                ),
-              ],
+            child: AsmDriveButton(
+              label: 'Ramasser le colis',
+              icon: PhosphorIconsBold.package,
+              isLoading: isWorking,
+              onPressed: isWorking ? null : onPickup,
             ),
           ),
-        );
+          const SizedBox(height: 10),
+          SizedBox(
+            width: double.infinity,
+            child: AsmDriveButton(
+              label: 'Signaler un échec',
+              icon: PhosphorIconsBold.flagPennant,
+              variant: AsmDriveButtonVariant.ghost,
+              onPressed: isWorking ? null : onFail,
+            ),
+          ),
+        ]);
         break;
       case DeliveryStatus.pickedUp:
         if (hasGeo) {

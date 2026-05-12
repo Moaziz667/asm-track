@@ -60,10 +60,17 @@ public class OutboxProcessor {
                 UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
                 Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                         .orElseThrow(() -> new Exception("Delivery not found for outbox sync: " + deliveryId));
-                if (delivery.getOrder() != null) {
-                    erpSyncService.syncStockUpdate(delivery.getOrder());
-                } else {
+                if (delivery.getOrder() == null) {
                     log.warn("Skipping ERP sync for delivery {}: No order associated", deliveryId);
+                } else {
+                    String syncStatus = delivery.getOrder().getOdooSyncStatus();
+                    if ("SYNCED".equals(syncStatus)) {
+                        log.info("Skipping ERP sync for delivery {}: already SYNCED", deliveryId);
+                    } else if ("PENDING_RETRY".equals(syncStatus) || "SYNC_FAILED".equals(syncStatus)) {
+                        log.info("Skipping ERP sync for delivery {}: status={}, retry scheduler handles it", deliveryId, syncStatus);
+                    } else {
+                        erpSyncService.syncStockUpdate(delivery.getOrder());
+                    }
                 }
                 break;
             case "FCM_NOTIFICATION":

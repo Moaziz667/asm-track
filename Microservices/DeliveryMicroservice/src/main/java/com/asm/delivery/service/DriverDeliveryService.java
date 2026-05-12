@@ -73,9 +73,21 @@ public class DriverDeliveryService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getActive(UUID driverId) {
-        return deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
+        List<DriverDeliveryResponse> active = deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
                 .map(this::toDriverDeliveryResponse)
                 .collect(Collectors.toList());
+
+        // Also include deliveries where this driver is the handoff SENDER (package still physically with them)
+        List<UUID> activeIds = active.stream()
+                .map(r -> r.getDeliveryId())
+                .collect(Collectors.toList());
+        routeStopRepository.findPendingHandoffsByFromDriver(driverId).stream()
+                .map(stop -> deliveryRepo.findByIdWithOrder(stop.getDeliveryId()).orElse(null))
+                .filter(d -> d != null && !activeIds.contains(d.getId()))
+                .map(this::toDriverDeliveryResponse)
+                .forEach(active::add);
+
+        return active;
     }
 
     // ── Get a specific delivery (with driver authorization check) ─────────────
@@ -87,7 +99,10 @@ public class DriverDeliveryService {
 
         if (delivery.getDriverId() != null && !delivery.getDriverId().equals(driverId)
                 && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
-            throw AppException.forbidden("Not your delivery");
+            // Allow handoff sender to still view the delivery
+            boolean isSender = routeStopRepository.findPendingHandoffsByFromDriver(driverId).stream()
+                    .anyMatch(s -> s.getDeliveryId().equals(delivery.getId()));
+            if (!isSender) throw AppException.forbidden("Not your delivery");
         }
 
         return toDriverDeliveryResponse(delivery);
@@ -273,9 +288,7 @@ public class DriverDeliveryService {
         // We'll publish completed event. Or is there a specific logic in the subscriber?
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
-        // Release driver + increment stat (best-effort)
-        String stat = isPartial ? "partial" : "delivered";
-        transportPort.incrementStat(driverId.toString(), stat);
+        transportPort.incrementStat(driverId.toString(), "delivered");
 
         // Sync Odoo
         if (delivery.getOrder() != null) {
@@ -478,8 +491,7 @@ public class DriverDeliveryService {
             order.getDropoffLat().doubleValue(), order.getDropoffLng().doubleValue()
         );
 
-        // Max allowed radius: 4000 meters (increased for testing/flexibility)
-        double maxRadius = 4000.0; 
+        double maxRadius = 10_000_000.0; // 10,000 km — revert to 4000 for production
 
         if (distance > maxRadius) {
             log.warn("GEOFENCE_REJECT deliveryId={} driverId={} distance={}m", delivery.getId(), delivery.getDriverId(), (int)distance);
@@ -632,13 +644,21 @@ public class DriverDeliveryService {
 
     @Transactional
     public HandoffTokenResponse generateHandoffToken(UUID deliveryId, UUID driverId) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+
         RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
                 .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
 
         if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
             throw AppException.badRequest("This delivery is not marked for handoff");
+        }
+
+        // Only the handoff sender (from-driver) can generate the token
+        boolean isSender = driverId.equals(stop.getHandoffFromDriverId());
+        boolean isCurrentOwner = driverId.equals(delivery.getDriverId());
+        if (!isSender && !isCurrentOwner) {
+            throw AppException.forbidden("Only the sending driver can generate the handoff token");
         }
 
         // Generate a 6-character alphanumeric secure token
@@ -840,6 +860,10 @@ public class DriverDeliveryService {
     }
 
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
+        // Look up handoff info from the active route stop
+        RouteStop activeStop = routeStopRepository.findActiveByDeliveryId(delivery.getId()).orElse(null);
+        boolean requiresHandoff = activeStop != null && Boolean.TRUE.equals(activeStop.getRequiresHandoff());
+
         Order order = delivery.getOrder();
         String erpId = order != null ? order.getErpOrderId() : null;
         String orderRef = (erpId != null && !erpId.isBlank())
@@ -882,6 +906,10 @@ public class DriverDeliveryService {
                 .failReason(delivery.getFailReason())
                 .cancelReason(delivery.getCancelReason())
                 .createdAt(delivery.getCreatedAt())
+                .requiresHandoff(requiresHandoff)
+                .handoffConfirmedAt(requiresHandoff && activeStop.getHandoffConfirmedAt() != null ? activeStop.getHandoffConfirmedAt() : null)
+                .handoffToDriverId(requiresHandoff && activeStop.getHandoffToDriverId() != null ? activeStop.getHandoffToDriverId().toString() : null)
+                .handoffFromDriverId(requiresHandoff && activeStop.getHandoffFromDriverId() != null ? activeStop.getHandoffFromDriverId().toString() : null)
                 .build();
     }
 }

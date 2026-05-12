@@ -64,4 +64,10 @@ public class DriverDeliveryResponse {
     private String        failReason;
     private String        cancelReason;
     private LocalDateTime createdAt;
+
+    // handoff fields (populated from RouteStop when requiresHandoff = true)
+    private boolean       requiresHandoff;
+    private LocalDateTime handoffConfirmedAt;
+    private String        handoffToDriverId;
+    private String        handoffFromDriverId;
 }

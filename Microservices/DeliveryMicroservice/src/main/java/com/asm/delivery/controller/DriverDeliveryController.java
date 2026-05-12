@@ -13,6 +13,7 @@ import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.BonLivraisonPdfService;
+import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.DriverDeliveryService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -106,6 +107,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/fail")
+    @IdempotentOperation
     @Operation(summary = "Mark delivery as failed (from PICKED_UP or IN_TRANSIT)")
     public ResponseEntity<DriverDeliveryResponse> fail(
             @PathVariable UUID id,

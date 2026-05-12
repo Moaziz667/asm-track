@@ -63,12 +63,21 @@ public class RouteExecutionService {
 
     @Transactional(readOnly = true)
     public RouteResponse getTodayForDriver(UUID driverId) {
-        List<RouteStatus> statuses = List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
-        return routeRepository.findByDriverIdAndDateAndStatusIn(driverId, LocalDate.now(), statuses)
-                .stream()
-                .findFirst()
-                .map(this::toResponse)
-                .orElse(null);
+        LocalDate today = LocalDate.now();
+        List<RouteStatus> activeStatuses = List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
+
+        // Primary: today's route (VALIDATED or IN_PROGRESS)
+        var todayRoute = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, today, activeStatuses)
+                .stream().findFirst();
+        if (todayRoute.isPresent()) {
+            return toResponse(todayRoute.get());
+        }
+
+        // Fallback: yesterday's route still IN_PROGRESS (driver crossed midnight)
+        var yesterdayRoute = routeRepository.findByDriverIdAndDateAndStatusIn(
+                driverId, today.minusDays(1), List.of(RouteStatus.IN_PROGRESS))
+                .stream().findFirst();
+        return yesterdayRoute.map(this::toResponse).orElse(null);
     }
 
     @Transactional

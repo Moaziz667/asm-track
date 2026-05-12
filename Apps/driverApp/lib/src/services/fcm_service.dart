@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart' show VoidCallback;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 import 'api_client.dart';
@@ -33,6 +34,17 @@ class FcmService {
 
   final ApiClient _client;
 
+  void Function(String title, String body, String type)? _onNotificationReceived;
+  VoidCallback? _onNotificationTap;
+
+  void setHandlers({
+    required void Function(String title, String body, String type) onReceived,
+    required VoidCallback onTap,
+  }) {
+    _onNotificationReceived = onReceived;
+    _onNotificationTap = onTap;
+  }
+
   Future<void> init() async {
     // 1. Register background handler
     FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
@@ -59,8 +71,21 @@ class FcmService {
     await _registerToken();
     FirebaseMessaging.instance.onTokenRefresh.listen(_sendTokenToBackend);
 
-    // 6. Android foreground messages → show via local notifications
+    // 6. Foreground messages → show banner + store
     FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
+
+    // 7. Background tap → app was in background, user tapped notification
+    FirebaseMessaging.onMessageOpenedApp.listen((message) {
+      _storeMessage(message);
+      _onNotificationTap?.call();
+    });
+
+    // 8. Terminated tap → app was killed, user tapped notification
+    final initial = await FirebaseMessaging.instance.getInitialMessage();
+    if (initial != null) {
+      _storeMessage(initial);
+      Future.delayed(const Duration(milliseconds: 600), () => _onNotificationTap?.call());
+    }
   }
 
   Future<void> _initLocalNotifications() async {
@@ -81,9 +106,8 @@ class FcmService {
     if (notification == null) return;
 
     debugPrint('[FCM] Foreground: ${notification.title} — ${notification.body}');
+    _storeMessage(message);
 
-    // On iOS, setForegroundNotificationPresentationOptions handles this.
-    // On Android, we must show it ourselves via local notifications.
     if (defaultTargetPlatform == TargetPlatform.android) {
       await _localNotifications.show(
         notification.hashCode,
@@ -100,6 +124,15 @@ class FcmService {
           ),
         ),
       );
+    }
+  }
+
+  void _storeMessage(RemoteMessage message) {
+    final title = message.notification?.title ?? message.data['title'] as String? ?? '';
+    final body = message.notification?.body ?? message.data['body'] as String? ?? '';
+    final type = message.data['type'] as String? ?? 'GENERAL';
+    if (title.isNotEmpty) {
+      _onNotificationReceived?.call(title, body, type);
     }
   }
 

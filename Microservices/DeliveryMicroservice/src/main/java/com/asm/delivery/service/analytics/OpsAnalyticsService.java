@@ -778,6 +778,15 @@ public class OpsAnalyticsService {
                                         }
                                 }
                         }
+                        return new ExceptionClassification("INFO", "IN_TRANSIT", "Livraison en cours de transit");
+                }
+                if (status == DeliveryStatus.PICKED_UP) {
+                        long elapsed = delivery.getPickedUpAt() != null ? Duration.between(delivery.getPickedUpAt(), now).toMinutes() : 0;
+                        int effectivePickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 120);
+                        if (elapsed > effectivePickupLimit) {
+                                return new ExceptionClassification("WARNING", "SLA_PICKUP", "Colis ramassé mais transit non démarré depuis " + elapsed + " min");
+                        }
+                        return new ExceptionClassification("INFO", "PICKED_UP", "Colis chargé — en attente du départ en transit");
                 }
                 return null;
         }

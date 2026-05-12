@@ -38,6 +38,8 @@ class RouteCacheService {
         progressPercent: route.progressPercent,
         plannedStart: route.plannedStart,
         plannedEnd: route.plannedEnd,
+        depotName: route.depotName,
+        depotAddress: route.depotAddress,
         fromCache: true,
       );
     } catch (_) {
@@ -66,6 +68,9 @@ class RouteCacheService {
       'progressPercent': route.progressPercent,
       'plannedStartTime': route.plannedStart,
       'plannedEndTime': route.plannedEnd,
+      'routeGeometry': route.routeGeometry,
+      'depotName': route.depotName,
+      'depotAddress': route.depotAddress,
       'stops': route.stops.map(_stopToJson).toList(),
     };
   }

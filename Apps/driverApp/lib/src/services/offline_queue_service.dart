@@ -17,7 +17,11 @@ class OfflineQueueService extends StateNotifier<int> {
   final ApiClient _apiClient;
   final ConnectivityService _connectivityService;
   static const String _boxName = 'offline_queue';
+  static const int _maxRetries = 3;
+  static const int _ttlHours = 24;
+
   StreamSubscription<bool>? _connectivitySub;
+  bool _processing = false;
 
   OfflineQueueService(this._apiClient, this._connectivityService) : super(0) {
     _init();
@@ -25,12 +29,8 @@ class OfflineQueueService extends StateNotifier<int> {
 
   void _init() {
     state = _box.length;
-
-    // Auto-replay queued requests when connectivity is restored
     _connectivitySub = _connectivityService.onlineStream.listen((isOnline) {
-      if (isOnline && _box.isNotEmpty) {
-        processQueue();
-      }
+      if (isOnline && _box.isNotEmpty) processQueue();
     });
   }
 
@@ -48,51 +48,92 @@ class OfflineQueueService extends StateNotifier<int> {
     Map<String, dynamic>? data,
     String? idempotencyKey,
   }) async {
+    final key = idempotencyKey ?? '${method.toUpperCase()}-$path';
+
+    // Dedup: skip if same idempotency key already queued
+    for (final existing in _box.values) {
+      if ((existing['idempotencyKey'] as String?) == key) return;
+    }
+
     final entry = {
       'id': DateTime.now().millisecondsSinceEpoch.toString(),
       'path': path,
       'method': method,
       'data': data != null ? jsonEncode(data) : null,
       'timestamp': DateTime.now().toIso8601String(),
-      'idempotencyKey': idempotencyKey ?? '${DateTime.now().millisecondsSinceEpoch}-$path',
+      'idempotencyKey': key,
+      'retryCount': 0,
     };
     await _box.add(entry);
     state = _box.length;
   }
 
   Future<void> processQueue() async {
-    if (_box.isEmpty) return;
+    if (_processing || _box.isEmpty) return;
+    _processing = true;
+    try {
+      for (final key in _box.keys.toList()) {
+        final entry = _box.get(key);
+        if (entry == null) continue;
 
-    final keys = _box.keys.toList();
-    for (var key in keys) {
-      final entry = _box.get(key);
-      if (entry == null) continue;
+        // TTL check
+        final timestampStr = entry['timestamp'] as String?;
+        if (timestampStr != null) {
+          final enqueuedAt = DateTime.tryParse(timestampStr);
+          if (enqueuedAt != null && DateTime.now().difference(enqueuedAt).inHours >= _ttlHours) {
+            await _box.delete(key);
+            state = _box.length;
+            continue;
+          }
+        }
 
-      try {
         final path = entry['path'] as String;
         final method = entry['method'] as String;
         final dataStr = entry['data'] as String?;
         final data = dataStr != null ? jsonDecode(dataStr) : null;
         final idempotencyKey = entry['idempotencyKey'] as String?;
+        final retryCount = (entry['retryCount'] as int?) ?? 0;
 
         final options = Options(
           headers: idempotencyKey != null ? {'X-Idempotency-Key': idempotencyKey} : null,
         );
 
-        if (method.toUpperCase() == 'POST') {
-          await _apiClient.dio.post(path, data: data, options: options);
-        } else if (method.toUpperCase() == 'PUT') {
-          await _apiClient.dio.put(path, data: data, options: options);
-        } else if (method.toUpperCase() == 'PATCH') {
-          await _apiClient.dio.patch(path, data: data, options: options);
+        try {
+          switch (method.toUpperCase()) {
+            case 'POST':
+              await _apiClient.dio.post(path, data: data, options: options);
+            case 'PUT':
+              await _apiClient.dio.put(path, data: data, options: options);
+            case 'PATCH':
+              await _apiClient.dio.patch(path, data: data, options: options);
+          }
+          await _box.delete(key);
+          state = _box.length;
+        } on DioException catch (e) {
+          final status = e.response?.statusCode;
+          // 4xx = permanent failure (bad request, conflict, etc.) — remove
+          if (status != null && status >= 400 && status < 500) {
+            await _box.delete(key);
+            state = _box.length;
+            continue;
+          }
+          // Max retries exhausted — remove to unblock queue
+          if (retryCount >= _maxRetries) {
+            await _box.delete(key);
+            state = _box.length;
+            continue;
+          }
+          // Transient error — increment retry, skip this item, keep processing rest
+          final updated = Map<dynamic, dynamic>.from(entry)
+            ..['retryCount'] = retryCount + 1;
+          await _box.put(key, updated);
+        } catch (_) {
+          // Unknown error — skip item, keep processing rest
         }
-        
-        await _box.delete(key);
-        state = _box.length;
-      } catch (e) {
-        // Stop processing on first failure to maintain order
-        break;
       }
+    } finally {
+      _processing = false;
+      state = _box.length;
     }
   }
 }

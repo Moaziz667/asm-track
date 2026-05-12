@@ -441,6 +441,7 @@ public class ExceptionResolutionService {
         Order backorder = Order.builder()
                 .source(order.getSource())
                 .schemaVersion(order.getSchemaVersion())
+                .companyId(order.getCompanyId())
                 .clientId(order.getClientId())
                 .clientName(order.getClientName())
                 .clientPhone(order.getClientPhone())
@@ -483,6 +484,7 @@ public class ExceptionResolutionService {
         // Automatically create a Delivery task for this backorder
         Delivery newDelivery = Delivery.builder()
                 .order(backorder)
+                .companyId(order.getCompanyId())
                 .status(DeliveryStatus.UNSCHEDULED)
                 .createdAt(LocalDateTime.now())
                 .build();

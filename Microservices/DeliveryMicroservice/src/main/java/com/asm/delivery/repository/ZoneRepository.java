@@ -9,6 +9,7 @@ import org.springframework.stereotype.Repository;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Pageable;
 
 @Repository
 public interface ZoneRepository extends JpaRepository<Zone, UUID> {
@@ -44,4 +45,16 @@ public interface ZoneRepository extends JpaRepository<Zone, UUID> {
     List<Zone> findActiveZonesByPostalCodes(@Param("companyId") UUID companyId, @Param("codes") String[] codes);
     
     Optional<Zone> findByCompanyIdAndId(UUID companyId, UUID id);
+
+    @Query(value = """
+            SELECT * FROM zones
+            WHERE is_active = true AND (
+                LOWER(name) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR LOWER(description) LIKE LOWER(CONCAT('%', :q, '%'))
+                OR cities::text ILIKE CONCAT('%', :q, '%')
+            )
+            ORDER BY name ASC
+            LIMIT :#{#pageable.pageSize}
+            """, nativeQuery = true)
+    List<Zone> searchByQuery(@Param("q") String q, Pageable pageable);
 }

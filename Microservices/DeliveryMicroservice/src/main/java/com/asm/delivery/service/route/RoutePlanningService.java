@@ -1049,6 +1049,9 @@ public class RoutePlanningService {
                 ? ""
                 : String.join(" · ", detectedZoneNames);
 
+        com.asm.delivery.entity.Depot depot = route.getDepotId() != null
+                ? depotRepository.findById(route.getDepotId()).orElse(null) : null;
+
         return RouteResponse.builder()
                 .id(route.getId())
                 .companyId(route.getCompanyId())
@@ -1076,6 +1079,8 @@ public class RoutePlanningService {
                 .onTimeCompletionRate(onTimeCompletionRate)
                 .stops(stops)
                 .depotId(route.getDepotId())
+                .depotName(depot != null ? depot.getName() : null)
+                .depotAddress(depot != null ? depot.getAddress() : null)
                 .departureTime(route.getDepartureTime())
                 .totalDurationSeconds(route.getTotalDurationSeconds())
                 .totalDistanceMeters(route.getTotalDistanceMeters())

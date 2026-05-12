@@ -12,6 +12,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 
@@ -35,6 +37,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     private final OdooJsonRpcClient rpc;
 
+    private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
+    private volatile Integer deliveryFailedTagId;
+
     // ══════════════════════════════════════════════════════════════════════════
     //  1. Order Cancellation
     // ══════════════════════════════════════════════════════════════════════════
@@ -50,6 +55,15 @@ public class OdooSyncAdapter implements ErpSyncPort {
      */
     @Override
     public boolean syncOrderCancellation(String erpOrderId) {
+        if (!inFlight.add(erpOrderId)) {
+            log.warn("syncOrderCancellation: skipped — already in flight erpOrderId={}", erpOrderId);
+            return false;
+        }
+        try { return doSyncOrderCancellation(erpOrderId); }
+        finally { inFlight.remove(erpOrderId); }
+    }
+
+    private boolean doSyncOrderCancellation(String erpOrderId) {
         long start = System.currentTimeMillis();
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) {
@@ -92,6 +106,15 @@ public class OdooSyncAdapter implements ErpSyncPort {
      */
     @Override
     public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId) {
+        if (!inFlight.add(erpOrderId)) {
+            log.warn("syncFullDelivery: skipped — already in flight erpOrderId={}", erpOrderId);
+            return false;
+        }
+        try { return doSyncFullDelivery(erpOrderId, backorderPickingId); }
+        finally { inFlight.remove(erpOrderId); }
+    }
+
+    private boolean doSyncFullDelivery(String erpOrderId, Integer backorderPickingId) {
         long start = System.currentTimeMillis();
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) {
@@ -132,9 +155,19 @@ public class OdooSyncAdapter implements ErpSyncPort {
      *   Finally writes {@code qty_delivered} on sale order lines.
      */
     @Override
-    @SuppressWarnings("unchecked")
     public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId,
-                                                             List<ErpPartialItemDTO> items) {
+                                                            List<ErpPartialItemDTO> items) {
+        if (!inFlight.add(erpOrderId)) {
+            log.warn("syncPartialDelivery: skipped — already in flight erpOrderId={}", erpOrderId);
+            return ErpPartialDeliveryResultDTO.builder().success(false).build();
+        }
+        try { return doSyncPartialDelivery(erpOrderId, items); }
+        finally { inFlight.remove(erpOrderId); }
+    }
+
+    @SuppressWarnings("unchecked")
+    private ErpPartialDeliveryResultDTO doSyncPartialDelivery(String erpOrderId,
+                                                               List<ErpPartialItemDTO> items) {
         long start = System.currentTimeMillis();
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) {
@@ -224,6 +257,15 @@ public class OdooSyncAdapter implements ErpSyncPort {
      */
     @Override
     public boolean syncFailure(String erpOrderId, String failureCode, String comment) {
+        if (!inFlight.add(erpOrderId)) {
+            log.warn("syncFailure: skipped — already in flight erpOrderId={}", erpOrderId);
+            return false;
+        }
+        try { return doSyncFailure(erpOrderId, failureCode, comment); }
+        finally { inFlight.remove(erpOrderId); }
+    }
+
+    private boolean doSyncFailure(String erpOrderId, String failureCode, String comment) {
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) {
             log.warn("syncFailure: could not resolve erpOrderId={}", erpOrderId);
@@ -234,6 +276,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 + (comment != null && !comment.isBlank() ? " — " + comment : "");
 
         boolean ok = addNoteToSaleOrder(erpId, note);
+        tagOrderAsDeliveryFailed(erpId);
         log.info("syncFailure: erpOrderId={} success={} failureCode={}", erpOrderId, ok, failureCode);
         return ok;
     }
@@ -698,6 +741,46 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
         log.warn("handleStockPickingAction: unhandled wizard model={}", resModel);
         return false;
+    }
+
+    // ── Delivery-failed tag ─────────────────────────────────────────────────
+
+    @SuppressWarnings("unchecked")
+    private void tagOrderAsDeliveryFailed(Integer erpOrderId) {
+        try {
+            Integer tagId = resolveDeliveryFailedTagId();
+            if (tagId == null) return;
+            rpc.callRpc(rpc.buildArgs("sale.order", "write",
+                    List.of(List.of(erpOrderId), Map.of("tag_ids", List.of(List.of(4, tagId))))));
+        } catch (Exception e) {
+            log.warn("tagOrderAsDeliveryFailed: could not tag erpOrderId={}", erpOrderId, e);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Integer resolveDeliveryFailedTagId() {
+        if (deliveryFailedTagId != null) return deliveryFailedTagId;
+        try {
+            Map<String, Object> kwargs = Map.of("fields", List.of("id"), "limit", 1);
+            Map<String, Object> res = rpc.callRpc(rpc.buildArgs("crm.tag", "search_read",
+                    List.of(List.of(List.of("name", "=", "Livraison échouée"))), kwargs));
+            if (res != null && !res.containsKey("error")) {
+                List<Map<String, Object>> rows = (List<Map<String, Object>>) res.get("result");
+                if (rows != null && !rows.isEmpty()) {
+                    deliveryFailedTagId = asInt(rows.get(0).get("id"));
+                    return deliveryFailedTagId;
+                }
+            }
+            // Tag doesn't exist yet — create it
+            Map<String, Object> createRes = rpc.callRpc(rpc.buildArgs("crm.tag", "create",
+                    List.of(Map.of("name", "Livraison échouée"))));
+            if (createRes != null && !createRes.containsKey("error") && createRes.get("result") instanceof Number n) {
+                deliveryFailedTagId = n.intValue();
+            }
+        } catch (Exception e) {
+            log.warn("resolveDeliveryFailedTagId: failed", e);
+        }
+        return deliveryFailedTagId;
     }
 
     // ── ID resolution ───────────────────────────────────────────────────────

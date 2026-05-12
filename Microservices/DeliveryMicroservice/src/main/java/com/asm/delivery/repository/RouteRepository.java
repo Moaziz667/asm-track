@@ -2,6 +2,7 @@ package com.asm.delivery.repository;
 
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
@@ -59,4 +60,11 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
             @Param("startTime") LocalTime startTime,
             @Param("endTime") LocalTime endTime,
             @Param("statuses") List<RouteStatus> statuses);
+
+    @Query("""
+            SELECT r FROM Route r
+            WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :q, '%'))
+            ORDER BY r.date DESC, r.createdAt DESC
+            """)
+    List<Route> searchByQuery(@Param("q") String q, Pageable pageable);
 }

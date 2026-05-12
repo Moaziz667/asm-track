@@ -95,6 +95,11 @@ spring:
           predicates:
             - Path=/api/admin/audit/**
 
+        - id: delivery-admin-search
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/search
+
         - id: delivery-admin-companies
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:

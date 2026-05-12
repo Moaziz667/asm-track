@@ -32,7 +32,7 @@ public class IdempotencyAspect {
         }
 
         HttpServletRequest request = servletAttrs.getRequest();
-        String idempotencyKey = request.getHeader("Idempotency-Key");
+        String idempotencyKey = request.getHeader("X-Idempotency-Key");
         if (!StringUtils.hasText(idempotencyKey)) {
             return pjp.proceed();
         }

@@ -46,6 +46,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   Future<void> _refresh() async {
     ref.invalidate(todayRouteProvider);
     ref.invalidate(activeDeliveriesProvider);
+    ref.invalidate(deliveryDetailProvider);
   }
 
   Future<void> _doAction(Future<void> Function() fn) async {
@@ -117,6 +118,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           ref.read(offlineQueueProvider.notifier).enqueueRequest(
             path: '/api/driver/routes/$id/start',
             method: 'POST',
+            idempotencyKey: 'start-route-$id',
           );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -141,6 +143,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           ref.read(offlineQueueProvider.notifier).enqueueRequest(
             path: '/api/driver/routes/$routeId/stops/$stopId/arrive',
             method: 'POST',
+            idempotencyKey: 'arrive-$routeId-$stopId',
           );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -163,6 +166,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
             path: '/api/driver/deliveries/$deliveryId/transit',
             method: 'POST',
             data: pt != null ? {'lat': pt.lat, 'lng': pt.lng} : null,
+            idempotencyKey: 'transit-$deliveryId',
           );
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
@@ -961,10 +965,21 @@ class _BottomSheet extends StatelessWidget {
             const SizedBox(height: 16),
 
             // CTA button
-            if (route!.status == DriverRouteStatus.inProgress) ...[
+            if (route!.status == DriverRouteStatus.validated)
+              DriveButton(
+                label: 'Démarrer la tourn\u00e9e',
+                icon: PhosphorIconsBold.play,
+                fullWidth: true,
+                size: DriveButtonSize.lg,
+                isLoading: isWorking,
+                textColor: Colors.white,
+                backgroundColor: const Color(0xFF1E40AF), // Company Blue
+                onPressed: isWorking ? null : () => onStart?.call(),
+              )
+            else if (route!.status == DriverRouteStatus.inProgress) ...[
               if (nextPendingStop != null)
                 DriveButton(
-                  label: 'Arrivé au point ${nextPendingStop.stopOrder}',
+                  label: 'Arriv\u00e9 au point ${nextPendingStop.stopOrder}',
                   icon: PhosphorIconsBold.flagPennant,
                   fullWidth: true,
                   size: DriveButtonSize.lg,
@@ -972,7 +987,7 @@ class _BottomSheet extends StatelessWidget {
                   onPressed: isWorking ? null : () => onArrive?.call(nextPendingStop.id),
                 )
               else
-                _InfoChip(label: 'Tous les arrêts validés', color: AppColors.success),
+                _InfoChip(label: 'Tous les arr\u00eats valid\u00e9s', color: AppColors.success),
             ],
 
             // Secondary actions row (PDF + Maps)
@@ -1071,6 +1086,41 @@ class _RouteSummaryBar extends StatelessWidget {
             const SizedBox(width: 4),
             Text(route.zone!, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           ]),
+        ],
+        if (route.depotName != null || route.depotAddress != null) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warehouse_outlined, size: 13, color: AppColors.neonYellow),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (route.depotName != null)
+                        Text(
+                          route.depotName!.toUpperCase(),
+                          style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.neonYellow, letterSpacing: 0.5),
+                        ),
+                      if (route.depotAddress != null)
+                        Text(
+                          route.depotAddress!,
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
         const SizedBox(height: 10),
         Row(
