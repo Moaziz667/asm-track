@@ -491,7 +491,7 @@ public class DriverDeliveryService {
             order.getDropoffLat().doubleValue(), order.getDropoffLng().doubleValue()
         );
 
-        double maxRadius = 10_000_000.0; // 10,000 km — revert to 4000 for production
+        double maxRadius = 4000.0;
 
         if (distance > maxRadius) {
             log.warn("GEOFENCE_REJECT deliveryId={} driverId={} distance={}m", delivery.getId(), delivery.getDriverId(), (int)distance);
