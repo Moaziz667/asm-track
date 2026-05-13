@@ -1,0 +1,28 @@
+{
+  "unversionedId": "architecture/auth",
+  "id": "architecture/auth",
+  "title": "Authentication & Security",
+  "description": "Token Strategy",
+  "source": "@site/docs/architecture/auth.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/auth",
+  "permalink": "/architecture/auth",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "id": "auth",
+    "title": "Authentication & Security",
+    "sidebar_position": 3
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Key Sequence Flows",
+    "permalink": "/architecture/flows"
+  },
+  "next": {
+    "title": "ERP Integration",
+    "permalink": "/architecture/erp-integration"
+  }
+}

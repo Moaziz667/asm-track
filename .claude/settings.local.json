@@ -5,7 +5,32 @@
       "Bash(Head -20)",
       "Bash(find \"/mnt/c/Users/M S I/OneDrive/Documents/PFE/Apps/admin-app-snapshot-2026-04-07-171852\" -type f -name \"*.ts\" -o -name \"*.tsx\" -o -name \"*.css\" 2>&1 | head -30)",
       "Read(//mnt/c/Users/M S I/OneDrive/Documents/PFE/Apps/**)",
-      "Bash(grep -r \"#[0-9A-Fa-f]\\\\{3,6\\\\}\" \"Apps/admin-app-snapshot-2026-04-07-171852/src/components\" --include=\"*.tsx\")"
+      "Bash(grep -r \"#[0-9A-Fa-f]\\\\{3,6\\\\}\" \"Apps/admin-app-snapshot-2026-04-07-171852/src/components\" --include=\"*.tsx\")",
+      "Bash(Select-Object Name)",
+      "Bash(xargs grep -l -i \"erp\\\\|import\\\\|pending\")",
+      "Bash(xargs grep -l -i \"erp\\\\|import\")",
+      "Bash(xargs grep -l \"pending-orders\\\\|importOrder\\\\|erpOrder\\\\|ErpImport\\\\|erp/import\\\\|erp-import\")",
+      "Bash(xargs grep -l -i \"bon\\\\|pdf\\\\|livraison\\\\|COD\\\\|encaisser\")",
+      "Bash(xargs grep -l -i \"pdf\\\\|itext\\\\|jasper\\\\|thymeleaf\\\\|html.*pdf\")",
+      "Bash(xargs grep -l -i \"cod\\\\|isCod\\\\|is_cod\")",
+      "Bash(xargs grep -l \"BonLivraison\\\\|AnalyticsPdf\\\\|generatePdf\\\\|generate.*pdf\\\\|pdf.*generat\")",
+      "Bash(grep \"\\\\.java$\")",
+      "Bash(xargs grep -l \"SimpMessaging\\\\|convertAndSend\\\\|WebSocket\\\\|NotifType\\\\|AlertType\")",
+      "Bash(xargs grep -l \"convertAndSend\\\\|SimpMessaging\")",
+      "Bash(xargs grep -l \"EventPublisher\\\\|publishEvent\\\\|NotifEvent\")",
+      "Bash(xargs cat)",
+      "Bash(xargs grep -rl \"SimpMessageSendingOperations\\\\|messagingTemplate\\\\|RabbitTemplate\\\\|notif\")",
+      "Bash(xargs grep -rl \"publish\\\\|event\\\\|websocket\\\\|stomp\\\\|topic\")",
+      "Bash(xargs grep -l \"\")",
+      "Bash(npm --version)",
+      "Bash(npm install *)",
+      "Bash(npm start *)",
+      "Bash(npx docusaurus *)",
+      "Bash(npx kill-port *)",
+      "Bash(node_modules/.bin/docusaurus start *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory"
     ]
   }
 }

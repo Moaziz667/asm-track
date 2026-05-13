@@ -18,9 +18,15 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 
+/**
+ * DEAD CODE: This service handles legacy client authentication (phone/OTP).
+ * Since client-facing authentication is disabled in the Controller,
+ * this service is currently unused.
+ */
 @Service
 @RequiredArgsConstructor
 @Slf4j
+@Deprecated
 public class AuthService {
 
     private final ClientRepository clientRepository;

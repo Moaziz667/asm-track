@@ -1,0 +1,28 @@
+{
+  "unversionedId": "services/erp-adapter",
+  "id": "services/erp-adapter",
+  "title": "ERP Adapter Service",
+  "description": "Port: 8088",
+  "source": "@site/docs/services/erp-adapter.md",
+  "sourceDirName": "services",
+  "slug": "/services/erp-adapter",
+  "permalink": "/services/erp-adapter",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "id": "erp-adapter",
+    "title": "ERP Adapter Service",
+    "sidebar_position": 4
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Driver Service",
+    "permalink": "/services/driver-service"
+  },
+  "next": {
+    "title": "Admin App",
+    "permalink": "/apps/admin-app"
+  }
+}

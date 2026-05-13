@@ -1,0 +1,19 @@
+{
+  "unversionedId": "apps/client-app",
+  "id": "apps/client-app",
+  "title": "Client App",
+  "description": "Tech: Flutter (Dart) · Android / iOS",
+  "source": "@site/docs/apps/client-app.md",
+  "sourceDirName": "apps",
+  "slug": "/apps/client-app",
+  "permalink": "/apps/client-app",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "id": "client-app",
+    "title": "Client App",
+    "sidebar_position": 3
+  }
+}

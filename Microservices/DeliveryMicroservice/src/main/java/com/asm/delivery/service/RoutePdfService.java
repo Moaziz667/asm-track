@@ -57,7 +57,9 @@ public class RoutePdfService extends BasePdfService {
         long       totalStops = stops.size();
         BigDecimal totalCod   = stops.stream()
                 .map(s -> deliveriesById.get(s.getDeliveryId()))
-                .filter(d -> d != null && d.getOrder() != null && d.getOrder().getTotalAmount() != null)
+                .filter(d -> d != null && d.getOrder() != null
+                        && Boolean.TRUE.equals(d.getOrder().getIsCod())
+                        && d.getOrder().getTotalAmount() != null)
                 .map(d -> d.getOrder().getTotalAmount())
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
@@ -154,7 +156,9 @@ public class RoutePdfService extends BasePdfService {
                 String client  = d != null && d.getOrder() != null ? safe(d.getOrder().getClientName())     : "-";
                 String city    = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffCity())    : "-";
                 String address = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffAddress()) : "-";
-                String cod     = d != null && d.getOrder() != null && d.getOrder().getTotalAmount() != null
+                String cod     = d != null && d.getOrder() != null
+                               && Boolean.TRUE.equals(d.getOrder().getIsCod())
+                               && d.getOrder().getTotalAmount() != null
                                ? d.getOrder().getTotalAmount().toPlainString() : "-";
 
                 table.addCell(cellAlt(String.valueOf(stop.getStopOrder()), alt));

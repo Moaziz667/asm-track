@@ -54,5 +54,8 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     @Query("SELECT o.erpOrderId FROM Order o WHERE o.erpOrderId IS NOT NULL")
     Set<String> findAllErpOrderIds();
+
+    @Query("SELECT DISTINCT o.companyId FROM Order o WHERE o.source = :source AND o.companyId IS NOT NULL")
+    List<UUID> findDistinctCompanyIdsBySource(@Param("source") com.asm.delivery.entity.OrderSource source);
 }
 

@@ -142,7 +142,7 @@ public class ErpLookupService {
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
-                .isCod("Immediate Payment".equalsIgnoreCase(preview.getPaymentTermName()))
+                .isCod(isImmediatePayment(preview.getPaymentTermName()))
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.NORMAL)
                 .items(new ArrayList<>())
@@ -189,6 +189,29 @@ public class ErpLookupService {
         return toOrderResponse(order, delivery);
     }
 
+
+    @Transactional
+    public Map<String, Object> bulkImportOrders(List<String> erpOrderIds) {
+        int imported = 0, skipped = 0;
+        for (String id : erpOrderIds) {
+            try {
+                importPendingOrder(id);
+                imported++;
+            } catch (Exception e) {
+                log.warn("Bulk import: skipping {} — {}", id, e.getMessage());
+                skipped++;
+            }
+        }
+        return Map.of("imported", imported, "skipped", skipped, "requested", erpOrderIds.size());
+    }
+
+    /** Matches Odoo payment terms that mean "pay now" in any language/variant. */
+    private static boolean isImmediatePayment(String termName) {
+        if (termName == null || termName.isBlank()) return false;
+        String t = termName.toLowerCase(java.util.Locale.ROOT);
+        return t.contains("immediate") || t.contains("immédiat") || t.contains("paiement immédiat")
+                || t.equals("now") || t.contains("cash on delivery") || t.contains("comptant");
+    }
 
     public void invalidateCache() {
         clientCache.clear();

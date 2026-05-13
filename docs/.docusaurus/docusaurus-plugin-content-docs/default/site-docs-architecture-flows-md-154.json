@@ -1,0 +1,28 @@
+{
+  "unversionedId": "architecture/flows",
+  "id": "architecture/flows",
+  "title": "Key Sequence Flows",
+  "description": "ERP Import Flow",
+  "source": "@site/docs/architecture/flows.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/flows",
+  "permalink": "/architecture/flows",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "id": "flows",
+    "title": "Key Sequence Flows",
+    "sidebar_position": 2
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "System Architecture",
+    "permalink": "/architecture/overview"
+  },
+  "next": {
+    "title": "Authentication & Security",
+    "permalink": "/architecture/auth"
+  }
+}

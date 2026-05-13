@@ -20,24 +20,48 @@ public class SwaggerConfig {
     public OpenAPI openAPI() {
         return new OpenAPI()
                 .info(new Info()
-                        .title("Delivery Service API")
+                        .title("ASM Track — Delivery Service API")
                         .description("""
-                            ASM Delivery Platform — Delivery Service
+                            ## ASM Track · Delivery Microservice
 
-                            ## Contracts frontend disponibles
-                            - `admin`: endpoints du back-office (`/api/admin/**`, `/api/v1/**`)
-                            - `driver`: endpoints app livreur (`/api/driver/**`)
-                            - `client`: endpoints app client (`/api/orders/**`, `/api/deliveries/**`)
-                            - `dev`: endpoints utilitaires (`/api/dev/**`)
+                            Core service for the ASM Track last-mile delivery platform.
+                            Handles deliveries, routes, ERP integration, driver coordination, and real-time operations.
 
-                            ## URLs utiles
-                            - Swagger UI: `/swagger-ui.html`
-                            - OpenAPI global: `/v3/api-docs`
-                            - OpenAPI par groupe: `/v3/api-docs/{group}`
+                            ---
 
-                            ## Authentification
-                            1. Générer un token de test via `POST /api/dev/client-token`.
-                            2. Cliquer sur **Authorize** et coller le JWT (sans préfixe `Bearer `).
+                            ## API Groups
+
+                            | Group | Prefix | Used by |
+                            |-------|--------|---------|
+                            | **admin** | `/api/admin/**`, `/api/v1/**` | Admin web app |
+                            | **driver** | `/api/driver/**` | Driver mobile app |
+                            | **client** | `/api/orders/**` | Client mobile app (legacy) |
+                            | **public** | `/api/public/**` | Anyone — tracking link |
+
+                            Use the **group selector** (top right) to filter endpoints by consumer.
+
+                            ---
+
+                            ## Authentication
+
+                            All protected endpoints require a Bearer JWT in the `Authorization` header.
+                            Admin and driver tokens are issued by separate services and cannot be mixed.
+
+                            **To test in Swagger UI:**
+                            1. Get a token via `POST /api/auth/admin/login` (AppBackend on port 8080)
+                            2. Click **Authorize** (lock icon) and paste the token — no `Bearer` prefix needed
+
+                            ---
+
+                            ## Key Flows
+
+                            **ERP Import:** `/api/admin/erp/pending-orders` → `/api/admin/erp/import-order/{id}`
+
+                            **Delivery lifecycle:** `UNSCHEDULED → SCHEDULED → PICKED_UP → IN_TRANSIT → DELIVERED`
+
+                            **Route management:** Create → Add stops → Optimize → Validate → Driver starts
+
+                            **COD:** Set on import if Odoo payment term is "Immediate Payment". Driver collects cash and confirms via `/api/driver/deliveries/{id}/cod`.
                             """)
                         .version("1.0.0"))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))

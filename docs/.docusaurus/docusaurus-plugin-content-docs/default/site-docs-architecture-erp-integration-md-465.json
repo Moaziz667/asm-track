@@ -1,0 +1,28 @@
+{
+  "unversionedId": "architecture/erp-integration",
+  "id": "architecture/erp-integration",
+  "title": "ERP Integration",
+  "description": "Architecture Pattern",
+  "source": "@site/docs/architecture/erp-integration.md",
+  "sourceDirName": "architecture",
+  "slug": "/architecture/erp-integration",
+  "permalink": "/architecture/erp-integration",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 4,
+  "frontMatter": {
+    "id": "erp-integration",
+    "title": "ERP Integration",
+    "sidebar_position": 4
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Authentication & Security",
+    "permalink": "/architecture/auth"
+  },
+  "next": {
+    "title": "IAM Service",
+    "permalink": "/services/iam-service"
+  }
+}

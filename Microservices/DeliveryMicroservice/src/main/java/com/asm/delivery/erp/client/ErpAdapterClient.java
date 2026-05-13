@@ -185,6 +185,23 @@ public class ErpAdapterClient {
 
     // ── Internal ────────────────────────────────────────────────────────────────
 
+    /** Get pending orders scoped to a specific company — safe to call from schedulers (no JWT needed). */
+    public List<Map<String, Object>> getPendingOrdersForCompany(int limit, UUID companyId) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/pending-orders")
+                .queryParam("erpProvider", defaultProvider)
+                .queryParam("limit", limit)
+                .toUriString();
+        try {
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(buildHeadersForCompany(companyId)),
+                    new ParameterizedTypeReference<>() {});
+            return response.getBody() != null ? response.getBody() : List.of();
+        } catch (Exception e) {
+            log.warn("getPendingOrdersForCompany failed for company={}: {}", companyId, e.getMessage());
+            return List.of();
+        }
+    }
+
     private HttpHeaders buildHeaders() {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
@@ -194,6 +211,14 @@ public class ErpAdapterClient {
                 && principal.getCompanyId() != null) {
             headers.set("X-Company-Id", principal.getCompanyId());
         }
+        return headers;
+    }
+
+    private HttpHeaders buildHeadersForCompany(UUID companyId) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("X-Internal-Secret", internalSecret);
+        if (companyId != null) headers.set("X-Company-Id", companyId.toString());
         return headers;
     }
 

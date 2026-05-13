@@ -164,8 +164,9 @@ public class BonLivraisonPdfService extends BasePdfService {
 
             doc.add(addrRow);
 
-            // ── COD box ───────────────────────────────────────────────────────
-            if (total != null && total.compareTo(BigDecimal.ZERO) > 0) {
+            // ── COD box — only for immediate payment orders ───────────────────
+            boolean isCod = order != null && Boolean.TRUE.equals(order.getIsCod());
+            if (isCod && total != null && total.compareTo(BigDecimal.ZERO) > 0) {
                 doc.add(buildCodBox(total, brand));
             }
 

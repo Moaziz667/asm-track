@@ -1,0 +1,28 @@
+{
+  "unversionedId": "services/driver-service",
+  "id": "services/driver-service",
+  "title": "Driver Service",
+  "description": "Port: 8086",
+  "source": "@site/docs/services/driver-service.md",
+  "sourceDirName": "services",
+  "slug": "/services/driver-service",
+  "permalink": "/services/driver-service",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 3,
+  "frontMatter": {
+    "id": "driver-service",
+    "title": "Driver Service",
+    "sidebar_position": 3
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Delivery Service",
+    "permalink": "/services/delivery-service"
+  },
+  "next": {
+    "title": "ERP Adapter Service",
+    "permalink": "/services/erp-adapter"
+  }
+}

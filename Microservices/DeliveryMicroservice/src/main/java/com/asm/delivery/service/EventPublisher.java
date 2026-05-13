@@ -178,6 +178,15 @@ public class EventPublisher {
             fcm.sendToDriver(newDriverId.toString(), "Transfert de colis en attente", ref + " — scannez le QR du livreur précédent pour recevoir", "HANDOFF_REQUIRED");
     }
 
+    public void publishErpOrdersReady(UUID companyId, int count) {
+        log.info("EVENT erp.orders_ready companyId={} count={}", companyId, count);
+        Map<String, Object> m = new HashMap<>();
+        m.put("event", "erp.orders_ready");
+        m.put("count", count);
+        m.put("companyId", companyId);
+        ws.convertAndSend("/topic/admin/" + companyId + "/erp", m);
+    }
+
     public void publishErpSyncFailed(Order order) {
         log.error("EVENT erp.sync_failed orderId={} erpOrderId={}", order.getId(), order.getErpOrderId());
         Map<String, Object> m = new HashMap<>();

@@ -8,9 +8,14 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * DEAD CODE: This controller is legacy. Client-facing authentication is
+ * currently disabled as the system manages Customers (Partners) via ERP.
+ */
 @RestController
 @RequestMapping("/api/auth/client")
 @RequiredArgsConstructor
+@Deprecated
 public class AuthController {
 
     private final AuthService authService;

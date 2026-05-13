@@ -1,0 +1,24 @@
+{
+  "unversionedId": "intro",
+  "id": "intro",
+  "title": "Introduction",
+  "description": "ASM Track is a last-mile delivery management platform built for logistics companies operating in Tunisia. It connects ERPs (Odoo, SAP, Sage) to a full delivery operations stack — from order import to driver GPS tracking, proof of delivery, and ERP status sync.",
+  "source": "@site/docs/intro.md",
+  "sourceDirName": ".",
+  "slug": "/intro",
+  "permalink": "/intro",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 1,
+  "frontMatter": {
+    "id": "intro",
+    "title": "Introduction",
+    "sidebar_position": 1
+  },
+  "sidebar": "docs",
+  "next": {
+    "title": "System Architecture",
+    "permalink": "/architecture/overview"
+  }
+}

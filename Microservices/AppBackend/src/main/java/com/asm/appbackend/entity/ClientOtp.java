@@ -7,6 +7,10 @@ import org.hibernate.annotations.CreationTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * DEAD CODE: This entity belongs to the legacy phone-based OTP verification for Clients.
+ * Since Client authentication is disabled, this is no longer used.
+ */
 @Entity
 @Table(name = "client_otp")
 @Getter
@@ -14,6 +18,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Deprecated
 public class ClientOtp {
 
     @Id

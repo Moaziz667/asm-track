@@ -1,0 +1,28 @@
+{
+  "unversionedId": "services/delivery-service",
+  "id": "services/delivery-service",
+  "title": "Delivery Service",
+  "description": "Port: 8082",
+  "source": "@site/docs/services/delivery-service.md",
+  "sourceDirName": "services",
+  "slug": "/services/delivery-service",
+  "permalink": "/services/delivery-service",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "id": "delivery-service",
+    "title": "Delivery Service",
+    "sidebar_position": 2
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "IAM Service",
+    "permalink": "/services/iam-service"
+  },
+  "next": {
+    "title": "Driver Service",
+    "permalink": "/services/driver-service"
+  }
+}

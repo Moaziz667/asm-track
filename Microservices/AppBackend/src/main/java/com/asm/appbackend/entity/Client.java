@@ -8,6 +8,11 @@ import org.hibernate.annotations.UpdateTimestamp;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+/**
+ * DEAD CODE: This entity and its related authentication flows are legacy.
+ * The system has pivoted to an ERP-first model where customers (Partners)
+ * are managed directly in Odoo/DUX.
+ */
 @Entity
 @Table(name = "clients")
 @Getter
@@ -15,6 +20,7 @@ import java.util.UUID;
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
+@Deprecated
 public class Client {
 
     @Id

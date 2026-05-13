@@ -1,0 +1,24 @@
+{
+  "unversionedId": "infra/databases",
+  "id": "infra/databases",
+  "title": "Databases",
+  "description": "Three separate PostgreSQL instances — one per microservice. This enforces service boundaries and allows independent scaling.",
+  "source": "@site/docs/infra/databases.md",
+  "sourceDirName": "infra",
+  "slug": "/infra/databases",
+  "permalink": "/infra/databases",
+  "draft": false,
+  "tags": [],
+  "version": "current",
+  "sidebarPosition": 2,
+  "frontMatter": {
+    "id": "databases",
+    "title": "Databases",
+    "sidebar_position": 2
+  },
+  "sidebar": "docs",
+  "previous": {
+    "title": "Docker Setup",
+    "permalink": "/infra/docker"
+  }
+}

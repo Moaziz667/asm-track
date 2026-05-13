@@ -10,8 +10,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * DEAD CODE: This Odoo client is a legacy implementation.
+ * All ERP synchronization and interaction logic have been moved to the
+ * dedicated ErpAdapterService microservice to ensure separation of concerns
+ * and multi-tenant scalability.
+ */
 @Component
 @Slf4j
+@Deprecated
 public class OdooClient {
 
     @Value("${odoo.url:http://host.docker.internal:8069/jsonrpc}")
