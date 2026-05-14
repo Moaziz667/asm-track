@@ -69,7 +69,10 @@ public class DriverAuthService {
                     "phone", driver.getPhone()
                 )
         );
-        return Map.of("token", newAccess);
+        return Map.of(
+            "token", newAccess,
+            "refreshToken", refreshToken
+        );
     }
 
     @Transactional

@@ -35,24 +35,6 @@ public class JwtService {
         }
     }
 
-    public String generateClientToken(String subject, String name, Integer odooPartnerId, String companyId) {
-        var builder = Jwts.builder()
-                .subject(subject)
-                .claim("role", "CLIENT")
-                .claim("name", name)
-                .issuedAt(new Date())
-                .expiration(new Date(System.currentTimeMillis() + accessExpiryMs));
-
-        if (odooPartnerId != null) {
-            builder.claim("odooPartnerId", odooPartnerId);
-        }
-        if (companyId != null) {
-            builder.claim("companyId", companyId);
-        }
-
-        return builder.signWith(key).compact();
-    }
-
     public String generateAdminToken(String subject, String role, String name, String companyId) {
         var builder = Jwts.builder()
                 .subject(subject)

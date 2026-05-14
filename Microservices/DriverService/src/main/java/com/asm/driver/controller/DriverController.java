@@ -75,6 +75,12 @@ public class DriverController {
         return ResponseEntity.ok(Map.of("message", "FCM token updated"));
     }
 
+    @DeleteMapping("/fcm-token")
+    public ResponseEntity<Map<String, String>> clearFcmToken(@AuthenticationPrincipal UserPrincipal user) {
+        driverService.updateFcmToken(UUID.fromString(user.getUserId()), null);
+        return ResponseEntity.ok(Map.of("message", "FCM token cleared"));
+    }
+
     @PostMapping("/duty-status")
     public ResponseEntity<Map<String, Object>> toggleDuty(@AuthenticationPrincipal UserPrincipal user,
                                                           @RequestParam boolean onDuty) {

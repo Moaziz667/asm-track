@@ -6,7 +6,6 @@ import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
@@ -40,7 +39,6 @@ public class DriverDeliveryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
-    private final ErpSyncService                 erpSyncService;
     private final ProofOfDeliveryRepository       podRepo;
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
@@ -58,6 +56,11 @@ public class DriverDeliveryService {
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
             DeliveryStatus.IN_TRANSIT
+    );
+
+    private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
+            RouteStatus.VALIDATED,
+            RouteStatus.IN_PROGRESS
     );
 
     // ── Get available deliveries ──────────────────────────────────────────────
@@ -81,7 +84,7 @@ public class DriverDeliveryService {
         List<UUID> activeIds = active.stream()
                 .map(r -> r.getDeliveryId())
                 .collect(Collectors.toList());
-        routeStopRepository.findPendingHandoffsByFromDriver(driverId).stream()
+        routeStopRepository.findPendingHandoffsByFromDriverWithRoute(driverId).stream()
                 .map(stop -> deliveryRepo.findByIdWithOrder(stop.getDeliveryId()).orElse(null))
                 .filter(d -> d != null && !activeIds.contains(d.getId()))
                 .map(this::toDriverDeliveryResponse)
@@ -100,7 +103,7 @@ public class DriverDeliveryService {
         if (delivery.getDriverId() != null && !delivery.getDriverId().equals(driverId)
                 && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
             // Allow handoff sender to still view the delivery
-            boolean isSender = routeStopRepository.findPendingHandoffsByFromDriver(driverId).stream()
+            boolean isSender = routeStopRepository.findPendingHandoffsByFromDriverWithRoute(driverId).stream()
                     .anyMatch(s -> s.getDeliveryId().equals(delivery.getId()));
             if (!isSender) throw AppException.forbidden("Not your delivery");
         }
@@ -108,17 +111,9 @@ public class DriverDeliveryService {
         return toDriverDeliveryResponse(delivery);
     }
 
-    // ── Accept delivery (atomic) ──────────────────────────────────────────────
-
-    private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
-            RouteStatus.VALIDATED,
-            RouteStatus.IN_PROGRESS
-    );
-
     @Transactional
     public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         // Driver cannot accept standalone deliveries while assigned to an active route today.
-        // Route-level check is correct — a driver may have many deliveries within a single route.
         boolean hasActiveRoute = routeRepository.existsByDriverIdAndDateAndStatusIn(
                 driverId, LocalDate.now(), ACTIVE_ROUTE_STATUSES);
         if (hasActiveRoute) {
@@ -147,8 +142,6 @@ public class DriverDeliveryService {
         delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        // Mark driver unavailable via Driver Service (best-effort)
-
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
@@ -157,13 +150,8 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
-
-        
         return toDriverDeliveryResponse(delivery);
     }
-
-    // ── Pickup ────────────────────────────────────────────────────────────────
-
     @Transactional
     public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
@@ -180,8 +168,6 @@ public class DriverDeliveryService {
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
-
-
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -209,13 +195,8 @@ public class DriverDeliveryService {
                 originLng = latestTracking.get().getLng();
             }
         }
-        if (originLat == null || originLng == null) {
-            DriverDTO driver = transportPort.getDriver(driverId.toString());
-            if (driver != null && driver.getCurrentLat() != null && driver.getCurrentLng() != null) {
-                originLat = BigDecimal.valueOf(driver.getCurrentLat());
-                originLng = BigDecimal.valueOf(driver.getCurrentLng());
-            }
-        }
+        // DELETED: Blocking transportPort.getDriver() inside @Transactional. It caused connection exhaustion.
+        // If we don't have tracking locally, we'll just publish without coordinates.
 
         String transitNote = "Driver started transit";
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
@@ -234,8 +215,6 @@ public class DriverDeliveryService {
                 null,
                 null
         );
-
-
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -267,14 +246,26 @@ public class DriverDeliveryService {
         DeliveryStatus finalStatus = isPartial ? DeliveryStatus.PARTIALLY_DELIVERED : DeliveryStatus.DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
+        // Mark the order as pending sync BEFORE saving and enqueueing.
+        // The Order default is "SYNCED", so without this the OutboxProcessor
+        // sees SYNCED and silently skips the event without ever calling Odoo.
+        if (delivery.getOrder() != null) {
+            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+        }
         delivery = deliveryRepo.save(delivery);
 
         // P1: Transactional Outbox Pattern
-        // Side-effects (ERP Sync) are enqueued atomically with the state change
-        outboxProcessor.enqueue("ERP_SYNC_STOCK", Map.of("deliveryId", deliveryId.toString()));
+        Map<String, Object> outboxPayload = new HashMap<>();
+        outboxPayload.put("deliveryId", deliveryId.toString());
+        outboxPayload.put("isPartial", isPartial);
+        if (isPartial && normalizedPartialItems != null) {
+            outboxPayload.put("partialItems", normalizedPartialItems);
+        }
+        outboxProcessor.enqueue("ERP_SYNC_STOCK", outboxPayload);
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
             Map.of("chauffeur", driverName, "client", clientName, "statut", finalStatus.name(),
                    "action", isPartial ? "Livraison partielle" : "Livraison completee"));
@@ -283,28 +274,12 @@ public class DriverDeliveryService {
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
         routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), message);
         
-        // TODO: eventPublisher.publishDeliveryPartiallyCompleted may be needed in the future
-        // For now we can use the same event or add conditionally. 
-        // We'll publish completed event. Or is there a specific logic in the subscriber?
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
-        transportPort.incrementStat(driverId.toString(), "delivered");
-
-        // Sync Odoo
-        if (delivery.getOrder() != null) {
-            if (isPartial) {
-                // If there's partial logic in Odoo sync, handle it here. Else sync normally.
-                if (normalizedPartialItems != null) {
-                    erpSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
-                } else {
-                    erpSyncService.syncStockUpdate(delivery.getOrder());
-                }
-            } else {
-                erpSyncService.syncStockUpdate(delivery.getOrder());
-            }
-        }
-
-
+        Map<String, Object> statPayload = new HashMap<>();
+        statPayload.put("driverId", driverId.toString());
+        statPayload.put("stat", "delivered");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", statPayload);
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -385,20 +360,7 @@ public class DriverDeliveryService {
 
 
     @Transactional
-    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, String idempotencyKey, UserPrincipal principal) {
-        // P1: Idempotency Check
-        if (idempotencyKey != null) {
-            var existing = idempotencyRepo.findById(idempotencyKey);
-            if (existing.isPresent()) {
-                log.info("IDEMPOTENCY_HIT key={} deliveryId={}", idempotencyKey, deliveryId);
-                try {
-                    return objectMapper.readValue(existing.get().getResponseBody(), DriverDeliveryResponse.class);
-                } catch (Exception e) {
-                    log.error("Failed to parse cached response for key {}", idempotencyKey);
-                }
-            }
-        }
-
+    public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
@@ -456,23 +418,7 @@ public class DriverDeliveryService {
             return toDriverDeliveryResponse(latest);
         }
 
-        DriverDeliveryResponse response = complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
-
-        // P1: Cache Response for Idempotency
-        if (idempotencyKey != null) {
-            try {
-                ProcessedRequest pr = ProcessedRequest.builder()
-                        .idempotencyKey(idempotencyKey)
-                        .responseStatus(200)
-                        .responseBody(objectMapper.writeValueAsString(response))
-                        .build();
-                idempotencyRepo.save(pr);
-            } catch (Exception e) {
-                log.error("Failed to cache response for idempotency", e);
-            }
-        }
-
-        return response;
+        return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
     }
 
     private void validateGeofence(Delivery delivery, BigDecimal driverLat, BigDecimal driverLng) {
@@ -534,16 +480,21 @@ public class DriverDeliveryService {
                    "motif", failureComment != null ? failureComment : "", "action", "Livraison echouee"));
 
         // Release driver + increment stat (best-effort)
-        transportPort.incrementStat(driverId.toString(), "failed");
+        Map<String, Object> failedPayload = new HashMap<>();
+        failedPayload.put("driverId", driverId.toString());
+        failedPayload.put("stat", "failed");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", failedPayload);
 
         appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, failureComment);
         routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
-        if (delivery.getOrder() != null) {
-            erpSyncService.syncFailure(delivery.getOrder(),
-                    failureCode != null ? failureCode.name() : null, failureComment);
-        }
+        // P1: Outbox Sync for failures
+        outboxProcessor.enqueue("ERP_SYNC_FAILURE", Map.of(
+            "deliveryId", deliveryId.toString(),
+            "failureCode", failureCode != null ? failureCode.name() : "GENERAL",
+            "comment", failureComment != null ? failureComment : ""
+        ));
 
 
 
@@ -569,7 +520,10 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.save(delivery);
 
         // Release driver + increment stat (best-effort)
-        transportPort.incrementStat(driverId.toString(), "cancelled");
+        Map<String, Object> cancelPayload = new HashMap<>();
+        cancelPayload.put("driverId", driverId.toString());
+        cancelPayload.put("stat", "cancelled");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", cancelPayload);
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
@@ -647,7 +601,7 @@ public class DriverDeliveryService {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
                 .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
 
         if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
@@ -682,7 +636,7 @@ public class DriverDeliveryService {
     public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
                 .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
 
         if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
@@ -754,8 +708,12 @@ public class DriverDeliveryService {
                     .build());
         }
 
-        // Propagate to Driver Service (best-effort)
-        transportPort.updateLocation(driverId.toString(), lat.doubleValue(), lng.doubleValue());
+        // Propagate to Driver Service (best-effort) via outbox
+        Map<String, Object> locPayload = new HashMap<>();
+        locPayload.put("driverId", driverId.toString());
+        locPayload.put("lat", lat.doubleValue());
+        locPayload.put("lng", lng.doubleValue());
+        outboxProcessor.enqueue("UPDATE_DRIVER_LOCATION", locPayload);
     }
 
     // ── Workflow service integration ──────────────────────────────────────────

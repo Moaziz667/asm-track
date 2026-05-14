@@ -33,7 +33,6 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class OpsAnalyticsService {
 
     @Value("${ops.sla.waiting-limit-minutes:15}")
@@ -54,22 +53,31 @@ public class OpsAnalyticsService {
     private final DeliveryStatusHistoryRepository historyRepo;
     private final DelayCalculationService delayCalculationService;
 
-    public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
-                StatsRange range = resolveRange(period, from, to);
+        @Transactional(readOnly = true)
+        public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
+        StatsRange range = resolveRange(period, from, to);
+        AdminStatsResponse response = doBuildStats(range);
+        enrichDriverNames(response);
+        return response;
+    }
 
+    @Transactional(readOnly = true)
+    public AdminStatsResponse doBuildStats(StatsRange range) {
         return AdminStatsResponse.builder()
-                                .today(buildTodayStats(range.start(), range.end(), range.period()))
-                                .byDriver(buildDriverStats(range.start(), range.end()))
-                                .byFailureCode(buildFailureStats(range.start(), range.end()))
-                                .byCity(buildCityStats(range.start(), range.end()))
-                                .byClient(buildClientStats(range.start(), range.end()))
+                .today(buildTodayStats(range.start(), range.end(), range.period()))
+                .byDriver(buildDriverStats(range.start(), range.end()))
+                .byFailureCode(buildFailureStats(range.start(), range.end()))
+                .byCity(buildCityStats(range.start(), range.end()))
+                .byClient(buildClientStats(range.start(), range.end()))
                 .build();
     }
 
+        @Transactional(readOnly = true)
         public AdminStatsResponse getStats() {
                 return getStats("day", null, null);
         }
 
+        @Transactional(readOnly = true)
         public AdminOpsOverviewResponse getOpsOverview(String period,
                                                                                                    LocalDate from,
                                                                                                    LocalDate to,
@@ -78,10 +86,12 @@ public class OpsAnalyticsService {
                 return buildOpsOverview(period, from, to, 200, 100, waitingSlaOverride, transitSlaOverride);
     }
 
+        @Transactional(readOnly = true)
         public AdminOpsOverviewResponse getOpsOverview(String period, LocalDate from, LocalDate to) {
                 return getOpsOverview(period, from, to, null, null);
         }
 
+        @Transactional(readOnly = true)
         public AdminOpsLanesResponse getOpsLanes(String period,
                                                                                          LocalDate from,
                                                                                          LocalDate to,
@@ -99,10 +109,12 @@ public class OpsAnalyticsService {
                 .build();
     }
 
+        @Transactional(readOnly = true)
         public AdminOpsLanesResponse getOpsLanes(String period, LocalDate from, LocalDate to, Integer topItems) {
                 return getOpsLanes(period, from, to, topItems, null, null);
         }
 
+        @Transactional(readOnly = true)
         public AdminOpsAlertsResponse getOpsAlerts(String period,
                                                                                            LocalDate from,
                                                                                            LocalDate to,
@@ -121,192 +133,208 @@ public class OpsAnalyticsService {
                 .build();
     }
 
+        @Transactional(readOnly = true)
         public AdminOpsAlertsResponse getOpsAlerts(String period, LocalDate from, LocalDate to, Integer limit) {
                 return getOpsAlerts(period, from, to, limit, null, null);
         }
 
+        @Transactional(readOnly = true)
         public AdminOpsAuditResponse getOpsAudit(String period,
-                                                                                         LocalDate from,
-                                                                                         LocalDate to,
-                                                                                         Integer limit,
-                                                                                         String actor,
-                                                                                         String role,
-                                                                                         DeliveryStatus status) {
-                StatsRange range = resolveRange(period, from, to);
-                int max = limit == null || limit < 1 ? 50 : Math.min(limit, 500);
+                                             LocalDate from,
+                                             LocalDate to,
+                                             Integer limit,
+                                             String actor,
+                                             String role,
+                                             DeliveryStatus status) {
+        StatsRange range = resolveRange(period, from, to);
+        return doBuildAudit(range, limit, actor, role, status);
+    }
 
-                CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-                CriteriaQuery<DeliveryStatusHistory> cq = cb.createQuery(DeliveryStatusHistory.class);
-                Root<DeliveryStatusHistory> root = cq.from(DeliveryStatusHistory.class);
+    @Transactional(readOnly = true)
+    public AdminOpsAuditResponse doBuildAudit(StatsRange range, Integer limit, String actor, String role, DeliveryStatus status) {
+        int max = limit == null || limit < 1 ? 50 : Math.min(limit, 500);
 
-                List<Predicate> predicates = new ArrayList<>();
-                predicates.add(cb.between(root.get("changedAt"), range.start(), range.end()));
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<DeliveryStatusHistory> cq = cb.createQuery(DeliveryStatusHistory.class);
+        Root<DeliveryStatusHistory> root = cq.from(DeliveryStatusHistory.class);
 
-                if (StringUtils.hasText(actor)) {
-                        predicates.add(cb.like(cb.lower(root.get("changedBy")), "%" + actor.trim().toLowerCase(Locale.ROOT) + "%"));
-                }
+        List<Predicate> predicates = new ArrayList<>();
+        predicates.add(cb.between(root.get("changedAt"), range.start(), range.end()));
 
-                if (StringUtils.hasText(role)) {
-                        predicates.add(cb.equal(root.get("changedByRole"), parseRole(role)));
-                }
-
-                if (status != null) {
-                        predicates.add(cb.equal(root.get("status"), status));
-                }
-
-                cq.select(root)
-                                .where(predicates.toArray(Predicate[]::new))
-                                .orderBy(cb.desc(root.get("changedAt")));
-
-                List<DeliveryStatusHistory> historyRows = entityManager.createQuery(cq)
-                                .setMaxResults(max)
-                                .getResultList();
-
-                CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
-                Root<DeliveryStatusHistory> countRoot = countQuery.from(DeliveryStatusHistory.class);
-                List<Predicate> countPredicates = new ArrayList<>();
-                countPredicates.add(cb.between(countRoot.get("changedAt"), range.start(), range.end()));
-                if (StringUtils.hasText(actor)) {
-                        countPredicates.add(cb.like(cb.lower(countRoot.get("changedBy")), "%" + actor.trim().toLowerCase(Locale.ROOT) + "%"));
-                }
-                if (StringUtils.hasText(role)) {
-                        countPredicates.add(cb.equal(countRoot.get("changedByRole"), parseRole(role)));
-                }
-                if (status != null) {
-                        countPredicates.add(cb.equal(countRoot.get("status"), status));
-                }
-
-                countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
-                long total = entityManager.createQuery(countQuery).getSingleResult();
-
-                List<UUID> deliveryIds = historyRows.stream()
-                                .map(DeliveryStatusHistory::getDeliveryId)
-                                .filter(Objects::nonNull)
-                                .distinct()
-                                .toList();
-
-                Map<UUID, Delivery> deliveryMap = deliveryIds.isEmpty()
-                                ? Map.of()
-                                : deliveryRepo.findAllByIdInWithOrder(deliveryIds).stream()
-                                .collect(Collectors.toMap(Delivery::getId, d -> d));
-
-                List<AdminOpsAuditResponse.AuditEvent> events = historyRows.stream()
-                                .map(h -> {
-                                        Delivery delivery = deliveryMap.get(h.getDeliveryId());
-                                        Order order = delivery != null ? delivery.getOrder() : null;
-                                        return AdminOpsAuditResponse.AuditEvent.builder()
-                                                        .historyId(h.getId())
-                                                        .deliveryId(h.getDeliveryId())
-                                                        .orderId(order != null ? order.getId() : null)
-                                                        .status(h.getStatus())
-                                                        .changedBy(h.getChangedBy())
-                                                        .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                                                        .note(h.getNote())
-                                                        .clientName(order != null ? order.getClientName() : null)
-                                                        .city(order != null ? order.getDropoffCity() : null)
-                                                        .changedAt(h.getChangedAt())
-                                                        .build();
-                                })
-                                .toList();
-
-                return AdminOpsAuditResponse.builder()
-                                .generatedAt(LocalDateTime.now())
-                                .period(range.period())
-                                .periodStart(range.start())
-                                .periodEnd(range.end())
-                                .total(total)
-                                .events(events)
-                                .build();
+        if (StringUtils.hasText(actor)) {
+            predicates.add(cb.like(cb.lower(root.get("changedBy")), "%" + actor.trim().toLowerCase(Locale.ROOT) + "%"));
         }
 
+        if (StringUtils.hasText(role)) {
+            predicates.add(cb.equal(root.get("changedByRole"), parseRole(role)));
+        }
+
+        if (status != null) {
+            predicates.add(cb.equal(root.get("status"), status));
+        }
+
+        cq.select(root)
+                .where(predicates.toArray(Predicate[]::new))
+                .orderBy(cb.desc(root.get("changedAt")));
+
+        List<DeliveryStatusHistory> historyRows = entityManager.createQuery(cq)
+                .setMaxResults(max)
+                .getResultList();
+
+        CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
+        Root<DeliveryStatusHistory> countRoot = countQuery.from(DeliveryStatusHistory.class);
+        List<Predicate> countPredicates = new ArrayList<>();
+        countPredicates.add(cb.between(countRoot.get("changedAt"), range.start(), range.end()));
+        if (StringUtils.hasText(actor)) {
+            countPredicates.add(cb.like(cb.lower(countRoot.get("changedBy")), "%" + actor.trim().toLowerCase(Locale.ROOT) + "%"));
+        }
+        if (StringUtils.hasText(role)) {
+            countPredicates.add(cb.equal(countRoot.get("changedByRole"), parseRole(role)));
+        }
+        if (status != null) {
+            countPredicates.add(cb.equal(countRoot.get("status"), status));
+        }
+
+        countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
+        long total = entityManager.createQuery(countQuery).getSingleResult();
+
+        List<UUID> deliveryIds = historyRows.stream()
+                .map(DeliveryStatusHistory::getDeliveryId)
+                .filter(Objects::nonNull)
+                .distinct()
+                .toList();
+
+        Map<UUID, Delivery> deliveryMap = deliveryIds.isEmpty()
+                ? Map.of()
+                : deliveryRepo.findAllByIdInWithOrder(deliveryIds).stream()
+                .collect(Collectors.toMap(Delivery::getId, d -> d));
+
+        List<AdminOpsAuditResponse.AuditEvent> events = historyRows.stream()
+                .map(h -> {
+                    Delivery delivery = deliveryMap.get(h.getDeliveryId());
+                    Order order = delivery != null ? delivery.getOrder() : null;
+                    return AdminOpsAuditResponse.AuditEvent.builder()
+                            .historyId(h.getId())
+                            .deliveryId(h.getDeliveryId())
+                            .orderId(order != null ? order.getId() : null)
+                            .status(h.getStatus())
+                            .changedBy(h.getChangedBy())
+                            .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
+                            .note(h.getNote())
+                            .clientName(order != null ? order.getClientName() : null)
+                            .city(order != null ? order.getDropoffCity() : null)
+                            .changedAt(h.getChangedAt())
+                            .build();
+                })
+                .toList();
+
+        return AdminOpsAuditResponse.builder()
+                .generatedAt(LocalDateTime.now())
+                .period(range.period())
+                .periodStart(range.start())
+                .periodEnd(range.end())
+                .total(total)
+                .events(events)
+                .build();
+    }
+
+        @Transactional(readOnly = true)
         public AdminOpsExceptionsResponse getOpsExceptions(String period,
-                                                                                                           LocalDate from,
-                                                                                                           LocalDate to,
-                                                                                                           Integer limit,
-                                                                                                           String motif,
-                                                                                                           UUID driverId,
-                                                                                                           String zone) {
-                StatsRange range = resolveRange(period, from, to);
-                int max = limit == null || limit < 1 ? 50 : Math.min(limit, 200);
+                                                       LocalDate from,
+                                                       LocalDate to,
+                                                       Integer limit,
+                                                       String motif,
+                                                       UUID driverId,
+                                                       String zone) {
+        StatsRange range = resolveRange(period, from, to);
+        List<Delivery> deliveries = doFetchDeliveriesForExceptions(range, driverId);
 
-                CriteriaBuilder cb = entityManager.getCriteriaBuilder();
-                CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
-                Root<Delivery> root = cq.from(Delivery.class);
-                root.fetch("order", JoinType.LEFT);
+        // Bulk-fetch driver info OUTSIDE transaction
+        Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
+        Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
 
-                List<Predicate> predicates = new ArrayList<>();
-                Predicate createdInRange = cb.between(root.get("createdAt"), range.start(), range.end());
-                Predicate updatedInRange = cb.between(root.get("updatedAt"), range.start(), range.end());
-                predicates.add(cb.or(createdInRange, updatedInRange));
+        Set<UUID> zoneIds = deliveries.stream()
+                .map(Delivery::getOrder)
+                .filter(Objects::nonNull)
+                .map(Order::getZoneId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
 
-                if (driverId != null) {
-                        predicates.add(cb.equal(root.get("driverId"), driverId));
-                }
+        UUID companyId = getCompanyId();
+        Map<UUID, String> zoneNameById = fetchZoneNames(companyId, zoneIds);
 
-                cq.select(root)
-                                .distinct(true)
-                                .where(predicates.toArray(Predicate[]::new))
-                                .orderBy(cb.desc(root.get("updatedAt")), cb.desc(root.get("createdAt")));
+        LocalDateTime now = LocalDateTime.now();
+        String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
+        String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
 
-                List<Delivery> deliveries = entityManager.createQuery(cq)
-                                .setMaxResults(2000)
-                                .getResultList();
+        List<AdminOpsExceptionsResponse.ExceptionItem> filteredItems = deliveries.stream()
+                .map(delivery -> toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
+                .filter(Objects::nonNull)
+                .filter(item -> {
+                    if (motifQuery == null) return true;
+                    return containsIgnoreCase(item.getMotif(), motifQuery)
+                            || containsIgnoreCase(item.getComment(), motifQuery)
+                            || containsIgnoreCase(item.getOrderRef(), motifQuery)
+                            || containsIgnoreCase(item.getDeliveryId().toString(), motifQuery);
+                })
+                .filter(item -> zoneQuery == null || containsIgnoreCase(item.getZoneName(), zoneQuery))
+                .sorted((a, b) -> {
+                    int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
+                    if (severityOrder != 0) return severityOrder;
+                    LocalDateTime aTime = a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
+                    LocalDateTime bTime = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
+                    return (bTime != null ? bTime : LocalDateTime.MIN).compareTo(aTime != null ? aTime : LocalDateTime.MIN);
+                })
+                .toList();
 
-                Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
-                Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
-                Set<UUID> zoneIds = deliveries.stream()
-                                .map(Delivery::getOrder)
-                                .filter(Objects::nonNull)
-                                .map(Order::getZoneId)
-                                .filter(Objects::nonNull)
-                                .collect(Collectors.toSet());
-                UUID companyId = getCompanyId();
-                Map<UUID, String> zoneNameById = zoneIds.isEmpty()
-                                ? Map.of()
-                                : zoneRepository.findByCompanyId(companyId).stream()
-                                .filter(z -> zoneIds.contains(z.getId()))
-                                .collect(Collectors.toMap(Zone::getId, Zone::getName));
-                LocalDateTime now = LocalDateTime.now();
-                String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
-                String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
+        int max = limit == null || limit < 1 ? 50 : Math.min(limit, 200);
+        List<AdminOpsExceptionsResponse.ExceptionItem> pagedItems = filteredItems.stream()
+                .limit(max)
+                .toList();
 
-                List<AdminOpsExceptionsResponse.ExceptionItem> filteredItems = deliveries.stream()
-                                .map(delivery -> toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
-                                .filter(Objects::nonNull)
-                                .filter(item -> {
-                                        if (motifQuery == null) {
-                                                return true;
-                                        }
-                                        return containsIgnoreCase(item.getMotif(), motifQuery)
-                                                        || containsIgnoreCase(item.getComment(), motifQuery)
-                                                        || containsIgnoreCase(item.getOrderRef(), motifQuery)
-                                                        || containsIgnoreCase(item.getDeliveryId().toString(), motifQuery);
-                                })
-                                .filter(item -> zoneQuery == null || containsIgnoreCase(item.getZoneName(), zoneQuery))
-                                .sorted((a, b) -> {
-                                        int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
-                                        if (severityOrder != 0) return severityOrder;
-                                        LocalDateTime aTime = a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
-                                        LocalDateTime bTime = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
-                                        if (aTime == null) aTime = LocalDateTime.MIN;
-                                        if (bTime == null) bTime = LocalDateTime.MIN;
-                                        return bTime.compareTo(aTime);
-                                })
-                                .toList();
+        return AdminOpsExceptionsResponse.builder()
+                .generatedAt(now)
+                .period(range.period())
+                .periodStart(range.start())
+                .periodEnd(range.end())
+                .total(filteredItems.size())
+                .items(pagedItems)
+                .build();
+    }
 
-                List<AdminOpsExceptionsResponse.ExceptionItem> pagedItems = filteredItems.stream()
-                                .limit(max)
-                                .toList();
+    @Transactional(readOnly = true)
+    public List<Delivery> doFetchDeliveriesForExceptions(StatsRange range, UUID driverId) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
+        Root<Delivery> root = cq.from(Delivery.class);
+        root.fetch("order", JoinType.LEFT);
 
-                return AdminOpsExceptionsResponse.builder()
-                                .generatedAt(now)
-                                .period(range.period())
-                                .periodStart(range.start())
-                                .periodEnd(range.end())
-                                .total(filteredItems.size())
-                                .items(pagedItems)
-                                .build();
+        List<Predicate> predicates = new ArrayList<>();
+        Predicate createdInRange = cb.between(root.get("createdAt"), range.start(), range.end());
+        Predicate updatedInRange = cb.between(root.get("updatedAt"), range.start(), range.end());
+        predicates.add(cb.or(createdInRange, updatedInRange));
+
+        if (driverId != null) {
+            predicates.add(cb.equal(root.get("driverId"), driverId));
         }
+
+        cq.select(root)
+                .distinct(true)
+                .where(predicates.toArray(Predicate[]::new))
+                .orderBy(cb.desc(root.get("updatedAt")), cb.desc(root.get("createdAt")));
+
+        return entityManager.createQuery(cq)
+                .setMaxResults(1000)
+                .getResultList();
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, String> fetchZoneNames(UUID companyId, Set<UUID> zoneIds) {
+        if (zoneIds.isEmpty()) return Map.of();
+        return zoneRepository.findByCompanyId(companyId).stream()
+                .filter(z -> zoneIds.contains(z.getId()))
+                .collect(Collectors.toMap(Zone::getId, Zone::getName));
+    }
     private AdminOpsOverviewResponse buildOpsOverview(String period,
                                                       LocalDate from,
                                                       LocalDate to,
@@ -321,22 +349,17 @@ public class OpsAnalyticsService {
         StatsRange range = resolveRange(period, from, to);
         int effectiveWaitingSlaMinutes = normalizeSlaThreshold(waitingSlaOverride, waitingSlaMins, "waitingSlaMinutes");
 
-        TypedQuery<Delivery> query = entityManager.createQuery(
-                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end ORDER BY d.createdAt DESC",
-                Delivery.class
-        );
-        query.setParameter("start", range.start());
-        query.setParameter("end", range.end());
-        query.setMaxResults(2000);
+        // 1. Transactional DB fetch
+        List<Delivery> scopedDeliveries = doFetchDeliveries(range);
 
-        List<Delivery> scopedDeliveries = query.getResultList();
+        // 2. HTTP/External calls (OUTSIDE transaction)
         Map<String, DriverDTO> driverMap = loadDriverMap(scopedDeliveries);
-                Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(scopedDeliveries);
+        Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(scopedDeliveries);
 
         List<AdminDeliverySummaryResponse> summaries = scopedDeliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                                        return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
                 })
                 .toList();
 
@@ -369,10 +392,6 @@ public class OpsAnalyticsService {
                     return diff > pickupSlaMins;
                 })
                 .count();
-
-        Map<UUID, RouteStop> stopsByDeliveryId = routeStopRepository.findAllByDeliveryIdInWithRoute(
-                scopedDeliveries.stream().map(Delivery::getId).toList()
-        ).stream().collect(Collectors.toMap(RouteStop::getDeliveryId, s -> s, (v1, v2) -> v1));
 
         List<AdminOpsOverviewResponse.LaneSnapshot> lanes = List.of(
                 buildLaneSnapshot(DeliveryStatus.UNSCHEDULED, "Planned", summaries, topItems),
@@ -417,6 +436,18 @@ public class OpsAnalyticsService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public List<Delivery> doFetchDeliveries(StatsRange range) {
+        TypedQuery<Delivery> query = entityManager.createQuery(
+                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end ORDER BY d.createdAt DESC",
+                Delivery.class
+        );
+        query.setParameter("start", range.start());
+        query.setParameter("end", range.end());
+        query.setMaxResults(1000);
+        return query.getResultList();
+    }
+
     /** Bulk-fetch all unique drivers needed for a list of deliveries. */
     private Map<String, DriverDTO> loadDriverMap(List<Delivery> deliveries) {
         Map<String, DriverDTO> map = new HashMap<>();
@@ -432,6 +463,7 @@ public class OpsAnalyticsService {
         return map;
     }
 
+    @Transactional(readOnly = true)
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()
                 .map(Delivery::getId)
@@ -446,7 +478,19 @@ public class OpsAnalyticsService {
                 .filter(routeStop -> routeStop.getRoute() != null)
                 .collect(Collectors.toMap(
                         com.asm.delivery.entity.RouteStop::getDeliveryId,
-                        routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName(), routeStop.getRoute().getStatus()),
+                        routeStop -> {
+                            Route r = routeStop.getRoute();
+                            return new RouteInfo(
+                                r.getId(), 
+                                r.getName(), 
+                                r.getStatus(),
+                                r.getStartedAt(),
+                                r.getDepartureTime(),
+                                r.getDate(),
+                                r.getPlannedStartTime(),
+                                routeStop.getEndTimeWindow()
+                            );
+                        },
                         (existing, replacement) -> existing
                 ));
     }
@@ -470,6 +514,11 @@ public class OpsAnalyticsService {
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
                 .routeStatus(routeInfo != null && routeInfo.routeStatus() != null ? routeInfo.routeStatus().name() : null)
+                .routeStartedAt(routeInfo != null ? routeInfo.startedAt() : null)
+                .routeDepartureTime(routeInfo != null ? routeInfo.departureTime() : null)
+                .routeDate(routeInfo != null ? routeInfo.date() : null)
+                .routePlannedStartTime(routeInfo != null ? routeInfo.plannedStartTime() : null)
+                .routeEndTimeWindow(routeInfo != null ? routeInfo.endTimeWindow() : null)
                 .status(d.getStatus().name())
                 .source(order != null ? order.getSource() : null)
                 .clientName(order != null ? order.getClientName() : null)
@@ -506,7 +555,16 @@ public class OpsAnalyticsService {
                 .build();
     }
 
-        private record RouteInfo(UUID routeId, String routeName, com.asm.delivery.entity.RouteStatus routeStatus) {}
+        private record RouteInfo(
+            UUID routeId, 
+            String routeName, 
+            com.asm.delivery.entity.RouteStatus routeStatus,
+            LocalDateTime startedAt,
+            LocalDateTime departureTime,
+            java.time.LocalDate date,
+            java.time.LocalTime plannedStartTime,
+            java.time.LocalTime endTimeWindow
+        ) {}
 
         private String normalizeText(String value) {
                 if (!StringUtils.hasText(value)) {
@@ -585,39 +643,36 @@ public class OpsAnalyticsService {
                         }
                 }
                 if ("IN_TRANSIT".equals(s.getStatus())) {
-                        // Utilisation du créneau horaire fixe défini par le dispatcher (Window End)
-                        Optional<RouteStop> stopOpt = routeStopRepository.findByDeliveryId(s.getDeliveryId());
-                        if (stopOpt.isPresent() && stopOpt.get().getEndTimeWindow() != null) {
-                            LocalDateTime deadline = LocalDateTime.of(now.toLocalDate(), stopOpt.get().getEndTimeWindow());
-                            if (now.isAfter(deadline)) {
-                                 return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Retard critique : Créneau horaire de livraison dépassé");
-                            }
+                        if (s.getRouteEndTimeWindow() != null) {
+                                LocalDateTime deadline = LocalDateTime.of(now.toLocalDate(), s.getRouteEndTimeWindow());
+                                if (now.isAfter(deadline)) {
+                                        return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Retard critique : Créneau horaire de livraison dépassé");
+                                }
                         }
                 }
                 return null;
         }
 
         private Long resolveAssignSlaElapsedMinutes(AdminDeliverySummaryResponse s, LocalDateTime now) {
-                return routeStopRepository.findActiveByDeliveryId(s.getDeliveryId())
-                                .map(RouteStop::getRoute)
-                                .map(route -> {
-                                        if (route == null) {
-                                                return null;
-                                        }
-                                        if (route.getStartedAt() != null) {
-                                                return Duration.between(route.getStartedAt(), now).toMinutes();
-                                        }
-                                        if (route.getDepartureTime() != null) {
-                                                return Duration.between(route.getDepartureTime(), now).toMinutes();
-                                        }
-                                        if (route.getDate() != null && route.getPlannedStartTime() != null) {
-                                                return Duration.between(route.getDate().atTime(route.getPlannedStartTime()), now).toMinutes();
-                                        }
-                                        return null;
-                                })
-                                .orElseGet(() -> s.getAssignedAt() != null
-                                                ? Duration.between(s.getAssignedAt(), now).toMinutes()
-                                                : null);
+                if (s.getRouteId() == null) {
+                        return s.getAssignedAt() != null
+                                        ? Duration.between(s.getAssignedAt(), now).toMinutes()
+                                        : null;
+                }
+
+                if (s.getRouteStartedAt() != null) {
+                        return Duration.between(s.getRouteStartedAt(), now).toMinutes();
+                }
+                if (s.getRouteDepartureTime() != null) {
+                        return Duration.between(s.getRouteDepartureTime(), now).toMinutes();
+                }
+                if (s.getRouteDate() != null && s.getRoutePlannedStartTime() != null) {
+                        return Duration.between(s.getRouteDate().atTime(s.getRoutePlannedStartTime()), now).toMinutes();
+                }
+
+                return s.getAssignedAt() != null
+                                ? Duration.between(s.getAssignedAt(), now).toMinutes()
+                                : null;
         }
 
         private AdminOpsOverviewResponse.ExceptionRow buildExceptionRow(AdminDeliverySummaryResponse s,
@@ -652,7 +707,8 @@ public class OpsAnalyticsService {
                                                                                                                                                  Map<UUID, RouteInfo> routeInfoByDeliveryId,
                                                                                                                                                  Map<UUID, String> zoneNameById,
                                                                                                                                                  LocalDateTime now) {
-                ExceptionClassification classification = classifyException(delivery, now);
+                RouteInfo routeInfo = routeInfoByDeliveryId.get(delivery.getId());
+                ExceptionClassification classification = classifyException(delivery, routeInfo, now);
                 if (classification == null) {
                         return null;
                 }
@@ -664,7 +720,6 @@ public class OpsAnalyticsService {
                         : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : "-");
 
                 DriverDTO driver = delivery.getDriverId() != null ? driverMap.get(delivery.getDriverId().toString()) : null;
-                RouteInfo routeInfo = routeInfoByDeliveryId.get(delivery.getId());
 
                 return AdminOpsExceptionsResponse.ExceptionItem.builder()
                                 .deliveryId(delivery.getId())
@@ -690,7 +745,7 @@ public class OpsAnalyticsService {
                                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                                 .build();
         }
-        private ExceptionClassification classifyException(Delivery delivery, LocalDateTime now) {
+        private ExceptionClassification classifyException(Delivery delivery, RouteInfo routeInfo, LocalDateTime now) {
                 DeliveryStatus status = delivery.getStatus();
                 if (status == DeliveryStatus.FAILED) {
                         String motif = delivery.getFailureCode() != null ? delivery.getFailureCode().name() : "FAILED";
@@ -699,52 +754,23 @@ public class OpsAnalyticsService {
                 }
                 if (status == DeliveryStatus.SCHEDULED) {
                         int effectiveAssignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
-                        Optional<RouteStop> currentStopOpt = routeStopRepository.findActiveByDeliveryId(delivery.getId());
                         LocalDateTime baseline = delivery.getAssignedAt();
 
-                        if (currentStopOpt.isPresent()) {
-                                RouteStop currentStop = currentStopOpt.get();
-                                Route route = currentStop.getRoute();
-                                
+                        if (routeInfo != null) {
                                 // 1. Use Route reference if available
-                                if (route != null) {
-                                        baseline = route.getStartedAt();
-                                        if (baseline == null) baseline = route.getDepartureTime();
-                                        if (baseline == null && route.getDate() != null && route.getPlannedStartTime() != null) {
-                                                baseline = route.getDate().atTime(route.getPlannedStartTime());
-                                        }
-                                }
-                                
-                                if (baseline == null) {
-                                        baseline = delivery.getAssignedAt() != null ? delivery.getAssignedAt() : delivery.getCreatedAt();
-                                }
-
-                                Integer currentOrder = currentStop.getStopOrder();
-
-                                if (route != null && currentOrder != null && currentOrder > 1) {
-                                        RouteStop previousStop = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId()).stream()
-                                                        .filter(stop -> stop.getStopOrder() != null && stop.getStopOrder() < currentOrder)
-                                                        .max(Comparator.comparingInt(RouteStop::getStopOrder))
-                                                        .orElse(null);
-
-                                        if (previousStop != null && !isRouteStopFinished(previousStop.getStatus())) {
-                                                return new ExceptionClassification(
-                                                                "WARNING",
-                                                        "SCHEDULED_MONITORING",
-                                                                "Le chauffeur est sur un arrêt précédent — cette livraison sera traitée ensuite"
-                                                );
-                                        }
-
-                                        if (previousStop != null) {
-                                                LocalDateTime readyAt = previousStop.getCompletedAt() != null
-                                                                ? previousStop.getCompletedAt()
-                                                                : previousStop.getUpdatedAt();
-                                                if (readyAt != null) {
-                                                        baseline = readyAt;
-                                                }
-                                        }
+                                baseline = routeInfo.startedAt();
+                                if (baseline == null) baseline = routeInfo.departureTime();
+                                if (baseline == null && routeInfo.date() != null && routeInfo.plannedStartTime() != null) {
+                                        baseline = routeInfo.date().atTime(routeInfo.plannedStartTime());
                                 }
                         }
+                        
+                        if (baseline == null) {
+                                baseline = delivery.getAssignedAt() != null ? delivery.getAssignedAt() : delivery.getCreatedAt();
+                        }
+
+                        // We skip the complex previousStop logic here to avoid N+1 queries.
+                        // It was doing findByRouteIdOrderByStopOrderAsc in a loop!
 
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
                         String motif = elapsed > effectiveAssignLimit ? "SLA_SCHEDULED" : "SCHEDULED_MONITORING";
@@ -761,8 +787,6 @@ public class OpsAnalyticsService {
                         return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Livraison partielle signalée");
                 }
                 if (status == DeliveryStatus.UNSCHEDULED) {
-                        // Use updatedAt as baseline — when a delivery returns to UNSCHEDULED after
-                        // cancel/fail, updatedAt reflects the reset moment, starting the SLA fresh.
                         LocalDateTime baseline = delivery.getUpdatedAt() != null
                                 ? delivery.getUpdatedAt() : delivery.getCreatedAt();
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
@@ -772,14 +796,10 @@ public class OpsAnalyticsService {
                         return new ExceptionClassification("INFO", "UNSCHEDULED", "À planifier");
                 }
                 if (status == DeliveryStatus.IN_TRANSIT) {
-                        Optional<RouteStop> stopOpt = routeStopRepository.findByDeliveryId(delivery.getId());
-                        if (stopOpt.isPresent() && stopOpt.get().getEndTimeWindow() != null) {
-                                Route route = stopOpt.get().getRoute();
-                                if (route != null && route.getDate() != null) {
-                                        LocalDateTime deadline = route.getDate().atTime(stopOpt.get().getEndTimeWindow());
-                                        if (now.isAfter(deadline)) {
-                                                return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Créneau horaire de livraison dépassé");
-                                        }
+                        if (routeInfo != null && routeInfo.endTimeWindow() != null && routeInfo.date() != null) {
+                                LocalDateTime deadline = routeInfo.date().atTime(routeInfo.endTimeWindow());
+                                if (now.isAfter(deadline)) {
+                                        return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Créneau horaire de livraison dépassé");
                                 }
                         }
                         return new ExceptionClassification("INFO", "IN_TRANSIT", "Livraison en cours de transit");
@@ -994,24 +1014,35 @@ public class OpsAnalyticsService {
                     double sr     = total > 0 ? ((double) del / total) * 100.0 : 0.0;
                     double avgDelay = delayMap.getOrDefault(driverId, 0.0);
 
-                    String driverName = null;
-                    if (driverId != null) {
-                        try {
-                            DriverDTO dto = transportPort.getDriver(driverId.toString());
-                            if (dto != null) driverName = dto.getName();
-                        } catch (Exception e) {
-                            driverName = "Chauffeur " + driverId.toString().substring(0, 8);
-                        }
-                    }
-
                     return AdminStatsResponse.DriverStats.builder()
                             .driverId(driverId != null ? driverId.toString() : null)
-                            .driverName(driverName)
+                            .driverName(null) // Will be enriched outside transaction
                             .total(total).delivered(del).failed(fail).successRate(round2(sr))
                             .avgDelayMinutes(round2(avgDelay))
                             .build();
                 })
                 .toList();
+    }
+
+    /**
+     * Enriches the stats response with driver names from the Transport microservice.
+     * This is done outside the database transaction to prevent connection pool exhaustion.
+     */
+    public void enrichDriverNames(AdminStatsResponse response) {
+        if (response == null || response.getByDriver() == null) return;
+
+        for (AdminStatsResponse.DriverStats ds : response.getByDriver()) {
+            if (ds.getDriverId() != null) {
+                try {
+                    DriverDTO dto = transportPort.getDriver(ds.getDriverId());
+                    if (dto != null) {
+                        ds.setDriverName(dto.getName());
+                    }
+                } catch (Exception e) {
+                    ds.setDriverName("Livreur " + ds.getDriverId().substring(0, 8));
+                }
+            }
+        }
     }
 
     private List<AdminStatsResponse.FailureStats> buildFailureStats(LocalDateTime start, LocalDateTime end) {

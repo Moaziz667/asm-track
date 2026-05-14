@@ -37,9 +37,10 @@ public class ErpSyncController {
     public ResponseEntity<Map<String, Object>> syncOrderCancellation(
             @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId,
+            @RequestParam(required = false) String transactionId,
             @RequestHeader(value = "X-Company-Id", required = false) String companyId) {
 
-        boolean success = resolve(erpProvider, companyId).syncOrderCancellation(erpOrderId);
+        boolean success = resolve(erpProvider, companyId).syncOrderCancellation(erpOrderId, transactionId);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -51,7 +52,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncFullDeliveryRequest request) {
 
         boolean success = resolve(erpProvider, companyId)
-                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId());
+                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -63,7 +64,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncPartialDeliveryRequest request) {
 
         ErpPartialDeliveryResultDTO result = resolve(erpProvider, companyId)
-                .syncPartialDelivery(request.getErpOrderId(), request.getItems());
+                .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId());
         return ResponseEntity.ok(result);
     }
 
@@ -75,7 +76,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncFailureRequest request) {
 
         boolean success = resolve(erpProvider, companyId)
-                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment());
+                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }
 }

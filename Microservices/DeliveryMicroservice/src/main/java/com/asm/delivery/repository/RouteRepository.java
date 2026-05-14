@@ -67,4 +67,11 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
             ORDER BY r.date DESC, r.createdAt DESC
             """)
     List<Route> searchByQuery(@Param("q") String q, Pageable pageable);
+
+    @Query("""
+        SELECT r FROM Route r
+        LEFT JOIN FETCH r.stops s
+        WHERE r.id = :id
+    """)
+    Optional<Route> findFullRouteById(@Param("id") UUID id);
 }

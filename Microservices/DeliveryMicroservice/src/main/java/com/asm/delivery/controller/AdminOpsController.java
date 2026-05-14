@@ -158,6 +158,7 @@ public class AdminOpsController {
         @ApiResponse(responseCode = "200", description = "Delivery reassigned"),
         @ApiResponse(responseCode = "404", description = "Delivery or driver not found", content = @Content)
     })
+    @com.asm.delivery.idempotency.IdempotentOperation
     public ResponseEntity<AdminOpsExceptionsResponse.ExceptionItem> reassignException(
             @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID deliveryId,
             @Valid @RequestBody AdminExceptionReassignRequest request,
@@ -175,6 +176,7 @@ public class AdminOpsController {
         @ApiResponse(responseCode = "200", description = "Delivery moved to waiting queue"),
         @ApiResponse(responseCode = "404", description = "Delivery not found", content = @Content)
     })
+    @com.asm.delivery.idempotency.IdempotentOperation
     public ResponseEntity<AdminOpsExceptionsResponse.ExceptionItem> replanException(
             @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID deliveryId,
             @Valid @RequestBody AdminExceptionReplanRequest request,

@@ -157,4 +157,28 @@ class FcmService {
       debugPrint('[FCM] Failed to send token to backend: $e');
     }
   }
+
+  /// Call on logout: removes the FCM token from Firebase and clears it on the
+  /// backend so the server stops sending push notifications to this device.
+  Future<void> deregister() async {
+    // 1. Tell the backend to clear the stored token first (while we still have
+    //    a valid JWT). Send an empty token to signal "clear this device".
+    try {
+      await _client.dio.delete('/api/driver/fcm-token');
+      debugPrint('[FCM] Token cleared on backend');
+    } catch (e) {
+      // Non-fatal — the backend token will expire on its own or be overwritten
+      // the next time the driver logs in on any device.
+      debugPrint('[FCM] Could not clear token on backend: $e');
+    }
+
+    // 2. Delete the token from Firebase so this installation stops receiving
+    //    notifications immediately, regardless of backend state.
+    try {
+      await FirebaseMessaging.instance.deleteToken();
+      debugPrint('[FCM] Firebase token deleted');
+    } catch (e) {
+      debugPrint('[FCM] Could not delete Firebase token: $e');
+    }
+  }
 }

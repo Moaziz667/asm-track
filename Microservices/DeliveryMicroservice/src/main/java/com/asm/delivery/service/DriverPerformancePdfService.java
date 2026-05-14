@@ -21,6 +21,7 @@ import org.jfree.chart.renderer.category.BarRenderer;
 import org.jfree.chart.renderer.category.StandardBarPainter;
 import org.jfree.data.category.DefaultCategoryDataset;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.awt.*;
 import java.awt.image.BufferedImage;
@@ -45,7 +46,7 @@ public class DriverPerformancePdfService extends BasePdfService {
 
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM");
 
-    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    @Transactional(readOnly = true)
     public byte[] generate(UUID driverId, String period, LocalDate from, LocalDate to) {
         DriverDTO driver = transportPort.getDriver(driverId.toString());
         if (driver == null) throw AppException.notFound("Chauffeur introuvable: " + driverId);
@@ -55,28 +56,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         LocalDateTime end   = to != null ? to.atTime(23, 59, 59) : now;
 
         // Driver deliveries in period
-        List<DeliveryStatus> allStatuses = List.of(
-                DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
-                DeliveryStatus.FAILED, DeliveryStatus.CANCELLED,
-                DeliveryStatus.SCHEDULED, DeliveryStatus.IN_TRANSIT,
-                DeliveryStatus.PICKED_UP, DeliveryStatus.UNSCHEDULED);
-
-        List<Delivery> history = deliveryRepository.findHistoryForDriver(driverId,
-                List.of(DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
-                        DeliveryStatus.FAILED, DeliveryStatus.CANCELLED));
-        List<Delivery> active  = deliveryRepository.findActiveForDriver(driverId,
-                List.of(DeliveryStatus.SCHEDULED, DeliveryStatus.IN_TRANSIT, DeliveryStatus.PICKED_UP));
-
-        List<Delivery> combined = new ArrayList<>();
-        combined.addAll(history);
-        combined.addAll(active);
-
-        List<Delivery> filtered = combined.stream()
-                .filter(d -> {
-                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
-                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
-                })
-                .collect(Collectors.toList());
+        List<Delivery> filtered = getFilteredDeliveries(driverId, start, end);
 
         // KPI computation
         long total     = filtered.size();
@@ -90,15 +70,7 @@ public class DriverPerformancePdfService extends BasePdfService {
                 .average().orElse(0.0);
 
         // Fleet average success rate for comparison
-        List<Delivery> allDeliveries = deliveryRepository.findAll();
-        List<Delivery> fleetFiltered = allDeliveries.stream()
-                .filter(d -> {
-                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
-                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
-                }).toList();
-        long fleetTotal     = fleetFiltered.size();
-        long fleetDelivered = fleetFiltered.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED).count();
-        double fleetRate    = fleetTotal == 0 ? 0 : (double) fleetDelivered / fleetTotal * 100.0;
+        double fleetRate = getFleetAverageData(start, end);
 
         // 7-day daily volume for trend chart
         Map<String, Long> dailyVolume = new TreeMap<>();
@@ -209,6 +181,39 @@ public class DriverPerformancePdfService extends BasePdfService {
         } catch (Exception e) {
             throw AppException.serviceUnavailable("Erreur génération rapport chauffeur: " + e.getMessage());
         }
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public List<Delivery> getFilteredDeliveries(UUID driverId, LocalDateTime start, LocalDateTime end) {
+        List<Delivery> history = deliveryRepository.findHistoryForDriver(driverId,
+                List.of(DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
+                        DeliveryStatus.FAILED, DeliveryStatus.CANCELLED));
+        List<Delivery> active  = deliveryRepository.findActiveForDriver(driverId,
+                List.of(DeliveryStatus.SCHEDULED, DeliveryStatus.IN_TRANSIT, DeliveryStatus.PICKED_UP));
+
+        List<Delivery> combined = new ArrayList<>();
+        combined.addAll(history);
+        combined.addAll(active);
+
+        return combined.stream()
+                .filter(d -> {
+                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
+                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
+                })
+                .collect(Collectors.toList());
+    }
+
+    @org.springframework.transaction.annotation.Transactional(readOnly = true)
+    public double getFleetAverageData(LocalDateTime start, LocalDateTime end) {
+        List<Delivery> allDeliveries = deliveryRepository.findAll();
+        List<Delivery> fleetFiltered = allDeliveries.stream()
+                .filter(d -> {
+                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
+                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
+                }).toList();
+        long fleetTotal     = fleetFiltered.size();
+        long fleetDelivered = fleetFiltered.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED).count();
+        return fleetTotal == 0 ? 0 : (double) fleetDelivered / fleetTotal * 100.0;
     }
 
     // ── Chart builder ─────────────────────────────────────────────────────────

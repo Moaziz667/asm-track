@@ -119,9 +119,11 @@ public class ErpController {
     })
     public ResponseEntity<List<ErpPendingOrderSummaryDTO>> getPendingOrders(
             @Parameter(description = "Max orders to fetch from ERP (1–300)", example = "100")
-            @RequestParam(defaultValue = "100") @Min(1) @Max(300) int limit
+            @RequestParam(defaultValue = "100") @Min(1) @Max(300) int limit,
+            @Parameter(description = "Bypass the 5-minute cache and fetch live from ERP")
+            @RequestParam(defaultValue = "false") boolean forceRefresh
     ) {
-        return ResponseEntity.ok(erpLookupService.getPendingOrders(limit));
+        return ResponseEntity.ok(erpLookupService.getPendingOrders(limit, forceRefresh));
     }
 
     // ── Order Preview ─────────────────────────────────────────────────────────

@@ -35,7 +35,7 @@ public class OrderService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
-    private final ErpSyncService    erpSyncService;
+    private final OutboxProcessor    outboxProcessor;
     private final ErpLookupService   erpLookupService;
     private final AuditLogService    auditLogService;
     private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
@@ -228,17 +228,7 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        final UUID orderIdForSync = order.getId();
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    java.util.concurrent.CompletableFuture.runAsync(() -> {
-                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
-                    });
-                }
-            }
-        );
+        outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
     }
 
     @Transactional
@@ -300,17 +290,7 @@ public class OrderService {
         auditLogService.logAction(principal, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
                 java.util.Map.of("reason", reason != null ? reason : ""));
 
-        final UUID orderIdForSync = order.getId();
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    java.util.concurrent.CompletableFuture.runAsync(() -> {
-                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
-                    });
-                }
-            }
-        );
+        outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
     }
 
     @Transactional(readOnly = true)

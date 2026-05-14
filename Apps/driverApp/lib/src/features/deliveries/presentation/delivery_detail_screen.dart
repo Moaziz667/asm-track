@@ -52,26 +52,6 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
         amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.'));
       }
 
-      // Offline check
-      final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-      if (!isOnline) {
-        ref.read(offlineQueueProvider.notifier).enqueueRequest(
-          path: '/api/driver/deliveries/${widget.delivery.id}/cod',
-          method: 'PATCH',
-          data: {
-            'codCollected': collected,
-            if (collected && amount != null) 'codAmountCollected': amount,
-          },
-        );
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-          );
-        }
-        widget.onDone();
-        return;
-      }
-
       await ref.read(deliveryRepositoryProvider).recordCod(
         widget.delivery.id,
         collected: collected,
@@ -79,10 +59,19 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
       );
       widget.onDone();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+        widget.onDone();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -204,6 +193,20 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
     try {
       await task();
       await _refresh();
+    } catch (e) {
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
+      }
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
@@ -258,42 +261,9 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                   );
                   if (result == true) await _refresh();
                 },
-                onPickup: () => _perform(() async {
-                  final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-                  if (!isOnline) {
-                    ref.read(offlineQueueProvider.notifier).enqueueRequest(
-                      path: '/api/driver/deliveries/${delivery.id}/pickup',
-                      method: 'POST',
-                      idempotencyKey: 'pickup-${delivery.id}',
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
-                      );
-                    }
-                    return delivery;
-                  }
-                  return ref.read(deliveryRepositoryProvider).pickup(delivery.id);
-                }),
+                onPickup: () => _perform(() => ref.read(deliveryRepositoryProvider).pickup(delivery.id)),
                 onTransit: () => _perform(() async {
                   final point = await _locationService.currentPosition();
-
-                  // Offline check
-                  final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-                  if (!isOnline) {
-                    ref.read(offlineQueueProvider.notifier).enqueueRequest(
-                      path: '/api/driver/deliveries/${delivery.id}/transit',
-                      method: 'POST',
-                      data: point != null ? {'lat': point.lat, 'lng': point.lng} : null,
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-                      );
-                    }
-                    return delivery; // Return existing delivery to satisfy type
-                  }
-
                   return ref.read(deliveryRepositoryProvider).startTransit(
                         delivery.id,
                         lat: point?.lat,
@@ -303,28 +273,6 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                 onFail: () async {
                   final reason = await _showFailSheet(context);
                   if (reason == null) return;
-
-                  // Offline check
-                  final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-                  if (!isOnline) {
-                    ref.read(offlineQueueProvider.notifier).enqueueRequest(
-                      path: '/api/driver/deliveries/${delivery.id}/fail',
-                      method: 'POST',
-                      data: {
-                        'failureCode': reason.$1.apiCode.value,
-                        if (reason.$2 != null && reason.$2!.isNotEmpty) 'failureComment': reason.$2,
-                      },
-                      idempotencyKey: 'fail-${delivery.id}-${reason.$1.apiCode.value}',
-                    );
-                    if (mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-                      );
-                    }
-                    await _refresh();
-                    return;
-                  }
-
                   await _perform(() => ref.read(deliveryRepositoryProvider).fail(
                         delivery.id,
                         reason: reason.$1,

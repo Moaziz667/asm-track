@@ -439,26 +439,22 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         itemsDone: itemsArray,
       );
 
-      // Offline check
-      final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-      if (!isOnline) {
-        ref.read(offlineQueueProvider.notifier).enqueueRequest(
-          path: '/api/driver/deliveries/${widget.args.delivery.id}/pod',
-          method: 'POST',
-          data: payload.toJson(),
-        );
+      try {
+        await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Preuve de livraison enregistr\u00e9e hors ligne')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succ\u00e8s.')));
         Navigator.of(context).pop(true);
-        return;
+      } catch (e) {
+        if (e == 'OFFLINE_QUEUED') {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne : POD enregistr\u00e9 pour synchronisation ult\u00e9rieure')),
+          );
+          Navigator.of(context).pop(true);
+        } else {
+          rethrow;
+        }
       }
-
-      await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succ\u00e8s.')));
-      Navigator.of(context).pop(true);
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)

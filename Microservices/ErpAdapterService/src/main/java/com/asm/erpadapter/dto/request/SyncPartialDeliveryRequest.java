@@ -10,5 +10,6 @@ import java.util.List;
 @Data
 public class SyncPartialDeliveryRequest {
     @NotBlank private String erpOrderId;
+    private String transactionId;
     private List<ErpPartialItemDTO> items;
 }

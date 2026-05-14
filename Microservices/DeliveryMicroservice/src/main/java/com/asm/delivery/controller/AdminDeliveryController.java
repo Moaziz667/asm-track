@@ -162,11 +162,13 @@ public class AdminDeliveryController {
     public ResponseEntity<AdminDeliveryDetailResponse> pinDropoff(
             @PathVariable UUID id,
             @Valid @RequestBody PinDropoffRequest request) {
-        return ResponseEntity.ok(dispatchService.pinDropoff(id, request));
+        dispatchService.pinDropoff(id, request);
+        return ResponseEntity.ok(dispatchService.getDeliveryDetail(id));
     }
 
     @PostMapping("/{id}/confirm-return")
     @Operation(summary = "Confirm returned parcel received", description = "Marks a returned parcel as physically received at the depot. Clears the return flag and allows the delivery to be re-dispatched to another driver.")
+    @IdempotentOperation
     public ResponseEntity<Void> confirmReturn(
             @PathVariable UUID id,
             @RequestParam(required = false) String note,
@@ -265,6 +267,7 @@ public class AdminDeliveryController {
 
     @PostMapping("/orders/{orderId}/cancel")
     @Operation(summary = "Cancel order and sync to ERP", description = "Cancels the order and its associated delivery. Triggers an asynchronous ERP sync to cancel the corresponding Odoo sale order. If the ERP is unavailable, the sync is retried with exponential backoff.")
+    @IdempotentOperation
     public ResponseEntity<Void> adminCancelOrder(
             @PathVariable UUID orderId,
             @RequestParam(required = false) String reason,

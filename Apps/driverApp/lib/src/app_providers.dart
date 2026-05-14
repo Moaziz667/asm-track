@@ -15,6 +15,7 @@ import 'services/connectivity_service.dart';
 import 'services/fcm_service.dart';
 import 'services/pdf_service.dart';
 import 'services/route_cache_service.dart';
+import 'services/offline_queue_service.dart';
 import 'services/token_storage.dart';
 import 'services/vehicle_service.dart';
 
@@ -56,7 +57,8 @@ final authControllerProvider =
 
 final deliveryRepositoryProvider = Provider<DeliveryRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
-  return DeliveryRepository(client);
+  final queue = ref.watch(offlineQueueProvider.notifier);
+  return DeliveryRepository(client, queue);
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
@@ -69,7 +71,8 @@ final routeCacheServiceProvider = Provider<RouteCacheService>((ref) => RouteCach
 final routeRepositoryProvider = Provider<RouteRepository>((ref) {
   final client = ref.watch(apiClientProvider);
   final cache = ref.watch(routeCacheServiceProvider);
-  return RouteRepository(client, cache);
+  final queue = ref.watch(offlineQueueProvider.notifier);
+  return RouteRepository(client, cache, queue);
 });
 
 final vehicleServiceProvider = Provider<VehicleService>((ref) {

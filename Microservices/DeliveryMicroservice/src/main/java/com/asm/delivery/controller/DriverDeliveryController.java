@@ -72,6 +72,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/accept")
+    @IdempotentOperation
     @Operation(summary = "Accept a delivery (atomic — 409 if taken)")
     public ResponseEntity<DriverDeliveryResponse> accept(
             @PathVariable UUID id,
@@ -80,6 +81,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/pickup")
+    @IdempotentOperation
     @Operation(summary = "Confirm package pickup")
     public ResponseEntity<DriverDeliveryResponse> pickup(
             @PathVariable UUID id,
@@ -88,6 +90,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/transit")
+    @IdempotentOperation
     @Operation(summary = "Start transit to delivery address")
     public ResponseEntity<DriverDeliveryResponse> transit(
             @PathVariable UUID id,
@@ -99,6 +102,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/complete")
+    @IdempotentOperation
     @Operation(summary = "Mark delivery as completed", description = "@Deprecated: Use /pod endpoint instead. Still works for backward compatibility.")
     public ResponseEntity<DriverDeliveryResponse> complete(
             @PathVariable UUID id,
@@ -123,6 +127,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/cancel")
+    @IdempotentOperation
     @Operation(summary = "Cancel delivery (driver) — resets to WAITING_DRIVER")
     public ResponseEntity<DriverDeliveryResponse> cancel(
             @PathVariable UUID id,
@@ -152,13 +157,13 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/pod")
+    @IdempotentOperation
     @Operation(summary = "Submit proof of delivery (POD)", description = "DRIVER only. Delivery must be IN_TRANSIT. Saves POD, completes delivery, triggers Odoo sync. Returns DELIVERED status.")
     public ResponseEntity<DriverDeliveryResponse> submitPod(
             @PathVariable UUID id,
             @Valid @RequestBody ProofOfDeliveryRequest req,
-            @RequestHeader(value = "X-Idempotency-Key", required = false) String idempotencyKey,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, idempotencyKey, principal));
+        return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
     }
 
     @GetMapping("/{id}/handoff-token")

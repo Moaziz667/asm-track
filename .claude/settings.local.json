@@ -27,7 +27,8 @@
       "Bash(npm start *)",
       "Bash(npx docusaurus *)",
       "Bash(npx kill-port *)",
-      "Bash(node_modules/.bin/docusaurus start *)"
+      "Bash(node_modules/.bin/docusaurus start *)",
+      "Bash(xargs grep -l \"cancel\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory"

@@ -175,7 +175,7 @@ public class RouteExecutionService {
 
     @Transactional
     public void syncStopFromDelivery(UUID deliveryId, DeliveryStatus deliveryStatus, LocalDateTime eventAt, String note) {
-        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+        routeStopRepository.findByDeliveryIdWithRoute(deliveryId).ifPresent(stop -> {
             RouteStopStatus mappedStatus = mapDeliveryToRouteStopStatus(deliveryStatus);
             if (mappedStatus == null) {
                 return;

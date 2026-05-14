@@ -117,13 +117,22 @@ class OfflineQueueService extends StateNotifier<int> {
             state = _box.length;
             continue;
           }
-          // Max retries exhausted — remove to unblock queue
+          // Network errors shouldn't penalize the retry count. Rely on the 24h TTL instead.
+          if (e.type == DioExceptionType.connectionError ||
+              e.type == DioExceptionType.connectionTimeout ||
+              e.type == DioExceptionType.sendTimeout ||
+              e.type == DioExceptionType.receiveTimeout ||
+              e.type == DioExceptionType.unknown) {
+            continue; // Leave it in the queue, do not increment retryCount
+          }
+
+          // Max retries exhausted for 5xx errors — remove to unblock queue
           if (retryCount >= _maxRetries) {
             await _box.delete(key);
             state = _box.length;
             continue;
           }
-          // Transient error — increment retry, skip this item, keep processing rest
+          // Transient server error (5xx) — increment retry
           final updated = Map<dynamic, dynamic>.from(entry)
             ..['retryCount'] = retryCount + 1;
           await _box.put(key, updated);

@@ -92,8 +92,9 @@ public class ErpLookupService {
     }
 
     @Transactional(readOnly = true)
-    public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
+    public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit, boolean forceRefresh) {
         String cacheKey = companyKey() + "-pending-" + limit;
+        if (forceRefresh) pendingOrderCache.remove(cacheKey);
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 

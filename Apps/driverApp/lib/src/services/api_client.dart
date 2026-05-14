@@ -40,11 +40,11 @@ class ApiClient {
           // P1: Idempotency-Key Support
           final method = options.method.toUpperCase();
           if (method == 'POST' || method == 'PUT' || method == 'PATCH') {
-            // Generate a unique key for the request if not already present
-            // This key survives retries within the same Dio instance
+            // Generate a unique key for the request if not already present.
+            // Note: If the Repository provided a stable key (e.g., 'accept-123'), we MUST use it.
             if (!options.headers.containsKey('X-Idempotency-Key')) {
               options.headers['X-Idempotency-Key'] = 
-                  '${DateTime.now().millisecondsSinceEpoch}-${options.path.hashCode}';
+                  'req-${DateTime.now().millisecondsSinceEpoch}-${options.path.hashCode}';
             }
           }
           // P2: Distributed Tracing & Correlation IDs
@@ -124,7 +124,7 @@ class ApiClient {
         data: {'refreshToken': refreshToken},
       );
       final data = response.data ?? <String, dynamic>{};
-      final tokens = AuthTokens.fromMap(data);
+      final tokens = AuthTokens.fromMap(data, currentRefreshToken: refreshToken);
       await tokenStorage.saveTokens(tokens);
       completer.complete();
     } catch (error, stackTrace) {

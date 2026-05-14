@@ -56,6 +56,20 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
     try {
       await fn();
       await _refresh();
+    } catch (e) {
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
+      }
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
@@ -113,22 +127,6 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
 
-        // Offline check
-        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-        if (!isOnline) {
-          ref.read(offlineQueueProvider.notifier).enqueueRequest(
-            path: '/api/driver/routes/$id/start',
-            method: 'POST',
-            idempotencyKey: 'start-route-$id',
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-            );
-          }
-          return;
-        }
-
         await ref.read(routeRepositoryProvider).start(id);
       });
 
@@ -138,44 +136,11 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
 
-        // Offline check
-        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-        if (!isOnline) {
-          ref.read(offlineQueueProvider.notifier).enqueueRequest(
-            path: '/api/driver/routes/$routeId/stops/$stopId/arrive',
-            method: 'POST',
-            idempotencyKey: 'arrive-$routeId-$stopId',
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-            );
-          }
-          return;
-        }
-
         await ref.read(routeRepositoryProvider).arrive(routeId, stopId);
       });
 
   Future<void> _startTransit(String deliveryId) => _doAction(() async {
         final pt = await LocationService().currentPosition();
-
-        // Offline check
-        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
-        if (!isOnline) {
-          ref.read(offlineQueueProvider.notifier).enqueueRequest(
-            path: '/api/driver/deliveries/$deliveryId/transit',
-            method: 'POST',
-            data: pt != null ? {'lat': pt.lat, 'lng': pt.lng} : null,
-            idempotencyKey: 'transit-$deliveryId',
-          );
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Hors ligne \u2014 sera envoy\u00e9 \u00e0 la reconnexion')),
-            );
-          }
-          return;
-        }
 
         await ref.read(deliveryRepositoryProvider).startTransit(
           deliveryId,

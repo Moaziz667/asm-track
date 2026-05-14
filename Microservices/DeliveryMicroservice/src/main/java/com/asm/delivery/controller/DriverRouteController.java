@@ -1,5 +1,6 @@
 package com.asm.delivery.controller;
 
+import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.dto.response.RouteResponse;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.RoutePdfService;
@@ -44,12 +45,14 @@ public class DriverRouteController {
     }
 
     @PostMapping("/{id}/start")
+    @IdempotentOperation
     @Operation(summary = "Start route (VALIDATED -> IN_PROGRESS)")
     public ResponseEntity<RouteResponse> start(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(routeExecutionService.start(id, UUID.fromString(principal.getUserId()), principal));
     }
 
     @PostMapping("/{id}/stops/{stopId}/arrive")
+    @IdempotentOperation
     @Operation(summary = "Mark stop as arrived")
     public ResponseEntity<RouteResponse> arrive(
             @PathVariable UUID id,

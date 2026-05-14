@@ -30,14 +30,57 @@ public class PublicTrackingService {
     private final CompanyRepository     companyRepo;
     private final TransportPort         transportPort;
 
-    @Transactional(readOnly = true)
     public TrackingResponse getTracking(UUID deliveryId) {
+        TrackingData data = doGetTrackingData(deliveryId);
+
+        // Driver info (name, phone, live position) - OUTSIDE transaction
+        String driverName = null;
+        String driverPhone = null;
+        Double driverLat = null;
+        Double driverLng = null;
+        if (data.driverId() != null) {
+            try {
+                DriverDTO driver = transportPort.getDriver(data.driverId().toString());
+                if (driver != null) {
+                    driverName  = driver.getName();
+                    driverPhone = driver.getPhone();
+                    driverLat   = driver.getCurrentLat();
+                    driverLng   = driver.getCurrentLng();
+                }
+            } catch (Exception e) {
+                log.debug("Could not fetch driver for tracking: {}", e.getMessage());
+            }
+        }
+
+        return TrackingResponse.builder()
+                .deliveryId(deliveryId.toString())
+                .status(data.delivery().getStatus() != null ? data.delivery().getStatus().name() : "UNKNOWN")
+                .clientName(data.delivery().getOrder() != null ? data.delivery().getOrder().getClientName() : null)
+                .dropoffLat(data.delivery().getOrder() != null && data.delivery().getOrder().getDropoffLat()  != null ? data.delivery().getOrder().getDropoffLat().doubleValue()  : null)
+                .dropoffLng(data.delivery().getOrder() != null && data.delivery().getOrder().getDropoffLng()  != null ? data.delivery().getOrder().getDropoffLng().doubleValue()  : null)
+                .dropoffAddress(data.delivery().getOrder() != null ? data.delivery().getOrder().getDropoffAddress() : null)
+                .dropoffCity(data.delivery().getOrder() != null ? data.delivery().getOrder().getDropoffCity() : null)
+                .driverName(driverName)
+                .driverPhone(driverPhone)
+                .driverLat(driverLat)
+                .driverLng(driverLng)
+                .depotLat(data.depotLat())
+                .depotLng(data.depotLng())
+                .depotName(data.depotName())
+                .startWindow(data.startWindow())
+                .endWindow(data.endWindow())
+                .etaAt(data.etaAt())
+                .routeGeometry(data.routeGeometry())
+                .companyName(data.companyName())
+                .companyLogoUrl(data.companyLogoUrl())
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public TrackingData doGetTrackingData(UUID deliveryId) {
         Delivery delivery = deliveryRepo.findById(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        Order order = delivery.getOrder();
-
-        // Route stop — get ETA, time windows, route geometry, and linked route
         RouteStop stop = routeStopRepo.findActiveByDeliveryId(deliveryId).orElse(null);
 
         String startWindow   = null;
@@ -58,26 +101,6 @@ public class PublicTrackingService {
             }
         }
 
-        // Driver info (name, phone, live position)
-        String driverName = null;
-        String driverPhone = null;
-        Double driverLat = null;
-        Double driverLng = null;
-        if (driverId != null) {
-            try {
-                DriverDTO driver = transportPort.getDriver(driverId.toString());
-                if (driver != null) {
-                    driverName  = driver.getName();
-                    driverPhone = driver.getPhone();
-                    driverLat   = driver.getCurrentLat();
-                    driverLng   = driver.getCurrentLng();
-                }
-            } catch (Exception e) {
-                log.debug("Could not fetch driver for tracking: {}", e.getMessage());
-            }
-        }
-
-        // Depot
         Double depotLat  = null;
         Double depotLng  = null;
         String depotName = null;
@@ -90,7 +113,6 @@ public class PublicTrackingService {
             }
         }
 
-        // Company branding
         String companyName    = "ASM Track";
         String companyLogoUrl = null;
         if (delivery.getCompanyId() != null) {
@@ -101,27 +123,20 @@ public class PublicTrackingService {
             }
         }
 
-        return TrackingResponse.builder()
-                .deliveryId(deliveryId.toString())
-                .status(delivery.getStatus() != null ? delivery.getStatus().name() : "UNKNOWN")
-                .clientName(order != null ? order.getClientName() : null)
-                .dropoffLat(order != null && order.getDropoffLat()  != null ? order.getDropoffLat().doubleValue()  : null)
-                .dropoffLng(order != null && order.getDropoffLng()  != null ? order.getDropoffLng().doubleValue()  : null)
-                .dropoffAddress(order != null ? order.getDropoffAddress() : null)
-                .dropoffCity(order != null ? order.getDropoffCity() : null)
-                .driverName(driverName)
-                .driverPhone(driverPhone)
-                .driverLat(driverLat)
-                .driverLng(driverLng)
-                .depotLat(depotLat)
-                .depotLng(depotLng)
-                .depotName(depotName)
-                .startWindow(startWindow)
-                .endWindow(endWindow)
-                .etaAt(etaAt)
-                .routeGeometry(routeGeometry)
-                .companyName(companyName)
-                .companyLogoUrl(companyLogoUrl)
-                .build();
+        return new TrackingData(delivery, startWindow, endWindow, etaAt, routeGeometry, driverId, depotLat, depotLng, depotName, companyName, companyLogoUrl);
     }
+
+    private record TrackingData(
+            Delivery delivery,
+            String startWindow,
+            String endWindow,
+            String etaAt,
+            String routeGeometry,
+            UUID driverId,
+            Double depotLat,
+            Double depotLng,
+            String depotName,
+            String companyName,
+            String companyLogoUrl
+    ) {}
 }

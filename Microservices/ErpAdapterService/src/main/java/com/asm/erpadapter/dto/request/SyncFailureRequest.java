@@ -7,6 +7,7 @@ import lombok.Data;
 @Data
 public class SyncFailureRequest {
     @NotBlank private String erpOrderId;
+    private String transactionId;
     private String failureCode;
     private String comment;
 }
