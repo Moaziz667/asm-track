@@ -17,7 +17,7 @@ services:
     restart: always
 
   odoo-2:
-    image: odoo:16
+    image: odoo:latest
     container_name: odoo-2
     depends_on:
       - postgres-odoo-2

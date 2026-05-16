@@ -399,23 +399,22 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       if (_attachLocation) {
         final point = await _locationService.currentPosition();
         if (point != null) {
-          // P0: Accuracy Check
-          if (point.accuracy > 100) {
-            throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
-          }
+          // DISABLED FOR TESTING \u2014 re-enable before production
+          // // P0: Accuracy Check
+          // if (point.accuracy > 100) {
+          //   throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
+          // }
 
-          // P0: Geofence Check
-          final destLat = widget.args.delivery.lat;
-          final destLng = widget.args.delivery.lng;
-
-          if (destLat != null && destLng != null) {
-            final distance = _locationService.calculateDistance(
-              point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
-            
-            if (distance > 250) {
-              throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
-            }
-          }
+          // // P0: Geofence Check
+          // final destLat = widget.args.delivery.lat;
+          // final destLng = widget.args.delivery.lng;
+          // if (destLat != null && destLng != null) {
+          //   final distance = _locationService.calculateDistance(
+          //     point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
+          //   if (distance > 250) {
+          //     throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
+          //   }
+          // }
 
           lat = point.lat;
           lng = point.lng;

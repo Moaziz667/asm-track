@@ -31,7 +31,7 @@ public class ErpSyncService {
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Cancellation failed for " + order.getErpOrderId());
+            throw new RuntimeException("ERP Cancellation failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
         }
     }
 
@@ -44,7 +44,7 @@ public class ErpSyncService {
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Stock update failed for " + order.getErpOrderId());
+            throw new RuntimeException("ERP Stock update failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
         }
     }
 
@@ -65,7 +65,7 @@ public class ErpSyncService {
             }
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Partial sync failed for " + order.getErpOrderId());
+            throw new RuntimeException("ERP Partial sync failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
         }
     }
 
@@ -77,7 +77,7 @@ public class ErpSyncService {
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Failure sync failed for " + order.getErpOrderId());
+            throw new RuntimeException("ERP Failure sync failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
         }
     }
 

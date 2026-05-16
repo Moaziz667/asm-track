@@ -11,9 +11,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +25,6 @@ import java.util.UUID;
 
 @Service
 @Slf4j
-@RequiredArgsConstructor
 public class OutboxProcessor {
 
     private final OutboxRepository outboxRepo;
@@ -30,6 +32,20 @@ public class OutboxProcessor {
     private final ObjectMapper objectMapper;
     private final DeliveryRepository deliveryRepo;
     private final TransportPort transportPort;
+    private final RestTemplate alertRestTemplate = new RestTemplate();
+
+    @Value("${outbox.alert.webhook-url:}")
+    private String alertWebhookUrl;
+
+    public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
+                           ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
+                           TransportPort transportPort) {
+        this.outboxRepo = outboxRepo;
+        this.erpSyncService = erpSyncService;
+        this.objectMapper = objectMapper;
+        this.deliveryRepo = deliveryRepo;
+        this.transportPort = transportPort;
+    }
 
     @Scheduled(fixedDelay = 20000)
     public void processOutbox() {
@@ -39,11 +55,12 @@ public class OutboxProcessor {
 
         for (OutboxEvent event : events) {
             try {
-                // Step 2: Handle actual execution outside the 'claim' lock
                 handleEvent(event);
                 markProcessed(event.getId());
             } catch (Exception e) {
-                log.error("Outbox execution failed for event {}: {}", event.getId(), e.getMessage());
+                log.error("Outbox event failed — eventId={} eventType={} retryCount={} errorClass={} reason={}",
+                        event.getId(), event.getEventType(), event.getRetryCount(),
+                        e.getClass().getSimpleName(), e.getMessage(), e);
                 handleFailure(event.getId(), e.getMessage());
             }
         }
@@ -80,7 +97,9 @@ public class OutboxProcessor {
                 event.setStatus("PENDING");
             } else {
                 event.setStatus("FAILED");
-                log.error("Event {} permanently FAILED after 50 retries.", eventId);
+                log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
+                        eventId, event.getEventType(), newRetryCount, error);
+                sendDeadLetterAlert(eventId, event.getEventType(), error);
             }
             outboxRepo.save(event);
         });
@@ -104,12 +123,6 @@ public class OutboxProcessor {
                 String driverId = (String) payload.get("driverId");
                 String stat = (String) payload.get("stat");
                 transportPort.incrementStat(driverId, stat);
-                break;
-            case "UPDATE_DRIVER_LOCATION":
-                String locDriverId = (String) payload.get("driverId");
-                Number lat = (Number) payload.get("lat");
-                Number lng = (Number) payload.get("lng");
-                transportPort.updateLocation(locDriverId, lat.doubleValue(), lng.doubleValue());
                 break;
             default:
                 log.warn("Unknown outbox event type: {}", event.getEventType());
@@ -164,6 +177,22 @@ public class OutboxProcessor {
         String code = (String) payload.get("failureCode");
         String comment = (String) payload.get("comment");
         erpSyncService.syncFailure(delivery.getOrder(), code, comment, txId);
+    }
+
+    private void sendDeadLetterAlert(UUID eventId, String eventType, String error) {
+        if (alertWebhookUrl == null || alertWebhookUrl.isBlank()) return;
+        try {
+            String text = String.format(
+                    ":red_circle: *ASM Track — Outbox Dead Letter*\n" +
+                    "• eventId: `%s`\n• eventType: `%s`\n• error: `%s`",
+                    eventId, eventType, error != null ? error : "unknown");
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_JSON);
+            alertRestTemplate.exchange(alertWebhookUrl, HttpMethod.POST,
+                    new HttpEntity<>(Map.of("text", text), headers), String.class);
+        } catch (Exception ex) {
+            log.warn("Failed to send dead-letter alert for eventId={}: {}", eventId, ex.getMessage());
+        }
     }
 
     @Transactional

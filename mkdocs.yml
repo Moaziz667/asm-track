@@ -1,0 +1,83 @@
+site_name: ASM Track — Technical Documentation
+site_description: Production-grade architecture documentation for the ASM Track logistics platform
+site_author: ASM Track Engineering
+docs_dir: docs
+
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: blue
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.expand
+    - navigation.path
+    - navigation.top
+    - search.highlight
+    - search.suggest
+    - content.code.copy
+    - content.code.annotate
+    - toc.integrate
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: 00-INDEX.md
+  - Architecture:
+    - Global Architecture: 01-global-architecture.md
+    - Service Catalog: 02-service-catalog.md
+    - Frontend Clients: 03-frontend-clients.md
+  - Delivery Domain:
+    - Lifecycle & State Machine: 04-delivery-lifecycle.md
+  - Distributed Patterns:
+    - Outbox · ERP · Offline · Tenancy: 05-distributed-patterns.md
+  - API Reference: 06-api-reference.md
+  - Security: 07-security-model.md
+  - Infrastructure: 08-infrastructure-deployment.md
+  - Runbooks: 09-runbooks.md
+  - V2 Improvements: v2-improvements.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - tables
+  - toc:
+      permalink: true
+  - attr_list
+  - md_in_html
+
+plugins:
+  - search:
+      lang: en
+
+extra:
+  social:
+    - icon: fontawesome/solid/truck
+      link: "#"
+      name: ASM Track Platform

@@ -1,6 +1,10 @@
 server:
   port: 8082
 
+outbox:
+  alert:
+    webhook-url: ${OUTBOX_ALERT_WEBHOOK_URL:}
+
 logging:
   level:
     com.asm.delivery.security: DEBUG

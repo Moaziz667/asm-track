@@ -242,6 +242,8 @@ public class ErpAdapterClient {
     }
 
     private boolean postBooleanResult(String url, Object body, String companyId) {
+        String erpOrderId = extractField(body, "erpOrderId");
+        String transactionId = extractField(body, "transactionId");
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     url, HttpMethod.POST, new HttpEntity<>(body, buildHeaders(companyId)),
@@ -249,13 +251,24 @@ public class ErpAdapterClient {
             Map<String, Object> result = response.getBody();
             boolean success = result != null && Boolean.TRUE.equals(result.get("success"));
             if (!success) {
-                log.error("ERP adapter returned success=false: url={}, response={}", url, result);
+                Object reason = result != null ? result.get("reason") : "null_body";
+                log.error("ERP adapter success=false — erpOrderId={} txId={} companyId={} url={} adapterReason={}",
+                        erpOrderId, transactionId, companyId, url, reason);
             }
             return success;
         } catch (Exception e) {
-            log.error("Adapter call failed: url={}, error={}", url, e.getMessage(), e);
+            log.error("ERP adapter call failed — erpOrderId={} txId={} companyId={} url={} errorClass={} reason={}",
+                    erpOrderId, transactionId, companyId, url, e.getClass().getSimpleName(), e.getMessage(), e);
             return false;
         }
+    }
+
+    private static String extractField(Object body, String field) {
+        if (body instanceof Map<?, ?> m) {
+            Object v = m.get(field);
+            return v != null ? v.toString() : null;
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

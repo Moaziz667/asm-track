@@ -738,7 +738,6 @@ public class OpsAnalyticsService {
                                 .zoneName(order != null && order.getZoneId() != null ? zoneNameById.get(order.getZoneId()) : null)
                                 .severity(classification.severity())
                                 .comment(classification.comment())
-                                .returnToOrigin(Boolean.TRUE.equals(delivery.getReturnToOrigin()))
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
                                 .dropoffLat(order != null ? order.getDropoffLat() : null)

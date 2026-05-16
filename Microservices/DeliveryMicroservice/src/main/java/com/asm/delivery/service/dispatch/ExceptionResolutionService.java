@@ -311,11 +311,10 @@ public class ExceptionResolutionService {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        if (!Boolean.TRUE.equals(delivery.getReturnToOrigin())) {
-            throw AppException.badRequest("Delivery does not have a pending return-to-origin");
+        if (delivery.getStatus() != DeliveryStatus.CANCELLED) {
+            throw AppException.badRequest("Can only confirm return on a CANCELLED delivery");
         }
 
-        delivery.setReturnToOrigin(false);
         delivery.setDriverId(null);
         // Parcel is back at depot — make available for re-dispatch unless order was cancelled
         Order order = delivery.getOrder();
@@ -355,10 +354,6 @@ public class ExceptionResolutionService {
         delivery.setCancelledAt(LocalDateTime.now());
         delivery.setCancelledBy(Role.ADMIN);
         delivery.setCancelReason(reason);
-        if (wasPickedUp) {
-            // Driver physically has the parcel — flag for return-to-origin flow
-            delivery.setReturnToOrigin(true);
-        }
         deliveryRepo.save(delivery);
 
         // Remove the associated route stop (soft-delete)
@@ -412,10 +407,10 @@ public class ExceptionResolutionService {
 		Order order = delivery.getOrder();
 		if (order == null) throw AppException.badRequest("No order attached to this delivery");
 
-		if (order.getOdooBackorderId() == null) {
-			throw AppException.badRequest("No Odoo Backorder ID registered for this order.");
-		}
-
+		// Capture the Odoo backorder picking ID before we clear it from the original order.
+		// The new backorder order needs it so ERP sync can target the correct Odoo picking directly,
+		// without needing the sale order reference (which would violate the erp_order_id unique constraint).
+		Integer odooBackorderPickingId = order.getOdooBackorderId();
 		String originalErpId = order.getErpOrderId();
 		String newErpId = originalErpId != null ? originalErpId + "-B" + System.currentTimeMillis() : null;
 
@@ -459,6 +454,7 @@ public class ExceptionResolutionService {
 				.clientPhone(order.getClientPhone())
 				.clientEmail(order.getClientEmail())
 				.erpOrderId(newErpId)
+				.odooBackorderId(odooBackorderPickingId)
 				.erpClientId(order.getErpClientId())
 				.erpExternalRef(order.getErpExternalRef())
 				.originName(order.getOriginName())
@@ -559,7 +555,6 @@ public class ExceptionResolutionService {
                                 .zoneName(zoneName)
                                 .severity(severity)
                                 .comment(comment)
-                                .returnToOrigin(Boolean.TRUE.equals(delivery.getReturnToOrigin()))
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
                                 .build();

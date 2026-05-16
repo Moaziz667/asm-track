@@ -38,13 +38,12 @@ public class OdooLookupAdapter implements ErpLookupPort {
             String term = search != null ? search.trim() : "";
             List<Object> domain = List.of(
                     "|", List.of("name", "ilike", term),
-                    "|", List.of("phone", "ilike", term),
-                    List.of("mobile", "ilike", term),
+                    List.of("phone", "ilike", term),
                     List.of("customer_rank", ">", 0),
                     List.of("active", "=", true));
 
             List<Map<String, Object>> rows = rpc.searchRead("res.partner", domain,
-                    List.of("id", "name", "phone", "mobile", "email"), limit, "name asc");
+                    List.of("id", "name", "phone", "email"), limit, "name asc");
 
             List<ErpClientDTO> result = new ArrayList<>();
             for (Map<String, Object> row : rows) {
@@ -53,7 +52,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 result.add(ErpClientDTO.builder()
                         .erpClientId(String.valueOf(id))
                         .name(orEmpty(asString(row.get("name"))))
-                        .phone(firstNonBlank(asString(row.get("phone")), asString(row.get("mobile"))))
+                        .phone(asString(row.get("phone")))
                         .email(asString(row.get("email")))
                         .build());
             }
@@ -198,7 +197,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
         List<Map<String, Object>> partnerRows = rpc.searchRead("res.partner",
                 List.of(List.of("id", "in", partnerIds.stream().toList())),
-                List.of("id", "name", "phone", "mobile", "street", "street2", "city", "zip"),
+                List.of("id", "name", "phone", "street", "street2", "city", "zip"),
                 Math.max(partnerIds.size(), 1), "id asc");
 
         Map<Integer, Map<String, Object>> result = new HashMap<>();
@@ -307,7 +306,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private String resolveCustomerPhone(Map<String, Object> partner) {
         if (partner == null) return null;
-        return firstNonBlank(asString(partner.get("phone")), asString(partner.get("mobile")));
+        return asString(partner.get("phone"));
     }
 
     private String resolvePaymentTermName(Map<String, Object> order) {

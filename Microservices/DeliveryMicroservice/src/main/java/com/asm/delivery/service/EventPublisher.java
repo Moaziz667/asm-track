@@ -66,6 +66,16 @@ public class EventPublisher {
         }
     }
 
+    public void publishDriverLocation(UUID companyId, UUID driverId, BigDecimal lat, BigDecimal lng) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("event", "driver.location_updated");
+        p.put("driverId", driverId.toString());
+        p.put("lat", lat);
+        p.put("lng", lng);
+        p.put("companyId", companyId);
+        sendRoute(p);
+    }
+
     private void executeAfterCommitAsync(Runnable runnable) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(

@@ -24,33 +24,36 @@ public class IdempotencyService {
     @Transactional
     public <T> T execute(String txId, String erpOrderId, Class<T> returnType, Supplier<T> operation) {
         if (txId == null || txId.isBlank()) {
-            log.warn("Executing ERP sync without transactionId for order {}. This is unsafe.", erpOrderId);
+            log.warn("ERP sync missing transactionId — erpOrderId={} retryable=true unsafe=true", erpOrderId);
             return operation.get();
         }
 
         Optional<IdempotentTransaction> existing = repo.findById(txId);
         if (existing.isPresent()) {
             IdempotentTransaction tx = existing.get();
-            log.info("Transaction {} already processed at {}. Returning cached result.", txId, tx.getProcessedAt());
+            log.info("Idempotency hit — txId={} erpOrderId={} processedAt={} action=returning_cached",
+                    txId, erpOrderId, tx.getProcessedAt());
             try {
                 return deserialize(tx.getResponsePayload(), returnType);
             } catch (Exception e) {
-                log.warn("Failed to deserialize cached response for {}. Re-executing.", txId);
+                log.warn("Idempotency cache deserialize failed — txId={} erpOrderId={} reason={} action=re_executing",
+                        txId, erpOrderId, e.getMessage());
             }
         }
 
         try {
             T result = operation.get();
-            // Only cache successful results — caching a failure would block all future retries
-            // because the idempotency guard would return the cached failure immediately.
+            // Only cache successful results — caching a failure would block all future retries.
             if (isSuccessResult(result)) {
                 saveResult(txId, erpOrderId, result);
             } else {
-                log.warn("Transaction {} produced a non-success result — not caching so retry is possible.", txId);
+                log.warn("ERP sync non-success — txId={} erpOrderId={} result={} retryable=true action=not_caching",
+                        txId, erpOrderId, result);
             }
             return result;
         } catch (Exception e) {
-            log.error("Transaction {} failed", txId, e);
+            log.error("ERP sync exception — txId={} erpOrderId={} errorClass={} reason={} retryable=true",
+                    txId, erpOrderId, e.getClass().getSimpleName(), e.getMessage(), e);
             throw e;
         }
     }

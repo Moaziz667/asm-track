@@ -28,7 +28,17 @@
       "Bash(npx docusaurus *)",
       "Bash(npx kill-port *)",
       "Bash(node_modules/.bin/docusaurus start *)",
-      "Bash(xargs grep -l \"cancel\")"
+      "Bash(xargs grep -l \"cancel\")",
+      "Bash(curl -s -X POST http://localhost:8070/jsonrpc -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"common\",\"method\":\"authenticate\",\"args\":[\"odoo2\",\"admin\",\"admin\",{}]}}')",
+      "Bash(curl -s -X POST http://localhost:8070/jsonrpc -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"db\",\"method\":\"list\",\"args\":[]}}')",
+      "Bash(curl -s -X POST http://localhost:8070/jsonrpc -H 'Content-Type: application/json' -d '{\"jsonrpc\":\"2.0\",\"method\":\"call\",\"params\":{\"service\":\"common\",\"method\":\"authenticate\",\"args\":[\"rapide_db\",\"admin\",\"admin\",{}]}}')",
+      "Bash(curl -s -X POST http://localhost:8070/jsonrpc -H 'Content-Type: application/json' -d '{ *)",
+      "Bash(docker exec *)",
+      "Bash(grep -E \"\\\\.\\(ts|tsx|js|jsx\\)$\")",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\driverApp\\\\lib\\\\src\" -Recurse -File -Filter \"*.dart\")",
+      "Bash(code docs/00-INDEX.md docs/01-global-architecture.md docs/02-service-catalog.md docs/03-frontend-clients.md docs/04-delivery-lifecycle.md docs/05-distributed-patterns.md docs/06-api-reference.md docs/07-security-model.md docs/08-infrastructure-deployment.md docs/09-runbooks.md)",
+      "Bash(pip --version)",
+      "Bash(pip install *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory"

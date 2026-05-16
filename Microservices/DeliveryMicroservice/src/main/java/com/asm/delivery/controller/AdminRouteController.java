@@ -260,7 +260,7 @@ public class AdminRouteController {
     // ─── Stop cancellation ────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/stops/{stopId}/cancel")
-    @Operation(summary = "Cancel a single stop — SCHEDULED/PENDING/ARRIVED → UNSCHEDULED, PICKED_UP → returnToOrigin. IN_TRANSIT is rejected.")
+    @Operation(summary = "Cancel a single stop — all statuses except IN_TRANSIT return delivery to UNSCHEDULED.")
     @IdempotentOperation
     public ResponseEntity<RouteResponse> cancelStop(
             @PathVariable UUID id,

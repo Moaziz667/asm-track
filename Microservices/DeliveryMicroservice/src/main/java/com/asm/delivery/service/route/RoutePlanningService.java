@@ -411,19 +411,12 @@ public class RoutePlanningService {
         Delivery delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
                 .orElseThrow(() -> AppException.notFound("Delivery not found: " + stop.getDeliveryId()));
 
-        if (ss == RouteStopStatus.PICKED_UP) {
-            delivery.setReturnToOrigin(true);
-            deliveryRepository.save(delivery);
-            appendHistory(delivery, delivery.getStatus(), "ADMIN", Role.ADMIN,
-                    "Stop cancelled — return to origin required: " + cancelReason);
-        } else {
-            delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-            delivery.setDriverId(null);
-            delivery.setAssignedAt(null);
-            deliveryRepository.save(delivery);
-            appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN,
-                    "Stop cancelled: " + cancelReason);
-        }
+        delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+        delivery.setDriverId(null);
+        delivery.setAssignedAt(null);
+        delivery.setPickedUpAt(null);
+        deliveryRepository.save(delivery);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Stop cancelled: " + cancelReason);
 
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
                 Map.of("routeId", routeId.toString(), "reason", cancelReason));

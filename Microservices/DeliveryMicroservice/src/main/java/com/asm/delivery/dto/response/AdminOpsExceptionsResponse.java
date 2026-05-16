@@ -44,7 +44,6 @@ public class AdminOpsExceptionsResponse {
         private String zoneName;
         private String severity;
         private String comment;
-        private boolean returnToOrigin;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private java.math.BigDecimal dropoffLat;
