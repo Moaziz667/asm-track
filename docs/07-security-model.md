@@ -2,107 +2,97 @@
 
 ## 7.1 Authentication Strategies
 
-The platform uses **two distinct JWT strategies** — one for admin users (cookie-based), one for drivers (Bearer token).
+The platform uses **OAuth 2.0** with a dedicated `auth-server` (Spring Boot) that issues RSA-signed JWTs. All services validate tokens via the JWKS public key endpoint — no shared secret.
+
+### Admin login (cookie-based)
 
 ```mermaid
 sequenceDiagram
     participant A as Admin Browser
     participant G as API Gateway
     participant AB as AppBackend
+    participant AS as auth-server :8089
     participant DL as DeliveryMicroservice
 
-    Note over A,AB: Admin authentication (cookie-based)
     A->>G: POST /api/auth/admin/login {email, password}
     G->>AB: forward
-    AB->>AB: validate credentials, generate JWT
-    AB-->>G: 200 + Set-Cookie: access_token=...(httpOnly) refresh_token=...(httpOnly)
-    G-->>A: cookies set
+    AB->>AB: verify account exists + active (postgres-app)
+    AB->>AS: POST /oauth2/token {grant_type=password, email, password}
+    AS->>AS: validate BCrypt password (postgres-app)
+    AS-->>AB: {access_token, refresh_token} — RSA signed
+    AB-->>A: Set-Cookie: access_token (httpOnly) + refresh_token (httpOnly)
 
-    A->>G: GET /api/admin/deliveries
-    Note over A: Cookie sent automatically by browser
-    G->>DL: forward + cookie
-    DL->>DL: JwtAuthFilter reads access_token cookie
-    DL->>DL: validate JWT, extract companyId, set TenantContext
+    A->>G: GET /api/admin/routes (cookie sent automatically)
+    G->>G: validate JWT via JWKS (RSA public key)
+    G->>DL: forward + X-User-Id, X-User-Role, X-Company-Id headers
     DL-->>A: company-scoped response
-
-    Note over A,AB: Admin token refresh
-    A->>G: POST /api/auth/admin/refresh
-    Note over A: Sends refresh_token cookie automatically
-    G->>AB: forward
-    AB-->>A: new access_token cookie
 ```
+
+### Driver login (Bearer token)
 
 ```mermaid
 sequenceDiagram
     participant D as Driver App (Flutter)
     participant G as API Gateway
     participant DS as DriverService
-    participant DL as DeliveryMicroservice
+    participant AS as auth-server :8089
 
-    Note over D,DS: Driver authentication (Bearer token)
     D->>G: POST /api/auth/driver/login {phone, password}
     G->>DS: forward
-    DS->>DS: validate credentials, generate JWT
-    DS-->>D: {accessToken, refreshToken}
+    DS->>DS: verify account exists + active (postgres-driver)
+    DS->>AS: POST /oauth2/token {grant_type=password, phone, password}
+    AS->>AS: validate BCrypt password (postgres-driver)
+    AS-->>DS: {access_token, refresh_token} — RSA signed
+    DS-->>D: {token, refreshToken, driver}
     D->>D: FlutterSecureStorage.write(access_token, refresh_token)
-
-    D->>G: POST /api/driver/deliveries/{id}/pickup
-    Note over D: Authorization: Bearer {accessToken}
-    G->>DL: forward + header
-    DL->>DL: JwtAuthFilter reads Authorization header
-    DL->>DL: validate JWT, extract driverId
-    DL-->>D: delivery updated
-
-    Note over D,DS: Driver token refresh (auto on 401)
-    D->>G: POST /api/auth/driver/refresh-token {refreshToken}
-    G->>DS: forward
-    DS-->>D: new accessToken
 ```
 
 ---
 
-## 7.2 JWT Claims by Service
+## 7.2 JWT Claims
 
-### AppBackend (Admin users)
+All tokens are issued by `auth-server` and signed with **RSA-2048** (algorithm: RS256). Services validate using the public key from `GET /oauth2/jwks` — no shared secret.
+
+### User access token (admin / driver)
 
 ```json
 {
   "sub":       "uuid",
-  "role":      "ADMIN | SUPER_ADMIN",
+  "role":      "ADMIN | DISPATCHER | MANAGER | SUPER_ADMIN | DRIVER",
   "name":      "Ahmed Ben Ali",
-  "type":      "access | refresh",
-  "companyId": "uuid | null"
+  "type":      "access",
+  "companyId": "uuid | null",
+  "phone":     "+21698765432"
 }
 ```
 
-- `companyId = null` → SUPER_ADMIN (sees all companies)
-- `companyId = uuid` → Company-scoped admin (sees only own company data)
-- Access token expiry: **1 hour**
-- Refresh token expiry: **7 days**
+| Field | Admin | Driver |
+|-------|-------|--------|
+| `sub` | adminUser.id | driver.id |
+| `role` | ADMIN / DISPATCHER / MANAGER / SUPER_ADMIN | DRIVER |
+| `companyId` | uuid (null for SUPER_ADMIN) | absent |
+| `phone` | absent | present |
+| expiry | **1 hour** | **1 hour** |
 
-### DriverService (Drivers)
+### Service token (client_credentials)
 
 ```json
 {
-  "sub":   "uuid",
-  "role":  "DRIVER",
-  "name":  "Khalil Mansouri",
-  "phone": "+21698765432",
-  "type":  "access | refresh"
+  "sub":  "delivery-service",
+  "role": "SERVICE",
+  "type": "service"
 }
 ```
 
-- **No `companyId`** — drivers are shared across all companies
-- Access token expiry: **24 hours** (longer to avoid mid-delivery token expiry)
-- Refresh token expiry: **7 days**
+- Expiry: **5 minutes** — short-lived, auto-refreshed with caching
+- Used for all internal service-to-service calls
 
-### Shared JWT Secret
+### RSA Key Management
 
-All services share `${JWT_SECRET:asmsecret2026}`. The secret is derived via SHA-256 hash before
-use as the HMAC signing key.
-
-> **Production:** Set `JWT_SECRET` to a random 64-character hex string: `openssl rand -hex 64`  
-> **Never** use the default `asmsecret2026` in production.
+- Key pair generated from `AUTH_RSA_SEED` env var (deterministic — survives restarts)
+- Public key exposed at `http://auth-server:8089/oauth2/jwks`
+- All services fetch and cache the public key at startup
+- **Key rotation:** change `AUTH_RSA_SEED` → all existing tokens immediately invalid → users re-login
 
 ---
 
@@ -137,27 +127,36 @@ use as the HMAC signing key.
 | `/api/admin/vehicles/**` | ADMIN, SUPER_ADMIN |
 | `/api/public/**` | PUBLIC |
 | `/ws/**` | PUBLIC (auth via STOMP CONNECT frame) |
-| `/internal/**` | X-Internal-Secret only |
+| `/internal/**` | OAuth2 service token (role=SERVICE) |
 
 ---
 
 ## 7.4 Internal Service-to-Service Authentication
 
-Services communicate internally using a shared secret header, never externally exposed:
+Services use **OAuth 2.0 Client Credentials** flow. Each service has a `client_id` + `client_secret` registered in `auth-server`. Before calling another service, it fetches a short-lived (5 min) service token and caches it.
 
+```mermaid
+sequenceDiagram
+    participant DL as DeliveryMicroservice
+    participant AS as auth-server
+    participant DS as DriverService
+
+    DL->>AS: POST /oauth2/token {grant_type=client_credentials, client_id, client_secret}
+    AS-->>DL: {access_token, expires_in: 300}
+    DL->>DS: PUT /internal/drivers/{id}/location
+    Note over DL,DS: Authorization: Bearer {service_token}
+    DS->>DS: validate JWT via JWKS (role=SERVICE)
+    DS-->>DL: 200 OK
 ```
-Header: X-Internal-Secret: {value}
-Value:  ${INTERNAL_SECRET:asm-internal-2026}
-```
 
-| Caller | Callee | Endpoints |
-|--------|--------|-----------|
-| DeliveryMicroservice | DriverService | `/internal/drivers/**` |
-| DeliveryMicroservice | ErpAdapterService | `/api/erp/**` |
-| AppBackend | DeliveryMicroservice | `/internal/audit` |
-| Super Admin App | DeliveryMicroservice | `/api/admin/companies/**`, `/api/admin/drivers/**` |
+| Client ID | Secret Env Var | Calls |
+|-----------|----------------|-------|
+| `delivery-service` | `CLIENT_SECRET_DELIVERY` | DriverService, ErpAdapterService |
+| `erp-adapter` | `CLIENT_SECRET_ERP` | DeliveryMicroservice (company config) |
+| `app-backend` | `CLIENT_SECRET_APP` | DeliveryMicroservice (user deactivation) |
+| `driver-service` | `CLIENT_SECRET_DRIVER` | (reserved) |
 
-> **Production:** Set `INTERNAL_SECRET` to a random value different from JWT_SECRET.
+> **Replaces:** the previous `X-Internal-Secret` shared header approach.
 
 ---
 
@@ -246,8 +245,11 @@ SSL pinning code is present but **disabled** in `api_client.dart` lines 24-30:
 
 | Secret | Env Var | Current Default | Required Action |
 |--------|---------|-----------------|-----------------|
-| JWT signing secret | `JWT_SECRET` | `asmsecret2026` | `openssl rand -hex 64` |
-| Internal service secret | `INTERNAL_SECRET` | `asm-internal-2026` | Strong random value |
+| RSA key seed | `AUTH_RSA_SEED` | `asm-rsa-key-seed-2026-change-in-prod` | Change to a random 64-char string |
+| Service secret — delivery | `CLIENT_SECRET_DELIVERY` | `delivery-svc-secret-2026` | Strong random value |
+| Service secret — driver | `CLIENT_SECRET_DRIVER` | `driver-svc-secret-2026` | Strong random value |
+| Service secret — erp | `CLIENT_SECRET_ERP` | `erp-svc-secret-2026` | Strong random value |
+| Service secret — app | `CLIENT_SECRET_APP` | `app-svc-secret-2026` | Strong random value |
 | MinIO access key | `MINIO_ACCESS_KEY` | `asmtracking` | Change to strong credentials |
 | MinIO secret key | `MINIO_SECRET_KEY` | `asmtracking2026` | Change to strong credentials |
 | Odoo password | `ODOO_PASSWORD` | `admin` | Change to strong credentials |

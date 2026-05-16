@@ -1,0 +1,142 @@
+digraph G {
+    graph [
+        rankdir=LR
+        bgcolor="#F8FAFC"
+        fontname="Helvetica Neue,Arial,sans-serif"
+        fontsize=11
+        pad=0.4
+        nodesep=0.35
+        ranksep=0.9
+        splines=polyline
+    ]
+    node [
+        fontname="Helvetica Neue,Arial,sans-serif"
+        fontsize=9
+        shape=none
+        labelloc=b
+        fixedsize=true
+        width=0.9
+        height=0.9
+    ]
+    edge [
+        fontname="Helvetica Neue,Arial,sans-serif"
+        fontsize=7
+        color="#94A3B8"
+        arrowsize=0.6
+        penwidth=1.0
+    ]
+
+    // ─── Icon base ───────────────────────────────────────────────────────────
+    // C:\Users\M S I\AppData\Local\Programs\Python\Python312\Lib\site-packages\resources\
+    // Abbreviated as $R below (expanded inline)
+
+    // ─── Clients ─────────────────────────────────────────────────────────────
+    subgraph cluster_clients {
+        label="Clients" style="filled,rounded" fillcolor="#EFF6FF" color="#BFDBFE" penwidth=1.2
+        node [width=0.85 height=0.85]
+        admin  [label="Admin App\n(Next.js)"
+                image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\nextjs.png"]
+        driver [label="Driver App\n(Flutter)"
+                image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\flutter.png"]
+    }
+
+    // ─── Auth Server ──────────────────────────────────────────────────────────
+    auth [label="auth-server :8089\nOAuth2 · RSA JWTs"
+          image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\generic\\network\\firewall.png"
+          width=1.0 height=1.0]
+
+    // ─── API Gateway ──────────────────────────────────────────────────────────
+    gw [label="API Gateway :80\nJWT validation"
+        image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\onprem\\network\\nginx.png"
+        width=1.0 height=1.0]
+
+    // ─── Microservices + their DBs (side by side in mini-clusters) ────────────
+
+    subgraph cluster_ab {
+        label="" style="filled,rounded" fillcolor="#F0FDF4" color="#BBF7D0" penwidth=1
+        ab  [label="AppBackend\n:8080"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\spring.png"
+             width=0.85 height=0.85]
+        pga [label="postgres-app"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\onprem\\database\\postgresql.png"
+             width=0.55 height=0.55]
+        ab -> pga [style=dashed arrowhead=none color="#16A34A"]
+        { rank=same; ab; pga }
+    }
+
+    subgraph cluster_dl {
+        label="" style="filled,rounded" fillcolor="#F0FDF4" color="#BBF7D0" penwidth=1
+        dl  [label="DeliveryMicroservice\n:8082"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\spring.png"
+             width=0.85 height=0.85]
+        pgd [label="postgres-delivery"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\onprem\\database\\postgresql.png"
+             width=0.55 height=0.55]
+        rmq [label="RabbitMQ"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\onprem\\queue\\rabbitmq.png"
+             width=0.55 height=0.55]
+        mn  [label="MinIO"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\generic\\storage\\storage.png"
+             width=0.55 height=0.55]
+        dl -> pgd [style=dashed arrowhead=none color="#16A34A"]
+        dl -> rmq [style=dashed arrowhead=none color="#16A34A"]
+        dl -> mn  [style=dashed arrowhead=none color="#16A34A"]
+        { rank=same; dl; pgd; rmq; mn }
+    }
+
+    subgraph cluster_ds {
+        label="" style="filled,rounded" fillcolor="#F0FDF4" color="#BBF7D0" penwidth=1
+        ds  [label="DriverService\n:8086"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\spring.png"
+             width=0.85 height=0.85]
+        pgr [label="postgres-driver"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\onprem\\database\\postgresql.png"
+             width=0.55 height=0.55]
+        ds -> pgr [style=dashed arrowhead=none color="#16A34A"]
+        { rank=same; ds; pgr }
+    }
+
+    subgraph cluster_ea {
+        label="" style="filled,rounded" fillcolor="#F0FDF4" color="#BBF7D0" penwidth=1
+        ea  [label="ErpAdapterService\n:8088"
+             image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\programming\\framework\\spring.png"
+             width=0.85 height=0.85]
+    }
+
+    // Force MS column to be vertical
+    { rank=same; ab; dl; ds; ea }
+
+    // ─── External ──────────────────────────────────────────────────────────────
+    subgraph cluster_ext {
+        label="External" style="filled,rounded" fillcolor="#FDF4FF" color="#E9D5FF" penwidth=1.2
+        node [width=0.75 height=0.75]
+        odoo [label="Odoo ERP\nJSON-RPC"
+              image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\generic\\compute\\rack.png"]
+        fcm  [label="Firebase FCM"
+              image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\firebase\\base\\firebase.png"]
+        osrm [label="OSRM\nRouting"
+              image="C:\\Users\\M S I\\AppData\\Local\\Programs\\Python\\Python312\\Lib\\site-packages\\resources\\generic\\compute\\rack.png"]
+    }
+
+    // ─── Flows ────────────────────────────────────────────────────────────────
+    admin  -> gw [label="HTTPS\nSTOMP" color="#3B82F6" fontcolor="#1D4ED8"]
+    driver -> gw [label="HTTPS\nSTOMP" color="#3B82F6" fontcolor="#1D4ED8"]
+
+    auth -> gw [label="JWKS" style=dashed color="#F97316" fontcolor="#C2410C"]
+
+    gw -> ab [color="#1E40AF"]
+    gw -> dl [color="#1E40AF"]
+    gw -> ds [color="#1E40AF"]
+    gw -> ea [color="#1E40AF"]
+
+    ab -> auth [label="password grant" style=dashed color="#F97316" fontcolor="#C2410C"]
+    ds -> auth [label="password grant" style=dashed color="#F97316" fontcolor="#C2410C"]
+    dl -> auth [label="client_creds"   style=dashed color="#F97316" fontcolor="#C2410C"]
+
+    dl -> ds [label="service token" color="#64748B" fontcolor="#475569"]
+    dl -> ea [label="service token" color="#64748B" fontcolor="#475569"]
+
+    ea -> odoo [color="#7C3AED"]
+    dl -> fcm  [color="#7C3AED"]
+    dl -> osrm [color="#7C3AED"]
+}

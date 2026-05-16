@@ -16,8 +16,14 @@ public class TransportAdapterFactory {
     @Value("${driver.service.url:http://driver-service:8086}")
     private String driverServiceUrl;
 
-    @Value("${internal.secret:asm-internal-2026}")
-    private String internalSecret;
+    @Value("${auth.server.url}")
+    private String authServerUrl;
+
+    @Value("${auth.client.id}")
+    private String clientId;
+
+    @Value("${auth.client.secret}")
+    private String clientSecret;
 
     @Bean
     public TransportPort transportPort() {
@@ -25,7 +31,7 @@ public class TransportAdapterFactory {
         log.info("TransportPort provider: {}", p);
         return switch (p) {
             case "mock"  -> new MockTransportAdapter();
-            default      -> new InternalTransportAdapter(driverServiceUrl, internalSecret);
+            default      -> new InternalTransportAdapter(driverServiceUrl, authServerUrl, clientId, clientSecret);
         };
     }
 }

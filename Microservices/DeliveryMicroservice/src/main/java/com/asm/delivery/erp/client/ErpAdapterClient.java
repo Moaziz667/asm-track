@@ -33,24 +33,53 @@ public class ErpAdapterClient {
 
     private final RestTemplate restTemplate;
     private final String adapterBaseUrl;
-    private final String internalSecret;
     private final String defaultProvider;
+    private final String authServerUrl;
+    private final String clientId;
+    private final String clientSecret;
+
+    // Service token cache
+    private String  cachedToken;
+    private java.time.Instant tokenExpiresAt = java.time.Instant.MIN;
 
     public ErpAdapterClient(
             @Value("${erp.adapter-url:http://erp-adapter:8088}") String adapterBaseUrl,
-            @Value("${internal.secret:asm-internal-2026}") String internalSecret,
             @Value("${erp.default-provider:odoo}") String defaultProvider,
+            @Value("${auth.server.url}") String authServerUrl,
+            @Value("${auth.client.id}") String clientId,
+            @Value("${auth.client.secret}") String clientSecret,
             @Value("${erp.sync.timeout.connect-ms:3000}") int connectMs,
             @Value("${erp.sync.timeout.read-ms:30000}") int readMs) {
 
         this.adapterBaseUrl = adapterBaseUrl;
-        this.internalSecret = internalSecret;
         this.defaultProvider = defaultProvider;
+        this.authServerUrl  = authServerUrl;
+        this.clientId       = clientId;
+        this.clientSecret   = clientSecret;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
         this.restTemplate = new RestTemplate(factory);
+    }
+
+    @SuppressWarnings("unchecked")
+    private synchronized String getServiceToken() {
+        if (cachedToken != null && java.time.Instant.now().isBefore(tokenExpiresAt)) return cachedToken;
+        org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
+        params.add("grant_type",    "client_credentials");
+        params.add("client_id",     clientId);
+        params.add("client_secret", clientSecret);
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<Map> resp = new RestTemplate().exchange(
+                authServerUrl + "/oauth2/token", HttpMethod.POST,
+                new HttpEntity<>(params, h), Map.class);
+        Map<String, Object> body = resp.getBody();
+        cachedToken    = (String) body.get("access_token");
+        int expiresIn  = ((Number) body.get("expires_in")).intValue();
+        tokenExpiresAt = java.time.Instant.now().plusSeconds(expiresIn - 30);
+        return cachedToken;
     }
 
     // ── Sync Operations ─────────────────────────────────────────────────────────
@@ -218,7 +247,7 @@ public class ErpAdapterClient {
     private HttpHeaders buildHeaders(String companyId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Internal-Secret", internalSecret);
+        headers.setBearerAuth(getServiceToken());
         if (companyId != null && !companyId.isBlank()) {
             headers.set("X-Company-Id", companyId);
         } else {

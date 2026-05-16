@@ -4,11 +4,12 @@
 
 | Service | Port | DB | Auth Exposed | Bounded Context |
 |---------|------|----|--------------|-----------------|
-| API Gateway | 80 | — | JWT validation | Routing, CORS |
-| AppBackend | 8080 | postgres-app (5435) | Cookie JWT | Admin auth, user management |
-| DeliveryMicroservice | 8082 | postgres-delivery (5434) | Bearer JWT | Core delivery engine |
-| DriverService | 8086 | postgres-driver (5437) | Bearer JWT | Driver auth, profiles, stats |
-| ErpAdapterService | 8088 | H2 in-process | X-Internal-Secret only | Odoo RPC adapter |
+| API Gateway | 80 | — | JWT validation via JWKS | Routing, CORS |
+| **auth-server** | **8089** | postgres-app + postgres-driver | **OAuth2 token issuer** | **JWT issuance, JWKS** |
+| AppBackend | 8080 | postgres-app (5435) | Cookie JWT (RSA) | User management, admin auth proxy |
+| DeliveryMicroservice | 8082 | postgres-delivery (5434) | Bearer JWT (RSA) | Core delivery engine |
+| DriverService | 8086 | postgres-driver (5437) | Bearer JWT (RSA) | Driver auth proxy, profiles, stats |
+| ErpAdapterService | 8088 | H2 in-process | OAuth2 service token | Odoo RPC adapter |
 
 ---
 
@@ -16,7 +17,7 @@
 
 **Technology:** Spring Cloud Gateway  
 **Port:** 80  
-**JWT Secret:** `${JWT_SECRET:asmsecret2026}`
+**JWT Validation:** RSA public key fetched from `auth-server:8089/oauth2/jwks` at startup
 
 ### Route Predicates
 

@@ -39,10 +39,11 @@ flowchart TB
 
 | Service | Role |
 |---------|------|
-| **API Gateway** | Single entry point — routes requests, validates JWT, enforces CORS |
-| **AppBackend** | Admin authentication (cookie JWT) and admin user management |
+| **API Gateway** | Single entry point — routes requests, validates JWT via JWKS, enforces CORS |
+| **auth-server** | OAuth2 token issuer — RSA-signed JWTs for users and services. Exposes `/oauth2/token` (password + client_credentials grants) and `/oauth2/jwks` |
+| **AppBackend** | Admin user management (companyId, role, multi-tenancy). Proxies login/refresh to auth-server |
 | **DeliveryMicroservice** | Core engine — orders, deliveries, routes, dispatch, SLA, outbox, WebSocket |
-| **DriverService** | Driver authentication (Bearer JWT), profiles, FCM token storage, stats |
+| **DriverService** | Driver profiles, FCM token storage, stats. Proxies login/refresh to auth-server |
 | **ErpAdapterService** | Multi-ERP adapter (Odoo / DUX) — translates delivery events into ERP calls with idempotency. Uses an embedded H2 database to record every processed `transactionId`. If OutboxProcessor retries the same event (e.g. HTTP timeout after Odoo already updated stock), ErpAdapterService detects the duplicate via H2 and skips the Odoo call — preventing a second stock decrement on the same delivery. |
 
 ---
@@ -51,16 +52,21 @@ flowchart TB
 
 ### Synchronous HTTP/REST
 
-Toutes les requêtes clients passent par l'API Gateway (port 80) qui valide le JWT avant de router vers le bon service. Les appels entre services utilisent `X-Internal-Secret` et ne passent pas par la Gateway.
+Toutes les requêtes clients passent par l'API Gateway (port 80) qui valide le JWT via la clé publique RSA (récupérée au démarrage depuis `auth-server/oauth2/jwks`). Les appels entre services utilisent des tokens OAuth2 client_credentials — plus de secret partagé.
 
 ```mermaid
 flowchart LR
     C1(Clients) -->|HTTPS| GW[API Gateway :80]
-    GW -->|JWT| AB[AppBackend :8080]
-    GW -->|JWT| DL[DeliveryMicroservice :8082]
-    GW -->|JWT| DS[DriverService :8086]
-    DL -->|X-Internal-Secret| DS
-    DL -->|X-Internal-Secret| EA[ErpAdapterService :8088]
+    GW -->|forward + validated JWT| AB[AppBackend :8080]
+    GW -->|forward + validated JWT| DL[DeliveryMicroservice :8082]
+    GW -->|forward + validated JWT| DS[DriverService :8086]
+    AS[auth-server :8089] -->|JWKS public key at startup| GW
+    AB -->|password grant| AS
+    DS -->|password grant| AS
+    DL -->|client credentials| AS
+    DL -->|Bearer service token| DS
+    DL -->|Bearer service token| EA[ErpAdapterService :8088]
+    EA -->|client credentials| AS
 ```
 
 ### Async Outbox
@@ -114,7 +120,7 @@ flowchart LR
 
 ```mermaid
 flowchart TD
-    DL["DeliveryMicroservice"] -->|"X-Internal-Secret + X-Company-Id"| EA["ErpAdapterService :8088"]
+    DL["DeliveryMicroservice"] -->|"Bearer service token + X-Company-Id"| EA["ErpAdapterService :8088"]
 
     EA --> CR["CompanyConfigResolver"]
     CR --> CAF["CompanyAdapterFactory"]

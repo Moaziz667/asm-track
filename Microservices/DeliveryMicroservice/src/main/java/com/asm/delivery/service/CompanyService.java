@@ -32,8 +32,17 @@ public class CompanyService {
     @Value("${app.backend.url:http://app-backend:8080}")
     private String appBackendUrl;
 
-    @Value("${internal.secret:asm-internal-2026}")
-    private String internalSecret;
+    @Value("${auth.server.url}")
+    private String authServerUrl;
+
+    @Value("${auth.client.id}")
+    private String clientId;
+
+    @Value("${auth.client.secret}")
+    private String clientSecret;
+
+    private String  cachedServiceToken;
+    private java.time.Instant serviceTokenExpiresAt = java.time.Instant.MIN;
 
     public Optional<Company> findById(UUID id) {
         return repo.findById(id);
@@ -75,7 +84,7 @@ public class CompanyService {
         repo.save(company);
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Internal-Secret", internalSecret);
+            headers.setBearerAuth(getServiceToken());
             restTemplate.exchange(
                     appBackendUrl + "/internal/admin-users/deactivate-by-company/" + id,
                     HttpMethod.POST, new HttpEntity<>(headers), Void.class);
@@ -85,6 +94,25 @@ public class CompanyService {
     }
 
     @Transactional
+    @SuppressWarnings("unchecked")
+    private synchronized String getServiceToken() {
+        if (cachedServiceToken != null && java.time.Instant.now().isBefore(serviceTokenExpiresAt))
+            return cachedServiceToken;
+        org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
+        params.add("grant_type", "client_credentials");
+        params.add("client_id", clientId);
+        params.add("client_secret", clientSecret);
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+        var resp = restTemplate.exchange(authServerUrl + "/oauth2/token",
+                HttpMethod.POST, new HttpEntity<>(params, h), java.util.Map.class);
+        var body = (java.util.Map<String, Object>) resp.getBody();
+        cachedServiceToken = (String) body.get("access_token");
+        int expiresIn = ((Number) body.get("expires_in")).intValue();
+        serviceTokenExpiresAt = java.time.Instant.now().plusSeconds(expiresIn - 30);
+        return cachedServiceToken;
+    }
+
     public Company uploadLogo(UUID id, MultipartFile file) {
         Company company = repo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));

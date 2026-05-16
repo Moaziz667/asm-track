@@ -175,9 +175,9 @@ spring:
           predicates:
             - Path=/api/public/**
 
-app:
-  jwt:
-    secret: ${JWT_SECRET:asmsecret2026}
+auth:
+  server:
+    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
 
 logging:
   level:

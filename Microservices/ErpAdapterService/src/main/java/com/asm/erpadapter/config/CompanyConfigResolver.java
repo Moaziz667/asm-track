@@ -19,23 +19,51 @@ public class CompanyConfigResolver {
 
     private final RestTemplate restTemplate;
     private final String deliveryServiceUrl;
-    private final String internalSecret;
+    private final String authServerUrl;
+    private final String clientId;
+    private final String clientSecret;
+
+    private String  cachedToken;
+    private Instant tokenExpiresAt = Instant.MIN;
 
     private record CacheEntry(CompanyErpConfig config, Instant expiresAt) {}
     private final ConcurrentHashMap<UUID, CacheEntry> cache = new ConcurrentHashMap<>();
-    private static final long TTL_SECONDS = 300; // 5 minutes
+    private static final long TTL_SECONDS = 300;
 
     public CompanyConfigResolver(
             @Value("${delivery.service.url:http://delivery-service:8082}") String deliveryServiceUrl,
-            @Value("${internal.secret:asm-internal-2026}") String internalSecret) {
+            @Value("${auth.server.url}") String authServerUrl,
+            @Value("${auth.client.id}") String clientId,
+            @Value("${auth.client.secret}") String clientSecret) {
 
         this.deliveryServiceUrl = deliveryServiceUrl;
-        this.internalSecret     = internalSecret;
+        this.authServerUrl      = authServerUrl;
+        this.clientId           = clientId;
+        this.clientSecret       = clientSecret;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
         factory.setReadTimeout(5000);
         this.restTemplate = new RestTemplate(factory);
+    }
+
+    @SuppressWarnings("unchecked")
+    private synchronized String getServiceToken() {
+        if (cachedToken != null && Instant.now().isBefore(tokenExpiresAt)) return cachedToken;
+        org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
+        params.add("grant_type",    "client_credentials");
+        params.add("client_id",     clientId);
+        params.add("client_secret", clientSecret);
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<Map> resp = new RestTemplate().exchange(
+                authServerUrl + "/oauth2/token", HttpMethod.POST,
+                new HttpEntity<>(params, h), Map.class);
+        Map<String, Object> body = resp.getBody();
+        cachedToken    = (String) body.get("access_token");
+        int expiresIn  = ((Number) body.get("expires_in")).intValue();
+        tokenExpiresAt = Instant.now().plusSeconds(expiresIn - 30);
+        return cachedToken;
     }
 
     public CompanyErpConfig resolve(UUID companyId) {
@@ -46,7 +74,7 @@ public class CompanyConfigResolver {
 
         try {
             HttpHeaders headers = new HttpHeaders();
-            headers.set("X-Internal-Secret", internalSecret);
+            headers.setBearerAuth(getServiceToken());
 
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
                     deliveryServiceUrl + "/internal/companies/" + companyId + "/erp-config",
