@@ -33,7 +33,7 @@ public class RouteWebSocketService {
             );
             try {
                 messaging.convertAndSend(destination, payload);
-                messaging.convertAndSend("/topic/admin/routes", payload);
+                messaging.convertAndSend("/topic/admin.routes", payload);
                 log.info("notifyDriver: sent event={} to driverId={} routeId={}", event, driverId, routeId);
             } catch (Exception e) {
                 log.warn("notifyDriver: failed to send event={} to driverId={}: {}", event, driverId, e.getMessage());
@@ -52,7 +52,7 @@ public class RouteWebSocketService {
             if (clientName != null) payload.put("clientName", clientName);
             try {
                 messaging.convertAndSend(destination, payload);
-                messaging.convertAndSend("/topic/admin/routes", payload);
+                messaging.convertAndSend("/topic/admin.routes", payload);
                 log.info("notifyDriverStopAdded: sent to driverId={} client={}", driverId, clientName);
             } catch (Exception e) {
                 log.warn("notifyDriverStopAdded: failed for driverId={}: {}", driverId, e.getMessage());
@@ -74,7 +74,7 @@ public class RouteWebSocketService {
             if (reason != null && !reason.equals("CANCELLED")) payload.put("reason", reason);
             try {
                 messaging.convertAndSend(destination, payload);
-                messaging.convertAndSend("/topic/admin/routes", payload);
+                messaging.convertAndSend("/topic/admin.routes", payload);
                 log.info("notifyDriverStopRemoved: sent to driverId={} client={}", driverId, clientName);
             } catch (Exception e) {
                 log.warn("notifyDriverStopRemoved: failed for driverId={}: {}", driverId, e.getMessage());
@@ -89,7 +89,7 @@ public class RouteWebSocketService {
         executeAfterCommitAsync(() -> {
             if (routeId == null) return;
             try {
-                messaging.convertAndSend("/topic/admin/routes", Map.of(
+                messaging.convertAndSend("/topic/admin.routes", Map.of(
                         "event", "ROUTE_UPDATED",
                         "routeId", routeId.toString()
                 ));

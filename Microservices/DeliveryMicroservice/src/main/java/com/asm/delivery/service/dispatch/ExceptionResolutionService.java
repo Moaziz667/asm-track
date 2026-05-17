@@ -411,8 +411,6 @@ public class ExceptionResolutionService {
 		// The new backorder order needs it so ERP sync can target the correct Odoo picking directly,
 		// without needing the sale order reference (which would violate the erp_order_id unique constraint).
 		Integer odooBackorderPickingId = order.getOdooBackorderId();
-		String originalErpId = order.getErpOrderId();
-		String newErpId = originalErpId != null ? originalErpId + "-B" + System.currentTimeMillis() : null;
 
 		List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
 		int newTotalQuantity = 0;
@@ -453,7 +451,8 @@ public class ExceptionResolutionService {
 				.clientName(order.getClientName())
 				.clientPhone(order.getClientPhone())
 				.clientEmail(order.getClientEmail())
-				.erpOrderId(newErpId)
+				.erpOrderId(null)
+				.parentOrderId(order.getId())
 				.odooBackorderId(odooBackorderPickingId)
 				.erpClientId(order.getErpClientId())
 				.erpExternalRef(order.getErpExternalRef())

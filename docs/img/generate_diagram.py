@@ -1,143 +1,276 @@
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-from matplotlib.patches import FancyBboxPatch, Rectangle
+import base64, os
+from PIL import Image
 
-fig, ax = plt.subplots(figsize=(16, 9))
-ax.set_xlim(0, 16)
-ax.set_ylim(0, 9)
-ax.axis('off')
-fig.patch.set_facecolor('white')
+ICON_SRC = r"C:\Users\M S I\AppData\Local\Programs\Python\Python312\Lib\site-packages\resources"
+ICON_DIR = r"C:\temp\asm_icons"
+OUTPUT   = r"C:\Users\M S I\OneDrive\Documents\PFE\docs\img\container-diagram.svg"
 
-# ── Helpers ──────────────────────────────────────────────────────────────────
-def rbox(x, y, w, h, fc='#DBEAFE', ec='#3B82F6', lw=1.5, ls='-', radius=0.15, hatch=None, alpha=1.0):
-    p = FancyBboxPatch((x, y), w, h,
-        boxstyle=f"round,pad={radius}",
-        facecolor=fc, edgecolor=ec, linewidth=lw, linestyle=ls,
-        hatch=hatch, alpha=alpha, zorder=2)
-    ax.add_patch(p)
+os.makedirs(ICON_DIR, exist_ok=True)
 
-def label(x, y, txt, fs=9, fw='normal', color='#1E293B', ha='center', va='center'):
-    ax.text(x, y, txt, fontsize=fs, fontweight=fw, color=color,
-            ha=ha, va=va, zorder=3, linespacing=1.4)
+ICONS = {
+    'nextjs':   ('programming/framework/nextjs.png',  68),
+    'flutter':  ('programming/framework/flutter.png', 68),
+    'nginx':    ('onprem/network/nginx.png',           64),
+    'spring':   ('programming/framework/spring.png',  68),
+    'pg':       ('onprem/database/postgresql.png',    52),
+    'minio':    ('generic/storage/storage.png',       52),
+    'jwt':      ('generic/network/firewall.png',      58),
+    'rack':     ('generic/compute/rack.png',          58),
+    'firebase': ('firebase/base/firebase.png',        58),
+}
+for name, (rel, sz) in ICONS.items():
+    img = Image.open(os.path.join(ICON_SRC, rel.replace('/', os.sep))).convert("RGBA").resize((sz, sz), Image.LANCZOS)
+    img.save(os.path.join(ICON_DIR, f"{name}.png"))
 
-def arrow(x1, y1, x2, y2, color='#475569', lw=1.3):
-    ax.annotate('', xy=(x2, y2), xytext=(x1, y1),
-        arrowprops=dict(arrowstyle='->', color=color, lw=lw),
-        zorder=4)
+def b64(name):
+    with open(f"{ICON_DIR}/{name}.png", 'rb') as f:
+        return base64.b64encode(f.read()).decode()
 
-def db_cylinder(cx, cy, rx=0.28, ry=0.12, h=0.55, fc='#FCA5A5', ec='#DC2626'):
-    # body
-    body = Rectangle((cx-rx, cy), rx*2, h, facecolor=fc, edgecolor=ec, linewidth=1.2, zorder=2)
-    ax.add_patch(body)
-    # bottom ellipse
-    bot = mpatches.Ellipse((cx, cy), rx*2, ry*2, facecolor=fc, edgecolor=ec, linewidth=1.2, zorder=3)
-    ax.add_patch(bot)
-    # top ellipse
-    top = mpatches.Ellipse((cx, cy+h), rx*2, ry*2, facecolor='#FECACA', edgecolor=ec, linewidth=1.2, zorder=3)
-    ax.add_patch(top)
-    ax.text(cx, cy+h/2, 'DB', ha='center', va='center', fontsize=7, fontweight='bold', color='#7F1D1D', zorder=4)
+I = {k: b64(k) for k in ICONS}
 
-def tall_cylinder(cx, cy, rx=0.45, ry=0.18, h=5.8, fc='#FEF9C3', ec='#EAB308', lw=2):
-    body = Rectangle((cx-rx, cy), rx*2, h, facecolor=fc, edgecolor=ec, linewidth=lw, zorder=2)
-    ax.add_patch(body)
-    bot = mpatches.Ellipse((cx, cy), rx*2, ry*2, facecolor=fc, edgecolor=ec, linewidth=lw, zorder=3)
-    ax.add_patch(bot)
-    top = mpatches.Ellipse((cx, cy+h), rx*2, ry*2, facecolor='#FEF08A', edgecolor=ec, linewidth=lw, zorder=3)
-    ax.add_patch(top)
+# ── SVG primitives ────────────────────────────────────────────────────────────
+def grp(content, gid='', opacity=1):
+    attrs = f' id="{gid}"' if gid else ''
+    return f'<g{attrs} opacity="{opacity}">{content}</g>'
 
-def person_icon(cx, cy, color='#475569', size=0.35):
-    # head
-    head = mpatches.Circle((cx, cy+size*1.55), size*0.45, facecolor=color, edgecolor='none', zorder=3)
-    ax.add_patch(head)
-    # body (triangle/trapezoid)
-    body = plt.Polygon(
-        [[cx-size*0.55, cy], [cx+size*0.55, cy], [cx+size*0.35, cy+size*1.1], [cx-size*0.35, cy+size*1.1]],
-        facecolor=color, edgecolor='none', zorder=3)
-    ax.add_patch(body)
+def rct(x, y, w, h, fill, stroke, sw=1.8, rx=12, dash='', opacity=1):
+    d = f' stroke-dasharray="{dash}"' if dash else ''
+    return (f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{rx}" '
+            f'fill="{fill}" stroke="{stroke}" stroke-width="{sw}"{d} opacity="{opacity}"/>')
 
-# ── Section backgrounds ──────────────────────────────────────────────────────
-# Outer frame
-rbox(0.15, 0.3, 15.7, 8.4, fc='#FFFFFF', ec='#334155', lw=2, radius=0.2)
+def shadow(x, y, w, h, rx=12):
+    return rct(x+4, y+4, w, h, '#00000018', 'none', rx=rx)
 
-# Client Apps section
-rbox(0.25, 0.4, 2.8, 8.2, fc='#F8FAFC', ec='#94A3B8', lw=1.5, ls='--', radius=0.15)
-label(1.65, 8.35, 'Client Apps', fs=11, fw='bold', color='#334155')
+def ico(name, x, y):
+    sz, _ = ICONS[name][1], None
+    return f'<image x="{x}" y="{y}" width="{sz}" height="{sz}" href="data:image/png;base64,{I[name]}"/>'
 
-# Microservices section
-rbox(5.1, 0.4, 8.0, 8.2, fc='#F0F9FF', ec='#7DD3FC', lw=1.5, ls='--', radius=0.15)
-label(9.1, 8.35, 'Microservices', fs=11, fw='bold', color='#0369A1')
+def txt(x, y, content, size=11, weight='normal', fill='#111827', anchor='middle', dy=0):
+    return (f'<text x="{x}" y="{y+dy}" text-anchor="{anchor}" dominant-baseline="auto" '
+            f'font-family="Inter,Helvetica,Arial,sans-serif" font-size="{size}" '
+            f'font-weight="{weight}" fill="{fill}">{content}</text>')
 
-# ── Client Apps ──────────────────────────────────────────────────────────────
-person_icon(1.65, 5.9, color='#64748B', size=0.38)
-rbox(0.85, 4.8, 1.6, 0.75, fc='#E2E8F0', ec='#94A3B8', lw=1.2)
-label(1.65, 5.18, 'Admin App', fs=9, fw='bold')
+def arrowhead(mid, color):
+    return (f'<marker id="{mid}" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">'
+            f'<polygon points="0 0, 9 3.5, 0 7" fill="{color}"/></marker>')
 
-person_icon(1.65, 2.5, color='#64748B', size=0.38)
-rbox(0.85, 1.45, 1.6, 0.75, fc='#E2E8F0', ec='#94A3B8', lw=1.2)
-label(1.65, 1.83, 'Driver App', fs=9, fw='bold')
+mkr = arrowhead
 
-# ── API Gateway (tall hatched box) ────────────────────────────────────────────
-rbox(3.3, 1.3, 1.5, 6.2, fc='#DCFCE7', ec='#16A34A', lw=2, hatch='///', radius=0.1)
-label(4.05, 4.4, 'API\nGateway', fs=10, fw='bold', color='#14532D')
+def ortho(pts, color, sw=1.8, dash='', marker_id=''):
+    coords = ' '.join(f'{"M" if i==0 else "L"}{p[0]},{p[1]}' for i,p in enumerate(pts))
+    d = f' stroke-dasharray="{dash}"' if dash else ''
+    m = f' marker-end="url(#{marker_id})"' if marker_id else ''
+    return f'<path d="{coords}" stroke="{color}" stroke-width="{sw}" fill="none" stroke-linecap="round"{d}{m}/>'
 
-# ── Microservices rows ────────────────────────────────────────────────────────
-services = [
-    ('AppBackend',            ':8080', 6.5),
-    ('DeliveryMicroservice',  ':8082', 4.9),
-    ('DriverService',         ':8086', 3.3),
-    ('ErpAdapterService',     ':8088', 1.7),
-]
+# ── Layout constants ───────────────────────────────────────────────────────────
+W, H = 1800, 1020
 
-for name, port, y in services:
-    rbox(5.3, y, 5.0, 1.1, fc='#DBEAFE', ec='#3B82F6', lw=1.5)
-    label(7.8, y+0.55, f'{name}\n{port}', fs=9, fw='bold', color='#1E3A5F')
-    db_cylinder(cx=10.55, cy=y+0.18)
 
-# ── auth-server (tall cylinder, right side) ───────────────────────────────────
-tall_cylinder(cx=13.55, cy=1.3, rx=0.6, ry=0.22, h=5.8)
-# rotated label
-ax.text(13.55, 4.2, 'auth-server\n:8089\n\nOAuth2\nRSA JWTs',
-        ha='center', va='center', fontsize=8.5, fontweight='bold',
-        color='#713F12', zorder=4, linespacing=1.5)
+# Section x ranges
+X_CLI_L, X_CLI_R   = 20,   230
+X_GW_L,  X_GW_R   = 258,  375
+X_SVC_L, X_SVC_R  = 398, 1490
+X_EXT_L, X_EXT_R  = 1508, 1780
 
-# ── External (far right) ──────────────────────────────────────────────────────
-ext_items = [('Odoo ERP', 6.5), ('Firebase FCM', 4.9), ('OSRM', 3.3)]
-for txt, y in ext_items:
-    rbox(14.45, y, 1.3, 0.9, fc='#F3E8FF', ec='#9333EA', lw=1.2)
-    label(15.1, y+0.45, txt, fs=8, fw='bold', color='#581C87')
+# X centers
+CX_CLI  = (X_CLI_L + X_CLI_R) // 2        # 125
+CX_GW   = (X_GW_L  + X_GW_R)  // 2        # 316
+CX_SVC  = 555                              # service column
+CX_DB1  = 780                              # first db column
+CX_DB2  = 980                              # minio column
+CX_EXT  = (X_EXT_L + X_EXT_R) // 2        # 1644
 
-# ── Arrows ────────────────────────────────────────────────────────────────────
-# Clients → Gateway
-arrow(2.45, 5.18, 3.28, 5.5, color='#475569')
-arrow(2.45, 1.83, 3.28, 3.0, color='#475569')
+# Y row centers
+Y = [195, 360, 515, 670, 825]
+Y_AUTH, Y_AB, Y_DL, Y_DS, Y_EA = Y
 
-# Gateway → each service (center y of each row)
-for _, _, y in services:
-    arrow(4.82, y+0.55, 5.28, y+0.55, color='#1D4ED8')
+FONT = "Inter, Helvetica, Arial, sans-serif"
 
-# Services → auth-server (dashed orange)
-for _, _, y in services:
-    ax.annotate('', xy=(12.95, y+0.55), xytext=(10.32, y+0.55),
-        arrowprops=dict(arrowstyle='->', color='#F97316', lw=1.0, linestyle='dashed'),
-        zorder=4)
+# ── Build SVG ─────────────────────────────────────────────────────────────────
+defs = f"""<defs>
+  <filter id="shadow" x="-5%" y="-5%" width="115%" height="115%">
+    <feDropShadow dx="2" dy="3" stdDeviation="4" flood-color="#00000020"/>
+  </filter>
+  {mkr('mb','#2563EB')}{mkr('mg','#16A34A')}{mkr('mo','#EA580C')}{mkr('mc','#0891B2')}{mkr('mp','#7C3AED')}
+</defs>"""
 
-# auth-server → Gateway (JWKS, dashed)
-ax.annotate('', xy=(4.82, 7.4), xytext=(12.95, 7.0),
-    arrowprops=dict(arrowstyle='->', color='#F97316', lw=1.2, linestyle='dashed'),
-    zorder=4)
-label(9.0, 7.35, 'JWKS', fs=7.5, color='#C2410C')
+# ── Section backgrounds ───────────────────────────────────────────────────────
+sections = (
+    rct(X_CLI_L, 55, X_CLI_R-X_CLI_L, 950, '#F8FAFC', '#9CA3AF', dash='10,5', rx=14) +
+    txt(CX_CLI, 45, 'Client Apps', 14, 'bold', '#374151') +
 
-# DeliveryService → External
-arrow(10.32, 4.9+0.55, 14.43, 4.9+0.45, color='#7C3AED')
-arrow(10.32, 6.5+0.55, 14.43, 6.5+0.45, color='#7C3AED')
-arrow(10.32, 3.3+0.55, 14.43, 3.3+0.45, color='#7C3AED')
+    rct(X_SVC_L, 55, X_SVC_R-X_SVC_L, 950, '#EFF6FF', '#3B82F6', sw=2.2, rx=14) +
+    txt((X_SVC_L+X_SVC_R)//2, 45, 'Core Microservices', 14, 'bold', '#1E40AF') +
 
-# ── Section labels (bottom) ───────────────────────────────────────────────────
-label(4.05, 0.55, 'API Gateway', fs=8, fw='bold', color='#14532D')
-label(13.55, 0.95, 'Identity Provider', fs=7.5, fw='bold', color='#713F12')
-label(15.1, 0.95, 'External', fs=8, fw='bold', color='#581C87')
+    rct(X_EXT_L, 55, X_EXT_R-X_EXT_L, 950, '#FAF5FF', '#7C3AED', dash='10,5', sw=1.8, rx=14) +
+    txt(CX_EXT, 45, 'External / Infrastructure', 14, 'bold', '#6D28D9')
+)
 
-plt.tight_layout(pad=0)
-plt.savefig('c:/Users/M S I/OneDrive/Documents/PFE/docs/img/container-diagram.png',
-            dpi=180, bbox_inches='tight', facecolor='white')
-print("Done.")
+# ── API Gateway — built after svc_card is defined below ──────────────────────
+
+# ── Service card helper ───────────────────────────────────────────────────────
+def svc_card(icon, cx, cy, name, port, fill, stroke, cw=152, ch=108):
+    x, y = cx-cw//2, cy-ch//2
+    sz = ICONS[icon][1]
+    ix, iy = cx-sz//2, y+10
+    return (
+        shadow(x, y, cw, ch) +
+        rct(x, y, cw, ch, fill, stroke, sw=2.0) +
+        ico(icon, ix, iy) +
+        txt(cx, iy+sz+14, name, 10, 'bold', '#111827') +
+        txt(cx, iy+sz+28, port, 9, 'normal', '#6B7280')
+    )
+
+def db_card(icon, cx, cy, name, fill, stroke, cw=118, ch=90):
+    x, y = cx-cw//2, cy-ch//2
+    sz = ICONS[icon][1]
+    ix, iy = cx-sz//2, y+8
+    return (
+        shadow(x, y, cw, ch) +
+        rct(x, y, cw, ch, fill, stroke, sw=1.6) +
+        ico(icon, ix, iy) +
+        txt(cx, iy+sz+13, name, 8.5, 'normal', '#374151')
+    )
+
+def auth_card(cx, cy, cw=348, ch=108):
+    x, y = cx-cw//2, cy-ch//2
+    sz = ICONS['jwt'][1]
+    ix, iy = x+20, cy-sz//2
+    return (
+        shadow(x, y, cw, ch) +
+        rct(x, y, cw, ch, '#FFF7ED', '#F97316', sw=2.8) +
+        ico('jwt', ix, iy) +
+        txt(ix+sz+20, cy-16, 'auth-server', 15, 'bold', '#1C1917', 'start') +
+        txt(ix+sz+20, cy+4,  ':8089',       10, 'normal', '#78716C', 'start') +
+        txt(ix+sz+20, cy+22, 'OAuth2 · RSA JWT Issuer', 9, 'normal', '#EA580C', 'start')
+    )
+
+# ── API Gateway (square card) ─────────────────────────────────────────────────
+gateway = svc_card('nginx', CX_GW, (Y_AB + Y_DS) // 2, 'API Gateway', ':80', '#DCFCE7', '#16A34A')
+
+# ── All nodes ─────────────────────────────────────────────────────────────────
+nodes = (
+    svc_card('nextjs',  CX_CLI, Y_AB, 'Admin App',  'Next.js', '#F9FAFB', '#CBD5E1') +
+    svc_card('flutter', CX_CLI, Y_DS, 'Driver App', 'Flutter', '#EFF9FF', '#BAE6FD') +
+
+    auth_card(CX_SVC, Y_AUTH) +
+    svc_card('spring', CX_SVC, Y_AB, 'AppBackend',           ':8080', '#F0FFF4', '#86EFAC') +
+    svc_card('spring', CX_SVC, Y_DL, 'DeliveryMicroservice', ':8082', '#F0FFF4', '#86EFAC') +
+    svc_card('spring', CX_SVC, Y_DS, 'DriverService',        ':8086', '#F0FFF4', '#86EFAC') +
+    svc_card('spring', CX_SVC, Y_EA, 'ErpAdapterService',    ':8088', '#F0FFF4', '#86EFAC') +
+
+    db_card('pg',    CX_DB1, Y_AB, 'postgres-app',      '#F0FDF4', '#16A34A') +
+    db_card('pg',    CX_DB1, Y_DL, 'postgres-delivery', '#F0FDF4', '#16A34A') +
+    db_card('pg',    CX_DB1, Y_DS, 'postgres-driver',   '#F0FDF4', '#16A34A') +
+    db_card('minio', CX_DB2, Y_DL, 'MinIO',             '#FFF5F5', '#FCA5A5') +
+
+    svc_card('rack',     CX_EXT, Y_AB, 'Odoo ERP',     'JSON-RPC 2.0',       '#FAF5FF', '#C4B5FD') +
+    svc_card('firebase', CX_EXT, Y_DL, 'Firebase FCM', 'Push Notifications', '#FFFBEB', '#FDE68A') +
+    svc_card('rack',     CX_EXT, Y_DS, 'OSRM',         ':5000 · Routing',    '#F0FDF4', '#BBF7D0')
+)
+
+# ── Connection helpers ────────────────────────────────────────────────────────
+def ln(d, color, sw, dash=''):
+    da = f' stroke-dasharray="{dash}"' if dash else ''
+    return f'<path d="{d}" stroke="{color}" stroke-width="{sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"{da}/>'
+
+def ar(d, color, sw, dash='', mid=''):
+    da = f' stroke-dasharray="{dash}"' if dash else ''
+    ma = f' marker-end="url(#{mid})"' if mid else ''
+    return f'<path d="{d}" stroke="{color}" stroke-width="{sw}" fill="none" stroke-linecap="round" stroke-linejoin="round"{da}{ma}/>'
+
+def mkr(mid, color):
+    return (f'<marker id="{mid}" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">'
+            f'<polygon points="0 0,9 3.5,0 7" fill="{color}"/></marker>')
+
+DEFS = (mkr('mb','#2563EB') + mkr('mg','#16A34A') +
+        mkr('mo','#EA580C') + mkr('mc','#0891B2') + mkr('mp','#7C3AED'))
+
+BL, GR, OR, CY, PU = '#2563EB','#16A34A','#EA580C','#0891B2','#7C3AED'
+
+# ── Key coordinates (from layout constants) ───────────────────────────────────
+# GW card center: (316, 515), cw=152 → left=240, right=392
+# SVC cards: cx=555, left=479, right=631
+# auth card: cx=555, cw=348 → left=381, right=729, cy=195, bottom=249
+# DB1: cx=780, left=721, right=839
+# DB2(minio): cx=980, left=921
+# EXT: cx=1644, left=1568
+# Y rows: auth=195, AB=360, DL=515, DS=670, EA=825
+# Card half-heights: svc ch=108→54, db ch=90→45
+
+arrows = ''
+
+# ── Blue (HTTP/REST) — bus topology ──────────────────────────────────────────
+# Client left bus
+arrows += ln('M201,360 H222', BL, 1.8)           # Admin → bus
+arrows += ln('M201,670 H222', BL, 1.8)           # Driver → bus
+arrows += ln('M222,360 V670', BL, 1.2)           # bus vertical
+arrows += ar('M222,515 H240', BL, 2.0, mid='mb') # bus → GW left
+
+# GW right bus
+arrows += ln('M392,515 H440',  BL, 2.0)           # GW → bus
+arrows += ln('M440,195 V825',  BL, 1.2)           # bus vertical
+arrows += ar('M440,195 H381',  BL, 2.0, mid='mb') # → auth
+arrows += ar('M440,360 H479',  BL, 2.0, mid='mb') # → AB
+arrows += ar('M440,515 H479',  BL, 2.0, mid='mb') # → DL
+arrows += ar('M440,670 H479',  BL, 2.0, mid='mb') # → DS
+arrows += ar('M440,825 H479',  BL, 2.0, mid='mb') # → EA
+
+# ── Green dashed (Databases) ──────────────────────────────────────────────────
+# auth shares DBs — routes exit auth bottom, down then right
+arrows += ar('M555,249 V290 H775 V315', GR, 1.4, '8,4', 'mg') # auth→pga top
+arrows += ar('M555,249 V300 H795 V625 H780', GR, 1.4, '8,4', 'mg') # auth→pgr top
+
+# Service → DB horizontal
+arrows += ar('M631,360 H721', GR, 1.4, '8,4', 'mg')  # AB → pga left
+arrows += ar('M631,515 H721', GR, 1.4, '8,4', 'mg')  # DL → pgd left
+arrows += ar('M839,515 H921', GR, 1.4, '8,4', 'mg')  # pgd → minio (chain)
+arrows += ar('M631,670 H721', GR, 1.4, '8,4', 'mg')  # DS → pgr left
+
+# ── Orange dotted (OAuth2) — left spine ───────────────────────────────────────
+arrows += ln('M453,195 V825',  OR, 1.2, '4,4')         # full spine
+arrows += ln('M479,360 H453',  OR, 1.2, '4,4')         # AB branch
+arrows += ln('M479,515 H453',  OR, 1.2, '4,4')         # DL branch
+arrows += ln('M479,670 H453',  OR, 1.2, '4,4')         # DS branch
+arrows += ln('M479,825 H453',  OR, 1.2, '4,4')         # EA branch
+arrows += ar('M453,195 H381',  OR, 1.4, '4,4', 'mo')   # spine → auth
+
+# ── Cyan dashed (Inter-service) — right routing ───────────────────────────────
+arrows += ar('M631,515 H665 V670 H479', CY, 1.4, '8,4', 'mc')  # DL → DS
+arrows += ar('M631,515 H672 V825 H479', CY, 1.4, '8,4', 'mc')  # DL → EA
+
+# ── Purple solid (External) ───────────────────────────────────────────────────
+# EA → Odoo: exit EA right, clear space right of all DBs, up to Odoo level, right to Odoo
+arrows += ar('M631,825 H1200 V360 H1568', PU, 1.8, mid='mp')
+# DL → Firebase: exit DL right, go into gap between svc col and DB col, below DBs, across, up
+arrows += ar('M631,510 H688 V580 H1568 V569', PU, 1.8, mid='mp')
+# DL → OSRM: same gap, slightly lower bypass, to OSRM
+arrows += ar('M631,520 H695 V595 H1568 V724', PU, 1.8, mid='mp')
+
+# ── Legend ────────────────────────────────────────────────────────────────────
+LY = 972
+legend  = rct(20, 952, W-40, 52, '#F9FAFB', '#E5E7EB', sw=1, rx=8)
+LITEMS = [(90,BL,'','HTTP / REST'),(360,GR,'8,4','Database'),(590,OR,'4,4','OAuth2 / Security'),
+          (790,CY,'8,4','Inter-Service'),(1010,PU,'','External Integration')]
+for lx,col,dash,lbl in LITEMS:
+    legend += ar(f'M{lx},{LY} H{lx+72}', col, 2.2, dash,
+                 {'':'mb','8,4':'mg','4,4':'mo'}.get(dash,'mp') if col!=CY else 'mc')
+    legend += txt(lx+84, LY+4, lbl, 10.5, 'normal', '#374151', 'start')
+
+# ── Assemble ──────────────────────────────────────────────────────────────────
+svg = f"""<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg"
+     xmlns:xlink="http://www.w3.org/1999/xlink"
+     width="{W}" height="{H}" viewBox="0 0 {W} {H}">
+  <rect width="{W}" height="{H}" fill="white"/>
+  {defs}
+  {sections}
+  {gateway}
+  {arrows}
+  {nodes}
+  {legend}
+</svg>"""
+
+with open(OUTPUT, 'w', encoding='utf-8') as f:
+    f.write(svg)
+print(f"Saved: {OUTPUT}")

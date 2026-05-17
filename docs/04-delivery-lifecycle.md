@@ -13,9 +13,8 @@ stateDiagram-v2
     IN_TRANSIT --> PARTIALLY_DELIVERED : Partial POD submitted
     PICKED_UP --> FAILED : Driver marks failed
     IN_TRANSIT --> FAILED : Driver marks failed
-    UNSCHEDULED --> CANCELLED : Cancelled
-    SCHEDULED --> CANCELLED : Cancelled
-    PICKED_UP --> CANCELLED : Driver cancels
+    UNSCHEDULED --> CANCELLED : Admin cancels
+    SCHEDULED --> CANCELLED : Admin cancels
 
     DELIVERED --> [*]
     PARTIALLY_DELIVERED --> [*]
@@ -54,8 +53,8 @@ stateDiagram-v2
 | Trigger | `POST /api/driver/deliveries/{id}/transit` |
 | Service method | `DriverDeliveryService.transit()` |
 | `in_transit_at` | Set to now() |
-| Route fields | `route_geometry`, `route_distance_km`, `route_duration_minutes`, `route_eta_at`, `transit_sla_minutes_computed` set from OSRM response |
-| SLA computation | `transit_sla_minutes = max(15, min(240, OSRM_duration × 1.20 + 8))` |
+| Route fields | `route_geometry`, `route_distance_km`, `route_duration_minutes`, `route_eta_at` set from OSRM response |
+| `pickup_sla_minutes` | `inTransitAt − pickedUpAt` — temps entre le pickup et le départ en transit |
 | Side effects | WebSocket `delivery.in_transit` |
 
 ### IN_TRANSIT → DELIVERED (Full POD)
@@ -67,7 +66,7 @@ stateDiagram-v2
 | `completed_at` | Set to now() |
 | POD stored | Photos (base64) uploaded to MinIO → URLs stored in `proof_of_delivery` |
 | GPS stored | `lat`, `lng` in `proof_of_delivery` |
-| Side effects | WebSocket `delivery.completed`, FCM push, PDF bon de livraison generated |
+| Side effects | WebSocket `delivery.completed` |
 | Outbox | `ERP_SYNC_STOCK` enqueued `{deliveryId, isPartial: false}` |
 
 ### IN_TRANSIT → PARTIALLY_DELIVERED
@@ -89,45 +88,53 @@ stateDiagram-v2
 | Outbox | `ERP_SYNC_FAILURE` enqueued `{deliveryId, failureCode, comment}` |
 | Side effects | WebSocket `delivery.failed` |
 
-### ANY → CANCELLED
+### → CANCELLED
 
 | Attribute | Value |
 |-----------|-------|
-| Trigger (driver) | `POST /api/driver/deliveries/{id}/cancel` |
-| Trigger (admin) | `POST /api/admin/deliveries/{id}/cancel` or `POST /api/admin/deliveries/orders/{orderId}/cancel` |
-| Constraint | Admin cannot cancel if status is IN_TRANSIT or beyond |
+| Trigger | `POST /api/admin/deliveries/orders/{orderId}/cancel` — UNSCHEDULED or SCHEDULED only |
 | Fields set | `cancel_reason`, `cancelled_by` (Role), `cancelled_at` |
-| Order reset | Order status reverted to PENDING for potential re-import |
+| Final status | `CANCELLED` — terminal, cannot be reassigned |
 | Outbox | `ERP_SYNC_CANCELLATION` enqueued `{orderId}` |
 | Side effects | WebSocket `delivery.cancelled` |
 
 ---
 
-## 4.3 RouteStop Lifecycle
+## 4.3 Route & RouteStop Lifecycle
 
-Route stops mirror the delivery they contain:
-
+**Route statuses:**
 ```
-PENDING → COMPLETED   (delivery DELIVERED or PARTIALLY_DELIVERED)
-        → FAILED      (delivery FAILED)
-        → PARTIAL     (delivery PARTIALLY_DELIVERED)
+DRAFT → VALIDATED → IN_PROGRESS → CLOSED
+                               → CANCELLED
+```
+
+**RouteStop statuses:**
+```
+PENDING → SCHEDULED → PICKED_UP → IN_TRANSIT → ARRIVED → COMPLETED
+                                                        → FAILED
+                                                        → PARTIAL
+                                                        → FAILED_ATTEMPT
+                                → REMOVED_REPLANNED  (stop removed, delivery back to pool)
+                                → REMOVED_CANCELLED  (delivery explicitly cancelled)
 ```
 
 Stop fields updated on arrival:
 - `arrived_at`, `actual_arrival_at`
-- `sla_status` computed: ON_TIME if `arrived_at <= sla_deadline`, EARLY if early, LATE if past
+- `sla_status` computed: ON_TIME if `arrived_at <= sla_deadline`, LATE if past
 
 ---
 
 ## 4.4 SLA Monitoring
 
-`SlaMonitoringService` runs every 30 seconds and checks:
+`SlaMonitoringService` runs every 60 seconds (configurable via `app.sla.check-interval-ms`) and checks:
 
-| Condition | SLA Breach Type | WebSocket Event |
-|-----------|-----------------|-----------------|
-| UNSCHEDULED delivery > 15 min | SLA_WAITING | `sla.breach` on admin delivery topic |
-| SCHEDULED delivery > 20 min since assignment | SLA_ASSIGNMENT | `sla.breach` |
-| IN_TRANSIT delivery past computed SLA window | SLA_TRANSIT | `sla.breach` |
+| Condition | Formula | SLA Breach Type |
+|-----------|---------|-----------------|
+| Delivery UNSCHEDULED too long | `now − createdAt > ops.sla.waiting-limit-minutes` | `SLA_WAITING` |
+| Delivery SCHEDULED but not picked up | `now − assignedAt > ops.sla.assign-limit-minutes` | `SLA_ASSIGNMENT` |
+| Delivery IN_TRANSIT past stop deadline | `now > route.date + stop.endTimeWindow` | `SLA_TRANSIT` |
+
+All limits configurable per company via `SystemSettings`. Breach triggers WebSocket `sla.breach` on `/topic/admin/{companyId}/deliveries`.
 
 De-duplication: `ConcurrentHashMap<"{deliveryId}:{motif}", Boolean>` prevents duplicate alerts within a session.
 
@@ -151,8 +158,7 @@ sequenceDiagram
 
     A->>DL: POST /api/admin/erp/import-order/{erpOrderId}
     DL->>DL: Create Order (source=ODOO) + Delivery (status=UNSCHEDULED)
-    DL->>DL: Enqueue ERP_SYNC_STOCK outbox event
-    DL->>DL: Publish WebSocket erp.orders_ready
+    DL->>DL: Publish WebSocket delivery.created
     DL-->>A: 200 OK {orderId, deliveryId}
 ```
 
@@ -173,8 +179,9 @@ sequenceDiagram
 
     A->>DL: POST /api/admin/deliveries/{id}/create-backorder
     DL->>DL: Read odooBackorderId from original order
-    DL->>DL: Create Order erpOrderId=S00042-B{ts}, odooBackorderId=55
+    DL->>DL: Create Order (erpOrderId=null, parentOrderId=original.id, odooBackorderId=55)
     DL->>DL: Create Delivery UNSCHEDULED
+    DL->>DL: Clear odooBackorderId on original order
     DL-->>A: New delivery created
 
     Note over EA: When backorder delivery completes
@@ -183,6 +190,62 @@ sequenceDiagram
     OD-->>EA: picking 55 done
 ```
 
-> **Why synthetic `erpOrderId`?** The `orders` table has a UNIQUE constraint on `(erp_order_id, company_id)`.  
-> Using the original `S00042` for the backorder order would violate it. The synthetic ID is never
-> used for Odoo lookup — `odooBackorderId` (the actual picking ID) is used instead.
+`parentOrderId` links the backorder to its original order. `erpOrderId` is `null` — backorders are ASM-generated, not imported from Odoo.
+
+---
+
+## 4.7 Feature Showcases
+
+### 4.7.1 Handoff Confirmation via QR Code
+
+Lorsqu'une livraison est réassignée à un autre chauffeur alors que le colis est déjà en main du premier, le transfert physique doit être tracé. Le chauffeur sortant génère un QR code unique (token signé), que le nouveau chauffeur scanne dans son app Flutter pour confirmer la prise en charge. À ce moment, l'API valide le token, marque le stop `HANDOFF_CONFIRMED`, publie un event WebSocket à l'admin, et envoie une notif FCM au chauffeur sortant.
+
+> 🎬 **Video placeholder** — `docs/media/handoff-qr.mp4` *(à enregistrer : génération du QR côté driver A, scan côté driver B, mise à jour temps réel sur l'admin)*
+
+---
+
+### 4.7.2 Replan a Failed Stop
+
+Quand une livraison échoue (`FAILED`), l'admin peut soit annuler définitivement, soit replanifier. Le replan crée un nouveau stop dans une tournée future, conserve l'historique de l'échec, et notifie le client par SMS/email. Le backorder est créé automatiquement si l'échec était partiel.
+
+> 🎬 **Video placeholder** — `docs/media/replan-failed-stop.mp4` *(à enregistrer : depuis le dispatch desk, click "Replan" sur une livraison failed → sélection nouvelle tournée → confirmation)*
+
+---
+
+### 4.7.3 Reassign Stop Mid-Route
+
+Si un chauffeur est en retard ou indisponible, l'admin peut réassigner un ou plusieurs arrêts d'une tournée en cours vers un autre chauffeur. Si la livraison est encore `SCHEDULED` (pas encore pickup), réassignation directe. Si déjà `PICKED_UP`, déclenche le flow handoff QR.
+
+> 🎬 **Video placeholder** — `docs/media/reassign-stop.mp4` *(à enregistrer : depuis page route detail, drag-and-drop ou bouton "Reassign" → choisir nouveau chauffeur → notification temps réel aux deux apps Flutter)*
+
+---
+
+### 4.7.4 Proof of Delivery (POD) Capture
+
+Le chauffeur capture photo + signature sur sa Flutter app. L'image est envoyée en base64 au DeliveryMicroservice qui la stocke dans MinIO. Une URL signée 15 min est retournée pour affichage admin. La géolocalisation au moment du POD est aussi enregistrée.
+
+> 🎬 **Video placeholder** — `docs/media/pod-capture.mp4` *(à enregistrer : Flutter app → mode livraison → bouton photo + signature → upload → apparition immédiate dans l'admin via WebSocket)*
+
+---
+
+### 4.7.5 Partial Delivery → Backorder Creation
+
+Si seulement une partie des items est livrée, le chauffeur saisit les quantités effectivement remises. L'admin valide ensuite la création d'un backorder pour les items restants (voir section 4.6). Odoo crée automatiquement un nouveau picking lié.
+
+> 🎬 **Video placeholder** — `docs/media/partial-backorder.mp4` *(à enregistrer : Flutter livraison partielle avec items → admin reçoit notif → bouton "Create Backorder" → nouvelle delivery UNSCHEDULED apparaît)*
+
+---
+
+### 4.7.6 ERP Order Auto-Import
+
+Toutes les 2 minutes, `ErpAutoImportNotifier` interroge Odoo. Si de nouvelles commandes sont prêtes (`state=sale`, non encore importées), un badge apparaît dans l'admin sans rafraîchissement. L'admin peut alors importer en bulk.
+
+> 🖼️ **Screenshot placeholder** — `docs/media/erp-import-badge.png` *(à capturer : badge "5 commandes en attente" qui apparaît automatiquement sur la page Imports)*
+
+---
+
+### 4.7.7 Real-Time SLA Breach Alert
+
+`SlaMonitoringService` détecte toutes les 60s les livraisons hors SLA (waiting/assignment/transit). Un event WebSocket `sla.breach` est poussé à l'admin avec sévérité `WARNING` ou `CRITICAL`. La cloche de notifications s'incrémente, un toast s'affiche, et le clic redirige vers le dispatch desk.
+
+> 🎬 **Video placeholder** — `docs/media/sla-breach-alert.mp4` *(à enregistrer : laisser tourner une livraison sans assignation → après le seuil, la notif arrive automatiquement)*

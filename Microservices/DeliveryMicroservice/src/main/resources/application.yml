@@ -13,6 +13,14 @@ spring:
   application:
     name: delivery-service
 
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    stomp:
+      port: 61613
+
   security:
     user:
       name: disabled
@@ -46,6 +54,11 @@ spring:
     init:
       mode: never
       schema-locations: classpath:schema.sql
+
+websocket:
+  broker:
+    relay:
+      enabled: true
 
 auth:
   server:

@@ -48,12 +48,13 @@ services:
 
   #  RABBITMQ 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4-management
     container_name: rabbitmq
     ports:
       # PROD: remove "15672:15672" — management console must not be publicly accessible
       - "5672:5672"
       - "15672:15672"
+      - "61613:61613"   # STOMP relay port used by DeliveryMicroservice
     environment:
       # PROD: change these — default guest/guest is a well-known RabbitMQ vulnerability
       RABBITMQ_DEFAULT_USER: guest
@@ -214,6 +215,7 @@ services:
       CLIENT_ID: delivery-service
       CLIENT_SECRET: ${CLIENT_SECRET_DELIVERY:-y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
       RABBITMQ_HOST: rabbitmq
+      WEBSOCKET_BROKER_RELAY_ENABLED: "true"
       DRIVER_SERVICE_URL: http://driver-service:8086
       TRANSPORT_PROVIDER: internal
       MINIO_URL: http://minio:9000

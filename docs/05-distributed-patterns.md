@@ -137,42 +137,43 @@ POST /api/erp/sync/full-delivery
   → CompanyAdapterFactory.getAdapter(erpType)
       → OdooSyncAdapter  (if erpType=odoo)
       → DuxSyncAdapter   (STUB — do not use)
-      → NoopSyncAdapter  (fallback)
+     
 ```
 
 ### Full Delivery Sync Flow (Odoo 19)
 
 ```mermaid
 sequenceDiagram
-    participant OP as OutboxProcessor
-    participant EA as ErpAdapterService
-    participant OD as Odoo 19
+    participant OutboxProcessor
+    participant ErpAdapterService
+    participant H2 as H2 idempotent_transaction
+    participant Odoo
 
-    OP->>EA: POST /api/erp/sync/full-delivery {erpOrderId, backorderPickingId=null}
-    EA->>EA: Check idempotency (transactionId)
-    EA->>EA: inFlight.add(erpOrderId) — guard concurrent sync
+    OutboxProcessor->>ErpAdapterService: POST /api/erp/sync/full-delivery {erpOrderId, backorderPickingId=null}
+    ErpAdapterService->>ErpAdapterService: Check idempotency (transactionId)
+    ErpAdapterService->>ErpAdapterService: inFlight.add(erpOrderId) — guard concurrent sync
 
     alt Normal delivery (no backorderPickingId)
-        EA->>OD: sale.order search_read [name=erpOrderId]
-        OD-->>EA: [{id: 42}]
-        EA->>OD: stock.picking search_read [sale_id=42, state!=done]
-        OD-->>EA: [{id: 55, state: assigned}]
-        EA->>OD: stock.picking action_assign [55]  ← reserve stock
-        EA->>EA: setFullQuantityDoneOnMoveLines(55)
-        EA->>OD: stock.move.line write [{id:101, quantity: 22}]
-        EA->>OD: stock.picking button_validate [55]
-        OD-->>EA: {result: done} OR wizard action
+        ErpAdapterService->>Odoo: sale.order search_read [name=erpOrderId]
+        Odoo-->>ErpAdapterService: [{id: 42}]
+        ErpAdapterService->>Odoo: stock.picking search_read [sale_id=42, state!=done]
+        Odoo-->>ErpAdapterService: [{id: 55, state: assigned}]
+        ErpAdapterService->>Odoo: stock.picking action_assign [55]  ← reserve stock
+        ErpAdapterService->>ErpAdapterService: setFullQuantityDoneOnMoveLines(55)
+        ErpAdapterService->>Odoo: stock.move.line write [{id:101, quantity: 22}]
+        ErpAdapterService->>Odoo: stock.picking button_validate [55]
+        Odoo-->>ErpAdapterService: {result: done} OR wizard action
     else Backorder delivery (backorderPickingId=55)
-        EA->>OD: stock.picking read [55]  ← direct lookup, no sale.order needed
-        EA->>OD: stock.picking action_assign [55]
-        EA->>EA: setFullQuantityDoneOnMoveLines(55)
-        EA->>OD: stock.picking button_validate [55]
-        OD-->>EA: done
+        ErpAdapterService->>Odoo: stock.picking read [55]  ← direct lookup, no sale.order needed
+        ErpAdapterService->>Odoo: stock.picking action_assign [55]
+        ErpAdapterService->>ErpAdapterService: setFullQuantityDoneOnMoveLines(55)
+        ErpAdapterService->>Odoo: stock.picking button_validate [55]
+        Odoo-->>ErpAdapterService: done
     end
 
-    EA->>EA: inFlight.remove(erpOrderId)
-    EA->>ID: INSERT idempotent_transaction (SUCCESS)
-    EA-->>OP: {success: true}
+    ErpAdapterService->>ErpAdapterService: inFlight.remove(erpOrderId)
+    ErpAdapterService->>H2: INSERT idempotent_transaction (SUCCESS)
+    ErpAdapterService-->>OutboxProcessor: {success: true}
 ```
 
 ### Partial Delivery Sync + Backorder Wizard (Odoo 19)
@@ -344,7 +345,7 @@ Drivers are **not** bound to a company:
 - `GET /internal/drivers/available` returns all active drivers
 - Dispatcher sees all available drivers regardless of company
 
-This is intentional: a logistics company may share a driver pool across its subsidiary companies.
+
 
 ### Company Entity
 
@@ -393,7 +394,12 @@ Layer 3: ErpAdapterService
 | `PUT /api/admin/routes/{id}/validate` | Idempotency-Key header |
 | `POST /api/admin/routes/{id}/close` | Idempotency-Key header |
 | `POST /api/admin/erp/import-order/{erpOrderId}` | erpOrderId itself |
-| All driver mutation endpoints | `acc-`, `pkp-`, `trns-`, `pod-`, etc. |
+| `POST /api/driver/deliveries/{id}/accept` | `accept-{deliveryId}` |
+| `POST /api/driver/deliveries/{id}/pickup` | `pickup-{deliveryId}` |
+| `POST /api/driver/deliveries/{id}/transit` | `transit-{deliveryId}` |
+| `POST /api/driver/deliveries/{id}/pod` | `pod-{deliveryId}` |
+| `POST /api/driver/deliveries/{id}/fail` | `fail-{deliveryId}` |
+| `POST /api/driver/deliveries/{id}/cancel` | `cancel-{deliveryId}` |
 
 ---
 
@@ -401,12 +407,13 @@ Layer 3: ErpAdapterService
 
 ### STOMP Broker
 
-DeliveryMicroservice embeds a Spring **in-memory STOMP message broker** (not RabbitMQ — RabbitMQ is present in docker-compose but not used as the STOMP relay).
+DeliveryMicroservice uses **RabbitMQ as the STOMP broker relay** (`enableStompBrokerRelay`). Spring connects to RabbitMQ via TCP on port 61613 (STOMP plugin). This enables horizontal scaling — multiple DeliveryMicroservice instances can publish events and all connected clients receive them regardless of which instance handled the request.
 
 ```
 WebSocket endpoint: /ws  (SockJS transport)
 Application prefix: /app
 Broker prefix:      /topic
+STOMP relay:        rabbitmq:61613
 ```
 
 ### Post-Commit Publishing

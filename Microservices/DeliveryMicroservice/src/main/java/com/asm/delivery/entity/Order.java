@@ -172,6 +172,10 @@ public class Order {
     @Column(name = "next_sync_retry_at")
     private LocalDateTime nextSyncRetryAt;
 
+    /** Set on backorder orders — points to the original order this was split from. */
+    @Column(name = "parent_order_id")
+    private UUID parentOrderId;
+
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")
     private LocalDateTime lastSyncedAt;

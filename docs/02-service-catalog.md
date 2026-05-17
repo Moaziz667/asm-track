@@ -105,19 +105,19 @@ Token expiry: access = 1 hour, refresh = 7 days.
 | Property | Default | Env Var |
 |----------|---------|---------|
 | `server.port` | 8080 | — |
-| `app.jwt.secret` | `asmsecret2026` | `JWT_SECRET` |
-| `app.jwt.access-expiry-ms` | 3600000 | `APP_JWT_ACCESS_EXPIRY_MS` |
+| `auth.client.id` | `app-backend` | `CLIENT_ID` |
+| `auth.client.secret` | *(base64)* | `CLIENT_SECRET_APP` |
+| `auth.server.url` | `http://auth-server:8089` | `AUTH_SERVER_URL` |
 | `app.cookie.secure` | false | `COOKIE_SECURE` (set `true` in prod HTTPS) |
 | `delivery.service.url` | `http://delivery-service:8082` | `DELIVERY_SERVICE_URL` |
-| `internal.secret` | `asm-internal-2026` | `INTERNAL_SECRET` |
 
 ---
 
 ## 2.3 DeliveryMicroservice
 
 **Port:** 8082  
-**Database:** `postgres-delivery` — 28 Flyway migrations  
-**Auth type:** Bearer JWT (shared secret with AppBackend and DriverService)  
+**Database:** `postgres-delivery` — 29 Flyway migrations  
+**Auth type:** OAuth2 client_credentials (token validated via auth-server JWKS)  
 **Bounded contexts:** Delivery, Order, Route, Dispatch, ERP, Outbox, WebSocket, SLA, Storage
 
 ### Key Entities
@@ -203,7 +203,11 @@ Idempotent request deduplication. Keyed by idempotency header value. Cleaned up 
 | Property | Default | Env Var |
 |----------|---------|---------|
 | `server.port` | 8082 | — |
-| `app.jwt.secret` | `asmsecret2026` | `JWT_SECRET` |
+| `auth.client.id` | `delivery-service` | `CLIENT_ID` |
+| `auth.client.secret` | *(base64)* | `CLIENT_SECRET_DELIVERY` |
+| `auth.server.jwks-uri` | `http://auth-server:8089/oauth2/jwks` | `AUTH_SERVER_JWKS_URI` |
+| `spring.rabbitmq.host` | `localhost` | `RABBITMQ_HOST` |
+| `websocket.broker.relay.enabled` | true | `WEBSOCKET_BROKER_RELAY_ENABLED` |
 | `app.security.trust-gateway-headers` | false | — |
 | `routing.osrm.enabled` | false | `ROUTING_OSRM_ENABLED` |
 | `routing.osrm.base-url` | `http://osrm:5000` | `ROUTING_OSRM_BASE_URL` |
@@ -217,7 +221,6 @@ Idempotent request deduplication. Keyed by idempotency header value. Cleaned up 
 | `minio.public-url` | `http://localhost:9000` | `MINIO_PUBLIC_URL` |
 | `fcm.enabled` | false | `FCM_ENABLED` |
 | `driver.service.url` | `http://driver-service:8086` | `DRIVER_SERVICE_URL` |
-| `internal.secret` | `asm-internal-2026` | `INTERNAL_SECRET` |
 | `outbox.alert.webhook-url` | (empty) | `OUTBOX_ALERT_WEBHOOK_URL` |
 | `app.ops.sla.waiting-limit-minutes` | 15 | `OPS_SLA_WAITING_LIMIT` |
 | `app.ops.sla.assign-limit-minutes` | 20 | `OPS_SLA_ASSIGN_LIMIT` |
@@ -299,7 +302,7 @@ type    → "access" | "refresh"
 | GET | `/available` | Active drivers (called by DeliveryMicroservice for dispatch) |
 | GET | `/{id}` | Driver detail including `fcmToken` |
 | GET | `/batch` | Batch fetch by ID list |
-| PUT | `/{id}/location` | Update location (from outbox UPDATE_DRIVER_LOCATION) |
+| PUT | `/{id}/location` | Update driver current location |
 | POST | `/{id}/stats/increment` | Increment stat counter (delivered/failed/cancelled) |
 
 ### Key Config
@@ -308,9 +311,9 @@ type    → "access" | "refresh"
 |----------|---------|---------|
 | `server.port` | 8086 | — |
 | `spring.jpa.hibernate.ddl-auto` | update | — |
-| `app.security.jwt.secret` | `asmsecret2026` | `JWT_SECRET` |
-| `app.security.jwt.access-expiration` | 86400000 (24h) | — |
-| `app.security.internal.secret` | `asm-internal-2026` | `INTERNAL_SECRET` |
+| `auth.client.id` | `driver-service` | `CLIENT_ID` |
+| `auth.client.secret` | *(base64)* | `CLIENT_SECRET_DRIVER` |
+| `auth.server.jwks-uri` | `http://auth-server:8089/oauth2/jwks` | `AUTH_SERVER_JWKS_URI` |
 
 ---
 
@@ -430,4 +433,6 @@ ErpLookupPort {
 | `odoo.password` | admin | `ODOO_PASSWORD` |
 | `odoo.timeout.connect-ms` | 5000 | `ODOO_CONNECT_TIMEOUT_MS` |
 | `odoo.timeout.read-ms` | 15000 | `ODOO_READ_TIMEOUT_MS` |
-| `internal.secret` | `asm-internal-2026` | `INTERNAL_SECRET` |
+| `auth.client.id` | `erp-adapter` | `CLIENT_ID` |
+| `auth.client.secret` | *(base64)* | `CLIENT_SECRET_ERP` |
+| `auth.server.jwks-uri` | `http://auth-server:8089/oauth2/jwks` | `AUTH_SERVER_JWKS_URI` |

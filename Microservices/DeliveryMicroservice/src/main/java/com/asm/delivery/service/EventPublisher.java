@@ -51,18 +51,18 @@ public class EventPublisher {
     private void sendDelivery(Map<String, Object> payload) {
         UUID companyId = (UUID) payload.get("companyId");
         if (companyId != null) {
-            ws.convertAndSend("/topic/admin/" + companyId + "/deliveries", payload);
+            ws.convertAndSend("/topic/admin." + companyId + ".deliveries", payload);
         } else {
-            ws.convertAndSend("/topic/admin/deliveries", payload);
+            ws.convertAndSend("/topic/admin.deliveries", payload);
         }
     }
 
     private void sendRoute(Map<String, Object> payload) {
         UUID companyId = (UUID) payload.get("companyId");
         if (companyId != null) {
-            ws.convertAndSend("/topic/admin/" + companyId + "/routes", payload);
+            ws.convertAndSend("/topic/admin." + companyId + ".routes", payload);
         } else {
-            ws.convertAndSend("/topic/admin/routes", payload);
+            ws.convertAndSend("/topic/admin.routes", payload);
         }
     }
 
@@ -236,7 +236,7 @@ public class EventPublisher {
             m.put("event", "erp.orders_ready");
             m.put("count", count);
             m.put("companyId", companyId);
-            ws.convertAndSend("/topic/admin/" + companyId + "/erp", m);
+            ws.convertAndSend("/topic/admin." + companyId + ".erp", m);
         });
     }
 
@@ -252,9 +252,9 @@ public class EventPublisher {
             m.put("retryCount", order.getSyncRetryCount());
             UUID companyId = order.getCompanyId();
             if (companyId != null) {
-                ws.convertAndSend("/topic/admin/" + companyId + "/deliveries", m);
+                ws.convertAndSend("/topic/admin." + companyId + ".deliveries", m);
             } else {
-                ws.convertAndSend("/topic/admin/deliveries", m);
+                ws.convertAndSend("/topic/admin.deliveries", m);
             }
         });
     }
@@ -337,7 +337,7 @@ public class EventPublisher {
             m.put("routeId", routeId);
             m.put("driverId", driverId);
             m.put("companyId", companyId);
-            ws.convertAndSend("/topic/admin/routes", m);
+            ws.convertAndSend("/topic/admin.routes", m);
         });
     }
 }

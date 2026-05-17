@@ -15,7 +15,7 @@ flowchart TB
     end
 
     subgraph External["External Systems"]
-        odoo["Odoo ERP x2"]
+        odoo[" ERP "]
         fcm["Firebase FCM"]
         minio["MinIO"]
         osrm["OSRM"]
@@ -52,7 +52,7 @@ flowchart TB
 
 ### Synchronous HTTP/REST
 
-Toutes les requêtes clients passent par l'API Gateway (port 80) qui valide le JWT via la clé publique RSA (récupérée au démarrage depuis `auth-server/oauth2/jwks`). Les appels entre services utilisent des tokens OAuth2 client_credentials — plus de secret partagé.
+Toutes les requêtes clients passent par l'API Gateway (port 80) qui valide le JWT via la clé publique RSA (récupérée au démarrage depuis `auth-server/oauth2/jwks`). Les appels entre services utilisent des tokens OAuth2 client_credentials .
 
 ```mermaid
 flowchart LR
@@ -71,25 +71,26 @@ flowchart LR
 
 ### Async Outbox
 
-Les opérations critiques (sync ERP, stats livreur) sont écrites dans `outbox_event` dans la même transaction DB, puis traitées toutes les 20s avec SKIP LOCKED pour éviter les doublons en cas d'instances multiples.
+Les opérations critiques (sync ERP) sont écrites dans `outbox_event` dans la même transaction DB, puis traitées toutes les 20s avec SKIP LOCKED pour éviter les doublons en cas d'instances multiples. Les events bloqués en `PROCESSING` (crash container) sont automatiquement remis en `PENDING` après 5 minutes.
 
 ```mermaid
 flowchart LR
     OB[(outbox_event)] -->|20s SKIP LOCKED| OP[OutboxProcessor]
+    OP -->|recover stuck > 5min| OB
     OP -->|ERP sync| EA[ErpAdapterService]
-    OP -->|stats increment| DS[DriverService]
     EA -->|JSON-RPC| OD[Odoo]
 ```
 
 ### Real-Time WebSocket STOMP
 
-Le DeliveryMicroservice pousse les événements en temps réel via STOMP. L'admin voit les changements de statut et la position GPS du livreur instantanément, sans polling.
+Le DeliveryMicroservice pousse les événements en temps réel via STOMP, relayé par RabbitMQ. L'admin voit les changements de statut et la position GPS du livreur instantanément, sans polling.
 
 ```mermaid
 flowchart LR
-    DL[DeliveryMicroservice] -->|deliveries events| ADM[Admin App]
-    DL -->|routes events + driver.location_updated| ADM
-    DL -->|driver events| DAPP[Driver App]
+    DL[DeliveryMicroservice] -->|publish| RMQ[RabbitMQ STOMP relay]
+    RMQ -->|deliveries events| ADM[Admin App]
+    RMQ -->|routes events + driver.location_updated| ADM
+    RMQ -->|driver events| DAPP[Driver App]
 ```
 
 ### Push Notifications FCM
@@ -128,8 +129,6 @@ flowchart TD
     CAF -->|company 1| OA1["OdooSyncAdapter 1"]
     CAF -->|company 2| OA2["OdooSyncAdapter 2"]
     CAF -->|DUX| DUX["DuxSyncAdapter STUB"]
-    CAF -->|unconfigured| NOOP["NoopSyncAdapter"]
-
     OA1 -->|JSON-RPC| OD1["Odoo 1 :8069"]
     OA2 -->|JSON-RPC| OD2["Odoo 2 :8070"]
 
@@ -146,37 +145,11 @@ flowchart TD
 
 ## 1.5 WebSocket Topology
 
-```mermaid
-flowchart TD
-    subgraph DM["DeliveryMicroservice"]
-        EP["EventPublisher"]
-        RWS["RouteWebSocketService"]
-        SLA["SlaMonitor 30s"]
-        EAN["ErpNotifier 120s"]
-    end
-
-    subgraph Topics["STOMP Topics"]
-        T1["admin/companyId/deliveries"]
-        T2["admin/companyId/routes"]
-        T3["admin/companyId/erp"]
-        T4["driver.driverId"]
-    end
-
-    EP --> T1
-    EP --> T2
-    EP --> T3
-    RWS --> T4
-    RWS --> T2
-    SLA --> T1
-    EAN --> T3
-
-    T1 --> AdminApp["Admin App<br/>SockJS STOMP client"]
-    T2 --> AdminApp
-    T3 --> AdminApp
-    T4 -->|SockJS STOMP| DriverApp["Driver App<br/>stomp_dart_client"]
-
-    subgraph Fallback["Fallback"]
-        POLL["15s polling<br/>when WebSocket unavailable"]
-    end
-    DriverApp -.->|on disconnect| POLL
-```
+| Publisher | Topic | Subscriber | Événements |
+|---|---|---|---|
+| `EventPublisher` | `/topic/admin/{companyId}/deliveries` | Admin App | `delivery.scheduled` · `delivery.completed` · `delivery.failed` · `delivery.cancelled` · SLA breach |
+| `EventPublisher` | `/topic/admin/{companyId}/routes` | Admin App | `route.validated` · `route.schedule_changed` · `stop_added` · `stop_removed` · `driver.location_updated` |
+| `EventPublisher` | `/topic/admin/{companyId}/erp` | Admin App | `erp.synced` · `erp.failed` |
+| `RouteWebSocketService` | `/topic/driver.{driverId}` | Driver App | `route.validated` · `STOP_ADDED` · `STOP_REMOVED` · `route.schedule_changed` |
+| `SlaMonitoringService` *(60s)* | `/topic/admin/{companyId}/deliveries` | Admin App | alertes SLA dépassé |
+| `ErpAutoImportNotifier` *(120s)* | `/topic/admin/{companyId}/erp` | Admin App | nouvelles commandes Odoo prêtes à importer |

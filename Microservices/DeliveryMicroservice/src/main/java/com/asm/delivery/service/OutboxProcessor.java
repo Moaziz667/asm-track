@@ -48,7 +48,12 @@ public class OutboxProcessor {
     }
 
     @Scheduled(fixedDelay = 20000)
+    @Transactional
     public void processOutbox() {
+        // Recover any events stuck in PROCESSING due to a previous container crash
+        int recovered = outboxRepo.recoverStuckEvents(LocalDateTime.now().minusMinutes(5));
+        if (recovered > 0) log.warn("Recovered {} stuck PROCESSING events", recovered);
+
         // Step 1: Claim events (with SKIP LOCKED to prevent concurrent instance races)
         List<OutboxEvent> events = claimEvents();
         if (events.isEmpty()) return;

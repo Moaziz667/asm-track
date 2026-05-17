@@ -22,6 +22,6 @@ Technical debt and architectural improvements identified during PFE — deferred
 
 | # | Item | Why deferred |
 |---|------|-------------|
-| 7 | **Production secrets** rotation | JWT_SECRET, INTERNAL_SECRET, MinIO credentials all use defaults |
+| 7 | **Production secrets** rotation | AUTH_RSA_SEED, all `CLIENT_SECRET_*`, MinIO and RabbitMQ credentials use defaults |
 | 8 | **COOKIE_SECURE=true** | Must be enabled for HTTPS production deployment |
 | 9 | **OUTBOX_ALERT_WEBHOOK_URL** configured | Dead-letter Slack alerts not wired in production |

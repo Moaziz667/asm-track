@@ -107,7 +107,7 @@ All tokens are issued by `auth-server` and signed with **RSA-2048** (algorithm: 
 | `DISPATCHER` | Operational staff. Can dispatch, manage routes, view deliveries. |
 | `MANAGER` | Read-only analytics and reports. |
 | `DRIVER` | Driver app. Delivery execution only. |
-| `CLIENT` | End client. Can create orders and track own deliveries. |
+
 
 ### Endpoint Access Matrix (DeliveryMicroservice)
 
@@ -243,16 +243,20 @@ SSL pinning code is present but **disabled** in `api_client.dart` lines 24-30:
 
 ## 7.9 Secrets Checklist for Production
 
-| Secret | Env Var | Current Default | Required Action |
-|--------|---------|-----------------|-----------------|
-| RSA key seed | `AUTH_RSA_SEED` | `asm-rsa-key-seed-2026-change-in-prod` | Change to a random 64-char string |
-| Service secret — delivery | `CLIENT_SECRET_DELIVERY` | `delivery-svc-secret-2026` | Strong random value |
-| Service secret — driver | `CLIENT_SECRET_DRIVER` | `driver-svc-secret-2026` | Strong random value |
-| Service secret — erp | `CLIENT_SECRET_ERP` | `erp-svc-secret-2026` | Strong random value |
-| Service secret — app | `CLIENT_SECRET_APP` | `app-svc-secret-2026` | Strong random value |
-| MinIO access key | `MINIO_ACCESS_KEY` | `asmtracking` | Change to strong credentials |
-| MinIO secret key | `MINIO_SECRET_KEY` | `asmtracking2026` | Change to strong credentials |
-| Odoo password | `ODOO_PASSWORD` | `admin` | Change to strong credentials |
-| Cookie secure flag | `COOKIE_SECURE` | `false` | Set to `true` for HTTPS |
-| Dead-letter webhook | `OUTBOX_ALERT_WEBHOOK_URL` | (empty) | Set to Slack webhook URL |
-| FCM service account | `FCM_SERVICE_ACCOUNT_PATH` | `firebase-service-account.json` | Mount actual file |
+| Secret | Env Var | Required Action |
+|--------|---------|-----------------|
+| RSA key seed | `AUTH_RSA_SEED` | Random 64-char string |
+| Service secret — delivery | `CLIENT_SECRET_DELIVERY` | Strong random value |
+| Service secret — driver | `CLIENT_SECRET_DRIVER` | Strong random value |
+| Service secret — erp | `CLIENT_SECRET_ERP` | Strong random value |
+| Service secret — app | `CLIENT_SECRET_APP` | Strong random value |
+| Service secret — gateway | `CLIENT_SECRET_GW` | Strong random value |
+| RabbitMQ user | `RABBITMQ_DEFAULT_USER` | Change from `guest` |
+| RabbitMQ password | `RABBITMQ_DEFAULT_PASS` | Change from `guest` |
+| MinIO access key | `MINIO_ACCESS_KEY` | Change from `asmtracking` |
+| MinIO secret key | `MINIO_SECRET_KEY` | Change from `asmtracking2026` |
+| Odoo password | `ODOO_PASSWORD` | Change from `admin` |
+| Gateway shared secret | `GATEWAY_SECRET` | Set if trust-gateway-headers enabled |
+| Cookie secure flag | `COOKIE_SECURE` | Set to `true` for HTTPS |
+| Dead-letter webhook | `OUTBOX_ALERT_WEBHOOK_URL` | Set to Slack webhook URL |
+| FCM service account | `FCM_SERVICE_ACCOUNT_PATH` | Mount actual Firebase JSON file |
