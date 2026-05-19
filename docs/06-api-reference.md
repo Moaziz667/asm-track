@@ -44,7 +44,7 @@
 - **Auth:** PUBLIC
 - **Body:** `{phone, password}`
 - **Response:** `{accessToken, refreshToken, driver: {id, name, phone}}`
-- **Token:** 24h access, 7d refresh. No companyId in token (drivers are shared pool).
+- **Token:** 1h access, 7d refresh. No companyId in token (drivers are shared pool).
 
 ### POST /api/auth/driver/refresh-token
 - **Auth:** PUBLIC
@@ -218,6 +218,18 @@
 - **Idempotency:** Idempotency-Key header
 - **Body:** `{fromRouteId, toRouteId, stopIds[]}`
 - **Side effects:** Stops moved, ETAs recalculated on both routes, WebSocket STOPS_TRANSFERRED_OUT/IN
+
+### GET /api/admin/routes/{id}/report
+- **Auth:** ADMIN_COOKIE
+- **Tenant:** Scoped by `company_id` via Hibernate filter
+- **Returns:** Immutable closure report JSON (`RouteReportResponse`) — header, KPIs, status breakdown, timeline, stops, movements, geometry, POD gallery, audit trail
+- **Behavior:** Reads snapshot from `route_report` table (created at close time by `RouteExecutionService`). If absent (legacy route closed before V30), computes and persists on the fly.
+
+### GET /api/admin/routes/{id}/report/pdf
+- **Auth:** ADMIN_COOKIE
+- **Returns:** PDF (`application/pdf`) — `rapport-tournee-{id}.pdf`
+- **Sections:** info boxes, 3×3 KPI grid, status breakdown table, stops table with delays, mouvements et exceptions
+- **Implementation:** `RouteReportPdfService` extends `BasePdfService` (OpenPDF / com.lowagie)
 
 ### GET /api/admin/erp/pending-orders
 - **Auth:** ADMIN_COOKIE

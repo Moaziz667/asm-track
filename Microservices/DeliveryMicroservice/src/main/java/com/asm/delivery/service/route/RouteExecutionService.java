@@ -34,6 +34,7 @@ public class RouteExecutionService {
     private final TransportPort transportPort;
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.service.VehicleInspectionService inspectionService;
+    private final RouteReportService routeReportService;
 
     @Transactional
     public RouteResponse close(UUID routeId) {
@@ -58,6 +59,8 @@ public class RouteExecutionService {
         routeRepository.save(route);
         auditLogService.logAction(null, "CLOSE_ROUTE", "ROUTE", routeId.toString(),
                 java.util.Map.of("tournee", route.getName() != null ? route.getName() : routeId.toString(), "action", "Cloture manuelle par admin"));
+        // Snapshot the closure report — best effort, never blocks the close.
+        routeReportService.persistSnapshot(route);
         return routePlanningService.get(route.getId());
     }
 
@@ -296,6 +299,8 @@ public class RouteExecutionService {
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
         routeRepository.save(route);
+        // Snapshot the closure report — best effort, never blocks the close.
+        routeReportService.persistSnapshot(route);
     }
 
 }

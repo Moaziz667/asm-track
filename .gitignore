@@ -88,3 +88,4 @@ Thumbs.db
 .flutter-plugins-dependencies
 .dart_tool/
 build/
+docs/videos/*

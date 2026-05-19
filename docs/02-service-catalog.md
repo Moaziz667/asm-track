@@ -194,7 +194,7 @@ Idempotent request deduplication. Keyed by idempotency header value. Cleaned up 
 | Job | Interval | Description |
 |-----|----------|-------------|
 | `OutboxProcessor.processOutbox()` | 20s (fixedDelay) | Claim + process outbox events, SKIP LOCKED |
-| `SlaMonitoringService.checkSlaStatuses()` | 30s (configurable) | Detect SLA breaches, publish WebSocket alerts |
+| `SlaMonitoringService.checkSlaStatuses()` | 60s (configurable) | Detect SLA breaches, publish WebSocket alerts |
 | `ErpAutoImportNotifier.checkForNewOrders()` | 120s (configurable) | Poll ERP adapter for new orders, WebSocket notify |
 | `ProcessedRequestCleanupJob` | ~1h | Purge old idempotency records |
 
@@ -258,7 +258,7 @@ type    → "access" | "refresh"
 ```
 
 > **No `companyId` claim.** Drivers are a shared pool across all tenant companies.  
-> Token expiry: access = **24 hours**, refresh = 7 days.
+> Token expiry: access = **1 hour**, refresh = 7 days.
 
 ### Endpoints
 

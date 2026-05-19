@@ -162,6 +162,10 @@ sequenceDiagram
     DL-->>A: 200 OK {orderId, deliveryId}
 ```
 
+### Demo: Bulk Import from ERP
+
+<video src="http://127.0.0.1:8002/BulkImportFromERP.mp4" controls></video>
+
 ---
 
 ## 4.6 Backorder Creation Flow
@@ -196,11 +200,17 @@ sequenceDiagram
 
 ## 4.7 Feature Showcases
 
+### 4.7.0 Full Delivery Workflow — End-to-End Demo
+
+<video src="http://127.0.0.1:8002/EXEMPLEWorkflow.mp4" controls></video>
+
+---
+
 ### 4.7.1 Handoff Confirmation via QR Code
 
 Lorsqu'une livraison est réassignée à un autre chauffeur alors que le colis est déjà en main du premier, le transfert physique doit être tracé. Le chauffeur sortant génère un QR code unique (token signé), que le nouveau chauffeur scanne dans son app Flutter pour confirmer la prise en charge. À ce moment, l'API valide le token, marque le stop `HANDOFF_CONFIRMED`, publie un event WebSocket à l'admin, et envoie une notif FCM au chauffeur sortant.
 
-> 🎬 **Video placeholder** — `docs/media/handoff-qr.mp4` *(à enregistrer : génération du QR côté driver A, scan côté driver B, mise à jour temps réel sur l'admin)*
+<video src="http://127.0.0.1:8002/QrHandoff.mp4" controls></video>
 
 ---
 
@@ -208,7 +218,6 @@ Lorsqu'une livraison est réassignée à un autre chauffeur alors que le colis e
 
 Quand une livraison échoue (`FAILED`), l'admin peut soit annuler définitivement, soit replanifier. Le replan crée un nouveau stop dans une tournée future, conserve l'historique de l'échec, et notifie le client par SMS/email. Le backorder est créé automatiquement si l'échec était partiel.
 
-> 🎬 **Video placeholder** — `docs/media/replan-failed-stop.mp4` *(à enregistrer : depuis le dispatch desk, click "Replan" sur une livraison failed → sélection nouvelle tournée → confirmation)*
 
 ---
 
@@ -216,7 +225,6 @@ Quand une livraison échoue (`FAILED`), l'admin peut soit annuler définitivemen
 
 Si un chauffeur est en retard ou indisponible, l'admin peut réassigner un ou plusieurs arrêts d'une tournée en cours vers un autre chauffeur. Si la livraison est encore `SCHEDULED` (pas encore pickup), réassignation directe. Si déjà `PICKED_UP`, déclenche le flow handoff QR.
 
-> 🎬 **Video placeholder** — `docs/media/reassign-stop.mp4` *(à enregistrer : depuis page route detail, drag-and-drop ou bouton "Reassign" → choisir nouveau chauffeur → notification temps réel aux deux apps Flutter)*
 
 ---
 
@@ -224,7 +232,6 @@ Si un chauffeur est en retard ou indisponible, l'admin peut réassigner un ou pl
 
 Le chauffeur capture photo + signature sur sa Flutter app. L'image est envoyée en base64 au DeliveryMicroservice qui la stocke dans MinIO. Une URL signée 15 min est retournée pour affichage admin. La géolocalisation au moment du POD est aussi enregistrée.
 
-> 🎬 **Video placeholder** — `docs/media/pod-capture.mp4` *(à enregistrer : Flutter app → mode livraison → bouton photo + signature → upload → apparition immédiate dans l'admin via WebSocket)*
 
 ---
 
@@ -232,7 +239,6 @@ Le chauffeur capture photo + signature sur sa Flutter app. L'image est envoyée 
 
 Si seulement une partie des items est livrée, le chauffeur saisit les quantités effectivement remises. L'admin valide ensuite la création d'un backorder pour les items restants (voir section 4.6). Odoo crée automatiquement un nouveau picking lié.
 
-> 🎬 **Video placeholder** — `docs/media/partial-backorder.mp4` *(à enregistrer : Flutter livraison partielle avec items → admin reçoit notif → bouton "Create Backorder" → nouvelle delivery UNSCHEDULED apparaît)*
 
 ---
 
@@ -240,7 +246,6 @@ Si seulement une partie des items est livrée, le chauffeur saisit les quantité
 
 Toutes les 2 minutes, `ErpAutoImportNotifier` interroge Odoo. Si de nouvelles commandes sont prêtes (`state=sale`, non encore importées), un badge apparaît dans l'admin sans rafraîchissement. L'admin peut alors importer en bulk.
 
-> 🖼️ **Screenshot placeholder** — `docs/media/erp-import-badge.png` *(à capturer : badge "5 commandes en attente" qui apparaît automatiquement sur la page Imports)*
 
 ---
 
@@ -248,4 +253,23 @@ Toutes les 2 minutes, `ErpAutoImportNotifier` interroge Odoo. Si de nouvelles co
 
 `SlaMonitoringService` détecte toutes les 60s les livraisons hors SLA (waiting/assignment/transit). Un event WebSocket `sla.breach` est poussé à l'admin avec sévérité `WARNING` ou `CRITICAL`. La cloche de notifications s'incrémente, un toast s'affiche, et le clic redirige vers le dispatch desk.
 
-> 🎬 **Video placeholder** — `docs/media/sla-breach-alert.mp4` *(à enregistrer : laisser tourner une livraison sans assignation → après le seuil, la notif arrive automatiquement)*
+
+---
+
+### 4.7.8 Route Closure Report (Rapport de Tournée)
+
+Quand une tournée passe au statut `CLOSED` — soit manuellement par l'admin, soit automatiquement quand tous les arrêts atteignent un état terminal (`maybeAutoCloseRoute`) — un rapport immuable est généré et persisté dans la table `route_report` (payload JSON). Le rapport contient :
+
+- **En-tête** : nom, date, chauffeur, véhicule, dépôt, timestamps démarrage/clôture, durée totale
+- **9 KPIs** : taux de complétion, taux de ponctualité, distance, durée active, retard cumulé, échecs, retirés, retard de démarrage, arrêts tentés vs planifiés
+- **Donut de répartition** : Livrés / Partiels / Échoués / Replanifiés / Annulés
+- **Timeline des retards** : bar chart par arrêt (vert = à l'heure, rouge = en retard)
+- **Tableau détaillé** des arrêts avec créneaux, retards minute par minute, statut, mouvements (transferts QR, replanifications, annulations)
+- **Galerie POD** avec lightbox (photo, signature, BL)
+- **Mouvements et exceptions** : journal chronologique des transferts QR, retraits, échecs
+- **Audit trail** : 50 dernières transitions de statut depuis `delivery_status_history`
+
+Le rapport est **multi-tenant** (filtré via `companyFilter` Hibernate) et téléchargeable en PDF via `GET /api/admin/routes/{id}/report/pdf`. Si la tournée a été clôturée avant le déploiement de cette feature (V30), le rapport est calculé à la volée puis persisté lors du premier accès.
+
+**Détection à l'heure / en retard** : reprend la logique éprouvée de `DelayCalculationService.calculateCompletionStatus` — un arrêt est `OK` si `SW ≤ T5 ≤ EW`, `KO` si `T5 > EW`. Classification fine pour la UI : ON_TIME, LATE, EARLY, PARTIAL, FAILED, FAILED_ATTEMPT, REPLANNED, CANCELLED.
+

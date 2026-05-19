@@ -58,7 +58,8 @@ final authControllerProvider =
 final deliveryRepositoryProvider = Provider<DeliveryRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
   final queue = ref.watch(offlineQueueProvider.notifier);
-  return DeliveryRepository(client, queue);
+  final connectivity = ref.watch(connectivityServiceProvider);
+  return DeliveryRepository(client, queue, connectivity);
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
@@ -72,7 +73,8 @@ final routeRepositoryProvider = Provider<RouteRepository>((ref) {
   final client = ref.watch(apiClientProvider);
   final cache = ref.watch(routeCacheServiceProvider);
   final queue = ref.watch(offlineQueueProvider.notifier);
-  return RouteRepository(client, cache, queue);
+  final connectivity = ref.watch(connectivityServiceProvider);
+  return RouteRepository(client, cache, queue, connectivity);
 });
 
 final vehicleServiceProvider = Provider<VehicleService>((ref) {

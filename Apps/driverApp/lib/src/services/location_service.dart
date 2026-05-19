@@ -16,15 +16,32 @@ class LocationService {
   Future<LocationPoint?> currentPosition() async {
     final permission = await _ensurePermission();
     if (!permission) return null;
-    final position = await Geolocator.getCurrentPosition(
-      desiredAccuracy: LocationAccuracy.best,
-      timeLimit: const Duration(seconds: 10),
-    );
-    return LocationPoint(
-      lat: position.latitude,
-      lng: position.longitude,
-      accuracy: position.accuracy,
-    );
+
+    try {
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+        timeLimit: const Duration(seconds: 10),
+      );
+      return LocationPoint(
+        lat: position.latitude,
+        lng: position.longitude,
+        accuracy: position.accuracy,
+      );
+    } catch (_) {
+      // GPS fix timed out or unavailable — try last known position.
+      // getLastKnownPosition is unsupported on web, so catch that too.
+      try {
+        final last = await Geolocator.getLastKnownPosition();
+        if (last == null) return null;
+        return LocationPoint(
+          lat: last.latitude,
+          lng: last.longitude,
+          accuracy: last.accuracy,
+        );
+      } catch (_) {
+        return null;
+      }
+    }
   }
 
   double calculateDistance(double lat1, double lng1, double lat2, double lng2) {

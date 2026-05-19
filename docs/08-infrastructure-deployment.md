@@ -168,7 +168,7 @@ host.docker.internal   # access to Odoo dev instances on the Docker host
 
 ### DeliveryMicroservice — Flyway
 
-29 migrations, V1 → V29:
+30 migrations, V1 → V30:
 
 | Migration | Change |
 |-----------|--------|
@@ -181,6 +181,7 @@ host.docker.internal   # access to Odoo dev instances on the Docker host
 | V27 | `outbox_event` table with index |
 | V28 | Drop duplicate `outbox_events` table |
 | V29 | `parent_order_id` on orders (backorder traceability) |
+| V30 | `route_report` table (closure snapshots — JSONB payload) |
 
 ### AppBackend — schema.sql
 

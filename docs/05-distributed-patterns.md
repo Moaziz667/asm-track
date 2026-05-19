@@ -121,6 +121,10 @@ sequenceDiagram
     end
 ```
 
+### Demo: Outbox Failure & Retry Test
+
+<video src="http://127.0.0.1:8002/OutBoxPatternFailTest.mp4" controls></video>
+
 ---
 
 ## 2. ERP Synchronization Architecture
@@ -336,6 +340,10 @@ ErpAdapterService:
     → reads company.erp_api_url, company.erp_api_key, etc.
     → returns OdooConfig {url, db, uid, password}
 ```
+
+### Demo: Multi-Tenancy
+
+<video src="http://127.0.0.1:8002/multiteantcy.mp4" controls></video>
 
 ### Driver Pool (Shared Across Companies)
 

@@ -2,7 +2,7 @@
 
 ## 3.1 Admin App
 
-**Path:** `Apps/admin-app-snapshot-2026-04-07-171852`  
+**Path:** `Apps/admin-app`  
 **Framework:** Next.js 16 (App Router) · Mantine UI · SockJS + @stomp/stompjs  
 **State management:** Custom hooks + useState/axios (no React Query)
 
@@ -18,6 +18,18 @@
 | `/audit-logs` | Audit trail viewer |
 | `/track/[deliveryId]` | Live single-delivery tracking |
 | `/notifications` | Notification center |
+
+### Demo: Route Builder
+
+<video src="http://127.0.0.1:8002/RouteBuilder.mp4" controls></video>
+
+### Demo: Moving Stops Between Routes
+
+<video src="http://127.0.0.1:8002/MovingStopBetweenRoutes.mp4" controls></video>
+
+### Demo: Route Detail Page
+
+<video src="http://127.0.0.1:8002/PerRoutPage.mp4" controls></video>
 
 ### Authentication
 

@@ -29,8 +29,12 @@ class OfflineQueueService extends StateNotifier<int> {
 
   void _init() {
     state = _box.length;
-    _connectivitySub = _connectivityService.onlineStream.listen((isOnline) {
-      if (isOnline && _box.isNotEmpty) processQueue();
+    _connectivitySub = _connectivityService.onlineStream.listen((isOnline) async {
+      if (!isOnline || _box.isEmpty) return;
+      // Wait for the network to stabilise — connectivity_plus fires when the OS
+      // reports "connected" but DNS / routing may not be ready for another second.
+      await Future.delayed(const Duration(seconds: 2));
+      if (_box.isNotEmpty) await processQueue();
     });
   }
 
@@ -117,13 +121,15 @@ class OfflineQueueService extends StateNotifier<int> {
             state = _box.length;
             continue;
           }
-          // Network errors shouldn't penalize the retry count. Rely on the 24h TTL instead.
+          // Network not ready yet — abort the whole batch.
+          // If one request times out, all subsequent ones will too.
+          // The next connectivity event will retry after the 2s stabilisation delay.
           if (e.type == DioExceptionType.connectionError ||
               e.type == DioExceptionType.connectionTimeout ||
               e.type == DioExceptionType.sendTimeout ||
               e.type == DioExceptionType.receiveTimeout ||
               e.type == DioExceptionType.unknown) {
-            continue; // Leave it in the queue, do not increment retryCount
+            break;
           }
 
           // Max retries exhausted for 5xx errors — remove to unblock queue

@@ -16,6 +16,12 @@
 | 7 | [07-security-model.md](07-security-model.md) | OAuth2 + JWKS, RSA JWT, client_credentials inter-service, roles, tenant isolation |
 | 8 | [08-infrastructure-deployment.md](08-infrastructure-deployment.md) | Docker Compose topology, env vars, volumes, ports |
 | 9 | [09-runbooks.md](09-runbooks.md) | Operational playbooks: dead outbox, ERP failure, driver offline |
+| 10 | [10-test-plan.md](10-test-plan.md) | Functional + non-functional tests, acceptance criteria, traceability matrix |
+| 11 | [11-database-schema.md](11-database-schema.md) | Live PostgreSQL schema — delivery_db, app_db, driver_db |
+| 12 | [12-demo.md](12-demo.md) | Démonstrations vidéo — 8 fonctionnalités clés |
+| — | [guides/guide-superadmin.md](guides/guide-superadmin.md) | User guide: Super Admin — plateforme SaaS (asm-super-admin app) |
+| — | [guides/guide-dispatcher.md](guides/guide-dispatcher.md) | User guide: Admin / Dispatcher / Manager — entreprise cliente (admin web app) |
+| — | [guides/guide-driver.md](guides/guide-driver.md) | User guide: Chauffeur — app mobile Flutter |
 
 ## Quick Reference
 

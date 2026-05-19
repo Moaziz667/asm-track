@@ -47,6 +47,13 @@ nav:
   - Security: 07-security-model.md
   - Infrastructure: 08-infrastructure-deployment.md
   - Runbooks: 09-runbooks.md
+  - Test Plan: 10-test-plan.md
+  - Démonstrations: 12-demo.md
+  - Database Schema: 11-database-schema.md
+  - User Guides:
+    - Super Admin (Plateforme SaaS): guides/guide-superadmin.md
+    - Admin / Dispatcher / Manager: guides/guide-dispatcher.md
+    - Chauffeur (App Mobile): guides/guide-driver.md
   - V2 Improvements: v2-improvements.md
 
 markdown_extensions:
@@ -75,6 +82,14 @@ markdown_extensions:
 plugins:
   - search:
       lang: en
+
+extra_css:
+  - https://cdn.plyr.io/3.7.8/plyr.css
+  - css/plyr-overrides.css
+
+extra_javascript:
+  - https://cdn.plyr.io/3.7.8/plyr.js
+  - js/plyr-init.js
 
 extra:
   social:

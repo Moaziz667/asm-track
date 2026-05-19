@@ -35,7 +35,7 @@ flowchart TB
 
 ## 1.2 Container Diagram — Overview
 
-![Container Diagram](img/container-diagram.png)
+![Container Diagram](img/image.png)
 
 | Service | Role |
 |---------|------|

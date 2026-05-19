@@ -21,6 +21,9 @@ import com.asm.delivery.service.RouteOptimizationService;
 import com.asm.delivery.service.route.RoutePlanningService;
 import com.asm.delivery.service.route.RouteExecutionService;
 import com.asm.delivery.service.RoutePdfService;
+import com.asm.delivery.service.RouteReportPdfService;
+import com.asm.delivery.service.route.RouteReportService;
+import com.asm.delivery.dto.response.RouteReportResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,6 +49,8 @@ public class AdminRouteController {
     private final RoutePlanningService routePlanningService;
     private final RouteExecutionService routeExecutionService;
     private final RoutePdfService routePdfService;
+    private final RouteReportService routeReportService;
+    private final RouteReportPdfService routeReportPdfService;
     private final RouteOptimizationService routeOptimizationService;
     private final RouteStopRepository routeStopRepository;
     private final TrackingRepository trackingRepository;
@@ -158,6 +163,28 @@ public class AdminRouteController {
         byte[] pdf = routePdfService.generate(id);
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=route-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
+    // ─── Closure report (CLOSED routes) ──────────────────────────────────────────
+
+    @GetMapping("/{id}/report")
+    @Operation(summary = "Rapport de tournée (route closure report)",
+        description = "Returns the immutable closure report. Snapshot is taken at close time; "
+            + "if missing (legacy routes), it is computed on the fly and persisted.")
+    public ResponseEntity<RouteReportResponse> report(@PathVariable UUID id) {
+        var route = routePlanningService.getRouteTransactional(id);
+        return ResponseEntity.ok(routeReportService.load(route));
+    }
+
+    @GetMapping("/{id}/report/pdf")
+    @Operation(summary = "Rapport de tournée PDF")
+    public ResponseEntity<byte[]> reportPdf(@PathVariable UUID id) {
+        byte[] pdf = routeReportPdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=rapport-tournee-" + id + ".pdf")
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(pdf);
     }

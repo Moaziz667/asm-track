@@ -100,34 +100,39 @@ All tokens are issued by `auth-server` and signed with **RSA-2048** (algorithm: 
 
 ### Roles
 
-| Role | Description |
-|------|-------------|
-| `SUPER_ADMIN` | Platform-level admin. No company scope. Full access. |
-| `ADMIN` | Company admin. Full access within own company. |
-| `DISPATCHER` | Operational staff. Can dispatch, manage routes, view deliveries. |
-| `MANAGER` | Read-only analytics and reports. |
-| `DRIVER` | Driver app. Delivery execution only. |
+| Role | Who | Description |
+|------|-----|-------------|
+| `SUPER_ADMIN` | SaaS developer / platform owner | Cross-tenant access. Manages companies, creates admin accounts. No `companyId` in JWT — Hibernate tenant filter not applied. |
+| `ADMIN` | Company admin | Full access scoped to their company. Manages drivers, vehicles, routes, deliveries, ERP config. |
+| `DISPATCHER` | Operational dispatch staff | Creates and manages routes and deliveries. Cannot manage drivers/vehicles or company settings. |
+| `MANAGER` | Operations manager | Read-only: stats, reports, ops dashboard. Cannot mutate deliveries or routes. |
+| `DRIVER` | Delivery driver | Mobile app only. Executes deliveries: pickup, transit, POD, fail. No web admin access. |
 
 
-### Endpoint Access Matrix (DeliveryMicroservice)
+### Endpoint Access Matrix
 
-| Path Pattern | Allowed Roles |
-|-------------|---------------|
-| `/api/orders/**` | CLIENT |
-| `/api/deliveries/**` | CLIENT, DRIVER, DISPATCHER, ADMIN, SUPER_ADMIN |
-| `/api/driver/deliveries/**` | DRIVER |
-| `/api/driver/routes/**` | DRIVER |
-| `/api/admin/deliveries/**` | ADMIN, DISPATCHER, SUPER_ADMIN |
-| `/api/admin/routes/**` | ADMIN, DISPATCHER, SUPER_ADMIN |
-| `/api/admin/erp/**` | ADMIN, SUPER_ADMIN |
-| `/api/admin/stats/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN |
-| `/api/admin/reports/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN |
-| `/api/admin/companies/**` | SUPER_ADMIN |
-| `/api/admin/drivers/**` | ADMIN, SUPER_ADMIN |
-| `/api/admin/vehicles/**` | ADMIN, SUPER_ADMIN |
-| `/api/public/**` | PUBLIC |
-| `/ws/**` | PUBLIC (auth via STOMP CONNECT frame) |
-| `/internal/**` | OAuth2 service token (role=SERVICE) |
+Enforced at two layers: **API Gateway** (`JwtGatewayFilter.isAuthorized`) and **DeliveryMicroservice** (`SecurityConfig`). Gateway is the outer enforcement; the microservice is a second check. SUPER_ADMIN bypasses all path rules at the Gateway level.
+
+| Path Pattern | Allowed Roles | Enforced in |
+|-------------|---------------|-------------|
+| `/api/orders/**` | CLIENT | Gateway + DeliveryMS |
+| `/api/deliveries/**` | DRIVER, DISPATCHER, ADMIN, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/driver/**` | DRIVER | Gateway + DeliveryMS |
+| `/api/admin/companies/**` | SUPER_ADMIN | Gateway |
+| `GET /api/admin/drivers/**` | ADMIN, DISPATCHER, SUPER_ADMIN | Gateway (read — assign to route) |
+| `POST/PUT/PATCH /api/admin/drivers/**` | SUPER_ADMIN | Gateway (drivers are platform-owned) |
+| `GET /api/admin/vehicles/**` | ADMIN, DISPATCHER, SUPER_ADMIN | Gateway (read — assign to route) |
+| `POST/PUT/PATCH/DELETE /api/admin/vehicles/**` | SUPER_ADMIN | Gateway (vehicles are platform-owned) |
+| `/api/admin/erp/**` | ADMIN, DISPATCHER, SUPER_ADMIN | Gateway (ERP order import is dispatcher work) |
+| `/api/admin/reports/settings` | ADMIN, SUPER_ADMIN | Gateway (SLA config — not dispatcher) |
+| `/api/admin/stats/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/admin/reports/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/admin/ops/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/admin/**` | ADMIN, DISPATCHER, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/v1/**` | ADMIN, DISPATCHER, MANAGER, SUPER_ADMIN | Gateway + DeliveryMS |
+| `/api/public/**` | PUBLIC (no auth) | Gateway |
+| `/ws/**` | PUBLIC at HTTP level; auth via STOMP CONNECT frame | Gateway |
+| `/internal/**` | Blocked at Gateway; validated by `InternalAuthFilter` inside services | Gateway |
 
 ---
 
