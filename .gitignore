@@ -111,6 +111,19 @@ Apps/asm-super-admin/dist/
 **/*.jar
 **/*.war
 
+# IntelliJ artifacts (empty runner files)
+Compilation
+Run
+Task
+
+# Logs
+*.log
+**/logs/
+
+# Python cache
+**/__pycache__/
+**/*.pyc
+
 # LaTeX build artifacts
 *.aux
 *.toc
