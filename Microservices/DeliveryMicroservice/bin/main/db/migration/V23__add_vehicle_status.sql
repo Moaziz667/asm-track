@@ -1,0 +1,2 @@
+ALTER TABLE vehicles
+    ADD COLUMN vehicle_status VARCHAR(30) NOT NULL DEFAULT 'AVAILABLE';

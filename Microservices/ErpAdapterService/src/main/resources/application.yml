@@ -20,9 +20,18 @@ odoo:
     connect-ms: ${ODOO_CONNECT_TIMEOUT_MS:5000}
     read-ms:    ${ODOO_READ_TIMEOUT_MS:15000}
 
-# ── Security ─────────────────────────────────────────────────────────────────
-internal:
-  secret: ${INTERNAL_SECRET:asm-internal-2026}
+# ── Auth Server ──────────────────────────────────────────────────────────────
+auth:
+  server:
+    url: ${AUTH_SERVER_URL:http://auth-server:8089}
+    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+  client:
+    id: ${CLIENT_ID:erp-adapter}
+    secret: ${CLIENT_SECRET:Kketonr5sYVCKsczgHGkMxMTCCQINnOYotiLfLc7vUQ=}
+
+delivery:
+  service:
+    url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
 
 # ── OpenAPI / Swagger ─────────────────────────────────────────────────────────
 springdoc:

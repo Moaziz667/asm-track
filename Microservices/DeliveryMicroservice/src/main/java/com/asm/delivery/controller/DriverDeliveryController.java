@@ -13,6 +13,7 @@ import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.dto.request.HandoffConfirmRequest;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.BonLivraisonPdfService;
+import com.asm.delivery.idempotency.IdempotentOperation;
 import com.asm.delivery.service.DriverDeliveryService;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -71,6 +72,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/accept")
+    @IdempotentOperation
     @Operation(summary = "Accept a delivery (atomic — 409 if taken)")
     public ResponseEntity<DriverDeliveryResponse> accept(
             @PathVariable UUID id,
@@ -79,6 +81,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/pickup")
+    @IdempotentOperation
     @Operation(summary = "Confirm package pickup")
     public ResponseEntity<DriverDeliveryResponse> pickup(
             @PathVariable UUID id,
@@ -87,6 +90,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/transit")
+    @IdempotentOperation
     @Operation(summary = "Start transit to delivery address")
     public ResponseEntity<DriverDeliveryResponse> transit(
             @PathVariable UUID id,
@@ -98,6 +102,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/complete")
+    @IdempotentOperation
     @Operation(summary = "Mark delivery as completed", description = "@Deprecated: Use /pod endpoint instead. Still works for backward compatibility.")
     public ResponseEntity<DriverDeliveryResponse> complete(
             @PathVariable UUID id,
@@ -106,6 +111,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/fail")
+    @IdempotentOperation
     @Operation(summary = "Mark delivery as failed (from PICKED_UP or IN_TRANSIT)")
     public ResponseEntity<DriverDeliveryResponse> fail(
             @PathVariable UUID id,
@@ -121,6 +127,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/cancel")
+    @IdempotentOperation
     @Operation(summary = "Cancel delivery (driver) — resets to WAITING_DRIVER")
     public ResponseEntity<DriverDeliveryResponse> cancel(
             @PathVariable UUID id,
@@ -150,6 +157,7 @@ public class DriverDeliveryController {
     }
 
     @PostMapping("/{id}/pod")
+    @IdempotentOperation
     @Operation(summary = "Submit proof of delivery (POD)", description = "DRIVER only. Delivery must be IN_TRANSIT. Saves POD, completes delivery, triggers Odoo sync. Returns DELIVERED status.")
     public ResponseEntity<DriverDeliveryResponse> submitPod(
             @PathVariable UUID id,

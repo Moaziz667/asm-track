@@ -37,6 +37,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Assigned route name")
     private String routeName;
 
+    @Schema(description = "Assigned route status")
+    private String routeStatus;
+
     @Schema(description = "Delivery status", example = "IN_TRANSIT")
     private String status;
 
@@ -135,6 +138,21 @@ public class AdminDeliverySummaryResponse {
 
     @Schema(description = "Last update timestamp")
     private LocalDateTime updatedAt;
+
+    @Schema(description = "Route start timestamp (actual)")
+    private LocalDateTime routeStartedAt;
+
+    @Schema(description = "Route departure timestamp (actual)")
+    private LocalDateTime routeDepartureTime;
+
+    @Schema(description = "Route planned date")
+    private java.time.LocalDate routeDate;
+
+    @Schema(description = "Route planned start time")
+    private java.time.LocalTime routePlannedStartTime;
+
+    @Schema(description = "Route stop end time window")
+    private java.time.LocalTime routeEndTimeWindow;
 
     @Schema(description = "Total number of items in the order")
     private Integer totalQuantity;

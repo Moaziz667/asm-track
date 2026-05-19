@@ -1,6 +1,10 @@
 server:
   port: 8082
 
+outbox:
+  alert:
+    webhook-url: ${OUTBOX_ALERT_WEBHOOK_URL:}
+
 logging:
   level:
     com.asm.delivery.security: DEBUG
@@ -8,6 +12,19 @@ logging:
 spring:
   application:
     name: delivery-service
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:guest}
+    password: ${RABBITMQ_PASS:guest}
+    stomp:
+      port: 61613
+
+  security:
+    user:
+      name: disabled
+      password: disabled
 
   datasource:
     # PROD: set DB_HOST to your PostgreSQL server hostname/IP
@@ -27,25 +44,31 @@ spring:
       ddl-auto: none
     properties:
       hibernate:
-        dialect: org.hibernate.dialect.PostgreSQLDialect
         jdbc:
           lob:
             non_contextual_creation: true
     show-sql: false
+    open-in-view: false
 
   sql:
     init:
       mode: never
       schema-locations: classpath:schema.sql
 
-app:
-  jwt:
-    # PROD: set JWT_SECRET to a random 64-char string — e.g. openssl rand -hex 64
-    # NEVER use the default 'asmsecret2026' in production
-    secret: ${JWT_SECRET:asmsecret2026}
-    access-expiry-ms: 3600000     # 1 hour
-    refresh-expiry-ms: 604800000  # 7 days
+websocket:
+  broker:
+    relay:
+      enabled: true
 
+auth:
+  server:
+    url: ${AUTH_SERVER_URL:http://auth-server:8089}
+    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+  client:
+    id: ${CLIENT_ID:delivery-service}
+    secret: ${CLIENT_SECRET:y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
+
+app:
   origin:
     name: ${WAREHOUSE_NAME:Main Warehouse}
     address: ${WAREHOUSE_ADDRESS:123 Logistics Street}
@@ -79,10 +102,6 @@ driver:
     # PROD: DRIVER_SERVICE_URL defaults to Docker service name — correct if using docker-compose
     url: ${DRIVER_SERVICE_URL:http://driver-service:8086}
 
-internal:
-  # PROD: set INTERNAL_SECRET to a strong random value — shared with all microservices
-  # NEVER use the default 'asm-internal-2026' in production
-  secret: ${INTERNAL_SECRET:asm-internal-2026}
 
 # ── FCM Push Notifications ──────────────────────────────────────────────────
 fcm:

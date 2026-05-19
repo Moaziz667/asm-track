@@ -1,5 +1,6 @@
 package com.asm.delivery.dto.request;
 
+import com.asm.delivery.entity.VehicleStatus;
 import com.asm.delivery.entity.VehicleType;
 import lombok.Data;
 
@@ -17,5 +18,6 @@ public class UpdateVehicleRequest {
     private String plate;
     private VehicleType type;
     private Boolean active;
+    private VehicleStatus vehicleStatus;
     private String imageBase64;
 }

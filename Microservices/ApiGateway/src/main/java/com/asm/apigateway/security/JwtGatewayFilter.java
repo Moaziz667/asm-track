@@ -73,7 +73,7 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             }
 
             String normalizedRole = role.toUpperCase();
-            if (!isAuthorized(path, normalizedRole)) {
+            if (!isAuthorized(path, normalizedRole, exchange.getRequest().getMethod())) {
                 log.debug("Access denied for role {} on path {}", normalizedRole, path);
                 return writeError(exchange.getResponse(), HttpStatus.FORBIDDEN, "Access denied for role " + normalizedRole);
             }
@@ -88,6 +88,9 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             }
             if (claims.get("odooPartnerId", Integer.class) != null) {
                 reqBuilder.header("X-Odoo-Partner-Id", String.valueOf(claims.get("odooPartnerId", Integer.class)));
+            }
+            if (claims.get("companyId", String.class) != null) {
+                reqBuilder.header("X-Company-Id", claims.get("companyId", String.class));
             }
             ServerHttpRequest mutatedRequest = reqBuilder.build();
 
@@ -105,40 +108,83 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if (path.startsWith("/api/auth/")) {
             return true;
         }
+        if (path.startsWith("/api/public/")) {
+            return true;
+        }
         // WebSocket/SockJS upgrade and polling — auth handled at STOMP CONNECT frame level
         // Browser WebSocket API cannot send Authorization headers during HTTP upgrade
         return path.startsWith("/ws/") || path.equals("/ws");
     }
 
-    private boolean isAuthorized(String path, String role) {
+    private boolean isAuthorized(String path, String role, HttpMethod method) {
+        if ("SUPER_ADMIN".equals(role)) return true;
+
+        // Client-only endpoints
         if (path.startsWith("/api/orders/")) {
             return "CLIENT".equals(role);
-        }
-        if (path.startsWith("/api/driver/")) {
-            return "DRIVER".equals(role);
-        }
-        if (path.startsWith("/api/admin/routes/")) {
-            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
-        }
-        if (path.startsWith("/api/admin/vehicles/")) {
-            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
-        }
-        if (path.startsWith("/api/admin/reports/")) {
-            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
-        }
-        if (path.startsWith("/api/admin/deliveries/")) {
-            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
-        }
-        if (path.startsWith("/api/admin/users/")) {
-            return "ADMIN".equals(role);
-        }
-        if (path.startsWith("/api/deliveries/")) {
-            return "CLIENT".equals(role) || "DRIVER".equals(role) || "DISPATCHER".equals(role) || "ADMIN".equals(role);
         }
         if (path.startsWith("/api/users/")) {
             return "CLIENT".equals(role);
         }
-        return true;
+
+        // Driver-only endpoints
+        if (path.startsWith("/api/driver/")) {
+            return "DRIVER".equals(role);
+        }
+
+        // Admin sub-paths with narrower role sets — must be checked before the /api/admin/ catch-all
+
+        // SUPER_ADMIN only (non-SUPER_ADMIN already excluded by early return)
+        if (path.startsWith("/api/admin/companies/")) {
+            return false;
+        }
+        // Drivers are platform-owned (shared across companies).
+        // GET (list/read) → ADMIN + DISPATCHER need this to assign drivers to routes.
+        // Mutations (create, update, activate, reset-password) → SUPER_ADMIN only.
+        if (path.startsWith("/api/admin/drivers")) {
+            return HttpMethod.GET.equals(method)
+                    && ("ADMIN".equals(role) || "DISPATCHER".equals(role));
+        }
+        // Vehicles are platform-owned (managed by SUPER_ADMIN).
+        // GET (list/read) → ADMIN + DISPATCHER need this to assign vehicles to routes.
+        // Mutations (create, update, delete, status change) → SUPER_ADMIN only.
+        if (path.startsWith("/api/admin/vehicles")) {
+            return HttpMethod.GET.equals(method)
+                    && ("ADMIN".equals(role) || "DISPATCHER".equals(role));
+        }
+        // ERP order import (pending-orders, import-order) is core dispatcher work.
+        // ERP credentials are stored at company level via AppBackend — not exposed here.
+        if (path.startsWith("/api/admin/erp/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
+        }
+        // System settings (SLA limits, config) — ADMIN only, not DISPATCHER or MANAGER.
+        if (path.startsWith("/api/admin/reports/settings")) {
+            return "ADMIN".equals(role);
+        }
+        // ADMIN + DISPATCHER + MANAGER + SUPER_ADMIN
+        if (path.startsWith("/api/admin/stats") || path.startsWith("/api/admin/reports/") || path.startsWith("/api/admin/ops/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
+        }
+        // MANAGER gets read-only access to routes and deliveries for operational oversight.
+        if ("MANAGER".equals(role) && HttpMethod.GET.equals(method)) {
+            return path.startsWith("/api/admin/routes") || path.startsWith("/api/admin/deliveries");
+        }
+        // ADMIN + DISPATCHER + SUPER_ADMIN (general admin catch-all covers routes, deliveries, erp imports, etc.)
+        if (path.startsWith("/api/admin/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
+        }
+
+        // Shared delivery tracking — no CLIENT
+        if (path.startsWith("/api/deliveries/")) {
+            return "DRIVER".equals(role) || "DISPATCHER".equals(role) || "ADMIN".equals(role);
+        }
+
+        // v1 endpoints (depots, optimization)
+        if (path.startsWith("/api/v1/")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
+        }
+
+        return false; // deny by default
     }
 
     private Mono<Void> writeError(ServerHttpResponse response, HttpStatus status, String message) {

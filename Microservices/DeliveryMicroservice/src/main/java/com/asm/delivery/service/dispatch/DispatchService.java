@@ -1,6 +1,7 @@
 package com.asm.delivery.service.dispatch;
 
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.config.TenantContext;
 import java.time.LocalDateTime;
 
 import com.asm.delivery.dto.request.AssignDeliveryRequest;
@@ -17,6 +18,7 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.service.DriverDeliveryService;
+import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.service.GeocodingService;
 import jakarta.persistence.EntityManager;
 import jakarta.persistence.TypedQuery;
@@ -36,7 +38,6 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-@Transactional(readOnly = true)
 public class DispatchService {
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
@@ -59,10 +60,12 @@ public class DispatchService {
     private final VehicleRepository vehicleRepository;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final com.asm.delivery.service.AuditLogService auditLogService;
+    private final EventPublisher eventPublisher;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
-    public Page<AdminDeliverySummaryResponse> searchDeliveries(
+        @Transactional(readOnly = true)
+        public Page<AdminDeliverySummaryResponse> searchDeliveries(
             DeliveryStatus status,
             UUID driverId,
             LocalDate date,
@@ -71,6 +74,26 @@ public class DispatchService {
             Boolean unpinned,
             Pageable pageable
     ) {
+        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, pageable);
+        List<Delivery> deliveries = deliveryPage.getContent();
+
+        // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
+        Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
+        Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+
+        List<AdminDeliverySummaryResponse> content = deliveries.stream()
+                .map(d -> {
+                    DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                })
+                .toList();
+
+        return new PageImpl<>(content, pageable, deliveryPage.getTotalElements());
+    }
+
+    @Transactional(readOnly = true)
+    public Page<Delivery> doSearch(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
+                                  UUID zoneId, Boolean unpinned, Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
@@ -91,85 +114,118 @@ public class DispatchService {
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
-        // Bulk-fetch driver info from Driver Service
-        Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
-                Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+        return new PageImpl<>(deliveries, pageable, total);
+    }
 
-        List<AdminDeliverySummaryResponse> content = deliveries.stream()
-                .map(d -> {
-                    DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                                        return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
-                })
+    // ── Delivery history ──────────────────────────────────────────────────────
+
+    @Transactional(readOnly = true)
+    public List<StatusHistoryResponse> getDeliveryHistory(UUID id) {
+        List<DeliveryStatusHistory> histories = getHistoryRaw(id);
+        Map<String, String> actorNames = fetchActorNames(histories);
+        return histories.stream()
+                .map(h -> toHistoryResponseLocal(h, actorNames))
                 .toList();
-
-        return new PageImpl<>(content, pageable, total);
     }
 
     // ── Delivery detail ───────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public AdminDeliveryDetailResponse getDeliveryDetail(UUID id) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(id)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+        Delivery delivery = findDelivery(id);
+        RouteInfo routeInfo = getRouteInfo(id);
 
         DriverDTO driver = null;
         if (delivery.getDriverId() != null) {
+            // HTTP call OUTSIDE transaction
             driver = transportPort.getDriver(delivery.getDriverId().toString());
         }
 
-        List<StatusHistoryResponse> history = historyRepo
-                .findByDeliveryIdOrderByChangedAtAsc(delivery.getId()).stream()
-                .map(this::toHistoryResponse)
+        List<StatusHistoryResponse> history = getHistory(delivery.getId());
+        boolean podExists = checkPodExists(delivery.getId());
+
+        return toDetailResponse(delivery, driver, history, podExists, routeInfo);
+    }
+
+    @Transactional(readOnly = true)
+    public RouteInfo getRouteInfo(UUID deliveryId) {
+        return routeStopRepository.findActiveByDeliveryIdWithRoute(deliveryId)
+                .filter(rs -> rs.getRoute() != null)
+                .map(rs -> new RouteInfo(rs.getRoute().getId(), rs.getRoute().getName()))
+                .orElse(null);
+    }
+
+    @Transactional(readOnly = true)
+    public Delivery findDelivery(UUID id) {
+        return deliveryRepo.findByIdWithOrder(id)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+    }
+
+    @Transactional(readOnly = true)
+    public List<StatusHistoryResponse> getHistory(UUID deliveryId) {
+        List<DeliveryStatusHistory> histories = getHistoryRaw(deliveryId);
+        Map<String, String> actorNames = fetchActorNames(histories);
+        return histories.stream()
+                .map(h -> toHistoryResponseLocal(h, actorNames))
                 .toList();
+    }
 
-        boolean podExists = podRepo.existsByDeliveryId(delivery.getId());
+    @Transactional(readOnly = true)
+    public List<DeliveryStatusHistory> getHistoryRaw(UUID deliveryId) {
+        return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
+    }
 
-        return toDetailResponse(delivery, driver, history, podExists);
+    private Map<String, String> fetchActorNames(List<DeliveryStatusHistory> histories) {
+        Set<String> driverIds = histories.stream()
+                .filter(h -> h.getChangedByRole() == Role.DRIVER && h.getChangedBy() != null)
+                .map(DeliveryStatusHistory::getChangedBy)
+                .collect(Collectors.toSet());
+
+        Map<String, String> map = new HashMap<>();
+        for (String id : driverIds) {
+            try {
+                DriverDTO d = transportPort.getDriver(id);
+                if (d != null && d.getName() != null) map.put(id, d.getName());
+            } catch (Exception ignored) {}
+        }
+        return map;
+    }
+
+    @Transactional(readOnly = true)
+    public boolean checkPodExists(UUID deliveryId) {
+        return podRepo.existsByDeliveryId(deliveryId);
     }
 
     // ── Drivers list ──────────────────────────────────────────────────────────
 
+    @Transactional(readOnly = true)
     public List<AdminDriverResponse> getDrivers() {
-                List<DriverDTO> drivers = new ArrayList<>(transportPort.getAvailableDrivers());
+        // 1. Fetch available drivers (HTTP)
+        List<DriverDTO> drivers = new ArrayList<>(transportPort.getAvailableDrivers());
 
-        // Map driverId → active deliveryId for currently active deliveries
-        Map<String, UUID> activeDeliveryMap = deliveryRepo.findActiveDeliveries(ACTIVE_STATUSES).stream()
-                .filter(d -> d.getDriverId() != null)
-                .collect(Collectors.toMap(
-                        d -> d.getDriverId().toString(),
-                        Delivery::getId,
-                        (existing, replacement) -> existing
-                ));
+        // 2. Fetch active IDs from DB (Transactional)
+        DriverData data = getActiveDriverData();
 
-                // Ensure busy drivers appear in the list even if the transport endpoint only returns available ones.
-                java.util.Set<String> knownDriverIds = drivers.stream().map(DriverDTO::getId).collect(Collectors.toSet());
-                for (String driverId : activeDeliveryMap.keySet()) {
-                        if (!knownDriverIds.contains(driverId)) {
-                                DriverDTO busyDriver = transportPort.getDriver(driverId);
-                                if (busyDriver != null) {
-                                        drivers.add(busyDriver);
-                                        knownDriverIds.add(driverId);
-                                }
-                        }
+        // 3. Ensure busy drivers appear (HTTP calls for missing drivers)
+        java.util.Set<String> knownDriverIds = drivers.stream().map(DriverDTO::getId).collect(Collectors.toSet());
+        for (String driverId : data.activeDeliveryMap().keySet()) {
+            if (!knownDriverIds.contains(driverId)) {
+                DriverDTO busyDriver = transportPort.getDriver(driverId);
+                if (busyDriver != null) {
+                    drivers.add(busyDriver);
+                    knownDriverIds.add(driverId);
                 }
-
-                LocalDate today = LocalDate.now();
-                Map<String, UUID> activeRouteMap = routeRepository.findAll().stream()
-                        .filter(route -> today.equals(route.getDate()))
-                        .filter(route -> route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)
-                        .collect(Collectors.toMap(
-                                route -> route.getDriverId().toString(),
-                                Route::getId,
-                                (existing, replacement) -> existing
-                        ));
-                for (String driverId : activeRouteMap.keySet()) {
-                        if (!knownDriverIds.contains(driverId)) {
-                                DriverDTO busyDriver = transportPort.getDriver(driverId);
-                                if (busyDriver != null) {
-                                        drivers.add(busyDriver);
-                                        knownDriverIds.add(driverId);
-                                }
-                        }
+            }
+        }
+        for (String driverId : data.activeRouteMap().keySet()) {
+            if (!knownDriverIds.contains(driverId)) {
+                DriverDTO busyDriver = transportPort.getDriver(driverId);
+                if (busyDriver != null) {
+                    drivers.add(busyDriver);
+                    knownDriverIds.add(driverId);
                 }
+            }
+        }
 
         return drivers.stream()
                 .map(d -> AdminDriverResponse.builder()
@@ -178,22 +234,97 @@ public class DispatchService {
                         .phone(d.getPhone())
                         .currentLat(d.getCurrentLat() != null ? BigDecimal.valueOf(d.getCurrentLat()) : null)
                         .currentLng(d.getCurrentLng() != null ? BigDecimal.valueOf(d.getCurrentLng()) : null)
-                        .activeDeliveryId(activeDeliveryMap.get(d.getId()))
-                        .activeRouteId(activeRouteMap.get(d.getId()))
+                        .activeDeliveryId(data.activeDeliveryMap().get(d.getId()))
+                        .activeRouteId(data.activeRouteMap().get(d.getId()))
                         .createdAt(d.getCreatedAt() != null ? parseDateTime(d.getCreatedAt()) : null)
                         .build())
                 .toList();
     }
+
+    @Transactional(readOnly = true)
+    public DriverData getActiveDriverData() {
+        Map<String, UUID> activeDeliveryMap = deliveryRepo.findActiveDeliveries(ACTIVE_STATUSES).stream()
+                .filter(d -> d.getDriverId() != null)
+                .collect(Collectors.toMap(
+                        d -> d.getDriverId().toString(),
+                        Delivery::getId,
+                        (existing, replacement) -> existing
+                ));
+
+        LocalDate today = LocalDate.now();
+        Map<String, UUID> activeRouteMap = routeRepository.findAll().stream()
+                .filter(route -> today.equals(route.getDate()))
+                .filter(route -> route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)
+                .collect(Collectors.toMap(
+                        route -> route.getDriverId().toString(),
+                        Route::getId,
+                        (existing, replacement) -> existing
+                ));
+        
+        return new DriverData(activeDeliveryMap, activeRouteMap);
+    }
+
+    private record DriverData(Map<String, UUID> activeDeliveryMap, Map<String, UUID> activeRouteMap) {}
     // ── Assign ────────────────────────────────────────────────────────────────
 
-    @Transactional
+    // Removed @Transactional so the DB write lock drops before the HTTP read in getDeliveryDetail
     public AdminDeliveryDetailResponse assignDelivery(UUID deliveryId, AssignDeliveryRequest request, UserPrincipal principal) {
         driverDeliveryService.accept(deliveryId, request.getDriverId(), principal);
         return getDeliveryDetail(deliveryId);
     }
 
     @Transactional
-    public AdminDeliveryDetailResponse pinDropoff(UUID deliveryId, PinDropoffRequest request) {
+    public void syncAllZones() {
+        UUID companyId = getCompanyId();
+        List<Delivery> deliveries = deliveryRepo.findAll();
+        List<Zone> activeZones = zoneRepository.findByCompanyIdAndIsActiveTrueOrderByNameAsc(companyId);
+        
+        for (Delivery delivery : deliveries) {
+            Order order = delivery.getOrder();
+            if (order == null) continue;
+
+            String postalCode = normalizePostalCode(order.getDropoffPostalCode());
+            String city = normalizeText(order.getDropoffCity());
+            
+            UUID newZoneId = null;
+            boolean found = false;
+
+            if (StringUtils.hasText(postalCode)) {
+                Optional<Zone> zoneByPostal = zoneRepository.findActiveByPostalCodeMember(companyId, postalCode);
+                if (zoneByPostal.isPresent()) {
+                    newZoneId = zoneByPostal.get().getId();
+                    found = true;
+                }
+            }
+
+            if (!found && StringUtils.hasText(city)) {
+                Optional<Zone> zoneByCity = zoneRepository.findActiveByCityMember(companyId, city.trim());
+                if (zoneByCity.isPresent()) {
+                    newZoneId = zoneByCity.get().getId();
+                }
+            }
+
+            if ((order.getZoneId() == null && newZoneId != null) || 
+                (order.getZoneId() != null && !order.getZoneId().equals(newZoneId))) {
+                order.setZoneId(newZoneId);
+                orderRepo.save(order);
+            }
+        }
+    }
+
+    public void pinDropoff(UUID deliveryId, PinDropoffRequest request) {
+        // 1. External Geocoding (Outside Transaction)
+        GeocodeSuggestionResponse reverse = geocodingService.reverseGeocode(
+                request.getLat().doubleValue(),
+                request.getLng().doubleValue()
+        );
+
+        // 2. Transactional Update
+        updatePin(deliveryId, request, reverse);
+    }
+
+    @Transactional
+    public void updatePin(UUID deliveryId, PinDropoffRequest request, GeocodeSuggestionResponse reverse) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
@@ -203,69 +334,51 @@ public class DispatchService {
                 || delivery.getStatus() == DeliveryStatus.DELIVERED
                 || delivery.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED
                 || delivery.getStatus() == DeliveryStatus.FAILED) {
-            throw AppException.badRequest("Pin locked: order is in transit or completed. Close the route and create a new one if the address is wrong.");
+            throw AppException.badRequest("Pin locked: order is in transit or completed.");
         }
 
         Order order = delivery.getOrder();
-        if (order == null) {
-            throw AppException.badRequest("Delivery has no order attached");
-        }
+        if (order == null) throw AppException.badRequest("Delivery has no order attached");
 
         order.setDropoffLat(request.getLat());
         order.setDropoffLng(request.getLng());
 
-                String requestedAddress = normalizeText(request.getDropoffAddress());
-                String requestedCity = normalizeText(request.getDropoffCity());
-                String requestedPostalCode = normalizePostalCode(request.getDropoffPostalCode());
-                String requestedCountryCode = normalizeText(request.getDropoffCountryCode());
+        String requestedAddress = normalizeText(request.getDropoffAddress());
+        String requestedCity = normalizeText(request.getDropoffCity());
+        String requestedPostalCode = normalizePostalCode(request.getDropoffPostalCode());
+        String requestedCountryCode = normalizeText(request.getDropoffCountryCode());
 
-        if (StringUtils.hasText(request.getDropoffAddress())) {
-                        order.setDropoffAddress(requestedAddress);
-        }
-        if (StringUtils.hasText(request.getDropoffCity())) {
-                        order.setDropoffCity(requestedCity);
-        }
-        if (StringUtils.hasText(request.getDropoffPostalCode())) {
-                        order.setDropoffPostalCode(requestedPostalCode);
-        }
-        if (StringUtils.hasText(request.getDropoffCountryCode())) {
-                        order.setDropoffCountryCode(requestedCountryCode);
-                }
+        if (StringUtils.hasText(request.getDropoffAddress())) order.setDropoffAddress(requestedAddress);
+        if (StringUtils.hasText(request.getDropoffCity())) order.setDropoffCity(requestedCity);
+        if (StringUtils.hasText(request.getDropoffPostalCode())) order.setDropoffPostalCode(requestedPostalCode);
+        if (StringUtils.hasText(request.getDropoffCountryCode())) order.setDropoffCountryCode(requestedCountryCode);
 
-                // Robust fallback: enrich missing fields from pin coordinates.
-                GeocodeSuggestionResponse reverse = geocodingService.reverseGeocode(
-                                request.getLat().doubleValue(),
-                                request.getLng().doubleValue()
-                );
-                if (!StringUtils.hasText(requestedAddress) && reverse != null && StringUtils.hasText(reverse.getDisplayName())) {
-                        order.setDropoffAddress(reverse.getDisplayName().trim());
-                }
-                if (!StringUtils.hasText(requestedCity) && reverse != null && StringUtils.hasText(reverse.getCity())) {
-                        order.setDropoffCity(reverse.getCity().trim());
-                }
-                if (!StringUtils.hasText(requestedPostalCode) && reverse != null && StringUtils.hasText(reverse.getPostalCode())) {
-                        order.setDropoffPostalCode(normalizePostalCode(reverse.getPostalCode()));
+        // Robust fallback: enrich missing fields from pin coordinates.
+        if (!StringUtils.hasText(requestedAddress) && reverse != null && StringUtils.hasText(reverse.getDisplayName())) {
+            order.setDropoffAddress(reverse.getDisplayName().trim());
+        }
+        if (!StringUtils.hasText(requestedCity) && reverse != null && StringUtils.hasText(reverse.getCity())) {
+            order.setDropoffCity(reverse.getCity().trim());
+        }
+        if (!StringUtils.hasText(requestedPostalCode) && reverse != null && StringUtils.hasText(reverse.getPostalCode())) {
+            order.setDropoffPostalCode(normalizePostalCode(reverse.getPostalCode()));
         }
 
-        // Zone detection: postal code first (precise), fall back to city name
-                String postalCode = normalizePostalCode(order.getDropoffPostalCode());
-                if (StringUtils.hasText(postalCode)) {
-                        order.setDropoffPostalCode(postalCode);
-                }
-                String city = normalizeText(order.getDropoffCity());
-                if (StringUtils.hasText(city)) {
-                        order.setDropoffCity(city);
-                }
+        // Zone detection
+        String postalCode = normalizePostalCode(order.getDropoffPostalCode());
+        String city = normalizeText(order.getDropoffCity());
+        UUID companyId = getCompanyId();
         boolean zoneFound = false;
+
         if (StringUtils.hasText(postalCode)) {
-                        var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode);
+            var zoneByPostal = zoneRepository.findActiveByPostalCodeMember(companyId, postalCode);
             if (zoneByPostal.isPresent()) {
                 order.setZoneId(zoneByPostal.get().getId());
                 zoneFound = true;
             }
         }
         if (!zoneFound && StringUtils.hasText(city)) {
-            zoneRepository.findActiveByCityMember(city.trim()).ifPresentOrElse(
+            zoneRepository.findActiveByCityMember(companyId, city.trim()).ifPresentOrElse(
                     zone -> order.setZoneId(zone.getId()),
                     () -> order.setZoneId(null)
             );
@@ -275,16 +388,14 @@ public class DispatchService {
 
         orderRepo.save(order);
 
-        // Mark associated route as needing recalculation if already in a route
-        routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
+        // Mark associated route as needing recalculation
+        routeStopRepository.findActiveByDeliveryIdWithRoute(deliveryId).ifPresent(stop -> {
             Route route = stop.getRoute();
             if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
                 route.setIsOptimized(false);
                 routeRepository.save(route);
             }
         });
-
-        return getDeliveryDetail(deliveryId);
     }
     // ── Helpers ──────────────────────────────────────────────────────────────
 
@@ -339,6 +450,7 @@ public class DispatchService {
         return map;
     }
 
+    @Transactional(readOnly = true)
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()
                 .map(Delivery::getId)
@@ -361,8 +473,9 @@ public class DispatchService {
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        UUID companyId = getCompanyId();
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneRepository.findByCompanyIdAndId(companyId, order.getZoneId()).orElse(null)
                 : null;
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(d.getId())
@@ -430,15 +543,20 @@ public class DispatchService {
     private AdminDeliveryDetailResponse toDetailResponse(Delivery d,
                                                          DriverDTO driver,
                                                          List<StatusHistoryResponse> history,
-                                                         boolean podExists) {
+                                                         boolean podExists,
+                                                         RouteInfo routeInfo) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
+        UUID companyId = getCompanyId();
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneRepository.findByCompanyIdAndId(companyId, order.getZoneId()).orElse(null)
                 : null;
+
         return AdminDeliveryDetailResponse.builder()
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
+                .routeId(routeInfo != null ? routeInfo.routeId() : null)
+                .routeName(routeInfo != null ? routeInfo.routeName() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failureComment(d.getFailReason())
@@ -485,8 +603,8 @@ public class DispatchService {
                 .build();
     }
 
-    private StatusHistoryResponse toHistoryResponse(DeliveryStatusHistory h) {
-        String actorDisplay = resolveActorName(h.getChangedBy(), h.getChangedByRole());
+    private StatusHistoryResponse toHistoryResponseLocal(DeliveryStatusHistory h, Map<String, String> actorNames) {
+        String actorDisplay = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), actorNames);
         return StatusHistoryResponse.builder()
                 .id(h.getId() != null ? h.getId().toString() : null)
                 .status(h.getStatus().name())
@@ -499,16 +617,15 @@ public class DispatchService {
                 .build();
     }
 
-    private String resolveActorName(String changedBy, Role role) {
+    private String resolveActorNameLocal(String changedBy, Role role, Map<String, String> actorNames) {
         if (changedBy == null) return null;
         if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
         try {
             UUID.fromString(changedBy);
             if (role == Role.DRIVER) {
-                DriverDTO driver = transportPort.getDriver(changedBy);
-                if (driver != null && driver.getName() != null) return driver.getName();
+                return actorNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;
@@ -641,6 +758,14 @@ public class DispatchService {
         routeWebSocketService.notifyDriver(sourceRoute.getDriverId(), "STOPS_TRANSFERRED_OUT", sourceRoute.getId(), sourceRoute.getName());
         routeWebSocketService.notifyDriver(targetRoute.getDriverId(), "STOPS_TRANSFERRED_IN", targetRoute.getId(), targetRoute.getName());
 
+        // FCM: notify both drivers
+        boolean anyHandoff = warnings.stream().anyMatch(w -> "HANDOFF".equals(w.getCode()));
+        eventPublisher.publishStopsTransferred(
+                sourceRoute.getDriverId(),
+                targetRoute.getDriverId(),
+                transferredStops.size(),
+                anyHandoff);
+
         return com.asm.delivery.dto.response.TransferStopsResponse.builder()
                 .targetRouteId(targetRoute.getId())
                 .transferredStopIds(transferredStops)
@@ -689,5 +814,13 @@ public class DispatchService {
                         vehicle.getPayloadKg(), totalWeight.doubleValue()));
             }
         }
+    }
+
+    private UUID getCompanyId() {
+        String cid = TenantContext.get();
+        if (cid == null) {
+            throw AppException.unauthorized("Company context missing");
+        }
+        return UUID.fromString(cid);
     }
 }

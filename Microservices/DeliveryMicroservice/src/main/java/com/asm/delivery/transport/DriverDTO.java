@@ -18,4 +18,5 @@ public class DriverDTO {
     private String  lastLocationAt;
     private String  createdAt;
     private String  fcmToken;
+    private Boolean active;
 }

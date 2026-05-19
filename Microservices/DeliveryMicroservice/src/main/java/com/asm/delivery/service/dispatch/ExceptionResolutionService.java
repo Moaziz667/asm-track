@@ -15,10 +15,10 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
-import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.DelayCalculationService;
 import com.asm.delivery.service.EventPublisher;
+import com.asm.delivery.service.OutboxProcessor;
 import com.asm.delivery.service.RouteOptimizationService;
 import com.asm.delivery.service.route.RouteWebSocketService;
 import lombok.RequiredArgsConstructor;
@@ -59,170 +59,190 @@ public class ExceptionResolutionService {
     private final ZoneRepository zoneRepository;
     private final DispatchService dispatchService;
     private final RouteWebSocketService routeWebSocketService;
-    private final ErpSyncService erpSyncService;
+    private final OutboxProcessor outboxProcessor;
+    private ExceptionResolutionService self;
 
-        @Transactional
-        public AdminOpsExceptionsResponse.ExceptionItem reassignException(UUID deliveryId,
-                                                                                                                          AdminExceptionReassignRequest request,
-                                                                                                                          UserPrincipal principal) {
-                Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setSelf(@org.springframework.context.annotation.Lazy ExceptionResolutionService self) {
+        this.self = self;
+    }
 
-                assertReassignAllowed(delivery);
+	public AdminOpsExceptionsResponse.ExceptionItem reassignException(UUID deliveryId,
+																							  AdminExceptionReassignRequest request,
+																							  UserPrincipal principal) {
+		// 1. Transactional Mutation
+		Set<UUID> affectedRouteIds = self.doReassign(deliveryId, request, principal);
 
-                // When a parcel is already picked up, reassignment implies a physical handover.
-                // We require a note to keep custody changes explicit in the audit trail.
-                if (delivery.getStatus() == DeliveryStatus.PICKED_UP && !StringUtils.hasText(request.getNote())) {
-                        throw AppException.badRequest("A handover note is required to reassign a picked-up delivery");
-                }
+		// 2. Post-Transaction Optimization (Outside DB Lock)
+		for (UUID routeId : affectedRouteIds) {
+			if (routeId == null) continue;
+			routeOptimizationService.recalculate(routeId);
+		}
 
-                if (request.getDriverId().equals(delivery.getDriverId())) {
-                        Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryId(delivery.getId());
-                        if (currentStop.isPresent()) {
-                            UUID currentRouteId = currentStop.get().getRoute().getId();
-                            if (request.getTargetRouteId() == null || request.getTargetRouteId().equals(currentRouteId)) {
-                                throw AppException.badRequest("Delivery is already assigned to this driver on this route");
-                            }
-                        }
-                }
+		// 3. Return final state — must use join-fetch variant so Order proxy is
+		//    initialized before mapActionResult() accesses order.getZoneId() outside a session.
+		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+				.orElseThrow(() -> AppException.notFound("Delivery not found"));
+		return mapActionResult(delivery, "WARNING", "RESCHEDULED", "Delivery reassigned successfully");
+	}
 
-                DriverDTO targetDriver = transportPort.getDriver(request.getDriverId().toString());
-                if (targetDriver == null) {
-                        throw AppException.badRequest("Target driver not found");
-                }
+	@Transactional
+	public Set<UUID> doReassign(UUID deliveryId,
+								AdminExceptionReassignRequest request,
+								UserPrincipal principal) {
+		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+				.orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-                DeliveryStatus previousStatus = delivery.getStatus();
-                UUID previousDriverId = delivery.getDriverId();
+		assertReassignAllowed(delivery);
 
-                // Determine the target route and its status early to apply the correct business rules
-                Route targetRoute = null;
-                if (request.getTargetRouteId() != null) {
-                    targetRoute = routeRepository.findById(request.getTargetRouteId())
-                            .orElseThrow(() -> AppException.notFound("Target route not found"));
-                    if (!request.getDriverId().equals(targetRoute.getDriverId())) {
-                        throw AppException.badRequest("Target route does not belong to the selected driver");
-                    }
-                }
+		// When a parcel is already picked up, reassignment implies a physical handover.
+		// We require a note to keep custody changes explicit in the audit trail.
+		if (delivery.getStatus() == DeliveryStatus.PICKED_UP && !StringUtils.hasText(request.getNote())) {
+			throw AppException.badRequest("A handover note is required to reassign a picked-up delivery");
+		}
 
-                RouteStatus targetRouteStatus;
-                if (targetRoute != null) {
-                    targetRouteStatus = targetRoute.getStatus();
-                } else {
-                    // Logic equivalent to findOrCreateRouteForDriver inheritance
-                    Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryId(delivery.getId());
-                    Route sourceRoute = currentStop.map(RouteStop::getRoute).orElse(null);
-                    targetRouteStatus = (sourceRoute != null && (sourceRoute.getStatus() == RouteStatus.VALIDATED || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS))
-                            ? RouteStatus.VALIDATED : RouteStatus.DRAFT;
-                }
+		if (request.getDriverId().equals(delivery.getDriverId())) {
+			Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId());
+			if (currentStop.isPresent()) {
+				UUID currentRouteId = currentStop.get().getRoute().getId();
+				if (request.getTargetRouteId() == null || request.getTargetRouteId().equals(currentRouteId)) {
+					throw AppException.badRequest("Delivery is already assigned to this driver on this route");
+				}
+			}
+		}
 
-                // If assigning to a DRAFT route, we must ensure it's pinned (same as Builder logic)
-                if (targetRouteStatus == RouteStatus.DRAFT) {
-                    assertPinned(delivery);
-                }
+		// DELETED: Blocking transportPort.getDriver() inside @Transactional.
+		// We rely on frontend validity for the target driver.
 
-                LocalDateTime now = LocalDateTime.now();
-                boolean wasPickedUp = previousStatus == DeliveryStatus.PICKED_UP;
-                delivery.setDriverId(request.getDriverId());
-                
-                // CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning). 
-                // If target is VALIDATED/IN_PROGRESS, it becomes SCHEDULED immediately (Execution Reassign).
-                if (targetRouteStatus == RouteStatus.DRAFT) {
-                    delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-                } else {
-                    delivery.setStatus(DeliveryStatus.SCHEDULED);
-                }
+		DeliveryStatus previousStatus = delivery.getStatus();
+		UUID previousDriverId = delivery.getDriverId();
 
-                delivery.setAssignedAt(now);
-                // Keep pickedUpAt as audit record if the parcel was already collected by the previous driver
-                if (!wasPickedUp) {
-                    delivery.setPickedUpAt(null);
-                }
-                delivery.setInTransitAt(null);
-                delivery.setCompletedAt(null);
-                delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
-                delivery.setAssignSlaMinutes(null);
-                delivery.setPickupSlaMinutes(null);
-                delivery.setCancelledAt(null);
-                delivery.setCancelReason(null);
-                delivery.setCancelledBy(null);
-                // failedAt and failureCode are kept for historical reporting
+		// Determine the target route and its status early to apply the correct business rules
+		Route targetRoute = null;
+		if (request.getTargetRouteId() != null) {
+			targetRoute = routeRepository.findById(request.getTargetRouteId())
+					.orElseThrow(() -> AppException.notFound("Target route not found"));
+			if (!request.getDriverId().equals(targetRoute.getDriverId())) {
+				throw AppException.badRequest("Target route does not belong to the selected driver");
+			}
+		}
 
-                deliveryRepo.save(delivery);
+		RouteStatus targetRouteStatus;
+		if (targetRoute != null) {
+			targetRouteStatus = targetRoute.getStatus();
+		} else {
+			// Logic equivalent to findOrCreateRouteForDriver inheritance
+			Optional<RouteStop> currentStop = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId());
+			Route sourceRoute = currentStop.map(RouteStop::getRoute).orElse(null);
+			targetRouteStatus = (sourceRoute != null && (sourceRoute.getStatus() == RouteStatus.VALIDATED || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS))
+					? RouteStatus.VALIDATED : RouteStatus.DRAFT;
+		}
 
-                ActorInfo actor = resolveActor(principal);
-                String previousDriverName = "Inconnu";
-                if (previousDriverId != null) {
-                        DriverDTO prevDriver = transportPort.getDriver(previousDriverId.toString());
-                        if (prevDriver != null) {
-                                previousDriverName = prevDriver.getName() != null ? prevDriver.getName() : "Inconnu";
-                        }
-                }
+		// If assigning to a DRAFT route, we must ensure it's pinned (same as Builder logic)
+		if (targetRouteStatus == RouteStatus.DRAFT) {
+			assertPinned(delivery);
+		}
 
-                String targetDriverName = targetDriver.getName() != null ? targetDriver.getName() : "Inconnu";
-                String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
+		LocalDateTime now = LocalDateTime.now();
+		boolean wasPickedUp = previousStatus == DeliveryStatus.PICKED_UP;
+		delivery.setDriverId(request.getDriverId());
+		
+		// CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning). 
+		// If target is VALIDATED/IN_PROGRESS, it becomes SCHEDULED immediately (Execution Reassign).
+		if (targetRouteStatus == RouteStatus.DRAFT) {
+			delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+		} else {
+			delivery.setStatus(DeliveryStatus.SCHEDULED);
+		}
 
-                Map<String, Object> auditDetails = Map.of(
-                        "action", "reassign",
-                        "delivery", shortDeliveryId(delivery.getId()),
-                        "client", clientName,
-                        "fromDriver", previousDriverName,
-                        "toDriver", targetDriverName,
-                        "reason", request.getNote() != null ? request.getNote() : ""
-                );
+		delivery.setAssignedAt(now);
+		// Keep pickedUpAt as audit record if the parcel was already collected by the previous driver
+		if (!wasPickedUp) {
+			delivery.setPickedUpAt(null);
+		}
+		delivery.setInTransitAt(null);
+		delivery.setCompletedAt(null);
+		delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
+		delivery.setAssignSlaMinutes(null);
+		delivery.setPickupSlaMinutes(null);
+		delivery.setCancelledAt(null);
+		delivery.setCancelReason(null);
+		delivery.setCancelledBy(null);
+		// failedAt and failureCode are kept for historical reporting
 
-                auditLogService.logAction(principal, "REASSIGN_DELIVERY", "DELIVERY", delivery.getId().toString(), auditDetails);
+		deliveryRepo.save(delivery);
 
-                // Keep route plan consistent with ownership change: move stop to the new driver's route.
-                Set<UUID> affectedRouteIds = moveStopToDriverRoute(
-                        delivery, 
-                        request.getDriverId(), 
-                        request.getTargetRouteId(), 
-                        request.getInsertAtOrder(), 
-                        actor.name(), 
-                        request.getStartTimeWindow(), 
-                        request.getEndTimeWindow()
-                );
+		ActorInfo actor = resolveActor(principal);
+		String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "Inconnu";
+		String targetDriverName = request.getDriverId().toString().substring(0, 8);
+		String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
 
-                // Recompute ETAs/geometries on both source and target routes after ownership change.
-                for (UUID routeId : affectedRouteIds) {
-                        if (routeId == null) continue;
-                        routeOptimizationService.recalculate(routeId);
-                }
+		Map<String, Object> auditDetails = Map.of(
+				"action", "reassign",
+				"delivery", shortDeliveryId(delivery.getId()),
+				"client", clientName,
+				"fromDriver", previousDriverName,
+				"toDriver", targetDriverName,
+				"reason", request.getNote() != null ? request.getNote() : ""
+		);
 
-                if (previousDriverId != null && !previousDriverId.equals(request.getDriverId())) {
-                        auditLogService.logAction(principal, "DELIVERY_REMOVED_FROM_ROUTE", "DELIVERY", delivery.getId().toString(),
-                                Map.of("action", "removed_by_reassign", "fromDriver", previousDriverName, "toDriver", targetDriverName,
-                                        "client", clientName));
-                }
+		auditLogService.logAction(principal, "REASSIGN_DELIVERY", "DELIVERY", delivery.getId().toString(), auditDetails);
 
-                if (targetRouteStatus == RouteStatus.DRAFT) {
-                    appendHistory(delivery,
-                                    DeliveryStatus.UNSCHEDULED,
-                                    actor.name(),
-                                    actor.role(),
-                                    String.format("Livraison ajoutée à la tournée brouillon %s pour planification.", 
-                                        targetRoute != null ? targetRoute.getName() : "par le dispatch"));
-                } else {
-                    appendHistory(delivery,
-                                    DeliveryStatus.SCHEDULED,
-                                    actor.name(),
-                                    actor.role(),
-                                    buildReassignOpsNote(previousStatus, previousDriverName, targetDriverName, request.getNote()));
-                }
+		// Keep route plan consistent with ownership change: move stop to the new driver's route.
+		Set<UUID> affectedRouteIds = moveStopToDriverRoute(
+				delivery,
+				request.getDriverId(),
+				request.getTargetRouteId(),
+				request.getInsertAtOrder(),
+				actor.name(),
+				request.getStartTimeWindow(),
+				request.getEndTimeWindow()
+		);
 
-                if (targetRouteStatus != RouteStatus.DRAFT) {
-                    if (previousStatus == DeliveryStatus.UNSCHEDULED) {
-                        eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, request.getDriverId());
-                    } else {
-                        eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
-                    }
-                }
+		// If the parcel was already physically picked up, flag the new stop for formal handoff.
+		if (wasPickedUp && previousDriverId != null) {
+			routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(newStop -> {
+				newStop.setRequiresHandoff(true);
+				newStop.setHandoffFromDriverId(previousDriverId);
+				newStop.setHandoffToDriverId(request.getDriverId());
+				newStop.setHandoffConfirmedAt(null);
+				routeStopRepository.save(newStop);
+			});
+		}
 
-                String successMsg = targetRouteStatus == RouteStatus.DRAFT 
-                    ? "Delivery added to draft route for planning" 
-                    : "Delivery reassigned to a new driver";
-                return mapActionResult(delivery, "WARNING", "RESCHEDULED", successMsg);
-        }
+		// RECALCULATION MOVED TO ORCHESTRATOR
+
+		if (previousDriverId != null && !previousDriverId.equals(request.getDriverId())) {
+			auditLogService.logAction(principal, "DELIVERY_REMOVED_FROM_ROUTE", "DELIVERY", delivery.getId().toString(),
+					Map.of("action", "removed_by_reassign", "fromDriver", previousDriverName, "toDriver", targetDriverName,
+							"client", clientName));
+		}
+
+		if (targetRouteStatus == RouteStatus.DRAFT) {
+			appendHistory(delivery,
+							DeliveryStatus.UNSCHEDULED,
+							actor.name(),
+							actor.role(),
+							String.format("Livraison ajoutée à la tournée brouillon %s pour planification.", 
+								targetRoute != null ? targetRoute.getName() : "par le dispatch"));
+		} else {
+			appendHistory(delivery,
+							DeliveryStatus.SCHEDULED,
+							actor.name(),
+							actor.role(),
+							buildReassignOpsNote(previousStatus, previousDriverName, targetDriverName, request.getNote()));
+		}
+
+		if (targetRouteStatus != RouteStatus.DRAFT) {
+			if (previousStatus == DeliveryStatus.UNSCHEDULED) {
+				eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, request.getDriverId());
+			} else {
+				eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
+			}
+		}
+
+		return affectedRouteIds;
+	}
 
         @Transactional
         public AdminOpsExceptionsResponse.ExceptionItem replanException(UUID deliveryId,
@@ -257,13 +277,7 @@ public class ExceptionResolutionService {
                 deliveryRepo.save(delivery);
 
                 ActorInfo actor = resolveActor(principal);
-                String previousDriverName = "Inconnu";
-                if (previousDriverId != null) {
-                        DriverDTO prevDriver = transportPort.getDriver(previousDriverId.toString());
-                        if (prevDriver != null) {
-                                previousDriverName = prevDriver.getName() != null ? prevDriver.getName() : "Inconnu";
-                        }
-                }
+                String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "Inconnu";
                 String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
 
                 Map<String, Object> auditDetails = Map.of(
@@ -297,11 +311,10 @@ public class ExceptionResolutionService {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        if (!Boolean.TRUE.equals(delivery.getReturnToOrigin())) {
-            throw AppException.badRequest("Delivery does not have a pending return-to-origin");
+        if (delivery.getStatus() != DeliveryStatus.CANCELLED) {
+            throw AppException.badRequest("Can only confirm return on a CANCELLED delivery");
         }
 
-        delivery.setReturnToOrigin(false);
         delivery.setDriverId(null);
         // Parcel is back at depot — make available for re-dispatch unless order was cancelled
         Order order = delivery.getOrder();
@@ -341,10 +354,6 @@ public class ExceptionResolutionService {
         delivery.setCancelledAt(LocalDateTime.now());
         delivery.setCancelledBy(Role.ADMIN);
         delivery.setCancelReason(reason);
-        if (wasPickedUp) {
-            // Driver physically has the parcel — flag for return-to-origin flow
-            delivery.setReturnToOrigin(true);
-        }
         deliveryRepo.save(delivery);
 
         // Remove the associated route stop (soft-delete)
@@ -356,7 +365,11 @@ public class ExceptionResolutionService {
                 stop.setRemovedReason(reason != null ? reason : "CANCELLED");
                 stop.setRemovedBy("ADMIN");
                 routeStopRepository.save(stop);
-                routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                String clientName = order != null ? order.getClientName() : null;
+                String erpOrderId = order != null ? order.getErpOrderId() : null;
+                routeWebSocketService.notifyDriverStopRemoved(
+                    route.getDriverId(), route.getId(), route.getName(),
+                    clientName, erpOrderId, reason);
             } else if (route != null && route.getStatus() == RouteStatus.DRAFT) {
                 routeStopRepository.delete(stop);
             }
@@ -373,135 +386,128 @@ public class ExceptionResolutionService {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
             if (order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
-                final java.util.UUID orderIdForSync = order.getId();
-                org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-                    new org.springframework.transaction.support.TransactionSynchronization() {
-                        @Override
-                        public void afterCommit() {
-                            java.util.concurrent.CompletableFuture.runAsync(() -> {
-                                orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
-                            });
-                        }
-                    }
-                );
+                outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
             }
         }
     }
 
-    @Transactional
-    public AdminDeliveryDetailResponse createBackorderDelivery(UUID deliveryId) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+	public AdminDeliveryDetailResponse createBackorderDelivery(UUID deliveryId) {
+		// 1. Transactional Persistence
+		UUID newDeliveryId = self.doCreateBackorder(deliveryId);
 
-        Order order = delivery.getOrder();
-        if (order == null) throw AppException.badRequest("No order attached to this delivery");
+		// 2. Non-Transactional detail fetch (includes external HTTP call)
+		return dispatchService.getDeliveryDetail(newDeliveryId);
+	}
 
-        if (order.getOdooBackorderId() == null) {
-            throw AppException.badRequest("No Odoo Backorder ID registered for this order.");
-        }
+	@Transactional
+	public UUID doCreateBackorder(UUID deliveryId) {
+		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+				.orElseThrow(() -> AppException.notFound("Delivery not found"));
 
-        // We clone the order to create a new delivery task
-        // By appending "-B1" etc, we bypass unique constraint locally, while OdooClient still knows to look up the original sale.order
-        String originalErpId = order.getErpOrderId();
-        String newErpId = originalErpId != null ? originalErpId + "-B" + System.currentTimeMillis() : null;
+		Order order = delivery.getOrder();
+		if (order == null) throw AppException.badRequest("No order attached to this delivery");
 
-        // Calculate remaining items
-        List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
-        int newTotalQuantity = 0;
-        BigDecimal newTotalWeightKg = BigDecimal.ZERO;
+		// Capture the Odoo backorder picking ID before we clear it from the original order.
+		// The new backorder order needs it so ERP sync can target the correct Odoo picking directly,
+		// without needing the sale order reference (which would violate the erp_order_id unique constraint).
+		Integer odooBackorderPickingId = order.getOdooBackorderId();
 
-        if (order.getItems() != null) {
-            for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
-                int planned = item.getQuantity() != null ? item.getQuantity() : 0;
-                int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
-                int remaining = Math.max(planned - done, 0);
+		List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
+		int newTotalQuantity = 0;
+		BigDecimal newTotalWeightKg = BigDecimal.ZERO;
 
-                if (remaining > 0) {
-                    com.asm.delivery.entity.OrderItem clonedItem = new com.asm.delivery.entity.OrderItem();
-                    clonedItem.setId(item.getId());
-                    clonedItem.setSku(item.getSku());
-                    clonedItem.setName(item.getName());
-                    clonedItem.setQuantity(remaining);
-                    clonedItem.setQuantityDone(0);
-                                        clonedItem.setUnitWeightKg(item.getUnitWeightKg());
-                                        clonedItem.setUnitPrice(item.getUnitPrice());
-                    remainingItems.add(clonedItem);
-                    newTotalQuantity += remaining;
+		if (order.getItems() != null) {
+			for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
+				int planned = item.getQuantity() != null ? item.getQuantity() : 0;
+				int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
+				int remaining = Math.max(planned - done, 0);
 
-                                        BigDecimal unitWeight = item.getUnitWeightKg() != null ? item.getUnitWeightKg() : BigDecimal.ZERO;
-                                        newTotalWeightKg = newTotalWeightKg.add(unitWeight.multiply(BigDecimal.valueOf(remaining)));
-                }
-            }
-        }
+				if (remaining > 0) {
+					com.asm.delivery.entity.OrderItem clonedItem = new com.asm.delivery.entity.OrderItem();
+					clonedItem.setSku(item.getSku());
+					clonedItem.setName(item.getName());
+					clonedItem.setQuantity(remaining);
+					clonedItem.setQuantityDone(0);
+					clonedItem.setUnitWeightKg(item.getUnitWeightKg());
+					clonedItem.setUnitPrice(item.getUnitPrice());
+					remainingItems.add(clonedItem);
+					newTotalQuantity += remaining;
 
-        if (remainingItems.isEmpty()) {
-            throw AppException.badRequest("No remaining items to backorder");
-        }
+					BigDecimal unitWeight = item.getUnitWeightKg() != null ? item.getUnitWeightKg() : BigDecimal.ZERO;
+					newTotalWeightKg = newTotalWeightKg.add(unitWeight.multiply(BigDecimal.valueOf(remaining)));
+				}
+			}
+		}
 
-        Order backorder = Order.builder()
-                .source(order.getSource())
-                .schemaVersion(order.getSchemaVersion())
-                .clientId(order.getClientId())
-                .clientName(order.getClientName())
-                .clientPhone(order.getClientPhone())
-                .clientEmail(order.getClientEmail())
-                .erpOrderId(newErpId)
-                .erpClientId(order.getErpClientId())
-                .erpExternalRef(order.getErpExternalRef())
-                .originName(order.getOriginName())
-                .originAddress(order.getOriginAddress())
-                .originCity(order.getOriginCity())
-                .originPostalCode(order.getOriginPostalCode())
-                .originCountryCode(order.getOriginCountryCode())
-                .originContactName(order.getOriginContactName())
-                .originContactPhone(order.getOriginContactPhone())
-                .originContactEmail(order.getOriginContactEmail())
-                .dropoffAddress(order.getDropoffAddress())
-                .dropoffCity(order.getDropoffCity())
-                .dropoffPostalCode(order.getDropoffPostalCode())
-                .dropoffCountryCode(order.getDropoffCountryCode())
-                .dropoffLat(order.getDropoffLat())
-                .dropoffLng(order.getDropoffLng())
-                .deliveryInstructions(order.getDeliveryInstructions())
-                .totalAmount(order.getTotalAmount())
-                .currency(order.getCurrency())
-                .priority(order.getPriority())
-                .status(OrderStatus.PENDING)
-                .items(remainingItems)
-                .totalQuantity(newTotalQuantity)
-                .totalWeightKg(newTotalWeightKg)
-                .odooSyncStatus(null) // Unsynced because we just created it
-                .build();
-                
-        // Save the new Order
-        backorder = orderRepo.save(backorder);
+		if (remainingItems.isEmpty()) {
+			throw AppException.badRequest("No remaining items to backorder");
+		}
 
-        // Delete Odoo Backorder ID from the original order because we processed it
-        order.setOdooBackorderId(null);
-        orderRepo.save(order);
+		Order backorder = Order.builder()
+				.source(order.getSource())
+				.schemaVersion(order.getSchemaVersion())
+				.companyId(order.getCompanyId())
+				.clientId(order.getClientId())
+				.clientName(order.getClientName())
+				.clientPhone(order.getClientPhone())
+				.clientEmail(order.getClientEmail())
+				.erpOrderId(null)
+				.parentOrderId(order.getId())
+				.odooBackorderId(odooBackorderPickingId)
+				.erpClientId(order.getErpClientId())
+				.erpExternalRef(order.getErpExternalRef())
+				.originName(order.getOriginName())
+				.originAddress(order.getOriginAddress())
+				.originCity(order.getOriginCity())
+				.originPostalCode(order.getOriginPostalCode())
+				.originCountryCode(order.getOriginCountryCode())
+				.originContactName(order.getOriginContactName())
+				.originContactPhone(order.getOriginContactPhone())
+				.originContactEmail(order.getOriginContactEmail())
+				.dropoffAddress(order.getDropoffAddress())
+				.dropoffCity(order.getDropoffCity())
+				.dropoffPostalCode(order.getDropoffPostalCode())
+				.dropoffCountryCode(order.getDropoffCountryCode())
+				.dropoffLat(order.getDropoffLat())
+				.dropoffLng(order.getDropoffLng())
+				.deliveryInstructions(order.getDeliveryInstructions())
+				.totalAmount(order.getTotalAmount())
+				.currency(order.getCurrency())
+				.priority(order.getPriority())
+				.status(OrderStatus.PENDING)
+				.items(remainingItems)
+				.totalQuantity(newTotalQuantity)
+				.totalWeightKg(newTotalWeightKg)
+				.odooSyncStatus(null)
+				.build();
+				
+		backorder = orderRepo.save(backorder);
 
-        // Automatically create a Delivery task for this backorder
-        Delivery newDelivery = Delivery.builder()
-                .order(backorder)
-                .status(DeliveryStatus.UNSCHEDULED)
-                .createdAt(LocalDateTime.now())
-                .build();
-        deliveryRepo.save(newDelivery);
+		order.setOdooBackorderId(null);
+		orderRepo.save(order);
 
-        appendHistory(newDelivery,
-                DeliveryStatus.UNSCHEDULED,
-                "SYSTEM",
-                Role.SYSTEM,
-                "Backorder created from partial delivery #" + shortDeliveryId(delivery.getId()) + ".");
+		Delivery newDelivery = Delivery.builder()
+				.order(backorder)
+				.companyId(order.getCompanyId())
+				.status(DeliveryStatus.UNSCHEDULED)
+				.createdAt(LocalDateTime.now())
+				.build();
+		deliveryRepo.save(newDelivery);
 
-        appendHistory(delivery,
-                delivery.getStatus(),
-                "SYSTEM",
-                Role.SYSTEM,
-                "Backorder delivery #" + shortDeliveryId(newDelivery.getId()) + " created for remaining items.");
+		appendHistory(newDelivery,
+				DeliveryStatus.UNSCHEDULED,
+				"SYSTEM",
+				Role.SYSTEM,
+				"Backorder created from partial delivery #" + shortDeliveryId(delivery.getId()) + ".");
 
-        return dispatchService.getDeliveryDetail(delivery.getId()); 
-    }
+		appendHistory(delivery,
+				delivery.getStatus(),
+				"SYSTEM",
+				Role.SYSTEM,
+				"Backorder delivery #" + shortDeliveryId(newDelivery.getId()) + " created for remaining items.");
+
+		return newDelivery.getId(); 
+	}
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()
                 .map(Delivery::getId)
@@ -527,11 +533,11 @@ public class ExceptionResolutionService {
                                                                                                                                                   String motif,
                                                                                                                                                   String comment) {
                 Order order = delivery.getOrder();
-                DriverDTO driver = delivery.getDriverId() != null ? transportPort.getDriver(delivery.getDriverId().toString()) : null;
+                // DELETED: Blocking transportPort.getDriver() inside @Transactional.
                 RouteInfo routeInfo = loadRouteInfoMap(List.of(delivery)).get(delivery.getId());
                 String zoneName = null;
                 if (order != null && order.getZoneId() != null) {
-                        zoneName = zoneRepository.findById(order.getZoneId()).map(Zone::getName).orElse(null);
+                        zoneName = zoneRepository.findByCompanyIdAndId(order.getCompanyId(), order.getZoneId()).map(Zone::getName).orElse(null);
                 }
                 return AdminOpsExceptionsResponse.ExceptionItem.builder()
                                 .deliveryId(delivery.getId())
@@ -542,13 +548,12 @@ public class ExceptionResolutionService {
                                 .failureCode(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null)
                                 .motif(motif)
                                 .driverId(delivery.getDriverId())
-                                .driverName(driver != null ? driver.getName() : null)
+                                .driverName(delivery.getDriverId() != null ? delivery.getDriverId().toString().substring(0, 8) : null)
                                 .clientName(order != null ? order.getClientName() : null)
                                 .city(order != null ? order.getDropoffCity() : null)
                                 .zoneName(zoneName)
                                 .severity(severity)
                                 .comment(comment)
-                                .returnToOrigin(Boolean.TRUE.equals(delivery.getReturnToOrigin()))
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
                                 .build();
@@ -641,7 +646,7 @@ public class ExceptionResolutionService {
         }
 
         private void removeStopFromCurrentRoute(UUID deliveryId) {
-                routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
+                routeStopRepository.findActiveByDeliveryIdWithRoute(deliveryId).ifPresent(stop -> {
                         Route route = stop.getRoute();
                         if (route == null) return;
                         
@@ -666,7 +671,7 @@ public class ExceptionResolutionService {
 
         private Set<UUID> moveStopToDriverRoute(Delivery delivery, UUID targetDriverId, UUID targetRouteId, Integer insertAtOrder, String actorName, java.time.LocalTime requestedStartTime, java.time.LocalTime requestedEndTime) {
                 Set<UUID> affectedRouteIds = new LinkedHashSet<>();
-                Optional<RouteStop> currentStopOpt = routeStopRepository.findActiveByDeliveryId(delivery.getId());
+                Optional<RouteStop> currentStopOpt = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId());
                 Route sourceRoute = null;
 
                 if (currentStopOpt.isPresent()) {
@@ -703,8 +708,8 @@ public class ExceptionResolutionService {
                 java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getStartTimeWindow() : null);
                 java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getEndTimeWindow() : null);
 
-                // User-requested boundary validation (Chronological Check)
-                if (finalStartTime != null && !targetStops.isEmpty()) {
+                // Chronological check only for DRAFT routes — active routes accept stops without strict ordering
+                if (finalStartTime != null && !targetStops.isEmpty() && targetRoute.getStatus() == RouteStatus.DRAFT) {
                     int pos = (insertAtOrder != null) ? insertAtOrder : targetStops.size() + 1;
                     
                     // Check against previous stop (if any)

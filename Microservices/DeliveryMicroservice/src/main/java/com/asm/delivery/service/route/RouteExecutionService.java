@@ -34,6 +34,7 @@ public class RouteExecutionService {
     private final TransportPort transportPort;
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.service.VehicleInspectionService inspectionService;
+    private final RouteReportService routeReportService;
 
     @Transactional
     public RouteResponse close(UUID routeId) {
@@ -58,17 +59,28 @@ public class RouteExecutionService {
         routeRepository.save(route);
         auditLogService.logAction(null, "CLOSE_ROUTE", "ROUTE", routeId.toString(),
                 java.util.Map.of("tournee", route.getName() != null ? route.getName() : routeId.toString(), "action", "Cloture manuelle par admin"));
+        // Snapshot the closure report — best effort, never blocks the close.
+        routeReportService.persistSnapshot(route);
         return routePlanningService.get(route.getId());
     }
 
     @Transactional(readOnly = true)
     public RouteResponse getTodayForDriver(UUID driverId) {
-        List<RouteStatus> statuses = List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
-        Route route = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, LocalDate.now(), statuses)
-                .stream()
-                .findFirst()
-                .orElseThrow(() -> AppException.notFound("No route assigned for today"));
-        return toResponse(route);
+        LocalDate today = LocalDate.now();
+        List<RouteStatus> activeStatuses = List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS);
+
+        // Primary: today's route (VALIDATED or IN_PROGRESS)
+        var todayRoute = routeRepository.findByDriverIdAndDateAndStatusIn(driverId, today, activeStatuses)
+                .stream().findFirst();
+        if (todayRoute.isPresent()) {
+            return toResponse(todayRoute.get());
+        }
+
+        // Fallback: yesterday's route still IN_PROGRESS (driver crossed midnight)
+        var yesterdayRoute = routeRepository.findByDriverIdAndDateAndStatusIn(
+                driverId, today.minusDays(1), List.of(RouteStatus.IN_PROGRESS))
+                .stream().findFirst();
+        return yesterdayRoute.map(this::toResponse).orElse(null);
     }
 
     @Transactional
@@ -166,7 +178,7 @@ public class RouteExecutionService {
 
     @Transactional
     public void syncStopFromDelivery(UUID deliveryId, DeliveryStatus deliveryStatus, LocalDateTime eventAt, String note) {
-        routeStopRepository.findByDeliveryId(deliveryId).ifPresent(stop -> {
+        routeStopRepository.findByDeliveryIdWithRoute(deliveryId).ifPresent(stop -> {
             RouteStopStatus mappedStatus = mapDeliveryToRouteStopStatus(deliveryStatus);
             if (mappedStatus == null) {
                 return;
@@ -287,6 +299,8 @@ public class RouteExecutionService {
         route.setStatus(RouteStatus.CLOSED);
         route.setClosedAt(LocalDateTime.now());
         routeRepository.save(route);
+        // Snapshot the closure report — best effort, never blocks the close.
+        routeReportService.persistSnapshot(route);
     }
 
 }

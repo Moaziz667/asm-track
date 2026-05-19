@@ -40,6 +40,9 @@ public class AuditLog {
     @Column(nullable = false)
     private String ipAddress;
 
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
 }

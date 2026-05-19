@@ -2,6 +2,7 @@ package com.asm.delivery.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -12,11 +13,15 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "companyFilter", condition = "company_id = :companyId")
 public class Delivery {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
+
+    @Column(name = "company_id", nullable = false)
+    private UUID companyId;
 
     @OneToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "order_id", nullable = false, unique = true)
@@ -92,11 +97,6 @@ public class Delivery {
     @Column(name = "cancelled_by", length = 10)
     private Role cancelledBy;
 
-    /** True when cancellation occurred after pickup — driver must return parcel to origin depot. */
-    @Column(name = "return_to_origin", nullable = false)
-    @Builder.Default
-    private Boolean returnToOrigin = false;
-
     // NULL = not a COD order, TRUE = cash collected, FALSE = cash not collected
     @Column(name = "cod_collected")
     private Boolean codCollected;
@@ -109,6 +109,9 @@ public class Delivery {
 
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
+
+    @Version
+    private Long version;
 
     @PrePersist
     void prePersist() {

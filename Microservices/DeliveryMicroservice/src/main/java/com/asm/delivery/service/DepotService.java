@@ -3,6 +3,7 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.DepotRequest;
 import com.asm.delivery.dto.response.DepotResponse;
 import com.asm.delivery.entity.Depot;
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DepotRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -41,12 +42,14 @@ public class DepotService {
 
     @Transactional
     public DepotResponse create(UserPrincipal principal, DepotRequest request) {
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Depot depot = Depot.builder()
                 .name(request.getName().trim())
                 .address(request.getAddress())
                 .latitude(request.getLatitude())
                 .longitude(request.getLongitude())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
+                .companyId(companyId)
                 .build();
         Depot saved = depotRepository.save(depot);
         auditLogService.logAction(principal, "CREATE_DEPOT", "DEPOT", saved.getId().toString(),

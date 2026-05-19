@@ -21,6 +21,9 @@ import com.asm.delivery.service.RouteOptimizationService;
 import com.asm.delivery.service.route.RoutePlanningService;
 import com.asm.delivery.service.route.RouteExecutionService;
 import com.asm.delivery.service.RoutePdfService;
+import com.asm.delivery.service.RouteReportPdfService;
+import com.asm.delivery.service.route.RouteReportService;
+import com.asm.delivery.dto.response.RouteReportResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -46,6 +49,8 @@ public class AdminRouteController {
     private final RoutePlanningService routePlanningService;
     private final RouteExecutionService routeExecutionService;
     private final RoutePdfService routePdfService;
+    private final RouteReportService routeReportService;
+    private final RouteReportPdfService routeReportPdfService;
     private final RouteOptimizationService routeOptimizationService;
     private final RouteStopRepository routeStopRepository;
     private final TrackingRepository trackingRepository;
@@ -115,6 +120,7 @@ public class AdminRouteController {
 
     @PatchMapping("/{id}/stops/{stopId}")
     @Operation(summary = "Patch stop time windows / buffer")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> patchStop(@PathVariable UUID id,
                                                     @PathVariable UUID stopId,
                                                     @RequestBody com.asm.delivery.dto.request.PatchRouteStopRequest request) {
@@ -138,6 +144,7 @@ public class AdminRouteController {
 
     @PatchMapping("/{id}/lock")
     @Operation(summary = "Lock or unlock a route (excluded from batch optimization when locked)")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> setLocked(@PathVariable UUID id,
                                                    @Valid @RequestBody SetRouteLockRequest request) {
         return ResponseEntity.ok(routePlanningService.setLocked(id, Boolean.TRUE.equals(request.getLocked())));
@@ -160,6 +167,28 @@ public class AdminRouteController {
                 .body(pdf);
     }
 
+    // ─── Closure report (CLOSED routes) ──────────────────────────────────────────
+
+    @GetMapping("/{id}/report")
+    @Operation(summary = "Rapport de tournée (route closure report)",
+        description = "Returns the immutable closure report. Snapshot is taken at close time; "
+            + "if missing (legacy routes), it is computed on the fly and persisted.")
+    public ResponseEntity<RouteReportResponse> report(@PathVariable UUID id) {
+        var route = routePlanningService.getRouteTransactional(id);
+        return ResponseEntity.ok(routeReportService.load(route));
+    }
+
+    @GetMapping("/{id}/report/pdf")
+    @Operation(summary = "Rapport de tournée PDF")
+    public ResponseEntity<byte[]> reportPdf(@PathVariable UUID id) {
+        byte[] pdf = routeReportPdfService.generate(id);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=rapport-tournee-" + id + ".pdf")
+                .contentType(MediaType.APPLICATION_PDF)
+                .body(pdf);
+    }
+
     // ─── Optimization endpoints ───────────────────────────────────────────────────
 
     @PostMapping("/{id}/optimize")
@@ -170,6 +199,7 @@ public class AdminRouteController {
 
     @PutMapping("/{id}/apply-optimization")
     @Operation(summary = "Apply optimized stop order and recalculate ETAs/SLAs")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> applyOptimization(@PathVariable UUID id) {
         routeOptimizationService.applyOptimization(id);
         return ResponseEntity.ok(routePlanningService.get(id));
@@ -177,6 +207,7 @@ public class AdminRouteController {
 
     @PutMapping("/{id}/reorder")
     @Operation(summary = "Manually reorder stops and recalculate ETAs/SLAs")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> reorder(@PathVariable UUID id,
                                                  @Valid @RequestBody ReorderStopsRequest request) {
         routeOptimizationService.applyManualReorder(id, request.getStopIds());
@@ -207,6 +238,7 @@ public class AdminRouteController {
 
     @PostMapping("/{id}/recalculate")
     @Operation(summary = "Recalculate ETAs and SLAs from current departure time")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> recalculate(@PathVariable UUID id) {
         routeOptimizationService.recalculate(id);
         return ResponseEntity.ok(routePlanningService.get(id));
@@ -255,7 +287,8 @@ public class AdminRouteController {
     // ─── Stop cancellation ────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/stops/{stopId}/cancel")
-    @Operation(summary = "Cancel a single stop — SCHEDULED/PENDING/ARRIVED → UNSCHEDULED, PICKED_UP → returnToOrigin. IN_TRANSIT is rejected.")
+    @Operation(summary = "Cancel a single stop — all statuses except IN_TRANSIT return delivery to UNSCHEDULED.")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> cancelStop(
             @PathVariable UUID id,
             @PathVariable UUID stopId,
@@ -274,6 +307,7 @@ public class AdminRouteController {
 
     @PostMapping("/transfer-stops")
     @Operation(summary = "Unified endpoint to transfer specific stops from one route/driver to another")
+    @IdempotentOperation
     public ResponseEntity<com.asm.delivery.dto.response.TransferStopsResponse> transferStops(
             @Valid @RequestBody com.asm.delivery.dto.request.TransferStopsRequest request) {
         return ResponseEntity.ok(dispatchService.transferStops(request));
@@ -281,6 +315,7 @@ public class AdminRouteController {
 
     @PostMapping("/{id}/stops/active")
     @Operation(summary = "Add a stop to a VALIDATED or IN_PROGRESS route — notifies driver via WebSocket")
+    @IdempotentOperation
     public ResponseEntity<RouteResponse> addStopToActive(@PathVariable UUID id,
             @Valid @RequestBody AddRouteStopRequest request) {
         return ResponseEntity.ok(routePlanningService.addStopToValidated(id, request));

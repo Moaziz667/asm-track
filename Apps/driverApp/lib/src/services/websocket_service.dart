@@ -8,6 +8,9 @@ class RouteWsEvent {
     required this.event,
     required this.routeId,
     required this.routeName,
+    this.clientName,
+    this.erpOrderId,
+    this.reason,
   });
 
   factory RouteWsEvent.fromJson(Map<String, dynamic> json) {
@@ -15,12 +18,18 @@ class RouteWsEvent {
       event: json['event'] as String? ?? '',
       routeId: json['routeId'] as String? ?? '',
       routeName: json['routeName'] as String? ?? '',
+      clientName: json['clientName'] as String?,
+      erpOrderId: json['erpOrderId'] as String?,
+      reason: json['reason'] as String?,
     );
   }
 
   final String event;
   final String routeId;
   final String routeName;
+  final String? clientName;
+  final String? erpOrderId;
+  final String? reason;
 }
 
 class WebSocketService {

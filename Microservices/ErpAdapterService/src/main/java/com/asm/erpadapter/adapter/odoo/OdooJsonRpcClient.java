@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.config.CompanyErpConfig;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -36,6 +37,8 @@ public class OdooJsonRpcClient {
     private final OdooConfig config;
     private final RestTemplate restTemplate;
 
+    // Spring-managed singleton — uses global OdooConfig
+    @org.springframework.beans.factory.annotation.Autowired
     public OdooJsonRpcClient(
             OdooConfig config,
             @Value("${odoo.timeout.connect-ms:5000}") int connectMs,
@@ -43,10 +46,29 @@ public class OdooJsonRpcClient {
 
         this.config = config;
 
-        // Apply explicit timeouts to prevent thread hangup when Odoo is down
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
+        this.restTemplate = new RestTemplate(factory);
+    }
+
+    // Per-company factory — not a Spring bean, created by CompanyAdapterFactory
+    public static OdooJsonRpcClient forCompany(CompanyErpConfig cfg) {
+        OdooConfig companyCfg = new OdooConfig();
+        companyCfg.setUrl(cfg.apiUrl());
+        companyCfg.setDb(cfg.dbName());
+        companyCfg.setUid(cfg.uid());
+        companyCfg.setPassword(cfg.apiKey());
+
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(5000);
+        factory.setReadTimeout(15000);
+        // Use a private constructor
+        return new OdooJsonRpcClient(companyCfg, factory);
+    }
+
+    private OdooJsonRpcClient(OdooConfig config, SimpleClientHttpRequestFactory factory) {
+        this.config = config;
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -73,9 +95,12 @@ public class OdooJsonRpcClient {
         try {
             return restTemplate.postForObject(config.getUrl(), body, Map.class);
         } catch (Exception e) {
-            // Swallow all errors (timeout, connection refused, etc.) and return null.
-            // Callers check for null and return false/empty.
-            log.warn("Odoo RPC call failed (Odoo may be down): {}", e.getMessage());
+            // Swallow transport errors — callers check for null and treat as failure.
+            List<?> args = (List<?>) params.get("args");
+            String model = (args != null && args.size() > 3) ? String.valueOf(args.get(3)) : "unknown";
+            String method = (args != null && args.size() > 4) ? String.valueOf(args.get(4)) : "unknown";
+            log.warn("Odoo RPC transport error — provider=odoo model={} method={} errorClass={} reason={}",
+                    model, method, e.getClass().getSimpleName(), e.getMessage());
             return null;
         }
     }
@@ -120,7 +145,8 @@ public class OdooJsonRpcClient {
             Map<String, Object> searchResponse = callRpc(
                     buildArgs(model, "search", List.of(domain != null ? domain : List.of()), searchKwargs));
             if (searchResponse == null || searchResponse.containsKey("error")) {
-                log.warn("Odoo search failed for model={}: {}", model, searchResponse);
+                Object odooError = searchResponse != null ? searchResponse.get("error") : "null_response";
+                log.warn("Odoo RPC error — provider=odoo model={} method=search odooError={}", model, odooError);
                 return List.of();
             }
 
@@ -139,7 +165,8 @@ public class OdooJsonRpcClient {
             Map<String, Object> readResponse = callRpc(
                     buildArgs(model, "read", List.of(ids), readKwargs));
             if (readResponse == null || readResponse.containsKey("error")) {
-                log.warn("Odoo read failed for model={}: {}", model, readResponse);
+                Object odooError = readResponse != null ? readResponse.get("error") : "null_response";
+                log.warn("Odoo RPC error — provider=odoo model={} method=read ids={} odooError={}", model, ids, odooError);
                 return List.of();
             }
 
@@ -147,7 +174,8 @@ public class OdooJsonRpcClient {
             if (readResult instanceof List<?> list) return (List<Map<String, Object>>) list;
             return List.of();
         } catch (Exception e) {
-            log.warn("Odoo searchRead failed for model={}", model, e);
+            log.warn("Odoo RPC exception — provider=odoo model={} method=searchRead errorClass={} reason={}",
+                    model, e.getClass().getSimpleName(), e.getMessage(), e);
             return List.of();
         }
     }

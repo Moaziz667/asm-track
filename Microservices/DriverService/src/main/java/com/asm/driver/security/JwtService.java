@@ -1,77 +1,68 @@
 package com.asm.driver.security;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
+import jakarta.annotation.PostConstruct;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 
-import javax.crypto.SecretKey;
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
-import java.util.Date;
+import java.math.BigInteger;
+import java.security.KeyFactory;
+import java.security.interfaces.RSAPublicKey;
+import java.security.spec.RSAPublicKeySpec;
+import java.util.Base64;
+import java.util.List;
 import java.util.Map;
 
 @Service
+@Slf4j
 public class JwtService {
 
-    private final SecretKey key;
-    private final long accessExpiration;
-    private final long refreshExpiration;
+    @Value("${auth.server.jwks-uri}")
+    private String jwksUri;
 
-    public JwtService(
-            @Value("${app.security.jwt.secret}") String secret,
-            @Value("${app.security.jwt.access-expiration}") long accessExpiration,
-            @Value("${app.security.jwt.refresh-expiration}") long refreshExpiration) {
-        this.key = Keys.hmacShaKeyFor(deriveHmacKey(secret)); 
-        this.accessExpiration = accessExpiration;
-        this.refreshExpiration = refreshExpiration;
-    }
+    private RSAPublicKey publicKey;
 
-    private byte[] deriveHmacKey(String secret) {
-        try {
-            return MessageDigest.getInstance("SHA-256")
-                    .digest(secret.getBytes(StandardCharsets.UTF_8));
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 algorithm not available", ex);
-        }
-    }
-
-    public String generateAccessToken(String subject, String role, Map<String, Object> extraClaims) {
-        return buildToken(subject, role, "access", extraClaims, accessExpiration);
-    }
-
-    public String generateRefreshToken(String subject, String role) {
-        return buildToken(subject, role, "refresh", Map.of(), refreshExpiration);
-    }
-
-    private String buildToken(String subject, String role, String type, Map<String, Object> extraClaims, long expiration) {
-        return Jwts.builder()
-                .subject(subject)
-                .claims(extraClaims)
-                .claim("role", role)
-                .claim("type", type)
-                .issuedAt(new Date(System.currentTimeMillis()))
-                .expiration(new Date(System.currentTimeMillis() + expiration))
-                .signWith(key)
-                .compact();
+    @PostConstruct
+    public void init() {
+        this.publicKey = fetchPublicKey();
+        log.info("RSA public key loaded from JWKS: {}", jwksUri);
     }
 
     public Claims parseToken(String token) {
         return Jwts.parser()
-                .verifyWith(key)
+                .verifyWith(publicKey)
                 .build()
                 .parseSignedClaims(token)
                 .getPayload();
     }
 
     public boolean isValid(String token) {
-        try {
-            parseToken(token);
-            return true;
-        } catch (Exception e) {
-            return false;
+        try { parseToken(token); return true; }
+        catch (JwtException | IllegalArgumentException e) { return false; }
+    }
+
+    @SuppressWarnings("unchecked")
+    private RSAPublicKey fetchPublicKey() {
+        RestTemplate rt = new RestTemplate();
+        for (int attempt = 1; attempt <= 5; attempt++) {
+            try {
+                Map<String, Object> jwks = rt.getForObject(jwksUri, Map.class);
+                List<Map<String, Object>> keys = (List<Map<String, Object>>) jwks.get("keys");
+                Map<String, Object> key = keys.get(0);
+                Base64.Decoder dec = Base64.getUrlDecoder();
+                BigInteger modulus  = new BigInteger(1, dec.decode((String) key.get("n")));
+                BigInteger exponent = new BigInteger(1, dec.decode((String) key.get("e")));
+                return (RSAPublicKey) KeyFactory.getInstance("RSA")
+                        .generatePublic(new RSAPublicKeySpec(modulus, exponent));
+            } catch (Exception e) {
+                log.warn("JWKS fetch attempt {}/5 failed: {} — retrying in 3s", attempt, e.getMessage());
+                try { Thread.sleep(3000); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
+            }
         }
+        throw new IllegalStateException("Could not fetch RSA public key from " + jwksUri);
     }
 }

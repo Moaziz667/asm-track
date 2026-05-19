@@ -6,6 +6,8 @@ spring:
     name: api-gateway
   cloud:
     gateway:
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
       routes:
         - id: app-backend-client-auth
           uri: ${APP_BACKEND_URL:http://localhost:8080}
@@ -93,6 +95,26 @@ spring:
           predicates:
             - Path=/api/admin/audit/**
 
+        - id: delivery-admin-search
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/search
+
+        - id: delivery-admin-companies
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/companies/**
+
+        - id: delivery-admin-fleet
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/fleet/**
+
+        - id: driver-admin
+          uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
+          predicates:
+            - Path=/api/admin/drivers/**
+
         - id: delivery-v1-depots
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:
@@ -138,10 +160,20 @@ spring:
           predicates:
             - Path=/internal/users/**
 
+        - id: internal-app-backend-admin-users
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/internal/admin-users/**
+
         - id: internal-driver-service
           uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
           predicates:
             - Path=/internal/drivers/**
+
+        - id: delivery-public-tracking
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/public/**
 
 app:
   jwt:

@@ -1,0 +1,240 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mxGraphModel dx="1422" dy="762" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1654" pageHeight="1169" math="0" shadow="0">
+  <root>
+    <mxCell id="0"/>
+    <mxCell id="1" parent="0"/>
+
+    <!-- ═══ SECTION BACKGROUNDS ══════════════════════════════════════════════ -->
+
+    <mxCell id="bg1" value="&lt;b&gt;Client Apps&lt;/b&gt;"
+      style="rounded=1;arcSize=4;fillColor=#F8FAFC;strokeColor=#94A3B8;strokeWidth=1.5;dashed=1;
+             html=1;verticalAlign=top;align=center;spacingTop=10;fontSize=13;fontStyle=1;fontColor=#334155;"
+      vertex="1" parent="1">
+      <mxGeometry x="20" y="50" width="240" height="1040" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="bg2" value="&lt;b&gt;Core Microservices&lt;/b&gt;"
+      style="rounded=1;arcSize=4;fillColor=#EFF6FF;strokeColor=#3B82F6;strokeWidth=2;
+             html=1;verticalAlign=top;align=center;spacingTop=10;fontSize=13;fontStyle=1;fontColor=#1D4ED8;"
+      vertex="1" parent="1">
+      <mxGeometry x="300" y="50" width="1070" height="1040" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="bg3" value="&lt;b&gt;External / Infrastructure&lt;/b&gt;"
+      style="rounded=1;arcSize=4;fillColor=#FAF5FF;strokeColor=#7C3AED;strokeWidth=1.5;dashed=1;
+             html=1;verticalAlign=top;align=center;spacingTop=10;fontSize=13;fontStyle=1;fontColor=#6D28D9;"
+      vertex="1" parent="1">
+      <mxGeometry x="1410" y="50" width="224" height="1040" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ API GATEWAY ═══════════════════════════════════════════════════════ -->
+
+    <mxCell id="gw_box" value=""
+      style="rounded=1;arcSize=6;fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=2.5;html=1;"
+      vertex="1" parent="1">
+      <mxGeometry x="308" y="130" width="100" height="870" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="gw_icon" value=""
+      style="shape=image;html=1;aspect=fixed;strokeColor=none;fillColor=none;
+             image;image=https://cdn.simpleicons.org/nginx/009639;"
+      vertex="1" parent="1">
+      <mxGeometry x="333" y="148" width="50" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="gw_lbl" value="&lt;b&gt;API Gateway&lt;/b&gt;&lt;br/&gt;&lt;font color='#16A34A'&gt;:80&lt;/font&gt;"
+      style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;
+             fontFamily=Helvetica;fontSize=12;fontColor=#14532D;rotation=-90;"
+      vertex="1" parent="1">
+      <mxGeometry x="308" y="530" width="100" height="60" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ AUTH-SERVER (special highlighted card) ════════════════════════════ -->
+
+    <mxCell id="auth" value=""
+      style="shape=image;html=1;aspect=fixed;strokeColor=none;fillColor=none;
+             image;image=https://cdn.simpleicons.org/jsonwebtokens/EA580C;"
+      vertex="1" parent="1">
+      <mxGeometry x="446" y="163" width="54" height="54" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="auth_card" value="&lt;b style='font-size:13px'&gt;auth-server&lt;/b&gt;&lt;br/&gt;
+      &lt;span style='color:#78716C;font-size:11px'&gt;:8089&lt;/span&gt;&lt;br/&gt;
+      &lt;i style='color:#EA580C;font-size:10px'&gt;OAuth2 · RSA JWT Issuer&lt;/i&gt;"
+      style="rounded=1;arcSize=12;fillColor=#FFF7ED;strokeColor=#EA580C;strokeWidth=2.5;
+             html=1;align=left;verticalAlign=middle;spacingLeft=65;fontFamily=Helvetica;"
+      vertex="1" parent="1">
+      <mxGeometry x="430" y="155" width="280" height="80" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ SPRING BOOT SERVICES ══════════════════════════════════════════════ -->
+
+    <mxCell id="ab" value="&lt;b&gt;AppBackend&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;:8080&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#EFF6FF;
+             image;image=https://cdn.simpleicons.org/springboot/6DB33F;"
+      vertex="1" parent="1">
+      <mxGeometry x="500" y="318" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="dl" value="&lt;b&gt;DeliveryMicroservice&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;:8082&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#EFF6FF;
+             image;image=https://cdn.simpleicons.org/springboot/6DB33F;"
+      vertex="1" parent="1">
+      <mxGeometry x="500" y="488" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ds" value="&lt;b&gt;DriverService&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;:8086&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#EFF6FF;
+             image;image=https://cdn.simpleicons.org/springboot/6DB33F;"
+      vertex="1" parent="1">
+      <mxGeometry x="500" y="658" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="ea" value="&lt;b&gt;ErpAdapterService&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;:8088&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#EFF6FF;
+             image;image=https://cdn.simpleicons.org/springboot/6DB33F;"
+      vertex="1" parent="1">
+      <mxGeometry x="500" y="828" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ DATABASES (no duplicates — auth-server shares these via arrows) ═══ -->
+
+    <mxCell id="pga" value="&lt;b&gt;postgres-app&lt;/b&gt;"
+      style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;
+             fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=1.5;
+             fontFamily=Helvetica;fontSize=10;fontColor=#166534;"
+      vertex="1" parent="1">
+      <mxGeometry x="720" y="318" width="100" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="pgd" value="&lt;b&gt;postgres-delivery&lt;/b&gt;"
+      style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;
+             fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=1.5;
+             fontFamily=Helvetica;fontSize=10;fontColor=#166534;"
+      vertex="1" parent="1">
+      <mxGeometry x="720" y="488" width="100" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="minio" value="&lt;b&gt;MinIO&lt;/b&gt;"
+      style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;
+             fillColor=#FFF7ED;strokeColor=#EA580C;strokeWidth=1.5;
+             fontFamily=Helvetica;fontSize=10;fontColor=#9A3412;"
+      vertex="1" parent="1">
+      <mxGeometry x="900" y="488" width="80" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="pgr" value="&lt;b&gt;postgres-driver&lt;/b&gt;"
+      style="shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;
+             fillColor=#F0FDF4;strokeColor=#16A34A;strokeWidth=1.5;
+             fontFamily=Helvetica;fontSize=10;fontColor=#166534;"
+      vertex="1" parent="1">
+      <mxGeometry x="720" y="658" width="100" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ CLIENTS ════════════════════════════════════════════════════════════ -->
+
+    <mxCell id="admin" value="&lt;b&gt;Admin App&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;Next.js&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#F8FAFC;
+             image;image=https://cdn.simpleicons.org/nextdotjs/000000;"
+      vertex="1" parent="1">
+      <mxGeometry x="95" y="318" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="driver" value="&lt;b&gt;Driver App&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;Flutter&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#F8FAFC;
+             image;image=https://cdn.simpleicons.org/flutter/54C5F8;"
+      vertex="1" parent="1">
+      <mxGeometry x="95" y="618" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ EXTERNAL ═══════════════════════════════════════════════════════════ -->
+
+    <mxCell id="odoo" value="&lt;b&gt;Odoo ERP&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;JSON-RPC 2.0&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#FAF5FF;
+             image;image=https://cdn.simpleicons.org/odoo/714B67;"
+      vertex="1" parent="1">
+      <mxGeometry x="1452" y="318" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="fcm" value="&lt;b&gt;Firebase FCM&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;Push Notifications&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#FAF5FF;
+             image;image=https://cdn.simpleicons.org/firebase/FFCA28;"
+      vertex="1" parent="1">
+      <mxGeometry x="1452" y="488" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="osrm" value="&lt;b&gt;OSRM&lt;/b&gt;&lt;br/&gt;&lt;font color='#6B7280'&gt;:5000 · Routing&lt;/font&gt;"
+      style="shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;align=center;
+             labelPosition=center;aspect=fixed;labelBackgroundColor=#FAF5FF;
+             image;image=https://cdn.simpleicons.org/openstreetmap/7EBC6F;"
+      vertex="1" parent="1">
+      <mxGeometry x="1452" y="658" width="70" height="70" as="geometry"/>
+    </mxCell>
+
+    <!-- ═══ CONNECTIONS ════════════════════════════════════════════════════════ -->
+
+    <!-- HTTP/REST — Blue solid -->
+    <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="admin" target="gw_box" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="driver" target="gw_box" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.18;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="gw_box" target="auth_card" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.38;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="gw_box" target="ab" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.55;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="gw_box" target="dl" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.72;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="gw_box" target="ds" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#1A56DB;strokeWidth=2;exitX=1;exitY=0.89;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="gw_box" target="ea" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- DB Connections — Green dashed (auth-server reads shared DBs, no duplication) -->
+    <mxCell id="e8" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=0.9;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="auth_card" target="pga" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e9" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=1;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" source="auth_card" target="pgr" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="800" y="260"/><mxPoint x="800" y="648"/><mxPoint x="770" y="648"/></Array></mxGeometry></mxCell>
+    <mxCell id="e10" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="ab" target="pga" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e11" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="dl" target="pgd" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e12" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="dl" target="minio" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e13" style="dashed=1;dashPattern=8 4;endArrow=open;endFill=0;html=1;strokeColor=#16A34A;strokeWidth=1.5;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" source="ds" target="pgr" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- OAuth2 — Orange dotted, routed via left spine -->
+    <mxCell id="e14" style="dashed=1;dashPattern=4 4;html=1;strokeColor=#EA580C;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0;entryY=0.8;" edge="1" source="ab" target="auth_card" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="450" y="353"/><mxPoint x="450" y="219"/></Array></mxGeometry></mxCell>
+    <mxCell id="e15" style="dashed=1;dashPattern=4 4;html=1;strokeColor=#EA580C;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0;entryY=0.9;" edge="1" source="dl" target="auth_card" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="435" y="523"/><mxPoint x="435" y="227"/></Array></mxGeometry></mxCell>
+    <mxCell id="e16" style="dashed=1;dashPattern=4 4;html=1;strokeColor=#EA580C;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0.1;entryY=1;" edge="1" source="ds" target="auth_card" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="420" y="693"/><mxPoint x="420" y="235"/></Array></mxGeometry></mxCell>
+    <mxCell id="e17" style="dashed=1;dashPattern=4 4;html=1;strokeColor=#EA580C;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0;exitY=0.5;entryX=0.2;entryY=1;" edge="1" source="ea" target="auth_card" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="405" y="863"/><mxPoint x="405" y="235"/></Array></mxGeometry></mxCell>
+
+    <!-- Inter-service — Cyan dashed -->
+    <mxCell id="e18" style="dashed=1;dashPattern=8 4;html=1;strokeColor=#0891B2;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0.6;exitY=1;entryX=0.6;entryY=0;" edge="1" source="dl" target="ds" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+    <mxCell id="e19" style="dashed=1;dashPattern=8 4;html=1;strokeColor=#0891B2;strokeWidth=1.5;edgeStyle=orthogonalEdgeStyle;exitX=0.75;exitY=1;entryX=0.75;entryY=0;" edge="1" source="dl" target="ea" parent="1"><mxGeometry relative="1" as="geometry"/></mxCell>
+
+    <!-- External — Purple, routed via right spine -->
+    <mxCell id="e20" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7C3AED;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="ea" target="odoo" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1390" y="863"/><mxPoint x="1390" y="353"/></Array></mxGeometry></mxCell>
+    <mxCell id="e21" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7C3AED;strokeWidth=2;exitX=1;exitY=0.5;entryX=0;entryY=0.5;" edge="1" source="dl" target="fcm" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1400" y="523"/></Array></mxGeometry></mxCell>
+    <mxCell id="e22" style="edgeStyle=orthogonalEdgeStyle;html=1;strokeColor=#7C3AED;strokeWidth=2;exitX=1;exitY=0.7;entryX=0;entryY=0.5;" edge="1" source="dl" target="osrm" parent="1"><mxGeometry relative="1" as="geometry"><Array as="points"><mxPoint x="1400" y="562"/><mxPoint x="1400" y="693"/></Array></mxGeometry></mxCell>
+
+    <!-- ═══ LEGEND ════════════════════════════════════════════════════════════ -->
+
+    <mxCell id="leg_bg" value=""
+      style="rounded=1;arcSize=4;fillColor=#FFFFFF;strokeColor=#D1D5DB;strokeWidth=1;html=1;"
+      vertex="1" parent="1">
+      <mxGeometry x="20" y="1120" width="1614" height="50" as="geometry"/>
+    </mxCell>
+
+    <mxCell id="l1" value="" style="endArrow=block;endFill=1;html=1;strokeColor=#1A56DB;strokeWidth=2;" edge="1" parent="1"><mxGeometry x="50" y="1145" width="80" height="1" relative="0" as="geometry"><mxPoint x="50" y="1145" as="sourcePoint"/><mxPoint x="120" y="1145" as="targetPoint"/></mxGeometry></mxCell>
+    <mxCell id="l1t" value="HTTP / REST" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#374151;" vertex="1" parent="1"><mxGeometry x="130" y="1133" width="130" height="24" as="geometry"/></mxCell>
+
+    <mxCell id="l2" value="" style="endArrow=open;endFill=0;html=1;dashed=1;dashPattern=8 4;strokeColor=#16A34A;strokeWidth=1.5;" edge="1" parent="1"><mxGeometry relative="0" as="geometry"><mxPoint x="370" y="1145" as="sourcePoint"/><mxPoint x="440" y="1145" as="targetPoint"/></mxGeometry></mxCell>
+    <mxCell id="l2t" value="Database Connection" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#374151;" vertex="1" parent="1"><mxGeometry x="450" y="1133" width="170" height="24" as="geometry"/></mxCell>
+
+    <mxCell id="l3" value="" style="endArrow=block;endFill=1;html=1;dashed=1;dashPattern=4 4;strokeColor=#EA580C;strokeWidth=1.5;" edge="1" parent="1"><mxGeometry relative="0" as="geometry"><mxPoint x="730" y="1145" as="sourcePoint"/><mxPoint x="800" y="1145" as="targetPoint"/></mxGeometry></mxCell>
+    <mxCell id="l3t" value="OAuth2 / Security" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#374151;" vertex="1" parent="1"><mxGeometry x="810" y="1133" width="150" height="24" as="geometry"/></mxCell>
+
+    <mxCell id="l4" value="" style="endArrow=block;endFill=1;html=1;dashed=1;dashPattern=8 4;strokeColor=#0891B2;strokeWidth=1.5;" edge="1" parent="1"><mxGeometry relative="0" as="geometry"><mxPoint x="1070" y="1145" as="sourcePoint"/><mxPoint x="1140" y="1145" as="targetPoint"/></mxGeometry></mxCell>
+    <mxCell id="l4t" value="Inter-Service Call" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#374151;" vertex="1" parent="1"><mxGeometry x="1150" y="1133" width="150" height="24" as="geometry"/></mxCell>
+
+    <mxCell id="l5" value="" style="endArrow=block;endFill=1;html=1;strokeColor=#7C3AED;strokeWidth=2;" edge="1" parent="1"><mxGeometry relative="0" as="geometry"><mxPoint x="1390" y="1145" as="sourcePoint"/><mxPoint x="1460" y="1145" as="targetPoint"/></mxGeometry></mxCell>
+    <mxCell id="l5t" value="External Integration" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontFamily=Helvetica;fontSize=11;fontColor=#374151;" vertex="1" parent="1"><mxGeometry x="1470" y="1133" width="160" height="24" as="geometry"/></mxCell>
+
+  </root>
+</mxGraphModel>

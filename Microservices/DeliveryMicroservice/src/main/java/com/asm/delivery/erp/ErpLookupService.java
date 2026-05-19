@@ -2,6 +2,9 @@ package com.asm.delivery.erp;
 
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.security.UserPrincipal;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.DeliveryStatusHistory;
 import com.asm.delivery.entity.Order;
@@ -29,6 +32,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
@@ -52,8 +56,16 @@ public class ErpLookupService {
 
     private static final long CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
 
+    private String companyKey() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        if (auth != null && auth.getPrincipal() instanceof UserPrincipal p && p.getCompanyId() != null)
+            return p.getCompanyId();
+        return "global";
+    }
+
+    @Transactional(readOnly = true)
     public List<ErpClientDTO> searchClients(String search, int limit) {
-        String cacheKey = "clients-" + search + "-" + limit;
+        String cacheKey = companyKey() + "-clients-" + search + "-" + limit;
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -65,8 +77,9 @@ public class ErpLookupService {
         return dtos;
     }
 
+    @Transactional(readOnly = true)
     public List<ErpProductDTO> searchProducts(String search, int limit) {
-        String cacheKey = "products-" + search + "-" + limit;
+        String cacheKey = companyKey() + "-products-" + search + "-" + limit;
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -78,28 +91,20 @@ public class ErpLookupService {
         return dtos;
     }
 
-    public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
-        String cacheKey = "pending-" + limit;
+    @Transactional(readOnly = true)
+    public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit, boolean forceRefresh) {
+        String cacheKey = companyKey() + "-pending-" + limit;
+        if (forceRefresh) pendingOrderCache.remove(cacheKey);
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
+
+        Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
 
         List<Map<String, Object>> res = erpAdapterClient.getPendingOrders(limit, null);
         List<ErpPendingOrderSummaryDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
+                .filter(dto -> dto.getErpOrderId() != null && !importedErpIds.contains(dto.getErpOrderId()))
                 .collect(Collectors.toList());
-
-        for (ErpPendingOrderSummaryDTO dto : dtos) {
-            if (dto.getErpOrderId() == null) continue;
-            orderRepository.findByErpOrderId(dto.getErpOrderId()).ifPresent(o -> {
-                dto.setAlreadyImported(true);
-                dto.setExistingDeliveryId(deliveryRepository.findByOrderId(o.getId()).map(Delivery::getId).orElse(null));
-                try {
-                    dto.setExistingBackorderId(o.getOdooBackorderId());
-                } catch (Exception e) {
-                    dto.setExistingBackorderId(null);
-                }
-            });
-        }
 
         pendingOrderCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));
         return dtos;
@@ -122,10 +127,14 @@ public class ErpLookupService {
             throw AppException.badRequest("Order " + erpOrderId + " already imported");
         }
 
+        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
+                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
+
         Order order = Order.builder()
                 .source(OrderSource.ODOO)
                 .clientId(null)
                 .erpClientId(null)
+                .companyId(companyId)
                 .clientName(preview.getCustomerName())
                 .clientPhone(preview.getCustomerPhone())
                 .dropoffAddress(StringUtils.hasText(preview.getDeliveryAddress()) ? preview.getDeliveryAddress() : "Address not provided")
@@ -134,7 +143,7 @@ public class ErpLookupService {
                 .deliveryInstructions(preview.getDeliveryInstructions())
                 .totalAmount(preview.getTotalAmount() != null ? preview.getTotalAmount() : BigDecimal.ZERO)
                 .currency(StringUtils.hasText(preview.getCurrency()) ? preview.getCurrency() : "TND")
-                .isCod("Immediate Payment".equalsIgnoreCase(preview.getPaymentTermName()))
+                .isCod(isImmediatePayment(preview.getPaymentTermName()))
                 .scheduledAt(preview.getScheduledAt())
                 .priority(OrderPriority.NORMAL)
                 .items(new ArrayList<>())
@@ -163,6 +172,7 @@ public class ErpLookupService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
+                .companyId(companyId)
                 .build();
         delivery = deliveryRepository.save(delivery);
 
@@ -180,6 +190,29 @@ public class ErpLookupService {
         return toOrderResponse(order, delivery);
     }
 
+
+    @Transactional
+    public Map<String, Object> bulkImportOrders(List<String> erpOrderIds) {
+        int imported = 0, skipped = 0;
+        for (String id : erpOrderIds) {
+            try {
+                importPendingOrder(id);
+                imported++;
+            } catch (Exception e) {
+                log.warn("Bulk import: skipping {} — {}", id, e.getMessage());
+                skipped++;
+            }
+        }
+        return Map.of("imported", imported, "skipped", skipped, "requested", erpOrderIds.size());
+    }
+
+    /** Matches Odoo payment terms that mean "pay now" in any language/variant. */
+    private static boolean isImmediatePayment(String termName) {
+        if (termName == null || termName.isBlank()) return false;
+        String t = termName.toLowerCase(java.util.Locale.ROOT);
+        return t.contains("immediate") || t.contains("immédiat") || t.contains("paiement immédiat")
+                || t.equals("now") || t.contains("cash on delivery") || t.contains("comptant");
+    }
 
     public void invalidateCache() {
         clientCache.clear();

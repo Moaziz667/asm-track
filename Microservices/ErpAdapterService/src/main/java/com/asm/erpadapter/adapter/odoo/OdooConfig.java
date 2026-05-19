@@ -1,6 +1,8 @@
 package com.asm.erpadapter.adapter.odoo;
 
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -10,6 +12,8 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @Getter
+@Setter
+@NoArgsConstructor
 public class OdooConfig {
 
     @Value("${odoo.url:http://host.docker.internal:8069/jsonrpc}")

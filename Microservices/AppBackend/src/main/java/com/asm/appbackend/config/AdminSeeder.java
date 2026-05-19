@@ -19,16 +19,16 @@ public class AdminSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        if (!adminUserRepo.existsByRole("ADMIN")) {
+        if (!adminUserRepo.existsByRole("SUPER_ADMIN")) {
             AdminUser admin = AdminUser.builder()
                     .name("Admin")
                     .email("admin@asm-delivery.com")
                     .passwordHash(passwordEncoder.encode("Admin@2026"))
-                    .role("ADMIN")
+                    .role("SUPER_ADMIN")
                     .active(true)
                     .build();
             adminUserRepo.save(admin);
-            log.info("Default admin seeded: email=admin@asm-delivery.com");
+            log.info("Default super-admin seeded: email=admin@asm-delivery.com");
         }
     }
 }

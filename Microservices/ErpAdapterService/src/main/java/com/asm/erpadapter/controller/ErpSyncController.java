@@ -1,9 +1,11 @@
 package com.asm.erpadapter.controller;
 
+import com.asm.erpadapter.config.CompanyAdapterFactory;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.request.SyncFailureRequest;
 import com.asm.erpadapter.dto.request.SyncFullDeliveryRequest;
 import com.asm.erpadapter.dto.request.SyncPartialDeliveryRequest;
+import com.asm.erpadapter.port.ErpSyncPort;
 import com.asm.erpadapter.routing.ErpProviderRouter;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -13,27 +15,32 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
+import java.util.UUID;
 
-/**
- * REST controller for ERP sync operations.
- *
- * Endpoints: order creation, cancellation, full/partial delivery, failure notes.
- * Routes to the correct ERP implementation via erpProvider param.
- */
 @RestController
 @RequestMapping("/api/erp/sync")
 @Tag(name = "ERP Sync", description = "Order lifecycle synchronization")
 @RequiredArgsConstructor
 public class ErpSyncController {
 
-    private final ErpProviderRouter router;
+    private final ErpProviderRouter      router;
+    private final CompanyAdapterFactory  factory;
+
+    private ErpSyncPort resolve(String erpProvider, String companyId) {
+        return companyId != null
+                ? factory.syncFor(UUID.fromString(companyId))
+                : router.getSync(erpProvider);
+    }
+
     @PostMapping("/order-cancellation")
     @Operation(summary = "Cancel ERP order")
     public ResponseEntity<Map<String, Object>> syncOrderCancellation(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestParam String erpOrderId) {
+            @RequestParam String erpOrderId,
+            @RequestParam(required = false) String transactionId,
+            @RequestHeader(value = "X-Company-Id", required = false) String companyId) {
 
-        boolean success = router.getSync(erpProvider).syncOrderCancellation(erpOrderId);
+        boolean success = resolve(erpProvider, companyId).syncOrderCancellation(erpOrderId, transactionId);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -41,10 +48,11 @@ public class ErpSyncController {
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(
             @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncFullDeliveryRequest request) {
 
-        boolean success = router.getSync(erpProvider)
-                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId());
+        boolean success = resolve(erpProvider, companyId)
+                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -52,10 +60,11 @@ public class ErpSyncController {
     @Operation(summary = "Sync partial delivery to ERP")
     public ResponseEntity<ErpPartialDeliveryResultDTO> syncPartialDelivery(
             @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncPartialDeliveryRequest request) {
 
-        ErpPartialDeliveryResultDTO result = router.getSync(erpProvider)
-                .syncPartialDelivery(request.getErpOrderId(), request.getItems());
+        ErpPartialDeliveryResultDTO result = resolve(erpProvider, companyId)
+                .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId());
         return ResponseEntity.ok(result);
     }
 
@@ -63,10 +72,11 @@ public class ErpSyncController {
     @Operation(summary = "Post failure note on ERP order")
     public ResponseEntity<Map<String, Object>> syncFailure(
             @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncFailureRequest request) {
 
-        boolean success = router.getSync(erpProvider)
-                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment());
+        boolean success = resolve(erpProvider, companyId)
+                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }
 }

@@ -63,7 +63,7 @@ class SplashScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'HIGH-VIS LOGISTICS HUB',
+                  'PILOTAGE LOGISTIQUE',
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 12,
                     color: AppColors.neonYellow,
@@ -76,21 +76,13 @@ class SplashScreen extends ConsumerWidget {
                   width: 32,
                   height: 32,
                   child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    color: AppColors.neonYellow,
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.neonYellow),
                   ),
                 ),
-              ],
-            ),
-          ),
-          Positioned(
-            bottom: 50,
-            left: 0,
-            right: 0,
-            child: Column(
-              children: [
+                const SizedBox(height: 32),
                 Text(
-                  'SYSTEM INITIALIZING',
+                  'CONNEXION AU RÉSEAU...',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 10,
@@ -101,7 +93,7 @@ class SplashScreen extends ConsumerWidget {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '© 2026 ASM LOGISTICS OPERATIONS',
+                  '© 2026 OPÉRATIONS LOGISTIQUES ASM',
                   textAlign: TextAlign.center,
                   style: GoogleFonts.spaceGrotesk(
                     fontSize: 9,

@@ -11,7 +11,7 @@ class DeliveryCard extends StatelessWidget {
     required this.delivery,
     this.onTap,
     this.onPrimary,
-    this.primaryLabel = 'Accept',
+    this.primaryLabel = 'Accepter',
   });
 
   final DriverDelivery delivery;
@@ -82,9 +82,9 @@ class DeliveryCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.warningSubtle,
+                            color: AppColors.warning.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppColors.warningBorder),
+                            border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
                           ),
                           child: Text(
                             delivery.priority!.toUpperCase(),
@@ -98,7 +98,7 @@ class DeliveryCard extends StatelessWidget {
 
                   // Address
                   Text(
-                    delivery.address ?? 'No address provided',
+                    delivery.address ?? 'Aucune adresse fournie',
                     style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.2),
                   ),
                   if (delivery.city != null) ...[
@@ -119,9 +119,9 @@ class DeliveryCard extends StatelessWidget {
                   // Footer metadata
                   Row(
                     children: [
-                      _Meta(label: 'ORDER', value: delivery.orderId ?? 'N/A'),
+                      _Meta(label: 'COMMANDE', value: delivery.orderId ?? 'N/A'),
                       const SizedBox(width: 16),
-                      _Meta(label: 'ITEMS', value: '${delivery.items.length}'),
+                      _Meta(label: 'ARTICLES', value: '${delivery.items.length}'),
                       const Spacer(),
                       const Icon(PhosphorIconsBold.caretRight, size: 12, color: AppColors.muted),
                     ],
@@ -137,10 +137,9 @@ class DeliveryCard extends StatelessWidget {
 }
 
 class _Meta extends StatelessWidget {
-  const _Meta({required this.label, required this.value, this.valueColor});
+  const _Meta({required this.label, required this.value});
   final String label;
   final String value;
-  final Color? valueColor;
 
   @override
   Widget build(BuildContext context) => Column(
@@ -148,7 +147,7 @@ class _Meta extends StatelessWidget {
         children: [
           Text(label, style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.8)),
           const SizedBox(height: 2),
-          Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: valueColor ?? AppColors.textPrimary)),
+          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
         ],
       );
 }

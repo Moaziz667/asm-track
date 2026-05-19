@@ -1,11 +1,14 @@
 import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:latlong2/latlong.dart' hide Path;
 import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
@@ -13,11 +16,10 @@ import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
 import '../../deliveries/presentation/delivery_detail_screen.dart';
-import '../../vehicle/presentation/vehicle_inspection_screen.dart';
-import '../models/route_models.dart';
-import 'package:dio/dio.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 import '../../deliveries/presentation/handoff_scanner_screen.dart';
+import '../../deliveries/presentation/handoff_token_sheet.dart';
+import '../models/route_models.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../../../services/offline_queue_service.dart';
 
 // Default map center — Tunisia (Tunis)
@@ -45,6 +47,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   Future<void> _refresh() async {
     ref.invalidate(todayRouteProvider);
     ref.invalidate(activeDeliveriesProvider);
+    ref.invalidate(deliveryDetailProvider);
   }
 
   Future<void> _doAction(Future<void> Function() fn) async {
@@ -53,8 +56,68 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
     try {
       await fn();
       await _refresh();
+    } catch (e) {
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
+      }
     } finally {
       if (mounted) setState(() => _isWorking = false);
+    }
+  }
+
+  Future<void> _downloadPdf(String routeId) => _doAction(() async {
+        // Offline check
+        final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+        if (!isOnline) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Non disponible hors ligne')),
+            );
+          }
+          return;
+        }
+        final ok = await ref.read(pdfServiceProvider).downloadAndOpen(
+          '/api/driver/routes/$routeId/pdf',
+          fileName: 'route-$routeId.pdf',
+        );
+        if (!ok && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Échec du téléchargement du PDF')),
+          );
+        }
+      });
+
+  Future<void> _openMaps(List<DriverRouteStop> stops) async {
+    final pinned = stops.where((s) => s.hasPinned).toList();
+    if (pinned.isEmpty) return;
+    final dest = pinned.last;
+    final waypoints = pinned.length > 1
+        ? pinned.sublist(0, pinned.length - 1).map((s) => '${s.lat},${s.lng}').join('|')
+        : null;
+    final buffer = StringBuffer(
+      'https://www.google.com/maps/dir/?api=1&travelmode=driving'
+      '&destination=${dest.lat},${dest.lng}',
+    );
+    if (waypoints != null) buffer.write('&waypoints=$waypoints');
+    final uri = Uri.parse(buffer.toString());
+    try {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (_) {
+      // Fallback to geo: URI for devices without Google Maps
+      final geoUri = Uri.parse('geo:${dest.lat},${dest.lng}?q=${dest.lat},${dest.lng}');
+      try {
+        await launchUrl(geoUri, mode: LaunchMode.externalApplication);
+      } catch (_) {}
     }
   }
 
@@ -63,6 +126,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         if (pt != null) {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
+
         await ref.read(routeRepositoryProvider).start(id);
       });
 
@@ -71,11 +135,13 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         if (pt != null) {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
+
         await ref.read(routeRepositoryProvider).arrive(routeId, stopId);
       });
 
   Future<void> _startTransit(String deliveryId) => _doAction(() async {
         final pt = await LocationService().currentPosition();
+
         await ref.read(deliveryRepositoryProvider).startTransit(
           deliveryId,
           lat: pt?.lat,
@@ -100,6 +166,66 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
   @override
   Widget build(BuildContext context) {
     final routeAsync = ref.watch(todayRouteProvider);
+    final deliveries = ref.watch(activeDeliveriesProvider).value ?? [];
+    final currentDriverId = ref.watch(driverProfileProvider).value?.id;
+
+    final pendingHandoffs = deliveries
+        .where((d) => d.requiresHandoff && d.handoffConfirmedAt == null)
+        .toList();
+
+    // Determine this driver's role in the pending handoff
+    final senderDelivery = currentDriverId != null
+        ? pendingHandoffs.where((d) => d.handoffFromDriverId == currentDriverId).firstOrNull
+        : null;
+    final isReceiver = currentDriverId != null &&
+        pendingHandoffs.any((d) => d.handoffToDriverId == currentDriverId);
+
+    Widget? fab;
+    if (senderDelivery != null) {
+      // Driver 1 (sender): show QR code for Driver 2 to scan
+      fab = FloatingActionButton.extended(
+        onPressed: () async {
+          await showModalBottomSheet(
+            context: context,
+            backgroundColor: Colors.transparent,
+            isScrollControlled: true,
+            builder: (_) => HandoffTokenSheet(deliveryId: senderDelivery.id),
+          );
+          _refresh();
+        },
+        backgroundColor: AppColors.neonYellow,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        icon: const Icon(LucideIcons.qrCode, size: 20),
+        label: Text('GÉNÉRER QR', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+      );
+    } else if (isReceiver) {
+      // Driver 2 (receiver): scan Driver 1's QR
+      fab = FloatingActionButton.extended(
+        onPressed: () async {
+          final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+          if (!isOnline) {
+            if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Scanner non disponible hors ligne')),
+              );
+            }
+            return;
+          }
+          final result = await Navigator.of(context).push<bool>(
+            MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+          );
+          if (result == true) _refresh();
+        },
+        backgroundColor: AppColors.neonYellow,
+        foregroundColor: Colors.black,
+        elevation: 0,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+        icon: const Icon(LucideIcons.qrCode, size: 20),
+        label: Text('SCANNER QR', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -115,24 +241,13 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           onOpenPod: (deliveryId) => _openPod(context, deliveryId),
           onOpenDetails: (deliveryId) => _openDetails(context, deliveryId),
           onRefresh: _refresh,
+          onDownloadPdf: route == null ? null : () => _downloadPdf(route.id),
+          onNavigate: route == null ? null : () => _openMaps(route.stops),
         ),
         loading: () => const _MapPlaceholderLoading(),
         error: (_, __) => _MapError(onRetry: _refresh),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await Navigator.of(context).push<bool>(
-            MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
-          );
-          if (result == true) _refresh();
-        },
-        backgroundColor: AppColors.neonYellow,
-        foregroundColor: Colors.black,
-        elevation: 0,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)), // Tactical 4px
-        icon: const Icon(LucideIcons.qrCode, size: 20),
-        label: Text('RECEIVE', style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, letterSpacing: 1.5, fontSize: 13)),
-      ),
+      floatingActionButton: fab,
     );
   }
 }
@@ -150,6 +265,8 @@ class _RouteMapBody extends StatelessWidget {
     required this.onOpenPod,
     required this.onOpenDetails,
     required this.onRefresh,
+    this.onDownloadPdf,
+    this.onNavigate,
   });
 
   final DriverRoute? route;
@@ -162,6 +279,8 @@ class _RouteMapBody extends StatelessWidget {
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
   final VoidCallback onRefresh;
+  final VoidCallback? onDownloadPdf;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +340,10 @@ class _RouteMapBody extends StatelessWidget {
                     point: depotCoord,
                     width: 40,
                     height: 40,
-                    child: const _DepotMarker(),
+                    child: GestureDetector(
+                      onTap: () => mapController.move(depotCoord, 15.5),
+                      child: const _DepotMarker(),
+                    ),
                   ),
                 ],
               ),
@@ -239,12 +361,19 @@ class _RouteMapBody extends StatelessWidget {
                         stop);
                 return Marker(
                   point: coord,
-                  width: isNext ? 46 : 36,
-                  height: isNext ? 46 : 36,
-                  child: _StopMarker(
-                    order: stop.stopOrder,
-                    isDone: isDone,
-                    isNext: isNext,
+                  width: isNext ? 32 : 28,
+                  height: isNext ? 42 : 36,
+                  alignment: Alignment.bottomCenter,
+                  child: GestureDetector(
+                    onTap: () {
+                      mapController.move(coord, 15.5);
+                    },
+                    child: _StopMarker(
+                      order: stop.stopOrder,
+                      isDone: isDone,
+                      isNext: isNext,
+                      etaAt: stop.etaAt,
+                    ),
                   ),
                 );
               }).toList(),
@@ -262,6 +391,7 @@ class _RouteMapBody extends StatelessWidget {
             children: [
               _MapTopBar(route: route, onRefresh: onRefresh),
               if (route?.fromCache == true) const _OfflineBanner(),
+              _MapSearchBar(mapController: mapController),
             ],
           ),
         ),
@@ -283,9 +413,136 @@ class _RouteMapBody extends StatelessWidget {
             onStartTransit: onStartTransit,
             onOpenPod: onOpenPod,
             onOpenDetails: onOpenDetails,
+            onDownloadPdf: onDownloadPdf,
+            onNavigate: onNavigate,
           ),
         ),
       ],
+    );
+  }
+}
+
+// ─── Map Search Bar ───────────────────────────────────────────────────────────
+class _MapSearchBar extends StatefulWidget {
+  const _MapSearchBar({required this.mapController});
+  final MapController mapController;
+
+  @override
+  State<_MapSearchBar> createState() => _MapSearchBarState();
+}
+
+class _MapSearchBarState extends State<_MapSearchBar> {
+  final _controller = TextEditingController();
+  final _focus = FocusNode();
+  List<Map<String, dynamic>> _results = [];
+  Timer? _debounce;
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    _focus.dispose();
+    _debounce?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _search(String q) async {
+    _debounce?.cancel();
+    if (q.trim().length < 3) {
+      setState(() { _results = []; });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      setState(() => _loading = true);
+      try {
+        final client = HttpClient();
+        final uri = Uri.https('nominatim.openstreetmap.org', '/search', {
+          'format': 'json', 'q': q, 'limit': '5', 'accept-language': 'fr',
+        });
+        final req = await client.getUrl(uri);
+        req.headers.set('User-Agent', 'ASMTrack/1.0');
+        final res = await req.close();
+        final body = await res.transform(utf8.decoder).join();
+        final data = (jsonDecode(body) as List).cast<Map<String, dynamic>>();
+        if (mounted) setState(() { _results = data; _loading = false; });
+      } catch (_) {
+        if (mounted) setState(() => _loading = false);
+      }
+    });
+  }
+
+  void _pick(Map<String, dynamic> r) {
+    final lat = double.tryParse(r['lat'] as String? ?? '') ?? 0;
+    final lon = double.tryParse(r['lon'] as String? ?? '') ?? 0;
+    widget.mapController.move(LatLng(lat, lon), 15);
+    final name = (r['display_name'] as String).split(',').first;
+    _controller.text = name;
+    _focus.unfocus();
+    setState(() => _results = []);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    final shadow = [BoxShadow(color: Colors.black.withValues(alpha: 0.25), blurRadius: 6, offset: const Offset(0, 2))];
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            decoration: BoxDecoration(
+              color: cs.surface,
+              borderRadius: BorderRadius.circular(8),
+              boxShadow: shadow,
+            ),
+            child: TextField(
+              controller: _controller,
+              focusNode: _focus,
+              onChanged: _search,
+              style: TextStyle(fontSize: 13, color: cs.onSurface),
+              decoration: InputDecoration(
+                hintText: 'Rechercher un lieu…',
+                hintStyle: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+                prefixIcon: Icon(Icons.search, size: 18, color: cs.onSurfaceVariant),
+                suffixIcon: _loading
+                    ? Padding(padding: const EdgeInsets.all(12), child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: cs.primary)))
+                    : _controller.text.isNotEmpty
+                        ? IconButton(icon: Icon(Icons.close, size: 16, color: cs.onSurfaceVariant), onPressed: () { _controller.clear(); setState(() => _results = []); })
+                        : null,
+                border: InputBorder.none,
+                contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                isDense: true,
+              ),
+            ),
+          ),
+          if (_results.isNotEmpty)
+            Container(
+              margin: const EdgeInsets.only(top: 2),
+              decoration: BoxDecoration(
+                color: cs.surface,
+                borderRadius: BorderRadius.circular(8),
+                boxShadow: shadow,
+              ),
+              child: ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _results.length,
+                separatorBuilder: (_, __) => Divider(height: 1, color: cs.outlineVariant),
+                itemBuilder: (_, i) {
+                  final r = _results[i];
+                  return InkWell(
+                    onTap: () => _pick(r),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                      child: Text(r['display_name'] as String, style: TextStyle(fontSize: 12, color: cs.onSurface), maxLines: 2, overflow: TextOverflow.ellipsis),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -297,79 +554,190 @@ class _DepotMarker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 34,
-      height: 34,
+      width: 42,
+      height: 42,
       decoration: BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.circular(2),
-        border: Border.all(color: AppColors.neonYellow, width: 2),
+        color: const Color(0xFF111827), // Admin Dark
+        shape: BoxShape.circle,
+        border: Border.all(color: Colors.white.withValues(alpha: 0.4), width: 1.5),
         boxShadow: [
-          BoxShadow(color: AppColors.neonYellow.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.4), blurRadius: 8, offset: const Offset(0, 3)),
         ],
       ),
       child: Center(
-        child: Text(
-          'D',
-          style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w900, color: AppColors.neonYellow),
+        child: CustomPaint(
+          size: const Size(22, 20),
+          painter: _WarehousePainter(),
         ),
       ),
     );
   }
 }
 
+class _WarehousePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.95)
+      ..style = PaintingStyle.fill;
+
+    // Roof
+    final roof = Path()
+      ..moveTo(size.width / 2, 0)
+      ..lineTo(0, size.height * 0.45)
+      ..lineTo(size.width, size.height * 0.45)
+      ..close();
+    canvas.drawPath(roof, paint);
+
+    // Body
+    final bodyRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.1, size.height * 0.45, size.width * 0.8, size.height * 0.55),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(bodyRect, paint);
+
+    // Door
+    final doorPaint = Paint()..color = const Color(0xFF111827);
+    final doorRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(size.width * 0.38, size.height * 0.65, size.width * 0.24, size.height * 0.35),
+      const Radius.circular(1),
+    );
+    canvas.drawRRect(doorRect, doorPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 // ─── Stop Marker ──────────────────────────────────────────────────────────────
 class _StopMarker extends StatelessWidget {
-  const _StopMarker({required this.order, required this.isDone, required this.isNext});
+  const _StopMarker({required this.order, required this.isDone, required this.isNext, this.etaAt});
   final int order;
   final bool isDone;
   final bool isNext;
+  final String? etaAt;
+
+  String? get _time {
+    if (etaAt == null) return null;
+    try {
+      final dt = DateTime.parse(etaAt!).toLocal();
+      return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    } catch (_) { return null; }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final Color bg;
-    final Color fg;
-    final double size = isNext ? 32 : 28;
-    
+    final Color color;
+    // Use Admin Dashboard Route Builder Colors
     if (isDone) {
-      bg = AppColors.success;
-      fg = Colors.black;
+      color = const Color(0xFF16A34A); // Success Green
     } else if (isNext) {
-      bg = AppColors.neonYellow;
-      fg = Colors.black;
+      color = const Color(0xFF2563EB); // Admin Blue (Primary)
     } else {
-      bg = AppColors.surfaceElevated;
-      fg = AppColors.textPrimary;
+      color = const Color(0xFFD97706); // Warning Orange
     }
 
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(2), // Sharp tactical corner
-        border: Border.all(color: Colors.black, width: 1.5),
-        boxShadow: isNext ? [
-          BoxShadow(
-            color: bg.withValues(alpha: 0.6),
-            blurRadius: 10,
-            spreadRadius: 2,
-          ),
-        ] : null,
-      ),
-      child: isDone
-          ? Icon(LucideIcons.check, size: isNext ? 18 : 14, color: fg)
-          : Center(
-              child: Text(
-                '$order',
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: isNext ? 14 : 12,
-                  fontWeight: FontWeight.w900,
-                  color: fg,
-                ),
+    final time = _time;
+    final double width = isNext ? 32 : 28;
+    final double height = isNext ? 42 : 36;
+    
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        CustomPaint(
+          size: Size(width, height),
+          painter: _RouteBuilderPinPainter(color: color, isSelected: isNext),
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.only(bottom: height * 0.25),
+                child: isDone
+                    ? const Icon(LucideIcons.check, size: 14, color: Colors.white)
+                    : Text(
+                        '$order',
+                        style: GoogleFonts.spaceGrotesk(
+                          fontSize: isNext ? 13 : 11,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.white,
+                          letterSpacing: -0.5,
+                        ),
+                      ),
               ),
             ),
+          ),
+        ),
+        if (time != null)
+          Container(
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+            decoration: BoxDecoration(
+              color: Colors.black.withValues(alpha: 0.85),
+              borderRadius: BorderRadius.circular(4),
+              boxShadow: [
+                BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 4),
+              ],
+            ),
+            child: Text(
+              time,
+              style: GoogleFonts.inter(fontSize: 9, color: Colors.white, fontWeight: FontWeight.w800, height: 1),
+            ),
+          ),
+      ],
     );
   }
+}
+
+class _RouteBuilderPinPainter extends CustomPainter {
+  _RouteBuilderPinPainter({required this.color, required this.isSelected});
+  final Color color;
+  final bool isSelected;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.fill;
+
+    // Drop shadow
+    final shadowPaint = Paint()
+      ..color = Colors.black.withValues(alpha: isSelected ? 0.4 : 0.25)
+      ..maskFilter = MaskFilter.blur(BlurStyle.normal, isSelected ? 4 : 2);
+    
+    final path = Path();
+    // Scaling factors based on original 28x36 SVG from RouteBuilderMap.tsx
+    final sw = size.width / 28;
+    final sh = size.height / 36;
+
+    path.moveTo(14 * sw, 0 * sh);
+    path.cubicTo(6.268 * sw, 0 * sh, 0 * sw, 6.268 * sh, 0 * sw, 14 * sh);
+    path.cubicTo(0 * sw, 19.746 * sh, 3.44 * sw, 24.71 * sh, 8.44 * sw, 27.07 * sh);
+    path.lineTo(14 * sw, 36 * sh);
+    path.lineTo(19.56 * sw, 27.07 * sh);
+    path.cubicTo(24.56 * sw, 24.71 * sh, 28 * sw, 19.746 * sh, 28 * sw, 14 * sh);
+    path.cubicTo(28 * sw, 6.268 * sh, 21.732 * sw, 0 * sh, 14 * sw, 0 * sh);
+    path.close();
+
+    // Draw shadow slightly offset
+    canvas.save();
+    canvas.translate(0, 2);
+    canvas.drawPath(path, shadowPaint);
+    canvas.restore();
+
+    canvas.drawPath(path, paint);
+
+    if (isSelected) {
+      final borderPaint = Paint()
+        ..color = Colors.white.withValues(alpha: 0.5)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+      canvas.drawPath(path, borderPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }
 
 // ─── Map Top Bar ──────────────────────────────────────────────────────────────
@@ -378,12 +746,16 @@ class _MapTopBar extends ConsumerWidget {
   final DriverRoute? route;
   final VoidCallback onRefresh;
 
+  static const months = [
+    'JANVIER', 'FÉVRIER', 'MARS', 'AVRIL', 'MAI', 'JUIN',
+    'JUILLET', 'AOÛT', 'SEPTEMBRE', 'OCTOBRE', 'NOVEMBRE', 'DÉCEMBRE'
+  ];
+  static const days = ['LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM', 'DIM'];
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final today = DateTime.now();
     final pendingSync = ref.watch(offlineQueueProvider);
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     final label = '${days[today.weekday - 1]}, ${months[today.month - 1]} ${today.day}';
 
     return SafeArea(
@@ -511,6 +883,8 @@ class _BottomSheet extends StatelessWidget {
     required this.onStartTransit,
     required this.onOpenPod,
     required this.onOpenDetails,
+    this.onDownloadPdf,
+    this.onNavigate,
   });
 
   final ScrollController scrollController;
@@ -521,6 +895,8 @@ class _BottomSheet extends StatelessWidget {
   final ValueChanged<String> onStartTransit;
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
+  final VoidCallback? onDownloadPdf;
+  final VoidCallback? onNavigate;
 
   @override
   Widget build(BuildContext context) {
@@ -572,9 +948,9 @@ class _BottomSheet extends StatelessWidget {
                     child: const Icon(LucideIcons.ban, size: 26, color: AppColors.muted),
                   ),
                   const SizedBox(height: 16),
-                  Text('NO MISSION ASSIGNED', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
+                  Text('AUCUNE TOURNÉE ASSIGNÉE', style: GoogleFonts.spaceGrotesk(fontSize: 14, fontWeight: FontWeight.w800, color: AppColors.textPrimary, letterSpacing: 1)),
                   const SizedBox(height: 8),
-                  Text('STAND BY FOR DISPATCH COMMANDS',
+                  Text('EN ATTENTE D\'INSTRUCTIONS DU DISPATCH',
                       style: GoogleFonts.spaceGrotesk(fontSize: 11, color: AppColors.muted, fontWeight: FontWeight.w700),
                       textAlign: TextAlign.center),
                 ],
@@ -588,19 +964,19 @@ class _BottomSheet extends StatelessWidget {
             // CTA button
             if (route!.status == DriverRouteStatus.validated)
               DriveButton(
-                label: 'Start Route',
+                label: 'Démarrer la tourn\u00e9e',
                 icon: PhosphorIconsBold.play,
-                variant: DriveButtonVariant.success,
                 fullWidth: true,
                 size: DriveButtonSize.lg,
                 isLoading: isWorking,
-                onPressed: isWorking ? null : onStart,
-              ),
-
-            if (route!.status == DriverRouteStatus.inProgress) ...[
+                textColor: Colors.white,
+                backgroundColor: const Color(0xFF1E40AF), // Company Blue
+                onPressed: isWorking ? null : () => onStart?.call(),
+              )
+            else if (route!.status == DriverRouteStatus.inProgress) ...[
               if (nextPendingStop != null)
                 DriveButton(
-                  label: 'Arrived at Stop ${nextPendingStop.stopOrder}',
+                  label: 'Arriv\u00e9 au point ${nextPendingStop.stopOrder}',
                   icon: PhosphorIconsBold.flagPennant,
                   fullWidth: true,
                   size: DriveButtonSize.lg,
@@ -608,16 +984,45 @@ class _BottomSheet extends StatelessWidget {
                   onPressed: isWorking ? null : () => onArrive?.call(nextPendingStop.id),
                 )
               else
-                _InfoChip(label: 'All stops reached — awaiting closure from ops', color: AppColors.success),
+                _InfoChip(label: 'Tous les arr\u00eats valid\u00e9s', color: AppColors.success),
+            ],
+
+            // Secondary actions row (PDF + Maps)
+            if (route!.status == DriverRouteStatus.validated ||
+                route!.status == DriverRouteStatus.inProgress) ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  if (route!.status == DriverRouteStatus.validated) ...[
+                    Expanded(
+                      child: _ActionButton(
+                        label: 'Télécharger PDF',
+                        icon: LucideIcons.fileDown,
+                        color: AppColors.info,
+                        onTap: () => onDownloadPdf?.call(),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: _ActionButton(
+                      label: 'Naviguer',
+                      icon: LucideIcons.navigation2,
+                      color: AppColors.neonYellow,
+                      onTap: () => onNavigate?.call(),
+                    ),
+                  ),
+                ],
+              ),
             ],
 
             if (route!.status == DriverRouteStatus.closed)
-              _InfoChip(label: 'Route closed for today', color: AppColors.muted),
+              _InfoChip(label: 'Tournée terminée', color: AppColors.muted),
 
             const SizedBox(height: 20),
             Row(
               children: [
-                Text('STOP LOG', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+                Text('JOURNAL DES ARRÊTS', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
                 const SizedBox(width: 12),
                 Expanded(child: Container(height: 1, color: AppColors.border)),
                 const SizedBox(width: 12),
@@ -626,7 +1031,7 @@ class _BottomSheet extends StatelessWidget {
             ),
             const SizedBox(height: 12),
             if (route!.stops.isEmpty)
-              Text('No stops configured.', style: const TextStyle(color: AppColors.muted))
+              Text('Aucun arrêt configuré.', style: const TextStyle(color: AppColors.muted))
             else
               ...route!.stops.map((stop) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
@@ -679,6 +1084,41 @@ class _RouteSummaryBar extends StatelessWidget {
             Text(route.zone!, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
           ]),
         ],
+        if (route.depotName != null || route.depotAddress != null) ...[
+          const SizedBox(height: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceElevated,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Row(
+              children: [
+                const Icon(Icons.warehouse_outlined, size: 13, color: AppColors.neonYellow),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (route.depotName != null)
+                        Text(
+                          route.depotName!.toUpperCase(),
+                          style: GoogleFonts.spaceGrotesk(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.neonYellow, letterSpacing: 0.5),
+                        ),
+                      if (route.depotAddress != null)
+                        Text(
+                          route.depotAddress!,
+                          style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: 10),
         Row(
           children: [
@@ -721,31 +1161,21 @@ class _StopListItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ds = stop.parsedDeliveryStatus;
-    final isTerminal = ds == DeliveryStatus.delivered ||
-        ds == DeliveryStatus.partially_delivered ||
-        ds == DeliveryStatus.failed ||
-        ds == DeliveryStatus.cancelled;
-
     final Color borderColor;
-    final Color bgColor;
     switch (ds) {
       case DeliveryStatus.inTransit:
         borderColor = AppColors.accent.withValues(alpha: 0.3);
-        bgColor = AppColors.accent.withValues(alpha: 0.04);
         break;
       case DeliveryStatus.delivered:
       case DeliveryStatus.partially_delivered:
         borderColor = AppColors.success.withValues(alpha: 0.25);
-        bgColor = AppColors.success.withValues(alpha: 0.04);
         break;
       case DeliveryStatus.failed:
       case DeliveryStatus.cancelled:
         borderColor = AppColors.danger.withValues(alpha: 0.25);
-        bgColor = AppColors.danger.withValues(alpha: 0.04);
         break;
       default:
         borderColor = AppColors.border;
-        bgColor = AppColors.surface;
     }
 
     return GestureDetector(
@@ -977,7 +1407,7 @@ class _MapPlaceholderLoading extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const Scaffold(
         backgroundColor: AppColors.surfaceElevated,
-        body: LoadingState(message: 'Loading route...'),
+        body: LoadingState(message: 'Chargement de la tournée...'),
       );
 }
 
@@ -990,9 +1420,9 @@ class _MapError extends StatelessWidget {
         backgroundColor: AppColors.background,
         body: EmptyState(
           icon: PhosphorIconsRegular.cloudSlash,
-          title: 'Could not load route',
+          title: 'Impossible de charger la tournée',
           action: onRetry,
-          actionLabel: 'Retry',
+          actionLabel: 'Réessayer',
         ),
       );
 }

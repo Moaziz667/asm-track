@@ -7,5 +7,6 @@ import lombok.Data;
 @Data
 public class SyncFullDeliveryRequest {
     @NotBlank private String erpOrderId;
+    private String transactionId;
     private Integer backorderPickingId;
 }

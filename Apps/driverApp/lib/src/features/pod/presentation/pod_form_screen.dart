@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/offline_queue_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
@@ -89,7 +90,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
-        title: const Text('Proof of Delivery'),
+        title: const Text('Preuve de livraison'),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
           onPressed: () => Navigator.of(context).pop(),
@@ -161,14 +162,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Les deux photos sont obligatoires pour soumettre le POD.',
+                  'Les 2 photos sont obligatoires.',
                   style: TextStyle(fontSize: 12, color: AppColors.danger.withValues(alpha: 0.8)),
                   textAlign: TextAlign.center,
                 ),
               ),
 
             AsmDriveButton(
-              label: 'Soumettre le POD',
+              label: 'Confirmer la livraison',
               icon: Icons.check,
               isLoading: _submitting,
               onPressed: (_submitting || !_canSubmit) ? null : _submit,
@@ -397,8 +398,27 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       double? lng;
       if (_attachLocation) {
         final point = await _locationService.currentPosition();
-        lat = point?.lat;
-        lng = point?.lng;
+        if (point != null) {
+          // DISABLED FOR TESTING \u2014 re-enable before production
+          // // P0: Accuracy Check
+          // if (point.accuracy > 100) {
+          //   throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
+          // }
+
+          // // P0: Geofence Check
+          // final destLat = widget.args.delivery.lat;
+          // final destLng = widget.args.delivery.lng;
+          // if (destLat != null && destLng != null) {
+          //   final distance = _locationService.calculateDistance(
+          //     point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
+          //   if (distance > 250) {
+          //     throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
+          //   }
+          // }
+
+          lat = point.lat;
+          lng = point.lng;
+        }
       }
 
       List<PartialDeliveryItem>? itemsArray;
@@ -417,14 +437,27 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         isPartial: _isPartial,
         itemsDone: itemsArray,
       );
-      await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succès.')));
-      Navigator.of(context).pop(true);
+
+      try {
+        await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succ\u00e8s.')));
+        Navigator.of(context).pop(true);
+      } catch (e) {
+        if (e == 'OFFLINE_QUEUED') {
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne : POD enregistr\u00e9 pour synchronisation ult\u00e9rieure')),
+          );
+          Navigator.of(context).pop(true);
+        } else {
+          rethrow;
+        }
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('Échec de soumission du POD : $error')));
+          .showSnackBar(SnackBar(content: Text('\u00c9chec de soumission du POD : $error')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

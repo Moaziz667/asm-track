@@ -1,0 +1,27 @@
+.plyr {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.18);
+  max-width: 760px;
+  margin: 16px 0 28px;
+}
+
+.plyr--video .plyr__controls {
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.72));
+}
+
+.plyr__control--overlaid {
+  background: rgba(255, 87, 34, 0.88);
+}
+
+.plyr__control--overlaid:hover {
+  background: rgba(255, 87, 34, 1);
+}
+
+.plyr--full-ui input[type='range'] {
+  color: #FF5722;
+}
+
+.plyr__menu__container .plyr__control[role='menuitemradio'][aria-checked='true']::before {
+  background: #FF5722;
+}

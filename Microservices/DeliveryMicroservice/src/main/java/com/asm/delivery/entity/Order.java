@@ -3,6 +3,7 @@ package com.asm.delivery.entity;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 import java.math.BigDecimal;
@@ -11,11 +12,14 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "orders")
+@Table(name = "orders", uniqueConstraints = {
+    @UniqueConstraint(name = "orders_erp_order_id_company_id_key", columnNames = {"erp_order_id", "company_id"})
+})
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
+@Filter(name = "companyFilter", condition = "company_id = :companyId")
 public class Order {
 
     @Id
@@ -31,6 +35,9 @@ public class Order {
     private String schemaVersion = "1.0.0";
 
     // ── Client ───────────────────────────────────────────────────────────────
+    @Column(name = "company_id", nullable = false)
+    private UUID companyId;
+
     @Column(name = "client_id", length = 100)
     private String clientId;
 
@@ -44,7 +51,7 @@ public class Order {
     private String clientEmail;
 
     // ── ERP ──────────────────────────────────────────────────────────────────
-    @Column(name = "erp_order_id", unique = true, length = 100)
+    @Column(name = "erp_order_id", length = 100)
     private String erpOrderId;
 
     @Column(name = "erp_external_ref", length = 100)
@@ -164,6 +171,10 @@ public class Order {
     /** Earliest time the scheduler may attempt the next retry (exponential backoff). */
     @Column(name = "next_sync_retry_at")
     private LocalDateTime nextSyncRetryAt;
+
+    /** Set on backorder orders — points to the original order this was split from. */
+    @Column(name = "parent_order_id")
+    private UUID parentOrderId;
 
     // ── Metadata ──────────────────────────────────────────────────────────────
     @Column(name = "last_synced_at")

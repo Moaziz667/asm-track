@@ -17,6 +17,8 @@ class DriveButton extends StatelessWidget {
     this.size = DriveButtonSize.md,
     this.isLoading = false,
     this.fullWidth = false,
+    this.textColor,
+    this.backgroundColor,
   });
 
   final String label;
@@ -26,6 +28,8 @@ class DriveButton extends StatelessWidget {
   final DriveButtonSize size;
   final bool isLoading;
   final bool fullWidth;
+  final Color? textColor;
+  final Color? backgroundColor;
 
   @override
   Widget build(BuildContext context) {
@@ -55,10 +59,13 @@ class DriveButton extends StatelessWidget {
         break;
       case DriveButtonVariant.success:
         bg = disabled ? AppColors.success.withValues(alpha: 0.45) : AppColors.success;
-        fg = Colors.white;
+        fg = Colors.black;
         borderColor = Colors.transparent;
         break;
     }
+
+    if (backgroundColor != null) bg = backgroundColor!;
+    if (textColor != null) fg = textColor!;
 
     final double vp, hp, fs, radius;
     switch (size) {

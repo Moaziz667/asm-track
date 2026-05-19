@@ -8,6 +8,8 @@ import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/notification_store.dart';
+import '../../../services/offline_queue_service.dart';
 import '../../../services/websocket_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../auth/models/auth_models.dart';
@@ -30,7 +32,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   Timer? _locationTimer;
   Timer? _assignmentRefreshTimer;
   bool _isTracking = false;
-  Set<String> _knownRouteDeliveryIds = <String>{};
+  bool _isOffline = false;
+  StreamSubscription<bool>? _connectivitySub;
 
   final _wsService = WebSocketService();
 
@@ -47,6 +50,32 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       _refreshAssignmentsAndNotify();
     });
     _initWebSocket();
+    _initConnectivityListener();
+    _initFcmHandlers();
+  }
+
+  void _initFcmHandlers() {
+    final store = ref.read(notificationStoreProvider.notifier);
+    ref.read(fcmServiceProvider).setHandlers(
+      onReceived: (title, body, type) => store.add(title: title, body: body, type: type),
+      onTap: () {
+        if (mounted) setState(() => _index = 0);
+        _showNotificationPanel();
+      },
+    );
+  }
+
+  void _showNotificationPanel() {
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => const _NotificationPanel(),
+    );
   }
 
   Future<void> _initWebSocket() async {
@@ -73,28 +102,60 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ref.invalidate(todayRouteProvider);
     ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
 
+    final route = event.routeName.isNotEmpty ? '«${event.routeName}»' : 'votre tournée';
     final String message;
+    IconData icon;
+    Color color;
+
     switch (event.event) {
       case 'ROUTE_ASSIGNED':
-        message = 'Nouvelle tournée assignée !';
+        message = 'Tournée $route assignée — consultez-la avant de partir.';
+        icon = Icons.check_circle_outline;
+        color = const Color(0xFF16A34A);
         break;
       case 'ROUTE_CANCELLED':
-        message = 'Votre tournée a été annulée.';
+        message = 'La tournée $route a été annulée.';
+        icon = Icons.cancel_outlined;
+        color = const Color(0xFFDC2626);
         break;
       case 'ROUTE_REASSIGNED_AWAY':
-        message = 'Tournée réaffectée à un autre chauffeur.';
+        message = 'La tournée $route a été réaffectée à un autre chauffeur.';
+        icon = Icons.warning_amber_rounded;
+        color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_REASSIGNED_TO_YOU':
-        message = 'Une tournée vous a été réaffectée !';
+        message = 'La tournée $route vous a été réaffectée !';
+        icon = Icons.check_circle_outline;
+        color = const Color(0xFF16A34A);
         break;
       case 'STOP_ADDED':
-        message = 'Nouvel arrêt ajouté à votre tournée.';
+        final addedClient = event.clientName ?? 'Un arrêt';
+        message = '$addedClient ajouté à $route.';
+        icon = Icons.add_location_alt_outlined;
+        color = const Color(0xFF2563EB);
         break;
       case 'STOP_REMOVED':
-        message = 'Un arrêt a été retiré de votre tournée.';
+        final removedClient = event.clientName ?? 'Un arrêt';
+        final ref = event.erpOrderId != null ? ' [${event.erpOrderId}]' : '';
+        final why = event.reason != null ? ' — ${event.reason}' : '';
+        message = '$removedClient$ref retiré de $route$why.';
+        icon = Icons.remove_circle_outline;
+        color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_UPDATED':
-        message = 'Votre tournée a été modifiée.';
+        message = 'La tournée $route a été modifiée.';
+        icon = Icons.info_outline;
+        color = const Color(0xFF2563EB);
+        break;
+      case 'STOPS_TRANSFERRED_OUT':
+        message = 'Des arrêts ont été retirés de $route.';
+        icon = Icons.swap_horiz_rounded;
+        color = const Color(0xFFF59E0B);
+        break;
+      case 'STOPS_TRANSFERRED_IN':
+        message = 'De nouveaux arrêts ont été ajoutés à $route.';
+        icon = Icons.playlist_add_rounded;
+        color = const Color(0xFF2563EB);
         break;
       default:
         return;
@@ -102,17 +163,42 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text(message),
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+          ],
+        ),
+        backgroundColor: color,
         behavior: SnackBarBehavior.floating,
-        duration: const Duration(seconds: 4),
+        duration: const Duration(seconds: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
     );
+  }
+
+  void _initConnectivityListener() {
+    final connectivity = ref.read(connectivityServiceProvider);
+    _connectivitySub = connectivity.onlineStream.listen((isOnline) {
+      if (!mounted) return;
+      setState(() => _isOffline = !isOnline);
+      if (isOnline) {
+        // Belt + suspenders: trigger queue replay on reconnect
+        ref.read(offlineQueueProvider.notifier).processQueue();
+      }
+    });
+    // Initial check
+    connectivity.isOnline.then((online) {
+      if (mounted) setState(() => _isOffline = !online);
+    });
   }
 
   @override
   void dispose() {
     _locationTimer?.cancel();
     _assignmentRefreshTimer?.cancel();
+    _connectivitySub?.cancel();
     _wsService.disconnect();
     super.dispose();
   }
@@ -140,41 +226,10 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   Future<void> _refreshAssignmentsAndNotify() async {
     try {
-      final route = await ref.read(routeRepositoryProvider).fetchToday();
-      final nextIds = route == null
-          ? <String>{}
-          : route.stops.map((stop) => stop.deliveryId).toSet();
-
-      if (_knownRouteDeliveryIds.isNotEmpty && mounted) {
-        final added = nextIds.difference(_knownRouteDeliveryIds);
-        final removed = _knownRouteDeliveryIds.difference(nextIds);
-
-        if (added.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('New delivery assigned (${added.length}). Please check Route tab.'),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        } else if (removed.isNotEmpty) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('A delivery was reassigned/replanned by dispatch.'),
-              behavior: SnackBarBehavior.floating,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-
-      _knownRouteDeliveryIds = nextIds;
       ref.invalidate(todayRouteProvider);
       ref.invalidate(activeDeliveriesProvider);
       ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
-    } catch (_) {
-      // Ignore background refresh errors; main screens still handle explicit fetch failures.
-    }
+    } catch (_) {}
   }
 
   @override
@@ -214,7 +269,93 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       ),
       child: Scaffold(
         backgroundColor: AppColors.background,
-        body: IndexedStack(index: _index, children: pages),
+        body: Stack(
+          children: [
+            Column(
+              children: [
+                if (_isOffline)
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.only(
+                      top: MediaQuery.of(context).padding.top + 6,
+                      bottom: 8,
+                      left: 16,
+                      right: 16,
+                    ),
+                    color: AppColors.warning.withValues(alpha: 0.92),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cloud_off_rounded, size: 14, color: Colors.black),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(
+                            'Hors ligne — les actions seront synchronisées à la reconnexion',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.black,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                Expanded(
+                  child: IndexedStack(index: _index, children: pages),
+                ),
+              ],
+            ),
+            // Bell icon with unread badge
+            Positioned(
+              top: MediaQuery.of(context).padding.top + 8,
+              right: 12,
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final unread = ref.watch(unreadNotifCountProvider);
+                  return GestureDetector(
+                    onTap: _showNotificationPanel,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            color: AppColors.surface.withValues(alpha: 0.92),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: const Icon(Icons.notifications_outlined, size: 18),
+                        ),
+                        if (unread > 0)
+                          Positioned(
+                            top: -2,
+                            right: -2,
+                            child: Container(
+                              width: 16,
+                              height: 16,
+                              decoration: const BoxDecoration(
+                                color: AppColors.danger,
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text(
+                                  unread > 9 ? '9+' : '$unread',
+                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
         bottomNavigationBar: _BottomNav(
           index: _index,
           items: _navItems,
@@ -230,6 +371,108 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   bool _isRouteInProgress() {
     return ref.read(todayRouteProvider).value?.status == DriverRouteStatus.inProgress;
+  }
+}
+
+class _NotificationPanel extends ConsumerWidget {
+  const _NotificationPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final notifications = ref.watch(notificationStoreProvider);
+    final store = ref.read(notificationStoreProvider.notifier);
+
+    // Mark all as read when panel opens
+    WidgetsBinding.instance.addPostFrameCallback((_) => store.markAllRead());
+
+    return DraggableScrollableSheet(
+      initialChildSize: 0.55,
+      minChildSize: 0.35,
+      maxChildSize: 0.85,
+      expand: false,
+      builder: (_, controller) => Column(
+        children: [
+          const SizedBox(height: 8),
+          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 12),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Row(
+              children: [
+                Text('Notifications', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          Expanded(
+            child: notifications.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.notifications_off_outlined, size: 40, color: Color(0xFF9CA3AF)),
+                        const SizedBox(height: 8),
+                        Text('Aucune notification', style: GoogleFonts.inter(color: const Color(0xFF9CA3AF))),
+                      ],
+                    ),
+                  )
+                : ListView.separated(
+                    controller: controller,
+                    itemCount: notifications.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1, indent: 16),
+                    itemBuilder: (_, i) {
+                      final n = notifications[i];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: _typeColor(n.type).withValues(alpha: 0.15),
+                          child: Icon(_typeIcon(n.type), size: 18, color: _typeColor(n.type)),
+                        ),
+                        title: Text(n.title, style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13)),
+                        subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (n.body.isNotEmpty) Text(n.body, style: GoogleFonts.inter(fontSize: 12)),
+                            Text(_formatTime(n.receivedAt), style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF9CA3AF))),
+                          ],
+                        ),
+                        isThreeLine: n.body.isNotEmpty,
+                      );
+                    },
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  IconData _typeIcon(String type) {
+    switch (type) {
+      case 'DELIVERY_ASSIGNED': return Icons.local_shipping_outlined;
+      case 'ROUTE_VALIDATED':   return Icons.route_outlined;
+      case 'ROUTE_UPDATED':     return Icons.edit_road_outlined;
+      case 'HANDOFF_REQUIRED':  return Icons.swap_horiz_outlined;
+      default:                  return Icons.notifications_outlined;
+    }
+  }
+
+  Color _typeColor(String type) {
+    switch (type) {
+      case 'DELIVERY_ASSIGNED': return const Color(0xFF0EA5E9);
+      case 'ROUTE_VALIDATED':   return const Color(0xFF10B981);
+      case 'ROUTE_UPDATED':     return const Color(0xFFF59E0B);
+      case 'HANDOFF_REQUIRED':  return const Color(0xFF8B5CF6);
+      default:                  return const Color(0xFF6B7280);
+    }
+  }
+
+  String _formatTime(DateTime dt) {
+    final now = DateTime.now();
+    final diff = now.difference(dt);
+    if (diff.inMinutes < 1) return 'À l\'instant';
+    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+    return 'Il y a ${diff.inDays}j';
   }
 }
 
@@ -281,7 +524,7 @@ class _BottomNav extends StatelessWidget {
                         Icon(
                           item.icon,
                           size: 22,
-                          color: selected ? Colors.white : AppColors.muted,
+                          color: selected ? Colors.black : AppColors.muted,
                         ),
                         const SizedBox(height: 3),
                         Text(
@@ -289,7 +532,7 @@ class _BottomNav extends StatelessWidget {
                           style: GoogleFonts.manrope(
                             fontSize: 10,
                             fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                            color: selected ? Colors.white : AppColors.muted,
+                            color: selected ? Colors.black : AppColors.muted,
                           ),
                         ),
                       ],

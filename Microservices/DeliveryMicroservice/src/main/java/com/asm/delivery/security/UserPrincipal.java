@@ -10,8 +10,9 @@ import java.util.UUID;
 @AllArgsConstructor
 public class UserPrincipal {
     private final String  userId;          // UUID string or any opaque ID
-    private final String  role;            // "CLIENT" | "DRIVER"
+    private final String  role;            // "CLIENT" | "DRIVER" | "ADMIN" | "DISPATCHER"
     private final String  name;            // display name from JWT (may be null)
     private final String  phone;           // phone number from JWT (may be null)
     private final Integer odooPartnerId;   // Odoo res.partner ID (may be null)
+    private final String  companyId;       // null = ASM super-admin, UUID string = company admin
 }

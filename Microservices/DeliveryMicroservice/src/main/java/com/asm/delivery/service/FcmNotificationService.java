@@ -19,6 +19,10 @@ public class FcmNotificationService {
     private final TransportPort transportPort;
 
     public void sendToDriver(String driverId, String title, String body) {
+        sendToDriver(driverId, title, body, "GENERAL");
+    }
+
+    public void sendToDriver(String driverId, String title, String body, String type) {
         try {
             DriverDTO driver = transportPort.getDriver(driverId);
             if (driver == null || driver.getFcmToken() == null || driver.getFcmToken().isBlank()) {
@@ -30,10 +34,11 @@ public class FcmNotificationService {
                             .setTitle(title)
                             .setBody(body)
                             .build())
+                    .putData("type", type != null ? type : "GENERAL")
                     .setToken(driver.getFcmToken())
                     .build();
             String messageId = FirebaseMessaging.getInstance().send(msg);
-            log.info("FCM sent to driver {} msgId={}", driverId, messageId);
+            log.info("FCM sent to driver {} type={} msgId={}", driverId, type, messageId);
         } catch (Exception e) {
             log.warn("FCM send to driver {} failed: {}", driverId, e.getMessage());
         }

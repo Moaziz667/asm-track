@@ -10,16 +10,72 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 public class SlaMonitoringService {
 
-    private final RouteRepository routeRepository;
+    private final com.asm.delivery.repository.DeliveryRepository deliveryRepository;
+    private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
+    private final EventPublisher eventPublisher;
+    private final SystemSettingsService settings;
+    private final java.util.Set<String> alertedKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    /**
-     * Runs every 30 seconds (configurable).
-     * For all IN_PROGRESS routes: recomputes SLA status and fires WebSocket alerts.
-     */
-    @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:30000}")
+    @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:60000}")
     @Transactional
     public void checkSlaStatuses() {
-        // Legacy ETA/buffer SLA monitoring is intentionally disabled.
-        // Strict SLA is now evaluated from actual route stop completion data.
+        // Get all companies that have deliveries
+        java.util.List<java.util.UUID> companies = deliveryRepository.findAllCompanyIds();
+        
+        for (java.util.UUID companyId : companies) {
+            try {
+                com.asm.delivery.config.TenantContext.set(companyId.toString());
+                processSlaForCompany();
+            } finally {
+                com.asm.delivery.config.TenantContext.clear();
+            }
+        }
+    }
+
+    private void processSlaForCompany() {
+        java.time.LocalDateTime now = java.time.LocalDateTime.now();
+        
+        // Fetch company-specific limits (TenantContext is set)
+        int waitingLimit = settings.getInt("ops.sla.waiting-limit-minutes", 15);
+        int assignLimit = settings.getInt("ops.sla.assign-limit-minutes", 20);
+
+        // 1. Unscheduled SLA
+        deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.UNSCHEDULED).forEach(d -> {
+            long elapsed = java.time.Duration.between(d.getCreatedAt(), now).toMinutes();
+            if (elapsed > waitingLimit) {
+                if (alertedKeys.add(d.getId() + ":WAITING")) {
+                    eventPublisher.publishSlaBreach(d, "SLA_WAITING", "WARNING", 
+                        String.format("Retard planification : %d min (Limite %d min)", elapsed, waitingLimit));
+                }
+            }
+        });
+
+        // 2. Assignment SLA
+        deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.SCHEDULED).forEach(d -> {
+            java.time.LocalDateTime baseline = d.getAssignedAt();
+            if (baseline == null) baseline = d.getCreatedAt();
+            long elapsed = java.time.Duration.between(baseline, now).toMinutes();
+            if (elapsed > assignLimit) {
+                if (alertedKeys.add(d.getId() + ":ASSIGNMENT")) {
+                    eventPublisher.publishSlaBreach(d, "SLA_ASSIGNMENT", "CRITICAL", 
+                        String.format("Retard ramassage : %d min (Limite %d min)", elapsed, assignLimit));
+                }
+            }
+        });
+
+        // 3. Transit SLA
+        deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.IN_TRANSIT).forEach(d -> {
+            routeStopRepository.findByDeliveryId(d.getId()).ifPresent(stop -> {
+                if (stop.getEndTimeWindow() != null) {
+                    java.time.LocalDateTime deadline = now.toLocalDate().atTime(stop.getEndTimeWindow());
+                    if (now.isAfter(deadline)) {
+                        if (alertedKeys.add(d.getId() + ":TRANSIT")) {
+                            eventPublisher.publishSlaBreach(d, "SLA_TRANSIT", "CRITICAL", 
+                                "Créneau horaire de livraison dépassé !");
+                        }
+                    }
+                }
+            });
+        });
     }
 }

@@ -48,12 +48,13 @@ services:
 
   #  RABBITMQ 
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:4-management
     container_name: rabbitmq
     ports:
       # PROD: remove "15672:15672" — management console must not be publicly accessible
       - "5672:5672"
       - "15672:15672"
+      - "61613:61613"   # STOMP relay port used by DeliveryMicroservice
     environment:
       # PROD: change these — default guest/guest is a well-known RabbitMQ vulnerability
       RABBITMQ_DEFAULT_USER: guest
@@ -172,9 +173,11 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: app_password
-      JWT_SECRET: asmsecret2026
+      AUTH_SERVER_URL: http://auth-server:8089
+      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      CLIENT_ID: app-backend
+      CLIENT_SECRET: ${CLIENT_SECRET_APP:-IJz0vvMLEKLsZmahqEepTjoCRcutWyGm4IEL4iE5IY4=}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
-      INTERNAL_SECRET: asm-internal-2026
       ODOO_URL: http://host.docker.internal:8069/jsonrpc
       ODOO_DB: DBTEST
       ODOO_UID: "2"
@@ -201,15 +204,19 @@ services:
       - "8082:8082"
     environment:
       TZ: Africa/Tunis
+      SPRING_PROFILES_ACTIVE: prod
       DB_HOST: postgres-delivery
       DB_PORT: "5432"
       DB_NAME: delivery_db
       DB_USER: delivery
       DB_PASS: delivery
-      JWT_SECRET: asmsecret2026
+      AUTH_SERVER_URL: http://auth-server:8089
+      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      CLIENT_ID: delivery-service
+      CLIENT_SECRET: ${CLIENT_SECRET_DELIVERY:-y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
       RABBITMQ_HOST: rabbitmq
+      WEBSOCKET_BROKER_RELAY_ENABLED: "true"
       DRIVER_SERVICE_URL: http://driver-service:8086
-      INTERNAL_SECRET: asm-internal-2026
       TRANSPORT_PROVIDER: internal
       MINIO_URL: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9000
@@ -242,6 +249,8 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      auth-server:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - asm-network
@@ -257,7 +266,11 @@ services:
     environment:
       TZ: Africa/Tunis
       SERVER_PORT: 8088
-      INTERNAL_SECRET: asm-internal-2026
+      AUTH_SERVER_URL: http://auth-server:8089
+      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      CLIENT_ID: erp-adapter
+      CLIENT_SECRET: ${CLIENT_SECRET_ERP:-Kketonr5sYVCKsczgHGkMxMTCCQINnOYotiLfLc7vUQ=}
+      DELIVERY_SERVICE_URL: http://delivery-service:8082
       ODOO_URL: http://host.docker.internal:8069/jsonrpc
       ODOO_DB: DBTEST
       ODOO_UID: "2"
@@ -284,8 +297,10 @@ services:
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DB_USER: driver
       DB_PASS: driver
-      JWT_SECRET: asmsecret2026
-      INTERNAL_SECRET: asm-internal-2026
+      AUTH_SERVER_URL: http://auth-server:8089
+      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      CLIENT_ID: driver-service
+      CLIENT_SECRET: ${CLIENT_SECRET_DRIVER:-7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
     depends_on:
       postgres-driver:
         condition: service_healthy
@@ -299,7 +314,46 @@ services:
     networks:
       - asm-network
 
-  #  API GATEWAY 
+  #  AUTH SERVER (OAuth2 — RSA-signed JWT issuer)
+  auth-server:
+    build:
+      context: ./AuthServer
+      dockerfile: Dockerfile
+    container_name: auth-server
+    ports:
+      - "8089:8089"
+    environment:
+      TZ: Africa/Tunis
+      APP_DB_URL: jdbc:postgresql://postgres-app:5432/app_db
+      APP_DB_USER: app_user
+      APP_DB_PASS: app_password
+      DRIVER_DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
+      DRIVER_DB_USER: driver
+      DRIVER_DB_PASS: driver
+      AUTH_RSA_SEED: ${AUTH_RSA_SEED:-CynEKREgrdFWnsjBqep5pDrSE5km4H0lmJj9b3BIuqk=}
+      AUTH_ACCESS_EXPIRY: "3600"
+      AUTH_REFRESH_EXPIRY: "604800"
+      CLIENT_SECRET_DELIVERY: ${CLIENT_SECRET_DELIVERY:-y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
+      CLIENT_SECRET_DRIVER:   ${CLIENT_SECRET_DRIVER:-7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
+      CLIENT_SECRET_ERP:      ${CLIENT_SECRET_ERP:-Kketonr5sYVCKsczgHGkMxMTCCQINnOYotiLfLc7vUQ=}
+      CLIENT_SECRET_APP:      ${CLIENT_SECRET_APP:-IJz0vvMLEKLsZmahqEepTjoCRcutWyGm4IEL4iE5IY4=}
+      CLIENT_SECRET_GW:       ${CLIENT_SECRET_GW:-R+tyDEgIMwkVMBpsHmTfLG79q/r3shZ3OAwu0cSQhfA=}
+    depends_on:
+      postgres-app:
+        condition: service_healthy
+      postgres-driver:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "nc -z localhost 8089"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+    networks:
+      - asm-network
+
+  #  API GATEWAY
   api-gateway:
     build:
       context: ./ApiGateway
@@ -311,13 +365,16 @@ services:
       APP_BACKEND_URL: http://app-backend:8080
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       DRIVER_SERVICE_URL: http://driver-service:8086
-      JWT_SECRET: asmsecret2026
+      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW:-R+tyDEgIMwkVMBpsHmTfLG79q/r3shZ3OAwu0cSQhfA=}
     depends_on:
       app-backend:
         condition: service_healthy
       delivery-service:
         condition: service_healthy
       driver-service:
+        condition: service_healthy
+      auth-server:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -335,3 +392,4 @@ volumes:
 networks:
   asm-network:
     driver: bridge
+    name: microservices_asm-network

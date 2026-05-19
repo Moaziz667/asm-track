@@ -10,7 +10,11 @@ public class ChangePasswordRequest {
     private String oldPassword;
 
     @NotBlank
-    @Size(min = 6, message = "New password must be at least 6 characters")
+    @Size(min = 8, message = "Le nouveau mot de passe doit contenir au moins 8 caractères")
+    @jakarta.validation.constraints.Pattern(
+        regexp = "^(?=.*[A-Za-z])(?=.*\\d).{8,}$",
+        message = "Le mot de passe doit contenir au moins une lettre et un chiffre"
+    )
     private String newPassword;
 
     @NotBlank

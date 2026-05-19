@@ -7,11 +7,13 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
+import '../../../services/offline_queue_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
 import 'handoff_token_sheet.dart';
+import 'handoff_scanner_screen.dart';
 
 // ─── COD Collection Card ──────────────────────────────────────────────────────
 class _CodCollectionCard extends ConsumerStatefulWidget {
@@ -49,6 +51,7 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
       if (collected) {
         amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.'));
       }
+
       await ref.read(deliveryRepositoryProvider).recordCod(
         widget.delivery.id,
         collected: collected,
@@ -56,10 +59,19 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
       );
       widget.onDone();
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erreur: $e')),
-        );
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+        widget.onDone();
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -181,6 +193,20 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
     try {
       await task();
       await _refresh();
+    } catch (e) {
+      if (e == 'OFFLINE_QUEUED') {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Erreur: $e')),
+          );
+        }
+      }
     } finally {
       if (mounted) setState(() => _isWorking = false);
     }
@@ -197,7 +223,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
           icon: const Icon(PhosphorIconsBold.caretLeft, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Delivery Detail'),
+        title: const Text('Détails de la livraison'),
       ),
       body: asyncDetail.when(
         data: (delivery) => RefreshIndicator(
@@ -228,7 +254,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
               _ActionPanel(
                 delivery: delivery,
                 isWorking: _isWorking,
-                onAccept: () => _perform(() => ref.read(deliveryRepositoryProvider).accept(delivery.id)),
+                currentDriverId: ref.watch(driverProfileProvider).value?.id,
+                onScanHandoff: () async {
+                  final result = await Navigator.of(context).push<bool>(
+                    MaterialPageRoute(builder: (_) => const HandoffScannerScreen()),
+                  );
+                  if (result == true) await _refresh();
+                },
                 onPickup: () => _perform(() => ref.read(deliveryRepositoryProvider).pickup(delivery.id)),
                 onTransit: () => _perform(() async {
                   final point = await _locationService.currentPosition();
@@ -238,7 +270,6 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                         lng: point?.lng,
                       );
                 }),
-                onComplete: () => _perform(() => ref.read(deliveryRepositoryProvider).complete(delivery.id)),
                 onFail: () async {
                   final reason = await _showFailSheet(context);
                   if (reason == null) return;
@@ -247,11 +278,6 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                         reason: reason.$1,
                         comment: reason.$2,
                       ));
-                },
-                onCancel: () async {
-                  final confirm = await _confirmDialog(context, 'Cancel assignment?', 'This will release the package back to the pool.');
-                  if (confirm != true) return;
-                  await _perform(() => ref.read(deliveryRepositoryProvider).cancel(delivery.id));
                 },
                 onPod: () async {
                   final result = await Navigator.of(context).pushNamed(
@@ -264,12 +290,12 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
             ],
           ),
         ),
-        loading: () => const LoadingState(message: 'Loading delivery…'),
+        loading: () => const LoadingState(message: 'Chargement de la livraison…'),
         error: (_, __) => EmptyState(
           icon: PhosphorIconsRegular.warningCircle,
-          title: 'Failed to load',
+          title: 'Échec du chargement',
           action: _refresh,
-          actionLabel: 'Retry',
+          actionLabel: 'Réessayer',
         ),
       ),
     );
@@ -302,9 +328,9 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Report Failure', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text('Signaler un échec', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
                   const SizedBox(height: 4),
-                  const Text('Select the reason for this delivery failure.', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                  const Text('Sélectionnez la raison de l\'échec de cette livraison.', style: TextStyle(color: AppColors.muted, fontSize: 13)),
                   const SizedBox(height: 20),
                   ...FailureReason.values.map((reason) {
                     final isSelected = reason == selected;
@@ -346,7 +372,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                     controller: commentCtrl,
                     style: const TextStyle(color: AppColors.textPrimary),
                     decoration: const InputDecoration(
-                      hintText: 'Additional comment (optional)',
+                      hintText: 'Commentaire supplémentaire (optionnel)',
                       prefixIcon: Icon(PhosphorIconsRegular.notePencil, size: 18),
                     ),
                   ),
@@ -354,7 +380,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                   SizedBox(
                     width: double.infinity,
                     child: AsmDriveButton(
-                      label: 'Submit Failure Report',
+                      label: 'Soumettre le rapport d\'échec',
                       variant: AsmDriveButtonVariant.danger,
                       icon: PhosphorIconsBold.flagPennant,
                       onPressed: () => Navigator.pop(context, true),
@@ -371,26 +397,6 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
       return (selected, commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim());
     }
     return null;
-  }
-
-  Future<bool?> _confirmDialog(BuildContext context, String title, String message) {
-    return showDialog<bool>(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text(title),
-        content: Text(message, style: const TextStyle(color: AppColors.muted)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Keep', style: TextStyle(color: AppColors.muted)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Confirm', style: TextStyle(color: AppColors.danger)),
-          ),
-        ],
-      ),
-    );
   }
 }
 
@@ -481,7 +487,7 @@ class _HeroCard extends StatelessWidget {
                   const SizedBox(height: 8),
                 ],
                 Text(
-                  delivery.address ?? 'No address provided',
+                  delivery.address ?? 'Aucune adresse fournie',
                   style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
                 ),
                 if (delivery.city != null) ...[
@@ -500,13 +506,13 @@ class _HeroCard extends StatelessWidget {
                 Row(
                   children: [
                     _StatBox(
-                      label: 'ITEMS',
+                      label: 'ARTICLES',
                       value: '${delivery.items.length}',
                     ),
                     if (delivery.scheduledAt != null) ...[
                       const SizedBox(width: 12),
                       _StatBox(
-                        label: 'SCHEDULED',
+                        label: 'PLANIFIÉE',
                         value: _fmtDate(delivery.scheduledAt!),
                       ),
                     ],
@@ -593,7 +599,7 @@ class _ItemsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SectionHeader(title: 'Package Contents', subtitle: '${items.length} item${items.length != 1 ? 's' : ''}'),
+          SectionHeader(title: 'Contenu du colis', subtitle: '${items.length} article${items.length != 1 ? 's' : ''}'),
           const SizedBox(height: 14),
           ...items.asMap().entries.map((e) {
             final isLast = e.key == items.length - 1;
@@ -662,7 +668,7 @@ class _TimestampCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SectionHeader(title: 'Timeline'),
+          const SectionHeader(title: 'Chronologie'),
           const SizedBox(height: 14),
           ...entries.map((e) {
             return Padding(
@@ -689,13 +695,13 @@ class _TimestampCard extends StatelessWidget {
 
   String _keyLabel(String key) {
     switch (key) {
-      case 'scheduledAt': return 'Scheduled';
-      case 'pickedUpAt': return 'Picked up';
-      case 'inTransitAt': return 'In transit';
-      case 'completedAt': return 'Delivered';
-      case 'failedAt': return 'Failed';
-      case 'cancelledAt': return 'Cancelled';
-      case 'createdAt': return 'Created';
+      case 'scheduledAt': return 'Planifiée';
+      case 'pickedUpAt': return 'Ramassée';
+      case 'inTransitAt': return 'En cours';
+      case 'completedAt': return 'Livrée';
+      case 'failedAt': return 'Échouée';
+      case 'cancelledAt': return 'Annulée';
+      case 'createdAt': return 'Créée';
       default: return key;
     }
   }
@@ -711,36 +717,48 @@ class _ActionPanel extends StatelessWidget {
   const _ActionPanel({
     required this.delivery,
     required this.isWorking,
-    required this.onAccept,
     required this.onPickup,
     required this.onTransit,
-    required this.onComplete,
     required this.onFail,
-    required this.onCancel,
     required this.onPod,
+    this.currentDriverId,
+    this.onScanHandoff,
   });
 
   final DriverDelivery delivery;
   final bool isWorking;
-  final Future<void> Function() onAccept;
   final Future<void> Function() onPickup;
   final Future<void> Function() onTransit;
-  final Future<void> Function() onComplete;
   final Future<void> Function() onFail;
-  final Future<void> Function() onCancel;
   final Future<void> Function() onPod;
+  final String? currentDriverId;
+  final Future<void> Function()? onScanHandoff;
 
   @override
   Widget build(BuildContext context) {
+    // Handoff lock: only blocks the receiver (handoffToDriverId) until QR is scanned
+    if (delivery.requiresHandoff &&
+        delivery.handoffConfirmedAt == null &&
+        currentDriverId != null &&
+        delivery.handoffToDriverId == currentDriverId) {
+      return _HandoffLockPanel(onScan: onScanHandoff);
+    }
+
     final buttons = <Widget>[];
 
     Future<void> launchNav() async {
       final lat = delivery.lat;
       final lng = delivery.lng;
       if (lat == null || lng == null) return;
-      final url = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
-      if (await canLaunchUrlString(url)) {
-        await launchUrlString(url, mode: LaunchMode.externalApplication);
+      final googleUrl = 'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng';
+      try {
+        await launchUrlString(googleUrl, mode: LaunchMode.externalApplication);
+      } catch (_) {
+        // Fallback to geo: URI
+        final geoUrl = 'geo:$lat,$lng?q=$lat,$lng';
+        try {
+          await launchUrlString(geoUrl, mode: LaunchMode.externalApplication);
+        } catch (_) {}
       }
     }
 
@@ -771,25 +789,11 @@ class _ActionPanel extends StatelessWidget {
         );
         break;
       case DeliveryStatus.scheduled:
-        if (hasGeo) {
-          buttons.add(
-            SizedBox(
-              width: double.infinity,
-              child: AsmDriveButton(
-                label: 'Naviguer',
-                icon: PhosphorIconsBold.navigationArrow,
-                variant: AsmDriveButtonVariant.secondary,
-                onPressed: launchNav,
-              ),
-            ),
-          );
-          buttons.add(const SizedBox(height: 10));
-        }
         buttons.addAll([
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Mark Picked Up',
+              label: 'Ramasser le colis',
               icon: PhosphorIconsBold.package,
               isLoading: isWorking,
               onPressed: isWorking ? null : onPickup,
@@ -799,10 +803,10 @@ class _ActionPanel extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Cancel Assignment',
-              icon: PhosphorIconsBold.x,
+              label: 'Signaler un échec',
+              icon: PhosphorIconsBold.flagPennant,
               variant: AsmDriveButtonVariant.ghost,
-              onPressed: isWorking ? null : onCancel,
+              onPressed: isWorking ? null : onFail,
             ),
           ),
         ]);
@@ -826,7 +830,7 @@ class _ActionPanel extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Start Transit',
+              label: 'Démarrer le trajet',
               icon: PhosphorIconsBold.steeringWheel,
               isLoading: isWorking,
               onPressed: isWorking ? null : onTransit,
@@ -836,7 +840,7 @@ class _ActionPanel extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Report Failure',
+              label: 'Signaler un échec',
               icon: PhosphorIconsBold.flagPennant,
               variant: AsmDriveButtonVariant.ghost,
               onPressed: isWorking ? null : onFail,
@@ -847,7 +851,7 @@ class _ActionPanel extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: DriveButton(
-                label: 'Generate Handoff Code',
+                label: 'Générer le code de transfert',
                 icon: LucideIcons.qrCode,
                 variant: DriveButtonVariant.secondary,
                 onPressed: () => showModalBottomSheet(
@@ -879,7 +883,7 @@ class _ActionPanel extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Submit Proof of Delivery',
+              label: 'Soumettre la preuve de livraison',
               icon: PhosphorIconsBold.sealCheck,
               variant: AsmDriveButtonVariant.success,
               isLoading: isWorking,
@@ -890,7 +894,7 @@ class _ActionPanel extends StatelessWidget {
           SizedBox(
             width: double.infinity,
             child: AsmDriveButton(
-              label: 'Report Failure',
+              label: 'Signaler un échec',
               icon: PhosphorIconsBold.flagPennant,
               variant: AsmDriveButtonVariant.danger,
               onPressed: isWorking ? null : onFail,
@@ -901,7 +905,7 @@ class _ActionPanel extends StatelessWidget {
             SizedBox(
               width: double.infinity,
               child: DriveButton(
-                label: 'Generate Handoff Code',
+                label: 'Générer le code de transfert',
                 icon: LucideIcons.qrCode,
                 variant: DriveButtonVariant.secondary,
                 onPressed: () => showModalBottomSheet(
@@ -933,7 +937,7 @@ class _ActionPanel extends StatelessWidget {
                 const Icon(Icons.lock_rounded, size: 16, color: AppColors.muted),
                 const SizedBox(width: 8),
                 Text(
-                  'Mission closed — no further actions',
+                  'Mission terminée — aucune action requise',
                   style: const TextStyle(color: AppColors.muted, fontSize: 13),
                 ),
               ],
@@ -992,6 +996,18 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
 
   Future<void> _open() async {
     if (_loading) return;
+
+    // Offline check
+    final isOnline = await ref.read(connectivityServiceProvider).isOnline;
+    if (!isOnline) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Non disponible hors ligne')),
+        );
+      }
+      return;
+    }
+
     setState(() => _loading = true);
     try {
       final ok = await ref.read(pdfServiceProvider).downloadAndOpen(
@@ -1055,6 +1071,65 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ─── Handoff Lock Panel ───────────────────────────────────────────────────────
+class _HandoffLockPanel extends StatelessWidget {
+  const _HandoffLockPanel({this.onScan});
+  final Future<void> Function()? onScan;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.warning.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Icon(Icons.lock_outline_rounded, color: AppColors.warning, size: 20),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Remise physique requise',
+                      style: GoogleFonts.spaceGrotesk(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Ce colis vous a été transféré. Scannez le QR du chauffeur expéditeur pour confirmer la réception et débloquer les actions.',
+                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 16),
+        SizedBox(
+          width: double.infinity,
+          child: AsmDriveButton(
+            label: 'Scanner le QR de l\'expéditeur',
+            icon: PhosphorIconsBold.qrCode,
+            onPressed: onScan,
+          ),
+        ),
+      ],
     );
   }
 }

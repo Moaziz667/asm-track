@@ -29,15 +29,15 @@ extension DriverRouteStatusX on DriverRouteStatus {
   String get label {
     switch (this) {
       case DriverRouteStatus.draft:
-        return 'Draft';
+        return 'Brouillon';
       case DriverRouteStatus.validated:
-        return 'Validated';
+        return 'Validée';
       case DriverRouteStatus.inProgress:
-        return 'In progress';
+        return 'En cours';
       case DriverRouteStatus.closed:
-        return 'Closed';
+        return 'Clôturée';
       case DriverRouteStatus.cancelled:
-        return 'Cancelled';
+        return 'Annulée';
     }
   }
 }
@@ -70,15 +70,15 @@ extension DriverRouteStopStatusX on DriverRouteStopStatus {
   String get label {
     switch (this) {
       case DriverRouteStopStatus.pending:
-        return 'Pending';
+        return 'En attente';
       case DriverRouteStopStatus.arrived:
-        return 'Arrived';
+        return 'Arrivé';
       case DriverRouteStopStatus.completed:
-        return 'Completed';
+        return 'Mission terminée';
       case DriverRouteStopStatus.failed:
-        return 'Failed';
+        return 'Échec';
       case DriverRouteStopStatus.partial:
-        return 'Partial';
+        return 'Partiel';
     }
   }
 }
@@ -170,6 +170,8 @@ class DriverRoute {
     this.plannedStart,
     this.plannedEnd,
     this.routeGeometry,
+    this.depotName,
+    this.depotAddress,
     this.fromCache = false,
   });
 
@@ -196,6 +198,8 @@ class DriverRoute {
       plannedStart: json['plannedStartTime'] as String?,
       plannedEnd: json['plannedEndTime'] as String?,
       routeGeometry: json['routeGeometry'] as String?,
+      depotName: json['depotName'] as String?,
+      depotAddress: json['depotAddress'] as String?,
       stops: stops,
     );
   }
@@ -216,6 +220,8 @@ class DriverRoute {
   final String? plannedStart;
   final String? plannedEnd;
   final String? routeGeometry;
+  final String? depotName;
+  final String? depotAddress;
 
   /// True when this route was loaded from the local SharedPreferences cache
   /// because the network was unavailable.
@@ -235,6 +241,7 @@ class DriverRoute {
     while (index < len) {
       int b, shift = 0, result = 0;
       do {
+        if (index >= len) return points;
         b = encoded.codeUnitAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;
@@ -245,6 +252,7 @@ class DriverRoute {
       shift = 0;
       result = 0;
       do {
+        if (index >= len) return points;
         b = encoded.codeUnitAt(index++) - 63;
         result |= (b & 0x1f) << shift;
         shift += 5;

@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import jakarta.servlet.http.HttpServletRequest;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -19,8 +20,14 @@ import java.util.Map;
 public class GlobalExceptionHandler {
 
     @ExceptionHandler(AppException.class)
-    public ResponseEntity<ErrorResponse> handleApp(AppException ex) {
-        log.warn("AppException [{}]: {}", ex.getStatus(), ex.getMessage());
+    public ResponseEntity<ErrorResponse> handleApp(AppException ex, HttpServletRequest request) {
+        String path = request != null ? request.getRequestURI() : "";
+        String query = request != null ? request.getQueryString() : null;
+        if (query != null && !query.isBlank()) {
+            path = path + "?" + query;
+        }
+        String method = request != null ? request.getMethod() : "";
+        log.warn("AppException [{}] {} {}: {}", ex.getStatus(), method, path, ex.getMessage());
         String error = null;
         if (ex.getMessage() != null && ex.getMessage().contains("inspection")) {
             error = "INSPECTION_REQUIRED";

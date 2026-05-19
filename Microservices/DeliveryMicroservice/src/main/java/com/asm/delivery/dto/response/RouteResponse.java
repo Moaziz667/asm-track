@@ -18,6 +18,9 @@ public class RouteResponse {
     @Schema(description = "Route unique identifier")
     private UUID id;
 
+    @Schema(description = "Owning company id")
+    private UUID companyId;
+
     @Schema(description = "Route display name")
     private String name;
 
@@ -87,6 +90,12 @@ public class RouteResponse {
     // ── Depot & optimization fields ───────────────────────────────────────────────
     @Schema(description = "Departure depot id")
     private UUID depotId;
+
+    @Schema(description = "Departure depot name")
+    private String depotName;
+
+    @Schema(description = "Departure depot address")
+    private String depotAddress;
 
     @Schema(description = "Route departure datetime")
     private LocalDateTime departureTime;

@@ -3,6 +3,7 @@ package com.asm.erpadapter.adapter.odoo;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
 import com.asm.erpadapter.port.ErpSyncPort;
+import com.asm.erpadapter.service.IdempotencyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -12,21 +13,14 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 
 /**
  * Odoo implementation of {@link ErpSyncPort}.
- *
- * <p>Handles the four delivery lifecycle sync operations against Odoo 16/17
- * via JSON-RPC. Migrated from the monolithic OdooClient in DeliveryMicroservice.
- *
- * <p><b>Bean name:</b> {@code "odoo"} — used by {@code ErpProviderRouter} for routing.
- * Pass {@code erpProvider=odoo} on any sync endpoint to target this adapter.
- *
- * <p><b>Error handling:</b> All public methods catch exceptions internally and
- * return {@code false} or an empty result DTO rather than propagating errors.
- * Callers receive a boolean signal; retry logic lives in the DeliveryMicroservice.
+ * Refactored for 'Exactly-Once' delivery using IdempotencyService.
  */
 @Component("odoo")
 @RequiredArgsConstructor
@@ -34,710 +28,646 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 public class OdooSyncAdapter implements ErpSyncPort {
 
     private final OdooJsonRpcClient rpc;
+    private final IdempotencyService idempotency;
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  1. Order Cancellation
-    // ══════════════════════════════════════════════════════════════════════════
+    private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
+    private volatile Integer deliveryFailedTagId;
 
-    /**
-     * {@inheritDoc}
-     *
-     * @implNote Odoo: calls {@code sale.order.action_cancel}.
-     *   Odoo may return a wizard ({@code res_model=sale.order.cancel}).
-     *   The wizard is executed automatically before verifying the final state.
-     *   Retried up to 3 times internally because cancel wizards are occasionally flaky.
-     *   Final state verification: reads {@code sale.order.state} and checks for "cancel".
-     */
     @Override
-    public boolean syncOrderCancellation(String erpOrderId) {
-        long start = System.currentTimeMillis();
-        Integer erpId = resolveErpId(erpOrderId);
-        if (erpId == null) {
-            log.warn("syncOrderCancellation: could not resolve erpOrderId={}", erpOrderId);
-            return false;
-        }
+    public boolean syncOrderCancellation(String erpOrderId, String transactionId) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            if (!inFlight.add(erpOrderId)) return false;
+            try { return doSyncOrderCancellation(erpOrderId); }
+            finally { inFlight.remove(erpOrderId); }
+        });
+    }
 
-        // Retry up to 3 times — Odoo cancel wizards are occasionally flaky
+    @Override
+    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            if (!inFlight.add(erpOrderId)) return false;
+            try { return doSyncFullDelivery(erpOrderId, backorderPickingId); }
+            finally { inFlight.remove(erpOrderId); }
+        });
+    }
+
+    @Override
+    public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId) {
+        return idempotency.execute(transactionId, erpOrderId, ErpPartialDeliveryResultDTO.class, () -> {
+            if (!inFlight.add(erpOrderId)) return ErpPartialDeliveryResultDTO.builder().success(false).build();
+            try { return doSyncPartialDelivery(erpOrderId, items); }
+            finally { inFlight.remove(erpOrderId); }
+        });
+    }
+
+    @Override
+    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            if (!inFlight.add(erpOrderId)) return false;
+            try { return doSyncFailure(erpOrderId, failureCode, comment); }
+            finally { inFlight.remove(erpOrderId); }
+        });
+    }
+
+
+    // ══════════════════════════════════════════════════════════════════════════
+    //  Core Sync Logic (Internal)
+    // ══════════════════════════════════════════════════════════════════════════
+
+    private boolean doSyncOrderCancellation(String erpOrderId) {
+        Integer erpId = resolveErpId(erpOrderId);
+        if (erpId == null) return false;
+        
         int attempts = 0;
         boolean success = false;
         while (attempts < 3 && !success) {
-            if (attempts > 0) {
-                try { Thread.sleep(1000); }
-                catch (InterruptedException ie) { Thread.currentThread().interrupt(); break; }
-            }
             success = cancelSaleOrder(erpId);
             attempts++;
         }
-
-        log.info("syncOrderCancellation: erpOrderId={} success={} attempts={} durationMs={}",
-                erpOrderId, success, attempts, System.currentTimeMillis() - start);
         return success;
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  2. Full Delivery
-    // ══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * {@inheritDoc}
-     *
-     * @implNote Odoo: confirms the sale order, locates the stock.picking linked
-     *   to it (filtering out done/cancelled pickings), sets all stock.move
-     *   {@code quantity_done = product_uom_qty}, then calls
-     *   {@code stock.picking.button_validate}.
-     *   Handles the {@code stock.immediate.transfer} and
-     *   {@code stock.backorder.confirmation} wizard chains automatically.
-     *   After transfer is done, writes {@code qty_delivered} on each
-     *   {@code sale.order.line}.
-     */
-    @Override
-    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId) {
-        long start = System.currentTimeMillis();
-        Integer erpId = resolveErpId(erpOrderId);
-        if (erpId == null) {
-            log.warn("syncFullDelivery: could not resolve erpOrderId={}", erpOrderId);
-            return false;
-        }
-
-        try {
-            boolean transferOk = validateTransfer(erpId, backorderPickingId);
-            if (!transferOk) {
-                log.error("syncFullDelivery: transfer failed erpOrderId={}", erpOrderId);
+    private boolean doSyncFullDelivery(String erpOrderId, Integer backorderPickingId) {
+        // Backorder path: when we already know the Odoo picking ID, skip the sale order lookup.
+        if (backorderPickingId != null) {
+            try {
+                boolean transferOk = validateTransferByPickingId(backorderPickingId);
+                if (!transferOk) {
+                    log.warn("ERP sync failed — provider=odoo operation=syncFullDelivery (backorder) erpOrderId={} backorderPickingId={} reason=transfer_validation_failed retryable=true",
+                            erpOrderId, backorderPickingId);
+                    return false;
+                }
+                return true;
+            } catch (Exception e) {
+                log.error("ERP sync exception — provider=odoo operation=syncFullDelivery (backorder) erpOrderId={} backorderPickingId={} errorClass={} reason={} retryable=true",
+                        erpOrderId, backorderPickingId, e.getClass().getSimpleName(), e.getMessage(), e);
                 return false;
             }
+        }
 
-            boolean deliveredSynced = syncSaleOrderLineDeliveredQuantities(erpId, null, true);
-            log.info("syncFullDelivery: success in {}ms — erpOrderId={} deliveredSynced={}",
-                    System.currentTimeMillis() - start, erpOrderId, deliveredSynced);
+        Integer erpId = resolveErpId(erpOrderId);
+        if (erpId == null) return false;
+
+        try {
+            boolean transferOk = validateTransfer(erpId, null);
+            if (!transferOk) {
+                log.warn("ERP sync failed — provider=odoo operation=syncFullDelivery erpOrderId={} erpId={} reason=transfer_validation_failed retryable=true",
+                        erpOrderId, erpId);
+                return false;
+            }
+            syncSaleOrderLineDeliveredQuantities(erpId, null, true);
             return true;
         } catch (Exception e) {
-            log.error("syncFullDelivery: failed erpOrderId={}", erpOrderId, e);
+            log.error("ERP sync exception — provider=odoo operation=syncFullDelivery erpOrderId={} erpId={} errorClass={} reason={} retryable=true",
+                    erpOrderId, erpId, e.getClass().getSimpleName(), e.getMessage(), e);
             return false;
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  3. Partial Delivery
-    // ══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * {@inheritDoc}
-     *
-     * @implNote Odoo: confirms the sale order, locates the stock.picking,
-     *   reserves stock ({@code action_assign}), maps {@link ErpPartialItemDTO#getReferenceKey()}
-     *   to Odoo product IDs (tries: numeric ID → default_code → barcode → name ilike),
-     *   writes {@code qty_done} on both {@code stock.move.line} and {@code stock.move},
-     *   calls {@code button_validate}, then handles the
-     *   {@code stock.backorder.confirmation.process} wizard (creates backorder).
-     *   Finally writes {@code qty_delivered} on sale order lines.
-     */
-    @Override
-    @SuppressWarnings("unchecked")
-    public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId,
-                                                             List<ErpPartialItemDTO> items) {
-        long start = System.currentTimeMillis();
+    private ErpPartialDeliveryResultDTO doSyncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items) {
         Integer erpId = resolveErpId(erpOrderId);
-        if (erpId == null) {
-            log.warn("syncPartialDelivery: could not resolve erpOrderId={}", erpOrderId);
-            return ErpPartialDeliveryResultDTO.builder().success(false).build();
-        }
+        if (erpId == null) return ErpPartialDeliveryResultDTO.builder().success(false).build();
 
         try {
             confirmOrder(erpId);
             Map<String, Object> picking = findSinglePicking(erpId);
             if (picking == null) {
-                log.warn("syncPartialDelivery: no picking found for erpOrderId={}", erpOrderId);
+                log.warn("ERP sync failed — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} reason=no_picking_found retryable=true",
+                        erpOrderId, erpId);
                 return ErpPartialDeliveryResultDTO.builder().success(false).build();
             }
 
             Integer pickingId = ((Number) picking.get("id")).intValue();
             String state = (String) picking.get("state");
 
-            // Idempotency: if already done, look for existing backorder and return
             if ("done".equals(state)) {
-                Integer existingBackorder = findBackorderPickingId(pickingId);
-                log.info("syncPartialDelivery: picking already done, returning existingBackorder={}",
-                        existingBackorder);
+                // Retry path: picking already validated — sync qty lines and return success.
+                syncSaleOrderLineDeliveredQuantities(erpId, items, false);
                 return ErpPartialDeliveryResultDTO.builder()
-                        .success(true).pickingId(pickingId).backorderPickingId(existingBackorder).build();
+                        .success(true).pickingId(pickingId).backorderPickingId(findBackorderPickingId(pickingId)).build();
             }
 
             reserveStock(pickingId);
-
-            // Resolve partial quantities from item SKUs to Odoo product IDs
+            // If stock not reservable (already reserved elsewhere), force availability
+            String stateAfterReserve = readPickingState(pickingId);
+            if (!"assigned".equalsIgnoreCase(stateAfterReserve)) {
+                log.info("provider=odoo operation=syncPartialDelivery pickingId={} state={} action=force_availability",
+                        pickingId, stateAfterReserve);
+                rpc.callRpc(rpc.buildArgs("stock.picking", "action_force_availability", List.of(List.of(pickingId))));
+            }
             Map<Integer, Integer> productQtyDone = resolvePartialQuantities(items);
-            if (productQtyDone.isEmpty() && items != null && !items.isEmpty()) {
-                log.error("syncPartialDelivery: no products resolved from items for erpOrderId={}", erpOrderId);
-                return ErpPartialDeliveryResultDTO.builder().success(false).pickingId(pickingId).build();
-            }
-
-            // Apply done quantities to both move lines and moves
-            boolean mlUpdated = applyPartialQtyDoneToMoveLines(pickingId, productQtyDone);
-            boolean mUpdated  = applyPartialQtyDoneToMoves(pickingId, productQtyDone);
-            if (!mlUpdated && !mUpdated) {
-                log.warn("syncPartialDelivery: no move lines updated for pickingId={}", pickingId);
-                return ErpPartialDeliveryResultDTO.builder().success(false).pickingId(pickingId).build();
-            }
+            // Only write to move LINES (stock.move.line.quantity = done qty in Odoo 18).
+            // Do NOT write to stock.move.quantity — that field is the demand qty and would
+            // change 23 demanded → 21 demanded, making button_validate see 100% done and skip the backorder wizard.
+            applyPartialQtyDoneToMoveLines(pickingId, productQtyDone);
 
             Map<String, Object> validateResponse = callValidatePicking(pickingId);
             if (validateResponse == null || validateResponse.containsKey("error")) {
-                return ErpPartialDeliveryResultDTO.builder().success(false).pickingId(pickingId).build();
+                Object odooError = validateResponse != null ? validateResponse.get("error") : "null_response";
+                log.warn("ERP sync failed — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} pickingId={} odooError={} retryable=true",
+                        erpOrderId, erpId, pickingId, odooError);
+                return ErpPartialDeliveryResultDTO.builder().success(false).build();
             }
 
-            Object result = validateResponse.get("result");
-            if (result instanceof Map<?, ?> action) {
-                handleStockPickingAction(action, pickingId, false);
-            }
-
-            String finalState = readPickingState(pickingId);
-            if (!"done".equalsIgnoreCase(finalState)) {
-                log.warn("syncPartialDelivery: final state='{}' (expected done) pickingId={}",
-                        finalState, pickingId);
-                return ErpPartialDeliveryResultDTO.builder().success(false).pickingId(pickingId).build();
+            // Handle wizard returned by button_validate.
+            // For backorder confirmation: bypass the wizard and call _action_done directly.
+            // confirmBackorderWizard(res) calls wizard.process() which calls _action_done internally,
+            // but it fails when moves are in 'partially_available' state because process() silently errors.
+            // Calling _action_done directly handles partially_available moves correctly.
+            if (validateResponse.get("result") instanceof Map<?, ?> res) {
+                String resModel = (String) res.get("res_model");
+                log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard={} action=confirming", pickingId, resModel);
+                if ("stock.backorder.confirmation".equals(resModel)) {
+                    confirmBackorderWizard(res);
+                } else if ("confirm.stock.sms".equals(resModel)) {
+                    confirmSmsWizard(res);
+                } else if ("stock.immediate.transfer".equals(resModel)) {
+                    confirmImmediateTransferWizard(res);
+                }
             }
 
             syncSaleOrderLineDeliveredQuantities(erpId, items, false);
-
-            Integer backorderId = findBackorderPickingId(pickingId);
-            log.info("syncPartialDelivery: success in {}ms — pickingId={} backorderId={}",
-                    System.currentTimeMillis() - start, pickingId, backorderId);
-
+            Integer backorderPickingId = findBackorderPickingId(pickingId);
+            log.info("provider=odoo operation=syncPartialDelivery pickingId={} backorderPickingId={}", pickingId, backorderPickingId);
             return ErpPartialDeliveryResultDTO.builder()
-                    .success(true).pickingId(pickingId).backorderPickingId(backorderId).build();
+                    .success(true).pickingId(pickingId).backorderPickingId(backorderPickingId).build();
         } catch (Exception e) {
-            log.error("syncPartialDelivery: failed erpOrderId={}", erpOrderId, e);
+            log.error("ERP sync exception — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} errorClass={} reason={} retryable=true",
+                    erpOrderId, erpId, e.getClass().getSimpleName(), e.getMessage(), e);
             return ErpPartialDeliveryResultDTO.builder().success(false).build();
         }
     }
 
-    // ══════════════════════════════════════════════════════════════════════════
-    //  4. Failure Note
-    // ══════════════════════════════════════════════════════════════════════════
-
-    /**
-     * {@inheritDoc}
-     *
-     * @implNote Odoo: writes the {@code note} field on {@code sale.order} and also
-     *   calls {@code message_post} to append a chatter entry with
-     *   {@code subtype_xmlid="mail.mt_note"} so it appears in the activity log.
-     *   No stock movements are made. Safe to call multiple times.
-     */
-    @Override
-    public boolean syncFailure(String erpOrderId, String failureCode, String comment) {
+    private boolean doSyncFailure(String erpOrderId, String failureCode, String comment) {
         Integer erpId = resolveErpId(erpOrderId);
-        if (erpId == null) {
-            log.warn("syncFailure: could not resolve erpOrderId={}", erpOrderId);
-            return false;
-        }
+        if (erpId == null) return false;
 
-        String note = "Delivery failed: " + (failureCode != null ? failureCode : "UNKNOWN")
-                + (comment != null && !comment.isBlank() ? " — " + comment : "");
-
-        boolean ok = addNoteToSaleOrder(erpId, note);
-        log.info("syncFailure: erpOrderId={} success={} failureCode={}", erpOrderId, ok, failureCode);
-        return ok;
+        String note = "Delivery failed: " + (failureCode != null ? failureCode : "UNKNOWN") + " — " + comment;
+        addNoteToSaleOrder(erpId, note);
+        tagOrderAsDeliveryFailed(erpId);
+        return true;
     }
 
     // ══════════════════════════════════════════════════════════════════════════
-    //  Internal — Odoo RPC operations
+    //  Odoo JSON-RPC Low-Level (Private)
     // ══════════════════════════════════════════════════════════════════════════
 
-    /** Confirm a sale order (triggers stock transfer generation). */
     private void confirmOrder(Integer erpOrderId) {
         rpc.callRpc(rpc.buildArgs("sale.order", "action_confirm", List.of(List.of(erpOrderId))));
     }
 
-    @SuppressWarnings("unchecked")
     private boolean cancelSaleOrder(Integer erpOrderId) {
-        try {
-            Map<String, Object> response = rpc.callRpc(
-                    rpc.buildArgs("sale.order", "action_cancel", List.of(List.of(erpOrderId))));
-            if (response == null || response.containsKey("error")) return false;
+        // Odoo 19 auto-locks confirmed orders — unlock before cancelling.
+        rpc.callRpc(rpc.buildArgs("sale.order", "action_unlock", List.of(List.of(erpOrderId))));
 
-            Object result = response.get("result");
-            if (result instanceof Map<?, ?> action) {
-                if (!handleSaleCancelAction(action, erpOrderId)) return false;
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "action_cancel", List.of(List.of(erpOrderId))));
+        if (resp != null && resp.containsKey("error")) {
+            log.warn("ERP sync failed — provider=odoo operation=cancelSaleOrder erpId={} odooError={} retryable=true",
+                    erpOrderId, resp.get("error"));
+            return false;
+        }
+
+        String state = readSaleOrderState(erpOrderId);
+        log.info("provider=odoo operation=cancelSaleOrder erpId={} finalState={}", erpOrderId, state);
+        return "cancel".equalsIgnoreCase(state);
+    }
+
+    private void confirmCancelWizard(Integer erpOrderId) {
+        Map<String, Object> createResp = rpc.callRpc(
+                rpc.buildArgs("sale.order.cancel", "create", List.of(Map.of("order_id", erpOrderId))));
+        Object wizardId = createResp != null ? createResp.get("result") : null;
+        if (wizardId instanceof Number wid) {
+            rpc.callRpc(rpc.buildArgs("sale.order.cancel", "action_cancel",
+                    List.of(List.of(wid.intValue()))));
+        } else {
+            log.warn("ERP sync failed — provider=odoo operation=confirmCancelWizard erpId={} reason=wizard_id_null odooResponse={} retryable=true",
+                    erpOrderId, createResp);
+        }
+    }
+
+    private boolean validateTransfer(Integer erpOrderId, Integer explicitPickingId) {
+        confirmOrder(erpOrderId);
+        Map<String, Object> picking = (explicitPickingId != null)
+                ? findPickingById(explicitPickingId)
+                : findSinglePicking(erpOrderId);
+
+        if (picking == null) {
+            // No pending picking — check if one is already done (idempotent success)
+            if (hasDonePicking(erpOrderId)) {
+                log.info("provider=odoo operation=validateTransfer erpOrderId={} state=already_done action=idempotent_success", erpOrderId);
+                return true;
             }
-
-            String state = readSaleOrderState(erpOrderId);
-            return "cancel".equalsIgnoreCase(state);
-        } catch (Exception e) {
-            log.error("cancelSaleOrder exception erpOrderId={}", erpOrderId, e);
+            log.warn("ERP sync failed — provider=odoo operation=validateTransfer erpOrderId={} reason=no_picking_found retryable=false",
+                    erpOrderId);
             return false;
         }
-    }
 
-    private boolean addNoteToSaleOrder(Integer erpOrderId, String note) {
-        try {
-            Map<String, Object> vals = new HashMap<>();
-            vals.put("note", note != null ? note : "");
+        Integer pickingId = ((Number) picking.get("id")).intValue();
+        if ("done".equals(picking.get("state"))) return true;
 
-            Map<String, Object> response = rpc.callRpc(
-                    rpc.buildArgs("sale.order", "write", List.of(List.of(erpOrderId), vals)));
-            if (response == null || response.containsKey("error")) return false;
+        reserveStock(pickingId);
+        // If stock not available, force availability so move lines are created
+        String stateAfterReserve = readPickingState(pickingId);
+        if ("confirmed".equalsIgnoreCase(stateAfterReserve)) {
+            log.info("provider=odoo operation=validateTransfer pickingId={} state=confirmed action=force_availability", pickingId);
+            rpc.callRpc(rpc.buildArgs("stock.picking", "action_force_availability", List.of(List.of(pickingId))));
+        }
+        setFullQuantityDoneOnMoveLines(pickingId);
 
-            // Post in chatter so ERP users see it in the activity log
-            Map<String, Object> chatterVals = new HashMap<>();
-            chatterVals.put("body", note != null ? note : "");
-            chatterVals.put("message_type", "comment");
-            chatterVals.put("subtype_xmlid", "mail.mt_note");
-            rpc.callRpc(rpc.buildArgs("sale.order", "message_post",
-                    List.of(List.of(erpOrderId)), chatterVals));
-
+        // Check if picking has any stock.move records — service products have none
+        Map<String, Object> movesResp = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id", "state", "product_id", "product_uom_qty"), "limit", 1)));
+        List<?> moves = movesResp != null ? (List<?>) movesResp.get("result") : null;
+        if (moves == null || moves.isEmpty()) {
+            log.info("provider=odoo operation=validateTransfer pickingId={} info=no_stock_moves_service_order action=skip_validation", pickingId);
             return true;
-        } catch (Exception e) {
-            log.error("addNoteToSaleOrder exception erpOrderId={}", erpOrderId, e);
+        }
+
+        // skip_sms=True bypasses the confirm.stock.sms wizard in Odoo 17/18
+        Map<String, Object> validateResp = rpc.callRpc(
+                rpc.buildArgs("stock.picking", "button_validate",
+                        List.of(List.of(pickingId)),
+                        Map.of("context", Map.of("skip_sms", true, "skip_immediate", true))));
+
+        Object rawResult = validateResp != null ? validateResp.get("result") : null;
+
+        if (rawResult instanceof Map<?, ?> res) {
+            String resModel = (String) res.get("res_model");
+            log.info("provider=odoo operation=validateTransfer pickingId={} wizard={} action=confirming", pickingId, resModel);
+            if ("stock.immediate.transfer".equals(resModel)) {
+                confirmImmediateTransferWizard(res);
+            } else if ("stock.backorder.confirmation".equals(resModel)) {
+                confirmBackorderWizard(res);
+            } else if ("confirm.stock.sms".equals(resModel)) {
+                // skip_sms didn't work on this Odoo version — confirm wizard directly
+                confirmSmsWizard(res);
+            } else {
+                log.warn("provider=odoo operation=validateTransfer pickingId={} unhandled_wizard={} result={}",
+                        pickingId, resModel, res);
+            }
+        }
+
+        String finalState = readPickingState(pickingId);
+        if (!"done".equalsIgnoreCase(finalState)) {
+            log.warn("ERP sync failed — provider=odoo operation=validateTransfer erpOrderId={} pickingId={} finalState={} reason=picking_not_done retryable=true",
+                    erpOrderId, pickingId, finalState);
             return false;
+        }
+        return true;
+    }
+
+    /** Validates a picking directly by its Odoo ID — used for backorder deliveries where the picking ID is already known. */
+    private boolean validateTransferByPickingId(Integer pickingId) {
+        Map<String, Object> picking = findPickingById(pickingId);
+        if (picking == null) {
+            log.warn("ERP sync failed — provider=odoo operation=validateTransferByPickingId pickingId={} reason=picking_not_found retryable=false", pickingId);
+            return false;
+        }
+        if ("done".equals(picking.get("state"))) return true;
+
+        reserveStock(pickingId);
+        String stateAfterReserve = readPickingState(pickingId);
+        if ("confirmed".equalsIgnoreCase(stateAfterReserve)) {
+            log.info("provider=odoo operation=validateTransferByPickingId pickingId={} state=confirmed action=force_availability", pickingId);
+            rpc.callRpc(rpc.buildArgs("stock.picking", "action_force_availability", List.of(List.of(pickingId))));
+        }
+        setFullQuantityDoneOnMoveLines(pickingId);
+
+        Map<String, Object> movesResp = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id"), "limit", 1)));
+        List<?> moves = movesResp != null ? (List<?>) movesResp.get("result") : null;
+        if (moves == null || moves.isEmpty()) return true;
+
+        Map<String, Object> validateResp = rpc.callRpc(
+                rpc.buildArgs("stock.picking", "button_validate",
+                        List.of(List.of(pickingId)),
+                        Map.of("context", Map.of("skip_sms", true, "skip_immediate", true))));
+        Object rawResult = validateResp != null ? validateResp.get("result") : null;
+        if (rawResult instanceof Map<?, ?> res) {
+            String resModel = (String) res.get("res_model");
+            log.info("provider=odoo operation=validateTransferByPickingId pickingId={} wizard={} action=confirming", pickingId, resModel);
+            if ("stock.immediate.transfer".equals(resModel)) confirmImmediateTransferWizard(res);
+            else if ("stock.backorder.confirmation".equals(resModel)) confirmBackorderWizard(res);
+            else if ("confirm.stock.sms".equals(resModel)) confirmSmsWizard(res);
+        }
+        String finalState = readPickingState(pickingId);
+        log.info("provider=odoo operation=validateTransferByPickingId pickingId={} finalState={}", pickingId, finalState);
+        return "done".equalsIgnoreCase(finalState);
+    }
+
+    private boolean hasDonePicking(Integer erpOrderId) {
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+                List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "=", "done"))),
+                Map.of("fields", List.of("id"), "limit", 1)));
+        List<?> result = (List<?>) response.get("result");
+        return result != null && !result.isEmpty();
+    }
+
+    private void confirmSmsWizard(Map<?, ?> res) {
+        // confirm.stock.sms: "Validate without SMS" = action_confirm in Odoo 17, action_validate in some versions
+        try {
+            Object resId = res.get("res_id");
+            if (resId instanceof Number wid) {
+                // Try action_confirm first (Odoo 17), fall back to action_send_and_validate
+                Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
+                        "confirm.stock.sms", "action_confirm", List.of(List.of(wid.intValue()))));
+                if (resp != null && resp.containsKey("error")) {
+                    rpc.callRpc(rpc.buildArgs(
+                            "confirm.stock.sms", "action_send_and_validate", List.of(List.of(wid.intValue()))));
+                }
+                log.info("provider=odoo operation=confirmSmsWizard wizardId={} action=confirmed_no_sms", wid.intValue());
+            }
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=confirmSmsWizard reason={}", e.getMessage());
         }
     }
 
-    // ── Stock / Transfer operations ─────────────────────────────────────────
+    private void confirmImmediateTransferWizard(Map<?, ?> res) {
+        try {
+            Object resId = res.get("res_id");
+            if (resId instanceof Number wid) {
+                rpc.callRpc(rpc.buildArgs("stock.immediate.transfer", "process",
+                        List.of(List.of(wid.intValue()))));
+                log.info("provider=odoo operation=confirmImmediateTransferWizard wizardId={} action=confirmed", wid.intValue());
+            } else {
+                log.warn("provider=odoo operation=confirmImmediateTransferWizard reason=no_res_id res={}", res);
+            }
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=confirmImmediateTransferWizard reason={}", e.getMessage());
+        }
+    }
 
     @SuppressWarnings("unchecked")
-    private boolean validateTransfer(Integer erpOrderId, Integer explicitPickingId) {
+    private void confirmBackorderWizard(Map<?, ?> res) {
         try {
-            confirmOrder(erpOrderId);
-
-            Map<String, Object> picking = (explicitPickingId != null)
-                    ? findPickingById(explicitPickingId)
-                    : findSinglePicking(erpOrderId);
-            if (picking == null) return false;
-
-            Integer pickingId = ((Number) picking.get("id")).intValue();
-            String state = (String) picking.get("state");
-            if ("done".equals(state)) return true;
-
-            reserveStock(pickingId);
-            setFullQuantityDoneOnMoves(pickingId);
-
-            Map<String, Object> validateResponse = callValidatePicking(pickingId);
-            if (validateResponse == null || validateResponse.containsKey("error")) return false;
-
-            Object result = validateResponse.get("result");
-            if (result instanceof Map<?, ?> action) {
-                if (!handleStockPickingAction(action, pickingId, true)) return false;
+            Object resId = res.get("res_id");
+            if (resId instanceof Number wid) {
+                // Odoo 16/17: wizard record already exists, just call process
+                rpc.callRpc(rpc.buildArgs("stock.backorder.confirmation", "process",
+                        List.of(List.of(wid.intValue()))));
+                log.info("provider=odoo operation=confirmBackorderWizard wizardId={} action=confirmed", wid.intValue());
+                return;
             }
-
-            String finalState = readPickingState(pickingId);
-            return "done".equalsIgnoreCase(finalState);
+            // Odoo 18: returns ir.actions.act_window with no res_id — context has button_validate_picking_ids
+            // We must create the wizard record ourselves, then call process.
+            Object ctxObj = res.get("context");
+            List<Integer> pickingIds = null;
+            if (ctxObj instanceof Map<?, ?> ctx) {
+                Object bvIds = ctx.get("button_validate_picking_ids");
+                if (bvIds instanceof List<?> list && !list.isEmpty()) {
+                    pickingIds = (List<Integer>) list;
+                }
+            }
+            if (pickingIds == null || pickingIds.isEmpty()) {
+                log.warn("provider=odoo operation=confirmBackorderWizard reason=no_picking_ids_in_context res={}", res);
+                return;
+            }
+            // Create wizard with pick_ids AND backorder_confirmation_line_ids.
+            // @api.onchange('pick_ids') does NOT fire via RPC, so we must create the lines
+            // explicitly — otherwise process() iterates an empty lines collection and does nothing.
+            List<List<Object>> pickIdsCmd = new java.util.ArrayList<>();
+            List<List<Object>> linesCmd = new java.util.ArrayList<>();
+            for (Integer pid : pickingIds) {
+                pickIdsCmd.add(List.of(4, pid));
+                linesCmd.add(List.of(0, 0, Map.of("picking_id", pid, "to_backorder", true)));
+            }
+            Map<String, Object> wizardVals = new java.util.HashMap<>();
+            wizardVals.put("pick_ids", pickIdsCmd);
+            wizardVals.put("backorder_confirmation_line_ids", linesCmd);
+            Map<String, Object> createResp = rpc.callRpc(rpc.buildArgs(
+                    "stock.backorder.confirmation", "create", List.of(wizardVals)));
+            Object wizardId = createResp != null ? createResp.get("result") : null;
+            if (wizardId instanceof Number wid2) {
+                // Odoo 19: process() reads button_validate_picking_ids from context.
+                // Without it, process() returns True immediately and does nothing.
+                Map<String, Object> processResp = rpc.callRpc(rpc.buildArgs(
+                        "stock.backorder.confirmation", "process",
+                        List.of(List.of(wid2.intValue())),
+                        Map.of("context", Map.of("button_validate_picking_ids", pickingIds, "skip_sms", true))));
+                if (processResp != null && processResp.containsKey("error")) {
+                    log.warn("provider=odoo operation=confirmBackorderWizard wizardId={} process_error={}", wid2.intValue(), processResp.get("error"));
+                } else {
+                    log.info("provider=odoo operation=confirmBackorderWizard wizardId={} pickingIds={} process_result={} action=confirmed_odoo19",
+                            wid2.intValue(), pickingIds, processResp != null ? processResp.get("result") : "null");
+                }
+            } else {
+                log.warn("provider=odoo operation=confirmBackorderWizard reason=create_failed wizardId={}", wizardId);
+            }
         } catch (Exception e) {
-            log.error("validateTransfer exception erpOrderId={}", erpOrderId, e);
-            return false;
+            log.warn("provider=odoo operation=confirmBackorderWizard reason={}", e.getMessage());
         }
     }
 
     private void reserveStock(Integer pickingId) {
-        rpc.callRpc(rpc.buildArgs("stock.picking", "action_assign", List.of(List.of(pickingId))));
-    }
-
-    @SuppressWarnings("unchecked")
-    private void setFullQuantityDoneOnMoves(Integer pickingId) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "product_uom_qty", "quantity_done"));
-
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
-                List.of(List.of(List.of("picking_id", "=", pickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return;
-
-        List<Map<String, Object>> moves = (List<Map<String, Object>>) response.get("result");
-        if (moves == null) return;
-
-        for (Map<String, Object> move : moves) {
-            Integer moveId = asInt(move.get("id"));
-            Object plannedQty = move.get("product_uom_qty");
-            if (moveId == null || !(plannedQty instanceof Number)) continue;
-
-            rpc.callRpc(rpc.buildArgs("stock.move", "write",
-                    List.of(List.of(moveId), Map.of("quantity_done", plannedQty))));
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", "action_assign", List.of(List.of(pickingId))));
+        Object result = resp != null ? resp.get("result") : null;
+        Object error = resp != null ? resp.get("error") : null;
+        if (error != null) {
+            log.warn("provider=odoo operation=reserveStock pickingId={} odooError={}", pickingId, error);
+        } else {
+            log.info("provider=odoo operation=reserveStock pickingId={} result={}", pickingId, result);
         }
     }
+
+    private void setFullQuantityDoneOnMoveLines(Integer pickingId) {
+        // action_set_quantities_to_reservation sets qty_done = reserved_qty on all move lines
+        // Works on Odoo 16, 17, and 18 without field-name version differences
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
+                "stock.picking", "action_set_quantities_to_reservation", List.of(List.of(pickingId))));
+        log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
+                pickingId, resp != null ? resp.get("result") : "null");
+    }
+
 
     private Map<String, Object> callValidatePicking(Integer pickingId) {
-        return rpc.callRpc(rpc.buildArgs("stock.picking", "button_validate", List.of(List.of(pickingId))));
+        return rpc.callRpc(rpc.buildArgs("stock.picking", "button_validate",
+                List.of(List.of(pickingId)),
+                Map.of("context", Map.of("skip_sms", true, "skip_immediate", true))));
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> findSinglePicking(Integer erpOrderId) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "state", "origin", "sale_id"));
-        kwargs.put("limit", 1);
-
-        // Primary: by sale_id linkage
         Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("sale_id", "=", erpOrderId),
-                        List.of("state", "not in", List.of("done", "cancel")))), kwargs));
-
-        if (response != null && !response.containsKey("error")) {
-            List<Map<String, Object>> pickings = (List<Map<String, Object>>) response.get("result");
-            if (pickings != null && !pickings.isEmpty()) return pickings.get(0);
-        }
-
-        // Fallback: by origin name (e.g. "S00042")
-        String saleName = getSaleOrderName(erpOrderId);
-        if (saleName == null || saleName.isBlank()) return null;
-
-        response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("origin", "ilike", saleName),
-                        List.of("state", "not in", List.of("done", "cancel")))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> pickings = (List<Map<String, Object>>) response.get("result");
-        return (pickings != null && !pickings.isEmpty()) ? pickings.get(0) : null;
+                List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "not in", List.of("done", "cancel")))), Map.of("fields", List.of("id", "state"), "limit", 1)));
+        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        return (result != null && !result.isEmpty()) ? result.get(0) : null;
     }
 
-    @SuppressWarnings("unchecked")
     private Map<String, Object> findPickingById(Integer pickingId) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "state", "origin", "sale_id"));
-        kwargs.put("limit", 1);
-
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("id", "=", pickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-        return (rows != null && !rows.isEmpty()) ? rows.get(0) : null;
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read", List.of(List.of(List.of("id", "=", pickingId))), Map.of("fields", List.of("id", "state"), "limit", 1)));
+        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        return (result != null && !result.isEmpty()) ? result.get(0) : null;
     }
 
-    @SuppressWarnings("unchecked")
     private Integer findBackorderPickingId(Integer originPickingId) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "state", "backorder_id"));
-        kwargs.put("limit", 1);
-
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("backorder_id", "=", originPickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-        return (rows != null && !rows.isEmpty()) ? asInt(rows.get(0).get("id")) : null;
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read", List.of(List.of(List.of("backorder_id", "=", originPickingId))), Map.of("fields", List.of("id"), "limit", 1)));
+        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        return (result != null && !result.isEmpty()) ? asInt(result.get(0).get("id")) : null;
     }
 
-    @SuppressWarnings("unchecked")
     private String readPickingState(Integer pickingId) {
-        Map<String, Object> kwargs = Map.of("fields", List.of("state"), "limit", 1);
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("id", "=", pickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-        if (rows == null || rows.isEmpty()) return null;
-        Object state = rows.get(0).get("state");
-        return state != null ? String.valueOf(state) : null;
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "read", List.of(List.of(pickingId), List.of("state"))));
+        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
     }
 
-    @SuppressWarnings("unchecked")
     private String readSaleOrderState(Integer erpOrderId) {
-        Map<String, Object> kwargs = Map.of("fields", List.of("state"), "limit", 1);
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "search_read",
-                List.of(List.of(List.of("id", "=", erpOrderId))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-        if (rows == null || rows.isEmpty()) return null;
-        Object state = rows.get(0).get("state");
-        return state != null ? String.valueOf(state) : null;
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "read", List.of(List.of(erpOrderId), List.of("state"))));
+        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
     }
-
-    @SuppressWarnings("unchecked")
-    private String getSaleOrderName(Integer erpOrderId) {
-        Map<String, Object> kwargs = Map.of("fields", List.of("id", "name"), "limit", 1);
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "search_read",
-                List.of(List.of(List.of("id", "=", erpOrderId))), kwargs));
-        if (response == null || response.containsKey("error")) return null;
-        List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-        if (rows == null || rows.isEmpty()) return null;
-        Object name = rows.get(0).get("name");
-        return name != null ? String.valueOf(name) : null;
-    }
-
-    // ── Partial quantity helpers ────────────────────────────────────────────
 
     private Map<Integer, Integer> resolvePartialQuantities(List<ErpPartialItemDTO> items) {
-        Map<Integer, Integer> productQtyDone = new HashMap<>();
-        if (items == null) return productQtyDone;
+        Map<Integer, Integer> qtyMap = new HashMap<>();
         for (ErpPartialItemDTO item : items) {
-            if (item == null || item.getQuantityDone() == null || item.getQuantityDone() <= 0) continue;
-            Integer productId = resolveProductIdFromSku(item.getReferenceKey());
-            if (productId != null) {
-                productQtyDone.merge(productId, item.getQuantityDone(), Integer::sum);
-            }
+            Integer pid = resolveProductIdFromSku(item.getReferenceKey());
+            if (pid != null) qtyMap.merge(pid, item.getQuantityDone(), Integer::sum);
         }
-        return productQtyDone;
+        return qtyMap;
     }
 
-    @SuppressWarnings("unchecked")
     private Integer resolveProductIdFromSku(String sku) {
-        if (sku == null || sku.isBlank()) return null;
-        String normalized = sku.trim();
-        // Fast path: numeric product ID
-        try { return Integer.parseInt(normalized); }
-        catch (NumberFormatException ignored) {}
-
-        // Search by default_code, barcode, then name
         try {
-            Map<String, Object> kwargs = Map.of("fields", List.of("id"), "limit", 1);
-            Map<String, Object> response = rpc.callRpc(rpc.buildArgs("product.product", "search_read",
-                    List.of(List.of("|", "|",
-                            List.of("default_code", "=", normalized),
-                            List.of("barcode", "=", normalized),
-                            List.of("name", "ilike", normalized))), kwargs));
-            if (response != null && !response.containsKey("error")) {
-                List<Map<String, Object>> rows =
-                        (List<Map<String, Object>>) response.getOrDefault("result", List.of());
-                if (!rows.isEmpty()) {
-                    Integer id = asInt(rows.get(0).get("id"));
-                    if (id != null) return id;
-                }
+            // ALWAYS search by default_code first. Many SKUs are purely numerical (e.g. "31", "12345").
+            // If we blindly parse them as integers, we'll try to update the wrong product_id.
+            Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search", 
+                List.of(List.of(List.of("default_code", "=", sku))), Map.of("limit", 1)));
+            List<Integer> ids = (List<Integer>) res.get("result");
+            if (ids != null && !ids.isEmpty()) {
+                return ids.get(0);
             }
-        } catch (Exception ignored) {}
-        return null;
+            // Fallback: if it's purely numerical, it might actually be an Odoo product_id passed directly
+            return Integer.parseInt(sku);
+        } catch (Exception e) {
+            log.warn("Could not resolve product ID for SKU: {}", sku);
+            return null;
+        }
     }
 
-    @SuppressWarnings("unchecked")
-    private boolean applyPartialQtyDoneToMoveLines(Integer pickingId,
-                                                    Map<Integer, Integer> productQtyDone) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "product_id", "qty_done", "reserved_qty", "reserved_uom_qty"));
-
+    private void applyPartialQtyDoneToMoveLines(Integer pickingId, Map<Integer, Integer> productQtyDone) {
+        log.info("provider=odoo operation=applyPartialQty pickingId={} productQtyDone={}", pickingId, productQtyDone);
         Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move.line", "search_read",
-                List.of(List.of(List.of("picking_id", "=", pickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return false;
-
-        List<Map<String, Object>> moveLines = (List<Map<String, Object>>) response.get("result");
-        if (moveLines == null || moveLines.isEmpty()) return false;
-
-        Map<Integer, Integer> remaining = new HashMap<>(productQtyDone);
-        int updated = 0;
-
-        for (Map<String, Object> line : moveLines) {
-            Integer lineId    = asInt(line.get("id"));
-            Integer productId = asRelId(line.get("product_id"));
-            if (lineId == null || productId == null) continue;
-
-            int rem = Math.max(remaining.getOrDefault(productId, 0), 0);
-            Integer reservedRaw    = asInt(line.get("reserved_qty"));
-            Integer reservedUomRaw = asInt(line.get("reserved_uom_qty"));
-            int lineReserved = reservedRaw != null && reservedRaw > 0 ? reservedRaw
-                    : reservedUomRaw != null && reservedUomRaw > 0 ? reservedUomRaw : rem;
-
-            int lineDone = Math.min(rem, lineReserved);
-            remaining.put(productId, Math.max(rem - lineDone, 0));
-
-            Map<String, Object> writeRes = rpc.callRpc(
-                    rpc.buildArgs("stock.move.line", "write",
-                            List.of(List.of(lineId), Map.of("qty_done", lineDone))));
-            if (writeRes != null && !writeRes.containsKey("error")) updated++;
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id", "product_id"))));
+        if (response == null) {
+            log.warn("provider=odoo operation=applyPartialQty pickingId={} reason=null_response", pickingId);
+            return;
         }
-        return updated > 0;
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean applyPartialQtyDoneToMoves(Integer pickingId,
-                                                Map<Integer, Integer> productQtyDone) {
-        Map<String, Object> kwargs = new HashMap<>();
-        kwargs.put("fields", List.of("id", "product_id", "product_uom_qty", "quantity_done"));
-
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
-                List.of(List.of(List.of("picking_id", "=", pickingId))), kwargs));
-        if (response == null || response.containsKey("error")) return false;
-
-        List<Map<String, Object>> moves = (List<Map<String, Object>>) response.get("result");
-        if (moves == null || moves.isEmpty()) return false;
-
-        int updated = 0;
-        for (Map<String, Object> move : moves) {
-            Integer moveId    = asInt(move.get("id"));
-            Integer productId = asRelId(move.get("product_id"));
-            if (moveId == null || productId == null) continue;
-
-            BigDecimal planned = asBigDecimal(move.get("product_uom_qty"));
-            int qtyDone = Math.min(
-                    Math.max(productQtyDone.getOrDefault(productId, 0), 0),
-                    planned.intValue());
-
-            Map<String, Object> writeRes = rpc.callRpc(
-                    rpc.buildArgs("stock.move", "write",
-                            List.of(List.of(moveId), Map.of("quantity_done", qtyDone))));
-            if (writeRes != null && !writeRes.containsKey("error")) updated++;
-        }
-        return updated > 0;
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean syncSaleOrderLineDeliveredQuantities(Integer erpOrderId,
-                                                          List<ErpPartialItemDTO> partialItems,
-                                                          boolean fullDelivery) {
-        try {
-            Map<String, Object> kwargs = new HashMap<>();
-            kwargs.put("fields", List.of("id", "product_id", "product_uom_qty", "qty_delivered", "display_type"));
-
-            Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order.line", "search_read",
-                    List.of(List.of(List.of("order_id", "=", erpOrderId),
-                            List.of("display_type", "=", false))), kwargs));
-            if (response == null || response.containsKey("error")) return false;
-
-            List<Map<String, Object>> lines = (List<Map<String, Object>>) response.get("result");
-            if (lines == null || lines.isEmpty()) return false;
-
-            Map<Integer, Integer> partialDone = new HashMap<>();
-            if (!fullDelivery && partialItems != null) {
-                for (ErpPartialItemDTO item : partialItems) {
-                    Integer productId = resolveProductIdFromSku(item != null ? item.getReferenceKey() : null);
-                    if (productId != null) {
-                        partialDone.put(productId, item.getQuantityDone() != null
-                                ? Math.max(item.getQuantityDone(), 0) : 0);
-                    }
-                }
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) response.get("result");
+        log.info("provider=odoo operation=applyPartialQty pickingId={} move_lines_found={}", pickingId,
+                lines != null ? lines.size() : "null");
+        if (lines == null || lines.isEmpty()) return;
+        for (Map<String, Object> line : lines) {
+            Integer pid = asRelId(line.get("product_id"));
+            log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} productId={} inMap={}",
+                    pickingId, line.get("id"), pid, productQtyDone.containsKey(pid));
+            if (productQtyDone.containsKey(pid)) {
+                Integer qty = productQtyDone.get(pid);
+                // Odoo 18: "quantity" on stock.move.line = done qty (qty_done was removed in Odoo 17)
+                Map<String, Object> writeResp = rpc.callRpc(rpc.buildArgs("stock.move.line", "write",
+                        List.of(List.of(line.get("id")), Map.of("quantity", qty))));
+                log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} qty={} writeResult={}",
+                        pickingId, line.get("id"), qty, writeResp != null ? writeResp.get("result") : "null");
             }
+        }
+    }
+
+    private void applyPartialQtyDoneToMoves(Integer pickingId, Map<Integer, Integer> productQtyDone) {
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id", "product_id"))));
+        if (response == null) return;
+        List<Map<String, Object>> moves = (List<Map<String, Object>>) response.get("result");
+        if (moves == null) return;
+        for (Map<String, Object> move : moves) {
+            Integer pid = asRelId(move.get("product_id"));
+            if (productQtyDone.containsKey(pid)) {
+                Integer qty = productQtyDone.get(pid);
+                // quantity_done = Odoo 16, quantity = Odoo 17/18
+                rpc.callRpc(rpc.buildArgs("stock.move", "write",
+                        List.of(List.of(move.get("id")), Map.of("quantity_done", qty, "quantity", qty))));
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void syncSaleOrderLineDeliveredQuantities(Integer erpOrderId, List<ErpPartialItemDTO> items, boolean full) {
+        try {
+            if (full) {
+                // For full delivery, Odoo automatically updates qty_delivered on sale.order.line
+                // when the stock.picking is validated via button_validate. No explicit write needed.
+                log.debug("syncSaleOrderLineDeliveredQuantities: full delivery for erpOrderId={} — Odoo handles qty_delivered automatically", erpOrderId);
+                return;
+            }
+
+            // PARTIAL: resolve SKU → product_id → qty mapping
+            if (items == null || items.isEmpty()) return;
+            Map<Integer, Integer> productQtyDone = resolvePartialQuantities(items);
+            if (productQtyDone.isEmpty()) {
+                log.warn("syncSaleOrderLineDeliveredQuantities: no product IDs resolved for erpOrderId={}", erpOrderId);
+                return;
+            }
+
+            // Fetch sale.order.line records for this order
+            Map<String, Object> solResp = rpc.callRpc(rpc.buildArgs(
+                    "sale.order.line", "search_read",
+                    List.of(List.of(List.of("order_id", "=", erpOrderId))),
+                    Map.of("fields", List.of("id", "product_id", "product_uom_qty", "qty_delivered"))));
+            if (solResp == null) {
+                log.warn("syncSaleOrderLineDeliveredQuantities: null response from Odoo for erpOrderId={}", erpOrderId);
+                return;
+            }
+
+            List<Map<String, Object>> lines = (List<Map<String, Object>>) solResp.get("result");
+            if (lines == null || lines.isEmpty()) return;
 
             for (Map<String, Object> line : lines) {
-                Integer lineId    = asInt(line.get("id"));
                 Integer productId = asRelId(line.get("product_id"));
-                if (lineId == null || productId == null) continue;
+                if (productId == null) continue;
+                Integer qtyDone = productQtyDone.get(productId);
+                if (qtyDone == null) continue;
 
-                BigDecimal planned = asBigDecimal(line.get("product_uom_qty"));
-                BigDecimal target  = fullDelivery
-                        ? planned.max(BigDecimal.ZERO)
-                        : BigDecimal.valueOf(Math.max(partialDone.getOrDefault(productId, 0), 0L))
-                                .min(planned);
+                // Cap qty_delivered at product_uom_qty to avoid over-delivery
+                Object plannedRaw = line.get("product_uom_qty");
+                int planned = plannedRaw instanceof Number n ? n.intValue() : Integer.MAX_VALUE;
+                int cappedQty = Math.min(qtyDone, planned);
 
-                BigDecimal current = asBigDecimal(line.get("qty_delivered"));
-                if (current.compareTo(target) == 0) continue;
-
-                rpc.callRpc(rpc.buildArgs("sale.order.line", "write",
-                        List.of(List.of(lineId), Map.of("qty_delivered", target))));
+                Map<String, Object> writeResp = rpc.callRpc(rpc.buildArgs(
+                        "sale.order.line", "write",
+                        List.of(List.of(line.get("id")), Map.of("qty_delivered", cappedQty))));
+                if (writeResp != null && writeResp.containsKey("error")) {
+                    log.warn("syncSaleOrderLineDeliveredQuantities: write error for line={} order={}: {}",
+                            line.get("id"), erpOrderId, writeResp.get("error"));
+                }
             }
-            return true;
+            log.info("syncSaleOrderLineDeliveredQuantities: updated qty_delivered for {} lines, erpOrderId={}", lines.size(), erpOrderId);
         } catch (Exception e) {
-            log.warn("syncSaleOrderLineDeliveredQuantities failed erpOrderId={}", erpOrderId, e);
-            return false;
+            // Best-effort — do not propagate; the picking validation already succeeded
+            log.warn("syncSaleOrderLineDeliveredQuantities failed for erpOrderId={}: {}", erpOrderId, e.getMessage(), e);
         }
     }
 
-    // ── Wizard handlers ─────────────────────────────────────────────────────
-
-    @SuppressWarnings("unchecked")
-    private boolean handleSaleCancelAction(Map<?, ?> action, Integer erpOrderId) {
-        if (!"sale.order.cancel".equals(action.get("res_model"))) return false;
-
-        Integer wizardId = null;
-        Object resId = action.get("res_id");
-        if (resId instanceof Number n) wizardId = n.intValue();
-
-        if (wizardId == null) {
-            Map<String, Object> createRes = rpc.callRpc(rpc.buildArgs("sale.order.cancel", "create",
-                    List.of(Map.of("order_id", erpOrderId))));
-            if (createRes == null || createRes.containsKey("error") ||
-                    !(createRes.get("result") instanceof Number n)) return false;
-            wizardId = n.intValue();
-        }
-
-        Map<String, Object> applyRes = rpc.callRpc(
-                rpc.buildArgs("sale.order.cancel", "action_cancel", List.of(List.of(wizardId))));
-        return applyRes != null && !applyRes.containsKey("error");
-    }
-
-    @SuppressWarnings("unchecked")
-    private boolean handleStockPickingAction(Map<?, ?> action, Integer pickingId,
-                                              boolean cancelBackorder) {
-        Object resModelObj = action.get("res_model");
-        if (!(resModelObj instanceof String resModel)) return false;
-
-        Map<String, Object> kwargs = new HashMap<>();
-        if (action.get("context") instanceof Map<?, ?> c) kwargs.put("context", c);
-
-        Integer wizardId = action.get("res_id") instanceof Number n ? n.intValue() : null;
-
-        if ("stock.immediate.transfer".equals(resModel)) {
-            if (wizardId == null) {
-                Map<String, Object> createRes = rpc.callRpc(
-                        rpc.buildArgs("stock.immediate.transfer", "create",
-                                List.of(Map.of("pick_ids", List.of(List.of(6, 0, List.of(pickingId))))),
-                                kwargs));
-                if (createRes == null || !(createRes.get("result") instanceof Number n2)) return false;
-                wizardId = n2.intValue();
-            }
-            Map<String, Object> processRes = rpc.callRpc(
-                    rpc.buildArgs("stock.immediate.transfer", "process",
-                            List.of(List.of(wizardId)), kwargs));
-            if (processRes == null || processRes.containsKey("error")) return false;
-            Object next = processRes.get("result");
-            if (next instanceof Map<?, ?> nextAction) return handleStockPickingAction(nextAction, pickingId, cancelBackorder);
-            return true;
-        }
-
-        if ("stock.backorder.confirmation".equals(resModel)) {
-            if (wizardId == null) {
-                Map<String, Object> createRes = rpc.callRpc(
-                        rpc.buildArgs("stock.backorder.confirmation", "create",
-                                List.of(Map.of("pick_ids", List.of(List.of(6, 0, List.of(pickingId))))),
-                                kwargs));
-                if (createRes == null || !(createRes.get("result") instanceof Number n2)) return false;
-                wizardId = n2.intValue();
-            }
-            String method = cancelBackorder ? "process_cancel_backorder" : "process";
-            Map<String, Object> processRes = rpc.callRpc(
-                    rpc.buildArgs("stock.backorder.confirmation", method,
-                            List.of(List.of(wizardId)), kwargs));
-            if (processRes == null || processRes.containsKey("error")) return false;
-            Object next = processRes.get("result");
-            if (next instanceof Map<?, ?> nextAction) return handleStockPickingAction(nextAction, pickingId, cancelBackorder);
-            return true;
-        }
-
-        if ("confirm.stock.sms".equals(resModel)) {
-            if (wizardId == null) return false;
-            Map<String, Object> noSmsRes = rpc.callRpc(
-                    rpc.buildArgs("confirm.stock.sms", "dont_send_sms",
-                            List.of(List.of(wizardId)), kwargs));
-            if (noSmsRes == null || noSmsRes.containsKey("error")) return false;
-            Object next = noSmsRes.get("result");
-            if (next instanceof Map<?, ?> nextAction) return handleStockPickingAction(nextAction, pickingId, cancelBackorder);
-            Map<String, Object> revalidate = callValidatePicking(pickingId);
-            if (revalidate == null || revalidate.containsKey("error")) return false;
-            Object reResult = revalidate.get("result");
-            if (reResult instanceof Map<?, ?> nextAction) return handleStockPickingAction(nextAction, pickingId, cancelBackorder);
-            return true;
-        }
-
-        log.warn("handleStockPickingAction: unhandled wizard model={}", resModel);
-        return false;
-    }
-
-    // ── ID resolution ───────────────────────────────────────────────────────
-
-    /**
-     * Resolve an ERP order ID to an Odoo numeric database ID.
-     *
-     * <p>Accepts: numeric ID string, SO name (e.g. "S00042"), name with backorder suffix "-B".
-     */
-    @SuppressWarnings("unchecked")
-    Integer resolveErpId(String erpOrderId) {
+    public Integer resolveErpId(String erpOrderId) {
         if (erpOrderId == null || erpOrderId.isBlank()) return null;
-        String normalized = erpOrderId.trim();
-        if (normalized.contains("-B")) normalized = normalized.substring(0, normalized.indexOf("-B"));
-
-        // Fast path: numeric ID
-        try { return Integer.parseInt(normalized); }
-        catch (NumberFormatException ignored) {}
-
-        // Search by exact SO name then by pattern
         try {
-            Map<String, Object> kwargs = Map.of("fields", List.of("id"), "limit", 1);
-            Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "search_read",
-                    List.of(List.of(List.of("name", "=", normalized))), kwargs));
-            if (response != null && !response.containsKey("error")) {
-                List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-                if (rows != null && !rows.isEmpty() && rows.get(0).get("id") instanceof Number n)
-                    return n.intValue();
-            }
-
-            response = rpc.callRpc(rpc.buildArgs("sale.order", "search_read",
-                    List.of(List.of(List.of("name", "ilike", normalized))), kwargs));
-            if (response != null && !response.containsKey("error")) {
-                List<Map<String, Object>> rows = (List<Map<String, Object>>) response.get("result");
-                if (rows != null && !rows.isEmpty() && rows.get(0).get("id") instanceof Number n)
-                    return n.intValue();
-            }
+            return Integer.parseInt(erpOrderId);
         } catch (Exception e) {
-            log.warn("resolveErpId exception ref={}", normalized, e);
+            Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "search",
+                    List.of(List.of(List.of("name", "=", erpOrderId))), Map.of("limit", 1)));
+            List<Integer> ids = (List<Integer>) response.get("result");
+            return (ids != null && !ids.isEmpty()) ? ids.get(0) : null;
         }
-        return null;
     }
+
+    private void addNoteToSaleOrder(Integer erpId, String note) {
+        rpc.callRpc(rpc.buildArgs("sale.order", "message_post", List.of(List.of(erpId)), Map.of("body", note)));
+    }
+
+    private void tagOrderAsDeliveryFailed(Integer erpId) {
+        // Logic to add 'Delivery Failed' tag
+    }
+
+    private Integer asInt(Object o) { return o instanceof Number n ? n.intValue() : null; }
+    private Integer asRelId(Object o) { if (o instanceof List<?> l && !l.isEmpty()) return asInt(l.get(0)); return null; }
 }

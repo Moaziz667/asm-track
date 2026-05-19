@@ -31,6 +31,9 @@ public class AdminUser {
     @Column(nullable = false, length = 20)
     private String role;
 
+    @Column(name = "company_id")
+    private UUID companyId;
+
     @Column(nullable = false)
     @Builder.Default
     private boolean active = true;

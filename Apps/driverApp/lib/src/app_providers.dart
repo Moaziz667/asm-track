@@ -11,9 +11,11 @@ import 'features/profile/models/profile_models.dart';
 import 'features/routes/data/route_repository.dart';
 import 'features/routes/models/route_models.dart';
 import 'services/api_client.dart';
+import 'services/connectivity_service.dart';
 import 'services/fcm_service.dart';
 import 'services/pdf_service.dart';
 import 'services/route_cache_service.dart';
+import 'services/offline_queue_service.dart';
 import 'services/token_storage.dart';
 import 'services/vehicle_service.dart';
 
@@ -21,27 +23,43 @@ final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 
-final apiClientProvider = Provider<ApiClient>((ref) {
+final connectivityServiceProvider = Provider<ConnectivityService>(
+  (ref) => ConnectivityService(),
+);
+
+final apiClientProvider = Provider<ApiClient>((Ref ref) {
   final config = ref.watch(appConfigProvider);
   final storage = ref.watch(tokenStorageProvider);
-  return ApiClient(config: config, tokenStorage: storage);
+  return ApiClient(
+    config: config,
+    tokenStorage: storage,
+  );
 });
 
-final authRepositoryProvider = Provider<AuthRepository>((ref) {
+final authRepositoryProvider = Provider<AuthRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
   return AuthRepository(client);
 });
 
 final authControllerProvider =
-    StateNotifierProvider<AuthController, AuthState>((ref) => AuthController(
-          ref.watch(authRepositoryProvider),
-          ref.watch(tokenStorageProvider),
-          ref.watch(fcmServiceProvider),
-        ));
+    StateNotifierProvider<AuthController, AuthState>((Ref ref) {
+  final repo = ref.watch(authRepositoryProvider);
+  final storage = ref.watch(tokenStorageProvider);
+  final fcm = ref.watch(fcmServiceProvider);
 
-final deliveryRepositoryProvider = Provider<DeliveryRepository>((ref) {
+  final controller = AuthController(repo, storage, fcm);
+
+  // Wire up session expiration callback to break circularity in provider definitions
+  ref.read(apiClientProvider).onSessionExpired = () => controller.logout();
+
+  return controller;
+});
+
+final deliveryRepositoryProvider = Provider<DeliveryRepository>((Ref ref) {
   final client = ref.watch(apiClientProvider);
-  return DeliveryRepository(client);
+  final queue = ref.watch(offlineQueueProvider.notifier);
+  final connectivity = ref.watch(connectivityServiceProvider);
+  return DeliveryRepository(client, queue, connectivity);
 });
 
 final profileRepositoryProvider = Provider<ProfileRepository>((ref) {
@@ -54,7 +72,9 @@ final routeCacheServiceProvider = Provider<RouteCacheService>((ref) => RouteCach
 final routeRepositoryProvider = Provider<RouteRepository>((ref) {
   final client = ref.watch(apiClientProvider);
   final cache = ref.watch(routeCacheServiceProvider);
-  return RouteRepository(client, cache);
+  final queue = ref.watch(offlineQueueProvider.notifier);
+  final connectivity = ref.watch(connectivityServiceProvider);
+  return RouteRepository(client, cache, queue, connectivity);
 });
 
 final vehicleServiceProvider = Provider<VehicleService>((ref) {

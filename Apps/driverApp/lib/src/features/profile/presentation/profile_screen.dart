@@ -11,7 +11,7 @@ import '../../../services/location_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../auth/models/auth_models.dart';
-import '../../deliveries/presentation/incident_report_screen.dart';
+
 import 'change_password_screen.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -33,7 +33,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: const Text('Location broadcasted to ops.'),
+              content: const Text('Position envoyée au dispatch.'),
               backgroundColor: AppColors.ink,
               behavior: SnackBarBehavior.floating,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -50,11 +50,11 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Sign out?'),
-        content: const Text('You will need to sign in again to access your deliveries.', style: TextStyle(color: AppColors.muted)),
+        title: const Text('Se déconnecter ?'),
+        content: const Text('Vous devrez vous reconnecter pour accéder à vos livraisons.', style: TextStyle(color: AppColors.muted)),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel', style: TextStyle(color: AppColors.muted))),
-          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Sign out', style: TextStyle(color: AppColors.danger))),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler', style: TextStyle(color: AppColors.muted))),
+          TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Se déconnecter', style: TextStyle(color: AppColors.danger))),
         ],
       ),
     );
@@ -74,7 +74,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         Padding(
           padding: const EdgeInsets.only(top: 20, bottom: 20),
           child: Text(
-            'PROFILE',
+            'PROFIL',
             style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -0.5),
           ),
         ),
@@ -147,7 +147,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               borderRadius: BorderRadius.circular(2),
                               border: Border.all(color: AppColors.neonYellow.withValues(alpha: 0.3)),
                             ),
-                            child: const Text('ACTIVE', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.neonYellow, letterSpacing: 1)),
+                            child: const Text('ACTIF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.neonYellow, letterSpacing: 1)),
                           ),
                         ],
                       ),
@@ -157,13 +157,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                       padding: const EdgeInsets.all(20),
                       child: Column(
                         children: [
-                          InfoRow(label: 'Driver ID', value: profile.id),
+                          InfoRow(label: 'ID Chauffeur', value: profile.id),
                           const Divider(color: AppColors.border, height: 20),
-                          InfoRow(label: 'Phone', value: profile.phone),
+                          InfoRow(label: 'Téléphone', value: profile.phone),
                           if (profile.lastLocationAt != null) ...[
                             const Divider(color: AppColors.border, height: 20),
                             InfoRow(
-                              label: 'Last ping',
+                              label: 'Dernier ping',
                               value: DateFormat('MMM d · HH:mm').format(profile.lastLocationAt!.toLocal()),
                             ),
                           ],
@@ -186,9 +186,9 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               statsAsync.when(
                 data: (stats) => Row(
                   children: [
-                    Expanded(child: MetricTile(label: 'Delivered', value: '${stats.delivered}', accentColor: AppColors.success, icon: Icons.check_circle_outline_rounded)),
+                    Expanded(child: MetricTile(label: 'Livré', value: '${stats.delivered}', accentColor: AppColors.success, icon: Icons.check_circle_outline_rounded)),
                     const SizedBox(width: 10),
-                    Expanded(child: MetricTile(label: 'Failed', value: '${stats.failed}', accentColor: AppColors.danger, icon: PhosphorIconsBold.xCircle)),
+                    Expanded(child: MetricTile(label: 'Échoué', value: '${stats.failed}', accentColor: AppColors.danger, icon: PhosphorIconsBold.xCircle)),
                     const SizedBox(width: 10),
                     Expanded(child: MetricTile(label: 'Total', value: '${stats.totalDeliveries}', accentColor: AppColors.accent, icon: PhosphorIconsBold.package)),
                   ],
@@ -203,31 +203,19 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: DriveButton(
-                  label: 'Broadcast Location',
+                  label: 'Envoyer ma position',
                   icon: LucideIcons.mapPin,
                   isLoading: _locationSending,
                   onPressed: _locationSending ? null : _sendLocation,
                 ),
               ),
-              const SizedBox(height: 12),
-              SizedBox(
-                width: double.infinity,
-                child: DriveButton(
-                  label: 'Report General Incident',
-                  icon: LucideIcons.alertTriangle,
-                  variant: DriveButtonVariant.secondary,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const IncidentReportScreen()),
-                  ),
-                ),
-              ),
               const SizedBox(height: 32),
-              Text('SECURITY', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+              Text('SÉCURITÉ', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
               const SizedBox(height: 12),
               SizedBox(
                 width: double.infinity,
                 child: DriveButton(
-                  label: 'Change Password',
+                  label: 'Changer le mot de passe',
                   icon: LucideIcons.lock,
                   variant: DriveButtonVariant.ghost,
                   onPressed: () => Navigator.of(context).push(
@@ -239,7 +227,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: DriveButton(
-                  label: 'Sign Out',
+                  label: 'Se déconnecter',
                   icon: LucideIcons.logOut,
                   variant: DriveButtonVariant.danger,
                   onPressed: _logout,
@@ -247,12 +235,12 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               ),
             ],
           ),
-          loading: () => const LoadingState(message: 'Loading profile…'),
+          loading: () => const LoadingState(message: 'Chargement du profil…'),
           error: (_, __) => EmptyState(
             icon: PhosphorIconsRegular.userCircleMinus,
-            title: 'Profile unavailable',
+            title: 'Profil indisponible',
             action: () => ref.invalidate(driverProfileProvider),
-            actionLabel: 'Retry',
+            actionLabel: 'Réessayer',
           ),
         ),
       ],

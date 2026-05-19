@@ -2,8 +2,11 @@ package com.asm.delivery.erp.client;
 
 import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.security.UserPrincipal;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -30,19 +33,29 @@ public class ErpAdapterClient {
 
     private final RestTemplate restTemplate;
     private final String adapterBaseUrl;
-    private final String internalSecret;
     private final String defaultProvider;
+    private final String authServerUrl;
+    private final String clientId;
+    private final String clientSecret;
+
+    // Service token cache
+    private String  cachedToken;
+    private java.time.Instant tokenExpiresAt = java.time.Instant.MIN;
 
     public ErpAdapterClient(
             @Value("${erp.adapter-url:http://erp-adapter:8088}") String adapterBaseUrl,
-            @Value("${internal.secret:asm-internal-2026}") String internalSecret,
             @Value("${erp.default-provider:odoo}") String defaultProvider,
+            @Value("${auth.server.url}") String authServerUrl,
+            @Value("${auth.client.id}") String clientId,
+            @Value("${auth.client.secret}") String clientSecret,
             @Value("${erp.sync.timeout.connect-ms:3000}") int connectMs,
             @Value("${erp.sync.timeout.read-ms:30000}") int readMs) {
 
         this.adapterBaseUrl = adapterBaseUrl;
-        this.internalSecret = internalSecret;
         this.defaultProvider = defaultProvider;
+        this.authServerUrl  = authServerUrl;
+        this.clientId       = clientId;
+        this.clientSecret   = clientSecret;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectMs);
@@ -50,40 +63,62 @@ public class ErpAdapterClient {
         this.restTemplate = new RestTemplate(factory);
     }
 
+    @SuppressWarnings("unchecked")
+    private synchronized String getServiceToken() {
+        if (cachedToken != null && java.time.Instant.now().isBefore(tokenExpiresAt)) return cachedToken;
+        org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
+        params.add("grant_type",    "client_credentials");
+        params.add("client_id",     clientId);
+        params.add("client_secret", clientSecret);
+        HttpHeaders h = new HttpHeaders();
+        h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+        ResponseEntity<Map> resp = new RestTemplate().exchange(
+                authServerUrl + "/oauth2/token", HttpMethod.POST,
+                new HttpEntity<>(params, h), Map.class);
+        Map<String, Object> body = resp.getBody();
+        cachedToken    = (String) body.get("access_token");
+        int expiresIn  = ((Number) body.get("expires_in")).intValue();
+        tokenExpiresAt = java.time.Instant.now().plusSeconds(expiresIn - 30);
+        return cachedToken;
+    }
+
     // ── Sync Operations ─────────────────────────────────────────────────────────
 
     /**
      * Sync order cancellation via the adapter.
      */
-    public boolean syncOrderCancellation(String erpOrderId, String erpProvider) {
+    public boolean syncOrderCancellation(String erpOrderId, String transactionId, String erpProvider, String companyId) {
         String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/order-cancellation")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
                 .queryParam("erpOrderId", erpOrderId)
+                .queryParam("transactionId", transactionId)
                 .toUriString();
-        return postBooleanResult(url, null);
+        return postBooleanResult(url, null, companyId);
     }
 
     /**
      * Sync full delivery via the adapter.
      */
-    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String erpProvider) {
+    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId, String erpProvider, String companyId) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
+        body.put("transactionId", transactionId);
         if (backorderPickingId != null) body.put("backorderPickingId", backorderPickingId);
 
         String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/full-delivery")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
                 .toUriString();
-        return postBooleanResult(url, body);
+        return postBooleanResult(url, body, companyId);
     }
 
     /**
      * Sync partial delivery via the adapter.
      * Returns map with { success, pickingId, backorderPickingId }.
      */
-    public Map<String, Object> syncPartialDelivery(String erpOrderId, List<PartialDeliveryItem> partialItems, String erpProvider) {
+    public Map<String, Object> syncPartialDelivery(String erpOrderId, List<PartialDeliveryItem> partialItems, String transactionId, String erpProvider, String companyId) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
+        body.put("transactionId", transactionId);
         if (partialItems != null) {
             List<Map<String, Object>> items = partialItems.stream().map(item -> {
                 Map<String, Object> m = new HashMap<>();
@@ -100,11 +135,15 @@ public class ErpAdapterClient {
 
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.POST, new HttpEntity<>(body, buildHeaders()),
+                    url, HttpMethod.POST, new HttpEntity<>(body, buildHeaders(companyId)),
                     new ParameterizedTypeReference<>() {});
-            return response.getBody() != null ? response.getBody() : Map.of("success", false);
+            Map<String, Object> result = response.getBody() != null ? response.getBody() : Map.of("success", false);
+            if (!Boolean.TRUE.equals(result.get("success"))) {
+                log.error("Adapter syncPartialDelivery returned success=false: erpOrderId={}, response={}", erpOrderId, result);
+            }
+            return result;
         } catch (Exception e) {
-            log.error("Adapter syncPartialDelivery failed for erpOrderId={}", erpOrderId, e);
+            log.error("Adapter syncPartialDelivery failed for erpOrderId={}: {}", erpOrderId, e.getMessage(), e);
             return Map.of("success", false);
         }
     }
@@ -112,16 +151,17 @@ public class ErpAdapterClient {
     /**
      * Sync failure note via the adapter.
      */
-    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String erpProvider) {
+    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String erpProvider, String companyId) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
+        body.put("transactionId", transactionId);
         body.put("failureCode", failureCode);
         body.put("comment", comment);
 
         String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/failure")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
                 .toUriString();
-        return postBooleanResult(url, body);
+        return postBooleanResult(url, body, companyId);
     }
 
     // ── Lookup Operations ───────────────────────────────────────────────────────
@@ -182,24 +222,82 @@ public class ErpAdapterClient {
 
     // ── Internal ────────────────────────────────────────────────────────────────
 
-    private HttpHeaders buildHeaders() {
+    /** Get pending orders scoped to a specific company — safe to call from schedulers (no JWT needed). */
+    public List<Map<String, Object>> getPendingOrdersForCompany(int limit, UUID companyId) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/pending-orders")
+                .queryParam("erpProvider", defaultProvider)
+                .queryParam("limit", limit)
+                .toUriString();
+        try {
+            ResponseEntity<List<Map<String, Object>>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(buildHeadersForCompany(companyId)),
+                    new ParameterizedTypeReference<>() {});
+            return response.getBody() != null ? response.getBody() : List.of();
+        } catch (Exception e) {
+            log.warn("getPendingOrdersForCompany failed for company={}: {}", companyId, e.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
+     * Build request headers.
+     * When {@code companyId} is provided (outbox/scheduler path), it is used directly.
+     * Otherwise falls back to the SecurityContext (controller/request path).
+     */
+    private HttpHeaders buildHeaders(String companyId) {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("X-Internal-Secret", internalSecret);
+        headers.setBearerAuth(getServiceToken());
+        if (companyId != null && !companyId.isBlank()) {
+            headers.set("X-Company-Id", companyId);
+        } else {
+            // Fallback for controller-path calls that have a SecurityContext
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal
+                    && principal.getCompanyId() != null) {
+                headers.set("X-Company-Id", principal.getCompanyId());
+            }
+        }
         return headers;
     }
 
-    private boolean postBooleanResult(String url, Object body) {
+    /** Convenience overload for controller-path calls (SecurityContext available). */
+    private HttpHeaders buildHeaders() {
+        return buildHeaders(null);
+    }
+
+    private HttpHeaders buildHeadersForCompany(UUID companyId) {
+        return buildHeaders(companyId != null ? companyId.toString() : null);
+    }
+
+    private boolean postBooleanResult(String url, Object body, String companyId) {
+        String erpOrderId = extractField(body, "erpOrderId");
+        String transactionId = extractField(body, "transactionId");
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.POST, new HttpEntity<>(body, buildHeaders()),
+                    url, HttpMethod.POST, new HttpEntity<>(body, buildHeaders(companyId)),
                     new ParameterizedTypeReference<>() {});
             Map<String, Object> result = response.getBody();
-            return result != null && Boolean.TRUE.equals(result.get("success"));
+            boolean success = result != null && Boolean.TRUE.equals(result.get("success"));
+            if (!success) {
+                Object reason = result != null ? result.get("reason") : "null_body";
+                log.error("ERP adapter success=false — erpOrderId={} txId={} companyId={} url={} adapterReason={}",
+                        erpOrderId, transactionId, companyId, url, reason);
+            }
+            return success;
         } catch (Exception e) {
-            log.error("Adapter call failed: {}", url, e);
+            log.error("ERP adapter call failed — erpOrderId={} txId={} companyId={} url={} errorClass={} reason={}",
+                    erpOrderId, transactionId, companyId, url, e.getClass().getSimpleName(), e.getMessage(), e);
             return false;
         }
+    }
+
+    private static String extractField(Object body, String field) {
+        if (body instanceof Map<?, ?> m) {
+            Object v = m.get(field);
+            return v != null ? v.toString() : null;
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

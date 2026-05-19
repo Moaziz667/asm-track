@@ -58,3 +58,68 @@ coverage/
 # Package lock files (optional - remove if you want to keep them)
 # package-lock.json
 # yarn.lock
+
+# Turbo
+.turbo/
+
+# Java / Maven
+target/
+*.class
+*.jar
+*.war
+*.ear
+.mvn/
+
+# Editor
+.vscode/
+.idea/
+*.iml
+*.iws
+
+# Docker
+*.tar.zst
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Mobile
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+build/
+docs/videos/*
+
+# Flutter build output
+Apps/driverApp/build/
+Apps/driverApp/.dart_tool/
+Apps/driverApp/.flutter-plugins
+Apps/driverApp/.flutter-plugins-dependencies
+*.apk
+*.aab
+*.ipa
+
+# Next.js build
+Apps/admin-app/.next/
+
+# Vite/dist build
+Apps/asm-super-admin/dist/
+
+# Java build artifacts
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+
+# LaTeX build artifacts
+*.aux
+*.toc
+*.out
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.bcf
+*.blg
+*.bbl
+*.run.xml
+test.tex

@@ -67,12 +67,12 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
                 const Icon(LucideIcons.scan, color: AppColors.neonYellow, size: 32),
                 const SizedBox(height: 16),
                 Text(
-                  'SCAN SENDER QR',
+                  'SCANNER LE QR DE L\'EXPÉDITEUR',
                   style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Align the QR code from Driver A within the frame to confirm custody transfer.',
+                  'Alignez le code QR de l\'autre chauffeur dans le cadre pour confirmer le transfert de responsabilité.',
                   style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 13),
                   textAlign: TextAlign.center,
                 ),
@@ -83,7 +83,7 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
           if (_isProcessing)
             Container(
               color: Colors.black87,
-              child: const LoadingState(message: 'Validating handshake...'),
+              child: const LoadingState(message: 'Validation du transfert…'),
             ),
         ],
       ),
@@ -151,21 +151,23 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
       }
 
       await ref.read(deliveryRepositoryProvider).confirmHandoff(deliveryId, cleanToken);
-      
+
+      // Stop scanner immediately to prevent duplicate detections
+      await _controller.stop();
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Handshake successful! Package custody transferred.')),
+          const SnackBar(content: Text('Transfert réussi ! Le colis a été transféré.')),
         );
         Navigator.pop(context, true);
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Handshake failed: $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Échec du transfert : $e'), backgroundColor: AppColors.danger),
         );
+        setState(() => _isProcessing = false);
       }
-    } finally {
-      if (mounted) setState(() => _isProcessing = false);
     }
   }
 }

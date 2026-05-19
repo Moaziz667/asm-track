@@ -10,6 +10,7 @@ import 'app.dart';
 Future<void> bootstrap() async {
   await Hive.initFlutter();
   await Hive.openBox<Map<dynamic, dynamic>>('offline_queue');
+  await Hive.openBox('notifications');
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

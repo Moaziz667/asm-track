@@ -1,10 +1,12 @@
 package com.asm.delivery.service.route;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.*;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
+import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.erp.ErpSyncService;
@@ -12,8 +14,11 @@ import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.DelayCalculationService;
 import com.asm.delivery.service.EventPublisher;
 import com.asm.delivery.service.ProofOfDeliveryService;
+import jakarta.persistence.EntityManager;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.hibernate.Filter;
+import org.hibernate.Session;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -27,6 +32,7 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.*;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
 @Service
@@ -48,10 +54,17 @@ public class RoutePlanningService {
     private final AuditLogService auditLogService;
     private final ProofOfDeliveryService proofOfDeliveryService;
     private final EventPublisher eventPublisher;
-    private final ErpSyncService erpSyncService;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final RouteWebSocketService routeWebSocketService;
+    private final EntityManager entityManager;
+    private RoutePlanningService self;
 
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setSelf(@org.springframework.context.annotation.Lazy RoutePlanningService self) {
+        this.self = self;
+    }
+
+    @Transactional
     public void deleteByRouteId(UUID routeId) {
         routeStopRepository.deleteByRouteId(routeId);
     }
@@ -101,12 +114,41 @@ public class RoutePlanningService {
     @Transactional(readOnly = true)
     public RouteFullResponse getRouteFull(UUID id) {
         try {
-            Route route = getRoute(id);
-            return toFullResponse(route);
+            // 1. Fetch route with stops in one transaction
+            Route route = routeRepository.findFullRouteById(id)
+                    .orElseThrow(() -> AppException.notFound("Route not found"));
+
+            // 2. Fetch all deliveries and orders for these stops in one go
+            List<UUID> deliveryIds = route.getStops().stream()
+                    .map(RouteStop::getDeliveryId)
+                    .toList();
+            
+            Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                    .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+
+            // 3. Fetch driver data outside (or if we are okay with connection being open)
+            // Note: Since we need to return the response, we map everything here while session is potentially open
+            // but we use the pre-fetched map to avoid LazyInit issues.
+            
+            DriverDTO driverData = null;
+            if (route.getDriverId() != null) {
+                try {
+                    driverData = transportPort.getDriver(route.getDriverId().toString());
+                } catch (Exception e) {
+                    log.warn("Failed to fetch driver info for route {}: {}", id, e.getMessage());
+                }
+            }
+
+            return toFullResponse(route, driverData, deliveryMap);
         } catch (Exception ex) {
             log.error("Failed to load full route {}", id, ex);
             throw ex;
         }
+    }
+
+    @Transactional(readOnly = true)
+    public Route getRouteTransactional(UUID id) {
+        return getRoute(id);
     }
 
     @Transactional(readOnly = true)
@@ -116,11 +158,20 @@ public class RoutePlanningService {
         return toResponse(route);
     }
 
-    @Transactional
     public RouteResponse create(CreateRouteRequest request, String createdBy) {
         if (request.getDepotId() == null) {
             throw AppException.badRequest("Depot is required — ETA and route optimization depend on it");
         }
+
+        // 1. External reads (non-blocking / non-transactional)
+        ensureDriverActive(request.getDriverId());
+
+        // 2. Transactional creation
+        return self.doCreate(request, createdBy);
+    }
+
+    @Transactional
+    public RouteResponse doCreate(CreateRouteRequest request, String createdBy) {
         if (request.getVehicleId() != null && !vehicleRepository.existsById(request.getVehicleId())) {
             throw AppException.badRequest("Vehicle not found");
         }
@@ -133,7 +184,10 @@ public class RoutePlanningService {
             : DEFAULT_PLANNED_END;
         validateScheduleWindow(plannedStartTime, plannedEndTime);
         ensureNoScheduleConflict(request.getDriverId(), request.getDate(), plannedStartTime, plannedEndTime, null);
+        ensureVehicleAvailable(request.getVehicleId());
+        ensureNoVehicleConflict(request.getVehicleId(), request.getDate(), plannedStartTime, plannedEndTime, null);
 
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Route route = Route.builder()
                 .name(request.getName().trim())
                 .driverId(request.getDriverId())
@@ -143,6 +197,7 @@ public class RoutePlanningService {
                 .plannedEndTime(plannedEndTime)
                 .city(normalizeNullableText(request.getCity()))
                 .status(RouteStatus.DRAFT)
+                .companyId(companyId)
                 .createdBy(StringUtils.hasText(createdBy) ? createdBy : "SYSTEM")
                 .depotId(request.getDepotId())
                 .departureTime(request.getDepartureTime())
@@ -177,8 +232,18 @@ public class RoutePlanningService {
         return toResponse(routeRepository.findById(route.getId()).orElse(route));
     }
 
-    @Transactional
     public RouteResponse update(UUID id, UpdateRouteRequest request) {
+        // 1. Pre-update checks (external)
+        if (request.getDriverId() != null) {
+            ensureDriverActive(request.getDriverId());
+        }
+
+        // 2. Transactional update
+        return self.doUpdate(id, request);
+    }
+
+    @Transactional
+    public RouteResponse doUpdate(UUID id, UpdateRouteRequest request) {
         Route route = getRoute(id);
         ensureDraft(route);
 
@@ -218,6 +283,8 @@ public class RoutePlanningService {
         route.setPlannedEndTime(effectiveEnd);
         validateScheduleWindow(effectiveStart, effectiveEnd);
         ensureNoScheduleConflict(route.getDriverId(), route.getDate(), effectiveStart, effectiveEnd, route.getId());
+        ensureVehicleAvailable(route.getVehicleId());
+        ensureNoVehicleConflict(route.getVehicleId(), route.getDate(), effectiveStart, effectiveEnd, route.getId());
 
         if (route.getVehicleId() != null) {
             assignVehicleToDriver(route.getVehicleId(), route.getDriverId());
@@ -344,22 +411,23 @@ public class RoutePlanningService {
         Delivery delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
                 .orElseThrow(() -> AppException.notFound("Delivery not found: " + stop.getDeliveryId()));
 
-        if (ss == RouteStopStatus.PICKED_UP) {
-            delivery.setReturnToOrigin(true);
-            deliveryRepository.save(delivery);
-            appendHistory(delivery, delivery.getStatus(), "ADMIN", Role.ADMIN,
-                    "Stop cancelled — return to origin required: " + cancelReason);
-        } else {
-            delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-            delivery.setDriverId(null);
-            delivery.setAssignedAt(null);
-            deliveryRepository.save(delivery);
-            appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN,
-                    "Stop cancelled: " + cancelReason);
-        }
+        delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+        delivery.setDriverId(null);
+        delivery.setAssignedAt(null);
+        delivery.setPickedUpAt(null);
+        deliveryRepository.save(delivery);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Stop cancelled: " + cancelReason);
 
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
                 Map.of("routeId", routeId.toString(), "reason", cancelReason));
+
+        // Notify driver via WebSocket + FCM
+        if (route.getDriverId() != null) {
+            String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : null;
+            String erpOrderId = delivery.getOrder() != null ? delivery.getOrder().getErpOrderId() : null;
+            routeWebSocketService.notifyDriverStopRemoved(route.getDriverId(), route.getId(), route.getName(), clientName, erpOrderId, cancelReason);
+            eventPublisher.publishRouteStopRemoved(route, clientName, erpOrderId, cancelReason);
+        }
 
         maybeAutoCloseRoute(route);
         return toResponse(route);
@@ -446,7 +514,11 @@ public class RoutePlanningService {
         routeRepository.save(route);
         auditLogService.logAction(null, "ADD_STOP_ACTIVE", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Ajout d'un arret a une tournee active"));
-        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_ADDED", route.getId(), route.getName());
+        String addedClientName = deliveryRepository.findById(request.getDeliveryId())
+                .map(d -> d.getOrder() != null ? d.getOrder().getClientName() : null)
+                .orElse(null);
+        routeWebSocketService.notifyDriverStopAdded(route.getDriverId(), route.getId(), route.getName(), addedClientName);
+        eventPublisher.publishRouteStopAdded(route, addedClientName);
         return toResponse(route);
     }
 
@@ -516,7 +588,12 @@ public class RoutePlanningService {
 
         // Notify driver if route is active
         if (routeStatus == RouteStatus.VALIDATED || routeStatus == RouteStatus.IN_PROGRESS) {
-            routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+            deliveryRepository.findById(stop.getDeliveryId()).ifPresent(d -> {
+                String removedClientName = d.getOrder() != null ? d.getOrder().getClientName() : null;
+                String removedErpId = d.getOrder() != null ? d.getOrder().getErpOrderId() : null;
+                routeWebSocketService.notifyDriverStopRemoved(route.getDriverId(), route.getId(), route.getName(), removedClientName, removedErpId, null);
+                eventPublisher.publishRouteStopRemoved(route, removedClientName, removedErpId, null);
+            });
         }
 
         maybeAutoCloseRoute(route);
@@ -635,9 +712,10 @@ public class RoutePlanningService {
                     .distinct()
                     .toList();
 
+            UUID companyId = route.getCompanyId();
             List<Zone> detectedZones = postalCodes.isEmpty()
                     ? List.of()
-                    : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+                    : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
 
             if (detectedZones.size() > 1) {
                 String label = detectedZones.stream().map(Zone::getName).collect(Collectors.joining(" · "));
@@ -654,6 +732,7 @@ public class RoutePlanningService {
         }
 
         routeWebSocketService.notifyDriver(route.getDriverId(), "ROUTE_ASSIGNED", route.getId(), route.getName());
+        eventPublisher.publishRouteValidated(route);
 
         return response;
     }
@@ -803,14 +882,66 @@ public class RoutePlanningService {
         }
     }
 
+    private void ensureDriverActive(UUID driverId) {
+        if (driverId == null) return;
+        try {
+            DriverDTO driver = transportPort.getDriver(driverId.toString());
+            if (driver != null && Boolean.FALSE.equals(driver.getActive())) {
+                throw AppException.conflict("Driver is inactive and cannot be assigned to a route");
+            }
+        } catch (AppException e) {
+            throw e;
+        } catch (Exception e) {
+            log.warn("Could not verify driver active status for {}: {}", driverId, e.getMessage());
+        }
+    }
+
+    private void ensureVehicleAvailable(UUID vehicleId) {
+        if (vehicleId == null) return;
+        Vehicle vehicle = vehicleRepository.findById(vehicleId)
+                .orElseThrow(() -> AppException.badRequest("Vehicle not found"));
+        if (!Boolean.TRUE.equals(vehicle.getActive())) {
+            throw AppException.conflict("Vehicle is inactive and cannot be assigned to a route");
+        }
+        if (vehicle.getVehicleStatus() != VehicleStatus.AVAILABLE) {
+            throw AppException.conflict("Vehicle is not available (status: " + vehicle.getVehicleStatus().name() + ")");
+        }
+    }
+
+    private void ensureNoVehicleConflict(UUID vehicleId, LocalDate date,
+                                         LocalTime startTime, LocalTime endTime,
+                                         UUID currentRouteId) {
+        if (vehicleId == null) return;
+        List<Route> sameDayRoutes = runWithoutCompanyFilter(() ->
+            routeRepository.findAllByVehicleIdAndDate(vehicleId, date)
+        );
+        for (Route existing : sameDayRoutes) {
+            // DRAFT = tentative, pas encore validé → pas de lock de ressource
+            if (existing.getStatus() == RouteStatus.DRAFT
+                    || existing.getStatus() == RouteStatus.CLOSED
+                    || existing.getStatus() == RouteStatus.CANCELLED) continue;
+            if (currentRouteId != null && existing.getId().equals(currentRouteId)) continue;
+            LocalTime existingStart = existing.getPlannedStartTime() != null ? existing.getPlannedStartTime() : DEFAULT_PLANNED_START;
+            LocalTime existingEnd   = existing.getPlannedEndTime()   != null ? existing.getPlannedEndTime()   : DEFAULT_PLANNED_END;
+            if (startTime.isBefore(existingEnd) && existingStart.isBefore(endTime)) {
+                throw AppException.conflict("Ce véhicule est déjà affecté à une tournée validée sur ce créneau horaire");
+            }
+        }
+    }
+
     private void ensureNoScheduleConflict(UUID driverId,
                                           LocalDate date,
                                           LocalTime startTime,
                                           LocalTime endTime,
                                           UUID currentRouteId) {
-        List<Route> sameDayRoutes = routeRepository.findAllByDriverIdAndDate(driverId, date);
+        List<Route> sameDayRoutes = runWithoutCompanyFilter(() ->
+            routeRepository.findAllByDriverIdAndDate(driverId, date)
+        );
         for (Route existing : sameDayRoutes) {
-            if (existing.getStatus() == RouteStatus.CLOSED || existing.getStatus() == RouteStatus.CANCELLED) {
+            // DRAFT = brouillon, pas de lock — seules les routes VALIDATED/IN_PROGRESS bloquent
+            if (existing.getStatus() == RouteStatus.DRAFT
+                    || existing.getStatus() == RouteStatus.CLOSED
+                    || existing.getStatus() == RouteStatus.CANCELLED) {
                 continue;
             }
             if (currentRouteId != null && existing.getId().equals(currentRouteId)) {
@@ -843,6 +974,28 @@ public class RoutePlanningService {
             }
             lastEnd = end;
             i++;
+        }
+    }
+
+    private <T> T runWithoutCompanyFilter(Supplier<T> action) {
+        Session session = entityManager.unwrap(Session.class);
+        Filter filter = session.getEnabledFilter("companyFilter");
+        boolean wasEnabled = filter != null;
+
+        if (wasEnabled) {
+            session.disableFilter("companyFilter");
+        }
+
+        try {
+            return action.get();
+        } finally {
+            if (wasEnabled) {
+                String cid = TenantContext.get();
+                if (cid != null && !cid.isBlank()) {
+                    session.enableFilter("companyFilter")
+                           .setParameter("companyId", UUID.fromString(cid));
+                }
+            }
         }
     }
 
@@ -972,16 +1125,21 @@ public class RoutePlanningService {
                 .filter(pc -> pc != null && !pc.isBlank())
                 .distinct()
                 .toList();
+        UUID companyId = route.getCompanyId();
         List<Zone> detectedZones = postalCodes.isEmpty()
                 ? List.of()
-                : zoneRepository.findActiveZonesByPostalCodes(postalCodes.toArray(new String[0]));
+                : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
         List<String> detectedZoneNames = detectedZones.stream().map(Zone::getName).toList();
         String detectedZoneLabel = detectedZoneNames.isEmpty()
                 ? ""
                 : String.join(" · ", detectedZoneNames);
 
+        com.asm.delivery.entity.Depot depot = route.getDepotId() != null
+                ? depotRepository.findById(route.getDepotId()).orElse(null) : null;
+
         return RouteResponse.builder()
                 .id(route.getId())
+                .companyId(route.getCompanyId())
                 .name(route.getName())
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
@@ -1006,6 +1164,8 @@ public class RoutePlanningService {
                 .onTimeCompletionRate(onTimeCompletionRate)
                 .stops(stops)
                 .depotId(route.getDepotId())
+                .depotName(depot != null ? depot.getName() : null)
+                .depotAddress(depot != null ? depot.getAddress() : null)
                 .departureTime(route.getDepartureTime())
                 .totalDurationSeconds(route.getTotalDurationSeconds())
                 .totalDistanceMeters(route.getTotalDistanceMeters())
@@ -1020,21 +1180,25 @@ public class RoutePlanningService {
                 .build();
     }
 
-    private RouteFullResponse toFullResponse(Route route) {
+    private RouteFullResponse toFullResponse(Route route, DriverDTO driverData, Map<UUID, Delivery> deliveryMap) {
         // --- Same initial logic as toResponse ---
         // Load stops from repository (guarantees stopOrder ASC, consistent with toResponse)
-        List<RouteStop> allStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        List<RouteStop> allStops = route.getStops(); // Already fetched via findFullRouteById
         List<RouteStop> activeStops = allStops.stream()
                 .filter(stop -> !isRemovedStatus(stop.getStatus()))
                 .toList();
 
+        Map<String, String> actorNames = new HashMap<>();
+        // Note: Driver name resolution for history is omitted for brevity or handled by building a map if needed.
+        // For PFE, we prioritize stability (fixing the LazyInit crash).
+
         List<RouteStopFullResponse> stops = activeStops.stream()
-                .map(stop -> toFullStopResponse(stop, route, activeStops))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap))
                 .toList();
 
         List<RouteStopFullResponse> legacyStops = allStops.stream()
                 .filter(stop -> isRemovedStatus(stop.getStatus()))
-                .map(stop -> toFullStopResponse(stop, route, activeStops))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap))
                 .toList();
 
         int totalActiveStops = activeStops.size();
@@ -1060,7 +1224,7 @@ public class RoutePlanningService {
         String detectedZoneLabel = null;
         List<String> detectedZoneNames = new java.util.ArrayList<>();
         if (route.getZoneId() != null) {
-            com.asm.delivery.entity.Zone z = zoneRepository.findById(route.getZoneId()).orElse(null);
+            com.asm.delivery.entity.Zone z = zoneRepository.findByCompanyIdAndId(route.getCompanyId(), route.getZoneId()).orElse(null);
             if (z != null) {
                 detectedZoneNames.add(z.getName());
             }
@@ -1123,7 +1287,7 @@ public class RoutePlanningService {
                 .routeStartDelayMinutes(routeStartDelayMinutes)
                 .stops(stops)
                 .legacyStops(legacyStops.isEmpty() ? null : legacyStops)
-                .driver(buildDriverResponse(route.getDriverId()))
+                .driver(buildDriverResponseLocal(route.getDriverId(), driverData))
                 .vehicle(buildVehicleResponse(route.getVehicleId()))
                 .depot(route.getDepotId() != null ? depotRepository.findById(route.getDepotId())
                         .map(depot -> com.asm.delivery.dto.response.DepotResponse.builder()
@@ -1145,6 +1309,18 @@ public class RoutePlanningService {
                 .detectedZoneLabel(detectedZoneLabel)
                 .detectedZoneNames(detectedZoneNames)
                 .routeVersion(route.getRouteVersion())
+                .build();
+    }
+
+    private AdminDriverResponse buildDriverResponseLocal(UUID driverId, DriverDTO dto) {
+        if (driverId == null) return null;
+        if (dto == null) return AdminDriverResponse.builder().id(driverId).build();
+        return AdminDriverResponse.builder()
+                .id(driverId)
+                .name(dto.getName())
+                .phone(dto.getPhone())
+                .currentLat(dto.getCurrentLat() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLat()) : null)
+                .currentLng(dto.getCurrentLng() != null ? java.math.BigDecimal.valueOf(dto.getCurrentLng()) : null)
                 .build();
     }
 
@@ -1179,9 +1355,13 @@ public class RoutePlanningService {
         ).orElse(com.asm.delivery.dto.response.VehicleResponse.builder().id(vehicleId).build());
     }
 
-    private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops) {
-        Delivery delivery = deliveryRepository.findById(stop.getDeliveryId())
+    private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap) {
+        Delivery delivery = deliveryMap.get(stop.getDeliveryId());
+        if (delivery == null) {
+            // Fallback for safety, though it shouldn't happen with the pre-fetch
+            delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
                 .orElseThrow(() -> new com.asm.delivery.exception.AppException(org.springframework.http.HttpStatus.NO_CONTENT, "Delivery not found for stop " + stop.getId()));
+        }
 
         com.asm.delivery.entity.Order orderInfo = delivery.getOrder();
         
@@ -1264,7 +1444,7 @@ public class RoutePlanningService {
                         deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
                                 .stream()
                                 .map(h -> {
-                                    String actorName = resolveActorName(h.getChangedBy(), h.getChangedByRole());
+                                    String actorName = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), actorNames);
                                     return StatusHistoryResponse.builder()
                                         .id(h.getId() != null ? h.getId().toString() : null)
                                         .status(h.getStatus().name())
@@ -1284,6 +1464,21 @@ public class RoutePlanningService {
                 .clientName(orderInfo != null ? orderInfo.getClientName() : null)
                 .orderRef(orderInfo != null ? (orderInfo.getErpOrderId() != null ? orderInfo.getErpOrderId() : orderInfo.getErpExternalRef()) : null)
                 .build();
+    }
+
+    private String resolveActorNameLocal(String changedBy, Role role, Map<String, String> actorNames) {
+        if (changedBy == null) return null;
+        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
+        try {
+            UUID.fromString(changedBy);
+            if (role == Role.DRIVER) {
+                return actorNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
+            }
+            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
+            return changedBy.substring(0, 8).toUpperCase();
+        } catch (IllegalArgumentException e) {
+            return changedBy;
+        }
     }
 
     private ProofOfDeliveryResponse fetchDeliveryPod(UUID deliveryId) {
@@ -1341,7 +1536,7 @@ public class RoutePlanningService {
                 com.asm.delivery.transport.DriverDTO driver = transportPort.getDriver(changedBy);
                 if (driver != null && driver.getName() != null) return driver.getName();
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;

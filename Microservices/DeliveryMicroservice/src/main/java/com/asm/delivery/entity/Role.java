@@ -6,5 +6,6 @@ public enum Role {
     DISPATCHER,
     MANAGER,
     ADMIN,
+    SUPER_ADMIN,
     SYSTEM
 }

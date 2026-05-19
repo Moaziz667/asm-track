@@ -28,6 +28,7 @@ CREATE INDEX IF NOT EXISTS idx_client_otp_created_at ON client_otp(created_at DE
 
 -- Odoo integration
 ALTER TABLE clients ADD COLUMN IF NOT EXISTS odoo_partner_id INTEGER;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS company_id UUID;
 
 -- Admin / Dispatcher / Manager accounts
 CREATE TABLE IF NOT EXISTS admin_users (
@@ -39,3 +40,6 @@ CREATE TABLE IF NOT EXISTS admin_users (
   active        BOOLEAN NOT NULL DEFAULT true,
   created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- Multi-tenancy: link admin users to their company (NULL = ASM super-admin)
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS company_id UUID;

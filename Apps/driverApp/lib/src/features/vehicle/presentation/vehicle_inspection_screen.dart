@@ -15,7 +15,7 @@ class VehicleInspectionScreen extends ConsumerStatefulWidget {
 }
 
 class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScreen> {
-  final _formKey = GlobalKey<FormState>();
+  final _formKey = GlobalKey<FormState>(debugLabel: 'vehicle_inspection_form');
   
   double _odometer = 0;
   double _fuelLevel = 0.5;
@@ -31,7 +31,7 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('VEHICLE SAFETY CHECK'),
+        title: const Text('CONTRÔLE DE SÉCURITÉ DU VÉHICULE'),
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.helpCircle, size: 20),
@@ -40,12 +40,12 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
         ],
       ),
       body: vehicleAsync.when(
-        loading: () => const LoadingState(message: 'Identifying vehicle...'),
+        loading: () => const LoadingState(message: 'Identification du véhicule...'),
         error: (err, stack) => EmptyState(
           icon: LucideIcons.alertTriangle,
-          title: 'NO VEHICLE ASSIGNED',
-          subtitle: 'IDENTIFICATION FAILURE. STAND BY FOR DISPATCH COMMANDS.',
-          actionLabel: 'RETRY SCAN',
+          title: 'AUCUN VÉHICULE ASSIGNÉ',
+          subtitle: 'ÉCHEC D\'IDENTIFICATION. EN ATTENTE DES INSTRUCTIONS DU DISPATCH.',
+          actionLabel: 'RÉESSAYER LE SCAN',
           action: () => ref.refresh(myVehicleProvider),
         ),
         data: (vehicle) => _buildForm(vehicle),
@@ -66,33 +66,33 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
                 children: [
                   _buildVehicleHeader(vehicle),
                   const SizedBox(height: 32),
-                  Text('SAFETY CHECKLIST', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
+                  Text('LISTE DE CONTRÔLE', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w900, color: AppColors.muted, letterSpacing: 1.5)),
                   const SizedBox(height: 12),
                   
                   _buildCheckItem(
                     icon: LucideIcons.circleDot,
-                    label: 'Tires Condition & Pressure',
-                    subtitle: 'Check for wear and proper inflation',
+                    label: 'État et pression des pneus',
+                    subtitle: 'Vérifier l\'usure et le gonflage',
                     value: _tiresOk,
                     onChanged: (v) => setState(() => _tiresOk = v!),
                   ),
                   _buildCheckItem(
                     icon: LucideIcons.shieldCheck,
-                    label: 'Brakes & Fluid Levels',
-                    subtitle: 'Ensure responsive stopping power',
+                    label: 'Freins et niveaux de fluides',
+                    subtitle: 'S\'assurer de la bonne réactivité',
                     value: _brakesOk,
                     onChanged: (v) => setState(() => _brakesOk = v!),
                   ),
                   _buildCheckItem(
                     icon: LucideIcons.sun,
-                    label: 'Exterior & Interior Lights',
-                    subtitle: 'Headlights, indicators, and brake lights',
+                    label: 'Éclairage extérieur et intérieur',
+                    subtitle: 'Phares, clignotants et feux de stop',
                     value: _lightsOk,
                     onChanged: (v) => setState(() => _lightsOk = v!),
                   ),
                   
                   const SizedBox(height: 32),
-                  Text('METRICS', style: Theme.of(context).textTheme.labelSmall),
+                  Text('MÉTRIQUES', style: Theme.of(context).textTheme.labelSmall),
                   const SizedBox(height: 16),
                   
                   _buildOdometerField(),
@@ -101,12 +101,12 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
                   _buildFuelLevelSelector(),
                   
                   const SizedBox(height: 32),
-                  Text('ADDITIONAL COMMENTS', style: Theme.of(context).textTheme.labelSmall),
+                  Text('COMMENTAIRES ADDITIONNELS', style: Theme.of(context).textTheme.labelSmall),
                   const SizedBox(height: 12),
                   
                   TextFormField(
                     decoration: const InputDecoration(
-                      hintText: 'Any issues or notes...',
+                      hintText: 'Problèmes éventuels ou remarques...',
                     ),
                     maxLines: 3,
                     onChanged: (v) => _comments = v,
@@ -142,18 +142,18 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (vehicle['model'] ?? 'STANDARD UNIT').toUpperCase(),
+                  (vehicle['model'] ?? 'UNITÉ STANDARD').toUpperCase(),
                   style: GoogleFonts.spaceGrotesk(fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 0.5),
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  vehicle['plate'] ?? 'No Plate',
+                  vehicle['plate'] ?? 'Sans plaque',
                   style: const TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600, letterSpacing: 1),
                 ),
               ],
             ),
           ),
-          StatusBadge(label: 'ASSIGNED', color: AppColors.neonYellow),
+          StatusBadge(label: 'ASSIGNÉ', color: AppColors.neonYellow),
         ],
       ),
     );
@@ -201,12 +201,12 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
     return TextFormField(
       keyboardType: TextInputType.number,
       decoration: const InputDecoration(
-        labelText: 'ODOMETER READING (KM)',
+        labelText: 'KILOMÉTRAGE (KM)',
         prefixIcon: Icon(LucideIcons.gauge),
       ),
       validator: (v) {
-        if (v == null || v.isEmpty) return 'Current mileage is required';
-        if (double.tryParse(v) == null) return 'Invalid number';
+        if (v == null || v.isEmpty) return 'Le kilométrage actuel est requis';
+        if (double.tryParse(v) == null) return 'Nombre invalide';
         return null;
       },
       onChanged: (v) => _odometer = double.tryParse(v) ?? 0,
@@ -220,7 +220,7 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('FUEL LEVEL', style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
+            Text('NIVEAU DE CARBURANT', style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
             Text('${(_fuelLevel * 100).toInt()}%', style: GoogleFonts.spaceGrotesk(color: AppColors.neonYellow, fontWeight: FontWeight.w900, fontSize: 14)),
           ],
         ),
@@ -251,7 +251,7 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
         border: Border(top: BorderSide(color: AppColors.border, width: 1.5)),
       ),
       child: DriveButton(
-        label: 'SUBMIT INSPECTION',
+        label: 'SOUMETTRE LE CONTRÔLE',
         fullWidth: true,
         size: DriveButtonSize.lg,
         isLoading: _isSubmitting,
@@ -277,14 +277,14 @@ class _VehicleInspectionScreenState extends ConsumerState<VehicleInspectionScree
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Safety check submitted. Drive safe!')),
+          const SnackBar(content: Text('Contrôle de sécurité soumis. Bonne route !')),
         );
         Navigator.pop(context, true); // Return true to indicate success
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submission failed: $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Échec de la soumission : $e'), backgroundColor: AppColors.danger),
         );
       }
     } finally {

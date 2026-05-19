@@ -5,6 +5,7 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -53,16 +54,18 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     log.debug("Gateway headers verified: X-User-Id={}, X-User-Role={}", userId, role);
                     if (userId != null && role != null
                             && SecurityContextHolder.getContext().getAuthentication() == null) {
-                        String name  = request.getHeader("X-User-Name");
-                        String odooStr = request.getHeader("X-Odoo-Partner-Id");
-                        Integer odooId = odooStr != null ? Integer.valueOf(odooStr) : null;
-                        log.debug("Setting authentication from gateway headers userId={} role={} name={}", userId, role, name);
-                        UserPrincipal principal = new UserPrincipal(userId, role, name, null, odooId);
+                        String name      = request.getHeader("X-User-Name");
+                        String odooStr   = request.getHeader("X-Odoo-Partner-Id");
+                        Integer odooId   = odooStr != null ? Integer.valueOf(odooStr) : null;
+                        String companyId = request.getHeader("X-Company-Id");
+                        log.debug("Setting authentication from gateway headers userId={} role={} name={} companyId={}", userId, role, name, companyId);
+                        UserPrincipal principal = new UserPrincipal(userId, role, name, null, odooId, companyId);
                         UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                                 principal, null,
                                 List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                         );
                         SecurityContextHolder.getContext().setAuthentication(auth);
+                        if (companyId != null) TenantContext.set(companyId);
                     }
                 } else {
                     log.warn("Gateway header present but X-Gateway-Secret missing or wrong — ignoring");
@@ -87,24 +90,29 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             String name    = claims.get("name",  String.class);
             String phone   = claims.get("phone", String.class);
             Integer odooPartnerId = claims.get("odooPartnerId", Integer.class);
+            String companyId      = claims.get("companyId", String.class);
 
-            log.debug("JWT token valid: subject={} role={} name={} phone={} odooPartnerId={}",
-                    subject, role, name, phone, odooPartnerId);
+            log.debug("JWT token valid: subject={} role={} name={} companyId={}", subject, role, name, companyId);
 
             if (subject != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 log.debug("Setting authentication from JWT token subject={} role={}", subject, role);
-                UserPrincipal principal = new UserPrincipal(subject, role, name, phone, odooPartnerId);
+                UserPrincipal principal = new UserPrincipal(subject, role, name, phone, odooPartnerId, companyId);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         principal, null,
                         List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
+                if (companyId != null) TenantContext.set(companyId);
             }
         } catch (JwtException | IllegalArgumentException ex) {
             log.debug("JWT validation failed: {}", ex.getMessage());
             // Invalid token — proceed without authentication; Spring Security will block protected routes
         }
 
-        chain.doFilter(request, response);
+        try {
+            chain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }

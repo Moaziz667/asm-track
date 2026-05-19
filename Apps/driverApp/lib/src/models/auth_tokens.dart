@@ -6,12 +6,12 @@ class AuthTokens {
     this.tokenType = 'Bearer',
   });
 
-  factory AuthTokens.fromMap(Map<String, dynamic> json) {
+  factory AuthTokens.fromMap(Map<String, dynamic> json, {String? currentRefreshToken}) {
     final expiresIn = (json['expiresIn'] as num?)?.toInt();
     final expiry = expiresIn != null ? DateTime.now().add(Duration(seconds: expiresIn)) : null;
     return AuthTokens(
       accessToken: (json['accessToken'] ?? json['token']) as String? ?? '',
-      refreshToken: json['refreshToken'] as String? ?? '',
+      refreshToken: (json['refreshToken'] as String?) ?? currentRefreshToken ?? '',
       tokenType: json['tokenType'] as String? ?? 'Bearer',
       expiresAt: expiry,
     );

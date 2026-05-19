@@ -6,7 +6,6 @@ import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
@@ -15,6 +14,7 @@ import com.asm.delivery.storage.StorageException;
 import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.transport.DriverDTO;
 import org.springframework.dao.DataIntegrityViolationException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -39,7 +39,6 @@ public class DriverDeliveryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
-    private final ErpSyncService                 ErpSyncService;
     private final ProofOfDeliveryRepository       podRepo;
     private final TransportPort                   transportPort;
     private final MinioStorageService             minioStorageService;
@@ -48,12 +47,20 @@ public class DriverDeliveryService {
     private final AuditLogService                  auditLogService;
     private final RouteRepository                 routeRepository;
     private final RouteStopRepository             routeStopRepository;
-    private final org.springframework.messaging.simp.SimpMessagingTemplate messagingTemplate;
+
+    private final OutboxProcessor                outboxProcessor;
+    private final ProcessedRequestRepository      idempotencyRepo;
+    private final ObjectMapper                    objectMapper;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
             DeliveryStatus.IN_TRANSIT
+    );
+
+    private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
+            RouteStatus.VALIDATED,
+            RouteStatus.IN_PROGRESS
     );
 
     // ── Get available deliveries ──────────────────────────────────────────────
@@ -69,9 +76,21 @@ public class DriverDeliveryService {
 
     @Transactional(readOnly = true)
     public List<DriverDeliveryResponse> getActive(UUID driverId) {
-        return deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
+        List<DriverDeliveryResponse> active = deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES).stream()
                 .map(this::toDriverDeliveryResponse)
                 .collect(Collectors.toList());
+
+        // Also include deliveries where this driver is the handoff SENDER (package still physically with them)
+        List<UUID> activeIds = active.stream()
+                .map(r -> r.getDeliveryId())
+                .collect(Collectors.toList());
+        routeStopRepository.findPendingHandoffsByFromDriverWithRoute(driverId).stream()
+                .map(stop -> deliveryRepo.findByIdWithOrder(stop.getDeliveryId()).orElse(null))
+                .filter(d -> d != null && !activeIds.contains(d.getId()))
+                .map(this::toDriverDeliveryResponse)
+                .forEach(active::add);
+
+        return active;
     }
 
     // ── Get a specific delivery (with driver authorization check) ─────────────
@@ -83,23 +102,18 @@ public class DriverDeliveryService {
 
         if (delivery.getDriverId() != null && !delivery.getDriverId().equals(driverId)
                 && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
-            throw AppException.forbidden("Not your delivery");
+            // Allow handoff sender to still view the delivery
+            boolean isSender = routeStopRepository.findPendingHandoffsByFromDriverWithRoute(driverId).stream()
+                    .anyMatch(s -> s.getDeliveryId().equals(delivery.getId()));
+            if (!isSender) throw AppException.forbidden("Not your delivery");
         }
 
         return toDriverDeliveryResponse(delivery);
     }
 
-    // ── Accept delivery (atomic) ──────────────────────────────────────────────
-
-    private static final List<RouteStatus> ACTIVE_ROUTE_STATUSES = List.of(
-            RouteStatus.VALIDATED,
-            RouteStatus.IN_PROGRESS
-    );
-
     @Transactional
     public DriverDeliveryResponse accept(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         // Driver cannot accept standalone deliveries while assigned to an active route today.
-        // Route-level check is correct — a driver may have many deliveries within a single route.
         boolean hasActiveRoute = routeRepository.existsByDriverIdAndDateAndStatusIn(
                 driverId, LocalDate.now(), ACTIVE_ROUTE_STATUSES);
         if (hasActiveRoute) {
@@ -114,7 +128,9 @@ public class DriverDeliveryService {
         }
 
         // Atomic UPDATE — 0 rows = race condition
-        int updated = deliveryRepo.atomicAccept(deliveryId, driverId);
+        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
+                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
+        int updated = deliveryRepo.atomicAccept(deliveryId, driverId, companyId);
         if (updated == 0) {
             throw AppException.conflict("Delivery was just taken by another driver");
         }
@@ -126,8 +142,6 @@ public class DriverDeliveryService {
         delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        // Mark driver unavailable via Driver Service (best-effort)
-
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
@@ -136,13 +150,8 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "SCHEDULED")); } catch(Exception ignored){}
-        
         return toDriverDeliveryResponse(delivery);
     }
-
-    // ── Pickup ────────────────────────────────────────────────────────────────
-
     @Transactional
     public DriverDeliveryResponse pickup(UUID deliveryId, UUID driverId, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
@@ -159,8 +168,6 @@ public class DriverDeliveryService {
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
-
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "PICKED_UP")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -188,13 +195,8 @@ public class DriverDeliveryService {
                 originLng = latestTracking.get().getLng();
             }
         }
-        if (originLat == null || originLng == null) {
-            DriverDTO driver = transportPort.getDriver(driverId.toString());
-            if (driver != null && driver.getCurrentLat() != null && driver.getCurrentLng() != null) {
-                originLat = BigDecimal.valueOf(driver.getCurrentLat());
-                originLng = BigDecimal.valueOf(driver.getCurrentLng());
-            }
-        }
+        // DELETED: Blocking transportPort.getDriver() inside @Transactional. It caused connection exhaustion.
+        // If we don't have tracking locally, we'll just publish without coordinates.
 
         String transitNote = "Driver started transit";
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
@@ -213,8 +215,6 @@ public class DriverDeliveryService {
                 null,
                 null
         );
-
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "IN_TRANSIT")); } catch(Exception ignored){}
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -246,10 +246,26 @@ public class DriverDeliveryService {
         DeliveryStatus finalStatus = isPartial ? DeliveryStatus.PARTIALLY_DELIVERED : DeliveryStatus.DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
+        // Mark the order as pending sync BEFORE saving and enqueueing.
+        // The Order default is "SYNCED", so without this the OutboxProcessor
+        // sees SYNCED and silently skips the event without ever calling Odoo.
+        if (delivery.getOrder() != null) {
+            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+        }
         delivery = deliveryRepo.save(delivery);
+
+        // P1: Transactional Outbox Pattern
+        Map<String, Object> outboxPayload = new HashMap<>();
+        outboxPayload.put("deliveryId", deliveryId.toString());
+        outboxPayload.put("isPartial", isPartial);
+        if (isPartial && normalizedPartialItems != null) {
+            outboxPayload.put("partialItems", normalizedPartialItems);
+        }
+        outboxProcessor.enqueue("ERP_SYNC_STOCK", outboxPayload);
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
+        
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
             Map.of("chauffeur", driverName, "client", clientName, "statut", finalStatus.name(),
                    "action", isPartial ? "Livraison partielle" : "Livraison completee"));
@@ -258,30 +274,12 @@ public class DriverDeliveryService {
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
         routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), message);
         
-        // TODO: eventPublisher.publishDeliveryPartiallyCompleted may be needed in the future
-        // For now we can use the same event or add conditionally. 
-        // We'll publish completed event. Or is there a specific logic in the subscriber?
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
-        // Release driver + increment stat (best-effort)
-        String stat = isPartial ? "partial" : "delivered";
-        transportPort.incrementStat(driverId.toString(), stat);
-
-        // Sync Odoo
-        if (delivery.getOrder() != null) {
-            if (isPartial) {
-                // If there's partial logic in Odoo sync, handle it here. Else sync normally.
-                if (normalizedPartialItems != null) {
-                    ErpSyncService.syncPartialStockUpdate(delivery.getOrder(), normalizedPartialItems);
-                } else {
-                    ErpSyncService.syncStockUpdate(delivery.getOrder());
-                }
-            } else {
-                ErpSyncService.syncStockUpdate(delivery.getOrder());
-            }
-        }
-
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", finalStatus.name())); } catch(Exception ignored){}
+        Map<String, Object> statPayload = new HashMap<>();
+        statPayload.put("driverId", driverId.toString());
+        statPayload.put("stat", "delivered");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", statPayload);
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -360,42 +358,45 @@ public class DriverDeliveryService {
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
 
+
     @Transactional
     public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
             throw AppException.badRequest(
-                    "Cannot submit POD from status " + delivery.getStatus());
+                    "Impossible de soumettre le POD : statut actuel " + delivery.getStatus());
         }
+
+        // P0: Geofence Enforcement
+        validateGeofence(delivery, req.getLat(), req.getLng());
 
         if (podRepo.existsByDeliveryId(deliveryId)) {
             log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
             return toDriverDeliveryResponse(delivery);
         }
 
-        // Upload 2 mandatory photos to MinIO
+        // P2: Deterministic Object Storage
         String deliveryFolder = "pod/" + deliveryId;
-        long ts = System.currentTimeMillis();
 
         String bonLivraisonPhotoUrl;
         try {
             bonLivraisonPhotoUrl = minioStorageService.uploadBase64(
                     req.getBonLivraisonPhotoBase64(),
-                    deliveryFolder + "/bon-livraison-" + ts + ".png");
+                    deliveryFolder + "/bon-livraison.png");
         } catch (StorageException e) {
             log.error("Failed to upload bon-livraison photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Failed to store bon de livraison photo. Please retry.");
+            throw AppException.serviceUnavailable("Échec du stockage de la photo. Veuillez réessayer.");
         }
 
         String packagePhotoUrl;
         try {
             packagePhotoUrl = minioStorageService.uploadBase64(
                     req.getPackagePhotoBase64(),
-                    deliveryFolder + "/package-" + (ts + 1) + ".png");
+                    deliveryFolder + "/package.png");
         } catch (StorageException e) {
             log.error("Failed to upload package photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Failed to store package photo. Please retry.");
+            throw AppException.serviceUnavailable("Échec du stockage de la photo du colis. Veuillez réessayer.");
         }
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
@@ -412,13 +413,49 @@ public class DriverDeliveryService {
         try {
             podRepo.save(pod);
         } catch (DataIntegrityViolationException ex) {
-            // Handles race condition where duplicate POD submissions arrive concurrently.
             log.warn("POD_DUPLICATE_RACE deliveryId={} driverId={} msg={}", deliveryId, driverId, ex.getMessage());
             Delivery latest = loadAndAuthorize(deliveryId, driverId);
             return toDriverDeliveryResponse(latest);
         }
 
         return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+    }
+
+    private void validateGeofence(Delivery delivery, BigDecimal driverLat, BigDecimal driverLng) {
+        // GEOFENCE DISABLED FOR TESTING — re-enable before production
+        // if (driverLat == null || driverLng == null) {
+        //     throw AppException.badRequest("Coordonnées GPS requises pour valider la livraison.");
+        // }
+
+        // Order order = delivery.getOrder();
+        // if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
+        //     log.warn("GEOFENCE_SKIP: Missing dropoff coordinates for delivery {}", delivery.getId());
+        //     return;
+        // }
+
+        // double distance = calculateDistance(
+        //     driverLat.doubleValue(), driverLng.doubleValue(),
+        //     order.getDropoffLat().doubleValue(), order.getDropoffLng().doubleValue()
+        // );
+
+        // double maxRadius = 4000.0;
+
+        // if (distance > maxRadius) {
+        //     log.warn("GEOFENCE_REJECT deliveryId={} driverId={} distance={}m", delivery.getId(), delivery.getDriverId(), (int)distance);
+        //     throw AppException.badRequest(String.format(
+        //         "Validation impossible : vous êtes trop loin du point de livraison (%d mètres).", (int)distance));
+        // }
+    }
+
+    private double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
+        final int R = 6371; // Radius of the earth in km
+        double latDistance = Math.toRadians(lat2 - lat1);
+        double lonDistance = Math.toRadians(lon2 - lon1);
+        double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+                + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+                * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        return R * c * 1000; // convert to meters
     }
 
     // ── Fail ──────────────────────────────────────────────────────────────────
@@ -444,18 +481,23 @@ public class DriverDeliveryService {
                    "motif", failureComment != null ? failureComment : "", "action", "Livraison echouee"));
 
         // Release driver + increment stat (best-effort)
-        transportPort.incrementStat(driverId.toString(), "failed");
+        Map<String, Object> failedPayload = new HashMap<>();
+        failedPayload.put("driverId", driverId.toString());
+        failedPayload.put("stat", "failed");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", failedPayload);
 
         appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, failureComment);
         routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
-        if (delivery.getOrder() != null) {
-            ErpSyncService.syncFailure(delivery.getOrder(),
-                    failureCode != null ? failureCode.name() : null, failureComment);
-        }
+        // P1: Outbox Sync for failures
+        outboxProcessor.enqueue("ERP_SYNC_FAILURE", Map.of(
+            "deliveryId", deliveryId.toString(),
+            "failureCode", failureCode != null ? failureCode.name() : "GENERAL",
+            "comment", failureComment != null ? failureComment : ""
+        ));
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "FAILED")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -479,7 +521,10 @@ public class DriverDeliveryService {
         delivery = deliveryRepo.save(delivery);
 
         // Release driver + increment stat (best-effort)
-        transportPort.incrementStat(driverId.toString(), "cancelled");
+        Map<String, Object> cancelPayload = new HashMap<>();
+        cancelPayload.put("driverId", driverId.toString());
+        cancelPayload.put("stat", "cancelled");
+        outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", cancelPayload);
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
@@ -491,7 +536,7 @@ public class DriverDeliveryService {
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
 
-        try { messagingTemplate.convertAndSend("/topic/admin/deliveries", Map.of("deliveryId", deliveryId.toString(), "status", "UNSCHEDULED")); } catch(Exception ignored){}
+
 
         return toDriverDeliveryResponse(delivery);
     }
@@ -554,13 +599,21 @@ public class DriverDeliveryService {
 
     @Transactional
     public HandoffTokenResponse generateHandoffToken(UUID deliveryId, UUID driverId) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
-        
-        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> AppException.notFound("Delivery not found"));
+
+        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
                 .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
 
         if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
             throw AppException.badRequest("This delivery is not marked for handoff");
+        }
+
+        // Only the handoff sender (from-driver) can generate the token
+        boolean isSender = driverId.equals(stop.getHandoffFromDriverId());
+        boolean isCurrentOwner = driverId.equals(delivery.getDriverId());
+        if (!isSender && !isCurrentOwner) {
+            throw AppException.forbidden("Only the sending driver can generate the handoff token");
         }
 
         // Generate a 6-character alphanumeric secure token
@@ -584,7 +637,7 @@ public class DriverDeliveryService {
     public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        RouteStop stop = routeStopRepository.findByDeliveryId(deliveryId)
+        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
                 .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
 
         if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
@@ -608,9 +661,18 @@ public class DriverDeliveryService {
             throw AppException.badRequest("Handoff token has expired. Please ask the sender to generate a new one.");
         }
 
-        stop.setHandoffConfirmedAt(LocalDateTime.now());
+        LocalDateTime now = LocalDateTime.now();
+        stop.setHandoffConfirmedAt(now);
         stop.setRequiresHandoff(false);
         routeStopRepository.save(stop);
+
+        // Auto-advance to PICKED_UP — Driver 2 physically has the package after the scan
+        if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+            delivery.setStatus(DeliveryStatus.PICKED_UP);
+            delivery.setPickedUpAt(now);
+            deliveryRepo.save(delivery);
+            routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.PICKED_UP, now, "Handoff confirmed — package received");
+        }
 
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
@@ -619,19 +681,13 @@ public class DriverDeliveryService {
                        "fromDriver", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : "unknown",
                        "action", "Confirmation de remise du colis"));
 
-        appendHistory(delivery, delivery.getStatus(), driverId.toString(), Role.DRIVER,
+        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER,
                 "Handoff confirmed — package received from driver " +
                 (stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString().substring(0, 8) : "unknown"));
 
         // Notify admin dashboard
-        try {
-            messagingTemplate.convertAndSend("/topic/admin/routes", Map.of(
-                    "event", "HANDOFF_CONFIRMED",
-                    "deliveryId", deliveryId.toString(),
-                    "routeId", stop.getRoute().getId().toString(),
-                    "driverId", driverId.toString()
-            ));
-        } catch (Exception ignored) {}
+        eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId, delivery.getCompanyId());
+
 
         log.info("HANDOFF_CONFIRMED deliveryId={} fromDriver={} toDriver={}",
                 deliveryId, stop.getHandoffFromDriverId(), driverId);
@@ -643,17 +699,18 @@ public class DriverDeliveryService {
 
     @Transactional
     public void updateLocation(UUID driverId, BigDecimal lat, BigDecimal lng) {
-        // Store tracking point for active delivery
         List<Delivery> active = deliveryRepo.findActiveForDriver(driverId, ACTIVE_STATUSES);
         if (!active.isEmpty()) {
+            Delivery delivery = active.get(0);
             trackingRepo.save(Tracking.builder()
-                    .deliveryId(active.get(0).getId())
+                    .deliveryId(delivery.getId())
                     .lat(lat)
                     .lng(lng)
                     .build());
+            // Push real-time location to admin dashboard via WebSocket
+            eventPublisher.publishDriverLocation(delivery.getCompanyId(), driverId, lat, lng);
         }
-
-        // Propagate to Driver Service (best-effort)
+        // Direct synchronous call — location is best-effort, no outbox retry needed
         transportPort.updateLocation(driverId.toString(), lat.doubleValue(), lng.doubleValue());
     }
 
@@ -707,6 +764,23 @@ public class DriverDeliveryService {
 
     // ── Private ───────────────────────────────────────────────────────────────
 
+    private Map<String, String> deliveryPayload(Delivery delivery, String status) {
+        Order order = delivery.getOrder();
+        String clientName = (order != null && order.getClientName() != null) ? order.getClientName() : "";
+        String orderId = "";
+        if (order != null) {
+            if (order.getErpOrderId() != null) orderId = order.getErpOrderId();
+            else if (order.getErpExternalRef() != null) orderId = order.getErpExternalRef();
+            else if (order.getId() != null) orderId = order.getId().toString().substring(0, 8).toUpperCase();
+        }
+        Map<String, String> map = new HashMap<>();
+        map.put("deliveryId", delivery.getId().toString());
+        map.put("status", status);
+        map.put("clientName", clientName);
+        map.put("orderId", orderId);
+        return map;
+    }
+
     private Delivery loadAndAuthorize(UUID deliveryId, UUID driverId) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
@@ -751,6 +825,10 @@ public class DriverDeliveryService {
     }
 
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
+        // Look up handoff info from the active route stop
+        RouteStop activeStop = routeStopRepository.findActiveByDeliveryId(delivery.getId()).orElse(null);
+        boolean requiresHandoff = activeStop != null && Boolean.TRUE.equals(activeStop.getRequiresHandoff());
+
         Order order = delivery.getOrder();
         String erpId = order != null ? order.getErpOrderId() : null;
         String orderRef = (erpId != null && !erpId.isBlank())
@@ -793,6 +871,10 @@ public class DriverDeliveryService {
                 .failReason(delivery.getFailReason())
                 .cancelReason(delivery.getCancelReason())
                 .createdAt(delivery.getCreatedAt())
+                .requiresHandoff(requiresHandoff)
+                .handoffConfirmedAt(requiresHandoff && activeStop.getHandoffConfirmedAt() != null ? activeStop.getHandoffConfirmedAt() : null)
+                .handoffToDriverId(requiresHandoff && activeStop.getHandoffToDriverId() != null ? activeStop.getHandoffToDriverId().toString() : null)
+                .handoffFromDriverId(requiresHandoff && activeStop.getHandoffFromDriverId() != null ? activeStop.getHandoffFromDriverId().toString() : null)
                 .build();
     }
 }

@@ -4,6 +4,7 @@ import com.asm.delivery.security.JwtAuthFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -31,8 +32,8 @@ public class SecurityConfig {
                 // Public endpoints
                 .requestMatchers(
                     "/api/auth/driver/**",
+                    "/api/public/**",
                     "/api/dev/**",
-                    "/internal/**",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
@@ -46,17 +47,23 @@ public class SecurityConfig {
                 .requestMatchers("/api/driver/location/**").hasRole("DRIVER")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
                 // Admin stats — also allowed for MANAGER
-                .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                // Admin endpoints — ADMIN + DISPATCHER
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
-                // v1 endpoints (depots, optimization) — ADMIN + DISPATCHER + MANAGER
-                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
+                .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
+                .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
+                // Internal service-to-service endpoints — OAuth2 service token required
+                .requestMatchers("/internal/**").hasRole("SERVICE")
+                // MANAGER read-only on routes and deliveries (must come before the /api/admin/** catch-all)
+                .requestMatchers(HttpMethod.GET, "/api/admin/routes/**", "/api/admin/routes",
+                        "/api/admin/deliveries/**", "/api/admin/deliveries")
+                        .hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
+                // Admin endpoints — ADMIN + DISPATCHER + SUPER_ADMIN
+                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "SUPER_ADMIN")
+                // v1 endpoints (depots, optimization)
+                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
                 // WebSocket/SockJS — permit all at HTTP level; auth is in STOMP CONNECT frame
                 .requestMatchers("/ws/**").permitAll()
-                // Deliveries — client, driver, dispatcher, admin
-                .requestMatchers("/api/deliveries/**").hasAnyRole("CLIENT", "DRIVER", "DISPATCHER", "ADMIN")
+                // Deliveries — driver, dispatcher, admin (no direct CLIENT access)
+                .requestMatchers("/api/deliveries/**").hasAnyRole("DRIVER", "DISPATCHER", "ADMIN", "SUPER_ADMIN")
                 // Anything else requires authentication
                 .anyRequest().authenticated()
             )

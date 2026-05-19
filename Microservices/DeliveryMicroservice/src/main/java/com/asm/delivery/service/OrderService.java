@@ -1,5 +1,6 @@
 package com.asm.delivery.service;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.canonical.CanonicalDelivery;
 import com.asm.delivery.dto.request.CreateOrderRequest;
 import com.asm.delivery.dto.response.CancellableResponse;
@@ -34,7 +35,7 @@ public class OrderService {
     private final DeliveryRepository deliveryRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final EventPublisher     eventPublisher;
-    private final ErpSyncService    erpSyncService;
+    private final OutboxProcessor    outboxProcessor;
     private final ErpLookupService   erpLookupService;
     private final AuditLogService    auditLogService;
     private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
@@ -76,6 +77,7 @@ public class OrderService {
             if (item.getQuantityDone() == null) item.setQuantityDone(0);
         });
 
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Order order = Order.builder()
             .source(OrderSource.APP)
                 .clientId(clientId)
@@ -101,6 +103,7 @@ public class OrderService {
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
                 .status(OrderStatus.PENDING)
+                .companyId(companyId)
                 .build();
 
         order = orderRepo.save(order);
@@ -133,9 +136,11 @@ public class OrderService {
             }
         }
 
+        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
         Order order = Order.builder()
             .source(OrderSource.ODOO)
             .status(OrderStatus.PENDING)
+            .companyId(companyId)
             .build();
 
         applyCanonicalToOrder(order, canonical, true);
@@ -223,17 +228,7 @@ public class OrderService {
         order.setStatus(OrderStatus.CANCELLED);
         orderRepo.save(order);
 
-        final UUID orderIdForSync = order.getId();
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    java.util.concurrent.CompletableFuture.runAsync(() -> {
-                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
-                    });
-                }
-            }
-        );
+        outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
     }
 
     @Transactional
@@ -269,7 +264,9 @@ public class OrderService {
                         stop.setRemovedReason("ORDER_CANCELLED");
                         stop.setRemovedBy(adminId);
                         routeStopRepository.save(stop);
-                        routeWebSocketService.notifyDriver(route.getDriverId(), "STOP_REMOVED", route.getId(), route.getName());
+                        routeWebSocketService.notifyDriverStopRemoved(
+                            route.getDriverId(), route.getId(), route.getName(),
+                            order.getClientName(), order.getErpOrderId(), "ORDER_CANCELLED");
                     } else if (route != null && route.getStatus() == com.asm.delivery.entity.RouteStatus.DRAFT) {
                         routeStopRepository.delete(stop);
                     }
@@ -293,17 +290,7 @@ public class OrderService {
         auditLogService.logAction(principal, "ADMIN_CANCEL_ORDER", "ORDER", orderId.toString(),
                 java.util.Map.of("reason", reason != null ? reason : ""));
 
-        final UUID orderIdForSync = order.getId();
-        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
-            new org.springframework.transaction.support.TransactionSynchronization() {
-                @Override
-                public void afterCommit() {
-                    java.util.concurrent.CompletableFuture.runAsync(() -> {
-                        orderRepo.findById(orderIdForSync).ifPresent(erpSyncService::syncOrderCancellation);
-                    });
-                }
-            }
-        );
+        outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
     }
 
     @Transactional(readOnly = true)
@@ -363,6 +350,7 @@ public class OrderService {
                 .totalQuantity(original.getTotalQuantity())
                 .totalWeightKg(original.getTotalWeightKg())
                 .status(OrderStatus.PENDING)
+                .companyId(original.getCompanyId())
                 .build();
 
         reorder = orderRepo.save(reorder);
@@ -378,6 +366,7 @@ public class OrderService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
+                .companyId(order.getCompanyId())
                 .build();
         delivery = deliveryRepo.save(delivery);
 
