@@ -38,7 +38,7 @@ ASM Track est une plateforme multi-tenant de gestion et de suivi des livraisons 
 | Couche | Technologies |
 |---|---|
 | Backend | Spring Boot 3, Spring Security OAuth2, PostgreSQL |
-| Frontend | Next.js 14, Tailwind CSS, @dnd-kit, Leaflet |
+| Frontend | Next.js 14, Mantine v9, @dnd-kit, Leaflet |
 | Mobile | Flutter, Hive (offline), MinIO (POD) |
 | Infrastructure | Docker, RabbitMQ, OSRM (routage Tunisia OSM) |
 | Auth | OAuth2 (RS256 JWT), JWKS, HttpOnly cookies |
