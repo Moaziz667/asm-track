@@ -14,10 +14,10 @@ ASM Track est une plateforme multi-tenant de gestion et de suivi des livraisons 
 ## Captures d'écran
 
 ### Tableau de bord opérationnel
-![Tableau de bord](screenshots/dashboard.png)
+![Tableau de bord](screenshots/dash.png)
 
 ### Constructeur de tournées
-![Constructeur de tournées](screenshots/route-builder.png)
+![Constructeur de tournées](screenshots/routebuilder.png)
 
 ---
 
