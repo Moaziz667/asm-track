@@ -1,0 +1,41 @@
+sequenceDiagram
+    participant DRV as Driver App
+    participant DL as DeliveryMS
+    participant DB as postgres-delivery
+    participant OP as OutboxProcessor (20s)
+    participant EA as ErpAdapterMS
+    participant ID as idempotent_transaction (H2)
+    participant OD as ERP
+
+    DRV->>DL: POST /api/driver/deliveries/{id}/pod
+    DL->>DB: BEGIN TRANSACTION
+    DL->>DB: UPDATE deliveries SET status=DELIVERED
+    DL->>DB: INSERT INTO outbox_event (ERP_SYNC_STOCK, PENDING)
+    DL->>DB: COMMIT
+    DL-->>DRV: 200 OK
+
+    loop Every 20 seconds
+        OP->>DB: SELECT ... FOR UPDATE SKIP LOCKED LIMIT 10
+        DB-->>OP: [event]
+        OP->>DB: UPDATE status=PROCESSING
+        OP->>EA: POST /api/erp/sync/full-delivery {erpOrderId, txId}
+        EA->>ID: SELECT * WHERE transaction_id = txId
+        alt Already processed (retry scenario)
+            ID-->>EA: cached SUCCESS result
+            EA-->>OP: {success: true}
+        else First attempt
+            EA->>OD: JSON-RPC stock.picking button_validate
+            OD-->>EA: done
+            EA->>ID: INSERT (txId, SUCCESS)
+            EA-->>OP: {success: true}
+        end
+        OP->>DB: UPDATE status=PROCESSED
+    end
+
+    alt Odoo unavailable
+        OD-->>EA: timeout
+        EA-->>OP: exception
+        OP->>DB: retry_count++, status=PENDING
+        Note over OP,DB: Retries every 20s up to 50 times
+        Note over OP: After retry 50: status=FAILED + webhook alert
+    end

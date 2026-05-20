@@ -1,0 +1,485 @@
+% !TEX root = ../main.tex
+\chapter{Spécification des besoins et analyse}
+
+% ─────────────────────────────────────────────────────────────
+\section{Introduction}
+
+Après avoir posé le cadre général du projet et défini la méthodologie de travail adoptée,
+nous entamons dans ce chapitre la phase d'analyse fonctionnelle d'ASM Track. Cette étape
+consiste à identifier les acteurs du système, à recenser leurs besoins fonctionnels et non
+fonctionnels, puis à les formaliser sous forme de diagrammes de cas d'utilisation et de
+diagrammes de séquence. Cette analyse constitue le fondement sur lequel reposent tous
+les choix de conception et d'implémentation qui seront détaillés dans les chapitres suivants.
+
+% ─────────────────────────────────────────────────────────────
+\section{Étude fonctionnelle}
+
+L'étude fonctionnelle est une phase indispensable pour identifier les tâches que le système
+doit accomplir et les interactions entre ses différents utilisateurs. Elle se traduit par la
+liste des acteurs, leurs besoins et leurs interactions, formalisés sous forme de diagrammes UML.
+
+\subsection{Identification des acteurs}
+
+Un acteur représente toute entité externe qui interagit directement avec le système.
+Nous avons identifié quatre acteurs pour ASM Track :
+
+\begin{itemize}
+  \item \textbf{Le Super Admin} : représente l'équipe d'ASM. Il dispose d'un accès
+        global à la plateforme, sans restriction par entreprise. Il est responsable
+        de la gestion des entreprises clientes, des chauffeurs et des utilisateurs
+        administrateurs.
+
+  \item \textbf{L'Admin / Dispatcher} : représente un utilisateur appartenant à une
+        entreprise cliente. Il gère les livraisons, planifie les tournées, suit
+        l'avancement en temps réel et génère les rapports. Ses données sont
+        strictement isolées de celles des autres entreprises.
+
+  \item \textbf{Le Chauffeur} : représente un livreur sur le terrain. Il interagit
+        exclusivement via l'application mobile Flutter. Il consulte ses livraisons
+        assignées, confirme les étapes du cycle de livraison et capture les preuves
+        de livraison, même sans connexion internet.
+
+  \item \textbf{Le Système ERP} : représente le système de gestion de l'entreprise
+        cliente (Odoo ou Dux). C'est un acteur externe qui envoie des commandes
+        vers ASM Track et reçoit en retour les mises à jour de statut des livraisons.
+\end{itemize}
+
+\subsection{Identification des besoins fonctionnels}
+
+\subsubsection*{En tant que Super Admin, je peux :}
+
+\begin{itemize}
+  \item Créer, modifier, activer et désactiver des entreprises clientes.
+  \item Créer et gérer les profils des chauffeurs (nom, téléphone, statut).
+  \item Créer et gérer les comptes administrateurs des entreprises clientes.
+  \item Réinitialiser les mots de passe des administrateurs.
+  \item Consulter les statistiques globales de la plateforme.
+  \item Accéder aux données de toutes les entreprises sans restriction de tenant.
+\end{itemize}
+
+\subsubsection*{En tant qu'Admin / Dispatcher, je peux :}
+
+\begin{itemize}
+  \item M'authentifier avec mon email et mon mot de passe.
+  \item Consulter et rechercher les commandes non planifiées par statut, date ou source.
+  \item Replanifier une commande en la retirant d'une tournée et en la réassignant
+        à une autre.
+  \item Annuler une commande avant qu'elle ne soit prise en charge par un chauffeur.
+  \item Accéder au constructeur de tournées et visualiser les commandes non planifiées
+        disponibles.
+  \item Créer une tournée et y ajouter des commandes par glisser-déposer.
+  \item Optimiser l'itinéraire de la tournée automatiquement via OSRM.
+  \item Assigner une tournée à un chauffeur disponible.
+  \item Suivre en temps réel l'avancement des tournées et la position des chauffeurs.
+  \item Recevoir des alertes automatiques en cas de dépassement de délai SLA.
+  \item Consulter les preuves de livraison (photos et signatures) capturées par
+        les chauffeurs lors de l'exécution de la tournée.
+  \item Générer un rapport PDF d'une tournée clôturée avec ses indicateurs de performance.
+  \item Configurer les seuils SLA de l'entreprise (délai d'attente, délai d'assignation,
+        délai de ramassage) et les modifier dynamiquement en temps réel.
+\end{itemize}
+
+\subsubsection*{En tant que Chauffeur, je peux :}
+
+\begin{itemize}
+  \item M'authentifier avec mon numéro de téléphone et mon mot de passe.
+  \item Consulter ma tournée du jour avec la liste ordonnée des arrêts à effectuer.
+  \item Démarrer ma tournée et naviguer vers chaque arrêt grâce à l'itinéraire calculé.
+  \item Confirmer le ramassage des colis d'un arrêt (statut \texttt{PICKED\_UP}).
+  \item Démarrer le transit vers le destinataire (statut \texttt{IN\_TRANSIT}).
+  \item Confirmer la livraison complète d'un arrêt avec capture de photo et de signature (POD).
+  \item Confirmer une livraison partielle lorsqu'une partie seulement des articles
+        a été remise au destinataire (statut \texttt{PARTIALLY\_DELIVERED}).
+  \item Marquer un arrêt comme échoué avec indication de motif.
+  \item Travailler en mode hors-ligne : toutes mes actions sur la tournée sont
+        sauvegardées localement et synchronisées automatiquement dès le retour du réseau.
+  \item Transférer ma tournée à un autre chauffeur via QR code.
+  \item Mettre à jour ma position GPS pour permettre le suivi en temps réel par le dispatcher.
+\end{itemize}
+
+\subsubsection*{En tant que Système ERP, je peux :}
+
+\begin{itemize}
+  \item Envoyer des commandes confirmées vers ASM Track pour les transformer en livraisons.
+  \item Recevoir automatiquement les mises à jour de statut des livraisons (livrée,
+        partiellement livrée, échouée, annulée) ainsi que les ajustements de stock
+        correspondants, sans intervention manuelle.
+\end{itemize}
+
+\subsection{Identification des besoins non fonctionnels}
+
+Les besoins non fonctionnels définissent les critères de qualité que le système doit
+respecter indépendamment des fonctionnalités :
+
+\begin{itemize}
+  \item \textbf{La sécurité} : toutes les communications sont protégées par HTTPS.
+        L'authentification repose sur un serveur OAuth2 personnalisé émettant des tokens
+        JWT signés avec une clé RSA. L'API Gateway valide chaque token avant de router
+        la requête. L'isolation des données entre entreprises est assurée par des filtres
+        Hibernate appliqués automatiquement.
+
+  \item \textbf{La performance} : les mises à jour temps réel doivent être poussées en
+        moins de 2 secondes. Les pages du tableau de bord doivent se charger en moins
+        de 3 secondes dans des conditions réseau normales.
+
+  \item \textbf{La disponibilité} : la plateforme doit être disponible en continu.
+        Chaque microservice dispose d'un healthcheck Docker et redémarre automatiquement
+        en cas de défaillance.
+
+  \item \textbf{La fiabilité} : aucun événement métier ne doit être perdu. La
+        synchronisation ERP est garantie même en cas de panne réseau ou de redémarrage
+        d'un service.
+
+  \item \textbf{L'idempotence} : les opérations critiques telles que la synchronisation
+        ERP et la soumission de preuves de livraison (POD) peuvent être rejouées sans
+        effet de bord. Une même requête exécutée plusieurs fois produit toujours le
+        même résultat, évitant ainsi les doublons en cas de retry automatique.
+
+  \item \textbf{La scalabilité} : l'architecture microservices permet de dimensionner
+        indépendamment chaque service selon la charge. Le modèle multi-tenant permet
+        d'intégrer de nouveaux clients sans déploiement supplémentaire.
+
+  \item \textbf{La maintenabilité} : le code métier est isolé des dépendances externes
+        grâce à une architecture en couches où chaque système tiers (ERP, stockage, routage)
+        est remplaçable sans modifier le reste de la plateforme.
+
+  \item \textbf{L'accessibilité mobile} : l'application chauffeur doit fonctionner
+        avec ou sans connexion internet. Les données critiques sont stockées localement
+        et synchronisées automatiquement au retour du réseau.
+\end{itemize}
+
+\subsection{Diagrammes de cas d'utilisation}
+
+Le diagramme de cas d'utilisation décrit le comportement du système du point de vue
+de l'utilisateur. Il exprime les fonctionnalités offertes par le système et les interactions
+entre les acteurs et ces fonctionnalités.
+
+\subsubsection*{Diagramme de cas d'utilisation global}
+
+La figure \ref{fig:uc-global} présente le diagramme de cas d'utilisation global d'ASM Track.
+Il illustre l'ensemble des interactions entre les quatre acteurs du système — Super Admin,
+Admin/Dispatcher, Chauffeur et Système ERP — et les fonctionnalités qu'ils peuvent réaliser.
+Les relations \textit{<<include>>} indiquent les cas d'utilisation obligatoirement exécutés
+(notamment l'authentification), tandis que les relations \textit{<<extend>>} représentent
+les fonctionnalités optionnelles déclenchées sous certaines conditions.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{globalDigram}
+  \caption{Diagramme de cas d'utilisation global — ASM Track}
+  \label{fig:uc-global}
+\end{figure}
+
+\subsubsection*{Diagramme raffiné — Création de tournée}
+
+La figure suivante présente le diagramme raffiné de la création de tournée,
+illustrant les actions disponibles pour le dispatcher lors de la planification.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{CreateRoute}
+  \caption{Diagramme raffiné — Création de tournée}
+  \label{fig:uc-creation-tournee}
+\end{figure}
+
+\subsubsection*{Diagramme raffiné — Gestion et suivi des tournées}
+
+La figure suivante présente le diagramme raffiné de la gestion et du suivi
+des tournées, couvrant les actions du dispatcher lors de l'exécution en temps réel.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{GererRoute}
+  \caption{Diagramme raffiné — Gestion et suivi des tournées}
+  \label{fig:uc-gestion}
+\end{figure}
+
+\subsubsection*{Diagramme raffiné — Exécution et confirmation de livraison}
+
+La figure suivante présente le diagramme raffiné du côté chauffeur, illustrant
+le cycle d'exécution d'une tournée et les actions de confirmation de livraison.
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{UcDriver}
+  \caption{Diagramme raffiné — Exécution et confirmation de livraison}
+  \label{fig:uc-driver}
+\end{figure}
+
+\textbf{Description textuelle CU : Assigner une livraison}
+
+\begin{table}[H]
+\centering
+\begin{tabularx}{\textwidth}{|L{3.5cm}|X|}
+\hline
+\rowcolor{primary!10}
+\multicolumn{2}{|c|}{\textbf{CU : Assigner une livraison à un chauffeur}} \\
+\hline
+\textbf{Acteur} & Admin / Dispatcher \\
+\hline
+\textbf{Précondition} & L'admin est authentifié ; la livraison est en statut \texttt{UNSCHEDULED} \\
+\hline
+\multicolumn{2}{|l|}{\textit{Enchaînement principal :}} \\
+\hline
+\multicolumn{2}{|X|}{
+  \begin{enumerate}[leftmargin=1.5cm]
+    \item L'admin sélectionne une livraison dans le tableau de bord.
+    \item Le système affiche les chauffeurs disponibles.
+    \item L'admin choisit un chauffeur et confirme l'assignation.
+    \item Le système met à jour le statut à \texttt{SCHEDULED} et envoie
+          une notification push FCM au chauffeur.
+    \item Le système enregistre l'événement dans l'historique des statuts.
+  \end{enumerate}
+} \\
+\hline
+\textbf{Postcondition} & La livraison est assignée ; le chauffeur reçoit une notification sur son mobile \\
+\hline
+\textbf{Enchaînement alternatif} &
+  Si aucun chauffeur n'est disponible, le système affiche un message d'avertissement
+  et l'admin peut choisir de planifier l'assignation ultérieurement. \\
+\hline
+\end{tabularx}
+\caption{Description textuelle CU : Assigner une livraison}
+\end{table}
+
+\subsubsection*{Diagramme raffiné — Planification des tournées}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{CreateRoute}
+  \caption{Diagramme raffiné — Création de tournée}
+  \label{fig:uc-tournees}
+\end{figure}
+
+\textbf{Description textuelle CU : Créer une tournée}
+
+\begin{longtable}{|p{3.5cm}|p{11.5cm}|}
+\caption{Description textuelle CU : Créer une tournée} \\
+\hline
+\rowcolor{primary!10}
+\multicolumn{2}{|c|}{\textbf{CU : Créer une tournée}} \\
+\hline
+\textbf{Acteur} & Admin / Dispatcher \\
+\hline
+\textbf{Précondition} &
+  L'admin est authentifié sur le tableau de bord ; des commandes en statut
+  \texttt{UNSCHEDULED} existent ; au moins un chauffeur, un véhicule et un
+  dépôt sont disponibles. \\
+\hline
+\multicolumn{2}{|l|}{\textit{Enchaînement principal :}} \\
+\hline
+\multicolumn{2}{|p{15.4cm}|}{
+  \begin{enumerate}[leftmargin=1.5cm]
+    \item L'admin ouvre le constructeur de tournées et clique sur
+          \textit{"Nouvelle tournée"}.
+    \item Le système affiche un formulaire de création. L'admin saisit le nom
+          de la tournée, la date d'opération, sélectionne le chauffeur, le
+          véhicule et le dépôt de départ.
+    \item Le système crée la tournée en statut \texttt{DRAFT} et affiche
+          le tableau des commandes non planifiées.
+    \item L'admin glisse-dépose les commandes depuis le tableau ou depuis les
+          épingles de la carte vers la tournée.
+    \item Le système ajoute chaque commande comme arrêt et met à jour
+          le compteur de charge (poids total / capacité véhicule).
+    \item L'admin clique sur \textit{"Optimiser"} pour calculer l'itinéraire
+          optimal via le moteur OSRM.
+    \item Le système retourne une suggestion d'ordre des arrêts avec les
+          distances, durées, fenêtres horaires optimisées et l'heure
+          d'arrivée estimée (ETA) pour chaque arrêt.
+    \item L'admin consulte la suggestion et clique sur \textit{"Appliquer"}.
+    \item Le système enregistre l'ordre optimisé et les fenêtres horaires
+          suggérées pour chaque arrêt.
+  \end{enumerate}
+} \\
+\hline
+\textbf{Postcondition} &
+  La tournée est créée en statut \texttt{DRAFT} avec les arrêts ordonnés,
+  les fenêtres horaires calculées et les ETAs enregistrés. \\
+\hline
+\textbf{Enchaînement alternatif} &
+  \textbf{A1 — Véhicule en surcharge :} Si le poids total des commandes
+  dépasse la capacité du véhicule, le système affiche une alerte rouge.
+  L'admin peut retirer des commandes ou changer de véhicule.
+
+  \textbf{A2 — OSRM indisponible :} Si le moteur de routage ne répond pas,
+  le système conserve l'ordre manuel des arrêts et affiche un avertissement.
+  L'admin peut relancer l'optimisation ultérieurement. \\
+\hline
+\end{longtable}
+
+\textbf{Description textuelle CU : Valider une tournée}
+
+\begin{longtable}{|p{3.5cm}|p{11.5cm}|}
+\caption{Description textuelle CU : Valider une tournée} \\
+\hline
+\rowcolor{primary!10}
+\multicolumn{2}{|c|}{\textbf{CU : Valider une tournée}} \\
+\hline
+\textbf{Acteur} & Admin / Dispatcher \\
+\hline
+\textbf{Précondition} &
+  L'admin est authentifié ; la tournée est en statut \texttt{DRAFT} ;
+  tous les arrêts disposent de fenêtres horaires complètes ; aucune
+  violation chronologique n'est détectée. \\
+\hline
+\multicolumn{2}{|l|}{\textit{Enchaînement principal :}} \\
+\hline
+\multicolumn{2}{|p{15.4cm}|}{
+  \begin{enumerate}[leftmargin=1.5cm]
+    \item L'admin ouvre la tournée dans le constructeur et clique sur
+          \textit{"Finaliser et valider"}.
+    \item Le système ouvre une fenêtre de confirmation affichant pour chaque
+          arrêt : le numéro, le client, l'adresse, les horaires prévus
+          et un indicateur vert ou rouge selon la validité des fenêtres.
+    \item Le système vérifie automatiquement que chaque arrêt commence
+          après la fin du précédent et qu'aucun chevauchement n'existe.
+    \item Si toutes les vérifications sont satisfaites, le bouton
+          \textit{"Valider la tournée"} est activé et affiché en vert.
+    \item L'admin clique sur \textit{"Valider la tournée"}.
+    \item Le système sauvegarde les fenêtres horaires finales et fait
+          passer le statut de la tournée de \texttt{DRAFT} à
+          \texttt{VALIDATED}.
+    \item Le système envoie une notification push FCM au chauffeur
+          assigné pour l'informer que sa tournée est prête.
+  \end{enumerate}
+} \\
+\hline
+\textbf{Postcondition} &
+  La tournée est en statut \texttt{VALIDATED}, les fenêtres horaires
+  sont verrouillées et le chauffeur a reçu une notification. \\
+\hline
+\textbf{Enchaînement alternatif} &
+  \textbf{A1 — Violations chronologiques détectées :} Si un ou plusieurs
+  arrêts présentent des chevauchements ou des incohérences d'horaires,
+  le système les surligne en rouge et désactive le bouton de validation.
+  L'admin doit corriger les fenêtres horaires concernées avant de
+  pouvoir valider.
+
+  \textbf{A2 — Fenêtres horaires incomplètes :} Si un arrêt ne possède
+  pas de fenêtre horaire définie, le système bloque la validation et
+  indique les arrêts manquants. \\
+\hline
+\end{longtable}
+
+\subsubsection*{Diagramme raffiné — Exécution et confirmation de livraison}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{UcDriver}
+  \caption{Diagramme raffiné — Exécution et confirmation de livraison (Chauffeur)}
+  \label{fig:uc-driver-2}
+\end{figure}
+
+\textbf{Description textuelle CU : Confirmer une livraison avec capture de preuve (POD)}
+
+\begin{longtable}{|p{3.5cm}|p{11.5cm}|}
+\caption{Description textuelle CU : Confirmer une livraison avec POD} \\
+\hline
+\rowcolor{primary!10}
+\multicolumn{2}{|c|}{\textbf{CU : Confirmer une livraison avec capture de preuve (POD)}} \\
+\hline
+\textbf{Acteur} & Chauffeur \\
+\hline
+\textbf{Précondition} &
+  Le chauffeur est authentifié sur l'application mobile ; la tournée
+  est en statut \texttt{IN\_PROGRESS} ; l'arrêt concerné est en
+  statut \texttt{IN\_TRANSIT}. \\
+\hline
+\multicolumn{2}{|l|}{\textit{Enchaînement principal :}} \\
+\hline
+\multicolumn{2}{|p{15.4cm}|}{
+  \begin{enumerate}[leftmargin=1.5cm]
+    \item Le chauffeur consulte sa tournée du jour et sélectionne
+          l'arrêt en cours dans l'application mobile.
+    \item Le chauffeur démarre le transit vers l'arrêt. Le système
+          met à jour le statut de l'arrêt à \texttt{IN\_TRANSIT}.
+    \item À l'arrivée chez le destinataire, le chauffeur ouvre le
+          formulaire de confirmation de livraison.
+    \item Le chauffeur imprime le bon de livraison (BL) et le fait
+          signer par le destinataire.
+    \item Le chauffeur capture deux photos via l'application mobile :
+          une photo du colis remis et une photo du bon de livraison signé.
+    \item L'application envoie les deux photos au serveur comme
+          preuve de livraison (POD).
+    \item Le serveur stocke les photos sur MinIO et génère des URLs
+          d'accès sécurisées.
+    \item Le système met à jour le statut de l'arrêt à \texttt{DELIVERED}
+          et enregistre l'horodatage de livraison.
+    \item Le système publie un événement sur RabbitMQ. L'adaptateur ERP
+          correspondant synchronise automatiquement la livraison dans
+          le système de l'entreprise (Odoo ou Dux).
+    \item Le dispatcher voit instantanément le statut mis à jour
+          sur son tableau de bord, sans avoir à recharger la page.
+  \end{enumerate}
+} \\
+\hline
+\textbf{Postcondition} &
+  L'arrêt est en statut \texttt{DELIVERED}, la preuve de livraison
+  est stockée sur MinIO, l'ERP est synchronisé et le dispatcher
+  est notifié en temps réel. \\
+\hline
+\textbf{Enchaînement alternatif} &
+  \textbf{A1 — Mode hors-ligne :} Si le chauffeur n'a pas de connexion
+  internet, l'application stocke la POD localement dans la file
+  d'attente Hive. Dès que la connexion est rétablie, la synchronisation
+  s'effectue automatiquement (3 tentatives maximum, TTL 24h).
+
+  \textbf{A2 — Livraison partielle :} Si une partie seulement des
+  articles a été remise, le chauffeur sélectionne les articles livrés
+  et confirme une livraison partielle. Le statut passe à
+  \texttt{PARTIALLY\_DELIVERED} et l'ERP est notifié des quantités
+  réellement livrées. \\
+\hline
+\end{longtable}
+
+\subsection{Diagrammes de séquence système}
+
+Les diagrammes de séquence modélisent les interactions entre les composants du système
+lors de l'exécution d'un cas d'utilisation précis. Ils illustrent l'ordre chronologique des
+échanges de messages entre les acteurs et les services.
+
+\subsubsection*{Diagramme de séquence — Authentification admin}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{Sequencelogin}
+  \caption{Diagramme de séquence — Authentification administrateur}
+  \label{fig:seq-auth-admin}
+\end{figure}
+
+Lorsque l'administrateur soumet ses identifiants, le \textit{UserManagementMS} vérifie
+d'abord l'existence et l'état actif du compte en base de données, puis délègue la
+validation du mot de passe au serveur d'autorisation via un \textit{password grant} OAuth2.
+Au démarrage du service, la clé publique RSA est récupérée depuis l'endpoint JWKS et
+mise en cache mémoire, ce qui permet de vérifier la signature des tokens sans aller-retour
+réseau. En cas de succès, le token JWT (RS256, 15 min) et le profil de l'utilisateur sont
+retournés et stockés dans des cookies \texttt{HttpOnly}.
+
+\subsubsection*{Diagramme de séquence — Synchronisation ERP}
+
+\begin{figure}[H]
+  \centering
+  \includegraphics[width=\textwidth]{syncSequence}
+  \caption{Diagramme de séquence — Synchronisation ERP via patron Outbox}
+  \label{fig:seq-outbox-erp}
+\end{figure}
+
+Lorsque le chauffeur confirme une livraison, le \textit{DeliveryMS} écrit la mise à jour
+du statut et l'événement de synchronisation dans la \textbf{même transaction PostgreSQL},
+garantissant l'atomicité. Un \texttt{OutboxProcessor} interroge la table toutes les 20
+secondes via \texttt{FOR UPDATE SKIP LOCKED} — technique qui permet à plusieurs instances
+de traiter des lots différents sans collision. L'\textit{ErpAdapterMS} reçoit l'événement,
+vérifie l'idempotence via une table H2 en mémoire, puis appelle le système ERP cible.
+En cas d'indisponibilité, le compteur \texttt{retry\_count} est incrémenté et l'événement
+repasse en \texttt{PENDING} jusqu'à 50 tentatives, après quoi une alerte webhook est déclenchée.
+
+% ─────────────────────────────────────────────────────────────
+\section{Conclusion}
+
+Ce chapitre a permis de définir précisément le périmètre fonctionnel d'ASM Track.
+Nous avons identifié quatre acteurs et décrit leurs besoins fonctionnels sous forme
+de listes et de diagrammes de cas d'utilisation avec leurs descriptions textuelles.
+Les besoins non fonctionnels fixent les exigences de qualité en matière de sécurité,
+de performance et de fiabilité. Les diagrammes de séquence illustrent les flux
+d'interaction clés du système. Le chapitre suivant présente l'architecture technique
+retenue pour répondre à l'ensemble de ces besoins.

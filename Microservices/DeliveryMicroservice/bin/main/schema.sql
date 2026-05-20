@@ -137,8 +137,6 @@ CREATE TABLE IF NOT EXISTS deliveries (
   cancel_reason   TEXT,
   cancelled_by    VARCHAR(10) CHECK (cancelled_by IN ('CLIENT', 'DRIVER', 'SYSTEM')),
 
-  return_to_origin BOOLEAN NOT NULL DEFAULT FALSE,
-
   created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
   updated_at      TIMESTAMP NOT NULL DEFAULT NOW()
 );

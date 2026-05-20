@@ -1,0 +1,60 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam actorStyle awesome
+skinparam backgroundColor white
+skinparam usecase {
+  BackgroundColor #EEF4FF
+  BorderColor #0052A3
+  ArrowColor #333333
+}
+
+actor "Admin /\nDispatcher" as AD
+
+rectangle "Création de tournée" {
+
+  usecase "S'authentifier sur\nle tableau de bord" as AUTH
+
+  usecase "Créer une tournée\n(nom, date, chauffeur,\nvéhicule, dépôt)" as UC1
+  usecase "Modifier les paramètres\nd'une tournée" as EX1
+  usecase "Supprimer une tournée" as EX2
+
+  usecase "Ajouter des commandes\npar glisser-déposer\n(table ou épingles carte)" as UC2
+  usecase "Optimiser l'itinéraire\nvia OSRM" as EX3
+  usecase "Appliquer les fenêtres\nhoraires suggérées" as EX5
+
+  usecase "Réordonner les arrêts\nd'une tournée" as UC3
+  usecase "Transférer un arrêt vers\nune autre tournée\npar glisser-déposer" as EX4
+
+  usecase "Gérer les fenêtres\nhoraires des arrêts" as UC4
+  usecase "Valider une tournée\n(DRAFT → VALIDATED)" as UC5
+}
+
+AD --> UC1
+AD --> UC2
+AD --> UC3
+AD --> UC4
+AD --> UC5
+
+' <<include>>
+UC1 ..> AUTH : <<include>>
+UC2 ..> AUTH : <<include>>
+UC3 ..> AUTH : <<include>>
+UC4 ..> AUTH : <<include>>
+UC5 ..> AUTH : <<include>>
+
+' <<extend>>
+EX1 ..> UC1 : <<extend>>\n{modification après\ncréation}
+EX2 ..> UC1 : <<extend>>\n{si statut DRAFT}
+EX3 ..> UC2 : <<extend>>\n{si optimisation\ndemandée}
+EX5 ..> EX3 : <<extend>>\n{après validation\nde la suggestion}
+EX4 ..> UC3 : <<extend>>\n{si réaffectation\nentre tournées}
+
+' forcer positions
+UC1 -[hidden]right- EX1
+UC1 -[hidden]right- EX2
+UC2 -[hidden]right- EX3
+EX3 -[hidden]right- EX5
+UC3 -[hidden]right- EX4
+
+@enduml
