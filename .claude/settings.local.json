@@ -54,10 +54,14 @@
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\app\\\\route-builder\\\\\" -Recurse -File | Select-Object FullName)",
       "Bash(mmdc --version)",
       "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 002617.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\dashboard.png\")",
-      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 040415.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\route-builder.png\")"
+      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 040415.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\route-builder.png\")",
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 041300.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\landing.png\")"
     ],
     "additionalDirectories": [
-      "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory"
+      "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
+      "C:\\Users\\M S I\\Pictures\\Screenshots"
     ]
   }
 }
