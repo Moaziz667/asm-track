@@ -4,7 +4,10 @@ import com.asm.delivery.dto.response.TrackingResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Depot;
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.entity.OrderItem;
 import com.asm.delivery.entity.RouteStop;
+import java.util.List;
+import java.util.stream.Collectors;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DepotRepository;
 import com.asm.delivery.repository.DeliveryRepository;
@@ -30,6 +33,7 @@ public class PublicTrackingService {
     private final CompanyRepository     companyRepo;
     private final TransportPort         transportPort;
 
+    @Transactional(readOnly = true)
     public TrackingResponse getTracking(UUID deliveryId) {
         TrackingData data = doGetTrackingData(deliveryId);
 
@@ -52,14 +56,28 @@ public class PublicTrackingService {
             }
         }
 
+        Order order = data.delivery().getOrder();
+        List<TrackingResponse.OrderItemDto> itemDtos = null;
+        if (order != null && order.getItems() != null) {
+            itemDtos = order.getItems().stream()
+                .map(i -> TrackingResponse.OrderItemDto.builder()
+                    .name(i.getName())
+                    .quantity(i.getQuantity())
+                    .unitPrice(i.getUnitPrice() != null ? i.getUnitPrice().doubleValue() : null)
+                    .build())
+                .collect(Collectors.toList());
+        }
+
         return TrackingResponse.builder()
                 .deliveryId(deliveryId.toString())
                 .status(data.delivery().getStatus() != null ? data.delivery().getStatus().name() : "UNKNOWN")
-                .clientName(data.delivery().getOrder() != null ? data.delivery().getOrder().getClientName() : null)
-                .dropoffLat(data.delivery().getOrder() != null && data.delivery().getOrder().getDropoffLat()  != null ? data.delivery().getOrder().getDropoffLat().doubleValue()  : null)
-                .dropoffLng(data.delivery().getOrder() != null && data.delivery().getOrder().getDropoffLng()  != null ? data.delivery().getOrder().getDropoffLng().doubleValue()  : null)
-                .dropoffAddress(data.delivery().getOrder() != null ? data.delivery().getOrder().getDropoffAddress() : null)
-                .dropoffCity(data.delivery().getOrder() != null ? data.delivery().getOrder().getDropoffCity() : null)
+                .clientName(order != null ? order.getClientName() : null)
+                .clientPhone(order != null ? order.getClientPhone() : null)
+                .erpOrderId(order != null ? order.getErpOrderId() : null)
+                .dropoffLat(order != null && order.getDropoffLat() != null ? order.getDropoffLat().doubleValue() : null)
+                .dropoffLng(order != null && order.getDropoffLng() != null ? order.getDropoffLng().doubleValue() : null)
+                .dropoffAddress(order != null ? order.getDropoffAddress() : null)
+                .dropoffCity(order != null ? order.getDropoffCity() : null)
                 .driverName(driverName)
                 .driverPhone(driverPhone)
                 .driverLat(driverLat)
@@ -73,6 +91,9 @@ public class PublicTrackingService {
                 .routeGeometry(data.routeGeometry())
                 .companyName(data.companyName())
                 .companyLogoUrl(data.companyLogoUrl())
+                .totalAmount(order != null && order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : null)
+                .isCod(order != null ? order.getIsCod() : null)
+                .items(itemDtos)
                 .build();
     }
 
