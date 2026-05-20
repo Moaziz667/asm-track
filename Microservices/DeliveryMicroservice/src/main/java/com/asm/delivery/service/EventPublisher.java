@@ -76,6 +76,14 @@ public class EventPublisher {
         sendRoute(p);
     }
 
+    public void publishPublicDriverLocation(UUID deliveryId, BigDecimal lat, BigDecimal lng) {
+        Map<String, Object> p = new HashMap<>();
+        p.put("event", "driver.location_updated");
+        p.put("lat", lat);
+        p.put("lng", lng);
+        ws.convertAndSend("/topic/public." + deliveryId, p);
+    }
+
     private void executeAfterCommitAsync(Runnable runnable) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(

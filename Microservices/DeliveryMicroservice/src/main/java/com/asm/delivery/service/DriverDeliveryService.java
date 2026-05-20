@@ -707,8 +707,9 @@ public class DriverDeliveryService {
                     .lat(lat)
                     .lng(lng)
                     .build());
-            // Push real-time location to admin dashboard via WebSocket
+            // Push real-time location to admin dashboard and public tracking page
             eventPublisher.publishDriverLocation(delivery.getCompanyId(), driverId, lat, lng);
+            eventPublisher.publishPublicDriverLocation(delivery.getId(), lat, lng);
         }
         // Direct synchronous call — location is best-effort, no outbox retry needed
         transportPort.updateLocation(driverId.toString(), lat.doubleValue(), lng.doubleValue());
