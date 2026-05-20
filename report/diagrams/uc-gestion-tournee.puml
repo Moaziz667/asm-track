@@ -1,0 +1,56 @@
+@startuml
+!pragma layout smetana
+left to right direction
+skinparam actorStyle awesome
+skinparam backgroundColor white
+skinparam usecase {
+  BackgroundColor #EEF4FF
+  BorderColor #0052A3
+  ArrowColor #333333
+}
+
+actor "Admin /\nDispatcher" as AD
+
+rectangle "Gestion et suivi des tournées" {
+
+  usecase "S'authentifier sur\nle tableau de bord" as AUTH
+
+  usecase "Consulter le bureau\ndes incidents" as UC1
+  usecase "Réassigner une livraison\nà un autre chauffeur" as EX1
+  usecase "Reprogrammer\nune livraison" as EX2
+
+  usecase "Superviser l'exécution\nd'une tournée" as UC2
+  usecase "Annuler un arrêt\nd'une tournée" as EX3
+  usecase "Modifier la fenêtre\nhoraire d'un arrêt" as EX4
+
+  usecase "Visualiser la position\ndes chauffeurs en temps réel" as UC3
+  usecase "Visualiser les alertes SLA\n(CRITICAL / WARNING)" as UC4
+  usecase "Consulter les preuves\nde livraison (POD)" as UC5
+}
+
+AD --> UC1
+AD --> UC2
+AD --> UC3
+AD --> UC4
+AD --> UC5
+
+' <<include>>
+UC1 ..> AUTH : <<include>>
+UC2 ..> AUTH : <<include>>
+UC3 ..> AUTH : <<include>>
+UC4 ..> AUTH : <<include>>
+UC5 ..> AUTH : <<include>>
+
+' <<extend>>
+EX1 ..> UC1 : <<extend>>\n{livraison assignée\nou en transit}
+EX2 ..> UC1 : <<extend>>\n{livraison échouée\nou bloquée}
+EX3 ..> UC2 : <<extend>>\n{arrêt PENDING\nou PICKED_UP}
+EX4 ..> UC2 : <<extend>>\n{tournée VALIDATED,\narrêt PENDING}
+
+' forcer positions
+UC1 -[hidden]right- EX1
+UC1 -[hidden]right- EX2
+UC2 -[hidden]right- EX3
+UC2 -[hidden]right- EX4
+
+@enduml

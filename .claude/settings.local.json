@@ -38,7 +38,23 @@
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\driverApp\\\\lib\\\\src\" -Recurse -File -Filter \"*.dart\")",
       "Bash(code docs/00-INDEX.md docs/01-global-architecture.md docs/02-service-catalog.md docs/03-frontend-clients.md docs/04-delivery-lifecycle.md docs/05-distributed-patterns.md docs/06-api-reference.md docs/07-security-model.md docs/08-infrastructure-deployment.md docs/09-runbooks.md)",
       "Bash(pip --version)",
-      "Bash(pip install *)"
+      "Bash(pip install *)",
+      "Bash(pdflatex -interaction=nonstopmode main.tex)",
+      "Bash(python -c ' *)",
+      "Bash(curl -s --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' https://git.asmtechtn.com/api/v4/projects/mohamedaziz.hadjkacem21%2Fpfe)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Project ID:', d.get\\('id','ERROR'\\), '| Name:', d.get\\('name','?'\\)\\)\")",
+      "Bash(curl -s --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' https://git.asmtechtn.com/api/v4/projects/1535/milestones)",
+      "Bash(curl -s --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' https://git.asmtechtn.com/api/v4/projects/1535/boards)",
+      "Bash(curl -s --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' 'https://git.asmtechtn.com/api/v4/projects/1535/issues?state=opened&per_page=50&page=2')",
+      "Bash(python -c \"import sys,json; issues=json.load\\(sys.stdin\\); print\\('Total open:', len\\(issues\\)\\)\")",
+      "Bash(curl -s -o /dev/null -w 'Issue #__TRACKED_VAR__ Done: %{http_code}\\\\n' --request PUT --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' --form 'remove_labels=To Do,In Progress,In Review' --form add_labels=Done https://git.asmtechtn.com/api/v4/projects/1535/issues/__TRACKED_VAR__)",
+      "Bash(curl -s -o /dev/null -w 'Issue #9 In Progress: %{http_code}\\\\n' --request PUT --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' --form 'remove_labels=To Do' --form 'add_labels=In Progress' https://git.asmtechtn.com/api/v4/projects/1535/issues/9)",
+      "Bash(curl -s -o /dev/null -w 'Issue #10 In Review: %{http_code}\\\\n' --request PUT --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' --form 'remove_labels=To Do' --form 'add_labels=In Review' https://git.asmtechtn.com/api/v4/projects/1535/issues/10)",
+      "Bash(curl -s -o /dev/null -w 'Issue #11 In Progress: %{http_code}\\\\n' --request PUT --header 'PRIVATE-TOKEN: gbjRcf0vKwWBLP282-KqgW86MQp1OjlyCA.01.0y0g5xv7o' --form 'remove_labels=To Do' --form 'add_labels=In Progress' https://git.asmtechtn.com/api/v4/projects/1535/issues/11)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\app\\\\route-builder\\\\\" -Recurse -File | Select-Object FullName)",
+      "Bash(mmdc --version)",
+      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 002617.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\dashboard.png\")",
+      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 040415.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\route-builder.png\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory"

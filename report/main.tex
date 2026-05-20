@@ -1,0 +1,122 @@
+% ============================================================
+%  ASM Track — Rapport PFE
+%  Auteur : Mohamed Aziz Hadjkacem
+% ============================================================
+\documentclass[12pt, a4paper, oneside]{report}
+
+% ── Encodage & langue ────────────────────────────────────────
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+
+% ── Mise en page ─────────────────────────────────────────────
+\usepackage[top=2.5cm, bottom=2.5cm, left=3cm, right=2.5cm]{geometry}
+\usepackage{setspace}
+\onehalfspacing
+\usepackage{parskip}
+\setlength{\parindent}{0pt}
+
+% ── Typographie ───────────────────────────────────────────────
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% ── Couleurs & graphiques ─────────────────────────────────────
+\usepackage[dvipsnames, table]{xcolor}
+\definecolor{primary}{RGB}{0, 82, 155}
+\definecolor{accent}{RGB}{255, 87, 34}
+\definecolor{codebg}{RGB}{245, 245, 245}
+
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{wrapfig}
+\usepackage{caption}
+\usepackage{subcaption}
+\graphicspath{{figures/}}
+
+% ── En-têtes & pieds de page ──────────────────────────────────
+\usepackage{fancyhdr}
+\setlength{\headheight}{14.5pt}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\small\textcolor{gray}{\leftmark}}
+\fancyhead[R]{\small\textcolor{gray}{ASM Track}}
+\fancyfoot[C]{\thepage}
+\renewcommand{\headrulewidth}{0.4pt}
+
+% ── Chapitres & sections ──────────────────────────────────────
+\usepackage{titlesec}
+\titleformat{\chapter}[display]
+  {\normalfont\huge\bfseries\color{primary}}
+  {\chaptertitlename\ \thechapter}{20pt}{\Huge}
+\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
+ 
+% Numérotation style rapport tunisien : 1. 2. 3. au lieu de 1.1 1.2 1.3
+\renewcommand{\thesection}{\arabic{section}}
+\renewcommand{\thesubsection}{\arabic{section}.\arabic{subsection}}
+
+% ── Tableaux ──────────────────────────────────────────────────
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{tabularx}
+\renewcommand{\arraystretch}{1.4}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% ── Code source ───────────────────────────────────────────────
+\usepackage{listings}
+\lstset{
+  backgroundcolor=\color{codebg},
+  basicstyle=\ttfamily\footnotesize,
+  breaklines=true,
+  frame=single,
+  rulecolor=\color{gray!40},
+  keywordstyle=\color{primary}\bfseries,
+  commentstyle=\color{gray}\itshape,
+  stringstyle=\color{accent},
+  numbers=left,
+  numberstyle=\tiny\color{gray},
+  numbersep=8pt,
+  showstringspaces=false,
+  tabsize=2,
+}
+
+% ── Utilitaires ───────────────────────────────────────────────
+\usepackage{enumitem}
+
+% ── Liens ─────────────────────────────────────────────────────
+\usepackage[
+  colorlinks=true,
+  linkcolor=primary,
+  urlcolor=accent,
+  citecolor=primary,
+  bookmarks=true,
+  pdftitle={ASM Track — Rapport PFE},
+  pdfauthor={Mohamed Aziz Hadjkacem},
+]{hyperref}
+
+% ── Bibliographie ─────────────────────────────────────────────
+\usepackage[numbers, sort&compress]{natbib}
+
+% ============================================================
+\begin{document}
+
+% ── Remerciements ────────────────────────────────────────────
+\pagenumbering{roman}
+\include{chapters/acknowledgements}
+
+% ── Tables ───────────────────────────────────────────────────
+\tableofcontents
+\listoffigures
+\listoftables
+
+% ── Corps ────────────────────────────────────────────────────
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\include{chapters/introduction}
+\include{chapters/ch1}
+\include{chapters/ch2}
+
+\end{document}

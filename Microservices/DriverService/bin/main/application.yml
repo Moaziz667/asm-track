@@ -13,11 +13,10 @@ spring:
       ddl-auto: update
     show-sql: false
 
-app:
-  security:
-    jwt:
-      secret: ${JWT_SECRET:asmsecret2026}
-      access-expiration: 86400000
-      refresh-expiration: 604800000
-    internal:
-      secret: ${INTERNAL_SECRET:asm-internal-2026}
+auth:
+  server:
+    url: ${AUTH_SERVER_URL:http://auth-server:8089}
+    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+  client:
+    id: ${CLIENT_ID:driver-service}
+    secret: ${CLIENT_SECRET:7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
