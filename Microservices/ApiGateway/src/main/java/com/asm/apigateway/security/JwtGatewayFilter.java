@@ -134,7 +134,11 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
 
         // Admin sub-paths with narrower role sets — must be checked before the /api/admin/ catch-all
 
-        // SUPER_ADMIN only (non-SUPER_ADMIN already excluded by early return)
+        // /api/admin/companies/me — ADMIN can read their own company
+        if (path.equals("/api/admin/companies/me")) {
+            return "ADMIN".equals(role) || "DISPATCHER".equals(role);
+        }
+        // All other company endpoints — SUPER_ADMIN only
         if (path.startsWith("/api/admin/companies/")) {
             return false;
         }
