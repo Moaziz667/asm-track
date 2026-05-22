@@ -36,24 +36,27 @@ public class ErpSyncService {
     }
 
     public void syncStockUpdate(Order order, String transactionId) {
-        if (order.getErpOrderId() == null) return;
+        // Backorder orders have erpOrderId=null (unique constraint) — resolve via parent order.
+        String erpOrderId = resolveErpOrderId(order);
+        if (erpOrderId == null) return;
         String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
         boolean success = erpAdapterClient.syncFullDelivery(
-                order.getErpOrderId(), order.getOdooBackorderId(), transactionId, null, companyId);
+                erpOrderId, order.getOdooBackorderId(), transactionId, null, companyId);
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Stock update failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
+            throw new RuntimeException("ERP Stock update failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
         }
     }
 
     public void syncPartialStockUpdate(Order order, List<PartialDeliveryItem> partialItems, String transactionId) {
-        if (order.getErpOrderId() == null) return;
+        String erpOrderId = resolveErpOrderId(order);
+        if (erpOrderId == null) return;
         String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
         Map<String, Object> result = erpAdapterClient.syncPartialDelivery(
-                order.getErpOrderId(), partialItems, transactionId, null, companyId);
+                erpOrderId, partialItems, transactionId, null, companyId);
         boolean success = Boolean.TRUE.equals(result.get("success"));
 
         if (success) {
@@ -65,20 +68,36 @@ public class ErpSyncService {
             }
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Partial sync failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
+            throw new RuntimeException("ERP Partial sync failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
         }
     }
 
     public void syncFailure(Order order, String failureCode, String comment, String transactionId) {
-        if (order.getErpOrderId() == null) return;
+        String erpOrderId = resolveErpOrderId(order);
+        if (erpOrderId == null) return;
         String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
-        boolean success = erpAdapterClient.syncFailure(order.getErpOrderId(), failureCode, comment, transactionId, null, companyId);
+        boolean success = erpAdapterClient.syncFailure(erpOrderId, failureCode, comment, transactionId, null, companyId);
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Failure sync failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
+            throw new RuntimeException("ERP Failure sync failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
         }
+    }
+
+    /**
+     * Resolves the ERP order ID for sync purposes.
+     * Backorder orders have erpOrderId=null (DB unique constraint) so we walk up
+     * to the parent order to get the original Odoo sale order reference.
+     */
+    private String resolveErpOrderId(Order order) {
+        if (order.getErpOrderId() != null) return order.getErpOrderId();
+        if (order.getParentOrderId() != null) {
+            return orderRepo.findById(order.getParentOrderId())
+                    .map(Order::getErpOrderId)
+                    .orElse(null);
+        }
+        return null;
     }
 
     private void markSynced(Order order) {

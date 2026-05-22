@@ -565,6 +565,7 @@ public class DispatchService {
                 .driverPhone(driver != null ? driver.getPhone() : null)
                 .source(order != null ? order.getSource() : null)
                 .erpOrderId(order != null ? order.getErpOrderId() : null)
+                .erpExternalRef(order != null ? order.getErpExternalRef() : null)
                 .clientName(order != null ? order.getClientName() : null)
                 .clientPhone(order != null ? order.getClientPhone() : null)
                 .clientEmail(order != null ? order.getClientEmail() : null)

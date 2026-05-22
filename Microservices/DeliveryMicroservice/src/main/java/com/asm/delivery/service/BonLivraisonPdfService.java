@@ -61,9 +61,21 @@ public class BonLivraisonPdfService extends BasePdfService {
         String clientPhone = order != null ? safe(order.getClientPhone())    : "-";
         String address     = order != null ? safe(order.getDropoffAddress()) : "-";
         String city        = order != null ? safe(order.getDropoffCity())    : "-";
-        BigDecimal total   = order != null ? order.getTotalAmount()          : null;
-        List<OrderItem> items = order != null && order.getItems() != null ? order.getItems() : List.of();
+        List<OrderItem> allItems = order != null && order.getItems() != null ? order.getItems() : List.of();
+
+        // After a partial POD, items have quantityDone set.
+        // Filter out refused/damaged items — they were not delivered and must not appear on the signed BL.
+        boolean isPostPod = allItems.stream().anyMatch(i -> i.getQuantityDone() != null);
+        List<OrderItem> items = isPostPod
+                ? allItems.stream()
+                    .filter(i -> i.getQuantityDone() != null && i.getQuantityDone() > 0)
+                    .collect(java.util.stream.Collectors.toList())
+                : allItems;
+
         int itemCount = items.size();
+
+        // For partial deliveries, compute the actual delivered total instead of the original order total.
+        BigDecimal total = computeBilledTotal(items, order, isPostPod);
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
@@ -183,9 +195,10 @@ public class BonLivraisonPdfService extends BasePdfService {
 
             boolean alt = false;
             for (OrderItem item : items) {
-                int qty       = (item.getQuantityDone() != null && item.getQuantityDone() > 0)
-                              ? item.getQuantityDone()
-                              : (item.getQuantity() != null ? item.getQuantity() : 0);
+                // Items list is already filtered to delivered-only; use quantityDone when set, else planned quantity.
+                int qty = (item.getQuantityDone() != null && item.getQuantityDone() > 0)
+                        ? item.getQuantityDone()
+                        : (item.getQuantity() != null ? item.getQuantity() : 0);
                 BigDecimal up = item.getUnitPrice();
                 BigDecimal rt = up != null ? up.multiply(BigDecimal.valueOf(qty)) : null;
                 itemTable.addCell(cellAlt(safe(item.getName()), alt));
@@ -266,6 +279,26 @@ public class BonLivraisonPdfService extends BasePdfService {
         c.setBorderColorTop(brand);
         c.addElement(new Paragraph(label, muted(8)));
         return c;
+    }
+
+    /**
+     * Returns the amount to show on the BL and COD box.
+     * Post-POD partial delivery: sum of delivered items × unit price.
+     * Full delivery or pre-POD: original order total.
+     */
+    private static BigDecimal computeBilledTotal(List<OrderItem> deliveredItems, Order order, boolean isPostPod) {
+        if (!isPostPod || order == null) {
+            return order != null ? order.getTotalAmount() : null;
+        }
+        if (deliveredItems == null || deliveredItems.isEmpty()) return BigDecimal.ZERO;
+
+        BigDecimal computed = deliveredItems.stream()
+                .filter(i -> i.getUnitPrice() != null && i.getQuantityDone() != null)
+                .map(i -> i.getUnitPrice().multiply(BigDecimal.valueOf(i.getQuantityDone())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Fall back to order total if computation yields zero (items without unit prices)
+        return computed.compareTo(BigDecimal.ZERO) > 0 ? computed : order.getTotalAmount();
     }
 
     private static String resolveRef(Delivery delivery, Order order) {

@@ -38,25 +38,92 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   bool _submitting = false;
   bool _attachLocation = true;
   bool _isPartial = false;
+
+  /// Quantity actually delivered per item key (sku or name).
   late Map<String, int> _itemsDone;
+
+  /// Per-item delivery outcome: DELIVERED | REFUSED | DAMAGED.
+  late Map<String, String> _itemOutcomes;
+
+  /// Per-item reason code — shown for REFUSED, DAMAGED, or partial qty.
+  late Map<String, String?> _itemReasons;
+
+  /// Per-item comment — driver can add a note per item.
+  late Map<String, TextEditingController> _itemCommentControllers;
+
+  static const _outcomeLabels = {
+    'DELIVERED': 'Livré',
+    'REFUSED':   'Refusé',
+    'DAMAGED':   'Endommagé',
+  };
+
+  static const _reasonsByOutcome = {
+    'REFUSED': {
+      'CLIENT_ABSENT':   'Client absent',
+      'CLIENT_REJECTED': 'Client a refusé',
+      'WRONG_ITEM':      'Mauvais article',
+      'POSTPONED':       'Reporté',
+    },
+    'DAMAGED': {
+      'DAMAGED': 'Endommagé en transit',
+    },
+    'DELIVERED': {
+      'WRONG_ITEM':  'Mauvais article',
+      'OUT_OF_STOCK': 'Rupture de stock',
+    },
+  };
 
   @override
   void initState() {
     super.initState();
-    _itemsDone = {};
+    _itemsDone              = {};
+    _itemOutcomes           = {};
+    _itemReasons            = {};
+    _itemCommentControllers = {};
     for (final item in widget.args.delivery.items) {
       final key = item.sku ?? item.name;
-      _itemsDone[key] = item.quantity;
+      _itemsDone[key]              = item.quantity;
+      _itemOutcomes[key]           = 'DELIVERED';
+      _itemReasons[key]            = null;
+      _itemCommentControllers[key] = TextEditingController();
     }
   }
+
 
   @override
   void dispose() {
     _notesController.dispose();
+    for (final ctrl in _itemCommentControllers.values) {
+      ctrl.dispose();
+    }
     super.dispose();
   }
 
-  bool get _canSubmit => _bonLivraisonBytes != null && _packageBytes != null;
+  bool get _canSubmit {
+    if (_bonLivraisonBytes == null || _packageBytes == null) return false;
+    if (!_isPartial) return true;
+    for (final item in widget.args.delivery.items) {
+      final key     = item.sku ?? item.name;
+      final outcome = _itemOutcomes[key] ?? 'DELIVERED';
+      if ((outcome == 'REFUSED' || outcome == 'DAMAGED') && _itemReasons[key] == null) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  // Returns the first item missing a reason — used to show a hint message.
+  String? get _missingReasonItem {
+    if (!_isPartial) return null;
+    for (final item in widget.args.delivery.items) {
+      final key     = item.sku ?? item.name;
+      final outcome = _itemOutcomes[key] ?? 'DELIVERED';
+      if ((outcome == 'REFUSED' || outcome == 'DAMAGED') && _itemReasons[key] == null) {
+        return item.name;
+      }
+    }
+    return null;
+  }
 
   bool _openingBl = false;
 
@@ -162,7 +229,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
-                  'Les 2 photos sont obligatoires.',
+                  _missingReasonItem != null
+                      ? 'Raison obligatoire pour : $_missingReasonItem'
+                      : 'Les 2 photos sont obligatoires.',
                   style: TextStyle(fontSize: 12, color: AppColors.danger.withValues(alpha: 0.8)),
                   textAlign: TextAlign.center,
                 ),
@@ -317,6 +386,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // ── Toggle header ──────────────────────────────────────────────
           Row(
             children: [
               const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
@@ -327,7 +397,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   children: [
                     const Text('Livraison partielle'),
                     Text(
-                      'Cochez si tous les articles n\'ont pas été livrés.',
+                      'Activez si certains articles n\'ont pas été livrés.',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
                     ),
                   ],
@@ -339,36 +409,208 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               ),
             ],
           ),
+
+          // ── Per-item outcome section ───────────────────────────────────
           if (_isPartial) ...[
             const Divider(height: 24),
-            Text('Ajuster les quantités livrées :', style: Theme.of(context).textTheme.titleSmall),
+            Text('Résultat par article :', style: Theme.of(context).textTheme.titleSmall),
             const SizedBox(height: 12),
-            ...widget.args.delivery.items.map((item) {
-              final key = item.sku ?? item.name;
-              final currentQty = _itemsDone[key] ?? item.quantity;
-              return Row(
+            ...widget.args.delivery.items.map((item) => _buildItemOutcomeRow(context, item)),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemOutcomeRow(BuildContext context, dynamic item) {
+    final key        = (item.sku ?? item.name) as String;
+    final plannedQty = item.quantity as int;
+    final currentQty = _itemsDone[key] ?? plannedQty;
+    final outcome    = _itemOutcomes[key] ?? 'DELIVERED';
+    final reason     = _itemReasons[key];
+    final commentCtrl = _itemCommentControllers[key]!;
+
+    // Show reason + comment when: refused, damaged, or delivered but qty < planned
+    final isPartialQty  = outcome == 'DELIVERED' && currentQty < plannedQty;
+    final needsExtra    = outcome == 'REFUSED' || outcome == 'DAMAGED' || isPartialQty;
+
+    final Color outcomeColor = outcome == 'DELIVERED'
+        ? (isPartialQty ? AppColors.warning : AppColors.success)
+        : AppColors.danger;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: outcomeColor.withValues(alpha: 0.35), width: 1.5),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+
+          // ── Header: item name + outcome chips ────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  item.name as String,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 10),
+                Row(
+                  children: _outcomeLabels.entries.map((e) {
+                    final selected = outcome == e.key;
+                    final chipColor = e.key == 'DELIVERED' ? AppColors.success : AppColors.danger;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 8),
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _itemOutcomes[key] = e.key;
+                          _itemReasons[key]  = null;
+                          _itemsDone[key]    = e.key == 'DELIVERED' ? plannedQty : 0;
+                        }),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                          decoration: BoxDecoration(
+                            color: selected ? chipColor : AppColors.surfaceElevated,
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: selected ? chipColor : AppColors.border),
+                          ),
+                          child: Text(
+                            e.value,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: selected ? Colors.white : AppColors.textSecondary,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+
+          const Divider(height: 1, color: AppColors.border),
+
+          // ── Quantity stepper (DELIVERED only) ────────────────────────
+          if (outcome == 'DELIVERED')
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
                 children: [
-                  Expanded(child: Text(item.name, maxLines: 1, overflow: TextOverflow.ellipsis)),
-                  Row(
-                    children: [
-                      IconButton(
-                        icon: const Icon(Icons.remove_circle_outline),
-                        onPressed: currentQty > 0
-                            ? () => setState(() => _itemsDone[key] = currentQty - 1)
-                            : null,
+                  const Text('Quantité livrée', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  const Spacer(),
+                  IconButton(
+                    icon: const Icon(Icons.remove_circle_outline, size: 22),
+                    color: currentQty > 0 ? AppColors.danger : AppColors.border,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: currentQty > 0
+                        ? () => setState(() => _itemsDone[key] = currentQty - 1)
+                        : null,
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Text(
+                      '$currentQty / $plannedQty',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 15,
+                        color: isPartialQty ? AppColors.warning : AppColors.textPrimary,
                       ),
-                      Text('$currentQty', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                      IconButton(
-                        icon: const Icon(Icons.add_circle_outline),
-                        onPressed: currentQty < item.quantity
-                            ? () => setState(() => _itemsDone[key] = currentQty + 1)
-                            : null,
-                      ),
-                    ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.add_circle_outline, size: 22),
+                    color: currentQty < plannedQty ? AppColors.success : AppColors.border,
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    onPressed: currentQty < plannedQty
+                        ? () => setState(() => _itemsDone[key] = currentQty + 1)
+                        : null,
                   ),
                 ],
-              );
-            }),
+              ),
+            )
+          else
+            // Refused / Damaged — qty locked at 0
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              child: Row(
+                children: [
+                  const Text('Quantité livrée', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  const Spacer(),
+                  Text('0 / $plannedQty', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.danger)),
+                ],
+              ),
+            ),
+
+          // ── Reason + comment (refused, damaged, or partial qty) ──────
+          if (needsExtra) ...[
+            const Divider(height: 1, color: AppColors.border),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isPartialQty ? 'Raison (livraison partielle)' : 'Raison',
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted),
+                  ),
+                  const SizedBox(height: 8),
+                  // Scrollable reason chips
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: (_reasonsByOutcome[outcome] ?? _reasonsByOutcome['REFUSED']!).entries.map((e) {
+                        final selected = reason == e.key;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: GestureDetector(
+                            onTap: () => setState(() => _itemReasons[key] = e.key),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: selected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surfaceElevated,
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(color: selected ? AppColors.accent : AppColors.border),
+                              ),
+                              child: Text(
+                                e.value,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: selected ? AppColors.accent : AppColors.textSecondary,
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: commentCtrl,
+                    minLines: 1,
+                    maxLines: 3,
+                    style: const TextStyle(fontSize: 13),
+                    decoration: InputDecoration(
+                      hintText: 'Commentaire sur cet article (optionnel)',
+                      hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
@@ -423,9 +665,25 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
       List<PartialDeliveryItem>? itemsArray;
       if (_isPartial) {
-        itemsArray = _itemsDone.entries
-            .map((e) => PartialDeliveryItem(sku: e.key, quantityDone: e.value))
-            .toList();
+        itemsArray = _itemsDone.entries.map((e) {
+          final outcome     = _itemOutcomes[e.key] ?? 'DELIVERED';
+          final reason      = _itemReasons[e.key];
+          final comment     = _itemCommentControllers[e.key]?.text.trim();
+          final plannedQty  = widget.args.delivery.items
+              .firstWhere((i) => (i.sku ?? i.name) == e.key,
+                  orElse: () => widget.args.delivery.items.first)
+              .quantity;
+          final isPartialQty = outcome == 'DELIVERED' && e.value < plannedQty;
+          // Send reason when: refused, damaged, or delivered with less than planned qty
+          final sendReason = outcome == 'REFUSED' || outcome == 'DAMAGED' || isPartialQty;
+          return PartialDeliveryItem(
+            sku: e.key,
+            quantityDone: e.value,
+            outcome: outcome,
+            reason: sendReason ? reason : null,
+            comment: comment?.isNotEmpty == true ? comment : null,
+          );
+        }).toList();
       }
 
       final payload = PodPayload(

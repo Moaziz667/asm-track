@@ -20,4 +20,13 @@ public class OrderItem {
     private Integer quantityDone;
     private BigDecimal unitWeightKg;
     private BigDecimal unitPrice;
+
+    /** Delivery outcome recorded by the driver: DELIVERED, REFUSED, or DAMAGED. */
+    private String outcome;
+
+    /** Reason code when outcome is REFUSED or DAMAGED (e.g. CLIENT_ABSENT, WRONG_ITEM). */
+    private String reason;
+
+    /** Optional driver comment specific to this item. */
+    private String comment;
 }

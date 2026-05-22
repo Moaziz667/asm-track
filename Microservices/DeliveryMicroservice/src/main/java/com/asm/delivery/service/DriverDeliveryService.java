@@ -243,6 +243,15 @@ public class DriverDeliveryService {
             applyPartialQuantities(delivery.getOrder(), normalizedPartialItems);
         }
 
+        // Auto-calculate COD amount from actually delivered items × unit price.
+        // Stored as a pre-filled suggestion; driver still confirms YES/NO via recordCodCollection.
+        if (Boolean.TRUE.equals(delivery.getOrder() != null ? delivery.getOrder().getIsCod() : false)) {
+            BigDecimal autoAmount = computeDeliveredCodAmount(delivery.getOrder(), isPartial);
+            if (autoAmount != null && autoAmount.compareTo(BigDecimal.ZERO) > 0) {
+                delivery.setCodAmountCollected(autoAmount);
+            }
+        }
+
         DeliveryStatus finalStatus = isPartial ? DeliveryStatus.PARTIALLY_DELIVERED : DeliveryStatus.DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
@@ -325,35 +334,82 @@ public class DriverDeliveryService {
                     ? matched.getSku().trim()
                     : raw;
             int qtyDone = Math.max(input.getQuantityDone() != null ? input.getQuantityDone() : 0, 0);
-            normalized.add(new com.asm.delivery.dto.request.PartialDeliveryItem(resolvedSku, qtyDone));
+
+            com.asm.delivery.dto.request.PartialDeliveryItem normalizedItem =
+                    new com.asm.delivery.dto.request.PartialDeliveryItem(resolvedSku, qtyDone);
+            // Preserve per-item outcome, reason, and comment supplied by the driver app
+            normalizedItem.setOutcome(input.effectiveOutcome());
+            normalizedItem.setReason(input.getReason());
+            normalizedItem.setComment(input.getComment());
+            // Set item display name from matched OrderItem for readable Odoo notes
+            if (matched != null && matched.getName() != null) {
+                normalizedItem.setName(matched.getName());
+            }
+            normalized.add(normalizedItem);
         }
 
         return normalized;
     }
 
     private void applyPartialQuantities(Order order, List<com.asm.delivery.dto.request.PartialDeliveryItem> partialItems) {
-        if (order.getItems() == null || order.getItems().isEmpty()) {
-            return;
-        }
+        if (order.getItems() == null || order.getItems().isEmpty()) return;
 
-        Map<String, Integer> doneBySku = new HashMap<>();
+        // Build lookup maps keyed by SKU: quantity done, outcome, reason, and comment
+        Map<String, Integer> doneBySku     = new HashMap<>();
+        Map<String, String>  outcomeBySku  = new HashMap<>();
+        Map<String, String>  reasonBySku   = new HashMap<>();
+        Map<String, String>  commentBySku  = new HashMap<>();
+
         partialItems.forEach(item -> {
             String ref = item != null ? item.referenceKey() : null;
-            if (ref != null && !ref.isBlank()) {
-                doneBySku.put(ref, Math.max(item.getQuantityDone() != null ? item.getQuantityDone() : 0, 0));
+            if (ref == null || ref.isBlank()) return;
+            doneBySku.put(ref, Math.max(item.getQuantityDone() != null ? item.getQuantityDone() : 0, 0));
+            outcomeBySku.put(ref, item.effectiveOutcome());
+            if (item.getReason() != null && !item.getReason().isBlank()) {
+                reasonBySku.put(ref, item.getReason().toUpperCase());
+            }
+            if (item.getComment() != null && !item.getComment().isBlank()) {
+                commentBySku.put(ref, item.getComment().trim());
             }
         });
 
         order.getItems().forEach(item -> {
-            if (item == null || item.getSku() == null) {
-                return;
-            }
-            Integer done = doneBySku.get(item.getSku().trim());
+            if (item == null || item.getSku() == null) return;
+            String sku = item.getSku().trim();
+            Integer done = doneBySku.get(sku);
             if (done != null) {
                 int planned = item.getQuantity() != null ? item.getQuantity() : 0;
                 item.setQuantityDone(Math.min(done, Math.max(planned, 0)));
+                item.setOutcome(outcomeBySku.get(sku));
+                item.setReason(reasonBySku.get(sku));
+                item.setComment(commentBySku.get(sku));
+            } else {
+                // Item not mentioned by driver → infer as REFUSED with qty 0
+                item.setQuantityDone(0);
+                item.setOutcome("REFUSED");
             }
         });
+    }
+
+    /**
+     * Calculates the COD amount to collect based on actually delivered items.
+     * For a full delivery, returns order.totalAmount directly (Odoo is source of truth).
+     * For a partial delivery, sums quantityDone × unitPrice for DELIVERED items only.
+     */
+    private BigDecimal computeDeliveredCodAmount(Order order, boolean isPartial) {
+        if (order == null) return null;
+        if (!isPartial) return order.getTotalAmount();
+        if (order.getItems() == null || order.getItems().isEmpty()) return order.getTotalAmount();
+
+        return order.getItems().stream()
+                .filter(item -> item != null
+                        && item.getQuantityDone() != null
+                        && item.getQuantityDone() > 0
+                        && item.getUnitPrice() != null
+                        && !"REFUSED".equals(item.getOutcome())
+                        && !"DAMAGED".equals(item.getOutcome()))
+                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantityDone())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────

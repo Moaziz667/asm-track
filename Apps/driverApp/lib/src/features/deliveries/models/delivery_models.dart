@@ -259,15 +259,30 @@ class PartialDeliveryItem {
   PartialDeliveryItem({
     required this.sku,
     required this.quantityDone,
+    this.outcome,
+    this.reason,
+    this.comment,
   });
 
   final String sku;
   final int quantityDone;
 
+  /// DELIVERED, REFUSED, or DAMAGED — explicit per-item outcome.
+  final String? outcome;
+
+  /// Reason code when outcome is REFUSED or DAMAGED.
+  final String? reason;
+
+  /// Optional per-item comment from the driver.
+  final String? comment;
+
   Map<String, dynamic> toJson() {
     return {
       'sku': sku,
       'quantityDone': quantityDone,
+      if (outcome != null) 'outcome': outcome,
+      if (reason != null) 'reason': reason,
+      if (comment != null && comment!.isNotEmpty) 'comment': comment,
     };
   }
 }

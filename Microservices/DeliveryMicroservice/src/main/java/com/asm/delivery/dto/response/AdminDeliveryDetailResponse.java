@@ -56,6 +56,9 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "External ERP order id")
     private String erpOrderId;
 
+    @Schema(description = "Human-readable ERP reference — used for backorders where erpOrderId is null (e.g. S00123/BO)")
+    private String erpExternalRef;
+
     @Schema(description = "Client full name")
     private String clientName;
 

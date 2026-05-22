@@ -124,6 +124,10 @@ public class ErpAdapterClient {
                 Map<String, Object> m = new HashMap<>();
                 m.put("referenceKey", item.referenceKey());
                 m.put("quantityDone", item.getQuantityDone());
+                if (item.getName()    != null && !item.getName().isBlank())    m.put("itemName",  item.getName());
+                if (item.getOutcome() != null)  m.put("outcome",  item.effectiveOutcome());
+                if (item.getReason()  != null)  m.put("reason",   item.getReason());
+                if (item.getComment() != null && !item.getComment().isBlank()) m.put("comment", item.getComment());
                 return m;
             }).collect(Collectors.toList());
             body.put("items", items);

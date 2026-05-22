@@ -57,7 +57,13 @@
       "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 040415.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\route-builder.png\")",
       "Bash(git commit *)",
       "Bash(git push *)",
-      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 041300.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\landing.png\")"
+      "Bash(cp \"C:\\\\Users\\\\M S I\\\\Pictures\\\\Screenshots\\\\Capture d'écran 2026-05-20 041300.png\" \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\screenshots\\\\landing.png\")",
+      "Bash(scp -o StrictHostKeyChecking=no app_db.sql delivery_db.sql driver_db.sql asm@192.168.10.76:~/)",
+      "Bash(docker cp *)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\" -Recurse -Directory -Name)",
+      "Bash(Select-Object -First 30)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DeliveryMicroservice\\\\src\\\\main\\\\java\\\\com\\\\asm\\\\delivery\\\\\" -Recurse -Filter \"*.java\" | Select-Object -ExpandProperty FullName)",
+      "Bash(xargs grep -l \"auth/admin\\\\|AdminLogin\\\\|login\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

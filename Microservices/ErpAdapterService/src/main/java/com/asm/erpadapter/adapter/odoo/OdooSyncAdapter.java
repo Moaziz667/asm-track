@@ -187,6 +187,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
             }
 
             syncSaleOrderLineDeliveredQuantities(erpId, items, false);
+
+            // Post a structured chatter note listing refused/damaged items with reasons
+            String partialNote = buildPartialDeliveryNote(items);
+            if (partialNote != null) {
+                addNoteToSaleOrder(erpId, partialNote);
+            }
+
             Integer backorderPickingId = findBackorderPickingId(pickingId);
             log.info("provider=odoo operation=syncPartialDelivery pickingId={} backorderPickingId={}", pickingId, backorderPickingId);
             return ErpPartialDeliveryResultDTO.builder()
@@ -202,10 +209,31 @@ public class OdooSyncAdapter implements ErpSyncPort {
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) return false;
 
-        String note = "Delivery failed: " + (failureCode != null ? failureCode : "UNKNOWN") + " — " + comment;
+        String note = buildFailureNote(failureCode, comment);
         addNoteToSaleOrder(erpId, note);
         tagOrderAsDeliveryFailed(erpId);
         return true;
+    }
+
+    private String humanizeReason(String reason) {
+        if (reason == null) return "";
+        return switch (reason.toUpperCase()) {
+            case "CLIENT_ABSENT"   -> "Client absent";
+            case "CLIENT_REJECTED" -> "Client a refusé";
+            case "DAMAGED"         -> "Endommagé";
+            case "WRONG_ITEM"      -> "Mauvais article";
+            case "POSTPONED"       -> "Reporté";
+            default                -> reason;
+        };
+    }
+
+    private String buildFailureNote(String failureCode, String comment) {
+        StringBuilder sb = new StringBuilder("<b>ASM Track — Livraison échouée</b><br/>");
+        sb.append("<b>Code :</b> ").append(failureCode != null ? failureCode : "UNKNOWN").append("<br/>");
+        if (comment != null && !comment.isBlank()) {
+            sb.append("<b>Commentaire :</b> ").append(comment);
+        }
+        return sb.toString();
     }
 
     // ══════════════════════════════════════════════════════════════════════════
@@ -232,18 +260,6 @@ public class OdooSyncAdapter implements ErpSyncPort {
         return "cancel".equalsIgnoreCase(state);
     }
 
-    private void confirmCancelWizard(Integer erpOrderId) {
-        Map<String, Object> createResp = rpc.callRpc(
-                rpc.buildArgs("sale.order.cancel", "create", List.of(Map.of("order_id", erpOrderId))));
-        Object wizardId = createResp != null ? createResp.get("result") : null;
-        if (wizardId instanceof Number wid) {
-            rpc.callRpc(rpc.buildArgs("sale.order.cancel", "action_cancel",
-                    List.of(List.of(wid.intValue()))));
-        } else {
-            log.warn("ERP sync failed — provider=odoo operation=confirmCancelWizard erpId={} reason=wizard_id_null odooResponse={} retryable=true",
-                    erpOrderId, createResp);
-        }
-    }
 
     private boolean validateTransfer(Integer erpOrderId, Integer explicitPickingId) {
         confirmOrder(erpOrderId);
@@ -488,8 +504,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private Map<String, Object> findSinglePicking(Integer erpOrderId) {
+        // order by id asc to always get the oldest pending picking — deterministic on backorder chains
         Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
-                List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "not in", List.of("done", "cancel")))), Map.of("fields", List.of("id", "state"), "limit", 1)));
+                List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "not in", List.of("done", "cancel")))), Map.of("fields", List.of("id", "state"), "limit", 1, "order", "id asc")));
         List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
         return (result != null && !result.isEmpty()) ? result.get(0) : null;
     }
@@ -529,18 +546,18 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     private Integer resolveProductIdFromSku(String sku) {
         try {
-            // ALWAYS search by default_code first. Many SKUs are purely numerical (e.g. "31", "12345").
-            // If we blindly parse them as integers, we'll try to update the wrong product_id.
-            Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search", 
-                List.of(List.of(List.of("default_code", "=", sku))), Map.of("limit", 1)));
+            Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search",
+                    List.of(List.of(List.of("default_code", "=", sku))), Map.of("limit", 1)));
             List<Integer> ids = (List<Integer>) res.get("result");
             if (ids != null && !ids.isEmpty()) {
                 return ids.get(0);
             }
-            // Fallback: if it's purely numerical, it might actually be an Odoo product_id passed directly
-            return Integer.parseInt(sku);
+            // SKU not found in Odoo — do NOT fall back to integer parsing.
+            // A numeric SKU like "31" would match product with DB id=31, not the intended product.
+            log.warn("provider=odoo operation=resolveProductIdFromSku sku={} reason=not_found_in_odoo action=skip", sku);
+            return null;
         } catch (Exception e) {
-            log.warn("Could not resolve product ID for SKU: {}", sku);
+            log.warn("provider=odoo operation=resolveProductIdFromSku sku={} reason={}", sku, e.getMessage());
             return null;
         }
     }
@@ -573,23 +590,6 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
     }
 
-    private void applyPartialQtyDoneToMoves(Integer pickingId, Map<Integer, Integer> productQtyDone) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
-                List.of(List.of(List.of("picking_id", "=", pickingId))),
-                Map.of("fields", List.of("id", "product_id"))));
-        if (response == null) return;
-        List<Map<String, Object>> moves = (List<Map<String, Object>>) response.get("result");
-        if (moves == null) return;
-        for (Map<String, Object> move : moves) {
-            Integer pid = asRelId(move.get("product_id"));
-            if (productQtyDone.containsKey(pid)) {
-                Integer qty = productQtyDone.get(pid);
-                // quantity_done = Odoo 16, quantity = Odoo 17/18
-                rpc.callRpc(rpc.buildArgs("stock.move", "write",
-                        List.of(List.of(move.get("id")), Map.of("quantity_done", qty, "quantity", qty))));
-            }
-        }
-    }
 
     @SuppressWarnings("unchecked")
     private void syncSaleOrderLineDeliveredQuantities(Integer erpOrderId, List<ErpPartialItemDTO> items, boolean full) {
@@ -664,8 +664,122 @@ public class OdooSyncAdapter implements ErpSyncPort {
         rpc.callRpc(rpc.buildArgs("sale.order", "message_post", List.of(List.of(erpId)), Map.of("body", note)));
     }
 
+    /**
+     * Adds the "Livraison Échouée" tag to the sale order so dispatchers can
+     * filter failed deliveries directly from the Odoo sale order list.
+     * Tag ID is resolved once and cached for the lifetime of this bean.
+     */
     private void tagOrderAsDeliveryFailed(Integer erpId) {
-        // Logic to add 'Delivery Failed' tag
+        try {
+            Integer tagId = resolveOrCreateDeliveryFailedTag();
+            if (tagId == null) {
+                log.warn("provider=odoo operation=tagOrderAsDeliveryFailed erpId={} reason=tag_id_null", erpId);
+                return;
+            }
+            // ORM command (4, id) = link existing record without replacing others
+            rpc.callRpc(rpc.buildArgs("sale.order", "write",
+                    List.of(List.of(erpId), Map.of("tag_ids", List.of(List.of(4, tagId))))));
+            log.info("provider=odoo operation=tagOrderAsDeliveryFailed erpId={} tagId={}", erpId, tagId);
+        } catch (Exception e) {
+            // Non-critical — don't fail the whole sync if tagging fails
+            log.warn("provider=odoo operation=tagOrderAsDeliveryFailed erpId={} reason={}", erpId, e.getMessage());
+        }
+    }
+
+    /** Lazily resolves the "Livraison Échouée" tag ID, creating it if it doesn't exist. */
+    private Integer resolveOrCreateDeliveryFailedTag() {
+        if (deliveryFailedTagId != null) return deliveryFailedTagId;
+
+        synchronized (this) {
+            if (deliveryFailedTagId != null) return deliveryFailedTagId;
+
+            final String tagName = "Livraison Échouée";
+
+            // Try to find existing tag
+            Map<String, Object> searchResp = rpc.callRpc(rpc.buildArgs(
+                    "crm.tag", "search_read",
+                    List.of(List.of(List.of("name", "=", tagName))),
+                    Map.of("fields", List.of("id"), "limit", 1)));
+            List<?> found = searchResp != null ? (List<?>) searchResp.get("result") : null;
+            if (found != null && !found.isEmpty()) {
+                deliveryFailedTagId = asInt(((Map<?, ?>) found.get(0)).get("id"));
+                log.info("provider=odoo operation=resolveOrCreateDeliveryFailedTag action=found tagId={}", deliveryFailedTagId);
+                return deliveryFailedTagId;
+            }
+
+            // Create if not found
+            Map<String, Object> createResp = rpc.callRpc(rpc.buildArgs(
+                    "crm.tag", "create", List.of(Map.of("name", tagName))));
+            Object created = createResp != null ? createResp.get("result") : null;
+            if (created instanceof Number n) {
+                deliveryFailedTagId = n.intValue();
+                log.info("provider=odoo operation=resolveOrCreateDeliveryFailedTag action=created tagId={}", deliveryFailedTagId);
+                return deliveryFailedTagId;
+            }
+
+            log.warn("provider=odoo operation=resolveOrCreateDeliveryFailedTag reason=create_returned_null response={}", createResp);
+            return null;
+        }
+    }
+
+    /**
+     * Builds an HTML chatter note summarising the partial delivery outcome per item.
+     * Includes: refused/damaged items, partial-qty delivered items, and any driver comments.
+     * Returns null when all items are fully DELIVERED with no comments.
+     */
+    private String buildPartialDeliveryNote(List<com.asm.erpadapter.dto.ErpPartialItemDTO> items) {
+        if (items == null || items.isEmpty()) return null;
+
+        // Separate items into refused/damaged vs delivered (full or partial)
+        List<com.asm.erpadapter.dto.ErpPartialItemDTO> refused = items.stream()
+                .filter(i -> i != null && ("REFUSED".equalsIgnoreCase(i.getOutcome()) || "DAMAGED".equalsIgnoreCase(i.getOutcome())))
+                .collect(java.util.stream.Collectors.toList());
+
+        // DELIVERED items that have a driver comment (typically partial-qty deliveries)
+        List<com.asm.erpadapter.dto.ErpPartialItemDTO> deliveredWithComment = items.stream()
+                .filter(i -> i != null
+                        && "DELIVERED".equalsIgnoreCase(i.getOutcome())
+                        && i.getComment() != null && !i.getComment().isBlank())
+                .collect(java.util.stream.Collectors.toList());
+
+        if (refused.isEmpty() && deliveredWithComment.isEmpty()) return null;
+
+        StringBuilder sb = new StringBuilder("<b>ASM Track — Livraison partielle</b><br/>");
+
+        if (!refused.isEmpty()) {
+            sb.append("<b>Articles non livrés :</b><ul>");
+            for (com.asm.erpadapter.dto.ErpPartialItemDTO item : refused) {
+                String label = (item.getItemName() != null && !item.getItemName().isBlank())
+                        ? item.getItemName() : item.getReferenceKey();
+                sb.append("<li><b>").append(label).append("</b>");
+                if ("DAMAGED".equalsIgnoreCase(item.getOutcome())) {
+                    sb.append(" — Endommagé");
+                } else {
+                    sb.append(" — Refusé");
+                }
+                if (item.getReason() != null && !item.getReason().isBlank()) {
+                    sb.append(" (").append(humanizeReason(item.getReason())).append(")");
+                }
+                if (item.getComment() != null && !item.getComment().isBlank()) {
+                    sb.append("<br/><i>").append(item.getComment()).append("</i>");
+                }
+                sb.append("</li>");
+            }
+            sb.append("</ul>");
+        }
+
+        if (!deliveredWithComment.isEmpty()) {
+            sb.append("<b>Notes chauffeur :</b><ul>");
+            for (com.asm.erpadapter.dto.ErpPartialItemDTO item : deliveredWithComment) {
+                String label = (item.getItemName() != null && !item.getItemName().isBlank())
+                        ? item.getItemName() : item.getReferenceKey();
+                sb.append("<li><b>").append(label).append("</b>");
+                sb.append(" — Livré : <i>").append(item.getComment()).append("</i></li>");
+            }
+            sb.append("</ul>");
+        }
+
+        return sb.toString();
     }
 
     private Integer asInt(Object o) { return o instanceof Number n ? n.intValue() : null; }

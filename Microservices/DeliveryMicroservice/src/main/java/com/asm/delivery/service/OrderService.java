@@ -412,6 +412,7 @@ public class OrderService {
                 .deliveryId(delivery != null ? delivery.getId() : null)
                 .deliveryStatus(delivery != null ? delivery.getStatus().name() : null)
                 .erpOrderId(order.getErpOrderId())
+                .erpExternalRef(order.getErpExternalRef())
                 .odooSyncStatus(order.getOdooSyncStatus())
                 .odooBackorderId(order.getOdooBackorderId())
                 .createdAt(order.getCreatedAt())

@@ -31,6 +31,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Odoo/ERP order identifier (e.g. S00123)")
     private String erpOrderId;
 
+    @Schema(description = "Human-readable ERP reference — used for backorders where erpOrderId is null (e.g. S00123/BO)")
+    private String erpExternalRef;
+
     @Schema(description = "Assigned route id when available")
     private UUID routeId;
 

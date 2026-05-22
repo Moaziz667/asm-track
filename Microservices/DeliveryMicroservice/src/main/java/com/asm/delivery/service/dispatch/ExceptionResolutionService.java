@@ -451,11 +451,11 @@ public class ExceptionResolutionService {
 				.clientName(order.getClientName())
 				.clientPhone(order.getClientPhone())
 				.clientEmail(order.getClientEmail())
-				.erpOrderId(null)
+				.erpOrderId(null) // must stay null — erp_order_id is unique per company; parent's ID is resolved at sync time via parentOrderId
 				.parentOrderId(order.getId())
 				.odooBackorderId(odooBackorderPickingId)
 				.erpClientId(order.getErpClientId())
-				.erpExternalRef(order.getErpExternalRef())
+				.erpExternalRef(buildBackorderRef(order.getErpExternalRef()))
 				.originName(order.getOriginName())
 				.originAddress(order.getOriginAddress())
 				.originCity(order.getOriginCity())
@@ -471,7 +471,11 @@ public class ExceptionResolutionService {
 				.dropoffLat(order.getDropoffLat())
 				.dropoffLng(order.getDropoffLng())
 				.deliveryInstructions(order.getDeliveryInstructions())
-				.totalAmount(order.getTotalAmount())
+				.totalAmount(remainingItems.stream()
+						.filter(i -> i.getUnitPrice() != null && i.getQuantity() != null)
+						.map(i -> i.getUnitPrice().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
+						.reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
+				.isCod(order.getIsCod())
 				.currency(order.getCurrency())
 				.priority(order.getPriority())
 				.status(OrderStatus.PENDING)
@@ -615,6 +619,25 @@ public class ExceptionResolutionService {
                         return message;
                 }
                 return message + " Reason: " + note.trim();
+        }
+
+        /**
+         * Generates a professional backorder reference.
+         * e.g. "S00001" → "S00001/BO", "S00001/BO" → "S00001/BO-2"
+         */
+        private String buildBackorderRef(String parentRef) {
+            if (parentRef == null || parentRef.isBlank()) return null;
+            // Already a backorder ref — increment the counter
+            if (parentRef.contains("/BO-")) {
+                int dashIdx = parentRef.lastIndexOf("-");
+                String base = parentRef.substring(0, dashIdx);
+                try {
+                    int n = Integer.parseInt(parentRef.substring(dashIdx + 1));
+                    return base + "-" + (n + 1);
+                } catch (NumberFormatException ignored) {}
+            }
+            if (parentRef.endsWith("/BO")) return parentRef + "-2";
+            return parentRef + "/BO";
         }
 
         private String shortDeliveryId(UUID deliveryId) {
