@@ -162,6 +162,7 @@ public class ErpLookupService {
                         .quantityDone(0)
                         .unitPrice(previewItem.getUnitPrice())
                         .unitWeightKg(previewItem.getUnitWeightKg())
+                        .productType(previewItem.getProductType())
                         .build();
                 order.getItems().add(item);
             }

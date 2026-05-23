@@ -418,6 +418,10 @@ public class ExceptionResolutionService {
 
 		if (order.getItems() != null) {
 			for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
+				// Service products have no stock moves — they don't need physical re-delivery.
+				// Their qty_delivered is tracked directly in Odoo; exclude them from the backorder.
+				if ("service".equals(item.getProductType())) continue;
+
 				int planned = item.getQuantity() != null ? item.getQuantity() : 0;
 				int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
 				int remaining = Math.max(planned - done, 0);
@@ -430,6 +434,7 @@ public class ExceptionResolutionService {
 					clonedItem.setQuantityDone(0);
 					clonedItem.setUnitWeightKg(item.getUnitWeightKg());
 					clonedItem.setUnitPrice(item.getUnitPrice());
+					clonedItem.setProductType(item.getProductType());
 					remainingItems.add(clonedItem);
 					newTotalQuantity += remaining;
 
@@ -455,7 +460,7 @@ public class ExceptionResolutionService {
 				.parentOrderId(order.getId())
 				.odooBackorderId(odooBackorderPickingId)
 				.erpClientId(order.getErpClientId())
-				.erpExternalRef(buildBackorderRef(order.getErpExternalRef()))
+				.erpExternalRef(buildBackorderRef(order.resolveRef()))
 				.originName(order.getOriginName())
 				.originAddress(order.getOriginAddress())
 				.originCity(order.getOriginCity())

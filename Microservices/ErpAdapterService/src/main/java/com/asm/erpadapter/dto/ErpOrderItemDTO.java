@@ -16,4 +16,6 @@ public class ErpOrderItemDTO {
     private Integer quantity;
     private BigDecimal unitPrice;
     private BigDecimal unitWeightKg;
+    /** Odoo product type: "product" (storable), "consu" (consumable), "service". */
+    private String productType;
 }

@@ -155,11 +155,19 @@ public class OdooSyncAdapter implements ErpSyncPort {
                         pickingId, stateAfterReserve);
                 rpc.callRpc(rpc.buildArgs("stock.picking", "action_force_availability", List.of(List.of(pickingId))));
             }
-            Map<Integer, Integer> productQtyDone = resolvePartialQuantities(items);
-            // Only write to move LINES (stock.move.line.quantity = done qty in Odoo 18).
-            // Do NOT write to stock.move.quantity — that field is the demand qty and would
-            // change 23 demanded → 21 demanded, making button_validate see 100% done and skip the backorder wizard.
-            applyPartialQtyDoneToMoveLines(pickingId, productQtyDone);
+            // Write done quantities to stock.move.line — match by product default_code fetched live from Odoo.
+            // Returns total qty_done written across all storable move lines.
+            int totalQtyDone = applyPartialQtyDoneToMoveLines(pickingId, items);
+
+            if (totalQtyDone == 0) {
+                // All storable items were refused/damaged — nothing to move in stock.
+                // Validating a zero-quantity picking throws a UserError in Odoo.
+                // Leave the picking open (it becomes the re-delivery picking), just post a note.
+                String allRefusedNote = buildPartialDeliveryNote(items);
+                if (allRefusedNote != null) addNoteToSaleOrder(erpId, allRefusedNote);
+                log.info("provider=odoo operation=syncPartialDelivery pickingId={} action=skip_validation reason=all_qty_zero", pickingId);
+                return ErpPartialDeliveryResultDTO.builder().success(true).pickingId(pickingId).backorderPickingId(null).build();
+            }
 
             Map<String, Object> validateResponse = callValidatePicking(pickingId);
             if (validateResponse == null || validateResponse.containsKey("error")) {
@@ -182,7 +190,11 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 } else if ("confirm.stock.sms".equals(resModel)) {
                     confirmSmsWizard(res);
                 } else if ("stock.immediate.transfer".equals(resModel)) {
-                    confirmImmediateTransferWizard(res);
+                    // Do NOT call confirmImmediateTransferWizard here — its process() would fill all
+                    // move lines back to the reserved quantity, overriding the qty_done=0 we wrote for
+                    // refused/damaged items. Call _action_done directly to validate with our quantities.
+                    log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard=immediate_transfer action=_action_done_direct", pickingId);
+                    rpc.callRpc(rpc.buildArgs("stock.picking", "_action_done", List.of(List.of(pickingId))));
                 }
             }
 
@@ -538,56 +550,146 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private Map<Integer, Integer> resolvePartialQuantities(List<ErpPartialItemDTO> items) {
         Map<Integer, Integer> qtyMap = new HashMap<>();
         for (ErpPartialItemDTO item : items) {
-            Integer pid = resolveProductIdFromSku(item.getReferenceKey());
+            Integer pid = resolveProductId(item.getReferenceKey(), item.getItemName());
             if (pid != null) qtyMap.merge(pid, item.getQuantityDone(), Integer::sum);
         }
         return qtyMap;
     }
 
-    private Integer resolveProductIdFromSku(String sku) {
-        try {
-            Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search",
-                    List.of(List.of(List.of("default_code", "=", sku))), Map.of("limit", 1)));
-            List<Integer> ids = (List<Integer>) res.get("result");
-            if (ids != null && !ids.isEmpty()) {
-                return ids.get(0);
+    /**
+     * Resolves an Odoo product.product ID from a SKU (default_code).
+     * Falls back to exact name match for service products that have no internal reference.
+     */
+    private Integer resolveProductId(String sku, String itemName) {
+        // Primary: SKU / internal reference lookup
+        if (sku != null && !sku.isBlank()) {
+            try {
+                Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search",
+                        List.of(List.of(List.of("default_code", "=", sku))), Map.of("limit", 1)));
+                List<Integer> ids = (List<Integer>) res.get("result");
+                if (ids != null && !ids.isEmpty()) return ids.get(0);
+            } catch (Exception e) {
+                log.warn("provider=odoo operation=resolveProductId sku={} reason={}", sku, e.getMessage());
             }
-            // SKU not found in Odoo — do NOT fall back to integer parsing.
-            // A numeric SKU like "31" would match product with DB id=31, not the intended product.
-            log.warn("provider=odoo operation=resolveProductIdFromSku sku={} reason=not_found_in_odoo action=skip", sku);
-            return null;
-        } catch (Exception e) {
-            log.warn("provider=odoo operation=resolveProductIdFromSku sku={} reason={}", sku, e.getMessage());
-            return null;
         }
+        // Fallback: exact product name — covers service products without a default_code
+        if (itemName != null && !itemName.isBlank()) {
+            try {
+                Map<String, Object> res = rpc.callRpc(rpc.buildArgs("product.product", "search",
+                        List.of(List.of(List.of("name", "=", itemName))), Map.of("limit", 1)));
+                List<Integer> ids = (List<Integer>) res.get("result");
+                if (ids != null && !ids.isEmpty()) {
+                    log.info("provider=odoo operation=resolveProductId sku={} resolved_by_name={}", sku, itemName);
+                    return ids.get(0);
+                }
+            } catch (Exception e) {
+                log.warn("provider=odoo operation=resolveProductId itemName={} reason={}", itemName, e.getMessage());
+            }
+        }
+        log.warn("provider=odoo operation=resolveProductId sku={} itemName={} reason=not_found action=skip", sku, itemName);
+        return null;
     }
 
-    private void applyPartialQtyDoneToMoveLines(Integer pickingId, Map<Integer, Integer> productQtyDone) {
-        log.info("provider=odoo operation=applyPartialQty pickingId={} productQtyDone={}", pickingId, productQtyDone);
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.move.line", "search_read",
-                List.of(List.of(List.of("picking_id", "=", pickingId))),
-                Map.of("fields", List.of("id", "product_id"))));
-        if (response == null) {
-            log.warn("provider=odoo operation=applyPartialQty pickingId={} reason=null_response", pickingId);
-            return;
-        }
-        List<Map<String, Object>> lines = (List<Map<String, Object>>) response.get("result");
-        log.info("provider=odoo operation=applyPartialQty pickingId={} move_lines_found={}", pickingId,
-                lines != null ? lines.size() : "null");
-        if (lines == null || lines.isEmpty()) return;
-        for (Map<String, Object> line : lines) {
-            Integer pid = asRelId(line.get("product_id"));
-            log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} productId={} inMap={}",
-                    pickingId, line.get("id"), pid, productQtyDone.containsKey(pid));
-            if (productQtyDone.containsKey(pid)) {
-                Integer qty = productQtyDone.get(pid);
-                // Odoo 18: "quantity" on stock.move.line = done qty (qty_done was removed in Odoo 17)
-                Map<String, Object> writeResp = rpc.callRpc(rpc.buildArgs("stock.move.line", "write",
-                        List.of(List.of(line.get("id")), Map.of("quantity", qty))));
-                log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} qty={} writeResult={}",
-                        pickingId, line.get("id"), qty, writeResp != null ? writeResp.get("result") : "null");
+    /**
+     * Writes qty_done to each stock.move.line for a partial delivery.
+     * Matches move lines to items by fetching the product's default_code directly from Odoo —
+     * avoids the SKU→product_id pre-resolution that fails when the SKU stored in our system
+     * doesn't exactly match Odoo's default_code (e.g. bracket notation vs plain code).
+     * Move lines for products not in the items list are explicitly set to 0.
+     */
+    /**
+     * Returns total qty_done written (sum across all move lines).
+     * Caller uses this to detect "all refused" and skip button_validate.
+     */
+    private int applyPartialQtyDoneToMoveLines(Integer pickingId, List<ErpPartialItemDTO> items) {
+        // Three lookup strategies, tried in order for each move line:
+        // 1. Numeric product_id: referenceKey is stored as the Odoo product DB id ("55", "27")
+        // 2. SKU string: referenceKey is the product default_code ("FURN_5555", "E-COM11")
+        // 3. Product name: itemName matches Odoo product name (service products without default_code)
+        Map<Integer, Integer> pidToQty  = new HashMap<>();
+        Map<String, Integer>  skuToQty  = new HashMap<>();
+        Map<String, Integer>  nameToQty = new HashMap<>();
+        for (ErpPartialItemDTO item : items) {
+            String ref = item.getReferenceKey();
+            if (ref != null && !ref.isBlank()) {
+                try { pidToQty.put(Integer.parseInt(ref.trim()), item.getQuantityDone()); }
+                catch (NumberFormatException ignored) { skuToQty.put(ref.trim(), item.getQuantityDone()); }
+            }
+            if (item.getItemName() != null && !item.getItemName().isBlank()) {
+                nameToQty.put(item.getItemName().trim(), item.getQuantityDone());
             }
         }
+        log.info("provider=odoo operation=applyPartialQty pickingId={} pidToQty={} skuToQty={}", pickingId, pidToQty, skuToQty);
+
+        // Read move lines
+        Map<String, Object> mlResp = rpc.callRpc(rpc.buildArgs("stock.move.line", "search_read",
+                List.of(List.of(List.of("picking_id", "=", pickingId))),
+                Map.of("fields", List.of("id", "product_id"))));
+        if (mlResp == null) {
+            log.warn("provider=odoo operation=applyPartialQty pickingId={} reason=null_response", pickingId);
+            return 0;
+        }
+        List<Map<String, Object>> lines = (List<Map<String, Object>>) mlResp.get("result");
+        log.info("provider=odoo operation=applyPartialQty pickingId={} move_lines_found={}", pickingId,
+                lines != null ? lines.size() : "null");
+        if (lines == null || lines.isEmpty()) return 0;
+
+        // Batch-fetch product details (default_code + name) for all products in this picking
+        List<Integer> productIds = lines.stream()
+                .map(l -> asRelId(l.get("product_id")))
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .collect(java.util.stream.Collectors.toList());
+        Map<Integer, String> pidToSku  = new HashMap<>();
+        Map<Integer, String> pidToName = new HashMap<>();
+        if (!productIds.isEmpty()) {
+            Map<String, Object> prodResp = rpc.callRpc(rpc.buildArgs("product.product", "search_read",
+                    List.of(List.of(List.of("id", "in", productIds))),
+                    Map.of("fields", List.of("id", "default_code", "name"))));
+            List<Map<String, Object>> prods = prodResp != null ? (List<Map<String, Object>>) prodResp.get("result") : null;
+            if (prods != null) {
+                for (Map<String, Object> p : prods) {
+                    Integer pid = asInt(p.get("id"));
+                    if (pid == null) continue;
+                    Object dc = p.get("default_code");
+                    if (dc instanceof String s && !s.isBlank()) pidToSku.put(pid, s.trim());
+                    Object nm = p.get("name");
+                    if (nm instanceof String s && !s.isBlank()) pidToName.put(pid, s.trim());
+                }
+            }
+        }
+        log.info("provider=odoo operation=applyPartialQty pickingId={} productDetails={}", pickingId, pidToSku);
+
+        // Write qty_done to each move line; tally total for caller's zero-check
+        int totalWritten = 0;
+        for (Map<String, Object> line : lines) {
+            Integer pid   = asRelId(line.get("product_id"));
+            String  sku   = pidToSku.get(pid);
+            String  pName = pidToName.get(pid);
+
+            Integer qty = null;
+            if (pid  != null && pidToQty.containsKey(pid))   qty = pidToQty.get(pid);
+            if (qty  == null && sku  != null)                 qty = skuToQty.get(sku);
+            // Bracket-prefix fallback: skuToQty key may be "[FURN_6666] Product Name..." when SKU was
+            // stored as null in DB and Flutter fell back to the full Odoo sale.order.line description.
+            if (qty == null && sku != null) {
+                final String bracketPrefix = "[" + sku + "]";
+                qty = skuToQty.entrySet().stream()
+                        .filter(e -> e.getKey().startsWith(bracketPrefix))
+                        .map(Map.Entry::getValue)
+                        .findFirst().orElse(null);
+            }
+            if (qty  == null && pName != null)                qty = nameToQty.get(pName);
+            if (qty  == null) qty = 0; // product not in delivery list → not delivered
+
+            // Odoo 17+: "quantity" on stock.move.line is the done qty
+            Map<String, Object> writeResp = rpc.callRpc(rpc.buildArgs("stock.move.line", "write",
+                    List.of(List.of(line.get("id")), Map.of("quantity", qty))));
+            log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} productId={} sku={} qty={} writeResult={}",
+                    pickingId, line.get("id"), pid, sku, qty, writeResp != null ? writeResp.get("result") : "null");
+            totalWritten += qty;
+        }
+        return totalWritten;
     }
 
 

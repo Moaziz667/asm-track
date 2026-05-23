@@ -241,6 +241,15 @@ public class DriverDeliveryService {
 
         if (isPartial && delivery.getOrder() != null && normalizedPartialItems != null && !normalizedPartialItems.isEmpty()) {
             applyPartialQuantities(delivery.getOrder(), normalizedPartialItems);
+        } else if (!isPartial && delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
+            // Full delivery — reset all items to fully delivered, clearing any stale partial data
+            // from previous delivery attempts on the same order.
+            for (com.asm.delivery.entity.OrderItem item : delivery.getOrder().getItems()) {
+                item.setQuantityDone(item.getQuantity() != null ? item.getQuantity() : 0);
+                item.setOutcome("DELIVERED");
+                item.setReason(null);
+                item.setComment(null);
+            }
         }
 
         // Auto-calculate COD amount from actually delivered items × unit price.
@@ -301,8 +310,9 @@ public class DriverDeliveryService {
             return partialItems;
         }
 
-        Map<String, OrderItem> bySku = new HashMap<>();
+        Map<String, OrderItem> bySku    = new HashMap<>();
         Map<String, OrderItem> byItemId = new HashMap<>();
+        Map<String, OrderItem> byName   = new HashMap<>();
         order.getItems().forEach(item -> {
             if (item == null) {
                 return;
@@ -312,6 +322,9 @@ public class DriverDeliveryService {
             }
             if (item.getId() != null && !item.getId().isBlank()) {
                 byItemId.put(item.getId().trim(), item);
+            }
+            if (item.getName() != null && !item.getName().isBlank()) {
+                byName.put(item.getName().trim(), item);
             }
         });
 
@@ -326,13 +339,12 @@ public class DriverDeliveryService {
             }
 
             OrderItem matched = bySku.get(raw);
-            if (matched == null) {
-                matched = byItemId.get(raw);
-            }
+            if (matched == null) matched = byItemId.get(raw);
+            if (matched == null) matched = byName.get(raw);
 
-            String resolvedSku = matched != null && matched.getSku() != null && !matched.getSku().isBlank()
+            String resolvedSku = (matched != null && matched.getSku() != null && !matched.getSku().isBlank())
                     ? matched.getSku().trim()
-                    : raw;
+                    : (matched != null && matched.getName() != null ? matched.getName().trim() : raw);
             int qtyDone = Math.max(input.getQuantityDone() != null ? input.getQuantityDone() : 0, 0);
 
             com.asm.delivery.dto.request.PartialDeliveryItem normalizedItem =
@@ -374,15 +386,19 @@ public class DriverDeliveryService {
         });
 
         order.getItems().forEach(item -> {
-            if (item == null || item.getSku() == null) return;
-            String sku = item.getSku().trim();
-            Integer done = doneBySku.get(sku);
+            if (item == null) return;
+            // Prefer SKU as lookup key; fall back to name for items without a SKU (e.g. Odoo service lines)
+            String key = (item.getSku() != null && !item.getSku().isBlank())
+                    ? item.getSku().trim()
+                    : (item.getName() != null ? item.getName().trim() : null);
+            if (key == null) return;
+            Integer done = doneBySku.get(key);
             if (done != null) {
                 int planned = item.getQuantity() != null ? item.getQuantity() : 0;
                 item.setQuantityDone(Math.min(done, Math.max(planned, 0)));
-                item.setOutcome(outcomeBySku.get(sku));
-                item.setReason(reasonBySku.get(sku));
-                item.setComment(commentBySku.get(sku));
+                item.setOutcome(outcomeBySku.get(key));
+                item.setReason(reasonBySku.get(key));
+                item.setComment(commentBySku.get(key));
             } else {
                 // Item not mentioned by driver → infer as REFUSED with qty 0
                 item.setQuantityDone(0);
@@ -887,10 +903,7 @@ public class DriverDeliveryService {
         boolean requiresHandoff = activeStop != null && Boolean.TRUE.equals(activeStop.getRequiresHandoff());
 
         Order order = delivery.getOrder();
-        String erpId = order != null ? order.getErpOrderId() : null;
-        String orderRef = (erpId != null && !erpId.isBlank())
-                ? erpId
-                : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : null);
+        String orderRef = order != null ? order.resolveRef() : null;
 
         return DriverDeliveryResponse.builder()
                 .deliveryId(delivery.getId())

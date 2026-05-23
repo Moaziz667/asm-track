@@ -236,36 +236,60 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        Map<Integer, BigDecimal> weights = fetchProductWeights(productIds);
+        ProductDetails productDetails = fetchProductDetails(productIds);
 
         return lineRows.stream().map(line -> {
             Integer productId = asRelId(line.get("product_id"));
             String productName = asRelName(line.get("product_id"));
             String name = firstNonBlank(asString(line.get("name")), productName, "ERP Item");
             Integer qty = asInt(line.get("product_uom_qty"));
-            BigDecimal unitWeight = productId != null ? weights.getOrDefault(productId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            BigDecimal unitWeight = productId != null ? productDetails.weights.getOrDefault(productId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            String sku         = productId != null ? productDetails.skus.get(productId)  : null;
+            String productType = productId != null ? productDetails.types.get(productId) : null;
 
             return ErpOrderItemDTO.builder()
                     .name(name)
-                    .sku(productId != null ? String.valueOf(productId) : null)
+                    .sku(sku)
                     .quantity(qty != null && qty > 0 ? qty : 1)
                     .unitPrice(asBigDecimal(line.get("price_unit")))
                     .unitWeightKg(unitWeight)
+                    .productType(productType)
                     .build();
         }).collect(Collectors.toList());
     }
 
-    private Map<Integer, BigDecimal> fetchProductWeights(Set<Integer> productIds) {
-        if (productIds == null || productIds.isEmpty()) return Map.of();
-        List<Map<String, Object>> rows = rpc.searchRead("product.product",
-                List.of(List.of("id", "in", productIds.stream().toList())),
-                List.of("id", "weight"), Math.max(productIds.size(), 1), "id asc");
-        Map<Integer, BigDecimal> result = new HashMap<>();
+    private record ProductDetails(Map<Integer, BigDecimal> weights, Map<Integer, String> skus, Map<Integer, String> types) {}
+
+    private ProductDetails fetchProductDetails(Set<Integer> productIds) {
+        if (productIds == null || productIds.isEmpty()) return new ProductDetails(Map.of(), Map.of(), Map.of());
+        // detailed_type exists in Odoo 16+; older versions only have 'type'
+        List<String> typeField = List.of("detailed_type");
+        List<Map<String, Object>> rows;
+        try {
+            rows = rpc.searchRead("product.product",
+                    List.of(List.of("id", "in", productIds.stream().toList())),
+                    List.of("id", "weight", "default_code", "detailed_type"), Math.max(productIds.size(), 1), "id asc");
+        } catch (Exception e) {
+            log.warn("fetchProductDetails: detailed_type not available ({}), retrying with 'type'", e.getMessage());
+            rows = rpc.searchRead("product.product",
+                    List.of(List.of("id", "in", productIds.stream().toList())),
+                    List.of("id", "weight", "default_code", "type"), Math.max(productIds.size(), 1), "id asc");
+            typeField = List.of("type");
+        }
+        final String typeKey = typeField.get(0);
+        Map<Integer, BigDecimal> weights = new HashMap<>();
+        Map<Integer, String>     skus    = new HashMap<>();
+        Map<Integer, String>     types   = new HashMap<>();
         for (Map<String, Object> row : rows) {
             Integer id = asInt(row.get("id"));
-            if (id != null) result.put(id, asBigDecimal(row.get("weight")));
+            if (id == null) continue;
+            weights.put(id, asBigDecimal(row.get("weight")));
+            String dc = asString(row.get("default_code"));
+            if (dc != null && !dc.isBlank()) skus.put(id, dc);
+            String dt = asString(row.get(typeKey));
+            if (dt != null && !dt.isBlank()) types.put(id, dt);
         }
-        return result;
+        return new ProductDetails(weights, skus, types);
     }
 
     private ErpPendingOrderSummaryDTO mapToSummary(Map<String, Object> row, Map<Integer, Map<String, Object>> partners) {

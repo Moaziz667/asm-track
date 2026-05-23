@@ -2,9 +2,11 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
+import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
@@ -41,6 +43,8 @@ public class DriverPerformancePdfService extends BasePdfService {
 
     private final DeliveryRepository  deliveryRepository;
     private final CompanyRepository   companyRepository;
+    private final RouteStopRepository routeStopRepository;
+    private final DelayCalculationService delayCalculationService;
     private final TransportPort       transportPort;
     private final MinioStorageService minioStorageService;
 
@@ -64,10 +68,36 @@ public class DriverPerformancePdfService extends BasePdfService {
         long failed    = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.FAILED).count();
         double successRate  = total == 0 ? 0 : (double) delivered / total * 100.0;
 
-        double avgDelay = filtered.stream()
-                .filter(d -> d.getCompletedAt() != null && d.getRouteEtaAt() != null)
-                .mapToLong(d -> Math.max(0, java.time.Duration.between(d.getRouteEtaAt(), d.getCompletedAt()).toMinutes()))
-                .average().orElse(0.0);
+        Map<UUID, Integer> delayByDelivery = new HashMap<>();
+        List<UUID> allDeliveryIds = filtered.stream()
+            .map(Delivery::getId)
+            .filter(Objects::nonNull)
+            .toList();
+
+        if (!allDeliveryIds.isEmpty()) {
+            Map<UUID, RouteStop> stopByDelivery = routeStopRepository.findAllByDeliveryIdInWithRoute(allDeliveryIds)
+                .stream()
+                .collect(Collectors.toMap(
+                    RouteStop::getDeliveryId,
+                    s -> s,
+                    (a, b) -> {
+                    if (a.getCreatedAt() == null) return b;
+                    if (b.getCreatedAt() == null) return a;
+                    return a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b;
+                    }
+                ));
+
+            for (RouteStop stop : stopByDelivery.values()) {
+            Integer delay = delayCalculationService.calculateStrictStopDelayMinutes(stop, stop.getRoute());
+            if (delay != null) {
+                delayByDelivery.put(stop.getDeliveryId(), delay);
+            }
+            }
+        }
+
+        double avgDelay = delayByDelivery.values().stream()
+            .mapToInt(v -> Math.max(0, v))
+            .average().orElse(0.0);
 
         // Fleet average success rate for comparison
         double fleetRate = getFleetAverageData(start, end);
@@ -117,14 +147,13 @@ public class DriverPerformancePdfService extends BasePdfService {
 
             // ── KPI grid ──────────────────────────────────────────────────────
             doc.add(sectionLabel("INDICATEURS CLÉS", brand));
-            PdfPTable kpiGrid = new PdfPTable(new float[]{1, 1, 1, 1, 1});
+            PdfPTable kpiGrid = new PdfPTable(new float[]{1, 1, 1});
             kpiGrid.setWidthPercentage(100);
             kpiGrid.setSpacingAfter(12f);
             kpiGrid.addCell(wrapKpi(kpiBox("VOLUME",         String.valueOf(total),     brand)));
-            kpiGrid.addCell(wrapKpi(kpiBox("LIVRÉES",        String.valueOf(delivered), brand)));
-            kpiGrid.addCell(wrapKpi(kpiBox("ÉCHOUÉES",       String.valueOf(failed),    brand)));
-            kpiGrid.addCell(wrapKpi(kpiBox("TAUX SUCCÈS",    String.format("%.1f%%", successRate), brand)));
-            kpiGrid.addCell(wrapKpi(kpiBox("RETARD MOY.",    fmtDuration(avgDelay),     brand)));
+            kpiGrid.addCell(wrapKpi(kpiBox("SUCCESS RATE",   String.format("%.1f%%", successRate), brand)));
+            String avgDelayLabel = !delayByDelivery.isEmpty() ? fmtDuration(avgDelay) : "-";
+            kpiGrid.addCell(wrapKpi(kpiBox("RETARD MOY.",    avgDelayLabel,     brand)));
             doc.add(kpiGrid);
 
             // ── 7-day trend chart ─────────────────────────────────────────────
@@ -139,14 +168,15 @@ public class DriverPerformancePdfService extends BasePdfService {
 
             // ── Delivery history table ────────────────────────────────────────
             doc.add(sectionLabel("HISTORIQUE DES LIVRAISONS", brand));
-            PdfPTable histTable = new PdfPTable(new float[]{1.2f, 2.5f, 1.5f, 1f, 1.2f});
+            PdfPTable histTable = new PdfPTable(new float[]{1.1f, 1.6f, 2.2f, 1.5f, 1f, 1.2f});
             histTable.setWidthPercentage(100);
             histTable.setHeaderRows(1);
             histTable.addCell(hdrCell("Date", brand));
+            histTable.addCell(hdrCell("Commande", brand));
             histTable.addCell(hdrCell("Client", brand));
             histTable.addCell(hdrCell("Ville", brand));
             histTable.addCell(hdrCell("Statut", brand));
-            histTable.addCell(hdrCellR("Retard", brand));
+            histTable.addCell(hdrCellR("Statut SLA", brand));
 
             List<Delivery> recent = filtered.stream()
                     .filter(d -> d.getOrder() != null)
@@ -160,14 +190,15 @@ public class DriverPerformancePdfService extends BasePdfService {
             for (Delivery d : recent) {
                 LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
                 String date    = ref != null ? ref.format(DT_FR) : "-";
+                String cmdId   = d.getOrder() != null ? safe(d.getOrder().getErpOrderId()) : "-";
                 String client  = d.getOrder() != null ? safe(d.getOrder().getClientName()) : "-";
                 String city    = d.getOrder() != null ? safe(d.getOrder().getDropoffCity()) : "-";
                 String statut  = statusFr(d.getStatus());
-                long   delay   = d.getCompletedAt() != null && d.getRouteEtaAt() != null
-                                   ? Math.max(0, java.time.Duration.between(d.getRouteEtaAt(), d.getCompletedAt()).toMinutes()) : 0;
-                String delayStr = delay > 0 ? "+" + delay + " min" : "—";
+                Integer delay = d.getId() != null ? delayByDelivery.get(d.getId()) : null;
+                String delayStr = delay != null && delay > 0 ? "RETARD +" + delay + " min" : "A L'HEURE";
 
                 histTable.addCell(cellAlt(date, alt));
+                histTable.addCell(cellAlt(cmdId != null && !cmdId.isBlank() ? cmdId : "-", alt));
                 histTable.addCell(cellAlt(client, alt));
                 histTable.addCell(cellAlt(city, alt));
                 histTable.addCell(cellAlt(statut, alt));

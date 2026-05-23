@@ -1066,7 +1066,7 @@ public class RoutePlanningService {
                     .clientName(order != null ? order.getClientName() : null)
                     .clientPhone(order != null ? order.getClientPhone() : null)
                     .totalAmount(order != null ? order.getTotalAmount() : null)
-                    .orderRef(order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getErpExternalRef()) : null)
+                    .orderRef(order != null ? order.resolveRef() : null)
                     .delayMinutes(delayInfo != null ? delayInfo.delayMinutes : null)
                     .delayStatus(delayInfo != null ? delayInfo.delayStatus : null)
                     .delayReason(delayInfo != null ? delayInfo.delayReason : null)
@@ -1086,7 +1086,7 @@ public class RoutePlanningService {
                     .deliveryAddress(order != null ? order.getDropoffAddress() : null)
                     .deliveryCity(order != null ? order.getDropoffCity() : null)
                     .clientName(order != null ? order.getClientName() : null)
-                    .orderRef(order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getErpExternalRef()) : null)
+                    .orderRef(order != null ? order.resolveRef() : null)
                     .removedAt(stop.getRemovedAt())
                     .removedReason(stop.getRemovedReason())
                     .removedBy(stop.getRemovedBy())
@@ -1462,7 +1462,7 @@ public class RoutePlanningService {
                 .removedReason(stop.getRemovedReason())
                 .removedBy(stop.getRemovedBy())
                 .clientName(orderInfo != null ? orderInfo.getClientName() : null)
-                .orderRef(orderInfo != null ? (orderInfo.getErpOrderId() != null ? orderInfo.getErpOrderId() : orderInfo.getErpExternalRef()) : null)
+                .orderRef(orderInfo != null ? orderInfo.resolveRef() : null)
                 .build();
     }
 

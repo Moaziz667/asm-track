@@ -61,6 +61,7 @@ services:
       RABBITMQ_DEFAULT_PASS: guest
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+      - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
     restart: unless-stopped
     networks:
       - asm-network

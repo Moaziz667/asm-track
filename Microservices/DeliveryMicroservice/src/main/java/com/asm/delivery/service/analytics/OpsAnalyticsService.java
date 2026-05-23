@@ -497,10 +497,7 @@ public class OpsAnalyticsService {
 
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
         Order order = d.getOrder();
-        String erpId = order != null ? order.getErpOrderId() : null;
-        String orderRef = (erpId != null && !erpId.isBlank())
-                ? erpId
-                : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : "-");
+        String orderRef = order != null ? order.resolveRef() : "-";
 
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
         UUID companyId = getCompanyId();
@@ -714,10 +711,7 @@ public class OpsAnalyticsService {
                 }
 
                 Order order = delivery.getOrder();
-                String erpId = order != null ? order.getErpOrderId() : null;
-                String orderRef = (erpId != null && !erpId.isBlank())
-                        ? erpId
-                        : (order != null ? order.getId().toString().substring(0, 8).toUpperCase() : "-");
+                String orderRef = order != null ? order.resolveRef() : "-";
 
                 DriverDTO driver = delivery.getDriverId() != null ? driverMap.get(delivery.getDriverId().toString()) : null;
 
@@ -978,30 +972,57 @@ public class OpsAnalyticsService {
         Map<UUID, Object[]> countsMap = countQuery.getResultList().stream()
                 .collect(Collectors.toMap(row -> (UUID) row[0], row -> row));
 
-        // 2. Average delays grouping by driverId
-        // We join with RouteStop to get the actual delay metrics
-        TypedQuery<Object[]> delayQuery = entityManager.createQuery(
-                "SELECT d.driverId, rs.completedAt, rs.slaDeadline " +
-                "FROM Delivery d JOIN RouteStop rs ON d.id = rs.deliveryId " +
+        // 2. Average delays grouping by driverId (strict stop delay, same as PDF)
+        TypedQuery<Object[]> deliveryQuery = entityManager.createQuery(
+                "SELECT d.id, d.driverId FROM Delivery d " +
                 "WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end " +
-                "AND d.status IN (:delivered, :partial) " +
-                "AND rs.completedAt IS NOT NULL AND rs.slaDeadline IS NOT NULL",
+                "AND d.status IN (:delivered, :partial)",
                 Object[].class);
-        delayQuery.setParameter("delivered", DeliveryStatus.DELIVERED);
-        delayQuery.setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED);
-        delayQuery.setParameter("start", start);
-        delayQuery.setParameter("end", end);
+        deliveryQuery.setParameter("delivered", DeliveryStatus.DELIVERED);
+        deliveryQuery.setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED);
+        deliveryQuery.setParameter("start", start);
+        deliveryQuery.setParameter("end", end);
 
-        Map<UUID, Double> delayMap = delayQuery.getResultList().stream()
-                .collect(Collectors.groupingBy(
-                        row -> (UUID) row[0],
-                        Collectors.averagingDouble(row -> {
-                            LocalDateTime completed = (LocalDateTime) row[1];
-                            LocalDateTime deadline = (LocalDateTime) row[2];
-                            long minutes = java.time.Duration.between(deadline, completed).toMinutes();
-                            return Math.max(0.0, (double) minutes);
-                        })
-                ));
+        List<Object[]> deliveryRows = deliveryQuery.getResultList();
+        List<UUID> deliveryIds = deliveryRows.stream()
+                .map(r -> (UUID) r[0])
+                .filter(Objects::nonNull)
+                .toList();
+
+        Map<UUID, UUID> driverByDelivery = deliveryRows.stream()
+                .filter(r -> r[0] != null && r[1] != null)
+                .collect(Collectors.toMap(r -> (UUID) r[0], r -> (UUID) r[1], (a, b) -> a));
+
+        Map<UUID, Double> delayMap = new HashMap<>();
+        if (!deliveryIds.isEmpty()) {
+            Map<UUID, RouteStop> stopByDelivery = routeStopRepository.findAllByDeliveryIdInWithRoute(deliveryIds)
+                    .stream()
+                    .collect(Collectors.toMap(
+                            RouteStop::getDeliveryId,
+                            s -> s,
+                            (a, b) -> {
+                                if (a.getCreatedAt() == null) return b;
+                                if (b.getCreatedAt() == null) return a;
+                                return a.getCreatedAt().isAfter(b.getCreatedAt()) ? a : b;
+                            }
+                    ));
+
+            Map<UUID, List<Integer>> delaysByDriver = new HashMap<>();
+            for (RouteStop stop : stopByDelivery.values()) {
+                UUID deliveryId = stop.getDeliveryId();
+                UUID driverId = deliveryId != null ? driverByDelivery.get(deliveryId) : null;
+                if (driverId == null) continue;
+                Integer delay = delayCalculationService.calculateStrictStopDelayMinutes(stop, stop.getRoute());
+                if (delay == null) continue;
+                delaysByDriver.computeIfAbsent(driverId, k -> new ArrayList<>())
+                        .add(Math.max(0, delay));
+            }
+
+            for (Map.Entry<UUID, List<Integer>> entry : delaysByDriver.entrySet()) {
+                double avg = entry.getValue().stream().mapToInt(Integer::intValue).average().orElse(0.0);
+                delayMap.put(entry.getKey(), avg);
+            }
+        }
 
         return countsMap.entrySet().stream()
                 .map(entry -> {

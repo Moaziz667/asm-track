@@ -196,4 +196,15 @@ public class Order {
     void preUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    /**
+     * Single source of truth for the human-readable order reference.
+     * ERP-agnostic: works for Odoo (S00091), Dux (DX-00123), and backorders (S00091/BO).
+     * Priority: erpOrderId → erpExternalRef → short UUID fallback.
+     */
+    public String resolveRef() {
+        if (erpOrderId != null && !erpOrderId.isBlank()) return erpOrderId;
+        if (erpExternalRef != null && !erpExternalRef.isBlank()) return erpExternalRef;
+        return id != null ? id.toString().substring(0, 8).toUpperCase() : "UNKNOWN";
+    }
 }
