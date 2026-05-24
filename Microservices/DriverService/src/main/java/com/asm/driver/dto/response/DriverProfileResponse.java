@@ -12,4 +12,5 @@ public class DriverProfileResponse {
     private BigDecimal currentLat;
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;
+    private String onlineStatus;
 }

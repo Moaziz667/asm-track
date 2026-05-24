@@ -37,7 +37,8 @@ public class ExceptionResolutionService {
     private static final List<DeliveryStatus> REASSIGN_ALLOWED_STATUSES = List.of(
             DeliveryStatus.UNSCHEDULED,
             DeliveryStatus.SCHEDULED,
-            DeliveryStatus.PICKED_UP
+            DeliveryStatus.PICKED_UP,
+            DeliveryStatus.IN_TRANSIT
     );
 
     private static final List<DeliveryStatus> REPLAN_ALLOWED_STATUSES = List.of(
@@ -97,8 +98,9 @@ public class ExceptionResolutionService {
 
 		// When a parcel is already picked up, reassignment implies a physical handover.
 		// We require a note to keep custody changes explicit in the audit trail.
-		if (delivery.getStatus() == DeliveryStatus.PICKED_UP && !StringUtils.hasText(request.getNote())) {
-			throw AppException.badRequest("A handover note is required to reassign a picked-up delivery");
+		if ((delivery.getStatus() == DeliveryStatus.PICKED_UP || delivery.getStatus() == DeliveryStatus.IN_TRANSIT)
+				&& !StringUtils.hasText(request.getNote())) {
+			throw AppException.badRequest("A handover note is required to reassign a delivery already in the field");
 		}
 
 		if (request.getDriverId().equals(delivery.getDriverId())) {
@@ -144,10 +146,10 @@ public class ExceptionResolutionService {
 		}
 
 		LocalDateTime now = LocalDateTime.now();
-		boolean wasPickedUp = previousStatus == DeliveryStatus.PICKED_UP;
+		boolean wasInField = previousStatus == DeliveryStatus.PICKED_UP || previousStatus == DeliveryStatus.IN_TRANSIT;
 		delivery.setDriverId(request.getDriverId());
-		
-		// CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning). 
+
+		// CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning).
 		// If target is VALIDATED/IN_PROGRESS, it becomes SCHEDULED immediately (Execution Reassign).
 		if (targetRouteStatus == RouteStatus.DRAFT) {
 			delivery.setStatus(DeliveryStatus.UNSCHEDULED);
@@ -156,8 +158,8 @@ public class ExceptionResolutionService {
 		}
 
 		delivery.setAssignedAt(now);
-		// Keep pickedUpAt as audit record if the parcel was already collected by the previous driver
-		if (!wasPickedUp) {
+		// Keep pickedUpAt/inTransitAt as audit record if the parcel was already collected by the previous driver
+		if (!wasInField) {
 			delivery.setPickedUpAt(null);
 		}
 		delivery.setInTransitAt(null);
@@ -200,7 +202,7 @@ public class ExceptionResolutionService {
 		);
 
 		// If the parcel was already physically picked up, flag the new stop for formal handoff.
-		if (wasPickedUp && previousDriverId != null) {
+		if (wasInField && previousDriverId != null) {
 			routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(newStop -> {
 				newStop.setRequiresHandoff(true);
 				newStop.setHandoffFromDriverId(previousDriverId);
@@ -597,7 +599,9 @@ public class ExceptionResolutionService {
         }
         private String buildReassignOpsNote(DeliveryStatus previousStatus, String previousDriver, String newDriver, String note) {
                 String message;
-                if (previousStatus == DeliveryStatus.PICKED_UP) {
+                if (previousStatus == DeliveryStatus.IN_TRANSIT) {
+                        message = String.format("Livraison en transit réassignée — passation physique requise. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
+                } else if (previousStatus == DeliveryStatus.PICKED_UP) {
                         message = String.format("Livraison déjà ramassée réassignée avec confirmation de passation. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
                 } else if (previousStatus == DeliveryStatus.UNSCHEDULED) {
                         message = String.format("Livraison assignée par le dispatch. Nouveau chauffeur: %s.", newDriver);
@@ -663,7 +667,7 @@ public class ExceptionResolutionService {
 
         private void assertReassignAllowed(Delivery delivery) {
                 if (!REASSIGN_ALLOWED_STATUSES.contains(delivery.getStatus())) {
-                        throw AppException.badRequest("Reassign is allowed only for SCHEDULED or PICKED_UP deliveries");
+                        throw AppException.badRequest("Reassign is allowed only for UNSCHEDULED, SCHEDULED, PICKED_UP, or IN_TRANSIT deliveries");
                 }
         }
 

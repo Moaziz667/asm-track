@@ -18,6 +18,17 @@ class HandoffScannerScreen extends ConsumerStatefulWidget {
 class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
   final MobileScannerController _controller = MobileScannerController();
   bool _isProcessing = false;
+  bool _ready = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Brief delay so camera initialises fully before accepting any scan.
+    // Prevents firing on whatever happens to be in frame when the screen opens.
+    Future.delayed(const Duration(milliseconds: 1500), () {
+      if (mounted) setState(() => _ready = true);
+    });
+  }
 
   @override
   void dispose() {
@@ -34,13 +45,9 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
           MobileScanner(
             controller: _controller,
             onDetect: (capture) {
-              final List<Barcode> barcodes = capture.barcodes;
-              if (barcodes.isNotEmpty) {
-                final String? code = barcodes.first.rawValue;
-                if (code != null && !_isProcessing) {
-                  _processToken(code);
-                }
-              }
+              if (!_ready || _isProcessing) return;
+              final String? code = capture.barcodes.firstOrNull?.rawValue;
+              if (code != null) _processToken(code);
             },
           ),
           

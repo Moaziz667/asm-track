@@ -5,6 +5,7 @@ import 'app_providers.dart';
 import 'features/auth/models/auth_models.dart';
 import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
+import 'features/auth/presentation/setup_account_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
 import 'features/deliveries/presentation/delivery_detail_screen.dart';
 import 'features/home/presentation/home_shell.dart';
@@ -35,6 +36,7 @@ class _DriverAppState extends ConsumerState<DriverApp> {
         SplashScreen.routeName: (_) => const SplashScreen(),
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
+        SetupAccountScreen.routeName: (_) => const SetupAccountScreen(),
         HomeShell.routeName: (_) => const HomeShell(),
       },
       initialRoute: SplashScreen.routeName,

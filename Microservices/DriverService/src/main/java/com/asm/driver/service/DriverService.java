@@ -5,11 +5,14 @@ import com.asm.driver.dto.response.DriverProfileResponse;
 import com.asm.driver.dto.response.HistoryResponse;
 import com.asm.driver.dto.response.StatsResponse;
 import com.asm.driver.entity.Driver;
+import com.asm.driver.entity.DriverOnlineStatus;
 import com.asm.driver.entity.DriverStats;
 import com.asm.driver.exception.AppException;
 import com.asm.driver.repository.DriverHistoryRepository;
 import com.asm.driver.repository.DriverRepository;
 import com.asm.driver.repository.DriverStatsRepository;
+import com.asm.driver.service.DriverAuditLogService;
+import com.asm.driver.service.DriverEventPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,8 @@ public class DriverService {
     private final DriverStatsRepository statsRepo;
     private final DriverHistoryRepository historyRepo;
     private final PasswordEncoder passwordEncoder;
+    private final DriverEventPublisher eventPublisher;
+    private final DriverAuditLogService auditLogService;
 
     public DriverProfileResponse getProfile(UUID driverId) {
         Driver driver = driverRepo.findById(driverId)
@@ -90,6 +95,25 @@ public class DriverService {
         driverRepo.save(driver);
     }
 
+    @Transactional
+    public DriverOnlineStatus updateAvailability(UUID driverId, DriverOnlineStatus newStatus) {
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+        DriverOnlineStatus oldStatus = driver.getOnlineStatus();
+        driver.setOnlineStatus(newStatus);
+        driverRepo.save(driver);
+        eventPublisher.publishStatusChanged(driverId, driver.getCompanyId(), oldStatus, newStatus, driver.getName());
+        auditLogService.log(
+                "DRIVER_AVAILABILITY_CHANGED",
+                driverId,
+                driver.getCompanyId(),
+                driver.getName(),
+                "DRIVER",
+                String.format("{\"from\":\"%s\",\"to\":\"%s\"}", oldStatus != null ? oldStatus.name() : "OFFLINE", newStatus.name())
+        );
+        return newStatus;
+    }
+
     public HistoryResponse getHistory(UUID driverId) {
         var items = historyRepo.findByDriverIdOrderByCreatedAtDesc(driverId).stream()
                 .map(h -> HistoryResponse.HistoryItem.builder()
@@ -109,6 +133,7 @@ public class DriverService {
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())
+                .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
                 .build();
     }
 }

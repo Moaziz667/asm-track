@@ -201,7 +201,7 @@ public class DispatchService {
     @Transactional(readOnly = true)
     public List<AdminDriverResponse> getDrivers() {
         // 1. Fetch available drivers (HTTP)
-        List<DriverDTO> drivers = new ArrayList<>(transportPort.getAvailableDrivers());
+        List<DriverDTO> drivers = new ArrayList<>(transportPort.getAvailableDrivers(TenantContext.get()));
 
         // 2. Fetch active IDs from DB (Transactional)
         DriverData data = getActiveDriverData();

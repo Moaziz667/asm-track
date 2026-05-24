@@ -35,6 +35,17 @@ public class Driver {
     @Builder.Default
     private Boolean active = true;
 
+    @Enumerated(EnumType.STRING)
+    @Column(name = "online_status", length = 20, nullable = false)
+    @Builder.Default
+    private DriverOnlineStatus onlineStatus = DriverOnlineStatus.OFFLINE;
+
+    @Column(name = "company_id")
+    private UUID companyId;
+
+    @Column(length = 255)
+    private String email;
+
     @Column(length = 500)
     private String fcmToken;
 

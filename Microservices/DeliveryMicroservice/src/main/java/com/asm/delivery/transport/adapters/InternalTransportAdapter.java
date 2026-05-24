@@ -37,10 +37,14 @@ public class InternalTransportAdapter implements TransportPort {
     }
 
     @Override
-    public List<DriverDTO> getAvailableDrivers() {
+    public List<DriverDTO> getAvailableDrivers(String companyId) {
         try {
+            String url = baseUrl + "/internal/drivers/available";
+            if (companyId != null && !companyId.isBlank()) {
+                url += "?companyId=" + companyId;
+            }
             ResponseEntity<List<DriverDTO>> resp = restTemplate.exchange(
-                    baseUrl + "/internal/drivers/available",
+                    url,
                     HttpMethod.GET,
                     new HttpEntity<>(bearerHeaders()),
                     new ParameterizedTypeReference<>() {});

@@ -71,12 +71,15 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse create(UserPrincipal principal, CreateVehicleRequest request) {
-        requireSuperAdmin(principal);
+        requireAdminOrSuperAdmin(principal);
 
         String normalizedPlate = normalizePlate(request.getPlate());
         if (vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
             throw AppException.conflict("Vehicle plate already exists");
         }
+
+        UUID companyId = principal.getCompanyId() != null
+                ? UUID.fromString(principal.getCompanyId()) : null;
 
         Vehicle vehicle = Vehicle.builder()
                 .name(buildDisplayName(request.getMake(), request.getModel(), request.getManufactureYear()))
@@ -91,6 +94,7 @@ public class VehicleService {
                 .mileageKm(request.getMileageKm())
                 .plate(normalizedPlate)
                 .type(request.getType())
+                .companyId(companyId)
                 .active(request.getActive() != null ? request.getActive() : true)
                 .build();
 
@@ -110,7 +114,7 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse update(UUID id, UserPrincipal principal, UpdateVehicleRequest request) {
-        requireSuperAdmin(principal);
+        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
 
         if (StringUtils.hasText(request.getMake()))  vehicle.setMake(request.getMake().trim());
@@ -160,7 +164,7 @@ public class VehicleService {
 
     @Transactional
     public void delete(UUID id, UserPrincipal principal) {
-        requireSuperAdmin(principal);
+        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
         if (StringUtils.hasText(vehicle.getImageUrl())) {
             minioStorageService.deleteFile(vehicle.getImageUrl());
@@ -172,7 +176,7 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse updateStatus(UUID id, UserPrincipal principal, VehicleStatusRequest request) {
-        requireSuperAdmin(principal);
+        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
         VehicleStatus previous = vehicle.getVehicleStatus();
         vehicle.setVehicleStatus(request.getStatus());
@@ -186,7 +190,7 @@ public class VehicleService {
 
     @Transactional
     public VehicleResponse assign(UUID id, UserPrincipal principal, AssignVehicleRequest request) {
-        requireSuperAdmin(principal);
+        requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
         vehicle.setDriverId(request.getDriverId());
         Vehicle saved = vehicleRepository.save(vehicle);
@@ -196,9 +200,11 @@ public class VehicleService {
         return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
     }
 
-    private void requireSuperAdmin(UserPrincipal principal) {
-        if (!"SUPER_ADMIN".equals(principal.getRole())) {
-            throw AppException.forbidden("Only ASM super-admin can manage vehicles");
+    private void requireAdminOrSuperAdmin(UserPrincipal principal) {
+        if (principal == null) throw AppException.forbidden("Authentication required");
+        String role = principal.getRole();
+        if (!"SUPER_ADMIN".equals(role) && !"ADMIN".equals(role)) {
+            throw AppException.forbidden("Admin access required to manage vehicles");
         }
     }
 

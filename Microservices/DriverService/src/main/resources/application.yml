@@ -13,6 +13,10 @@ spring:
       ddl-auto: update
     show-sql: false
 
+resend:
+  api-key: ${RESEND_API_KEY:re_placeholder}
+  from: onboarding@resend.dev
+
 auth:
   server:
     url: ${AUTH_SERVER_URL:http://auth-server:8089}

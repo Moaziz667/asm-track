@@ -28,6 +28,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-aop'
     implementation 'org.springframework.boot:spring-boot-starter-websocket'
+    implementation 'org.springframework.boot:spring-boot-starter-amqp'
     implementation 'io.projectreactor.netty:reactor-netty'  // required for STOMP broker relay over TCP
 
     // JWT (jjwt 0.12.3)

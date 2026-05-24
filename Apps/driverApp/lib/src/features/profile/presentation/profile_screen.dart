@@ -23,6 +23,28 @@ class ProfileScreen extends ConsumerStatefulWidget {
 
 class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   bool _locationSending = false;
+  bool _availabilityLoading = false;
+
+  Future<void> _setAvailability(String status) async {
+    setState(() => _availabilityLoading = true);
+    try {
+      await ref.read(profileRepositoryProvider).updateAvailability(status);
+      ref.invalidate(driverProfileProvider);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Erreur : $e'),
+            backgroundColor: AppColors.danger,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _availabilityLoading = false);
+    }
+  }
 
   Future<void> _sendLocation() async {
     setState(() => _locationSending = true);
@@ -140,15 +162,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                               ],
                             ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.neonYellowSubtle,
-                              borderRadius: BorderRadius.circular(2),
-                              border: Border.all(color: AppColors.neonYellow.withValues(alpha: 0.3)),
-                            ),
-                            child: const Text('ACTIF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: AppColors.neonYellow, letterSpacing: 1)),
-                          ),
+                          _StatusChip(status: profile.onlineStatus),
                         ],
                       ),
                     ),
@@ -180,6 +194,13 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                     ),
                   ],
                 ),
+              ),
+              const SizedBox(height: 16),
+              // Shift controls
+              _ShiftControls(
+                status: profile.onlineStatus,
+                loading: _availabilityLoading,
+                onSetStatus: _setAvailability,
               ),
               const SizedBox(height: 16),
               // Stats
@@ -242,6 +263,118 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
             action: () => ref.invalidate(driverProfileProvider),
             actionLabel: 'Réessayer',
           ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Status chip shown in the identity card header ────────────────────────────
+
+class _StatusChip extends StatelessWidget {
+  const _StatusChip({required this.status});
+  final String status;
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, bg, fg) = switch (status) {
+      'ONLINE'   => ('EN SERVICE', const Color(0xFFDCFCE7), const Color(0xFF16A34A)),
+      'ON_BREAK' => ('EN PAUSE',   const Color(0xFFFEF9C3), const Color(0xFFD97706)),
+      _          => ('HORS SERVICE', const Color(0xFFF3F4F6), const Color(0xFF6B7280)),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(2),
+        border: Border.all(color: fg.withValues(alpha: 0.35)),
+      ),
+      child: Text(label, style: TextStyle(fontSize: 9, fontWeight: FontWeight.w900, color: fg, letterSpacing: 0.8)),
+    );
+  }
+}
+
+// ─── Shift control block ──────────────────────────────────────────────────────
+
+class _ShiftControls extends StatelessWidget {
+  const _ShiftControls({
+    required this.status,
+    required this.loading,
+    required this.onSetStatus,
+  });
+  final String status;
+  final bool loading;
+  final Future<void> Function(String) onSetStatus;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return Container(
+        height: 52,
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          color: AppColors.surface,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.accent)),
+      );
+    }
+
+    return switch (status) {
+      'ONLINE'   => _onlineControls(context),
+      'ON_BREAK' => _onBreakControls(context),
+      _          => _offlineControls(context),
+    };
+  }
+
+  Widget _offlineControls(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: DriveButton(
+        label: 'Prendre mon service',
+        icon: LucideIcons.play,
+        onPressed: () => onSetStatus('ONLINE'),
+      ),
+    );
+  }
+
+  Widget _onlineControls(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        OutlinedButton.icon(
+          icon: const Icon(LucideIcons.coffee, size: 16, color: Color(0xFFD97706)),
+          label: const Text('Prendre une pause', style: TextStyle(color: Color(0xFFD97706), fontWeight: FontWeight.w700)),
+          style: OutlinedButton.styleFrom(
+            side: const BorderSide(color: Color(0xFFD97706)),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+          onPressed: () => onSetStatus('ON_BREAK'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => onSetStatus('OFFLINE'),
+          child: const Text('Terminer ma journée', style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
+        ),
+      ],
+    );
+  }
+
+  Widget _onBreakControls(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        DriveButton(
+          label: 'Reprendre le service',
+          icon: LucideIcons.play,
+          onPressed: () => onSetStatus('ONLINE'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          onPressed: () => onSetStatus('OFFLINE'),
+          child: const Text('Terminer ma journée', style: TextStyle(color: AppColors.muted, fontSize: 13, fontWeight: FontWeight.w600)),
         ),
       ],
     );

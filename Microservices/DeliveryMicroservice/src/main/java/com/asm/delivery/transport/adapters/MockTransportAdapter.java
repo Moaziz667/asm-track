@@ -11,7 +11,7 @@ import java.util.UUID;
 public class MockTransportAdapter implements TransportPort {
 
     @Override
-    public List<DriverDTO> getAvailableDrivers() {
+    public List<DriverDTO> getAvailableDrivers(String companyId) {
         return List.of(DriverDTO.builder()
                 .id(UUID.randomUUID().toString())
                 .name("Mock Driver")

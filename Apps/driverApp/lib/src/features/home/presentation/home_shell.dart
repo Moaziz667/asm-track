@@ -302,6 +302,46 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       ],
                     ),
                   ),
+                Consumer(
+                  builder: (context, ref, _) {
+                    final status = ref.watch(driverProfileProvider).value?.onlineStatus ?? 'OFFLINE';
+                    if (status == 'OFFLINE') return const SizedBox.shrink();
+                    final (Color dot, String label) = switch (status) {
+                      'ONLINE'   => (const Color(0xFF10B981), 'En service'),
+                      'ON_BREAK' => (const Color(0xFFF59E0B), 'En pause'),
+                      _          => (const Color(0xFF9CA3AF), 'Hors service'),
+                    };
+                    return GestureDetector(
+                      onTap: () => setState(() => _index = 2),
+                      child: Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                        color: AppColors.surface,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: BoxDecoration(color: dot, shape: BoxShape.circle),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              label,
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: dot,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Icon(Icons.chevron_right_rounded, size: 13, color: dot),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 Expanded(
                   child: IndexedStack(index: _index, children: pages),
                 ),

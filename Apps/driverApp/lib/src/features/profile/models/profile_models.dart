@@ -7,6 +7,7 @@ class DriverProfile {
     this.currentLat,
     this.currentLng,
     this.lastLocationAt,
+    this.onlineStatus = 'OFFLINE',
   });
 
   factory DriverProfile.fromJson(Map<String, dynamic> json) {
@@ -18,6 +19,7 @@ class DriverProfile {
       currentLat: (json['currentLat'] as num?)?.toDouble(),
       currentLng: (json['currentLng'] as num?)?.toDouble(),
       lastLocationAt: json['lastLocationAt'] != null ? DateTime.tryParse(json['lastLocationAt'] as String) : null,
+      onlineStatus: json['onlineStatus'] as String? ?? 'OFFLINE',
     );
   }
 
@@ -28,6 +30,7 @@ class DriverProfile {
   final double? currentLat;
   final double? currentLng;
   final DateTime? lastLocationAt;
+  final String onlineStatus;
 
 }
 

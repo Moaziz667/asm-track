@@ -1,5 +1,6 @@
 package com.asm.delivery.controller;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
 import com.asm.delivery.dto.request.AdminExceptionReplanRequest;
 import com.asm.delivery.dto.response.AdminOpsAlertsResponse;
@@ -7,7 +8,9 @@ import com.asm.delivery.dto.response.AdminOpsAuditResponse;
 import com.asm.delivery.dto.response.AdminOpsExceptionsResponse;
 import com.asm.delivery.dto.response.AdminOpsLanesResponse;
 import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
+import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
+import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.analytics.OpsAnalyticsService;
 import com.asm.delivery.service.dispatch.ExceptionResolutionService;
@@ -24,9 +27,11 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 import java.util.UUID;
 
 @RestController
@@ -48,6 +53,7 @@ public class AdminOpsController {
 
     private final OpsAnalyticsService opsAnalyticsService;
     private final ExceptionResolutionService exceptionResolutionService;
+    private final DeliveryRepository deliveryRepository;
 
     @GetMapping("/overview")
     @Operation(
@@ -184,4 +190,40 @@ public class AdminOpsController {
     ) {
         return ResponseEntity.ok(exceptionResolutionService.replanException(deliveryId, request, principal));
     }
+
+    @GetMapping("/live-stops")
+    @Transactional(readOnly = true)
+    @Operation(summary = "Active delivery stops for the live dispatch map")
+    public ResponseEntity<List<LiveStopDTO>> liveStops() {
+        UUID companyId = UUID.fromString(TenantContext.get());
+        List<Delivery> deliveries = deliveryRepository.findActiveByCompanyWithOrder(
+            companyId,
+            List.of(DeliveryStatus.SCHEDULED, DeliveryStatus.PICKED_UP, DeliveryStatus.IN_TRANSIT)
+        );
+        List<LiveStopDTO> result = deliveries.stream()
+            .filter(d -> d.getOrder() != null && d.getOrder().getDropoffLat() != null && d.getOrder().getDropoffLng() != null)
+            .map(d -> new LiveStopDTO(
+                d.getId().toString(),
+                d.getStatus().name(),
+                d.getOrder().getClientName(),
+                d.getOrder().getDropoffCity(),
+                d.getDriverId() != null ? d.getDriverId().toString() : null,
+                d.getOrder().getDropoffLat().doubleValue(),
+                d.getOrder().getDropoffLng().doubleValue(),
+                d.getUpdatedAt() != null ? d.getUpdatedAt().toString() : null
+            ))
+            .toList();
+        return ResponseEntity.ok(result);
+    }
+
+    public record LiveStopDTO(
+        String deliveryId,
+        String status,
+        String clientName,
+        String city,
+        String driverId,
+        Double dropoffLat,
+        Double dropoffLng,
+        String updatedAt
+    ) {}
 }

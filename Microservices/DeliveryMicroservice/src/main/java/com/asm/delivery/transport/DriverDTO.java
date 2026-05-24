@@ -19,4 +19,5 @@ public class DriverDTO {
     private String  createdAt;
     private String  fcmToken;
     private Boolean active;
+    private String  onlineStatus;
 }

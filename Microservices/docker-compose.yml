@@ -9,7 +9,7 @@ services:
       sh -ec 'mkdir -p /data; if [ ! -f /data/tunisia-latest.osm.pbf ]; then curl -fL https://download.geofabrik.de/africa/tunisia-latest.osm.pbf -o /data/tunisia-latest.osm.pbf; fi'
     volumes:
       - osrm-data:/data
-    restart: "no" 
+    restart: "no"
     networks:
       - asm-network
 
@@ -46,19 +46,17 @@ services:
     networks:
       - asm-network
 
-  #  RABBITMQ 
+  #  RABBITMQ
   rabbitmq:
     image: rabbitmq:4-management
     container_name: rabbitmq
     ports:
-      # PROD: remove "15672:15672" — management console must not be publicly accessible
       - "5672:5672"
       - "15672:15672"
-      - "61613:61613"   # STOMP relay port used by DeliveryMicroservice
+      - "61613:61613"
     environment:
-      # PROD: change these — default guest/guest is a well-known RabbitMQ vulnerability
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASS}
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
       - ./rabbitmq/enabled_plugins:/etc/rabbitmq/enabled_plugins:ro
@@ -71,17 +69,15 @@ services:
       timeout: 5s
       retries: 5
 
-  #  POSTGRES DATABASES 
+  #  POSTGRES DATABASES
   postgres-app:
     image: postgres:16-alpine
     container_name: postgres-app
     ports:
-      # PROD: remove these port mappings — databases must not be exposed outside Docker network
       - "5435:5432"
     environment:
       POSTGRES_USER: app_user
-      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${APP_DB_PASS}
-      POSTGRES_PASSWORD: app_password
+      POSTGRES_PASSWORD: ${APP_DB_PASS}
       POSTGRES_DB: app_db
     volumes:
       - app-pgdata:/var/lib/postgresql/data
@@ -98,12 +94,10 @@ services:
     image: postgres:16-alpine
     container_name: postgres-delivery
     ports:
-      # PROD: remove this port mapping
       - "5434:5432"
     environment:
       POSTGRES_USER: delivery
-      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${DELIVERY_DB_PASS}
-      POSTGRES_PASSWORD: delivery
+      POSTGRES_PASSWORD: ${DELIVERY_DB_PASS}
       POSTGRES_DB: delivery_db
     volumes:
       - delivery-pgdata:/var/lib/postgresql/data
@@ -120,12 +114,10 @@ services:
     image: postgres:16-alpine
     container_name: postgres-driver
     ports:
-      # PROD: remove this port mapping
       - "5437:5432"
     environment:
       POSTGRES_USER: driver
-      # PROD: replace with strong password via .env file: POSTGRES_PASSWORD=${DRIVER_DB_PASS}
-      POSTGRES_PASSWORD: driver
+      POSTGRES_PASSWORD: ${DRIVER_DB_PASS}
       POSTGRES_DB: driver_db
     volumes:
       - driver-pgdata:/var/lib/postgresql/data
@@ -146,10 +138,8 @@ services:
       - "9000:9000"
       - "9001:9001"
     environment:
-      # PROD: set strong credentials via .env file: MINIO_ROOT_USER=${MINIO_USER} MINIO_ROOT_PASSWORD=${MINIO_PASS}
-      MINIO_ROOT_USER: asmtracking
-      MINIO_ROOT_PASSWORD: asmtracking2026
-    # PROD: remove port 9001 — MinIO console must not be publicly accessible
+      MINIO_ROOT_USER: ${MINIO_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_PASS}
     command: server /data --console-address ":9001"
     volumes:
       - minio_data:/data
@@ -173,16 +163,16 @@ services:
       TZ: Africa/Tunis
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
       SPRING_DATASOURCE_USERNAME: app_user
-      SPRING_DATASOURCE_PASSWORD: app_password
+      SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
       AUTH_SERVER_URL: http://auth-server:8089
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
       CLIENT_ID: app-backend
-      CLIENT_SECRET: ${CLIENT_SECRET_APP:-IJz0vvMLEKLsZmahqEepTjoCRcutWyGm4IEL4iE5IY4=}
+      CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       ODOO_URL: http://host.docker.internal:8069/jsonrpc
-      ODOO_DB: DBTEST
-      ODOO_UID: "2"
-      ODOO_PASSWORD: admin
+      ODOO_DB: ${ODOO_DB}
+      ODOO_UID: ${ODOO_UID}
+      ODOO_PASSWORD: ${ODOO_PASSWORD}
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -210,19 +200,21 @@ services:
       DB_PORT: "5432"
       DB_NAME: delivery_db
       DB_USER: delivery
-      DB_PASS: delivery
+      DB_PASS: ${DELIVERY_DB_PASS}
       AUTH_SERVER_URL: http://auth-server:8089
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
       CLIENT_ID: delivery-service
-      CLIENT_SECRET: ${CLIENT_SECRET_DELIVERY:-y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
+      CLIENT_SECRET: ${CLIENT_SECRET_DELIVERY}
       RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
       WEBSOCKET_BROKER_RELAY_ENABLED: "true"
       DRIVER_SERVICE_URL: http://driver-service:8086
       TRANSPORT_PROVIDER: internal
       MINIO_URL: http://minio:9000
       MINIO_PUBLIC_URL: http://localhost:9000
-      MINIO_ACCESS_KEY: asmtracking
-      MINIO_SECRET_KEY: asmtracking2026
+      MINIO_ACCESS_KEY: ${MINIO_USER}
+      MINIO_SECRET_KEY: ${MINIO_PASS}
       MINIO_BUCKET: pod-files
       OPS_SLA_WAITING_MINUTES: "1"
       OPS_SLA_TRANSIT_MINUTES: "2"
@@ -270,12 +262,12 @@ services:
       AUTH_SERVER_URL: http://auth-server:8089
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
       CLIENT_ID: erp-adapter
-      CLIENT_SECRET: ${CLIENT_SECRET_ERP:-Kketonr5sYVCKsczgHGkMxMTCCQINnOYotiLfLc7vUQ=}
+      CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       ODOO_URL: http://host.docker.internal:8069/jsonrpc
-      ODOO_DB: DBTEST
-      ODOO_UID: "2"
-      ODOO_PASSWORD: admin
+      ODOO_DB: ${ODOO_DB}
+      ODOO_UID: ${ODOO_UID}
+      ODOO_PASSWORD: ${ODOO_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8088/actuator/health || exit 1"]
       interval: 10s
@@ -297,13 +289,19 @@ services:
       TZ: Africa/Tunis
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DB_USER: driver
-      DB_PASS: driver
+      DB_PASS: ${DRIVER_DB_PASS}
       AUTH_SERVER_URL: http://auth-server:8089
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
       CLIENT_ID: driver-service
-      CLIENT_SECRET: ${CLIENT_SECRET_DRIVER:-7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
+      CLIENT_SECRET: ${CLIENT_SECRET_DRIVER}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
     depends_on:
       postgres-driver:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8086"]
@@ -327,18 +325,18 @@ services:
       TZ: Africa/Tunis
       APP_DB_URL: jdbc:postgresql://postgres-app:5432/app_db
       APP_DB_USER: app_user
-      APP_DB_PASS: app_password
+      APP_DB_PASS: ${APP_DB_PASS}
       DRIVER_DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DRIVER_DB_USER: driver
-      DRIVER_DB_PASS: driver
-      AUTH_RSA_SEED: ${AUTH_RSA_SEED:-CynEKREgrdFWnsjBqep5pDrSE5km4H0lmJj9b3BIuqk=}
+      DRIVER_DB_PASS: ${DRIVER_DB_PASS}
+      AUTH_RSA_SEED: ${AUTH_RSA_SEED}
       AUTH_ACCESS_EXPIRY: "3600"
       AUTH_REFRESH_EXPIRY: "604800"
-      CLIENT_SECRET_DELIVERY: ${CLIENT_SECRET_DELIVERY:-y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
-      CLIENT_SECRET_DRIVER:   ${CLIENT_SECRET_DRIVER:-7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
-      CLIENT_SECRET_ERP:      ${CLIENT_SECRET_ERP:-Kketonr5sYVCKsczgHGkMxMTCCQINnOYotiLfLc7vUQ=}
-      CLIENT_SECRET_APP:      ${CLIENT_SECRET_APP:-IJz0vvMLEKLsZmahqEepTjoCRcutWyGm4IEL4iE5IY4=}
-      CLIENT_SECRET_GW:       ${CLIENT_SECRET_GW:-R+tyDEgIMwkVMBpsHmTfLG79q/r3shZ3OAwu0cSQhfA=}
+      CLIENT_SECRET_DELIVERY: ${CLIENT_SECRET_DELIVERY}
+      CLIENT_SECRET_DRIVER: ${CLIENT_SECRET_DRIVER}
+      CLIENT_SECRET_ERP: ${CLIENT_SECRET_ERP}
+      CLIENT_SECRET_APP: ${CLIENT_SECRET_APP}
+      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -367,7 +365,7 @@ services:
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       DRIVER_SERVICE_URL: http://driver-service:8086
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
-      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW:-R+tyDEgIMwkVMBpsHmTfLG79q/r3shZ3OAwu0cSQhfA=}
+      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
     depends_on:
       app-backend:
         condition: service_healthy
@@ -381,7 +379,7 @@ services:
     networks:
       - asm-network
 
- 
+
 volumes:
   rabbitmq-data:
   app-pgdata:

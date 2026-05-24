@@ -23,8 +23,9 @@ public class InternalDriverController {
     private final InternalDriverService internalService;
 
     @GetMapping("/available")
-    public ResponseEntity<List<InternalDriverResponse>> getAvailableDrivers() {
-        return ResponseEntity.ok(internalService.getAvailableDrivers());
+    public ResponseEntity<List<InternalDriverResponse>> getAvailableDrivers(
+            @RequestParam(required = false) UUID companyId) {
+        return ResponseEntity.ok(internalService.getAvailableDrivers(companyId));
     }
 
     @GetMapping("/{id}")

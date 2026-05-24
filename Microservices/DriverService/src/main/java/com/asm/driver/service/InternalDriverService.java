@@ -26,10 +26,11 @@ public class InternalDriverService {
     private final DriverStatsRepository statsRepo;
     private final DriverHistoryRepository historyRepo;
 
-    public List<InternalDriverResponse> getAvailableDrivers() {
-        return driverRepo.findByActiveTrue().stream()
-                .map(this::mapToInternal)
-                .collect(Collectors.toList());
+    public List<InternalDriverResponse> getAvailableDrivers(UUID companyId) {
+        List<Driver> drivers = companyId != null
+                ? driverRepo.findByCompanyIdAndActiveTrue(companyId)
+                : driverRepo.findByActiveTrue();
+        return drivers.stream().map(this::mapToInternal).collect(Collectors.toList());
     }
 
     public InternalDriverResponse getDriver(UUID driverId) {
@@ -90,6 +91,7 @@ public class InternalDriverService {
                 .createdAt(d.getCreatedAt())
                 .fcmToken(d.getFcmToken())
                 .active(d.getActive())
+                .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
                 .build();
     }
 }

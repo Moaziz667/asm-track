@@ -100,6 +100,24 @@ public class RouteWebSocketService {
         });
     }
 
+    public void notifyDriverStatusChanged(UUID companyId, UUID driverId, String status, String driverName) {
+        java.util.concurrent.CompletableFuture.runAsync(() -> {
+            try {
+                String destination = "/topic/admin." + companyId + ".drivers";
+                Map<String, String> payload = new java.util.HashMap<>();
+                payload.put("event", "driver.status_changed");
+                payload.put("driverId", driverId.toString());
+                payload.put("companyId", companyId.toString());
+                payload.put("status", status);
+                payload.put("driverName", driverName);
+                messaging.convertAndSend(destination, payload);
+                log.info("notifyDriverStatusChanged: driverId={} status={} -> {}", driverId, status, destination);
+            } catch (Exception e) {
+                log.warn("notifyDriverStatusChanged: failed for driverId={}: {}", driverId, e.getMessage());
+            }
+        });
+    }
+
     private void executeAfterCommitAsync(Runnable runnable) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(

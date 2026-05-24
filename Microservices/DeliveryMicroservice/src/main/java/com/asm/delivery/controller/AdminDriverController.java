@@ -1,5 +1,6 @@
 package com.asm.delivery.controller;
 
+import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.repository.DeliveryRepository;
@@ -35,9 +36,17 @@ public class AdminDriverController {
             DeliveryStatus.FAILED, DeliveryStatus.CANCELLED);
 
     @GetMapping
-    @Operation(summary = "List all active drivers")
+    @Operation(summary = "List active drivers scoped to the calling company")
     public ResponseEntity<List<DriverDTO>> list() {
-        return ResponseEntity.ok(transportPort.getAvailableDrivers());
+        return ResponseEntity.ok(transportPort.getAvailableDrivers(TenantContext.get()));
+    }
+
+    @GetMapping("/{id}")
+    @Operation(summary = "Get single driver with current online status")
+    public ResponseEntity<DriverDTO> getOne(@PathVariable String id) {
+        DriverDTO driver = transportPort.getDriver(id);
+        if (driver == null) return ResponseEntity.notFound().build();
+        return ResponseEntity.ok(driver);
     }
 
     @GetMapping("/available")
@@ -47,8 +56,9 @@ public class AdminDriverController {
             @RequestParam LocalTime startTime,
             @RequestParam LocalTime endTime) {
 
+        String companyId = TenantContext.get();
         Set<UUID> busyIds = routeRepository.findConflictingDriverIds(date, startTime, endTime, ACTIVE_STATUSES);
-        List<DriverDTO> available = transportPort.getAvailableDrivers().stream()
+        List<DriverDTO> available = transportPort.getAvailableDrivers(companyId).stream()
                 .filter(d -> !busyIds.contains(UUID.fromString(d.getId())))
                 .toList();
         return ResponseEntity.ok(available);

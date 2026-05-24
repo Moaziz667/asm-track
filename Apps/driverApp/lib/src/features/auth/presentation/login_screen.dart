@@ -8,6 +8,7 @@ import '../../../app.dart';
 import '../../../app_providers.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
+import 'setup_account_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -150,10 +151,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     const SizedBox(height: 48),
                     Center(
                       child: TextButton(
-                        onPressed: () => Navigator.of(context).pushNamed('/register'),
+                        onPressed: () => Navigator.of(context).pushNamed(SetupAccountScreen.routeName),
                         child: Text(
-                          "DEMANDER UN COMPTE",
-                          style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 2),
+                          "CONFIGURER MON COMPTE",
+                          style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.neonYellow, letterSpacing: 2),
                         ),
                       ),
                     ),

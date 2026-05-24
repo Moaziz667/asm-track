@@ -14,4 +14,5 @@ public class InternalDriverResponse {
     private LocalDateTime createdAt;
     private String fcmToken;
     private Boolean active;
+    private String onlineStatus;
 }

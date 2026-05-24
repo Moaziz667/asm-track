@@ -5,12 +5,14 @@ import lombok.Data;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.UUID;
 
 @Data
 @Builder
 public class AdminDriverResponse {
     private String id;
     private String name;
+    private UUID companyId;
     private String phone;
     private boolean active;
     private BigDecimal currentLat;
@@ -20,4 +22,6 @@ public class AdminDriverResponse {
     private int totalDeliveries;
     private int delivered;
     private int failed;
+    private String onlineStatus;
+    private String email;
 }

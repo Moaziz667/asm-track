@@ -6,6 +6,7 @@ import com.asm.driver.dto.request.ProfileUpdateRequest;
 import com.asm.driver.dto.response.DriverProfileResponse;
 import com.asm.driver.dto.response.HistoryResponse;
 import com.asm.driver.dto.response.StatsResponse;
+import com.asm.driver.entity.DriverOnlineStatus;
 import com.asm.driver.security.UserPrincipal;
 import com.asm.driver.service.DriverService;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
@@ -86,5 +87,22 @@ public class DriverController {
                                                           @RequestParam boolean onDuty) {
         driverService.toggleDuty(UUID.fromString(user.getUserId()), onDuty);
         return ResponseEntity.ok(Map.of("onDuty", onDuty, "message", "Duty status updated"));
+    }
+
+    @PatchMapping("/availability")
+    public ResponseEntity<Map<String, String>> updateAvailability(@AuthenticationPrincipal UserPrincipal user,
+                                                                  @RequestBody Map<String, String> body) {
+        String raw = body.get("status");
+        if (raw == null || raw.isBlank()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "status is required"));
+        }
+        DriverOnlineStatus status;
+        try {
+            status = DriverOnlineStatus.valueOf(raw.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "Invalid status. Use ONLINE, ON_BREAK, or OFFLINE"));
+        }
+        DriverOnlineStatus result = driverService.updateAvailability(UUID.fromString(user.getUserId()), status);
+        return ResponseEntity.ok(Map.of("status", result.name()));
     }
 }

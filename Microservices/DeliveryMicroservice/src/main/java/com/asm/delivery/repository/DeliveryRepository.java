@@ -58,6 +58,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("SELECT d FROM Delivery d WHERE d.driverId = :driverId AND d.status IN :statuses")
     List<Delivery> findByDriverIdAndStatuses(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
+    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.companyId = :companyId AND d.status IN :statuses")
+    List<Delivery> findActiveByCompanyWithOrder(@Param("companyId") UUID companyId, @Param("statuses") List<DeliveryStatus> statuses);
+
     /** Atomic accept: sets driver and transitions UNSCHEDULED → SCHEDULED.
      *  Returns 1 if successful, 0 if already taken (race condition). */
     @Modifying(clearAutomatically = true)

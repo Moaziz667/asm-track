@@ -7,10 +7,18 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
-import '../../../services/offline_queue_service.dart';
 import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
+
+// ─── Outcome descriptor ───────────────────────────────────────────────────────
+class _OutcomeOption {
+  const _OutcomeOption(this.value, this.label, this.icon, this.color);
+  final String value;
+  final String label;
+  final IconData icon;
+  final Color color;
+}
 
 class PodFormArgs {
   const PodFormArgs({required this.delivery});
@@ -51,26 +59,38 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   /// Per-item comment — driver can add a note per item.
   late Map<String, TextEditingController> _itemCommentControllers;
 
-  static const _outcomeLabels = {
-    'DELIVERED': 'Livré',
-    'REFUSED':   'Refusé',
-    'DAMAGED':   'Endommagé',
-  };
+  static const _outcomes = [
+    _OutcomeOption('DELIVERED', 'Livré',     Icons.check_circle_outline_rounded, AppColors.success),
+    _OutcomeOption('REFUSED',   'Refusé',    Icons.cancel_outlined,              AppColors.danger),
+    _OutcomeOption('DAMAGED',   'Endommagé', Icons.warning_amber_rounded,        AppColors.warning),
+    _OutcomeOption('MISSING',   'Manquant',  Icons.search_off_rounded,           AppColors.info),
+  ];
 
   static const _reasonsByOutcome = {
-    'REFUSED': {
-      'CLIENT_ABSENT':   'Client absent',
-      'CLIENT_REJECTED': 'Client a refusé',
-      'WRONG_ITEM':      'Mauvais article',
-      'POSTPONED':       'Reporté',
-    },
-    'DAMAGED': {
-      'DAMAGED': 'Endommagé en transit',
-    },
-    'DELIVERED': {
-      'WRONG_ITEM':  'Mauvais article',
-      'OUT_OF_STOCK': 'Rupture de stock',
-    },
+    'REFUSED': [
+      ('CLIENT_ABSENT',   'Client absent'),
+      ('CLIENT_REJECTED', 'Refus du client'),
+      ('WRONG_ADDRESS',   'Mauvaise adresse'),
+      ('POSTPONED',       'Reporté'),
+      ('OTHER',           'Autre'),
+    ],
+    'DAMAGED': [
+      ('DAMAGED_IN_TRANSIT', 'Endommagé en transit'),
+      ('DAMAGED_AT_PICKUP',  'Endommagé à la collecte'),
+      ('PACKAGING_BROKEN',   'Emballage défectueux'),
+      ('WRONG_ITEM',         'Mauvais article'),
+    ],
+    'DELIVERED': [
+      ('OUT_OF_STOCK', 'Rupture de stock'),
+      ('WRONG_ITEM',   'Mauvais article'),
+      ('OTHER',        'Autre'),
+    ],
+    'MISSING': [
+      ('NOT_LOADED',      'Non chargé en dépôt'),
+      ('LOST_IN_TRANSIT', 'Perdu en transit'),
+      ('WRONG_ITEM',      'Mauvais article'),
+      ('OTHER',           'Autre'),
+    ],
   };
 
   @override
@@ -99,13 +119,16 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     super.dispose();
   }
 
+  static const _requiresReason = {'REFUSED', 'DAMAGED', 'MISSING'};
+
   bool get _canSubmit {
     if (_bonLivraisonBytes == null || _packageBytes == null) return false;
     if (!_isPartial) return true;
     for (final item in widget.args.delivery.items) {
       final key     = item.sku ?? item.name;
       final outcome = _itemOutcomes[key] ?? 'DELIVERED';
-      if ((outcome == 'REFUSED' || outcome == 'DAMAGED') && _itemReasons[key] == null) {
+      final isPartialQty = outcome == 'DELIVERED' && (_itemsDone[key] ?? item.quantity) < item.quantity;
+      if ((_requiresReason.contains(outcome) || isPartialQty) && _itemReasons[key] == null) {
         return false;
       }
     }
@@ -118,7 +141,8 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     for (final item in widget.args.delivery.items) {
       final key     = item.sku ?? item.name;
       final outcome = _itemOutcomes[key] ?? 'DELIVERED';
-      if ((outcome == 'REFUSED' || outcome == 'DAMAGED') && _itemReasons[key] == null) {
+      final isPartialQty = outcome == 'DELIVERED' && (_itemsDone[key] ?? item.quantity) < item.quantity;
+      if ((_requiresReason.contains(outcome) || isPartialQty) && _itemReasons[key] == null) {
         return item.name;
       }
     }
@@ -423,195 +447,250 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   }
 
   Widget _buildItemOutcomeRow(BuildContext context, dynamic item) {
-    final key        = (item.sku ?? item.name) as String;
-    final plannedQty = item.quantity as int;
-    final currentQty = _itemsDone[key] ?? plannedQty;
-    final outcome    = _itemOutcomes[key] ?? 'DELIVERED';
-    final reason     = _itemReasons[key];
+    final key         = (item.sku ?? item.name) as String;
+    final plannedQty  = item.quantity as int;
+    final currentQty  = _itemsDone[key] ?? plannedQty;
+    final outcome     = _itemOutcomes[key] ?? 'DELIVERED';
+    final reason      = _itemReasons[key];
     final commentCtrl = _itemCommentControllers[key]!;
 
-    // Show reason + comment when: refused, damaged, or delivered but qty < planned
-    final isPartialQty  = outcome == 'DELIVERED' && currentQty < plannedQty;
-    final needsExtra    = outcome == 'REFUSED' || outcome == 'DAMAGED' || isPartialQty;
-
-    final Color outcomeColor = outcome == 'DELIVERED'
-        ? (isPartialQty ? AppColors.warning : AppColors.success)
-        : AppColors.danger;
+    final opt          = _outcomes.firstWhere((o) => o.value == outcome, orElse: () => _outcomes.first);
+    final isPartialQty = outcome == 'DELIVERED' && currentQty < plannedQty;
+    final needsExtra   = _requiresReason.contains(outcome) || isPartialQty;
+    final borderColor  = isPartialQty ? AppColors.warning : opt.color;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
         color: AppColors.surface,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: outcomeColor.withValues(alpha: 0.35), width: 1.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor.withValues(alpha: 0.4), width: 1.5),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
 
-          // ── Header: item name + outcome chips ────────────────────────
+          // ── Item header ───────────────────────────────────────────────
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 14, 14, 10),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+            child: Row(
               children: [
-                Text(
-                  item.name as String,
-                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary),
+                Container(
+                  width: 32, height: 32,
+                  decoration: BoxDecoration(
+                    color: borderColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(opt.icon, size: 16, color: borderColor),
                 ),
-                const SizedBox(height: 10),
-                Row(
-                  children: _outcomeLabels.entries.map((e) {
-                    final selected = outcome == e.key;
-                    final chipColor = e.key == 'DELIVERED' ? AppColors.success : AppColors.danger;
-                    return Padding(
-                      padding: const EdgeInsets.only(right: 8),
-                      child: GestureDetector(
-                        onTap: () => setState(() {
-                          _itemOutcomes[key] = e.key;
-                          _itemReasons[key]  = null;
-                          _itemsDone[key]    = e.key == 'DELIVERED' ? plannedQty : 0;
-                        }),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
-                          decoration: BoxDecoration(
-                            color: selected ? chipColor : AppColors.surfaceElevated,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: selected ? chipColor : AppColors.border),
-                          ),
-                          child: Text(
-                            e.value,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: selected ? Colors.white : AppColors.textSecondary,
-                            ),
-                          ),
-                        ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        item.name as String,
+                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary),
                       ),
-                    );
-                  }).toList(),
+                      if (item.sku != null && item.sku != item.name)
+                        Text(item.sku as String, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                    ],
+                  ),
+                ),
+                // Qty badge
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceElevated,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Text(
+                    outcome == 'DELIVERED' ? '$currentQty / $plannedQty' : '0 / $plannedQty',
+                    style: TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace',
+                      color: isPartialQty ? AppColors.warning
+                           : outcome != 'DELIVERED' ? AppColors.danger
+                           : AppColors.success,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
 
-          const Divider(height: 1, color: AppColors.border),
+          const SizedBox(height: 12),
+
+          // ── Outcome grid — 2×2 ───────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: GridView.count(
+              crossAxisCount: 2,
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+              childAspectRatio: 2.8,
+              children: _outcomes.map((o) {
+                final selected = outcome == o.value;
+                return GestureDetector(
+                  onTap: () => setState(() {
+                    _itemOutcomes[key] = o.value;
+                    _itemReasons[key]  = null;
+                    _itemsDone[key]    = o.value == 'DELIVERED' ? plannedQty : 0;
+                  }),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    decoration: BoxDecoration(
+                      color: selected ? o.color.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: selected ? o.color : AppColors.border,
+                        width: selected ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(o.icon, size: 15, color: selected ? o.color : AppColors.muted),
+                        const SizedBox(width: 6),
+                        Text(
+                          o.label,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: selected ? o.color : AppColors.textSecondary,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
 
           // ── Quantity stepper (DELIVERED only) ────────────────────────
-          if (outcome == 'DELIVERED')
+          if (outcome == 'DELIVERED') ...[
+            const SizedBox(height: 12),
+            const Divider(height: 1, color: AppColors.border),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Text('Quantité livrée', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  const Text('Quantité livrée',
+                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.remove_circle_outline, size: 22),
-                    color: currentQty > 0 ? AppColors.danger : AppColors.border,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: currentQty > 0
+                  GestureDetector(
+                    onTap: currentQty > 0
                         ? () => setState(() => _itemsDone[key] = currentQty - 1)
                         : null,
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: currentQty > 0 ? AppColors.dangerSubtle : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: currentQty > 0 ? AppColors.dangerBorder : AppColors.border),
+                      ),
+                      child: Icon(Icons.remove, size: 16,
+                          color: currentQty > 0 ? AppColors.danger : AppColors.muted),
+                    ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
                     child: Text(
-                      '$currentQty / $plannedQty',
+                      '$currentQty',
                       style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 15,
+                        fontWeight: FontWeight.w800, fontSize: 18,
                         color: isPartialQty ? AppColors.warning : AppColors.textPrimary,
                       ),
                     ),
                   ),
-                  IconButton(
-                    icon: const Icon(Icons.add_circle_outline, size: 22),
-                    color: currentQty < plannedQty ? AppColors.success : AppColors.border,
-                    padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    onPressed: currentQty < plannedQty
+                  GestureDetector(
+                    onTap: currentQty < plannedQty
                         ? () => setState(() => _itemsDone[key] = currentQty + 1)
                         : null,
-                  ),
-                ],
-              ),
-            )
-          else
-            // Refused / Damaged — qty locked at 0
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-              child: Row(
-                children: [
-                  const Text('Quantité livrée', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  const Spacer(),
-                  Text('0 / $plannedQty', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15, color: AppColors.danger)),
-                ],
-              ),
-            ),
-
-          // ── Reason + comment (refused, damaged, or partial qty) ──────
-          if (needsExtra) ...[
-            const Divider(height: 1, color: AppColors.border),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    isPartialQty ? 'Raison (livraison partielle)' : 'Raison',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.muted),
-                  ),
-                  const SizedBox(height: 8),
-                  // Scrollable reason chips
-                  SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: (_reasonsByOutcome[outcome] ?? _reasonsByOutcome['REFUSED']!).entries.map((e) {
-                        final selected = reason == e.key;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: GestureDetector(
-                            onTap: () => setState(() => _itemReasons[key] = e.key),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: selected ? AppColors.accent.withValues(alpha: 0.15) : AppColors.surfaceElevated,
-                                borderRadius: BorderRadius.circular(20),
-                                border: Border.all(color: selected ? AppColors.accent : AppColors.border),
-                              ),
-                              child: Text(
-                                e.value,
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w500,
-                                  color: selected ? AppColors.accent : AppColors.textSecondary,
-                                ),
-                              ),
-                            ),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  TextField(
-                    controller: commentCtrl,
-                    minLines: 1,
-                    maxLines: 3,
-                    style: const TextStyle(fontSize: 13),
-                    decoration: InputDecoration(
-                      hintText: 'Commentaire sur cet article (optionnel)',
-                      hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+                    child: Container(
+                      width: 32, height: 32,
+                      decoration: BoxDecoration(
+                        color: currentQty < plannedQty ? AppColors.successSubtle : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: currentQty < plannedQty ? AppColors.successBorder : AppColors.border),
+                      ),
+                      child: Icon(Icons.add, size: 16,
+                          color: currentQty < plannedQty ? AppColors.success : AppColors.muted),
                     ),
                   ),
                 ],
               ),
             ),
           ],
+
+          // ── Reason chips (wrapped grid) ───────────────────────────────
+          if (needsExtra) ...[
+            const Divider(height: 1, color: AppColors.border),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+              child: Text(
+                isPartialQty ? 'Motif — livraison partielle *' : 'Motif *',
+                style: const TextStyle(
+                    fontSize: 11, fontWeight: FontWeight.w700,
+                    color: AppColors.muted, letterSpacing: 0.5),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: (_reasonsByOutcome[outcome] ?? _reasonsByOutcome['REFUSED']!)
+                    .map((r) {
+                  final selected = reason == r.$1;
+                  return GestureDetector(
+                    onTap: () => setState(() => _itemReasons[key] = r.$1),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 120),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: selected ? opt.color.withValues(alpha: 0.15) : AppColors.surfaceElevated,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                          color: selected ? opt.color : AppColors.border,
+                          width: selected ? 1.5 : 1,
+                        ),
+                      ),
+                      child: Text(
+                        r.$2,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: selected ? opt.color : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+          ],
+
+          // ── Per-item comment ──────────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
+            child: TextField(
+              controller: commentCtrl,
+              minLines: 1,
+              maxLines: 3,
+              style: const TextStyle(fontSize: 13),
+              decoration: InputDecoration(
+                hintText: 'Commentaire sur cet article (optionnel)',
+                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ),
         ],
       ),
     );
@@ -674,8 +753,8 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   orElse: () => widget.args.delivery.items.first)
               .quantity;
           final isPartialQty = outcome == 'DELIVERED' && e.value < plannedQty;
-          // Send reason when: refused, damaged, or delivered with less than planned qty
-          final sendReason = outcome == 'REFUSED' || outcome == 'DAMAGED' || isPartialQty;
+          // Send reason when: refused, damaged, missing, or delivered with less than planned qty
+          final sendReason = _requiresReason.contains(outcome) || isPartialQty;
           return PartialDeliveryItem(
             sku: e.key,
             quantityDone: e.value,
