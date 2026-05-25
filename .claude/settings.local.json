@@ -74,7 +74,8 @@
       "Bash(xargs grep -l \"companyFilter\\\\|@Filter\\\\|enableFilter\")",
       "Bash(python3 -c ' *)",
       "Bash(git stash *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "Bash(Test-Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\components\\\\DispatchLiveMap.tsx\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
