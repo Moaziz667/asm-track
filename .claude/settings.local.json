@@ -75,11 +75,33 @@
       "Bash(python3 -c ' *)",
       "Bash(git stash *)",
       "Bash(git checkout *)",
-      "Bash(Test-Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\components\\\\DispatchLiveMap.tsx\")"
+      "Bash(Test-Path \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\components\\\\DispatchLiveMap.tsx\")",
+      "Bash(npx shadcn@latest init --help)",
+      "Bash(npx shadcn@latest init -y --defaults)",
+      "Bash(npx shadcn@latest add button dialog sheet input textarea select badge tooltip table tabs separator dropdown-menu popover -y)",
+      "Bash(npx shadcn@latest add button dialog sheet input textarea select badge tooltip table tabs separator dropdown-menu popover -y --force)",
+      "Bash(npx shadcn@latest add button dialog sheet input textarea select badge tooltip table tabs separator dropdown-menu popover -y -o)",
+      "Bash(pnpm dlx *)",
+      "Bash(pnpm tsc *)",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\icons\\\\AppLogo.png\" -Destination \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\public\\\\AppLogo.png\")",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\icons\\\\AppLogo.png\" -Destination \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\public\\\\favicon.png\" -Force)",
+      "PowerShell(Copy-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\icons\\\\AppLogo.png\" -Destination \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\public\\\\favicon.ico\" -Force)",
+      "Bash(npx shadcn@latest add calendar --yes)",
+      "Bash(# Copy SVG to public folder *)",
+      "Bash(rm fix.py fix_layout.py replace.py)",
+      "Bash(rm scratch/check_balance.py scratch/check_tags.py scratch/fix_props.py)",
+      "Bash(rmdir scratch *)",
+      "Bash(rm public/3DBOX.gltf public/untitled.bin public/uppC2.jpg)",
+      "WebFetch(domain:lottiefiles.com)",
+      "WebSearch",
+      "WebFetch(domain:app.lottiefiles.com)",
+      "WebFetch(domain:lottie.host)",
+      "Bash(npm ls *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
-      "C:\\Users\\M S I\\Pictures\\Screenshots"
+      "C:\\Users\\M S I\\Pictures\\Screenshots",
+      "C:\\Users\\M S I\\Downloads"
     ]
   }
 }
