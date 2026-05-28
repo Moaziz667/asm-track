@@ -110,7 +110,8 @@
       "Bash(grep -r \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" --include=\"*.tsx\" --include=\"*.ts\" -l)",
       "Bash(grep -n \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" page.tsx)",
       "PowerShell(@\\(Get-Content \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\lib\\\\ux-copy.ts\"\\).Count)",
-      "Bash(xargs grep -l \"setLocale\\\\|useLocaleStore\")"
+      "Bash(xargs grep -l \"setLocale\\\\|useLocaleStore\")",
+      "Bash(xargs grep -l \"SLA\\\\|Waiting\\\\|Assign\\\\|Pickup\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
