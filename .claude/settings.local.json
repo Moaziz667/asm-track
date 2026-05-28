@@ -96,7 +96,9 @@
       "WebSearch",
       "WebFetch(domain:app.lottiefiles.com)",
       "WebFetch(domain:lottie.host)",
-      "Bash(npm ls *)"
+      "Bash(npm ls *)",
+      "Bash(node scripts/extract-translations.mjs)",
+      "Bash(xargs grep -l \"logout.*modal\\\\|LogoutModal\\\\|confirm.*logout\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

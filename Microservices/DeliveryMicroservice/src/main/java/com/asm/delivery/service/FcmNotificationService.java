@@ -43,4 +43,22 @@ public class FcmNotificationService {
             log.warn("FCM send to driver {} failed: {}", driverId, e.getMessage());
         }
     }
+
+    public void sendDataToDriver(String driverId, java.util.Map<String, String> data) {
+        try {
+            DriverDTO driver = transportPort.getDriver(driverId);
+            if (driver == null || driver.getFcmToken() == null || driver.getFcmToken().isBlank()) {
+                log.debug("FCM: driver {} has no token, skipping", driverId);
+                return;
+            }
+            Message msg = Message.builder()
+                    .putAllData(data)
+                    .setToken(driver.getFcmToken())
+                    .build();
+            String messageId = FirebaseMessaging.getInstance().send(msg);
+            log.info("FCM data-only sent to driver {} msgId={}", driverId, messageId);
+        } catch (Exception e) {
+            log.warn("FCM data-only send to driver {} failed: {}", driverId, e.getMessage());
+        }
+    }
 }

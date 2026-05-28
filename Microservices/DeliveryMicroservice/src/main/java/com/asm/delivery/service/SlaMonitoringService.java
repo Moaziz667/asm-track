@@ -45,7 +45,7 @@ public class SlaMonitoringService {
             if (elapsed > waitingLimit) {
                 if (alertedKeys.add(d.getId() + ":WAITING")) {
                     eventPublisher.publishSlaBreach(d, "SLA_WAITING", "WARNING", 
-                        String.format("Retard planification : %d min (Limite %d min)", elapsed, waitingLimit));
+                        java.util.Map.of("elapsed", elapsed, "limit", waitingLimit));
                 }
             }
         });
@@ -58,7 +58,7 @@ public class SlaMonitoringService {
             if (elapsed > assignLimit) {
                 if (alertedKeys.add(d.getId() + ":ASSIGNMENT")) {
                     eventPublisher.publishSlaBreach(d, "SLA_ASSIGNMENT", "CRITICAL", 
-                        String.format("Retard ramassage : %d min (Limite %d min)", elapsed, assignLimit));
+                        java.util.Map.of("elapsed", elapsed, "limit", assignLimit));
                 }
             }
         });
@@ -71,7 +71,7 @@ public class SlaMonitoringService {
                     if (now.isAfter(deadline)) {
                         if (alertedKeys.add(d.getId() + ":TRANSIT")) {
                             eventPublisher.publishSlaBreach(d, "SLA_TRANSIT", "CRITICAL", 
-                                "Créneau horaire de livraison dépassé !");
+                                java.util.Map.of("deadline", stop.getEndTimeWindow().toString()));
                         }
                     }
                 }

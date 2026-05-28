@@ -42,6 +42,7 @@ public class OrderService {
     private final com.asm.delivery.repository.RouteRepository routeRepository;
     private final com.asm.delivery.service.route.RoutePlanningService routePlanningService;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Value("${app.origin.name:Main Warehouse}")
     private String originName;
@@ -111,7 +112,7 @@ public class OrderService {
         auditLogService.logAction(null, "APP_ORDER_CREATED", "DELIVERY", order.getId().toString(),
             java.util.Map.of("client", clientName != null ? clientName : "N/A", "source", "Application", "action", "Nouvelle commande"));
 
-        Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order created from app");
+        Delivery delivery = createDeliveryTask(order, "SYSTEM", "DELIVERY_CREATED", Map.of());
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
 
@@ -149,7 +150,7 @@ public class OrderService {
         auditLogService.logAction(null, "ODOO_RECV_ORDER", "DELIVERY", order.getId().toString(),
             java.util.Map.of("erpId", erpOrderId != null ? erpOrderId : "N/A", "source", "Odoo", "action", "Import commande ERP"));
 
-        Delivery delivery = createDeliveryTask(order, "SYSTEM", "Order received from Odoo");
+        Delivery delivery = createDeliveryTask(order, "SYSTEM", "DELIVERY_CREATED", Map.of());
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
 
@@ -221,7 +222,7 @@ public class OrderService {
             delivery.setCancelReason("Cancelled by client");
             deliveryRepo.save(delivery);
 
-            appendHistory(delivery, DeliveryStatus.CANCELLED, clientId, Role.CLIENT, "Cancelled by client");
+            appendHistory(delivery, DeliveryStatus.CANCELLED, clientId, Role.CLIENT, "DELIVERY_CANCELLED_BY_CLIENT", Map.of("clientId", clientId));
             eventPublisher.publishDeliveryCancelled(order, delivery, null);
         }
 
@@ -280,7 +281,7 @@ public class OrderService {
             delivery.setCancelReason(cancelReason);
             deliveryRepo.save(delivery);
 
-            appendHistory(delivery, DeliveryStatus.CANCELLED, adminId, Role.ADMIN, cancelReason);
+            appendHistory(delivery, DeliveryStatus.CANCELLED, adminId, Role.ADMIN, "DELIVERY_CANCELLED_BY_ADMIN", Map.of("reason", cancelReason));
             eventPublisher.publishDeliveryCancelled(order, delivery, null);
         }
 
@@ -354,7 +355,7 @@ public class OrderService {
                 .build();
 
         reorder = orderRepo.save(reorder);
-        Delivery delivery = createDeliveryTask(reorder, clientId, "Reorder");
+        Delivery delivery = createDeliveryTask(reorder, clientId, "DELIVERY_CREATED", Map.of("clientId", clientId, "reordered", true));
         eventPublisher.publishDeliveryCreated(reorder, delivery);
 
         return toOrderResponse(reorder, delivery);
@@ -362,7 +363,7 @@ public class OrderService {
 
     // ── Internal helpers ──────────────────────────────────────────────────────
 
-    private Delivery createDeliveryTask(Order order, String changedBy, String note) {
+    private Delivery createDeliveryTask(Order order, String changedBy, String eventKey, Map<String, Object> params) {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
@@ -370,17 +371,23 @@ public class OrderService {
                 .build();
         delivery = deliveryRepo.save(delivery);
 
-        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, changedBy, Role.SYSTEM, note);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, changedBy, Role.SYSTEM, eventKey, params);
         return delivery;
     }
 
-    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
+        String jsonParams = "{}";
+        try {
+            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+        } catch (Exception ignored) {}
+        
         historyRepo.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(status)
                 .changedBy(changedBy)
                 .changedByRole(role)
-                .note(note)
+                .eventKey(eventKey)
+                .eventParams(jsonParams)
                 .build());
     }
 

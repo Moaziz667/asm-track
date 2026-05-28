@@ -145,9 +145,9 @@ public class DriverDeliveryService {
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
-                Map.of("chauffeur", driverName, "client", clientName, "action", "Acceptation de livraison"));
+                Map.of("driver", driverName, "client", clientName, "action", "DRIVER_ACCEPT"));
 
-        appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "Driver accepted delivery");
+        appendHistory(delivery, DeliveryStatus.SCHEDULED, driverId.toString(), Role.DRIVER, "DELIVERY_SCHEDULED_BY_DRIVER", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, driverId);
 
         return toDriverDeliveryResponse(delivery);
@@ -166,7 +166,7 @@ public class DriverDeliveryService {
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_PICKUP", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
-        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Package picked up");
+        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "DELIVERY_PICKED_UP", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryPickedUp(delivery.getOrder(), delivery);
 
         return toDriverDeliveryResponse(delivery);
@@ -203,7 +203,7 @@ public class DriverDeliveryService {
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_TRANSIT", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Debut du transit"));
-        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, transitNote);
+        appendHistory(delivery, DeliveryStatus.IN_TRANSIT, driverId.toString(), Role.DRIVER, "DELIVERY_TRANSIT_STARTED", Map.of("driverId", driverId.toString()));
         eventPublisher.publishDeliveryInTransit(
                 delivery.getOrder(),
                 delivery,
@@ -285,12 +285,12 @@ public class DriverDeliveryService {
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
-            Map.of("chauffeur", driverName, "client", clientName, "statut", finalStatus.name(),
-                   "action", isPartial ? "Livraison partielle" : "Livraison completee"));
+            Map.of("driver", driverName, "client", clientName, "status", finalStatus.name(),
+                   "action", isPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED"));
 
-        String message = isPartial ? "Delivery partially completed" : "Delivery completed";
-        appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, message);
-        routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), message);
+        String eventKey = isPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED";
+        appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, eventKey, Map.of("driverId", driverId.toString()));
+        routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), eventKey);
         
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
@@ -437,7 +437,10 @@ public class DriverDeliveryService {
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
             throw AppException.badRequest(
-                    "Impossible de soumettre le POD : statut actuel " + delivery.getStatus());
+                    "INVALID_STATUS_FOR_POD",
+                    "Cannot submit proof of delivery: current status is " + delivery.getStatus(),
+                    Map.of("currentStatus", delivery.getStatus().name())
+            );
         }
 
         // P0: Geofence Enforcement
@@ -458,7 +461,7 @@ public class DriverDeliveryService {
                     deliveryFolder + "/bon-livraison.png");
         } catch (StorageException e) {
             log.error("Failed to upload bon-livraison photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Échec du stockage de la photo. Veuillez réessayer.");
+            throw AppException.serviceUnavailable("PHOTO_UPLOAD_FAILED", "Failed to upload signature or delivery receipt photo. Please try again.");
         }
 
         String packagePhotoUrl;
@@ -468,7 +471,7 @@ public class DriverDeliveryService {
                     deliveryFolder + "/package.png");
         } catch (StorageException e) {
             log.error("Failed to upload package photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("Échec du stockage de la photo du colis. Veuillez réessayer.");
+            throw AppException.serviceUnavailable("PACKAGE_PHOTO_UPLOAD_FAILED", "Failed to upload package photo to storage. Please try again.");
         }
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
@@ -496,7 +499,7 @@ public class DriverDeliveryService {
     private void validateGeofence(Delivery delivery, BigDecimal driverLat, BigDecimal driverLng) {
         // GEOFENCE DISABLED FOR TESTING — re-enable before production
         // if (driverLat == null || driverLng == null) {
-        //     throw AppException.badRequest("Coordonnées GPS requises pour valider la livraison.");
+        //     throw AppException.badRequest("GPS_REQUIRED", "GPS coordinates are required to validate delivery.");
         // }
 
         // Order order = delivery.getOrder();
@@ -514,8 +517,11 @@ public class DriverDeliveryService {
 
         // if (distance > maxRadius) {
         //     log.warn("GEOFENCE_REJECT deliveryId={} driverId={} distance={}m", delivery.getId(), delivery.getDriverId(), (int)distance);
-        //     throw AppException.badRequest(String.format(
-        //         "Validation impossible : vous êtes trop loin du point de livraison (%d mètres).", (int)distance));
+        //     throw AppException.badRequest(
+        //         "OUT_OF_GEOFENCE",
+        //         String.format("Geofence violation: you are too far from the dropoff point (%d meters).", (int)distance),
+        //         Map.of("distance", (int)distance)
+        //     );
         // }
     }
 
@@ -549,8 +555,8 @@ public class DriverDeliveryService {
         String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_FAIL", "DELIVERY", delivery.getId().toString(),
-            Map.of("chauffeur", driverName, "client", clientName, "code", String.valueOf(failureCode),
-                   "motif", failureComment != null ? failureComment : "", "action", "Livraison echouee"));
+            Map.of("driver", driverName, "client", clientName, "code", String.valueOf(failureCode),
+                   "reason", failureComment != null ? failureComment : "", "action", "DELIVERY_FAILED"));
 
         // Release driver + increment stat (best-effort)
         Map<String, Object> failedPayload = new HashMap<>();
@@ -558,7 +564,8 @@ public class DriverDeliveryService {
         failedPayload.put("stat", "failed");
         outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", failedPayload);
 
-        appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, failureComment);
+        appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, "DELIVERY_FAILED",
+                Map.of("driverId", driverId.toString(), "reason", failureComment != null ? failureComment : "", "code", failureCode != null ? failureCode.name() : ""));
         routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
@@ -604,7 +611,8 @@ public class DriverDeliveryService {
                 Map.of("chauffeur", driverName, "client", clientName, "motif", StringUtils.hasText(reason) ? reason : "aucun",
                        "action", "Annulation par le chauffeur"));
         appendHistory(delivery, DeliveryStatus.UNSCHEDULED, driverId.toString(), Role.DRIVER,
-                StringUtils.hasText(reason) ? reason : "Driver cancelled, reassigning");
+                "DELIVERY_CANCELLED_BY_DRIVER",
+                Map.of("driverId", driverId.toString(), "reason", StringUtils.hasText(reason) ? reason : ""));
 
         eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, driverId);
 
@@ -754,8 +762,8 @@ public class DriverDeliveryService {
                        "action", "Confirmation de remise du colis"));
 
         appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER,
-                "Handoff confirmed — package received from driver " +
-                (stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString().substring(0, 8) : "unknown"));
+                "DELIVERY_HANDOFF_CONFIRMED",
+                Map.of("driverId", driverId.toString(), "fromDriverId", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : ""));
 
         // Notify admin dashboard
         eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId, delivery.getCompanyId());
@@ -800,7 +808,7 @@ public class DriverDeliveryService {
                 delivery.setAssignSlaMinutes(null);
                 delivery.setPickupSlaMinutes(null);
                 deliveryRepo.save(delivery);
-                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM, "Workflow: timeout reset");
+                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM, "DELIVERY_TIMEOUT_RESET", Map.of());
             }
         });
     }
@@ -815,7 +823,7 @@ public class DriverDeliveryService {
             delivery.setCancelledBy(Role.SYSTEM);
             delivery.setCancelReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, DeliveryStatus.CANCELLED, "SYSTEM", Role.SYSTEM, reason);
+            appendHistory(delivery, DeliveryStatus.CANCELLED, "SYSTEM", Role.SYSTEM, "DELIVERY_CANCELLED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
             eventPublisher.publishDeliveryCancelled(delivery.getOrder(), delivery, null);
         });
     }
@@ -829,7 +837,7 @@ public class DriverDeliveryService {
             delivery.setFailedAt(LocalDateTime.now());
             delivery.setFailReason(reason);
             deliveryRepo.save(delivery);
-            appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, reason);
+            appendHistory(delivery, DeliveryStatus.FAILED, "SYSTEM", Role.SYSTEM, "DELIVERY_FAILED_BY_SYSTEM", Map.of("reason", reason != null ? reason : ""));
             routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), reason);
             eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, reason);
         });
@@ -870,13 +878,19 @@ public class DriverDeliveryService {
         }
     }
 
-    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
+        String jsonParams = "{}";
+        try {
+            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+        } catch (Exception ignored) {}
+        
         historyRepo.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(status)
                 .changedBy(changedBy)
                 .changedByRole(role)
-                .note(note)
+                .eventKey(eventKey)
+                .eventParams(jsonParams)
                 .build());
     }
 

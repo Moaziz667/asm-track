@@ -182,7 +182,8 @@ public class ErpLookupService {
                 .status(DeliveryStatus.UNSCHEDULED)
                 .changedBy("SYSTEM")
                 .changedByRole(Role.SYSTEM)
-                .note("Imported from ERP via Adapter")
+                .eventKey("DELIVERY_CREATED")
+                .eventParams("{}")
                 .build());
 
         eventPublisher.publishDeliveryCreated(order, delivery);

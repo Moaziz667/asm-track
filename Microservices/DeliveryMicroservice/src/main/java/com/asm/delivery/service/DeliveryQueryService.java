@@ -25,6 +25,7 @@ public class DeliveryQueryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final TransportPort                   transportPort;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private DeliveryQueryService self;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -95,7 +96,8 @@ public class DeliveryQueryService {
                             .timestamp(h.getChangedAt())
                             .changedBy(actorDisplay)
                             .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                            .note(h.getNote())
+                            .eventKey(h.getEventKey())
+                            .eventParams(deserializeEventParams(h.getEventParams()))
                             .changedAt(h.getChangedAt())
                             .build();
                 })
@@ -110,6 +112,15 @@ public class DeliveryQueryService {
         assertAccessToDelivery(delivery, requesterId, requesterRole);
 
         return historyRepo.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
+    }
+
+    private Map<String, Object> deserializeEventParams(String json) {
+        if (json == null || json.isEmpty()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
     }
 
     private String resolveActorNameLocal(String changedBy, com.asm.delivery.entity.Role role, Map<String, String> driverNames) {

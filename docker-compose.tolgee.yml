@@ -1,0 +1,41 @@
+services:
+  tolgee-db:
+    image: postgres:16-alpine
+    container_name: tolgee-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: tolgee
+      POSTGRES_PASSWORD: tolgee
+      POSTGRES_DB: tolgee
+    volumes:
+      - tolgee-db-data:/var/lib/postgresql/data
+    networks:
+      - pfe-network
+
+  tolgee:
+    image: tolgee/tolgee:latest
+    container_name: tolgee
+    restart: unless-stopped
+    depends_on:
+      - tolgee-db
+    ports:
+      - "8200:8080"
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:postgresql://tolgee-db:5432/tolgee
+      SPRING_DATASOURCE_USERNAME: tolgee
+      SPRING_DATASOURCE_PASSWORD: tolgee
+      TOLGEE_AUTHENTICATION_INITIAL_USERNAME: admin
+      TOLGEE_AUTHENTICATION_INITIAL_PASSWORD: admin
+      TOLGEE_FILE_STORAGE_FS_DATA_PATH: /data
+    volumes:
+      - tolgee-data:/data
+    networks:
+      - pfe-network
+
+volumes:
+  tolgee-db-data:
+  tolgee-data:
+
+networks:
+  pfe-network:
+    external: true

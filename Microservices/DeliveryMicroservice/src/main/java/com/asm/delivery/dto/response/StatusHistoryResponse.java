@@ -18,6 +18,7 @@ public class StatusHistoryResponse {
     private LocalDateTime timestamp;
     private String        changedBy;
     private String        changedByRole;
-    private String        note;
+    private String        eventKey;
+    private java.util.Map<String, Object> eventParams;
     private LocalDateTime changedAt;
 }

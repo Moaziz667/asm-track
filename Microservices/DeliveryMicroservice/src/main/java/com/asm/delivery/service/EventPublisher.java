@@ -99,13 +99,13 @@ public class EventPublisher {
         }
     }
 
-    public void publishSlaBreach(Delivery delivery, String motif, String severity, String message) {
+    public void publishSlaBreach(Delivery delivery, String motif, String severity, Map<String, Object> params) {
         executeAfterCommitAsync(() -> {
             log.warn("EVENT sla.breach deliveryId={} motif={} severity={}", delivery.getId(), motif, severity);
             Map<String, Object> m = deliveryPayload("sla.breach", delivery.getOrder(), delivery);
             m.put("motif", motif);
             m.put("severity", severity);
-            m.put("slaMessage", message);
+            m.put("slaParams", params != null ? params : Map.of());
             sendDelivery(m);
         });
     }
@@ -129,7 +129,11 @@ public class EventPublisher {
             sendDelivery(p);
             if (fcm != null && driverId != null) {
                 String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
-                fcm.sendToDriver(driverId.toString(), "Nouvelle livraison assignée", ref + " est prête à être récupérée", "DELIVERY_ASSIGNED");
+                fcm.sendDataToDriver(driverId.toString(), Map.of(
+                    "event_type", "DELIVERY_ASSIGNED",
+                    "deliveryId", delivery.getId().toString(),
+                    "ref", ref
+                ));
             }
         });
     }
@@ -201,10 +205,21 @@ public class EventPublisher {
             p.put("newDriverId", newDriverId);
             sendDelivery(p);
             String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
-            if (fcm != null && newDriverId != null)
-                fcm.sendToDriver(newDriverId.toString(), "Livraison réassignée", ref + " vous a été attribuée", "DELIVERY_ASSIGNED");
-            if (fcm != null && previousDriverId != null)
-                fcm.sendToDriver(previousDriverId.toString(), "Livraison retirée", ref + " a été attribuée à un autre livreur", "ROUTE_UPDATED");
+            if (fcm != null && newDriverId != null) {
+                fcm.sendDataToDriver(newDriverId.toString(), Map.of(
+                    "event_type", "DELIVERY_ASSIGNED",
+                    "deliveryId", delivery.getId().toString(),
+                    "ref", ref
+                ));
+            }
+            if (fcm != null && previousDriverId != null) {
+                fcm.sendDataToDriver(previousDriverId.toString(), Map.of(
+                    "event_type", "ROUTE_UPDATED",
+                    "deliveryId", delivery.getId().toString(),
+                    "ref", ref,
+                    "action", "removed_by_reassign"
+                ));
+            }
         });
     }
 
@@ -222,7 +237,11 @@ public class EventPublisher {
             sendDelivery(deliveryPayload("delivery.reassigned_away", order, delivery));
             if (fcm != null && previousDriverId != null) {
                 String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Une livraison";
-                fcm.sendToDriver(previousDriverId.toString(), "Livraison retirée", ref + " a été attribuée à un autre livreur");
+                fcm.sendDataToDriver(previousDriverId.toString(), Map.of(
+                    "event_type", "DELIVERY_REMOVED",
+                    "deliveryId", delivery.getId().toString(),
+                    "ref", ref
+                ));
             }
         });
     }
@@ -232,8 +251,13 @@ public class EventPublisher {
             log.info("EVENT delivery.handoff_required deliveryId={} newDriverId={}", delivery.getId(), newDriverId);
             sendDelivery(deliveryPayload("delivery.handoff_required", order, delivery));
             String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Colis";
-            if (fcm != null && newDriverId != null)
-                fcm.sendToDriver(newDriverId.toString(), "Transfert de colis en attente", ref + " — scannez le QR du livreur précédent pour recevoir", "HANDOFF_REQUIRED");
+            if (fcm != null && newDriverId != null) {
+                fcm.sendDataToDriver(newDriverId.toString(), Map.of(
+                    "event_type", "HANDOFF_REQUIRED",
+                    "deliveryId", delivery.getId().toString(),
+                    "ref", ref
+                ));
+            }
         });
     }
 
@@ -273,9 +297,13 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT route.validated routeId={} driverId={}", route.getId(), route.getDriverId());
             sendRoute(routePayload("route.validated", route));
-            if (fcm != null && route.getDriverId() != null)
-                fcm.sendToDriver(route.getDriverId().toString(), "Tournée prête à démarrer",
-                        "\"" + route.getName() + "\" est validée — consultez-la avant de partir", "ROUTE_VALIDATED");
+            if (fcm != null && route.getDriverId() != null) {
+                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
+                    "event_type", "ROUTE_VALIDATED",
+                    "routeId", route.getId().toString(),
+                    "routeName", route.getName() != null ? route.getName() : ""
+                ));
+            }
         });
     }
 
@@ -283,9 +311,13 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT route.schedule_changed routeId={} driverId={}", route.getId(), route.getDriverId());
             sendRoute(routePayload("route.schedule_changed", route));
-            if (fcm != null && route.getDriverId() != null)
-                fcm.sendToDriver(route.getDriverId().toString(), "Horaire modifié",
-                        "L'heure de départ de \"" + route.getName() + "\" a été mise à jour");
+            if (fcm != null && route.getDriverId() != null) {
+                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
+                    "event_type", "ROUTE_SCHEDULE_CHANGED",
+                    "routeId", route.getId().toString(),
+                    "routeName", route.getName() != null ? route.getName() : ""
+                ));
+            }
         });
     }
 
@@ -294,8 +326,12 @@ public class EventPublisher {
             log.info("EVENT route.stop_added routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
             sendRoute(routePayload("route.stop_added", route));
             if (fcm != null && route.getDriverId() != null) {
-                String client = clientName != null ? clientName : "nouveau client";
-                fcm.sendToDriver(route.getDriverId().toString(), "Nouvel arrêt ajouté", client + " ajouté à votre tournée en cours", "ROUTE_UPDATED");
+                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
+                    "event_type", "ROUTE_STOP_ADDED",
+                    "routeId", route.getId().toString(),
+                    "routeName", route.getName() != null ? route.getName() : "",
+                    "clientName", clientName != null ? clientName : ""
+                ));
             }
         });
     }
@@ -311,11 +347,14 @@ public class EventPublisher {
             log.info("EVENT route.stop_removed routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
             sendRoute(routePayload("route.stop_removed", route));
             if (fcm != null && route.getDriverId() != null) {
-                String client = clientName != null ? clientName : "Un arrêt";
-                String ref = erpOrderId != null ? " [" + erpOrderId + "]" : "";
-                String note = reason != null && !reason.isBlank() ? " — " + reason : "";
-                fcm.sendToDriver(route.getDriverId().toString(), "Arrêt supprimé" + ref,
-                        client + " a été retiré de votre tournée" + note, "ROUTE_UPDATED");
+                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
+                    "event_type", "ROUTE_STOP_REMOVED",
+                    "routeId", route.getId().toString(),
+                    "routeName", route.getName() != null ? route.getName() : "",
+                    "clientName", clientName != null ? clientName : "",
+                    "erpOrderId", erpOrderId != null ? erpOrderId : "",
+                    "reason", reason != null ? reason : ""
+                ));
             }
         });
     }
@@ -324,14 +363,17 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT stops.transferred sourceDriver={} targetDriver={} count={} handoff={}", sourceDriverId, targetDriverId, count, requiresHandoff);
             if (fcm == null) return;
-            String countLabel = count + " arrêt" + (count > 1 ? "s" : "");
-            if (sourceDriverId != null)
-                fcm.sendToDriver(sourceDriverId.toString(), "Arrêts transférés", countLabel + " retiré" + (count > 1 ? "s" : "") + " de votre tournée");
+            if (sourceDriverId != null) {
+                fcm.sendDataToDriver(sourceDriverId.toString(), Map.of(
+                    "event_type", "STOPS_TRANSFERRED_OUT",
+                    "count", String.valueOf(count)
+                ));
+            }
             if (targetDriverId != null) {
-                if (requiresHandoff)
-                    fcm.sendToDriver(targetDriverId.toString(), "Transfert de colis en attente", countLabel + " à récupérer — scannez le QR du livreur précédent");
-                else
-                    fcm.sendToDriver(targetDriverId.toString(), "Arrêts ajoutés", countLabel + " ajouté" + (count > 1 ? "s" : "") + " à votre tournée");
+                fcm.sendDataToDriver(targetDriverId.toString(), Map.of(
+                    "event_type", requiresHandoff ? "HANDOFF_REQUIRED" : "STOPS_TRANSFERRED_IN",
+                    "count", String.valueOf(count)
+                ));
             }
         });
     }

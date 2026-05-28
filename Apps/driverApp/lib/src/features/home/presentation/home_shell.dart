@@ -7,6 +7,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
+import '../../../services/locale_provider.dart';
 import '../../../services/location_service.dart';
 import '../../../services/notification_store.dart';
 import '../../../services/offline_queue_service.dart';
@@ -102,58 +103,65 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     ref.invalidate(todayRouteProvider);
     ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
 
-    final route = event.routeName.isNotEmpty ? '«${event.routeName}»' : 'votre tournée';
+    final locale = ref.read(localeProvider);
+    final routeStr = event.routeName.isNotEmpty ? '«${event.routeName}»' : DriverCopy.get('ws_generic_route', locale);
     final String message;
     IconData icon;
     Color color;
 
     switch (event.event) {
       case 'ROUTE_ASSIGNED':
-        message = 'Tournée $route assignée — consultez-la avant de partir.';
+        message = DriverCopy.get('ws_route_assigned', locale).replaceAll('{route}', routeStr);
         icon = Icons.check_circle_outline;
         color = const Color(0xFF16A34A);
         break;
       case 'ROUTE_CANCELLED':
-        message = 'La tournée $route a été annulée.';
+        message = DriverCopy.get('ws_route_cancelled', locale).replaceAll('{route}', routeStr);
         icon = Icons.cancel_outlined;
         color = const Color(0xFFDC2626);
         break;
       case 'ROUTE_REASSIGNED_AWAY':
-        message = 'La tournée $route a été réaffectée à un autre chauffeur.';
+        message = DriverCopy.get('ws_route_reassigned_away', locale).replaceAll('{route}', routeStr);
         icon = Icons.warning_amber_rounded;
         color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_REASSIGNED_TO_YOU':
-        message = 'La tournée $route vous a été réaffectée !';
+        message = DriverCopy.get('ws_route_reassigned_to_you', locale).replaceAll('{route}', routeStr);
         icon = Icons.check_circle_outline;
         color = const Color(0xFF16A34A);
         break;
       case 'STOP_ADDED':
-        final addedClient = event.clientName ?? 'Un arrêt';
-        message = '$addedClient ajouté à $route.';
+        final addedClient = event.clientName ?? '';
+        message = DriverCopy.get('ws_stop_added', locale)
+            .replaceAll('{client}', addedClient)
+            .replaceAll('{route}', routeStr);
         icon = Icons.add_location_alt_outlined;
         color = const Color(0xFF2563EB);
         break;
       case 'STOP_REMOVED':
-        final removedClient = event.clientName ?? 'Un arrêt';
-        final ref = event.erpOrderId != null ? ' [${event.erpOrderId}]' : '';
+        final removedClient = event.clientName ?? '';
+        final refStr = event.erpOrderId != null ? ' [${event.erpOrderId}]' : '';
         final why = event.reason != null ? ' — ${event.reason}' : '';
-        message = '$removedClient$ref retiré de $route$why.';
+        message = DriverCopy.get('ws_stop_removed', locale)
+            .replaceAll('{client}', removedClient)
+            .replaceAll('{ref}', refStr)
+            .replaceAll('{route}', routeStr)
+            .replaceAll('{why}', why);
         icon = Icons.remove_circle_outline;
         color = const Color(0xFFF59E0B);
         break;
       case 'ROUTE_UPDATED':
-        message = 'La tournée $route a été modifiée.';
+        message = DriverCopy.get('ws_route_updated', locale).replaceAll('{route}', routeStr);
         icon = Icons.info_outline;
         color = const Color(0xFF2563EB);
         break;
       case 'STOPS_TRANSFERRED_OUT':
-        message = 'Des arrêts ont été retirés de $route.';
+        message = DriverCopy.get('ws_stops_transferred_out', locale).replaceAll('{route}', routeStr);
         icon = Icons.swap_horiz_rounded;
         color = const Color(0xFFF59E0B);
         break;
       case 'STOPS_TRANSFERRED_IN':
-        message = 'De nouveaux arrêts ont été ajoutés à $route.';
+        message = DriverCopy.get('ws_stops_transferred_in', locale).replaceAll('{route}', routeStr);
         icon = Icons.playlist_add_rounded;
         color = const Color(0xFF2563EB);
         break;
@@ -234,6 +242,8 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final locale = ref.watch(localeProvider);
+
     ref.listen(activeDeliveriesProvider, (_, next) {
       next.whenData((list) {
         if (list.any((d) => d.status == DeliveryStatus.inTransit)) {
@@ -258,6 +268,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const RoutesScreen(),
       CalendarScreen(onNavigateToRoute: () => setState(() => _index = 0)),
       const SafeArea(child: ProfileScreen()),
+    ];
+
+    final navItems = [
+      _NavItem(icon: PhosphorIconsFill.path,         label: DriverCopy.get('tab_route', locale)),
+      _NavItem(icon: PhosphorIconsFill.calendarDots, label: DriverCopy.get('tab_calendar', locale)),
+      _NavItem(icon: PhosphorIconsFill.userCircle,   label: DriverCopy.get('tab_profile', locale)),
     ];
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
@@ -290,7 +306,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                         const SizedBox(width: 8),
                         Flexible(
                           child: Text(
-                            'Hors ligne — les actions seront synchronisées à la reconnexion',
+                            DriverCopy.get('offline_banner', locale),
                             style: GoogleFonts.inter(
                               fontSize: 11,
                               fontWeight: FontWeight.w700,
@@ -307,9 +323,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                     final status = ref.watch(driverProfileProvider).value?.onlineStatus ?? 'OFFLINE';
                     if (status == 'OFFLINE') return const SizedBox.shrink();
                     final (Color dot, String label) = switch (status) {
-                      'ONLINE'   => (const Color(0xFF10B981), 'En service'),
-                      'ON_BREAK' => (const Color(0xFFF59E0B), 'En pause'),
-                      _          => (const Color(0xFF9CA3AF), 'Hors service'),
+                      'ONLINE'   => (const Color(0xFF10B981), DriverCopy.get('status_online', locale)),
+                      'ON_BREAK' => (const Color(0xFFF59E0B), DriverCopy.get('status_on_break', locale)),
+                      _          => (const Color(0xFF9CA3AF), DriverCopy.get('status_offline', locale)),
                     };
                     return GestureDetector(
                       onTap: () => setState(() => _index = 2),
@@ -398,7 +414,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ),
         bottomNavigationBar: _BottomNav(
           index: _index,
-          items: _navItems,
+          items: navItems,
           onTap: (i) => setState(() => _index = i),
         ),
       ),
@@ -421,6 +437,7 @@ class _NotificationPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final notifications = ref.watch(notificationStoreProvider);
     final store = ref.read(notificationStoreProvider.notifier);
+    final locale = ref.watch(localeProvider);
 
     // Mark all as read when panel opens
     WidgetsBinding.instance.addPostFrameCallback((_) => store.markAllRead());
@@ -439,7 +456,7 @@ class _NotificationPanel extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text('Notifications', style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(DriverCopy.get('notifications', locale), style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700)),
               ],
             ),
           ),
@@ -453,7 +470,7 @@ class _NotificationPanel extends ConsumerWidget {
                       children: [
                         const Icon(Icons.notifications_off_outlined, size: 40, color: Color(0xFF9CA3AF)),
                         const SizedBox(height: 8),
-                        Text('Aucune notification', style: GoogleFonts.inter(color: const Color(0xFF9CA3AF))),
+                        Text(DriverCopy.get('no_notifications', locale), style: GoogleFonts.inter(color: const Color(0xFF9CA3AF))),
                       ],
                     ),
                   )
@@ -473,7 +490,7 @@ class _NotificationPanel extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             if (n.body.isNotEmpty) Text(n.body, style: GoogleFonts.inter(fontSize: 12)),
-                            Text(_formatTime(n.receivedAt), style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF9CA3AF))),
+                            Text(_formatTime(n.receivedAt, locale), style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF9CA3AF))),
                           ],
                         ),
                         isThreeLine: n.body.isNotEmpty,
@@ -506,13 +523,25 @@ class _NotificationPanel extends ConsumerWidget {
     }
   }
 
-  String _formatTime(DateTime dt) {
+  String _formatTime(DateTime dt, String locale) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    if (diff.inMinutes < 1) return 'À l\'instant';
-    if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
-    if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
-    return 'Il y a ${diff.inDays}j';
+    if (locale == 'ar') {
+      if (diff.inMinutes < 1) return 'الآن';
+      if (diff.inMinutes < 60) return 'منذ ${diff.inMinutes} د';
+      if (diff.inHours < 24) return 'منذ ${diff.inHours} س';
+      return 'منذ ${diff.inDays} ي';
+    } else if (locale == 'en') {
+      if (diff.inMinutes < 1) return 'Just now';
+      if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+      if (diff.inHours < 24) return '${diff.inHours}h ago';
+      return '${diff.inDays}d ago';
+    } else {
+      if (diff.inMinutes < 1) return 'À l\'instant';
+      if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
+      if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
+      return 'Il y a ${diff.inDays}j';
+    }
   }
 }
 

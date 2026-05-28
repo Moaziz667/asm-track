@@ -61,6 +61,7 @@ public class ExceptionResolutionService {
     private final DispatchService dispatchService;
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private ExceptionResolutionService self;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -175,9 +176,9 @@ public class ExceptionResolutionService {
 		deliveryRepo.save(delivery);
 
 		ActorInfo actor = resolveActor(principal);
-		String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "Inconnu";
+		String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";
 		String targetDriverName = request.getDriverId().toString().substring(0, 8);
-		String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
+		String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "UNKNOWN";
 
 		Map<String, Object> auditDetails = Map.of(
 				"action", "reassign",
@@ -225,14 +226,18 @@ public class ExceptionResolutionService {
 							DeliveryStatus.UNSCHEDULED,
 							actor.name(),
 							actor.role(),
-							String.format("Livraison ajoutée à la tournée brouillon %s pour planification.", 
-								targetRoute != null ? targetRoute.getName() : "par le dispatch"));
+							"DELIVERY_ASSIGNED_TO_DRAFT",
+							Map.of("routeName", targetRoute != null ? targetRoute.getName() : ""));
 		} else {
 			appendHistory(delivery,
 							DeliveryStatus.SCHEDULED,
 							actor.name(),
 							actor.role(),
-							buildReassignOpsNote(previousStatus, previousDriverName, targetDriverName, request.getNote()));
+							"DELIVERY_REASSIGNED",
+							Map.of("previousStatus", previousStatus.name(),
+								   "previousDriver", previousDriverName,
+								   "targetDriver", targetDriverName,
+								   "reason", request.getNote() != null ? request.getNote() : ""));
 		}
 
 		if (targetRouteStatus != RouteStatus.DRAFT) {
@@ -279,8 +284,8 @@ public class ExceptionResolutionService {
                 deliveryRepo.save(delivery);
 
                 ActorInfo actor = resolveActor(principal);
-                String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "Inconnu";
-                String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "Inconnu";
+                String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";
+                String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "UNKNOWN";
 
                 Map<String, Object> auditDetails = Map.of(
                         "action", "replan",
@@ -300,7 +305,10 @@ public class ExceptionResolutionService {
                                 DeliveryStatus.UNSCHEDULED,
                                 actor.name(),
                                 actor.role(),
-                                buildReplanOpsNote(previousStatus, previousDriverName, request.getNote()));
+                                "DELIVERY_REPLANNED",
+                                Map.of("previousStatus", previousStatus.name(),
+                                       "previousDriver", previousDriverName,
+                                       "reason", request.getNote() != null ? request.getNote() : ""));
 
                 eventPublisher.publishDeliveryReplanned(delivery.getOrder(), delivery, previousDriverId);
 
@@ -331,7 +339,8 @@ public class ExceptionResolutionService {
         ActorInfo actor = resolveActor(principal);
         String resolvedNote = StringUtils.hasText(note) ? note.trim() : "Return to origin confirmed by admin";
         appendHistory(delivery, delivery.getStatus(), actor.name(), actor.role(),
-                "Return to origin confirmed — parcel received at depot. " + resolvedNote);
+                "RETURN_TO_ORIGIN_CONFIRMED",
+                Map.of("reason", resolvedNote));
 
         auditLogService.logAction(principal, "CONFIRM_RETURN", "DELIVERY", deliveryId.toString(),
                 Map.of("action", "return_confirmed", "orderCancelled", String.valueOf(orderCancelled)));
@@ -378,8 +387,8 @@ public class ExceptionResolutionService {
         });
 
         appendHistory(delivery, DeliveryStatus.CANCELLED, "ADMIN", Role.ADMIN,
-                "Delivery cancelled" + (wasPickedUp ? " after pickup — return to origin required" : "") +
-                (reason != null ? ": " + reason : ""));
+                "DELIVERY_CANCELLED",
+                Map.of("wasPickedUp", wasPickedUp, "reason", reason != null ? reason : ""));
 
         eventPublisher.publishDeliveryCancelled(order, delivery, delivery.getDriverId());
 
@@ -509,13 +518,15 @@ public class ExceptionResolutionService {
 				DeliveryStatus.UNSCHEDULED,
 				"SYSTEM",
 				Role.SYSTEM,
-				"Backorder created from partial delivery #" + shortDeliveryId(delivery.getId()) + ".");
+				"BACKORDER_CREATED",
+				Map.of("parentDeliveryId", delivery.getId().toString()));
 
 		appendHistory(delivery,
 				delivery.getStatus(),
 				"SYSTEM",
 				Role.SYSTEM,
-				"Backorder delivery #" + shortDeliveryId(newDelivery.getId()) + " created for remaining items.");
+				"BACKORDER_SPAWNED",
+				Map.of("childDeliveryId", newDelivery.getId().toString()));
 
 		return newDelivery.getId(); 
 	}
@@ -569,13 +580,19 @@ public class ExceptionResolutionService {
                                 .updatedAt(delivery.getUpdatedAt())
                                 .build();
         }
-        private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
+        private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
+                String jsonParams = "{}";
+                try {
+                        jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+                } catch (Exception ignored) {}
+                
                 historyRepo.save(DeliveryStatusHistory.builder()
                                 .deliveryId(delivery.getId())
                                 .status(status)
                                 .changedBy(changedBy)
                                 .changedByRole(role)
-                                .note(note)
+                                .eventKey(eventKey)
+                                .eventParams(jsonParams)
                                 .build());
         }
         private ActorInfo resolveActor(UserPrincipal principal) {
@@ -597,38 +614,7 @@ public class ExceptionResolutionService {
                 }
                 return new ActorInfo(actorName, role);
         }
-        private String buildReassignOpsNote(DeliveryStatus previousStatus, String previousDriver, String newDriver, String note) {
-                String message;
-                if (previousStatus == DeliveryStatus.IN_TRANSIT) {
-                        message = String.format("Livraison en transit réassignée — passation physique requise. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
-                } else if (previousStatus == DeliveryStatus.PICKED_UP) {
-                        message = String.format("Livraison déjà ramassée réassignée avec confirmation de passation. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
-                } else if (previousStatus == DeliveryStatus.UNSCHEDULED) {
-                        message = String.format("Livraison assignée par le dispatch. Nouveau chauffeur: %s.", newDriver);
-                } else {
-                        message = String.format("Livraison réassignée par le dispatch. Ancien chauffeur: %s. Nouveau chauffeur: %s.", previousDriver, newDriver);
-                }
-                return appendReason(message, note);
-        }
 
-        private String buildReplanOpsNote(DeliveryStatus previousStatus, String previousDriver, String note) {
-                String message;
-                if (previousStatus == DeliveryStatus.FAILED) {
-                        message = String.format("Livraison en échec replanifiée pour une nouvelle tentative. Chauffeur précédent: %s.", previousDriver);
-                } else if (previousStatus == DeliveryStatus.PARTIALLY_DELIVERED) {
-                        message = String.format("Livraison partiellement livrée. Éléments restants replanifiés. Chauffeur précédent: %s.", previousDriver);
-                } else {
-                        message = String.format("Livraison remise en file de planification par le dispatch. Chauffeur précédent: %s.", previousDriver);
-                }
-                return appendReason(message, note);
-        }
-
-        private String appendReason(String message, String note) {
-                if (!StringUtils.hasText(note)) {
-                        return message;
-                }
-                return message + " Reason: " + note.trim();
-        }
 
         /**
          * Generates a professional backorder reference.
@@ -661,7 +647,11 @@ public class ExceptionResolutionService {
             if (order == null || order.getDropoffLat() == null || order.getDropoffLng() == null) {
                 String ref = order != null && org.springframework.util.StringUtils.hasText(order.getErpOrderId())
                         ? order.getErpOrderId() : delivery.getId().toString().substring(0, 8);
-                throw AppException.badRequest("L'ordre " + ref + " n'est pas épinglé. Veuillez épingler l'adresse sur la carte avant de l'ajouter à un brouillon.");
+                throw AppException.badRequest(
+                    "ORDER_NOT_PINNED",
+                    "Order " + ref + " is not pinned. Please pin the address on the map before adding to route draft.",
+                    Map.of("reference", ref)
+                );
             }
         }
 
@@ -750,7 +740,11 @@ public class ExceptionResolutionService {
                         java.time.LocalTime prevRef = prev.getEndTimeWindow() != null ? prev.getEndTimeWindow() 
                                           : (prev.getEtaAt() != null ? prev.getEtaAt().toLocalTime() : targetRoute.getPlannedStartTime());
                         if (prevRef != null && finalStartTime.isBefore(prevRef)) {
-                            throw AppException.badRequest("Conflit d'horaire : L'arrêt précédent finit à " + prevRef + ". L'heure de début (" + finalStartTime + ") est invalide.");
+                            throw AppException.badRequest(
+                                "ROUTE_TIME_CONFLICT",
+                                "Time conflict: Previous stop ends at " + prevRef + ". Requested start time (" + finalStartTime + ") is invalid.",
+                                Map.of("limitTime", prevRef.toString(), "requestedTime", finalStartTime.toString(), "conflictType", "PREVIOUS")
+                            );
                         }
                     }
                     
@@ -760,7 +754,11 @@ public class ExceptionResolutionService {
                         java.time.LocalTime nextRef = next.getStartTimeWindow() != null ? next.getStartTimeWindow() 
                                           : (next.getEtaAt() != null ? next.getEtaAt().toLocalTime() : targetRoute.getPlannedEndTime());
                         if (nextRef != null && finalEndTime != null && finalEndTime.isAfter(nextRef)) {
-                            throw AppException.badRequest("Conflit d'horaire : L'arrêt suivant commence à " + nextRef + ". L'heure de fin (" + finalEndTime + ") est invalide.");
+                            throw AppException.badRequest(
+                                "ROUTE_TIME_CONFLICT",
+                                "Time conflict: Next stop starts at " + nextRef + ". Requested end time (" + finalEndTime + ") is invalid.",
+                                Map.of("limitTime", nextRef.toString(), "requestedTime", finalEndTime.toString(), "conflictType", "NEXT")
+                            );
                         }
                     }
                 }

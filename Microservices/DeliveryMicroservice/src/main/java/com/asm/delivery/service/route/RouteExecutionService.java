@@ -35,6 +35,7 @@ public class RouteExecutionService {
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.service.VehicleInspectionService inspectionService;
     private final RouteReportService routeReportService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
     public RouteResponse close(UUID routeId) {
@@ -110,7 +111,7 @@ public class RouteExecutionService {
                     delivery.setPickedUpAt(now);
                     delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
                     deliveryRepository.save(delivery);
-                    appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "Route started and package auto-picked up");
+                    appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER, "ROUTE_STARTED_AUTO_PICKUP", Map.of("driverId", driverId.toString()));
                     syncStopFromDelivery(delivery.getId(), delivery.getStatus(), now, "Route started and package auto-picked up");
                 }
             });
@@ -156,13 +157,19 @@ public class RouteExecutionService {
         return toResponse(route);
     }
 
-    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
+    private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
+        String jsonParams = "{}";
+        try {
+            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+        } catch (Exception ignored) {}
+        
         deliveryStatusHistoryRepository.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(status)
                 .changedBy(changedBy)
                 .changedByRole(role)
-                .note(note)
+                .eventKey(eventKey)
+                .eventParams(jsonParams)
                 .changedAt(LocalDateTime.now())
                 .build());
     }

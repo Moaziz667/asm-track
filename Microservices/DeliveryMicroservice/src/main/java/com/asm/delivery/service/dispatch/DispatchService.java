@@ -61,6 +61,7 @@ public class DispatchService {
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final com.asm.delivery.service.AuditLogService auditLogService;
     private final EventPublisher eventPublisher;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
 
@@ -605,6 +606,15 @@ public class DispatchService {
                 .build();
     }
 
+    private Map<String, Object> deserializeEventParams(String json) {
+        if (json == null || json.isEmpty()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
     private StatusHistoryResponse toHistoryResponseLocal(DeliveryStatusHistory h, Map<String, String> actorNames) {
         String actorDisplay = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), actorNames);
         return StatusHistoryResponse.builder()
@@ -614,7 +624,8 @@ public class DispatchService {
                 .timestamp(h.getChangedAt())
                 .changedBy(actorDisplay)
                 .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                .note(h.getNote())
+                .eventKey(h.getEventKey())
+                .eventParams(deserializeEventParams(h.getEventParams()))
                 .changedAt(h.getChangedAt())
                 .build();
     }

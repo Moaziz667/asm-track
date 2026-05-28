@@ -52,6 +52,7 @@ public class OpsAnalyticsService {
     private final ZoneRepository zoneRepository;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final DelayCalculationService delayCalculationService;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
@@ -220,7 +221,8 @@ public class OpsAnalyticsService {
                             .status(h.getStatus())
                             .changedBy(h.getChangedBy())
                             .changedByRole(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
-                            .note(h.getNote())
+                            .eventKey(h.getEventKey())
+                            .eventParams(deserializeEventParams(h.getEventParams()))
                             .clientName(order != null ? order.getClientName() : null)
                             .city(order != null ? order.getDropoffCity() : null)
                             .changedAt(h.getChangedAt())
@@ -612,20 +614,20 @@ public class OpsAnalyticsService {
                                                                                                                           int effectiveWaitingSlaMinutes,
                                                                                                                           int effectiveTransitSlaMinutes) {
                 if ("FAILED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Livraison en échec : Nécessite une intervention manuelle");
+                        return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Delivery failed: manual intervention required");
                 }
                 if ("CANCELLED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Livraison annulée par le système ou l'utilisateur");
+                        return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Delivery cancelled by user or system");
                 }
                 if ("PARTIALLY_DELIVERED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Livraison partielle signalée");
+                        return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Partial delivery reported");
                 }
                 if ("UNSCHEDULED".equals(s.getStatus()) && s.getCreatedAt() != null) {
                         int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
                         long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
                         if (elapsed > waitingLimit) {
                                 return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING", 
-                                     String.format("SLA Planification dépassé : La commande n'est pas planifiée depuis %d minutes", elapsed));
+                                     String.format("Planning SLA exceeded: unscheduled for %d minutes", elapsed));
                         }
                 }
                 if ("SCHEDULED".equals(s.getStatus())) {
@@ -636,14 +638,14 @@ public class OpsAnalyticsService {
                         }
                         if (elapsed > assignLimit) {
                             return buildExceptionRow(s, DeliveryStatus.SCHEDULED, "CRITICAL", 
-                                 "SLA Affectation dépassé : le livreur tarde à récupérer le colis au dépôt");
+                                 "Assignment SLA exceeded: driver delay in depot pickup");
                         }
                 }
                 if ("IN_TRANSIT".equals(s.getStatus())) {
                         if (s.getRouteEndTimeWindow() != null) {
                                 LocalDateTime deadline = LocalDateTime.of(now.toLocalDate(), s.getRouteEndTimeWindow());
                                 if (now.isAfter(deadline)) {
-                                        return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Retard critique : Créneau horaire de livraison dépassé");
+                                        return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Critical delay: delivery time window exceeded");
                                 }
                         }
                 }
@@ -768,42 +770,42 @@ public class OpsAnalyticsService {
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
                         String motif = elapsed > effectiveAssignLimit ? "SLA_SCHEDULED" : "SCHEDULED_MONITORING";
                         String comment = elapsed > effectiveAssignLimit
-                                        ? "SLA Ramassage dépassé : le livreur tarde à récupérer le colis"
-                                        : "Livraison disponible : suivi de planification en cours";
+                                        ? "Pickup SLA exceeded: driver pickup delay"
+                                        : "Delivery unscheduled: awaiting routing";
                         return new ExceptionClassification("WARNING", motif, comment);
                 }
                 if (status == DeliveryStatus.CANCELLED) {
-                        String comment = StringUtils.hasText(delivery.getCancelReason()) ? delivery.getCancelReason() : "Livraison annulée : révision requise";
+                        String comment = StringUtils.hasText(delivery.getCancelReason()) ? delivery.getCancelReason() : "Delivery cancelled: manual review required";
                         return new ExceptionClassification("CRITICAL", "CANCELLED", comment);
                 }
                 if (status == DeliveryStatus.PARTIALLY_DELIVERED) {
-                        return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Livraison partielle signalée");
+                        return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Partial delivery reported");
                 }
                 if (status == DeliveryStatus.UNSCHEDULED) {
                         LocalDateTime baseline = delivery.getUpdatedAt() != null
                                 ? delivery.getUpdatedAt() : delivery.getCreatedAt();
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
                         if (elapsed > waitingSlaMinutes) {
-                                return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED", "SLA Planification dépassé");
+                                return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED", "Planning SLA exceeded");
                         }
-                        return new ExceptionClassification("INFO", "UNSCHEDULED", "À planifier");
+                        return new ExceptionClassification("INFO", "UNSCHEDULED", "Awaiting planning");
                 }
                 if (status == DeliveryStatus.IN_TRANSIT) {
                         if (routeInfo != null && routeInfo.endTimeWindow() != null && routeInfo.date() != null) {
                                 LocalDateTime deadline = routeInfo.date().atTime(routeInfo.endTimeWindow());
                                 if (now.isAfter(deadline)) {
-                                        return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Créneau horaire de livraison dépassé");
+                                        return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Delivery time window exceeded");
                                 }
                         }
-                        return new ExceptionClassification("INFO", "IN_TRANSIT", "Livraison en cours de transit");
+                        return new ExceptionClassification("INFO", "IN_TRANSIT", "Delivery in transit");
                 }
                 if (status == DeliveryStatus.PICKED_UP) {
                         long elapsed = delivery.getPickedUpAt() != null ? Duration.between(delivery.getPickedUpAt(), now).toMinutes() : 0;
                         int effectivePickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 120);
                         if (elapsed > effectivePickupLimit) {
-                                return new ExceptionClassification("WARNING", "SLA_PICKUP", "Colis ramassé mais transit non démarré depuis " + elapsed + " min");
+                                return new ExceptionClassification("WARNING", "SLA_PICKUP", "Parcel picked up but transit not started for " + elapsed + " mins");
                         }
-                        return new ExceptionClassification("INFO", "PICKED_UP", "Colis chargé — en attente du départ en transit");
+                        return new ExceptionClassification("INFO", "PICKED_UP", "Parcel loaded: awaiting transit departure");
                 }
                 return null;
         }
@@ -851,14 +853,13 @@ public class OpsAnalyticsService {
                 return value != null && value.toLowerCase(Locale.ROOT).contains(query);
         }
 
-        private void appendHistory(Delivery delivery, DeliveryStatus status, String changedBy, Role role, String note) {
-                historyRepo.save(DeliveryStatusHistory.builder()
-                                .deliveryId(delivery.getId())
-                                .status(status)
-                                .changedBy(changedBy)
-                                .changedByRole(role)
-                                .note(note)
-                                .build());
+        private Map<String, Object> deserializeEventParams(String json) {
+                if (json == null || json.isEmpty()) return Map.of();
+                try {
+                        return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+                } catch (Exception e) {
+                        return Map.of();
+                }
         }
 
         private ActorInfo resolveActor(UserPrincipal principal) {

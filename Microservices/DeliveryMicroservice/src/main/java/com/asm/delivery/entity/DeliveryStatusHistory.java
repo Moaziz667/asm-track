@@ -32,8 +32,11 @@ public class DeliveryStatusHistory {
     @Column(name = "changed_by_role", length = 10)
     private Role changedByRole;
 
-    @Column(name = "note", columnDefinition = "TEXT")
-    private String note;
+    @Column(name = "event_key", nullable = false, length = 50)
+    private String eventKey;
+
+    @Column(name = "event_params", columnDefinition = "jsonb")
+    private String eventParams;
 
     @Column(name = "changed_at", nullable = false, updatable = false)
     private LocalDateTime changedAt;

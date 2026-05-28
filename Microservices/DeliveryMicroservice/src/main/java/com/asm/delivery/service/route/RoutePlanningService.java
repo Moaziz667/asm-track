@@ -57,6 +57,7 @@ public class RoutePlanningService {
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final RouteWebSocketService routeWebSocketService;
     private final EntityManager entityManager;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private RoutePlanningService self;
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -416,7 +417,7 @@ public class RoutePlanningService {
         delivery.setAssignedAt(null);
         delivery.setPickedUpAt(null);
         deliveryRepository.save(delivery);
-        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Stop cancelled: " + cancelReason);
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_CANCELLED", Map.of("reason", cancelReason));
 
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
                 Map.of("routeId", routeId.toString(), "reason", cancelReason));
@@ -463,7 +464,7 @@ public class RoutePlanningService {
                     delivery.setDriverId(newDriverId);
                     deliveryRepository.save(delivery);
                     appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN,
-                            "Route reassigned to new driver: " + newDriverId);
+                            "ROUTE_REASSIGNED", Map.of("driverId", newDriverId.toString()));
                 }
             }
         }
@@ -507,7 +508,7 @@ public class RoutePlanningService {
                 delivery.setStatus(DeliveryStatus.SCHEDULED);
                 delivery.setAssignedAt(LocalDateTime.now());
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN, "Stop added to active route");
+                appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_ADDED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
             }
         });
         route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
@@ -565,7 +566,7 @@ public class RoutePlanningService {
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "Stop removed from route — delivery replanned");
+                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_REMOVED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
             }
         });
 
@@ -693,7 +694,7 @@ public class RoutePlanningService {
                 delivery.setAssignedAt(LocalDateTime.now());
                 delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.SCHEDULED, "SYSTEM", Role.SYSTEM, "Route validated and delivery assigned");
+                appendHistory(delivery, DeliveryStatus.SCHEDULED, "SYSTEM", Role.SYSTEM, "ROUTE_VALIDATED_ASSIGNED", Map.of("driverId", route.getDriverId().toString(), "routeName", route.getName() != null ? route.getName() : ""));
                 routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(routeStop -> {
                     routeStop.setStatus(RouteStopStatus.SCHEDULED);
                     routeStopRepository.save(routeStop);
@@ -1448,7 +1449,8 @@ public class RoutePlanningService {
                                     return StatusHistoryResponse.builder()
                                         .id(h.getId() != null ? h.getId().toString() : null)
                                         .status(h.getStatus().name())
-                                        .note(h.getNote())
+                                        .eventKey(h.getEventKey())
+                                        .eventParams(deserializeEventParams(h.getEventParams()))
                                         .changedAt(h.getChangedAt())
                                         .changedBy(actorName)
                                         .actor(actorName)
@@ -1543,13 +1545,28 @@ public class RoutePlanningService {
         }
     }
 
-    private void appendHistory(Delivery d, DeliveryStatus status, String changedBy, Role role, String note) {
+    private Map<String, Object> deserializeEventParams(String json) {
+        if (json == null || json.isEmpty()) return Map.of();
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (Exception e) {
+            return Map.of();
+        }
+    }
+
+    private void appendHistory(Delivery d, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
+        String jsonParams = "{}";
+        try {
+            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+        } catch (Exception ignored) {}
+        
         deliveryStatusHistoryRepository.save(DeliveryStatusHistory.builder()
                 .deliveryId(d.getId())
                 .status(status)
                 .changedBy(changedBy)
                 .changedByRole(role)
-                .note(note)
+                .eventKey(eventKey)
+                .eventParams(jsonParams)
                 .changedAt(LocalDateTime.now())
                 .build());
     }

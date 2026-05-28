@@ -33,7 +33,8 @@ public class AdminOpsAuditResponse {
         private DeliveryStatus status;
         private String changedBy;
         private String changedByRole;
-        private String note;
+        private String eventKey;
+        private java.util.Map<String, Object> eventParams;
         private String clientName;
         private String city;
         private LocalDateTime changedAt;

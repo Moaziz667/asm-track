@@ -28,29 +28,32 @@ public class GlobalExceptionHandler {
         }
         String method = request != null ? request.getMethod() : "";
         log.warn("AppException [{}] {} {}: {}", ex.getStatus(), method, path, ex.getMessage());
-        String error = null;
-        if (ex.getMessage() != null && ex.getMessage().contains("inspection")) {
-            error = "INSPECTION_REQUIRED";
+        
+        String errorCode = ex.getErrorCode();
+        // Fallback for retro-compatibility
+        if ("GENERIC_ERROR".equals(errorCode) && ex.getMessage() != null && ex.getMessage().contains("inspection")) {
+            errorCode = "INSPECTION_REQUIRED";
         }
+        
         return ResponseEntity.status(ex.getStatus())
-                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage(), error));
+                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage(), errorCode, ex.getErrorParams()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ErrorResponse> handleValidation(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
+        Map<String, Object> errors = new HashMap<>();
         for (FieldError fe : ex.getBindingResult().getFieldErrors()) {
             errors.put(fe.getField(), fe.getDefaultMessage());
         }
         String message = "Validation failed: " + errors;
         return ResponseEntity.badRequest()
-                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message));
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message, "VALIDATION_FAILED", errors));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), "Access denied"));
+                .body(new ErrorResponse(HttpStatus.FORBIDDEN.value(), "Access denied", "ACCESS_DENIED", Map.of()));
     }
 
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
@@ -59,15 +62,34 @@ public class GlobalExceptionHandler {
         if (ex.getName() != null) {
             message = "Invalid value for parameter '" + ex.getName() + "'";
         }
+        Map<String, Object> params = new HashMap<>();
+        if (ex.getName() != null) {
+            params.put("parameter", ex.getName());
+        }
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
-                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message));
+                .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message, "INVALID_REQUEST_PARAMETER", params));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ErrorResponse> handleGeneric(Exception ex) {
         log.error("Unhandled exception", ex);
+        
+        String errorCode = "INTERNAL_SERVER_ERROR";
+        String message = "Internal server error";
+        
+        Throwable cause = ex;
+        while (cause != null) {
+            String name = cause.getClass().getName();
+            if (name.contains("ConnectException") || name.contains("SocketTimeoutException") || name.contains("UnknownHostException") || name.contains("HttpHostConnectException")) {
+                errorCode = "CONNECTION_FAILED";
+                message = "Service connectivity failure: Integration network request timed out or refused connection";
+                break;
+            }
+            cause = cause.getCause();
+        }
+        
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
+                .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), message, errorCode, Map.of()));
     }
 
     @lombok.Getter
@@ -75,17 +97,23 @@ public class GlobalExceptionHandler {
     public static class ErrorResponse {
         private final int status;
         private final String message;
-        private final String error;
+        private final String errorCode;
+        private final java.util.Map<String, Object> errorParams;
         private final LocalDateTime timestamp = LocalDateTime.now();
 
         public ErrorResponse(int status, String message) {
-            this(status, message, null);
+            this(status, message, "GENERIC_ERROR", java.util.Map.of());
         }
 
-        public ErrorResponse(int status, String message, String error) {
+        public ErrorResponse(int status, String message, String errorCode) {
+            this(status, message, errorCode, java.util.Map.of());
+        }
+
+        public ErrorResponse(int status, String message, String errorCode, java.util.Map<String, Object> errorParams) {
             this.status = status;
             this.message = message;
-            this.error = error;
+            this.errorCode = errorCode != null ? errorCode : "GENERIC_ERROR";
+            this.errorParams = errorParams != null ? errorParams : java.util.Map.of();
         }
 
         public LocalDateTime getTimestamp() {
