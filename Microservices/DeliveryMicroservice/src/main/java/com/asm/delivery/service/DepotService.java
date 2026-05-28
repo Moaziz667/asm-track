@@ -77,8 +77,9 @@ public class DepotService {
     public void delete(UUID id, UserPrincipal principal) {
         Depot depot = getDepot(id);
         auditLogService.logAction(principal, "DELETE_DEPOT", "DEPOT", id.toString(),
-                java.util.Map.of("depot", depot.getName(), "action", "Suppression de depot"));
-        depotRepository.delete(depot);
+                java.util.Map.of("depot", depot.getName(), "action", "Desactivation de depot"));
+        depot.setIsActive(false);
+        depotRepository.save(depot);
     }
 
     public Depot getDepot(UUID id) {
