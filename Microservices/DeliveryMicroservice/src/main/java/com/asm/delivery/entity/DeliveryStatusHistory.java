@@ -5,6 +5,8 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Entity
 @Table(name = "delivery_status_history")
@@ -36,6 +38,7 @@ public class DeliveryStatusHistory {
     private String eventKey;
 
     @Column(name = "event_params", columnDefinition = "jsonb")
+    @JdbcTypeCode(SqlTypes.JSON)
     private String eventParams;
 
     @Column(name = "changed_at", nullable = false, updatable = false)

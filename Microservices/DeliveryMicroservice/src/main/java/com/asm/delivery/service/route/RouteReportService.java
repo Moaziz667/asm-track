@@ -462,7 +462,7 @@ public class RouteReportService {
 
     private List<RouteReportResponse.AuditEntry> buildAuditTrail(List<RouteStop> stops) {
         // Step 1 — collect all events
-        record Raw(LocalDateTime at, String actor, String role, Integer stopOrder, String status, String note) {}
+        record Raw(LocalDateTime at, String actor, String role, Integer stopOrder, String eventKey, String eventParams) {}
         List<Raw> raw = new ArrayList<>();
         Set<String> actorIdsToResolve = new HashSet<>();
 
@@ -476,8 +476,8 @@ public class RouteReportService {
                         actor,
                         h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
                         s.getStopOrder(),
-                        h.getStatus() != null ? h.getStatus().name() : null,
-                        h.getNote()
+                        h.getEventKey(),
+                        h.getEventParams()
                 ));
             }
         }
@@ -491,7 +491,7 @@ public class RouteReportService {
             }
         }
 
-        // Step 3 — format French actions and translate known notes
+        // Step 3 — format French actions from structured events
         List<RouteReportResponse.AuditEntry> entries = new ArrayList<>();
         for (Raw r : raw) {
             String actor = r.actor;
@@ -504,8 +504,8 @@ public class RouteReportService {
                     .at(r.at)
                     .actor(actor)
                     .role(r.role)
-                    .action("Arrêt #" + r.stopOrder + " · " + deliveryStatusFr(r.status))
-                    .detail(translateNoteFr(r.note))
+                    .action("Arrêt #" + r.stopOrder + " · " + buildActionFromEventKey(r.eventKey))
+                    .detail(extractEventDetail(r.eventParams))
                     .build());
         }
 
@@ -520,6 +520,46 @@ public class RouteReportService {
 
     private static boolean looksLikeUuid(String s) {
         return s != null && s.length() == 36 && s.charAt(8) == '-' && s.charAt(13) == '-';
+    }
+
+    /** Map eventKey to French action descriptions for audit trail. */
+    private static String buildActionFromEventKey(String eventKey) {
+        if (eventKey == null) return "Événement inconnu";
+        return switch (eventKey) {
+            case "DELIVERY_CREATED"              -> "Créée";
+            case "DELIVERY_SCHEDULED"            -> "Planifiée";
+            case "DELIVERY_PICKED_UP"            -> "Récupérée";
+            case "DELIVERY_TRANSIT_STARTED"      -> "Départ en transit";
+            case "DELIVERY_COMPLETED"            -> "Livrée";
+            case "DELIVERY_PARTIALLY_DELIVERED"  -> "Livrée partiellement";
+            case "DELIVERY_FAILED"               -> "Échouée";
+            case "DELIVERY_CANCELLED"            -> "Annulée";
+            default                              -> eventKey;
+        };
+    }
+
+    /** Extract relevant details from structured event payload. */
+    private static String extractEventDetail(String eventParams) {
+        if (eventParams == null || eventParams.isBlank() || eventParams.equals("{}")) {
+            return null;
+        }
+        try {
+            var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var params = objectMapper.readValue(eventParams, java.util.Map.class);
+            var details = new java.util.ArrayList<String>();
+            if (params.containsKey("driverId")) {
+                details.add("Chauffeur: " + params.get("driverId"));
+            }
+            if (params.containsKey("reason")) {
+                details.add("Motif: " + params.get("reason"));
+            }
+            if (params.containsKey("note")) {
+                details.add("Note: " + params.get("note"));
+            }
+            return details.isEmpty() ? null : String.join(" | ", details);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     /** Map raw DeliveryStatus enum names to French labels for audit display. */

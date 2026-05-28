@@ -98,7 +98,18 @@
       "WebFetch(domain:lottie.host)",
       "Bash(npm ls *)",
       "Bash(node scripts/extract-translations.mjs)",
-      "Bash(xargs grep -l \"logout.*modal\\\\|LogoutModal\\\\|confirm.*logout\")"
+      "Bash(xargs grep -l \"logout.*modal\\\\|LogoutModal\\\\|confirm.*logout\")",
+      "Bash(git reset *)",
+      "Bash(xargs grep -l \"cancel.*stop\\\\|/cancel\")",
+      "Bash(xargs grep -l \"cancel.*stop\")",
+      "Bash(xargs grep -l \"cancelStop\")",
+      "Bash(grep -r \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" --include=\"*.tsx\" --include=\"*.ts\")",
+      "Bash(grep -r \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" --include=\"*.tsx\" -h)",
+      "Bash(grep -r \"response\\\\\\\\.data\\\\\\\\.message\\\\|err.*response\" --include=\"*.tsx\" -B 2)",
+      "Bash(grep -n \"toast\\\\\\\\.error\\\\|toast\\\\\\\\.success\" \"[id]/page.tsx\")",
+      "Bash(grep -r \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" --include=\"*.tsx\" --include=\"*.ts\" -l)",
+      "Bash(grep -n \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" page.tsx)",
+      "PowerShell(@\\(Get-Content \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\lib\\\\ux-copy.ts\"\\).Count)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
