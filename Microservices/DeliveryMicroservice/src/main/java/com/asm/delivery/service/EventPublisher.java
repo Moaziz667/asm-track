@@ -31,7 +31,11 @@ public class EventPublisher {
         Map<String, Object> m = new HashMap<>();
         m.put("event", event);
         m.put("deliveryId", delivery.getId());
-        m.put("orderId", order != null ? (order.getErpOrderId() != null ? order.getErpOrderId() : order.getId()) : null);
+        // User-facing ref: ERP order id only. Never fall back to UUID — the UI
+        // shows this verbatim to dispatchers and a UUID is noise.
+        String erpRef = order != null ? order.getErpOrderId() : null;
+        m.put("orderId", erpRef);
+        m.put("erpOrderId", erpRef);
         m.put("status", delivery.getStatus());
         m.put("companyId", delivery.getCompanyId());
         m.put("clientName", order != null ? order.getClientName() : null);
@@ -161,11 +165,17 @@ public class EventPublisher {
             LocalDateTime routeEtaAt,
             String routeProvider) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.in_transit orderId={} deliveryId={} lat={} lng={}",
-                    order != null ? order.getId() : null, delivery.getId(), lat, lng);
+            log.info("EVENT delivery.in_transit orderId={} deliveryId={} lat={} lng={} eta={}",
+                    order != null ? order.getId() : null, delivery.getId(), lat, lng, routeEtaAt);
             Map<String, Object> p = deliveryPayload("delivery.in_transit", order, delivery);
             p.put("lat", lat);
             p.put("lng", lng);
+            // Enrichment — consumed by admin-app templates (formatted client-side).
+            if (routeDistanceKm != null)         p.put("routeDistanceKm", routeDistanceKm);
+            if (routeDurationMinutes != null)    p.put("routeDurationMinutes", routeDurationMinutes);
+            if (transitSlaMinutesComputed != null) p.put("transitSlaMinutes", transitSlaMinutesComputed);
+            if (routeEtaAt != null)              p.put("etaAt", routeEtaAt.toString());
+            if (routeProvider != null)           p.put("routeProvider", routeProvider);
             sendDelivery(p);
         });
     }
@@ -294,17 +304,33 @@ public class EventPublisher {
     // ── Route events ──────────────────────────────────────────────────────────
 
     public void publishRouteValidated(Route route) {
+        // Materialize the stop count BEFORE going async — Hibernate session
+        // may be closed by the time the lambda fires.
+        final int stopCount = safeStopCount(route);
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.validated routeId={} driverId={}", route.getId(), route.getDriverId());
-            sendRoute(routePayload("route.validated", route));
+            log.info("EVENT route.validated routeId={} driverId={} stops={}",
+                    route.getId(), route.getDriverId(), stopCount);
+            Map<String, Object> p = routePayload("route.validated", route);
+            p.put("stopCount", stopCount);
+            sendRoute(p);
             if (fcm != null && route.getDriverId() != null) {
                 fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
                     "event_type", "ROUTE_VALIDATED",
                     "routeId", route.getId().toString(),
-                    "routeName", route.getName() != null ? route.getName() : ""
+                    "routeName", route.getName() != null ? route.getName() : "",
+                    "stopCount", String.valueOf(stopCount)
                 ));
             }
         });
+    }
+
+    private int safeStopCount(Route route) {
+        try {
+            return route.getStops() != null ? route.getStops().size() : 0;
+        } catch (Exception e) {
+            // Lazy-init outside session — non-fatal, just lose the metric.
+            return 0;
+        }
     }
 
     public void publishRouteScheduleChanged(Route route) {

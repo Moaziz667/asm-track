@@ -121,7 +121,17 @@
       "Bash(chmod +x /tmp/add_hook.sh)",
       "Bash(/tmp/add_hook.sh)",
       "Bash(chmod +x /tmp/remove_dup_hooks.sh)",
-      "Bash(/tmp/remove_dup_hooks.sh)"
+      "Bash(/tmp/remove_dup_hooks.sh)",
+      "Bash(del \"src\\\\app\\\\notifications\\\\notifications.scss\")",
+      "Bash(rm \"src/app/notifications/notifications.scss\")",
+      "PowerShell(npx tsc --noEmit --project \"Apps\\\\admin-app\\\\tsconfig.json\" 2>&1)",
+      "PowerShell(npx tsc --noEmit 2>&1)",
+      "PowerShell($bytes = [System.IO.File]::ReadAllBytes\\(\"Apps\\\\admin-app\\\\src\\\\components\\\\AlertBell.tsx\"\\)[0..5]; $bytes | ForEach-Object { \"{0:X2}\" -f $_ })",
+      "PowerShell(npx --no tsc --noEmit -p . 2>&1)",
+      "PowerShell(.\\\\node_modules\\\\.bin\\\\tsc --noEmit 2>&1)",
+      "PowerShell(Remove-Item -Recurse -Force \"Apps\\\\admin-app\\\\Apps\" -Confirm:$false)",
+      "PowerShell(Remove-Item -Recurse -Force \".\\\\Apps\" -Confirm:$false)",
+      "PowerShell(\"---\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
