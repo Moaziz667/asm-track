@@ -111,7 +111,17 @@
       "Bash(grep -n \"toast\\\\\\\\.success\\\\|toast\\\\\\\\.error\" page.tsx)",
       "PowerShell(@\\(Get-Content \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app\\\\src\\\\lib\\\\ux-copy.ts\"\\).Count)",
       "Bash(xargs grep -l \"setLocale\\\\|useLocaleStore\")",
-      "Bash(xargs grep -l \"SLA\\\\|Waiting\\\\|Assign\\\\|Pickup\")"
+      "Bash(xargs grep -l \"SLA\\\\|Waiting\\\\|Assign\\\\|Pickup\")",
+      "Bash(node -e \"const p=require\\('./package.json'\\); console.log\\(p.dependencies.next\\)\")",
+      "Bash(chmod +x /tmp/replace_uxcopy_refs.sh)",
+      "Bash(/tmp/replace_uxcopy_refs.sh)",
+      "Bash(chmod +x /tmp/add_useT_hook.sh)",
+      "Bash(/tmp/add_useT_hook.sh)",
+      "Bash(cat)",
+      "Bash(chmod +x /tmp/add_hook.sh)",
+      "Bash(/tmp/add_hook.sh)",
+      "Bash(chmod +x /tmp/remove_dup_hooks.sh)",
+      "Bash(/tmp/remove_dup_hooks.sh)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
