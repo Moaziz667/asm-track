@@ -102,11 +102,10 @@ public class DriverService {
         DriverOnlineStatus oldStatus = driver.getOnlineStatus();
         driver.setOnlineStatus(newStatus);
         driverRepo.save(driver);
-        eventPublisher.publishStatusChanged(driverId, driver.getCompanyId(), oldStatus, newStatus, driver.getName());
+        eventPublisher.publishStatusChanged(driverId, oldStatus, newStatus, driver.getName());
         auditLogService.log(
                 "DRIVER_AVAILABILITY_CHANGED",
                 driverId,
-                driver.getCompanyId(),
                 driver.getName(),
                 "DRIVER",
                 String.format("{\"from\":\"%s\",\"to\":\"%s\"}", oldStatus != null ? oldStatus.name() : "OFFLINE", newStatus.name())

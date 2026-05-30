@@ -3,6 +3,7 @@ package com.asm.erpadapter.routing;
 import com.asm.erpadapter.port.ErpLookupPort;
 import com.asm.erpadapter.port.ErpOrderPort;
 import com.asm.erpadapter.port.ErpSyncPort;
+import com.asm.erpadapter.service.SettingsClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
@@ -24,6 +25,7 @@ public class ErpProviderRouter {
     private final Map<String, ErpSyncPort> syncAdapters = new HashMap<>();
     private final Map<String, ErpLookupPort> lookupAdapters = new HashMap<>();
     private final Map<String, ErpOrderPort> orderAdapters = new HashMap<>();
+    private final SettingsClient settingsClient;
 
     /**
      * Collects all ERP port implementations.
@@ -31,7 +33,9 @@ public class ErpProviderRouter {
      */
     public ErpProviderRouter(List<ErpSyncPort> syncBeans,
                               List<ErpLookupPort> lookupBeans,
-                              List<ErpOrderPort> orderBeans) {
+                              List<ErpOrderPort> orderBeans,
+                              SettingsClient settingsClient) {
+        this.settingsClient = settingsClient;
         for (ErpSyncPort bean : syncBeans) {
             String key = extractProviderKey(bean.getClass());
             syncAdapters.put(key, bean);
@@ -48,8 +52,9 @@ public class ErpProviderRouter {
                 syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet());
     }
 
-    public ErpSyncPort getSync(String provider) {
-        ErpSyncPort adapter = syncAdapters.get(normalize(provider));
+    public ErpSyncPort getSync(String providerRequested) {
+        String provider = resolveProvider();
+        ErpSyncPort adapter = syncAdapters.get(provider);
         if (adapter == null) {
             throw new IllegalArgumentException("Unknown ERP sync provider: " + provider
                     + ". Available: " + syncAdapters.keySet());
@@ -57,8 +62,9 @@ public class ErpProviderRouter {
         return adapter;
     }
 
-    public ErpLookupPort getLookup(String provider) {
-        ErpLookupPort adapter = lookupAdapters.get(normalize(provider));
+    public ErpLookupPort getLookup(String providerRequested) {
+        String provider = resolveProvider();
+        ErpLookupPort adapter = lookupAdapters.get(provider);
         if (adapter == null) {
             throw new IllegalArgumentException("Unknown ERP lookup provider: " + provider
                     + ". Available: " + lookupAdapters.keySet());
@@ -66,8 +72,9 @@ public class ErpProviderRouter {
         return adapter;
     }
 
-    public ErpOrderPort getOrder(String provider) {
-        ErpOrderPort adapter = orderAdapters.get(normalize(provider));
+    public ErpOrderPort getOrder(String providerRequested) {
+        String provider = resolveProvider();
+        ErpOrderPort adapter = orderAdapters.get(provider);
         if (adapter == null) {
             throw new IllegalArgumentException("Unknown ERP order provider: " + provider
                     + ". Available: " + orderAdapters.keySet());
@@ -86,8 +93,11 @@ public class ErpProviderRouter {
         return cleaned.toLowerCase(); // "odoo", "dux", etc.
     }
 
-    private static String normalize(String provider) {
-        if (provider == null || provider.isBlank()) return "odoo";
-        return provider.trim().toLowerCase();
+    private String resolveProvider() {
+        String active = settingsClient.getSettings().getActiveErpProvider();
+        if (active == null || active.isBlank() || active.equalsIgnoreCase("NONE")) {
+            return "none";
+        }
+        return active.trim().toLowerCase();
     }
 }

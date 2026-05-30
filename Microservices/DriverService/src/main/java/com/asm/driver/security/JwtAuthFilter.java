@@ -38,14 +38,8 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             if ("access".equals(type)) {
                 String userId    = claims.getSubject();
                 String role      = claims.get("role", String.class);
-                String companyId = claims.get("companyId", String.class);
 
-                // Also accept gateway-injected header when JWT doesn't carry companyId
-                if (companyId == null) {
-                    companyId = request.getHeader("X-Company-Id");
-                }
-
-                UserPrincipal principal = new UserPrincipal(userId, role, companyId);
+                UserPrincipal principal = new UserPrincipal(userId, role);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
                         principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
                 );

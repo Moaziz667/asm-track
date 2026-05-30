@@ -21,17 +21,15 @@ public class DriverStatusConsumer {
     public void onDriverStatusChanged(Map<String, Object> event) {
         try {
             String driverId   = (String) event.get("driverId");
-            String companyId  = (String) event.get("companyId");
-            String status     = (String) event.get("status");
+                        String status     = (String) event.get("status");
             String driverName = (String) event.get("driverName");
 
-            if (driverId == null || companyId == null || status == null) {
+            if (driverId == null || status == null) {
                 log.warn("DriverStatusConsumer: incomplete event received, skipping: {}", event);
                 return;
             }
 
             webSocketService.notifyDriverStatusChanged(
-                    UUID.fromString(companyId),
                     UUID.fromString(driverId),
                     status,
                     driverName != null ? driverName : "");

@@ -78,8 +78,7 @@ public class VehicleService {
             throw AppException.conflict("Vehicle plate already exists");
         }
 
-        UUID companyId = principal.getCompanyId() != null
-                ? UUID.fromString(principal.getCompanyId()) : null;
+
 
         Vehicle vehicle = Vehicle.builder()
                 .name(buildDisplayName(request.getMake(), request.getModel(), request.getManufactureYear()))
@@ -94,7 +93,7 @@ public class VehicleService {
                 .mileageKm(request.getMileageKm())
                 .plate(normalizedPlate)
                 .type(request.getType())
-                .companyId(companyId)
+
                 .active(request.getActive() != null ? request.getActive() : true)
                 .build();
 

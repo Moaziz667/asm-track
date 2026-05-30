@@ -88,19 +88,16 @@ public class AdminUserService {
     // ── User management (unchanged) ───────────────────────────────────────────
 
     @Transactional
-    public AdminUserResponse createUser(CreateAdminUserRequest req, UUID callerCompanyId) {
+    public AdminUserResponse createUser(CreateAdminUserRequest req) {
         if (adminUserRepo.existsByEmail(req.email())) {
             throw new AppException(HttpStatus.CONFLICT, "Email already in use");
         }
-
-        UUID effectiveCompanyId = req.companyId() != null ? req.companyId() : callerCompanyId;
-
         AdminUser user = AdminUser.builder()
                 .name(req.name())
                 .email(req.email())
                 .passwordHash(passwordEncoder.encode(req.password()))
                 .role(req.role())
-                .companyId(effectiveCompanyId)
+                
                 .active(true)
                 .build();
 
@@ -110,10 +107,7 @@ public class AdminUserService {
     }
 
     @Transactional(readOnly = true)
-    public List<AdminUserResponse> listUsers(UUID companyId) {
-        if (companyId != null) {
-            return adminUserRepo.findByCompanyId(companyId).stream().map(this::toResponse).toList();
-        }
+    public List<AdminUserResponse> listUsers() {
         return adminUserRepo.findAll().stream().map(this::toResponse).toList();
     }
 
@@ -179,7 +173,7 @@ public class AdminUserService {
                 .name(user.getName())
                 .email(user.getEmail())
                 .role(user.getRole())
-                .companyId(user.getCompanyId())
+                
                 .active(user.isActive())
                 .createdAt(user.getCreatedAt())
                 .build();

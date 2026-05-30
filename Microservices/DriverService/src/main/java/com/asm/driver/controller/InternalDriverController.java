@@ -24,8 +24,8 @@ public class InternalDriverController {
 
     @GetMapping("/available")
     public ResponseEntity<List<InternalDriverResponse>> getAvailableDrivers(
-            @RequestParam(required = false) UUID companyId) {
-        return ResponseEntity.ok(internalService.getAvailableDrivers(companyId));
+            ) {
+        return ResponseEntity.ok(internalService.getAvailableDrivers());
     }
 
     @GetMapping("/{id}")
@@ -48,7 +48,7 @@ public class InternalDriverController {
     @PostMapping("/{id}/stats/increment")
     public ResponseEntity<Map<String, String>> incrementStat(@PathVariable UUID id,
                                                              @Valid @RequestBody IncrementStatRequest req,
-                                                             @RequestParam(required = false) String deliveryId) {
+                                                             String deliveryId) {
         internalService.incrementStat(id, req.getField(), deliveryId);
         return ResponseEntity.ok(Map.of("message", "Stat incremented"));
     }

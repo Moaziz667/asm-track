@@ -4,7 +4,6 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
@@ -16,7 +15,6 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Filter(name = "companyFilter", condition = "company_id = :companyId")
 public class RouteReport {
 
     @Id
@@ -25,9 +23,6 @@ public class RouteReport {
 
     @Column(name = "route_id", nullable = false, unique = true)
     private UUID routeId;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
 
     @Type(JsonType.class)
     @Column(name = "payload", columnDefinition = "jsonb", nullable = false)

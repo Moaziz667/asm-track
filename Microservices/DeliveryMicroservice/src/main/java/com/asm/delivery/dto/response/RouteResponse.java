@@ -18,9 +18,6 @@ public class RouteResponse {
     @Schema(description = "Route unique identifier")
     private UUID id;
 
-    @Schema(description = "Owning company id")
-    private UUID companyId;
-
     @Schema(description = "Route display name")
     private String name;
 

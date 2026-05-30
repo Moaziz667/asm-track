@@ -16,8 +16,8 @@ spring:
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: 5672
-    username: ${RABBITMQ_USER:guest}
-    password: ${RABBITMQ_PASS:guest}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
     stomp:
       port: 61613
 
@@ -77,7 +77,7 @@ app:
     country-code: ${WAREHOUSE_COUNTRY_CODE:TN}
 
   security:
-    trust-gateway-headers: false
+    trust-gateway-headers: ${TRUST_GATEWAY_HEADERS:false}
     gateway-secret: ${GATEWAY_SECRET:}
   osrm:
     # PROD: set ROUTING_OSRM_BASE_URL to your OSRM container URL e.g. http://osrm:5000

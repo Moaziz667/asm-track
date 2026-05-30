@@ -14,19 +14,19 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface ZoneRepository extends JpaRepository<Zone, UUID> {
 
-    List<Zone> findAllByCompanyIdOrderByCreatedAtDesc(UUID companyId);
+    List<Zone> findAllByOrderByCreatedAtDesc();
 
-    List<Zone> findByCompanyId(UUID companyId);
+    List<Zone> findAll();
 
-    List<Zone> findByCompanyIdAndIsActiveTrueOrderByNameAsc(UUID companyId);
+    List<Zone> findByIsActiveTrueOrderByNameAsc();
 
     /** Find first active zone whose postalCodes JSONB array contains the given code. */
-    @Query(value = "SELECT * FROM zones WHERE is_active = true AND company_id = :companyId AND postal_codes @> CAST(json_build_array(:code) AS jsonb) LIMIT 1", nativeQuery = true)
-    Optional<Zone> findActiveByPostalCodeMember(@Param("companyId") UUID companyId, @Param("code") String postalCode);
+    @Query(value = "SELECT * FROM zones WHERE is_active = true AND postal_codes @> CAST(json_build_array(:code) AS jsonb) LIMIT 1", nativeQuery = true)
+    Optional<Zone> findActiveByPostalCodeMember(@Param("code") String postalCode);
 
     /** Fallback: find first active zone whose cities JSONB array contains the given city name. */
-    @Query(value = "SELECT * FROM zones WHERE is_active = true AND company_id = :companyId AND cities @> CAST(json_build_array(:city) AS jsonb) LIMIT 1", nativeQuery = true)
-    Optional<Zone> findActiveByCityMember(@Param("companyId") UUID companyId, @Param("city") String city);
+    @Query(value = "SELECT * FROM zones WHERE is_active = true AND cities @> CAST(json_build_array(:city) AS jsonb) LIMIT 1", nativeQuery = true)
+    Optional<Zone> findActiveByCityMember(@Param("city") String city);
 
     /**
      * Batch: find all active zones that contain ANY of the given postal codes.
@@ -35,16 +35,16 @@ public interface ZoneRepository extends JpaRepository<Zone, UUID> {
     @Query(value = """
             SELECT DISTINCT z.* FROM zones z
             WHERE z.is_active = true
-              AND z.company_id = :companyId
+              AND 1=1
               AND EXISTS (
                 SELECT 1 FROM jsonb_array_elements_text(z.postal_codes) pc
                 WHERE pc = ANY(:codes)
               )
             ORDER BY z.name
             """, nativeQuery = true)
-    List<Zone> findActiveZonesByPostalCodes(@Param("companyId") UUID companyId, @Param("codes") String[] codes);
+    List<Zone> findActiveZonesByPostalCodes(@Param("codes") String[] codes);
     
-    Optional<Zone> findByCompanyIdAndId(UUID companyId, UUID id);
+    Optional<Zone> findById(UUID id);
 
     @Query(value = """
             SELECT * FROM zones

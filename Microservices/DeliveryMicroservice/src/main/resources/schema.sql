@@ -5,6 +5,18 @@
 -- DROP TABLE IF EXISTS drivers;   ← run manually if migrating existing data
 -- DROP TABLE IF EXISTS driver_otp; ← run manually if migrating existing data
 
+-- ── Companies (Single-tenant Profile) ──────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS companies (
+    id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name          VARCHAR(255) NOT NULL,
+    logo_url      VARCHAR(512),
+    address       VARCHAR(512),
+    primary_color VARCHAR(7) DEFAULT '#FF5722',
+    support_email VARCHAR(255),
+    active        BOOLEAN NOT NULL DEFAULT TRUE,
+    created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Legacy placeholder kept for existing databases — schema won't re-create it
 -- but we do not drop it automatically to preserve any existing data.
 -- New deployments will simply not have this table.

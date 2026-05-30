@@ -16,11 +16,11 @@ public class DriverAuditLogService {
     private final DriverAuditLogRepository auditLogRepo;
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void log(String action, UUID resourceId, UUID companyId, String actorName, String actorRole, String details) {
+    public void log(String action, UUID resourceId, String actorName, String actorRole, String details) {
         auditLogRepo.save(DriverAuditLog.builder()
                 .action(action)
                 .resourceId(resourceId)
-                .companyId(companyId)
+                
                 .actorName(actorName)
                 .actorRole(actorRole)
                 .details(details)

@@ -40,8 +40,14 @@ public class OutboxEvent {
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 
+    @Column(name = "next_retry_at", nullable = false)
+    private LocalDateTime nextRetryAt;
+
     @PrePersist
     void prePersist() {
         createdAt = LocalDateTime.now();
+        if (nextRetryAt == null) {
+            nextRetryAt = createdAt;
+        }
     }
 }

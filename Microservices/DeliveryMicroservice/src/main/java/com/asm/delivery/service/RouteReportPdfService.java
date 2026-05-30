@@ -3,7 +3,6 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.response.RouteReportResponse;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.service.route.RouteReportService;
 import com.asm.delivery.storage.MinioStorageService;
@@ -28,8 +27,6 @@ public class RouteReportPdfService extends BasePdfService {
 
     private final RouteRepository routeRepository;
     private final RouteReportService routeReportService;
-    private final CompanyRepository companyRepository;
-    private final MinioStorageService minioStorageService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -47,8 +44,7 @@ public class RouteReportPdfService extends BasePdfService {
             if (r.getHeader().getDriverName() != null) subtitle += "  ·  " + r.getHeader().getDriverName();
             if (r.getKpis() != null) subtitle += "  ·  " + r.getKpis().getAttemptedStops() + " arrêts";
 
-            ReportPageEvent event = pageEvent("RAPPORT DE TOURNÉE", subtitle,
-                    route.getCompanyId(), companyRepository, minioStorageService);
+            ReportPageEvent event = pageEvent("RAPPORT DE TOURNÉE", subtitle);
             writer.setPageEvent(event);
             Color brand = event.getPrimaryColor();
 

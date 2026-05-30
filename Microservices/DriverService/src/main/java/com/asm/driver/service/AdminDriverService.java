@@ -31,10 +31,8 @@ public class AdminDriverService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
 
-    public List<AdminDriverResponse> listAll(UUID companyId) {
-        List<Driver> drivers = companyId != null
-                ? driverRepo.findByCompanyId(companyId)
-                : driverRepo.findAll();
+    public List<AdminDriverResponse> listAll() {
+        List<Driver> drivers = driverRepo.findAll();
         return drivers.stream().map(this::toResponse).toList();
     }
 
@@ -45,7 +43,7 @@ public class AdminDriverService {
     }
 
     @Transactional
-    public AdminDriverResponse invite(String name, String phone, String email, UUID companyId) {
+    public AdminDriverResponse invite(String name, String phone, String email) {
         if (driverRepo.existsByPhone(phone)) {
             throw AppException.conflict("Phone already registered");
         }
@@ -55,7 +53,7 @@ public class AdminDriverService {
                 .phone(phone)
                 .email(email)
                 .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString())) // unusable placeholder
-                .companyId(companyId)
+                
                 .active(false)
                 .build();
         driver = driverRepo.save(driver);
@@ -130,7 +128,7 @@ public class AdminDriverService {
     }
 
     @Transactional
-    public List<AdminDriverResponse> importCsv(MultipartFile file, UUID companyId) {
+    public List<AdminDriverResponse> importCsv(MultipartFile file) {
         List<AdminDriverResponse> created = new ArrayList<>();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(file.getInputStream()))) {
             String line;
@@ -147,7 +145,7 @@ public class AdminDriverService {
                 Driver driver = Driver.builder()
                         .name(name).phone(phone)
                         .passwordHash(passwordEncoder.encode(pass))
-                        .companyId(companyId).active(true).build();
+                        .active(true).build();
                 created.add(toResponse(driverRepo.save(driver)));
             }
         } catch (Exception e) {
@@ -170,7 +168,7 @@ public class AdminDriverService {
                 .id(d.getId().toString())
                 .name(d.getName())
                 .phone(d.getPhone())
-                .companyId(d.getCompanyId())
+                
                 .active(d.getActive())
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())

@@ -1,6 +1,5 @@
 package com.asm.erpadapter.controller;
 
-import com.asm.erpadapter.config.CompanyAdapterFactory;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.request.SyncFailureRequest;
 import com.asm.erpadapter.dto.request.SyncFullDeliveryRequest;
@@ -24,12 +23,8 @@ import java.util.UUID;
 public class ErpSyncController {
 
     private final ErpProviderRouter      router;
-    private final CompanyAdapterFactory  factory;
-
-    private ErpSyncPort resolve(String erpProvider, String companyId) {
-        return companyId != null
-                ? factory.syncFor(UUID.fromString(companyId))
-                : router.getSync(erpProvider);
+    private ErpSyncPort resolve(String erpProvider) {
+        return router.getSync(erpProvider);
     }
 
     @PostMapping("/order-cancellation")
@@ -37,10 +32,9 @@ public class ErpSyncController {
     public ResponseEntity<Map<String, Object>> syncOrderCancellation(
             @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId,
-            @RequestParam(required = false) String transactionId,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId) {
+            @RequestParam(required = false) String transactionId) {
 
-        boolean success = resolve(erpProvider, companyId).syncOrderCancellation(erpOrderId, transactionId);
+        boolean success = resolve(erpProvider).syncOrderCancellation(erpOrderId, transactionId);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -48,10 +42,9 @@ public class ErpSyncController {
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncFullDeliveryRequest request) {
 
-        boolean success = resolve(erpProvider, companyId)
+        boolean success = resolve(erpProvider)
                 .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }
@@ -60,10 +53,9 @@ public class ErpSyncController {
     @Operation(summary = "Sync partial delivery to ERP")
     public ResponseEntity<ErpPartialDeliveryResultDTO> syncPartialDelivery(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncPartialDeliveryRequest request) {
 
-        ErpPartialDeliveryResultDTO result = resolve(erpProvider, companyId)
+        ErpPartialDeliveryResultDTO result = resolve(erpProvider)
                 .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId());
         return ResponseEntity.ok(result);
     }
@@ -72,10 +64,9 @@ public class ErpSyncController {
     @Operation(summary = "Post failure note on ERP order")
     public ResponseEntity<Map<String, Object>> syncFailure(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @Valid @RequestBody SyncFailureRequest request) {
 
-        boolean success = resolve(erpProvider, companyId)
+        boolean success = resolve(erpProvider)
                 .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId());
         return ResponseEntity.ok(Map.of("success", success));
     }

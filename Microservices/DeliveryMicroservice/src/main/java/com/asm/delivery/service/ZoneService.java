@@ -3,7 +3,6 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.ZoneRequest;
 import com.asm.delivery.dto.response.ZoneResponse;
 import com.asm.delivery.entity.Zone;
-import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.ZoneRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -24,16 +23,14 @@ public class ZoneService {
 
     @Transactional(readOnly = true)
     public List<ZoneResponse> list() {
-        UUID companyId = getCompanyId();
-        return zoneRepository.findAllByCompanyIdOrderByCreatedAtDesc(companyId).stream()
+        return zoneRepository.findAllByOrderByCreatedAtDesc().stream()
                 .map(this::toResponse)
                 .toList();
     }
 
     @Transactional(readOnly = true)
     public List<ZoneResponse> listActive() {
-        UUID companyId = getCompanyId();
-        return zoneRepository.findByCompanyIdAndIsActiveTrueOrderByNameAsc(companyId).stream()
+        return zoneRepository.findByIsActiveTrueOrderByNameAsc().stream()
                 .map(this::toResponse)
                 .toList();
     }
@@ -45,7 +42,6 @@ public class ZoneService {
 
     @Transactional
     public ZoneResponse create(UserPrincipal principal, ZoneRequest request) {
-        UUID companyId = getCompanyId();
         Zone zone = Zone.builder()
                 .name(request.getName().trim())
                 .color(request.getColor())
@@ -54,7 +50,6 @@ public class ZoneService {
                 .postalCodes(request.getPostalCodes() != null ? request.getPostalCodes() : new ArrayList<>())
                 .isActive(request.getIsActive() != null ? request.getIsActive() : true)
                 .geometry(request.getGeometry())
-                .companyId(companyId)
                 .build();
         Zone saved = zoneRepository.save(zone);
         auditLogService.logAction(principal, "CREATE_ZONE", "ZONE", saved.getId().toString(),
@@ -101,17 +96,8 @@ public class ZoneService {
     }
 
     public Zone getZone(UUID id) {
-        UUID companyId = getCompanyId();
-        return zoneRepository.findByCompanyIdAndId(companyId, id)
-                .orElseThrow(() -> AppException.notFound("Zone not found or does not belong to your company"));
-    }
-
-    private UUID getCompanyId() {
-        String cid = TenantContext.get();
-        if (cid == null) {
-            throw AppException.unauthorized("Company context missing");
-        }
-        return UUID.fromString(cid);
+        return zoneRepository.findById(id)
+                .orElseThrow(() -> AppException.notFound("Zone not found"));
     }
 
     public ZoneResponse toResponse(Zone zone) {

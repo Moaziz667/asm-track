@@ -1,78 +1,59 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.entity.Company;
-import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.CompanyService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.List;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/admin/companies")
+@Tag(name = "Company", description = "Company configuration and branding management")
+@SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class CompanyController {
 
     private final CompanyService service;
-
+    
     @GetMapping("/me")
-    public ResponseEntity<Company> me(@AuthenticationPrincipal UserPrincipal principal) {
-        if (principal.getCompanyId() == null) return ResponseEntity.noContent().build();
-        return service.findById(UUID.fromString(principal.getCompanyId()))
-                .map(ResponseEntity::ok)
+    @Operation(summary = "Get the authenticated user's company information")
+    public ResponseEntity<Company> getCompany() {
+        return getOrInitCompany().map(ResponseEntity::ok)
                 .orElse(ResponseEntity.notFound().build());
     }
 
-    @GetMapping
-    public ResponseEntity<List<Company>> list(@AuthenticationPrincipal UserPrincipal principal) {
-        requireSuperAdmin(principal);
-        return ResponseEntity.ok(service.findAll());
+    @PutMapping("/me")
+    @Operation(summary = "Update the single-tenant company branding details")
+    public ResponseEntity<Company> updateCompany(@RequestBody Company patch) {
+        Company current = getOrInitCompany().orElseThrow();
+        Company updated = service.update(current.getId(), patch);
+        return ResponseEntity.ok(updated);
     }
 
-    @PostMapping
-    public ResponseEntity<Company> create(@RequestBody Company body,
-                                          @AuthenticationPrincipal UserPrincipal principal) {
-        requireSuperAdmin(principal);
-        return ResponseEntity.ok(service.create(body));
+    @PostMapping("/me/logo")
+    @Operation(summary = "Upload the company logo (multipart/form-data)")
+    public ResponseEntity<Company> uploadLogo(@RequestParam("file") MultipartFile file) {
+        Company current = getOrInitCompany().orElseThrow();
+        Company updated = service.uploadLogo(current.getId(), file);
+        return ResponseEntity.ok(updated);
     }
 
-    @PutMapping("/{id}")
-    public ResponseEntity<Company> update(@PathVariable UUID id,
-                                          @RequestBody Company body,
-                                          @AuthenticationPrincipal UserPrincipal principal) {
-        boolean isSuperAdmin = "SUPER_ADMIN".equals(principal.getRole());
-        boolean isOwnCompany = principal.getCompanyId() != null && id.equals(UUID.fromString(principal.getCompanyId()));
-        if (!isSuperAdmin && !isOwnCompany) {
-            throw new AccessDeniedException("Access denied");
+    private java.util.Optional<Company> getOrInitCompany() {
+        var list = service.findAll();
+        if (!list.isEmpty()) {
+            return java.util.Optional.of(list.get(0));
         }
-        return ResponseEntity.ok(service.update(id, body));
-    }
-
-    @DeleteMapping("/{id}")
-    public ResponseEntity<Void> delete(@PathVariable UUID id,
-                                       @AuthenticationPrincipal UserPrincipal principal) {
-        requireSuperAdmin(principal);
-        service.deactivate(id);
-        return ResponseEntity.noContent().build();
-    }
-
-    @PostMapping(value = "/{id}/logo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<Company> uploadLogo(@PathVariable UUID id,
-                                              @RequestParam("file") MultipartFile file,
-                                              @AuthenticationPrincipal UserPrincipal principal) {
-        requireSuperAdmin(principal);
-        return ResponseEntity.ok(service.uploadLogo(id, file));
-    }
-
-    private void requireSuperAdmin(UserPrincipal principal) {
-        if (!"SUPER_ADMIN".equals(principal.getRole())) {
-            throw new AccessDeniedException("Super-admin access required");
-        }
+        // If no company exists, create a default one
+        Company c = new Company();
+        c.setId(UUID.randomUUID());
+        c.setName("ASM Logistics");
+        c.setActive(true);
+        return java.util.Optional.of(service.create(c));
     }
 }

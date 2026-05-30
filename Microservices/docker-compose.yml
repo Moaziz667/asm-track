@@ -68,6 +68,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   #  POSTGRES DATABASES
   postgres-app:
@@ -89,6 +94,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres-delivery:
     image: postgres:16-alpine
@@ -109,6 +119,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   postgres-driver:
     image: postgres:16-alpine
@@ -129,6 +144,11 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   #  MINIO FILE STORAGE
   minio:
@@ -157,8 +177,8 @@ services:
       context: ./AppBackend
       dockerfile: Dockerfile
     container_name: app-backend
-    ports:
-      - "8080:8080"
+    # ports:
+    #   - "8080:8080" # Commented out for VPS security. Access via API Gateway instead.
     environment:
       TZ: Africa/Tunis
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
@@ -169,10 +189,11 @@ services:
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
-      ODOO_URL: http://host.docker.internal:8069/jsonrpc
+      ODOO_URL: ${ODOO_URL:-http://host.docker.internal:8069/jsonrpc}
       ODOO_DB: ${ODOO_DB}
       ODOO_UID: ${ODOO_UID}
       ODOO_PASSWORD: ${ODOO_PASSWORD}
+      AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY}
     depends_on:
       postgres-app:
         condition: service_healthy
@@ -185,14 +206,19 @@ services:
     restart: unless-stopped
     networks:
       - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   delivery-service:
     build:
       context: ./DeliveryMicroservice
       dockerfile: Dockerfile
     container_name: delivery-service
-    ports:
-      - "8082:8082"
+    # ports:
+    #   - "8082:8082" # Commented out for VPS security. Access via API Gateway instead.
     environment:
       TZ: Africa/Tunis
       SPRING_PROFILES_ACTIVE: prod
@@ -203,6 +229,8 @@ services:
       DB_PASS: ${DELIVERY_DB_PASS}
       AUTH_SERVER_URL: http://auth-server:8089
       AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      TRUST_GATEWAY_HEADERS: ${TRUST_GATEWAY_HEADERS:-false}
+      GATEWAY_SECRET: ${GATEWAY_SECRET}
       CLIENT_ID: delivery-service
       CLIENT_SECRET: ${CLIENT_SECRET_DELIVERY}
       RABBITMQ_HOST: rabbitmq
@@ -212,7 +240,7 @@ services:
       DRIVER_SERVICE_URL: http://driver-service:8086
       TRANSPORT_PROVIDER: internal
       MINIO_URL: http://minio:9000
-      MINIO_PUBLIC_URL: http://localhost:9000
+      MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
       MINIO_ACCESS_KEY: ${MINIO_USER}
       MINIO_SECRET_KEY: ${MINIO_PASS}
       MINIO_BUCKET: pod-files
@@ -247,6 +275,11 @@ services:
     restart: unless-stopped
     networks:
       - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   # ── ERP Adapter Service ────────────────────────────────────────────────────
   erp-adapter:
@@ -254,8 +287,8 @@ services:
       context: ./ErpAdapterService
       dockerfile: Dockerfile
     container_name: erp-adapter
-    ports:
-      - "8088:8088"
+    # ports:
+    #   - "8088:8088" # Commented out for VPS security. Access via API Gateway instead.
     environment:
       TZ: Africa/Tunis
       SERVER_PORT: 8088
@@ -264,10 +297,6 @@ services:
       CLIENT_ID: erp-adapter
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
-      ODOO_URL: http://host.docker.internal:8069/jsonrpc
-      ODOO_DB: ${ODOO_DB}
-      ODOO_UID: ${ODOO_UID}
-      ODOO_PASSWORD: ${ODOO_PASSWORD}
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8088/actuator/health || exit 1"]
       interval: 10s
@@ -277,14 +306,19 @@ services:
     restart: unless-stopped
     networks:
       - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   driver-service:
     build:
       context: ./DriverService
       dockerfile: Dockerfile
     container_name: driver-service
-    ports:
-      - "8086:8086"
+    # ports:
+    #   - "8086:8086" # Commented out for VPS security. Access via API Gateway instead.
     environment:
       TZ: Africa/Tunis
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
@@ -312,6 +346,11 @@ services:
     restart: unless-stopped
     networks:
       - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   #  AUTH SERVER (OAuth2 — RSA-signed JWT issuer)
   auth-server:
@@ -319,8 +358,8 @@ services:
       context: ./AuthServer
       dockerfile: Dockerfile
     container_name: auth-server
-    ports:
-      - "8089:8089"
+    # ports:
+    #   - "8089:8089" # Commented out for VPS security. Access via API Gateway instead.
     environment:
       TZ: Africa/Tunis
       APP_DB_URL: jdbc:postgresql://postgres-app:5432/app_db
@@ -351,6 +390,11 @@ services:
     restart: unless-stopped
     networks:
       - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   #  API GATEWAY
   api-gateway:

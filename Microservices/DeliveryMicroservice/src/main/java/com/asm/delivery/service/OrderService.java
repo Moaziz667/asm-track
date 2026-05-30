@@ -1,6 +1,6 @@
 package com.asm.delivery.service;
 
-import com.asm.delivery.config.TenantContext;
+
 import com.asm.delivery.dto.canonical.CanonicalDelivery;
 import com.asm.delivery.dto.request.CreateOrderRequest;
 import com.asm.delivery.dto.response.CancellableResponse;
@@ -78,7 +78,7 @@ public class OrderService {
             if (item.getQuantityDone() == null) item.setQuantityDone(0);
         });
 
-        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
+
         Order order = Order.builder()
             .source(OrderSource.APP)
                 .clientId(clientId)
@@ -104,7 +104,7 @@ public class OrderService {
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
                 .status(OrderStatus.PENDING)
-                .companyId(companyId)
+
                 .build();
 
         order = orderRepo.save(order);
@@ -137,11 +137,11 @@ public class OrderService {
             }
         }
 
-        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
+
         Order order = Order.builder()
             .source(OrderSource.ODOO)
             .status(OrderStatus.PENDING)
-            .companyId(companyId)
+
             .build();
 
         applyCanonicalToOrder(order, canonical, true);
@@ -351,7 +351,7 @@ public class OrderService {
                 .totalQuantity(original.getTotalQuantity())
                 .totalWeightKg(original.getTotalWeightKg())
                 .status(OrderStatus.PENDING)
-                .companyId(original.getCompanyId())
+
                 .build();
 
         reorder = orderRepo.save(reorder);
@@ -367,7 +367,7 @@ public class OrderService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
-                .companyId(order.getCompanyId())
+
                 .build();
         delivery = deliveryRepo.save(delivery);
 

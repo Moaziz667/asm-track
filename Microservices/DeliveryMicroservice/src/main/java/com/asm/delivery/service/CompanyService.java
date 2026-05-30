@@ -65,12 +65,6 @@ public class CompanyService {
         if (patch.getLogoUrl()      != null) existing.setLogoUrl(patch.getLogoUrl());
         if (patch.getAddress()      != null) existing.setAddress(patch.getAddress());
         if (patch.getPrimaryColor() != null) existing.setPrimaryColor(patch.getPrimaryColor());
-        if (patch.getErpType()      != null) existing.setErpType(patch.getErpType());
-        if (patch.getErpApiUrl()    != null) existing.setErpApiUrl(patch.getErpApiUrl());
-        if (patch.getErpApiKey()    != null) existing.setErpApiKey(patch.getErpApiKey());
-        if (patch.getErpDbName()    != null) existing.setErpDbName(patch.getErpDbName());
-        if (patch.getErpUsername()  != null) existing.setErpUsername(patch.getErpUsername());
-        if (patch.getErpUid()       != null) existing.setErpUid(patch.getErpUid());
         if (patch.getSupportEmail() != null) existing.setSupportEmail(patch.getSupportEmail());
         if (patch.getActive() != null) existing.setActive(patch.getActive());
         return repo.save(existing);
@@ -113,16 +107,38 @@ public class CompanyService {
         return cachedServiceToken;
     }
 
+    @Transactional
     public Company uploadLogo(UUID id, MultipartFile file) {
         Company company = repo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));
         try {
             String path = "company-logos/" + id + "/" + System.currentTimeMillis() + "-logo.png";
-            String url = minioStorageService.uploadFile(file.getBytes(), file.getContentType(), path);
-            company.setLogoUrl(url);
-            return repo.save(company);
+            String publicUrl = minioStorageService.getPublicUrl(path);
+            company.setLogoUrl(publicUrl);
+            Company saved = repo.save(company);
+            
+            byte[] fileBytes = file.getBytes();
+            String contentType = file.getContentType();
+            runAfterCommit(() -> minioStorageService.uploadFile(fileBytes, contentType, path));
+            
+            return saved;
         } catch (IOException e) {
             throw AppException.badRequest("Failed to upload logo: " + e.getMessage());
+        }
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        action.run();
+                    }
+                }
+            );
+        } else {
+            action.run();
         }
     }
 }

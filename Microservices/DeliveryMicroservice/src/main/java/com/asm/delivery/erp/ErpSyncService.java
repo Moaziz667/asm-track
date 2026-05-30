@@ -25,13 +25,12 @@ public class ErpSyncService {
 
     public void syncOrderCancellation(Order order, String transactionId) {
         if (order.getErpOrderId() == null) return;
-        String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
-        boolean success = erpAdapterClient.syncOrderCancellation(order.getErpOrderId(), transactionId, null, companyId);
+        boolean success = erpAdapterClient.syncOrderCancellation(order.getErpOrderId(), transactionId, null);
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Cancellation failed — erpOrderId=" + order.getErpOrderId() + " companyId=" + companyId);
+            throw new RuntimeException("ERP Cancellation failed — erpOrderId=" + order.getErpOrderId());
         }
     }
 
@@ -39,24 +38,22 @@ public class ErpSyncService {
         // Backorder orders have erpOrderId=null (unique constraint) — resolve via parent order.
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
         boolean success = erpAdapterClient.syncFullDelivery(
-                erpOrderId, order.getOdooBackorderId(), transactionId, null, companyId);
+                erpOrderId, order.getOdooBackorderId(), transactionId, null);
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Stock update failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
+            throw new RuntimeException("ERP Stock update failed — erpOrderId=" + erpOrderId);
         }
     }
 
     public void syncPartialStockUpdate(Order order, List<PartialDeliveryItem> partialItems, String transactionId) {
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
         Map<String, Object> result = erpAdapterClient.syncPartialDelivery(
-                erpOrderId, partialItems, transactionId, null, companyId);
+                erpOrderId, partialItems, transactionId, null);
         boolean success = Boolean.TRUE.equals(result.get("success"));
 
         if (success) {
@@ -68,20 +65,19 @@ public class ErpSyncService {
             }
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Partial sync failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
+            throw new RuntimeException("ERP Partial sync failed — erpOrderId=" + erpOrderId);
         }
     }
 
     public void syncFailure(Order order, String failureCode, String comment, String transactionId) {
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        String companyId = order.getCompanyId() != null ? order.getCompanyId().toString() : null;
 
-        boolean success = erpAdapterClient.syncFailure(erpOrderId, failureCode, comment, transactionId, null, companyId);
+        boolean success = erpAdapterClient.syncFailure(erpOrderId, failureCode, comment, transactionId, null);
         if (success) {
             markSynced(order);
         } else {
-            throw new RuntimeException("ERP Failure sync failed — erpOrderId=" + erpOrderId + " companyId=" + companyId);
+            throw new RuntimeException("ERP Failure sync failed — erpOrderId=" + erpOrderId);
         }
     }
 

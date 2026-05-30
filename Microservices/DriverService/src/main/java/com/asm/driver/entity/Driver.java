@@ -40,8 +40,7 @@ public class Driver {
     @Builder.Default
     private DriverOnlineStatus onlineStatus = DriverOnlineStatus.OFFLINE;
 
-    @Column(name = "company_id")
-    private UUID companyId;
+
 
     @Column(length = 255)
     private String email;

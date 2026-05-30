@@ -166,7 +166,7 @@ public class TokenController {
 
     private Map<String, Object> reloadAdmin(String userId) {
         List<Map<String, Object>> rows = appJdbc.queryForList(
-                "SELECT id::text, name, email, role, company_id::text, active FROM admin_users WHERE id = ?::uuid",
+                "SELECT id::text, name, email, role, active FROM admin_users WHERE id = ?::uuid",
                 userId);
         if (rows.isEmpty()) return null;
         Map<String, Object> row = rows.get(0);
@@ -175,7 +175,6 @@ public class TokenController {
         u.put("id",        row.get("id"));
         u.put("name",      row.get("name"));
         u.put("role",      row.get("role"));
-        u.put("companyId", row.get("company_id"));
         u.put("type",      "admin");
         return u;
     }

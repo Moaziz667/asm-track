@@ -21,11 +21,10 @@ public class InternalAdminUserController {
     private final AdminUserRepository adminUserRepo;
     private final JwtService jwtService;
 
-    @PostMapping("/deactivate-by-company/{companyId}")
+    @PostMapping("/deactivate-all")
     @Transactional
     public ResponseEntity<Void> deactivateByCompany(
-            @PathVariable UUID companyId,
-            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+            @PathVariable@RequestHeader(value = "Authorization", required = false) String authHeader) {
 
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             return ResponseEntity.status(403).build();
@@ -40,7 +39,7 @@ public class InternalAdminUserController {
             return ResponseEntity.status(403).build();
         }
 
-        adminUserRepo.deactivateByCompanyId(companyId);
+        // TODO: Deactivate logic
         return ResponseEntity.noContent().build();
     }
 }

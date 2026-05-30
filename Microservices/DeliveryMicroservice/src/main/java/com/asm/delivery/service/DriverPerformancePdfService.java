@@ -4,7 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
+
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.storage.MinioStorageService;
@@ -42,7 +42,7 @@ import javax.imageio.ImageIO;
 public class DriverPerformancePdfService extends BasePdfService {
 
     private final DeliveryRepository  deliveryRepository;
-    private final CompanyRepository   companyRepository;
+
     private final RouteStopRepository routeStopRepository;
     private final DelayCalculationService delayCalculationService;
     private final TransportPort       transportPort;
@@ -117,7 +117,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            ReportPageEvent event = pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()), companyRepository, minioStorageService);
+            ReportPageEvent event = pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()));
             writer.setPageEvent(event);
             Color brand = event.getPrimaryColor();
             doc.open();

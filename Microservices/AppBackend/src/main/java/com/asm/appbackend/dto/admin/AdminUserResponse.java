@@ -10,8 +10,6 @@ public record AdminUserResponse(
         String id,
         String name,
         String email,
-        String role,
-        UUID companyId,
-        boolean active,
+        String role,boolean active,
         LocalDateTime createdAt
 ) {}

@@ -1,6 +1,5 @@
 package com.asm.delivery.service.route;
 
-import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.request.CreateRouteRequest;
 import com.asm.delivery.dto.request.UpdateRouteRequest;
 import com.asm.delivery.dto.response.*;
@@ -186,10 +185,7 @@ public class RoutePlanningService {
         validateScheduleWindow(plannedStartTime, plannedEndTime);
         ensureNoScheduleConflict(request.getDriverId(), request.getDate(), plannedStartTime, plannedEndTime, null);
         ensureVehicleAvailable(request.getVehicleId());
-        ensureNoVehicleConflict(request.getVehicleId(), request.getDate(), plannedStartTime, plannedEndTime, null);
-
-        UUID companyId = TenantContext.get() != null ? UUID.fromString(TenantContext.get()) : null;
-        Route route = Route.builder()
+        ensureNoVehicleConflict(request.getVehicleId(), request.getDate(), plannedStartTime, plannedEndTime, null);        Route route = Route.builder()
                 .name(request.getName().trim())
                 .driverId(request.getDriverId())
                 .vehicleId(request.getVehicleId())
@@ -198,7 +194,7 @@ public class RoutePlanningService {
                 .plannedEndTime(plannedEndTime)
                 .city(normalizeNullableText(request.getCity()))
                 .status(RouteStatus.DRAFT)
-                .companyId(companyId)
+                
                 .createdBy(StringUtils.hasText(createdBy) ? createdBy : "SYSTEM")
                 .depotId(request.getDepotId())
                 .departureTime(request.getDepartureTime())
@@ -713,10 +709,10 @@ public class RoutePlanningService {
                     .distinct()
                     .toList();
 
-            UUID companyId = route.getCompanyId();
+
             List<Zone> detectedZones = postalCodes.isEmpty()
                     ? List.of()
-                    : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
+                    : zoneRepository.findActiveZonesByPostalCodes( postalCodes.toArray(new String[0]));
 
             if (detectedZones.size() > 1) {
                 String label = detectedZones.stream().map(Zone::getName).collect(Collectors.joining(" · "));
@@ -913,9 +909,7 @@ public class RoutePlanningService {
                                          LocalTime startTime, LocalTime endTime,
                                          UUID currentRouteId) {
         if (vehicleId == null) return;
-        List<Route> sameDayRoutes = runWithoutCompanyFilter(() ->
-            routeRepository.findAllByVehicleIdAndDate(vehicleId, date)
-        );
+        List<Route> sameDayRoutes = routeRepository.findAllByVehicleIdAndDate(vehicleId, date);
         for (Route existing : sameDayRoutes) {
             // DRAFT = tentative, pas encore validé → pas de lock de ressource
             if (existing.getStatus() == RouteStatus.DRAFT
@@ -935,9 +929,7 @@ public class RoutePlanningService {
                                           LocalTime startTime,
                                           LocalTime endTime,
                                           UUID currentRouteId) {
-        List<Route> sameDayRoutes = runWithoutCompanyFilter(() ->
-            routeRepository.findAllByDriverIdAndDate(driverId, date)
-        );
+        List<Route> sameDayRoutes = routeRepository.findAllByDriverIdAndDate(driverId, date);
         for (Route existing : sameDayRoutes) {
             // DRAFT = brouillon, pas de lock — seules les routes VALIDATED/IN_PROGRESS bloquent
             if (existing.getStatus() == RouteStatus.DRAFT
@@ -975,28 +967,6 @@ public class RoutePlanningService {
             }
             lastEnd = end;
             i++;
-        }
-    }
-
-    private <T> T runWithoutCompanyFilter(Supplier<T> action) {
-        Session session = entityManager.unwrap(Session.class);
-        Filter filter = session.getEnabledFilter("companyFilter");
-        boolean wasEnabled = filter != null;
-
-        if (wasEnabled) {
-            session.disableFilter("companyFilter");
-        }
-
-        try {
-            return action.get();
-        } finally {
-            if (wasEnabled) {
-                String cid = TenantContext.get();
-                if (cid != null && !cid.isBlank()) {
-                    session.enableFilter("companyFilter")
-                           .setParameter("companyId", UUID.fromString(cid));
-                }
-            }
         }
     }
 
@@ -1126,10 +1096,10 @@ public class RoutePlanningService {
                 .filter(pc -> pc != null && !pc.isBlank())
                 .distinct()
                 .toList();
-        UUID companyId = route.getCompanyId();
+
         List<Zone> detectedZones = postalCodes.isEmpty()
                 ? List.of()
-                : zoneRepository.findActiveZonesByPostalCodes(companyId, postalCodes.toArray(new String[0]));
+                : zoneRepository.findActiveZonesByPostalCodes( postalCodes.toArray(new String[0]));
         List<String> detectedZoneNames = detectedZones.stream().map(Zone::getName).toList();
         String detectedZoneLabel = detectedZoneNames.isEmpty()
                 ? ""
@@ -1140,7 +1110,7 @@ public class RoutePlanningService {
 
         return RouteResponse.builder()
                 .id(route.getId())
-                .companyId(route.getCompanyId())
+
                 .name(route.getName())
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
@@ -1225,7 +1195,7 @@ public class RoutePlanningService {
         String detectedZoneLabel = null;
         List<String> detectedZoneNames = new java.util.ArrayList<>();
         if (route.getZoneId() != null) {
-            com.asm.delivery.entity.Zone z = zoneRepository.findByCompanyIdAndId(route.getCompanyId(), route.getZoneId()).orElse(null);
+            com.asm.delivery.entity.Zone z = zoneRepository.findById( route.getZoneId()).orElse(null);
             if (z != null) {
                 detectedZoneNames.add(z.getName());
             }
@@ -1476,7 +1446,7 @@ public class RoutePlanningService {
             if (role == Role.DRIVER) {
                 return actorNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;
@@ -1538,7 +1508,7 @@ public class RoutePlanningService {
                 com.asm.delivery.transport.DriverDTO driver = transportPort.getDriver(changedBy);
                 if (driver != null && driver.getName() != null) return driver.getName();
             }
-            if (role == Role.DISPATCHER || role == Role.ADMIN || role == Role.SUPER_ADMIN) return "Dispatching";
+            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;

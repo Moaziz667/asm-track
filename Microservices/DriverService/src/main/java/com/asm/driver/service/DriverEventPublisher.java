@@ -19,16 +19,13 @@ public class DriverEventPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void publishStatusChanged(UUID driverId, UUID companyId,
+    public void publishStatusChanged(UUID driverId,
                                      DriverOnlineStatus oldStatus, DriverOnlineStatus newStatus,
-                                     String driverName) {
-        if (companyId == null) return;
-        try {
+                                     String driverName) {        try {
             Map<String, Object> event = new HashMap<>();
             event.put("event", "driver.status_changed");
             event.put("driverId", driverId.toString());
-            event.put("companyId", companyId.toString());
-            event.put("status", newStatus.name());
+                        event.put("status", newStatus.name());
             event.put("previousStatus", oldStatus != null ? oldStatus.name() : "OFFLINE");
             event.put("driverName", driverName);
             event.put("timestamp", Instant.now().toString());

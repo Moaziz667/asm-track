@@ -46,8 +46,8 @@ public class AdminReportsController {
                description = "Fournit les données de succès (SLA Compliance), volumes et statistiques de retard.")
     public ResponseEntity<DashboardKpiResponse> getDashboard(
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return ResponseEntity.ok(reportingService.getGlobalKpis(period, from, to));
     }
@@ -76,8 +76,8 @@ public class AdminReportsController {
     @Operation(summary = "Get KPI report payload for admin dashboard")
     public ResponseEntity<AdminStatsResponse> kpi(
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
     }
@@ -86,8 +86,8 @@ public class AdminReportsController {
     @Operation(summary = "Rapport d'activité globale — PDF")
     public ResponseEntity<byte[]> analyticsPdf(
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         byte[] pdf = analyticsPdfService.generate(period, from, to);
         String filename = "rapport-activite-" + period + "-" + LocalDate.now() + ".pdf";
@@ -102,8 +102,8 @@ public class AdminReportsController {
     public ResponseEntity<byte[]> driverPerformancePdf(
             @PathVariable UUID driverId,
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         byte[] pdf = driverPerformancePdfService.generate(driverId, period, from, to);
         String filename = "performance-chauffeur-" + driverId.toString().substring(0, 8) + "-" + LocalDate.now() + ".pdf";

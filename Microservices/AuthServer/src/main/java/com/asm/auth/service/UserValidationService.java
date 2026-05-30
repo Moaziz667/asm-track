@@ -35,7 +35,7 @@ public class UserValidationService {
      */
     public Map<String, Object> validateAdmin(String email, String password) {
         List<Map<String, Object>> rows = appJdbc.queryForList(
-                "SELECT id::text, name, email, password_hash, role, company_id::text, active " +
+                "SELECT id::text, name, email, password_hash, role, active " +
                 "FROM admin_users WHERE email = ?", email);
 
         if (rows.isEmpty()) return null;
@@ -54,7 +54,6 @@ public class UserValidationService {
         user.put("name",      row.get("name"));
         user.put("email",     row.get("email"));
         user.put("role",      row.get("role"));
-        user.put("companyId", row.get("company_id"));
         user.put("type",      "admin");
         return user;
     }

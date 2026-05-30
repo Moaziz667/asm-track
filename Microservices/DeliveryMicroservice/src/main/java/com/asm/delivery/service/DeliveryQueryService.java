@@ -131,7 +131,7 @@ public class DeliveryQueryService {
             if (role == com.asm.delivery.entity.Role.DRIVER) {
                 return driverNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
             }
-            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN || role == com.asm.delivery.entity.Role.SUPER_ADMIN) return "Dispatching";
+            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;
@@ -147,7 +147,7 @@ public class DeliveryQueryService {
                 DriverDTO driver = transportPort.getDriver(changedBy);
                 if (driver != null && driver.getName() != null) return driver.getName();
             }
-            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN || role == com.asm.delivery.entity.Role.SUPER_ADMIN) return "Dispatching";
+            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN) return "Dispatching";
             return changedBy.substring(0, 8).toUpperCase();
         } catch (IllegalArgumentException e) {
             return changedBy;

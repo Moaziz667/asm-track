@@ -5,7 +5,7 @@ import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.Vehicle;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
+
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.repository.RouteRepository;
@@ -34,7 +34,7 @@ public class RoutePdfService extends BasePdfService {
     private final DeliveryRepository     deliveryRepository;
     private final VehicleRepository      vehicleRepository;
     private final TransportPort          transportPort;
-    private final CompanyRepository      companyRepository;
+
     private final MinioStorageService    minioStorageService;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
@@ -71,8 +71,7 @@ public class RoutePdfService extends BasePdfService {
             Document doc = newA4Document();
             PdfWriter pdfWriter = PdfWriter.getInstance(doc, out);
 
-            ReportPageEvent event = pageEvent("FEUILLE DE ROUTE", subtitle,
-                    route.getCompanyId(), companyRepository, minioStorageService);
+            ReportPageEvent event = pageEvent("BORDEREAU DE TOURNÉE", subtitle);
             pdfWriter.setPageEvent(event);
             Color brand = event.getPrimaryColor();
 

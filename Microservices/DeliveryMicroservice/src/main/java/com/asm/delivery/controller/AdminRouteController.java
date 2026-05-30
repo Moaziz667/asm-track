@@ -61,12 +61,12 @@ public class AdminRouteController {
     @GetMapping
     @Operation(summary = "List routes")
     public ResponseEntity<List<RouteResponse>> list(
-            @RequestParam(required = false) RouteStatus status,
-            @RequestParam(required = false) UUID driverId,
-            @RequestParam(required = false) LocalDate date,
-            @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to,
-            @RequestParam(required = false) String city
+            RouteStatus status,
+            UUID driverId,
+            LocalDate date,
+            LocalDate from,
+            LocalDate to,
+            String city
     ) {
         return ResponseEntity.ok(routePlanningService.list(status, driverId, date, from, to, city));
     }
@@ -292,7 +292,7 @@ public class AdminRouteController {
     public ResponseEntity<RouteResponse> cancelStop(
             @PathVariable UUID id,
             @PathVariable UUID stopId,
-            @RequestParam(required = false) String reason) {
+            String reason) {
         return ResponseEntity.ok(routePlanningService.cancelStop(id, stopId, reason));
     }
 
@@ -327,8 +327,8 @@ public class AdminRouteController {
     @Operation(summary = "List routes for a specific driver within a date range")
     public ResponseEntity<List<RouteResponse>> listForDriver(
             @PathVariable UUID driverId,
-            @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to) {
+            LocalDate from,
+            LocalDate to) {
         return ResponseEntity.ok(routePlanningService.list(null, driverId, null, from, to, null));
     }
 }

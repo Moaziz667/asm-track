@@ -7,6 +7,7 @@ import 'features/auth/presentation/login_screen.dart';
 import 'features/auth/presentation/register_screen.dart';
 import 'features/auth/presentation/setup_account_screen.dart';
 import 'features/auth/presentation/splash_screen.dart';
+import 'features/auth/presentation/workspace_screen.dart';
 import 'features/deliveries/presentation/delivery_detail_screen.dart';
 import 'features/home/presentation/home_shell.dart';
 import 'features/pod/presentation/pod_form_screen.dart';
@@ -37,6 +38,7 @@ class _DriverAppState extends ConsumerState<DriverApp> {
         LoginScreen.routeName: (_) => const LoginScreen(),
         RegisterScreen.routeName: (_) => const RegisterScreen(),
         SetupAccountScreen.routeName: (_) => const SetupAccountScreen(),
+        WorkspaceScreen.routeName: (_) => const WorkspaceScreen(),
         HomeShell.routeName: (_) => const HomeShell(),
       },
       initialRoute: SplashScreen.routeName,
@@ -66,5 +68,7 @@ void navigateToHome(BuildContext context, AuthStatus status) {
     Navigator.of(context).pushNamedAndRemoveUntil(HomeShell.routeName, (route) => false);
   } else if (status == AuthStatus.unauthenticated) {
     Navigator.of(context).pushNamedAndRemoveUntil(LoginScreen.routeName, (route) => false);
+  } else if (status == AuthStatus.needsWorkspace) {
+    Navigator.of(context).pushNamedAndRemoveUntil(WorkspaceScreen.routeName, (route) => false);
   }
 }

@@ -31,24 +31,7 @@ public class Company {
     @Builder.Default
     private String primaryColor = "#FF5722";
 
-    @Column(name = "erp_type", length = 20)
-    @Builder.Default
-    private String erpType = "NONE";
 
-    @Column(name = "erp_api_url", length = 512)
-    private String erpApiUrl;
-
-    @Column(name = "erp_api_key", length = 512)
-    private String erpApiKey;
-
-    @Column(name = "erp_db_name", length = 255)
-    private String erpDbName;
-
-    @Column(name = "erp_username", length = 255)
-    private String erpUsername;
-
-    @Column(name = "erp_uid")
-    private Integer erpUid;
 
     @Column(name = "support_email", length = 255)
     private String supportEmail;

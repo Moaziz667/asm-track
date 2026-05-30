@@ -1,6 +1,7 @@
 package com.asm.driver.controller;
 
 import com.asm.driver.dto.response.AdminDriverResponse;
+import com.asm.driver.exception.AppException;
 import com.asm.driver.security.UserPrincipal;
 import com.asm.driver.service.AdminDriverService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -28,13 +29,10 @@ public class AdminDriverController {
     private final AdminDriverService service;
 
     @GetMapping
-    @Operation(summary = "List drivers (company-scoped for ADMIN, all for SUPER_ADMIN)")
+    @Operation(summary = "List drivers")
     public ResponseEntity<List<AdminDriverResponse>> list(
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
-        UUID companyId = principal.getCompanyId() != null
-                ? UUID.fromString(principal.getCompanyId()) : null;
-        return ResponseEntity.ok(service.listAll(companyId));
+        requireAdmin(principal);        return ResponseEntity.ok(service.listAll());
     }
 
     @GetMapping("/{id}")
@@ -42,7 +40,7 @@ public class AdminDriverController {
     public ResponseEntity<AdminDriverResponse> get(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
+        requireAdmin(principal);
         return ResponseEntity.ok(service.getById(id));
     }
 
@@ -51,11 +49,8 @@ public class AdminDriverController {
     public ResponseEntity<AdminDriverResponse> invite(
             @RequestBody InviteDriverRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
-        UUID companyId = principal.getCompanyId() != null
-                ? UUID.fromString(principal.getCompanyId()) : null;
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(service.invite(req.name(), req.phone(), req.email(), companyId));
+        requireAdmin(principal);        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(service.invite(req.name(), req.phone(), req.email()));
     }
 
     @PutMapping("/{id}")
@@ -64,7 +59,7 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody UpdateDriverRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
+        requireAdmin(principal);
         return ResponseEntity.ok(service.update(id, req.name(), req.phone()));
     }
 
@@ -74,7 +69,7 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody Map<String, Boolean> body,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
+        requireAdmin(principal);
         Boolean active = body.get("active");
         if (active == null) return ResponseEntity.badRequest().build();
         return ResponseEntity.ok(service.setActive(id, active));
@@ -86,7 +81,7 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
+        requireAdmin(principal);
         String newPassword = body.get("password");
         if (newPassword == null || newPassword.isBlank()) return ResponseEntity.badRequest().build();
         service.resetPassword(id, newPassword);
@@ -98,17 +93,14 @@ public class AdminDriverController {
     public ResponseEntity<List<AdminDriverResponse>> importCsv(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdminOrSuperAdmin(principal);
-        UUID companyId = principal.getCompanyId() != null
-                ? UUID.fromString(principal.getCompanyId()) : null;
-        return ResponseEntity.ok(service.importCsv(file, companyId));
+        requireAdmin(principal);        return ResponseEntity.ok(service.importCsv(file));
     }
 
-    private void requireAdminOrSuperAdmin(UserPrincipal principal) {
+    private void requireAdmin(UserPrincipal principal) {
         if (principal == null) throw new AccessDeniedException("Authentication required");
         String role = principal.getRole();
-        if (!"SUPER_ADMIN".equals(role) && !"ADMIN".equals(role)) {
-            throw new AccessDeniedException("Admin access required");
+        if (!"ADMIN".equals(role)) {
+            throw AppException.forbidden("Only ADMIN can manage drivers");
         }
     }
 

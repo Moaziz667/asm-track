@@ -40,19 +40,14 @@ public class AdminAuditController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
-            @RequestParam(required = false) String action,
-            @RequestParam(required = false) String actor,
-            @RequestParam(required = false) String actorRole,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
+            String action,
+            String actor,
+            String actorRole,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
         Specification<AuditLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
-
-            // Scope to company unless SUPER_ADMIN
-            if (principal != null && principal.getCompanyId() != null) {
-                predicates.add(cb.equal(root.get("companyId"), UUID.fromString(principal.getCompanyId())));
-            }
 
             if (action != null && !action.isBlank()) {
                 predicates.add(cb.like(cb.upper(root.get("action")), "%" + action.toUpperCase().trim() + "%"));

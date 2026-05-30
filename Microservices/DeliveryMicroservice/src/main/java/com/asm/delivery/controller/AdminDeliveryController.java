@@ -70,24 +70,23 @@ public class AdminDeliveryController {
     })
     public ResponseEntity<Page<AdminDeliverySummaryResponse>> list(
             @Parameter(description = "Filter by delivery status", schema = @Schema(implementation = DeliveryStatus.class))
-            @RequestParam(required = false) DeliveryStatus status,
+            DeliveryStatus status,
 
             @Parameter(description = "Filter by assigned driver ID")
-            @RequestParam(required = false) UUID driverId,
+            UUID driverId,
 
             @Parameter(description = "Filter by creation date (ISO format: yyyy-MM-dd)", example = "2026-05-13")
-            @RequestParam(required = false)
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date,
 
             @Parameter(description = "Filter by order source", schema = @Schema(allowableValues = {"ODOO", "APP"}))
-            @RequestParam(required = false) OrderSource source,
+            OrderSource source,
 
             @Parameter(description = "Filter by delivery zone ID")
-            @RequestParam(required = false) UUID zoneId,
+            UUID zoneId,
 
             @Parameter(description = "If true, only return deliveries with no GPS coordinates pinned yet")
-            @RequestParam(required = false) Boolean unpinned,
+            Boolean unpinned,
 
             @ParameterObject Pageable pageable
     ) {
@@ -171,7 +170,7 @@ public class AdminDeliveryController {
     @IdempotentOperation
     public ResponseEntity<Void> confirmReturn(
             @PathVariable UUID id,
-            @RequestParam(required = false) String note,
+            String note,
             @org.springframework.security.core.annotation.AuthenticationPrincipal com.asm.delivery.security.UserPrincipal principal) {
         exceptionResolutionService.confirmReturn(id, note, principal);
         return ResponseEntity.ok().build();
@@ -186,7 +185,7 @@ public class AdminDeliveryController {
     @IdempotentOperation
     public ResponseEntity<Void> cancel(
             @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID id,
-            @Parameter(description = "Cancellation reason (optional)", example = "Customer request") @RequestParam(required = false) String reason) {
+            @Parameter(description = "Cancellation reason (optional)", example = "Customer request") String reason) {
         exceptionResolutionService.cancelDelivery(id, reason);
         return ResponseEntity.ok().build();
     }
@@ -210,9 +209,9 @@ public class AdminDeliveryController {
             @Parameter(description = "Time period", schema = @Schema(allowableValues = {"day", "week", "month", "year"}), example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
             @Parameter(description = "Start date (overrides period)", example = "2026-05-01")
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @Parameter(description = "End date (overrides period)", example = "2026-05-13")
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
     }
@@ -221,10 +220,10 @@ public class AdminDeliveryController {
     @Operation(summary = "Operations-ready overview: SLA, dispatch lanes, and exceptions")
     public ResponseEntity<AdminOpsOverviewResponse> opsOverview(
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @RequestParam(required = false) Integer waitingSlaMinutes,
-            @RequestParam(required = false) Integer transitSlaMinutes
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            Integer waitingSlaMinutes,
+            Integer transitSlaMinutes
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
     }
@@ -270,7 +269,7 @@ public class AdminDeliveryController {
     @IdempotentOperation
     public ResponseEntity<Void> adminCancelOrder(
             @PathVariable UUID orderId,
-            @RequestParam(required = false) String reason,
+            String reason,
             @AuthenticationPrincipal UserPrincipal principal) {
         orderService.adminCancelOrder(orderId, principal, reason);
         return ResponseEntity.noContent().build();

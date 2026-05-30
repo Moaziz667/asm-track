@@ -1,6 +1,5 @@
 package com.asm.erpadapter.controller;
 
-import com.asm.erpadapter.config.CompanyAdapterFactory;
 import com.asm.erpadapter.dto.*;
 import com.asm.erpadapter.port.ErpLookupPort;
 import com.asm.erpadapter.routing.ErpProviderRouter;
@@ -24,52 +23,60 @@ import java.util.UUID;
 public class ErpLookupController {
 
     private final ErpProviderRouter     router;
-    private final CompanyAdapterFactory factory;
-
-    private ErpLookupPort resolve(String erpProvider, String companyId) {
-        return companyId != null
-                ? factory.lookupFor(UUID.fromString(companyId))
-                : router.getLookup(erpProvider);
+    private ErpLookupPort resolve(String erpProvider) {
+        return router.getLookup(erpProvider);
     }
 
     @GetMapping("/clients")
     @Operation(summary = "Search ERP clients/customers")
     public ResponseEntity<List<ErpClientDTO>> searchClients(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
-        return ResponseEntity.ok(resolve(erpProvider, companyId).searchClients(search, limit));
+        try {
+            return ResponseEntity.ok(resolve(erpProvider).searchClients(search, limit));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @GetMapping("/products")
     @Operation(summary = "Search ERP products")
     public ResponseEntity<List<ErpProductDTO>> searchProducts(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @RequestParam(defaultValue = "") String search,
             @RequestParam(defaultValue = "10") @Min(1) @Max(50) int limit) {
-        return ResponseEntity.ok(resolve(erpProvider, companyId).searchProducts(search, limit));
+        try {
+            return ResponseEntity.ok(resolve(erpProvider).searchProducts(search, limit));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @GetMapping("/pending-orders")
     @Operation(summary = "List pending ERP orders")
     public ResponseEntity<List<ErpPendingOrderSummaryDTO>> getPendingOrders(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @RequestParam(defaultValue = "100") @Min(1) @Max(300) int limit) {
-        return ResponseEntity.ok(resolve(erpProvider, companyId).getPendingOrders(limit));
+        try {
+            return ResponseEntity.ok(resolve(erpProvider).getPendingOrders(limit));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(List.of());
+        }
     }
 
     @GetMapping("/pending-orders/{erpOrderId}")
     @Operation(summary = "Preview a pending ERP order")
     public ResponseEntity<ErpPendingOrderPreviewDTO> getPendingOrderPreview(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @RequestHeader(value = "X-Company-Id", required = false) String companyId,
             @PathVariable String erpOrderId) {
-        ErpPendingOrderPreviewDTO preview = resolve(erpProvider, companyId)
-                .getPendingOrderPreview(erpOrderId);
-        if (preview == null) return ResponseEntity.notFound().build();
-        return ResponseEntity.ok(preview);
+        try {
+            ErpPendingOrderPreviewDTO preview = resolve(erpProvider)
+                    .getPendingOrderPreview(erpOrderId);
+            if (preview == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(preview);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
     }
 }

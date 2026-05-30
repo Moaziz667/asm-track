@@ -110,12 +110,11 @@ public class RouteReportService {
             } else {
                 routeReportRepository.save(RouteReport.builder()
                         .routeId(route.getId())
-                        .companyId(route.getCompanyId())
                         .payload(json)
                         .build());
             }
-            log.info("RouteReport snapshot persisted route={} companyId={}",
-                    route.getId(), route.getCompanyId());
+            log.info("RouteReport snapshot persisted route={} ",
+                    route.getId(), null);
         } catch (Exception e) {
             // Never let a snapshot failure roll back the route close — log loudly.
             log.error("RouteReport snapshot FAILED route={} reason={}", route.getId(), e.getMessage(), e);
@@ -142,7 +141,6 @@ public class RouteReportService {
             JsonNode json = objectMapper.valueToTree(payload);
             routeReportRepository.save(RouteReport.builder()
                     .routeId(route.getId())
-                    .companyId(route.getCompanyId())
                     .payload(json)
                     .build());
         } catch (Exception e) {

@@ -1,6 +1,6 @@
 import '../../../models/auth_tokens.dart';
 
-enum AuthStatus { unknown, authenticated, unauthenticated }
+enum AuthStatus { unknown, authenticated, unauthenticated, needsWorkspace }
 
 class DriverIdentity {
   const DriverIdentity({

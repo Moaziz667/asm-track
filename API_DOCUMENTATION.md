@@ -866,23 +866,6 @@ These endpoints are NOT exposed via the API Gateway. They are only called betwee
 
 ---
 
-**GET `/internal/companies/{id}/erp-config`**  
-Used by ErpAdapterService to get a company's ERP connection configuration (URL, credentials, type).
-
-```json
-// Response
-{
-  "erpType": "ODOO",
-  "apiUrl": "http://odoo:8069/jsonrpc",
-  "apiKey": "admin",
-  "dbName": "DBTEST",
-  "username": "admin",
-  "uid": 2
-}
-```
-
----
-
 ## 15. ERP Adapter Service
 
 **Base URL:** `http://erp-adapter:8088` (internal only — not exposed via API Gateway)

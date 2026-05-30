@@ -6,7 +6,6 @@ import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.SlaStatus;
 import com.asm.delivery.entity.Zone;
-import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.repository.AuditLogRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RouteStopRepository;
@@ -98,8 +97,7 @@ public class ReportingService {
         double slaRate = measurableCount == 0 ? 100.0 : (double) onTimeCompleted / measurableCount * 100.0;
 
         // 3. Zones les plus actives
-        UUID companyId = getCompanyId();
-        Map<UUID, String> zoneNameById = zoneRepository.findByCompanyId(companyId).stream()
+        Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
 
         Map<String, Long> ordersByZone = filteredDeliveries.stream()
@@ -192,11 +190,6 @@ public class ReportingService {
                 return 0;
         }
 
-    private UUID getCompanyId() {
-        String cid = TenantContext.get();
-        if (cid == null) return null;
-        return UUID.fromString(cid);
-    }
 
         private record SlaEvaluation(boolean measurable, boolean onTime, Integer delayMinutes) {
         }

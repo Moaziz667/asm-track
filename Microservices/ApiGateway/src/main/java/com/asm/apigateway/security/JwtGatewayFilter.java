@@ -89,9 +89,6 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
             if (claims.get("odooPartnerId", Integer.class) != null) {
                 reqBuilder.header("X-Odoo-Partner-Id", String.valueOf(claims.get("odooPartnerId", Integer.class)));
             }
-            if (claims.get("companyId", String.class) != null) {
-                reqBuilder.header("X-Company-Id", claims.get("companyId", String.class));
-            }
             ServerHttpRequest mutatedRequest = reqBuilder.build();
 
             return chain.filter(exchange.mutate().request(mutatedRequest).build());
@@ -117,7 +114,7 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
     }
 
     private boolean isAuthorized(String path, String role, HttpMethod method) {
-        if ("SUPER_ADMIN".equals(role)) return true;
+        if ("ADMIN".equals(role)) return true;
 
         // Client-only endpoints
         if (path.startsWith("/api/orders/")) {
@@ -138,20 +135,20 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if (path.equals("/api/admin/companies/me")) {
             return "ADMIN".equals(role) || "DISPATCHER".equals(role);
         }
-        // All other company endpoints — SUPER_ADMIN only
+        // All other company endpoints — ADMIN only
         if (path.startsWith("/api/admin/companies/")) {
-            return false;
+            return "ADMIN".equals(role);
         }
         // Drivers are platform-owned (shared across companies).
         // GET (list/read) → ADMIN + DISPATCHER need this to assign drivers to routes.
-        // Mutations (create, update, activate, reset-password) → SUPER_ADMIN only.
+        // Mutations (create, update, activate, reset-password) → ADMIN only.
         if (path.startsWith("/api/admin/drivers")) {
             return HttpMethod.GET.equals(method)
                     && ("ADMIN".equals(role) || "DISPATCHER".equals(role));
         }
-        // Vehicles are platform-owned (managed by SUPER_ADMIN).
-        // GET (list/read) → ADMIN + DISPATCHER need this to assign vehicles to routes.
-        // Mutations (create, update, delete, status change) → SUPER_ADMIN only.
+        // Vehicles are platform-owned (managed by ADMIN).
+        // Read access (GET) → Dispatchers & Managers.
+        // Mutations (create, update, delete, status change) → ADMIN only.
         if (path.startsWith("/api/admin/vehicles")) {
             return HttpMethod.GET.equals(method)
                     && ("ADMIN".equals(role) || "DISPATCHER".equals(role));
@@ -165,7 +162,7 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if (path.startsWith("/api/admin/reports/settings")) {
             return "ADMIN".equals(role);
         }
-        // ADMIN + DISPATCHER + MANAGER + SUPER_ADMIN
+        // ADMIN + DISPATCHER + MANAGER
         if (path.startsWith("/api/admin/stats") || path.startsWith("/api/admin/reports/") || path.startsWith("/api/admin/ops/")) {
             return "ADMIN".equals(role) || "DISPATCHER".equals(role) || "MANAGER".equals(role);
         }
@@ -173,7 +170,7 @@ public class JwtGatewayFilter implements GlobalFilter, Ordered {
         if ("MANAGER".equals(role) && HttpMethod.GET.equals(method)) {
             return path.startsWith("/api/admin/routes") || path.startsWith("/api/admin/deliveries");
         }
-        // ADMIN + DISPATCHER + SUPER_ADMIN (general admin catch-all covers routes, deliveries, erp imports, etc.)
+        // ADMIN + DISPATCHER (general admin catch-all covers routes, deliveries, erp imports, etc.)
         if (path.startsWith("/api/admin/")) {
             return "ADMIN".equals(role) || "DISPATCHER".equals(role);
         }

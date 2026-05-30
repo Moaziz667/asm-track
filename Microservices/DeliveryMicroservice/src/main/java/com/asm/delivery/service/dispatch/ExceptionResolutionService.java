@@ -462,7 +462,7 @@ public class ExceptionResolutionService {
 		Order backorder = Order.builder()
 				.source(order.getSource())
 				.schemaVersion(order.getSchemaVersion())
-				.companyId(order.getCompanyId())
+
 				.clientId(order.getClientId())
 				.clientName(order.getClientName())
 				.clientPhone(order.getClientPhone())
@@ -508,7 +508,7 @@ public class ExceptionResolutionService {
 
 		Delivery newDelivery = Delivery.builder()
 				.order(backorder)
-				.companyId(order.getCompanyId())
+
 				.status(DeliveryStatus.UNSCHEDULED)
 				.createdAt(LocalDateTime.now())
 				.build();
@@ -559,7 +559,7 @@ public class ExceptionResolutionService {
                 RouteInfo routeInfo = loadRouteInfoMap(List.of(delivery)).get(delivery.getId());
                 String zoneName = null;
                 if (order != null && order.getZoneId() != null) {
-                        zoneName = zoneRepository.findByCompanyIdAndId(order.getCompanyId(), order.getZoneId()).map(Zone::getName).orElse(null);
+                        zoneName = zoneRepository.findById(order.getZoneId()).map(Zone::getName).orElse(null);
                 }
                 return AdminOpsExceptionsResponse.ExceptionItem.builder()
                                 .deliveryId(delivery.getId())

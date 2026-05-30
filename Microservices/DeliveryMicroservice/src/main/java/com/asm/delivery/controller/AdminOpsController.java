@@ -1,6 +1,5 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.config.TenantContext;
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
 import com.asm.delivery.dto.request.AdminExceptionReplanRequest;
 import com.asm.delivery.dto.response.AdminOpsAlertsResponse;
@@ -64,13 +63,13 @@ public class AdminOpsController {
             @Parameter(description = "Time period", schema = @Schema(allowableValues = {"day","week","month","year"}), example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
             @Parameter(description = "Start date (overrides period)", example = "2026-05-01")
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @Parameter(description = "End date (overrides period)", example = "2026-05-13")
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Waiting SLA threshold in minutes (overrides company default)", example = "30")
-            @RequestParam(required = false) Integer waitingSlaMinutes,
+            Integer waitingSlaMinutes,
             @Parameter(description = "Transit SLA threshold in minutes (overrides company default)", example = "60")
-            @RequestParam(required = false) Integer transitSlaMinutes
+            Integer transitSlaMinutes
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
     }
@@ -83,12 +82,12 @@ public class AdminOpsController {
     public ResponseEntity<AdminOpsLanesResponse> lanes(
             @Parameter(description = "Time period", example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Number of top deliveries to return per lane", example = "4")
             @RequestParam(required = false, defaultValue = "4") Integer topItems,
-            @RequestParam(required = false) Integer waitingSlaMinutes,
-            @RequestParam(required = false) Integer transitSlaMinutes
+            Integer waitingSlaMinutes,
+            Integer transitSlaMinutes
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsLanes(period, from, to, topItems, waitingSlaMinutes, transitSlaMinutes));
     }
@@ -101,12 +100,12 @@ public class AdminOpsController {
     public ResponseEntity<AdminOpsAlertsResponse> alerts(
             @Parameter(description = "Time period", example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max alerts to return", example = "30")
             @RequestParam(required = false, defaultValue = "30") Integer limit,
-            @RequestParam(required = false) Integer waitingSlaMinutes,
-            @RequestParam(required = false) Integer transitSlaMinutes
+            Integer waitingSlaMinutes,
+            Integer transitSlaMinutes
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsAlerts(period, from, to, limit, waitingSlaMinutes, transitSlaMinutes));
     }
@@ -119,16 +118,16 @@ public class AdminOpsController {
     public ResponseEntity<AdminOpsAuditResponse> audit(
             @Parameter(description = "Time period", example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max events to return", example = "50")
             @RequestParam(required = false, defaultValue = "50") Integer limit,
             @Parameter(description = "Filter by actor name or email", example = "Aziz")
-            @RequestParam(required = false) String actor,
+            String actor,
             @Parameter(description = "Filter by actor role", schema = @Schema(allowableValues = {"ADMIN","DRIVER","SYSTEM"}))
-            @RequestParam(required = false) String role,
+            String role,
             @Parameter(description = "Filter by delivery status at time of event")
-            @RequestParam(required = false) DeliveryStatus status
+            DeliveryStatus status
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsAudit(period, from, to, limit, actor, role, status));
     }
@@ -141,16 +140,16 @@ public class AdminOpsController {
     public ResponseEntity<AdminOpsExceptionsResponse> exceptions(
             @Parameter(description = "Time period", example = "day")
             @RequestParam(required = false, defaultValue = "day") String period,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max exceptions to return", example = "50")
             @RequestParam(required = false, defaultValue = "50") Integer limit,
             @Parameter(description = "Filter by failure reason/motif", example = "CLIENT_ABSENT")
-            @RequestParam(required = false) String motif,
+            String motif,
             @Parameter(description = "Filter by driver ID")
-            @RequestParam(required = false) UUID driverId,
+            UUID driverId,
             @Parameter(description = "Filter by delivery zone name", example = "Tunis Nord")
-            @RequestParam(required = false) String zone
+            String zone
     ) {
         return ResponseEntity.ok(opsAnalyticsService.getOpsExceptions(period, from, to, limit, motif, driverId, zone));
     }
@@ -195,9 +194,7 @@ public class AdminOpsController {
     @Transactional(readOnly = true)
     @Operation(summary = "Active delivery stops for the live dispatch map")
     public ResponseEntity<List<LiveStopDTO>> liveStops() {
-        UUID companyId = UUID.fromString(TenantContext.get());
-        List<Delivery> deliveries = deliveryRepository.findActiveByCompanyWithOrder(
-            companyId,
+        List<Delivery> deliveries = deliveryRepository.findActiveDeliveriesWithOrder(
             List.of(DeliveryStatus.SCHEDULED, DeliveryStatus.PICKED_UP, DeliveryStatus.IN_TRANSIT)
         );
         List<LiveStopDTO> result = deliveries.stream()

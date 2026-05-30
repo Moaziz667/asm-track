@@ -12,7 +12,7 @@ import java.util.UUID;
 public class AdminDriverResponse {
     private String id;
     private String name;
-    private UUID companyId;
+
     private String phone;
     private boolean active;
     private BigDecimal currentLat;

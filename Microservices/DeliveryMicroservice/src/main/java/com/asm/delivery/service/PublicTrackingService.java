@@ -136,8 +136,8 @@ public class PublicTrackingService {
 
         String companyName    = "ASM Track";
         String companyLogoUrl = null;
-        if (delivery.getCompanyId() != null) {
-            var company = companyRepo.findById(delivery.getCompanyId()).orElse(null);
+        if (null != null) {
+            var company = companyRepo.findById(null).orElse(null);
             if (company != null) {
                 companyName    = company.getName();
                 companyLogoUrl = company.getLogoUrl();

@@ -19,8 +19,7 @@ import java.util.UUID;
 @Repository
 public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
-    @Query("SELECT DISTINCT d.companyId FROM Delivery d WHERE d.companyId IS NOT NULL")
-    List<UUID> findAllCompanyIds();
+
 
     List<Delivery> findByStatus(DeliveryStatus status);
 
@@ -40,6 +39,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("SELECT d FROM Delivery d WHERE d.driverId IS NOT NULL AND d.status IN :statuses")
     List<Delivery> findActiveDeliveries(@Param("statuses") List<DeliveryStatus> statuses);
 
+    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.driverId IS NOT NULL AND d.status IN :statuses")
+    List<Delivery> findActiveDeliveriesWithOrder(@Param("statuses") List<DeliveryStatus> statuses);
+
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.id = :id")
     Optional<Delivery> findByIdWithOrder(@Param("id") UUID id);
 
@@ -58,8 +60,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("SELECT d FROM Delivery d WHERE d.driverId = :driverId AND d.status IN :statuses")
     List<Delivery> findByDriverIdAndStatuses(@Param("driverId") UUID driverId, @Param("statuses") List<DeliveryStatus> statuses);
 
-    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.companyId = :companyId AND d.status IN :statuses")
-    List<Delivery> findActiveByCompanyWithOrder(@Param("companyId") UUID companyId, @Param("statuses") List<DeliveryStatus> statuses);
+
 
     /** Atomic accept: sets driver and transitions UNSCHEDULED → SCHEDULED.
      *  Returns 1 if successful, 0 if already taken (race condition). */
@@ -70,11 +71,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
         SET status = 'SCHEDULED', driver_id = :driverId,
             assigned_at = NOW(), updated_at = NOW()
         WHERE id = :id AND status = 'UNSCHEDULED'
-          AND (:companyId IS NULL OR company_id = :companyId)
         """, nativeQuery = true)
     int atomicAccept(@Param("id") UUID id,
-                     @Param("driverId") UUID driverId,
-                     @Param("companyId") UUID companyId);
+                     @Param("driverId") UUID driverId);
 
     @Query("""
             SELECT d FROM Delivery d JOIN FETCH d.order o

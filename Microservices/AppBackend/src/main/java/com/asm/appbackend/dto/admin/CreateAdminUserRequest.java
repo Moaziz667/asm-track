@@ -10,6 +10,5 @@ public record CreateAdminUserRequest(
         @NotBlank String name,
         @NotBlank @Email String email,
         @NotBlank String password,
-        @NotBlank @Pattern(regexp = "SUPER_ADMIN|ADMIN|DISPATCHER|MANAGER") String role,
-        UUID companyId   // null = super-admin
+        @NotBlank @Pattern(regexp = "ADMIN|DISPATCHER|MANAGER") String role   // null = admin
 ) {}

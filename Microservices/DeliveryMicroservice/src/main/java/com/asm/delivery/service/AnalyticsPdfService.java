@@ -3,9 +3,9 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Zone;
-import com.asm.delivery.config.TenantContext;
+
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
+
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.repository.ZoneRepository;
@@ -42,7 +42,6 @@ public class AnalyticsPdfService extends BasePdfService {
 
     private final DeliveryRepository  deliveryRepository;
     private final ZoneRepository      zoneRepository;
-    private final CompanyRepository   companyRepository;
     private final TransportPort       transportPort;
     private final MinioStorageService minioStorageService;
 
@@ -66,8 +65,7 @@ public class AnalyticsPdfService extends BasePdfService {
         long inTransit = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT || d.getStatus() == DeliveryStatus.PICKED_UP).count();
         double successRate = total == 0 ? 0.0 : (double) delivered / total * 100.0;
 
-        UUID companyId = getCompanyId();
-        Map<String, String> zoneNameById = zoneRepository.findByCompanyId(companyId).stream()
+        Map<String, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(z -> z.getId().toString(), Zone::getName));
 
         // Volume by hour (using completedAt)
@@ -105,7 +103,7 @@ public class AnalyticsPdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            ReportPageEvent event = pageEvent("RAPPORT D'ACTIVITÉ", periodLabel, companyRepository, minioStorageService);
+            ReportPageEvent event = pageEvent("RAPPORT D'ACTIVITÉ", periodLabel);
             writer.setPageEvent(event);
             Color brand = event.getPrimaryColor();
             doc.open();
@@ -287,11 +285,5 @@ public class AnalyticsPdfService extends BasePdfService {
             case "WRONG_ADDRESS"       -> "Adresse incorrecte";
             default                    -> code;
         };
-    }
-
-    private UUID getCompanyId() {
-        String cid = TenantContext.get();
-        if (cid == null) return null;
-        return UUID.fromString(cid);
     }
 }

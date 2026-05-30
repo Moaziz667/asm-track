@@ -11,8 +11,5 @@ import java.util.UUID;
 public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByPhone(String phone);
     boolean existsByPhone(String phone);
-    List<Driver> findByActiveTrue();
-    List<Driver> findByCompanyId(UUID companyId);
-    List<Driver> findByCompanyIdAndActiveTrue(UUID companyId);
-    List<Driver> findByOnlineStatusNotAndLastLocationAtBefore(DriverOnlineStatus status, LocalDateTime threshold);
+    List<Driver> findByActiveTrue();    List<Driver> findByOnlineStatusNotAndLastLocationAtBefore(DriverOnlineStatus status, LocalDateTime threshold);
 }

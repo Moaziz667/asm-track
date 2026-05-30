@@ -4,7 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.OrderItem;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
+
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import com.asm.delivery.transport.DriverDTO;
@@ -37,7 +37,7 @@ public class BonLivraisonPdfService extends BasePdfService {
 
     private final DeliveryRepository  deliveryRepository;
     private final TransportPort       transportPort;
-    private final CompanyRepository   companyRepository;
+
     private final MinioStorageService minioStorageService;
 
     public byte[] generate(UUID deliveryId) {
@@ -81,7 +81,7 @@ public class BonLivraisonPdfService extends BasePdfService {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
 
-            ReportPageEvent event = pageEvent("BON DE LIVRAISON", ref, delivery.getCompanyId(), companyRepository, minioStorageService);
+            ReportPageEvent event = pageEvent("BON DE LIVRAISON", ref);
             writer.setPageEvent(event);
 
             Color brand = event.getPrimaryColor();

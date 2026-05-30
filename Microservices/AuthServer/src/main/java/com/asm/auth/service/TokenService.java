@@ -42,8 +42,6 @@ public class TokenService {
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + accessExpiryMs));
 
-        if (user.containsKey("companyId") && user.get("companyId") != null)
-            builder.claim("companyId", user.get("companyId"));
         if (user.containsKey("phone") && user.get("phone") != null)
             builder.claim("phone", user.get("phone"));
 

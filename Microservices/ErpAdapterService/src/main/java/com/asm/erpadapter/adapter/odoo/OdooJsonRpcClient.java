@@ -1,8 +1,7 @@
 package com.asm.erpadapter.adapter.odoo;
 
-import com.asm.erpadapter.config.CompanyErpConfig;
+import com.asm.erpadapter.service.SettingsClient;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
@@ -34,42 +33,31 @@ import java.util.Map;
 @Slf4j
 public class OdooJsonRpcClient {
 
-    private final OdooConfig config;
+    private final SettingsClient settingsClient;
     private final RestTemplate restTemplate;
 
-    // Spring-managed singleton — uses global OdooConfig
     @org.springframework.beans.factory.annotation.Autowired
     public OdooJsonRpcClient(
-            OdooConfig config,
-            @Value("${odoo.timeout.connect-ms:5000}") int connectMs,
-            @Value("${odoo.timeout.read-ms:15000}") int readMs) {
+            SettingsClient settingsClient,
+            @org.springframework.beans.factory.annotation.Value("${odoo.timeout.connect-ms:5000}") int connectMs,
+            @org.springframework.beans.factory.annotation.Value("${odoo.timeout.read-ms:15000}") int readMs) {
 
-        this.config = config;
+        this.settingsClient = settingsClient;
 
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
         this.restTemplate = new RestTemplate(factory);
     }
-
-    // Per-company factory — not a Spring bean, created by CompanyAdapterFactory
-    public static OdooJsonRpcClient forCompany(CompanyErpConfig cfg) {
-        OdooConfig companyCfg = new OdooConfig();
-        companyCfg.setUrl(cfg.apiUrl());
-        companyCfg.setDb(cfg.dbName());
-        companyCfg.setUid(cfg.uid());
-        companyCfg.setPassword(cfg.apiKey());
-
-        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(5000);
-        factory.setReadTimeout(15000);
-        // Use a private constructor
-        return new OdooJsonRpcClient(companyCfg, factory);
+    
+    private String getSettingStr(String key) {
+        var cfg = settingsClient.getSettings().getErpConfiguration();
+        return cfg != null && cfg.get(key) != null ? String.valueOf(cfg.get(key)) : "";
     }
-
-    private OdooJsonRpcClient(OdooConfig config, SimpleClientHttpRequestFactory factory) {
-        this.config = config;
-        this.restTemplate = new RestTemplate(factory);
+    
+    private int getSettingInt(String key) {
+        var cfg = settingsClient.getSettings().getErpConfiguration();
+        return cfg != null && cfg.get(key) != null ? Integer.parseInt(String.valueOf(cfg.get(key))) : 0;
     }
 
     // ── Core JSON-RPC call ──────────────────────────────────────────────────
@@ -93,7 +81,12 @@ public class OdooJsonRpcClient {
         body.put("params", params);
 
         try {
-            return restTemplate.postForObject(config.getUrl(), body, Map.class);
+            String url = getSettingStr("url");
+            if (url.isBlank()) {
+                log.warn("Odoo RPC abort - ERP URL is not configured in Settings!");
+                return null;
+            }
+            return restTemplate.postForObject(url, body, Map.class);
         } catch (Exception e) {
             // Swallow transport errors — callers check for null and treat as failure.
             List<?> args = (List<?>) params.get("args");
@@ -109,7 +102,7 @@ public class OdooJsonRpcClient {
      * Build standard {@code execute_kw} args: {@code [db, uid, password, model, method, positionalArgs]}.
      */
     public List<Object> buildArgs(String model, String method, List<Object> positionalArgs) {
-        return List.of(config.getDb(), config.getUid(), config.getPassword(),
+        return List.of(getSettingStr("db"), getSettingInt("uid"), getSettingStr("password"),
                 model, method, positionalArgs);
     }
 
@@ -118,7 +111,7 @@ public class OdooJsonRpcClient {
      */
     public List<Object> buildArgs(String model, String method, List<Object> positionalArgs,
                                   Map<String, Object> kwargs) {
-        return List.of(config.getDb(), config.getUid(), config.getPassword(),
+        return List.of(getSettingStr("db"), getSettingInt("uid"), getSettingStr("password"),
                 model, method, positionalArgs, kwargs);
     }
 

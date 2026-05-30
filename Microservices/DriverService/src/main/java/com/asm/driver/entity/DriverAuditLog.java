@@ -32,8 +32,7 @@ public class DriverAuditLog {
     @Column(columnDefinition = "TEXT")
     private String details;
 
-    @Column(name = "company_id")
-    private UUID companyId;
+
 
     @Column(nullable = false, updatable = false)
     @Builder.Default

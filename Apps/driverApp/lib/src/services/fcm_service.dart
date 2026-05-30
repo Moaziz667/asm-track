@@ -138,8 +138,18 @@ const Map<String, Map<String, Map<String, String>>> notificationTemplates = {
   },
 };
 
-Map<String, String> getLocalizedNotificationPayload(Map<String, dynamic> data, String locale) {
-  final eventType = data['event_type'] as String? ?? data['event'] as String? ?? 'ROUTE_UPDATED';
+import 'dart:convert';
+
+Map<String, String> getLocalizedNotificationPayload(Map<String, dynamic> rawData, String locale) {
+  Map<String, dynamic> data = {};
+  if (rawData.containsKey('payload')) {
+    try {
+      final cloudEvent = jsonDecode(rawData['payload']) as Map<String, dynamic>;
+      data = cloudEvent['data'] as Map<String, dynamic>? ?? {};
+    } catch (_) {}
+  }
+
+  final eventType = rawData['event_type'] as String? ?? data['event'] as String? ?? 'ROUTE_UPDATED';
   final templates = notificationTemplates[locale] ?? notificationTemplates['fr']!;
   final template = templates[eventType] ?? {
     'title': '🔔 ASMTrack Driver',
@@ -149,7 +159,9 @@ Map<String, String> getLocalizedNotificationPayload(Map<String, dynamic> data, S
   var title = template['title']!;
   var body = template['body']!;
 
-  data.forEach((key, val) {
+  final combinedData = <String, dynamic>{...rawData, ...data};
+
+  combinedData.forEach((key, val) {
     title = title.replaceAll('{$key}', val?.toString() ?? '');
     body = body.replaceAll('{$key}', val?.toString() ?? '');
   });

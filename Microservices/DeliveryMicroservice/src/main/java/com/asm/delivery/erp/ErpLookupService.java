@@ -57,10 +57,7 @@ public class ErpLookupService {
     private static final long CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
 
     private String companyKey() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof UserPrincipal p && p.getCompanyId() != null)
-            return p.getCompanyId();
-        return "global";
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();        return "global";
     }
 
     @Transactional(readOnly = true)
@@ -126,15 +123,11 @@ public class ErpLookupService {
         if (existingOrder.isPresent()) {
             throw AppException.badRequest("Order " + erpOrderId + " already imported");
         }
-
-        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
-                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
-
         Order order = Order.builder()
                 .source(OrderSource.ODOO)
                 .clientId(null)
                 .erpClientId(null)
-                .companyId(companyId)
+                
                 .clientName(preview.getCustomerName())
                 .clientPhone(preview.getCustomerPhone())
                 .dropoffAddress(StringUtils.hasText(preview.getDeliveryAddress()) ? preview.getDeliveryAddress() : "Address not provided")
@@ -173,7 +166,7 @@ public class ErpLookupService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
-                .companyId(companyId)
+                
                 .build();
         delivery = deliveryRepository.save(delivery);
 

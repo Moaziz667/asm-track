@@ -164,10 +164,7 @@ DLSQL
 # ── app_db ──────────────────────────────────────────────────────────────────
 docker exec -i postgres-app psql -U app_user -d app_db << APPSQL
 
--- Super Admin (no company)
-INSERT INTO admin_users (id, name, email, password_hash, role, company_id, active, created_at)
-VALUES (gen_random_uuid(), 'Super Administrateur', 'superadmin@asm-track.com',
-        '$HASH_SUPER', 'SUPER_ADMIN', NULL, true, NOW());
+
 
 -- Company 1 — Rapide Express TN
 INSERT INTO admin_users (id, name, email, password_hash, role, company_id, active, created_at)

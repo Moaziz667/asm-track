@@ -40,10 +40,10 @@ public class SecurityConfig {
                         ).permitAll()
                         .requestMatchers("/api/profile/**").hasRole("CLIENT")
                         // User management restricted to admins
-                        .requestMatchers("/api/admin/users", "/api/admin/users/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
-                        .requestMatchers("/api/admin/clients/**").hasAnyRole("ADMIN", "SUPER_ADMIN")
+                        .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")
                         // All other admin endpoints available to admin roles
-                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER", "SUPER_ADMIN")
+                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

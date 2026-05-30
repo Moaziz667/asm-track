@@ -128,9 +128,7 @@ public class DriverDeliveryService {
         }
 
         // Atomic UPDATE — 0 rows = race condition
-        UUID companyId = com.asm.delivery.config.TenantContext.get() != null
-                ? UUID.fromString(com.asm.delivery.config.TenantContext.get()) : null;
-        int updated = deliveryRepo.atomicAccept(deliveryId, driverId, companyId);
+        int updated = deliveryRepo.atomicAccept(deliveryId, driverId);
         if (updated == 0) {
             throw AppException.conflict("Delivery was just taken by another driver");
         }
@@ -453,26 +451,11 @@ public class DriverDeliveryService {
 
         // P2: Deterministic Object Storage
         String deliveryFolder = "pod/" + deliveryId;
+        String bonLivraisonPhotoPath = deliveryFolder + "/bon-livraison.png";
+        String packagePhotoPath = deliveryFolder + "/package.png";
 
-        String bonLivraisonPhotoUrl;
-        try {
-            bonLivraisonPhotoUrl = minioStorageService.uploadBase64(
-                    req.getBonLivraisonPhotoBase64(),
-                    deliveryFolder + "/bon-livraison.png");
-        } catch (StorageException e) {
-            log.error("Failed to upload bon-livraison photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("PHOTO_UPLOAD_FAILED", "Failed to upload signature or delivery receipt photo. Please try again.");
-        }
-
-        String packagePhotoUrl;
-        try {
-            packagePhotoUrl = minioStorageService.uploadBase64(
-                    req.getPackagePhotoBase64(),
-                    deliveryFolder + "/package.png");
-        } catch (StorageException e) {
-            log.error("Failed to upload package photo for delivery {}: {}", deliveryId, e.getMessage());
-            throw AppException.serviceUnavailable("PACKAGE_PHOTO_UPLOAD_FAILED", "Failed to upload package photo to storage. Please try again.");
-        }
+        String bonLivraisonPhotoUrl = minioStorageService.getPublicUrl(bonLivraisonPhotoPath);
+        String packagePhotoUrl = minioStorageService.getPublicUrl(packagePhotoPath);
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
                 .deliveryId(deliveryId)
@@ -492,6 +475,22 @@ public class DriverDeliveryService {
             Delivery latest = loadAndAuthorize(deliveryId, driverId);
             return toDriverDeliveryResponse(latest);
         }
+
+        // Defer upload to MinIO until the database transaction successfully commits
+        String blBase64 = req.getBonLivraisonPhotoBase64();
+        String pkgBase64 = req.getPackagePhotoBase64();
+        runAfterCommit(() -> {
+            try {
+                minioStorageService.uploadBase64(blBase64, bonLivraisonPhotoPath);
+            } catch (Exception e) {
+                log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
+            }
+            try {
+                minioStorageService.uploadBase64(pkgBase64, packagePhotoPath);
+            } catch (Exception e) {
+                log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
+            }
+        });
 
         return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
     }
@@ -766,7 +765,7 @@ public class DriverDeliveryService {
                 Map.of("driverId", driverId.toString(), "fromDriverId", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : ""));
 
         // Notify admin dashboard
-        eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId, delivery.getCompanyId());
+        eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId);
 
 
         log.info("HANDOFF_CONFIRMED deliveryId={} fromDriver={} toDriver={}",
@@ -788,7 +787,7 @@ public class DriverDeliveryService {
                     .lng(lng)
                     .build());
             // Push real-time location to admin dashboard and public tracking page
-            eventPublisher.publishDriverLocation(delivery.getCompanyId(), driverId, lat, lng);
+            eventPublisher.publishDriverLocation(driverId, lat, lng);
             eventPublisher.publishPublicDriverLocation(delivery.getId(), lat, lng);
         }
         // Direct synchronous call — location is best-effort, no outbox retry needed
@@ -960,5 +959,20 @@ public class DriverDeliveryService {
                 .handoffToDriverId(requiresHandoff && activeStop.getHandoffToDriverId() != null ? activeStop.getHandoffToDriverId().toString() : null)
                 .handoffFromDriverId(requiresHandoff && activeStop.getHandoffFromDriverId() != null ? activeStop.getHandoffFromDriverId().toString() : null)
                 .build();
+    }
+
+    private void runAfterCommit(Runnable action) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isActualTransactionActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override
+                    public void afterCommit() {
+                        action.run();
+                    }
+                }
+            );
+        } else {
+            action.run();
+        }
     }
 }

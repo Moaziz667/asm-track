@@ -19,6 +19,11 @@ spring:
           predicates:
             - Path=/api/profile/**
 
+        - id: app-backend-settings
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/settings/**
+
         - id: odoo-products
           uri: ${ODOO_QUERY_URL:http://localhost:3100}
           predicates:
@@ -159,6 +164,7 @@ spring:
           uri: ${APP_BACKEND_URL:http://localhost:8080}
           predicates:
             - Path=/internal/users/**
+            - Path=/internal/settings/**
 
         - id: internal-app-backend-admin-users
           uri: ${APP_BACKEND_URL:http://localhost:8080}

@@ -15,6 +15,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
@@ -48,7 +49,6 @@ public class OutboxProcessor {
     }
 
     @Scheduled(fixedDelay = 20000)
-    @Transactional
     public void processOutbox() {
         // Recover any events stuck in PROCESSING due to a previous container crash
         int recovered = outboxRepo.recoverStuckEvents(LocalDateTime.now().minusMinutes(5));
@@ -74,7 +74,7 @@ public class OutboxProcessor {
     /** Atomically claims a batch of events to prevent multiple workers from picking them up. */
     @Transactional
     public List<OutboxEvent> claimEvents() {
-        List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", 10);
+        List<OutboxEvent> events = outboxRepo.findPendingWithLock("PENDING", LocalDateTime.now(), 10);
         for (OutboxEvent event : events) {
             event.setStatus("PROCESSING");
         }
@@ -96,10 +96,12 @@ public class OutboxProcessor {
             int newRetryCount = event.getRetryCount() + 1;
             event.setRetryCount(newRetryCount);
             event.setLastError(error);
-            // If we haven't exceeded max retries, put it back to PENDING.
-            // Using 50 retries at 20s each gives us ~16 minutes of tolerance for downtime.
-            if (newRetryCount <= 50) {
+            // 15 retries with exponential backoff spreads retries over 45+ hours, fully protecting against weekend outages.
+            if (newRetryCount <= 15) {
                 event.setStatus("PENDING");
+                // Exponential backoff: 2^retryCount * 5 seconds, capped at 4 hours per retry attempt
+                long backoffSeconds = (long) Math.min(Math.pow(2, newRetryCount) * 5, 3600 * 4);
+                event.setNextRetryAt(LocalDateTime.now().plusSeconds(backoffSeconds));
             } else {
                 event.setStatus("FAILED");
                 log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
@@ -200,7 +202,7 @@ public class OutboxProcessor {
         }
     }
 
-    @Transactional
+    @Transactional(propagation = Propagation.MANDATORY)
     public void enqueue(String type, Object payload) {
         try {
             OutboxEvent event = OutboxEvent.builder()
@@ -212,6 +214,7 @@ public class OutboxProcessor {
             outboxRepo.save(event);
         } catch (Exception e) {
             log.error("Failed to enqueue outbox event", e);
+            throw new RuntimeException("Failed to enqueue outbox event", e);
         }
     }
 }

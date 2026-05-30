@@ -3,7 +3,6 @@ package com.asm.delivery.entity;
 import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
 import org.hibernate.annotations.Type;
 
 import java.time.LocalDateTime;
@@ -18,15 +17,11 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Filter(name = "companyFilter", condition = "company_id = :companyId")
 public class Zone {
 
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
-
-    @Column(name = "company_id", nullable = false)
-    private UUID companyId;
 
     @Column(name = "name", nullable = false, length = 150)
     private String name;

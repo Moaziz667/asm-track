@@ -19,7 +19,7 @@ import 'services/offline_queue_service.dart';
 import 'services/token_storage.dart';
 import 'services/vehicle_service.dart';
 
-final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromEnvironment());
+final appConfigProvider = StateProvider<AppConfig>((ref) => AppConfig.fromEnvironment());
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 
@@ -47,7 +47,7 @@ final authControllerProvider =
   final storage = ref.watch(tokenStorageProvider);
   final fcm = ref.watch(fcmServiceProvider);
 
-  final controller = AuthController(repo, storage, fcm);
+  final controller = AuthController(repo, storage, fcm, ref);
 
   // Wire up session expiration callback to break circularity in provider definitions
   ref.read(apiClientProvider).onSessionExpired = () => controller.logout();

@@ -16,54 +16,59 @@ public class SlaMonitoringService {
     private final SystemSettingsService settings;
     private final java.util.Set<String> alertedKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:60000}")
+    @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:20000}")
     @Transactional
     public void checkSlaStatuses() {
-        // Get all companies that have deliveries
-        java.util.List<java.util.UUID> companies = deliveryRepository.findAllCompanyIds();
-        
-        for (java.util.UUID companyId : companies) {
-            try {
-                com.asm.delivery.config.TenantContext.set(companyId.toString());
-                processSlaForCompany();
-            } finally {
-                com.asm.delivery.config.TenantContext.clear();
-            }
-        }
+        processSla();
     }
 
-    private void processSlaForCompany() {
+    private void processSla() {
         java.time.LocalDateTime now = java.time.LocalDateTime.now();
         
-        // Fetch company-specific limits (TenantContext is set)
+        // Fetch company-specific limits
         int waitingLimit = settings.getInt("ops.sla.waiting-limit-minutes", 15);
         int assignLimit = settings.getInt("ops.sla.assign-limit-minutes", 20);
+        int pickupLimit = settings.getInt("ops.sla.pickup-limit-minutes", 15);
 
-        // 1. Unscheduled SLA
+        // 1. Unscheduled SLA (Waiting)
         deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.UNSCHEDULED).forEach(d -> {
-            long elapsed = java.time.Duration.between(d.getCreatedAt(), now).toMinutes();
-            if (elapsed > waitingLimit) {
+            long elapsedSeconds = java.time.Duration.between(d.getCreatedAt(), now).getSeconds();
+            if (elapsedSeconds > (waitingLimit * 60L)) {
                 if (alertedKeys.add(d.getId() + ":WAITING")) {
                     eventPublisher.publishSlaBreach(d, "SLA_WAITING", "WARNING", 
-                        java.util.Map.of("elapsed", elapsed, "limit", waitingLimit));
+                        java.util.Map.of("elapsed", elapsedSeconds / 60, "limit", waitingLimit));
                 }
             }
         });
 
-        // 2. Assignment SLA
+        // 2. Assignment SLA (Délai de Démarrage)
         deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.SCHEDULED).forEach(d -> {
             java.time.LocalDateTime baseline = d.getAssignedAt();
             if (baseline == null) baseline = d.getCreatedAt();
-            long elapsed = java.time.Duration.between(baseline, now).toMinutes();
-            if (elapsed > assignLimit) {
+            long elapsedSeconds = java.time.Duration.between(baseline, now).getSeconds();
+            if (elapsedSeconds > (assignLimit * 60L)) {
                 if (alertedKeys.add(d.getId() + ":ASSIGNMENT")) {
                     eventPublisher.publishSlaBreach(d, "SLA_ASSIGNMENT", "CRITICAL", 
-                        java.util.Map.of("elapsed", elapsed, "limit", assignLimit));
+                        java.util.Map.of("elapsed", elapsedSeconds / 60, "limit", assignLimit));
                 }
             }
         });
 
-        // 3. Transit SLA
+        // 3. Pickup SLA (Délai de Départ)
+        deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.PICKED_UP).forEach(d -> {
+            java.time.LocalDateTime baseline = d.getPickedUpAt();
+            if (baseline == null) baseline = d.getAssignedAt();
+            if (baseline == null) baseline = d.getCreatedAt();
+            long elapsedSeconds = java.time.Duration.between(baseline, now).getSeconds();
+            if (elapsedSeconds > (pickupLimit * 60L)) {
+                if (alertedKeys.add(d.getId() + ":PICKUP")) {
+                    eventPublisher.publishSlaBreach(d, "SLA_PICKUP", "CRITICAL", 
+                        java.util.Map.of("elapsed", elapsedSeconds / 60, "limit", pickupLimit));
+                }
+            }
+        });
+
+        // 4. Transit SLA
         deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.IN_TRANSIT).forEach(d -> {
             routeStopRepository.findByDeliveryId(d.getId()).ifPresent(stop -> {
                 if (stop.getEndTimeWindow() != null) {

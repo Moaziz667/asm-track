@@ -72,9 +72,7 @@ public class AdminUserController {
     public ResponseEntity<AdminUserResponse> createUser(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateAdminUserRequest req) {
-        UUID callerCompanyId = principal != null && principal.companyId() != null
-                ? UUID.fromString(principal.companyId()) : null;
-        AdminUserResponse response = adminUserService.createUser(req, callerCompanyId);
+        AdminUserResponse response = adminUserService.createUser(req);
         try {
             var auth = org.springframework.security.core.context.SecurityContextHolder
                     .getContext().getAuthentication();
@@ -99,9 +97,7 @@ public class AdminUserController {
     @GetMapping
     public ResponseEntity<List<AdminUserResponse>> listUsers(
             @AuthenticationPrincipal UserPrincipal principal) {
-        UUID companyId = principal != null && principal.companyId() != null
-                ? UUID.fromString(principal.companyId()) : null;
-        return ResponseEntity.ok(adminUserService.listUsers(companyId));
+        return ResponseEntity.ok(adminUserService.listUsers());
     }
 
     @PatchMapping("/{id}/status")

@@ -26,10 +26,8 @@ public class InternalDriverService {
     private final DriverStatsRepository statsRepo;
     private final DriverHistoryRepository historyRepo;
 
-    public List<InternalDriverResponse> getAvailableDrivers(UUID companyId) {
-        List<Driver> drivers = companyId != null
-                ? driverRepo.findByCompanyIdAndActiveTrue(companyId)
-                : driverRepo.findByActiveTrue();
+    public List<InternalDriverResponse> getAvailableDrivers() {
+        List<Driver> drivers = driverRepo.findByActiveTrue();
         return drivers.stream().map(this::mapToInternal).collect(Collectors.toList());
     }
 

@@ -3,6 +3,11 @@ package com.asm.delivery.service;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.Route;
+import com.asm.delivery.event.CloudEventWrapper;
+import com.asm.delivery.event.DeliveryEventPayload;
+import com.asm.delivery.event.RouteEventPayload;
+import com.asm.delivery.transport.TransportPort;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,67 +30,120 @@ public class EventPublisher {
     @Autowired(required = false)
     private FcmNotificationService fcm;
 
+    @Autowired
+    private TransportPort transportPort;
+    
+    @Autowired
+    private ObjectMapper objectMapper;
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private Map<String, Object> deliveryPayload(String event, Order order, Delivery delivery) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("event", event);
-        m.put("deliveryId", delivery.getId());
-        // User-facing ref: ERP order id only. Never fall back to UUID — the UI
-        // shows this verbatim to dispatchers and a UUID is noise.
+    private String getDriverName(UUID driverId) {
+        if (driverId == null) return null;
+        try {
+            var d = transportPort.getDriver(driverId.toString());
+            return d != null ? d.getName() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private DeliveryEventPayload deliveryPayload(String event, Order order, Delivery delivery) {
         String erpRef = order != null ? order.getErpOrderId() : null;
-        m.put("orderId", erpRef);
-        m.put("erpOrderId", erpRef);
-        m.put("status", delivery.getStatus());
-        m.put("companyId", delivery.getCompanyId());
-        m.put("clientName", order != null ? order.getClientName() : null);
-        return m;
+        if (erpRef == null && order != null) {
+            erpRef = order.getId().toString();
+        }
+        
+        return DeliveryEventPayload.builder()
+            .deliveryId(delivery.getId().toString())
+            .erpOrderId(erpRef)
+            .status(delivery.getStatus().name())
+            .driverId(delivery.getDriverId() != null ? delivery.getDriverId().toString() : null)
+            .driverName(getDriverName(delivery.getDriverId()))
+            .clientName(order != null ? order.getClientName() : null)
+            .clientPhone(order != null ? order.getClientPhone() : null)
+            .dropoffAddress(order != null ? order.getDropoffAddress() : null)
+            .dropoffLat(order != null ? order.getDropoffLat() : null)
+            .dropoffLng(order != null ? order.getDropoffLng() : null)
+            .totalAmount(order != null ? order.getTotalAmount() : null)
+            .currency(order != null ? order.getCurrency() : null)
+            .isCod(order != null ? order.getIsCod() : null)
+            .items(order != null ? order.getItems() : null)
+            .etaAt(delivery.getRouteEtaAt() != null ? delivery.getRouteEtaAt().toString() : null)
+            .routeDistanceKm(delivery.getRouteDistanceKm())
+            .routeDurationMinutes(delivery.getRouteDurationMinutes())
+            .transitSlaMinutes(delivery.getTransitSlaMinutesComputed())
+            .routeProvider(delivery.getRouteProvider())
+            .build();
     }
 
-    private Map<String, Object> routePayload(String event, Route route) {
-        Map<String, Object> m = new HashMap<>();
-        m.put("event", event);
-        m.put("routeId", route.getId());
-        m.put("routeName", route.getName());
-        m.put("status", route.getStatus());
-        m.put("companyId", route.getCompanyId());
-        return m;
+    private RouteEventPayload routePayload(String event, Route route) {
+        return RouteEventPayload.builder()
+            .routeId(route.getId().toString())
+            .routeName(route.getName())
+            .status(route.getStatus().name())
+            .driverId(route.getDriverId() != null ? route.getDriverId().toString() : null)
+            .driverName(getDriverName(route.getDriverId()))
+            .date(route.getDate())
+            .plannedStartTime(route.getPlannedStartTime())
+            .plannedEndTime(route.getPlannedEndTime())
+            .stopCount(route.getStops() != null ? route.getStops().size() : 0)
+            .build();
     }
 
-    private void sendDelivery(Map<String, Object> payload) {
-        UUID companyId = (UUID) payload.get("companyId");
-        if (companyId != null) {
-            ws.convertAndSend("/topic/admin." + companyId + ".deliveries", payload);
-        } else {
-            ws.convertAndSend("/topic/admin.deliveries", payload);
+    private void sendDelivery(String eventType, DeliveryEventPayload payload) {
+        CloudEventWrapper<DeliveryEventPayload> envelope = CloudEventWrapper.<DeliveryEventPayload>builder()
+            .source("/delivery-service")
+            .type(eventType)
+            .data(payload)
+            .build();
+        ws.convertAndSend("/topic/admin.deliveries", envelope);
+    }
+
+    private void sendRoute(String eventType, Object payload) {
+        CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+            .source("/delivery-service")
+            .type(eventType)
+            .data(payload)
+            .build();
+        ws.convertAndSend("/topic/admin.routes", envelope);
+    }
+    
+    private void sendFcmFatPayload(String driverId, String eventType, Object payload) {
+        if (fcm == null || driverId == null) return;
+        try {
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                .source("/delivery-service")
+                .type(eventType)
+                .data(payload)
+                .build();
+            String json = objectMapper.writeValueAsString(envelope);
+            fcm.sendDataToDriver(driverId, Map.of("payload", json, "event_type", eventType));
+        } catch (Exception e) {
+            log.warn("Failed to serialize FCM payload for driverId={}: {}", driverId, e.getMessage());
         }
     }
 
-    private void sendRoute(Map<String, Object> payload) {
-        UUID companyId = (UUID) payload.get("companyId");
-        if (companyId != null) {
-            ws.convertAndSend("/topic/admin." + companyId + ".routes", payload);
-        } else {
-            ws.convertAndSend("/topic/admin.routes", payload);
-        }
-    }
-
-    public void publishDriverLocation(UUID companyId, UUID driverId, BigDecimal lat, BigDecimal lng) {
+    public void publishDriverLocation(UUID driverId, BigDecimal lat, BigDecimal lng) {
         Map<String, Object> p = new HashMap<>();
-        p.put("event", "driver.location_updated");
         p.put("driverId", driverId.toString());
         p.put("lat", lat);
         p.put("lng", lng);
-        p.put("companyId", companyId);
-        sendRoute(p);
+
+        sendRoute("driver.location_updated", p);
     }
 
     public void publishPublicDriverLocation(UUID deliveryId, BigDecimal lat, BigDecimal lng) {
         Map<String, Object> p = new HashMap<>();
-        p.put("event", "driver.location_updated");
         p.put("lat", lat);
         p.put("lng", lng);
-        ws.convertAndSend("/topic/public." + deliveryId, p);
+        
+        CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+            .source("/delivery-service")
+            .type("driver.location_updated")
+            .data(p)
+            .build();
+        ws.convertAndSend("/topic/public." + deliveryId, envelope);
     }
 
     private void executeAfterCommitAsync(Runnable runnable) {
@@ -104,13 +162,25 @@ public class EventPublisher {
     }
 
     public void publishSlaBreach(Delivery delivery, String motif, String severity, Map<String, Object> params) {
+        // Eagerly resolve the payload in the active transaction thread to avoid LazyInitializationException
+        final DeliveryEventPayload p = deliveryPayload("sla.breach", delivery.getOrder(), delivery);
+        p.setMotif(motif);
+        p.setSeverity(severity);
+        p.setSlaParams(params != null ? params : Map.of());
+        
+        String elapsedStr = p.getSlaParams().get("elapsed") != null ? p.getSlaParams().get("elapsed") + " min" : "";
+        String msg = p.getClientName() != null ? p.getClientName() + " — " : "";
+        if ("SLA_WAITING".equals(motif)) msg += "Attente de " + elapsedStr + " (Dépassement SLA)";
+        else if ("SLA_ASSIGNMENT".equals(motif)) msg += "Délai démarrage " + elapsedStr + " (Dépassement SLA)";
+        else if ("SLA_PICKUP".equals(motif)) msg += "Délai de départ " + elapsedStr + " (Dépassement SLA)";
+        else if ("SLA_TRANSIT".equals(motif)) msg += "En retard sur le trajet (Dépassement SLA)";
+        else msg += "Dépassement SLA critique";
+        
+        p.setSlaMessage(msg);
+
         executeAfterCommitAsync(() -> {
             log.warn("EVENT sla.breach deliveryId={} motif={} severity={}", delivery.getId(), motif, severity);
-            Map<String, Object> m = deliveryPayload("sla.breach", delivery.getOrder(), delivery);
-            m.put("motif", motif);
-            m.put("severity", severity);
-            m.put("slaParams", params != null ? params : Map.of());
-            sendDelivery(m);
+            sendDelivery("sla.breach", p);
         });
     }
 
@@ -118,140 +188,113 @@ public class EventPublisher {
 
     public void publishDeliveryCreated(Order order, Delivery delivery) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.created orderId={} deliveryId={}",
-                    order != null ? order.getId() : null, delivery.getId());
-            sendDelivery(deliveryPayload("delivery.created", order, delivery));
+            log.info("EVENT delivery.created orderId={} deliveryId={}", order != null ? order.getId() : null, delivery.getId());
+            sendDelivery("delivery.created", deliveryPayload("delivery.created", order, delivery));
         });
     }
 
     public void publishDeliveryScheduled(Order order, Delivery delivery, UUID driverId) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.scheduled orderId={} deliveryId={} driverId={}",
-                    order != null ? order.getId() : null, delivery.getId(), driverId);
-            Map<String, Object> p = deliveryPayload("delivery.scheduled", order, delivery);
-            p.put("driverId", driverId);
-            sendDelivery(p);
-            if (fcm != null && driverId != null) {
-                String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
-                fcm.sendDataToDriver(driverId.toString(), Map.of(
-                    "event_type", "DELIVERY_ASSIGNED",
-                    "deliveryId", delivery.getId().toString(),
-                    "ref", ref
-                ));
+            log.info("EVENT delivery.scheduled orderId={} deliveryId={} driverId={}", order != null ? order.getId() : null, delivery.getId(), driverId);
+            DeliveryEventPayload p = deliveryPayload("delivery.scheduled", order, delivery);
+            p.setDriverId(driverId != null ? driverId.toString() : null);
+            p.setDriverName(getDriverName(driverId));
+            sendDelivery("delivery.scheduled", p);
+            
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "DELIVERY_ASSIGNED", p);
             }
         });
     }
 
     public void publishDeliveryPickedUp(Order order, Delivery delivery) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.picked_up orderId={} deliveryId={}",
-                    order != null ? order.getId() : null, delivery.getId());
-            sendDelivery(deliveryPayload("delivery.picked_up", order, delivery));
+            log.info("EVENT delivery.picked_up orderId={} deliveryId={}", order != null ? order.getId() : null, delivery.getId());
+            sendDelivery("delivery.picked_up", deliveryPayload("delivery.picked_up", order, delivery));
         });
     }
 
-    public void publishDeliveryInTransit(Order order, Delivery delivery,
-            BigDecimal lat, BigDecimal lng) {
+    public void publishDeliveryInTransit(Order order, Delivery delivery, BigDecimal lat, BigDecimal lng) {
         executeAfterCommitAsync(() -> {
             publishDeliveryInTransit(order, delivery, lat, lng, null, null, null, null, null);
         });
     }
 
-    public void publishDeliveryInTransit(Order order, Delivery delivery,
-            BigDecimal lat, BigDecimal lng,
-            BigDecimal routeDistanceKm,
-            Integer routeDurationMinutes,
-            Integer transitSlaMinutesComputed,
-            LocalDateTime routeEtaAt,
-            String routeProvider) {
+    public void publishDeliveryInTransit(Order order, Delivery delivery, BigDecimal lat, BigDecimal lng,
+            BigDecimal routeDistanceKm, Integer routeDurationMinutes, Integer transitSlaMinutesComputed,
+            LocalDateTime routeEtaAt, String routeProvider) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.in_transit orderId={} deliveryId={} lat={} lng={} eta={}",
-                    order != null ? order.getId() : null, delivery.getId(), lat, lng, routeEtaAt);
-            Map<String, Object> p = deliveryPayload("delivery.in_transit", order, delivery);
-            p.put("lat", lat);
-            p.put("lng", lng);
-            // Enrichment — consumed by admin-app templates (formatted client-side).
-            if (routeDistanceKm != null)         p.put("routeDistanceKm", routeDistanceKm);
-            if (routeDurationMinutes != null)    p.put("routeDurationMinutes", routeDurationMinutes);
-            if (transitSlaMinutesComputed != null) p.put("transitSlaMinutes", transitSlaMinutesComputed);
-            if (routeEtaAt != null)              p.put("etaAt", routeEtaAt.toString());
-            if (routeProvider != null)           p.put("routeProvider", routeProvider);
-            sendDelivery(p);
+            log.info("EVENT delivery.in_transit orderId={} deliveryId={} lat={} lng={} eta={}", order != null ? order.getId() : null, delivery.getId(), lat, lng, routeEtaAt);
+            DeliveryEventPayload p = deliveryPayload("delivery.in_transit", order, delivery);
+            p.setLat(lat);
+            p.setLng(lng);
+            if (routeDistanceKm != null) p.setRouteDistanceKm(routeDistanceKm);
+            if (routeDurationMinutes != null) p.setRouteDurationMinutes(routeDurationMinutes);
+            if (transitSlaMinutesComputed != null) p.setTransitSlaMinutes(transitSlaMinutesComputed);
+            if (routeEtaAt != null) p.setEtaAt(routeEtaAt.toString());
+            if (routeProvider != null) p.setRouteProvider(routeProvider);
+            sendDelivery("delivery.in_transit", p);
         });
     }
 
     public void publishDeliveryCompleted(Order order, Delivery delivery, UUID driverId) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.completed orderId={} deliveryId={} driverId={}",
-                    order != null ? order.getId() : null, delivery.getId(), driverId);
-            sendDelivery(deliveryPayload("delivery.completed", order, delivery));
+            log.info("EVENT delivery.completed orderId={} deliveryId={} driverId={}", order != null ? order.getId() : null, delivery.getId(), driverId);
+            sendDelivery("delivery.completed", deliveryPayload("delivery.completed", order, delivery));
         });
     }
 
     public void publishDeliveryFailed(Order order, Delivery delivery, String reason) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.failed orderId={} deliveryId={} reason={}",
-                    order != null ? order.getId() : null, delivery.getId(), reason);
-            Map<String, Object> p = deliveryPayload("delivery.failed", order, delivery);
-            p.put("reason", reason);
-            sendDelivery(p);
+            log.info("EVENT delivery.failed orderId={} deliveryId={} reason={}", order != null ? order.getId() : null, delivery.getId(), reason);
+            DeliveryEventPayload p = deliveryPayload("delivery.failed", order, delivery);
+            p.setReason(reason);
+            sendDelivery("delivery.failed", p);
         });
     }
 
     public void publishDeliveryCancelled(Order order, Delivery delivery, UUID driverId) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.cancelled orderId={} deliveryId={} driverId={}",
-                    order != null ? order.getId() : null, delivery.getId(), driverId);
-            sendDelivery(deliveryPayload("delivery.cancelled", order, delivery));
+            log.info("EVENT delivery.cancelled orderId={} deliveryId={} driverId={}", order != null ? order.getId() : null, delivery.getId(), driverId);
+            sendDelivery("delivery.cancelled", deliveryPayload("delivery.cancelled", order, delivery));
         });
     }
 
     public void publishDeliveryReassigned(Order order, Delivery delivery, UUID previousDriverId, UUID newDriverId) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}",
-                    order != null ? order.getId() : null, delivery.getId(), previousDriverId, newDriverId);
-            Map<String, Object> p = deliveryPayload("delivery.reassigned", order, delivery);
-            p.put("previousDriverId", previousDriverId);
-            p.put("newDriverId", newDriverId);
-            sendDelivery(p);
-            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Livraison";
-            if (fcm != null && newDriverId != null) {
-                fcm.sendDataToDriver(newDriverId.toString(), Map.of(
-                    "event_type", "DELIVERY_ASSIGNED",
-                    "deliveryId", delivery.getId().toString(),
-                    "ref", ref
-                ));
+            log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}", order != null ? order.getId() : null, delivery.getId(), previousDriverId, newDriverId);
+            DeliveryEventPayload p = deliveryPayload("delivery.reassigned", order, delivery);
+            p.setPreviousDriverId(previousDriverId != null ? previousDriverId.toString() : null);
+            p.setNewDriverId(newDriverId != null ? newDriverId.toString() : null);
+            sendDelivery("delivery.reassigned", p);
+            
+            if (newDriverId != null) {
+                sendFcmFatPayload(newDriverId.toString(), "DELIVERY_ASSIGNED", p);
             }
-            if (fcm != null && previousDriverId != null) {
-                fcm.sendDataToDriver(previousDriverId.toString(), Map.of(
-                    "event_type", "ROUTE_UPDATED",
-                    "deliveryId", delivery.getId().toString(),
-                    "ref", ref,
-                    "action", "removed_by_reassign"
-                ));
+            if (previousDriverId != null) {
+                sendFcmFatPayload(previousDriverId.toString(), "DELIVERY_REMOVED", p);
             }
         });
     }
 
     public void publishDeliveryReplanned(Order order, Delivery delivery, UUID previousDriverId) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.replanned orderId={} deliveryId={} previousDriverId={}",
-                    order != null ? order.getId() : null, delivery.getId(), previousDriverId);
-            sendDelivery(deliveryPayload("delivery.replanned", order, delivery));
+            log.info("EVENT delivery.replanned orderId={} deliveryId={} previousDriverId={}", order != null ? order.getId() : null, delivery.getId(), previousDriverId);
+            DeliveryEventPayload p = deliveryPayload("delivery.replanned", order, delivery);
+            p.setPreviousDriverId(previousDriverId != null ? previousDriverId.toString() : null);
+            sendDelivery("delivery.replanned", p);
         });
     }
 
     public void publishDeliveryReassignedAway(Order order, Delivery delivery, UUID previousDriverId) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT delivery.reassigned_away deliveryId={} previousDriverId={}", delivery.getId(), previousDriverId);
-            sendDelivery(deliveryPayload("delivery.reassigned_away", order, delivery));
-            if (fcm != null && previousDriverId != null) {
-                String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Une livraison";
-                fcm.sendDataToDriver(previousDriverId.toString(), Map.of(
-                    "event_type", "DELIVERY_REMOVED",
-                    "deliveryId", delivery.getId().toString(),
-                    "ref", ref
-                ));
+            DeliveryEventPayload p = deliveryPayload("delivery.reassigned_away", order, delivery);
+            p.setPreviousDriverId(previousDriverId != null ? previousDriverId.toString() : null);
+            sendDelivery("delivery.reassigned_away", p);
+            
+            if (previousDriverId != null) {
+                sendFcmFatPayload(previousDriverId.toString(), "DELIVERY_REMOVED", p);
             }
         });
     }
@@ -259,90 +302,64 @@ public class EventPublisher {
     public void publishHandoffRequired(Order order, Delivery delivery, UUID newDriverId) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT delivery.handoff_required deliveryId={} newDriverId={}", delivery.getId(), newDriverId);
-            sendDelivery(deliveryPayload("delivery.handoff_required", order, delivery));
-            String ref = order != null && order.getErpOrderId() != null ? order.getErpOrderId() : "Colis";
-            if (fcm != null && newDriverId != null) {
-                fcm.sendDataToDriver(newDriverId.toString(), Map.of(
-                    "event_type", "HANDOFF_REQUIRED",
-                    "deliveryId", delivery.getId().toString(),
-                    "ref", ref
-                ));
+            DeliveryEventPayload p = deliveryPayload("delivery.handoff_required", order, delivery);
+            p.setNewDriverId(newDriverId != null ? newDriverId.toString() : null);
+            sendDelivery("delivery.handoff_required", p);
+            
+            if (newDriverId != null) {
+                sendFcmFatPayload(newDriverId.toString(), "HANDOFF_REQUIRED", p);
             }
         });
     }
 
-    public void publishErpOrdersReady(UUID companyId, int count) {
+    public void publishErpOrdersReady(int count) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT erp.orders_ready companyId={} count={}", companyId, count);
+            log.info("EVENT erp.orders_ready count={}", count);
             Map<String, Object> m = new HashMap<>();
-            m.put("event", "erp.orders_ready");
             m.put("count", count);
-            m.put("companyId", companyId);
-            ws.convertAndSend("/topic/admin." + companyId + ".erp", m);
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                .source("/delivery-service")
+                .type("erp.orders_ready")
+                .data(m)
+                .build();
+            ws.convertAndSend("/topic/admin.erp", envelope);
         });
     }
 
     public void publishErpSyncFailed(Order order) {
         executeAfterCommitAsync(() -> {
             log.error("EVENT erp.sync_failed orderId={} erpOrderId={}", order.getId(), order.getErpOrderId());
-            Map<String, Object> m = new HashMap<>();
-            m.put("event", "erp.sync_failed");
-            m.put("orderId", order.getId());
-            m.put("erpOrderId", order.getErpOrderId());
-            m.put("clientName", order.getClientName());
-            m.put("companyId", order.getCompanyId());
-            m.put("retryCount", order.getSyncRetryCount());
-            UUID companyId = order.getCompanyId();
-            if (companyId != null) {
-                ws.convertAndSend("/topic/admin." + companyId + ".deliveries", m);
-            } else {
-                ws.convertAndSend("/topic/admin.deliveries", m);
-            }
+            DeliveryEventPayload p = DeliveryEventPayload.builder()
+                    .deliveryId(order.getId().toString())
+                    .erpOrderId(order.getErpOrderId())
+                    .clientName(order.getClientName())
+                    .build();
+            sendDelivery("erp.sync_failed", p);
         });
     }
 
     // ── Route events ──────────────────────────────────────────────────────────
 
     public void publishRouteValidated(Route route) {
-        // Materialize the stop count BEFORE going async — Hibernate session
-        // may be closed by the time the lambda fires.
-        final int stopCount = safeStopCount(route);
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.validated routeId={} driverId={} stops={}",
-                    route.getId(), route.getDriverId(), stopCount);
-            Map<String, Object> p = routePayload("route.validated", route);
-            p.put("stopCount", stopCount);
-            sendRoute(p);
-            if (fcm != null && route.getDriverId() != null) {
-                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
-                    "event_type", "ROUTE_VALIDATED",
-                    "routeId", route.getId().toString(),
-                    "routeName", route.getName() != null ? route.getName() : "",
-                    "stopCount", String.valueOf(stopCount)
-                ));
+            log.info("EVENT route.validated routeId={} driverId={}", route.getId(), route.getDriverId());
+            RouteEventPayload p = routePayload("route.validated", route);
+            sendRoute("route.validated", p);
+            
+            if (route.getDriverId() != null) {
+                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_VALIDATED", p);
             }
         });
-    }
-
-    private int safeStopCount(Route route) {
-        try {
-            return route.getStops() != null ? route.getStops().size() : 0;
-        } catch (Exception e) {
-            // Lazy-init outside session — non-fatal, just lose the metric.
-            return 0;
-        }
     }
 
     public void publishRouteScheduleChanged(Route route) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT route.schedule_changed routeId={} driverId={}", route.getId(), route.getDriverId());
-            sendRoute(routePayload("route.schedule_changed", route));
-            if (fcm != null && route.getDriverId() != null) {
-                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
-                    "event_type", "ROUTE_SCHEDULE_CHANGED",
-                    "routeId", route.getId().toString(),
-                    "routeName", route.getName() != null ? route.getName() : ""
-                ));
+            RouteEventPayload p = routePayload("route.schedule_changed", route);
+            sendRoute("route.schedule_changed", p);
+            
+            if (route.getDriverId() != null) {
+                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_SCHEDULE_CHANGED", p);
             }
         });
     }
@@ -350,14 +367,12 @@ public class EventPublisher {
     public void publishRouteStopAdded(Route route, String clientName) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT route.stop_added routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
-            sendRoute(routePayload("route.stop_added", route));
-            if (fcm != null && route.getDriverId() != null) {
-                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
-                    "event_type", "ROUTE_STOP_ADDED",
-                    "routeId", route.getId().toString(),
-                    "routeName", route.getName() != null ? route.getName() : "",
-                    "clientName", clientName != null ? clientName : ""
-                ));
+            RouteEventPayload p = routePayload("route.stop_added", route);
+            p.setClientName(clientName);
+            sendRoute("route.stop_added", p);
+            
+            if (route.getDriverId() != null) {
+                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_STOP_ADDED", p);
             }
         });
     }
@@ -371,16 +386,14 @@ public class EventPublisher {
     public void publishRouteStopRemoved(Route route, String clientName, String erpOrderId, String reason) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT route.stop_removed routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
-            sendRoute(routePayload("route.stop_removed", route));
-            if (fcm != null && route.getDriverId() != null) {
-                fcm.sendDataToDriver(route.getDriverId().toString(), Map.of(
-                    "event_type", "ROUTE_STOP_REMOVED",
-                    "routeId", route.getId().toString(),
-                    "routeName", route.getName() != null ? route.getName() : "",
-                    "clientName", clientName != null ? clientName : "",
-                    "erpOrderId", erpOrderId != null ? erpOrderId : "",
-                    "reason", reason != null ? reason : ""
-                ));
+            RouteEventPayload p = routePayload("route.stop_removed", route);
+            p.setClientName(clientName);
+            p.setErpOrderId(erpOrderId);
+            p.setReason(reason);
+            sendRoute("route.stop_removed", p);
+            
+            if (route.getDriverId() != null) {
+                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_STOP_REMOVED", p);
             }
         });
     }
@@ -389,31 +402,30 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT stops.transferred sourceDriver={} targetDriver={} count={} handoff={}", sourceDriverId, targetDriverId, count, requiresHandoff);
             if (fcm == null) return;
+            Map<String, Object> p = Map.of("count", count);
             if (sourceDriverId != null) {
-                fcm.sendDataToDriver(sourceDriverId.toString(), Map.of(
-                    "event_type", "STOPS_TRANSFERRED_OUT",
-                    "count", String.valueOf(count)
-                ));
+                sendFcmFatPayload(sourceDriverId.toString(), "STOPS_TRANSFERRED_OUT", p);
             }
             if (targetDriverId != null) {
-                fcm.sendDataToDriver(targetDriverId.toString(), Map.of(
-                    "event_type", requiresHandoff ? "HANDOFF_REQUIRED" : "STOPS_TRANSFERRED_IN",
-                    "count", String.valueOf(count)
-                ));
+                sendFcmFatPayload(targetDriverId.toString(), requiresHandoff ? "HANDOFF_REQUIRED" : "STOPS_TRANSFERRED_IN", p);
             }
         });
     }
 
-    public void publishHandoffConfirmed(UUID deliveryId, UUID routeId, UUID driverId, UUID companyId) {
+    public void publishHandoffConfirmed(UUID deliveryId, UUID routeId, UUID driverId) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT delivery.handoff_confirmed deliveryId={} routeId={} driverId={}", deliveryId, routeId, driverId);
             Map<String, Object> m = new HashMap<>();
-            m.put("event", "delivery.handoff_confirmed");
             m.put("deliveryId", deliveryId);
             m.put("routeId", routeId);
             m.put("driverId", driverId);
-            m.put("companyId", companyId);
-            ws.convertAndSend("/topic/admin.routes", m);
+            
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                .source("/delivery-service")
+                .type("delivery.handoff_confirmed")
+                .data(m)
+                .build();
+            ws.convertAndSend("/topic/admin.routes", envelope);
         });
     }
 }

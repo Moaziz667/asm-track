@@ -2,7 +2,6 @@ package com.asm.delivery.entity;
 
 import jakarta.persistence.*;
 import lombok.*;
-import org.hibernate.annotations.Filter;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -14,12 +13,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-@Filter(name = "companyFilter", condition = "company_id = :companyId")
 public class Vehicle {
-
-    @Column(name = "company_id")
-    private UUID companyId;
-
     @Id
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;

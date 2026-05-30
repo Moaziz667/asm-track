@@ -1,8 +1,5 @@
 package com.asm.delivery.service;
 
-import com.asm.delivery.config.TenantContext;
-import com.asm.delivery.entity.Company;
-import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.storage.MinioStorageService;
 import com.lowagie.text.*;
@@ -231,38 +228,7 @@ public abstract class BasePdfService {
     }
 
     // ── Company resolution ────────────────────────────────────────────────────
-    protected static ReportPageEvent pageEvent(String docType, String subtitle,
-                                               UUID companyId, CompanyRepository companyRepo,
-                                               MinioStorageService minioService) {
-        if (companyId != null) {
-            Company company = companyRepo.findById(companyId).orElse(null);
-            if (company != null) {
-                byte[] logoBytes = company.getLogoUrl() != null ? minioService.getBytes(company.getLogoUrl()) : null;
-                Color brand = parseHex(company.getPrimaryColor());
-                return new ReportPageEvent(docType, subtitle, company.getName(), logoBytes, brand);
-            }
-        }
-        return new ReportPageEvent(docType, subtitle, "ASM Track", null, FALLBACK_BRAND);
-    }
-
-    protected static ReportPageEvent pageEvent(String docType, String subtitle,
-                                               CompanyRepository companyRepo,
-                                               MinioStorageService minioService) {
-        String companyId = null;
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof UserPrincipal principal) {
-            companyId = principal.getCompanyId();
-        }
-        if (companyId == null) companyId = TenantContext.get();
-
-        if (companyId != null) {
-            Company company = companyRepo.findById(UUID.fromString(companyId)).orElse(null);
-            if (company != null) {
-                byte[] logoBytes = company.getLogoUrl() != null ? minioService.getBytes(company.getLogoUrl()) : null;
-                Color brand = parseHex(company.getPrimaryColor());
-                return new ReportPageEvent(docType, subtitle, company.getName(), logoBytes, brand);
-            }
-        }
+    protected static ReportPageEvent pageEvent(String docType, String subtitle) {
         return new ReportPageEvent(docType, subtitle, "ASM Track", null, FALLBACK_BRAND);
     }
 

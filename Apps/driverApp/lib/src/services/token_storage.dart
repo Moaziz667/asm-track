@@ -12,6 +12,7 @@ class TokenStorage {
   static const _kRefreshTokenKey = 'refresh_token';
   static const _kTokenTypeKey = 'token_type';
   static const _kExpiresAtKey = 'expires_at';
+  static const _kApiBaseUrlKey = 'api_base_url';
 
   Future<AuthTokens?> readTokens() async {
     if (_cached != null) {
@@ -52,4 +53,12 @@ class TokenStorage {
 
   Future<String?> readAccessToken() async => (await readTokens())?.accessToken;
   Future<String?> readRefreshToken() async => (await readTokens())?.refreshToken;
+
+  Future<String?> readApiBaseUrl() async {
+    return await _secureStorage.read(key: _kApiBaseUrlKey);
+  }
+
+  Future<void> saveApiBaseUrl(String url) async {
+    await _secureStorage.write(key: _kApiBaseUrlKey, value: url);
+  }
 }

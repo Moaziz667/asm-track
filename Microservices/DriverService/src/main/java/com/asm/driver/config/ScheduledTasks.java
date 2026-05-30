@@ -36,14 +36,13 @@ public class ScheduledTasks {
             driverRepo.save(driver);
 
             eventPublisher.publishStatusChanged(
-                    driver.getId(), driver.getCompanyId(),
+                    driver.getId(),
                     previous, DriverOnlineStatus.OFFLINE,
                     driver.getName());
 
             auditLogService.log(
                     "DRIVER_AUTO_OFFLINED",
                     driver.getId(),
-                    driver.getCompanyId(),
                     "SYSTEM",
                     "SYSTEM",
                     String.format("{\"previousStatus\":\"%s\",\"lastLocationAt\":\"%s\"}",

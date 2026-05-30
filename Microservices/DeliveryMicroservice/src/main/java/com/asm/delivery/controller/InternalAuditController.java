@@ -23,8 +23,8 @@ public class InternalAuditController {
             @RequestParam String action,
             @RequestParam String actorName,
             @RequestParam String actorRole,
-            @RequestParam(required = false) String resourceId,
-            @RequestParam(required = false) String details) {
+            String resourceId,
+            String details) {
 
         // Build a synthetic principal-less log with explicit actor info
         com.asm.delivery.entity.AuditLog log = com.asm.delivery.entity.AuditLog.builder()
