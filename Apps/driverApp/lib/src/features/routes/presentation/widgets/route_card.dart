@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '../../../../theme/app_theme.dart';
 import '../../models/route_models.dart';
 
 class RouteCard extends StatelessWidget {
@@ -17,7 +16,8 @@ class RouteCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(route.status);
+    final cs = Theme.of(context).colorScheme;
+    final statusColor = _statusColor(context, route.status);
     final total = route.totalStops ?? route.stops.length;
     final done = route.completedStops ?? route.stops.where((s) => s.status != DriverRouteStopStatus.pending).length;
     final progress = total == 0 ? 0.0 : done / total;
@@ -29,12 +29,12 @@ class RouteCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(14),
           border: Border.all(
             color: route.status == DriverRouteStatus.cancelled
-                ? AppColors.dangerBorder
-                : AppColors.border,
+                ? cs.error
+                : cs.outlineVariant,
             width: 1.2,
           ),
           boxShadow: [
@@ -64,11 +64,9 @@ class RouteCard extends StatelessWidget {
                 Expanded(
                   child: Text(
                     route.name,
-                    style: GoogleFonts.manrope(
-                      fontSize: 14,
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.2,
+                      color: cs.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -89,24 +87,24 @@ class RouteCard extends StatelessWidget {
                   _MetaPill(
                     icon: PhosphorIconsRegular.clock,
                     label: _formatTimeWindow(route.plannedStart, route.plannedEnd),
-                    color: AppColors.info,
+                    color: cs.tertiary,
                   ),
                 if (route.zone != null && route.zone!.isNotEmpty)
                   _MetaPill(
                     icon: PhosphorIconsRegular.mapPin,
                     label: route.zone!,
-                    color: AppColors.textSecondary,
+                    color: cs.onSurfaceVariant,
                   )
                 else if (route.city != null && route.city!.isNotEmpty)
                   _MetaPill(
                     icon: PhosphorIconsRegular.mapPin,
                     label: route.city!,
-                    color: AppColors.textSecondary,
+                    color: cs.onSurfaceVariant,
                   ),
                 _MetaPill(
                   icon: PhosphorIconsRegular.package,
                   label: '$total arrêt${total != 1 ? 's' : ''}',
-                  color: AppColors.textSecondary,
+                  color: cs.onSurfaceVariant,
                 ),
               ],
             ),
@@ -122,11 +120,11 @@ class RouteCard extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: progress,
                         minHeight: 5,
-                        backgroundColor: AppColors.surfaceDim,
+                        backgroundColor: cs.surfaceContainerHigh,
                         valueColor: AlwaysStoppedAnimation(
                           route.status == DriverRouteStatus.closed
-                              ? AppColors.success
-                              : AppColors.accent,
+                              ? cs.tertiary
+                              : cs.primary,
                         ),
                       ),
                     ),
@@ -138,8 +136,8 @@ class RouteCard extends StatelessWidget {
                       fontSize: 11,
                       fontWeight: FontWeight.w700,
                       color: route.status == DriverRouteStatus.closed
-                          ? AppColors.success
-                          : AppColors.accent,
+                          ? cs.tertiary
+                          : cs.primary,
                     ),
                   ),
                 ],
@@ -158,13 +156,14 @@ class RouteCard extends StatelessWidget {
     return '';
   }
 
-  static Color _statusColor(DriverRouteStatus s) {
+  static Color _statusColor(BuildContext context, DriverRouteStatus s) {
+    final cs = Theme.of(context).colorScheme;
     switch (s) {
-      case DriverRouteStatus.draft:       return AppColors.muted;
-      case DriverRouteStatus.validated:   return AppColors.info;
-      case DriverRouteStatus.inProgress:  return AppColors.accent;
-      case DriverRouteStatus.closed:      return AppColors.success;
-      case DriverRouteStatus.cancelled:   return AppColors.danger;
+      case DriverRouteStatus.draft:       return cs.onSurfaceVariant;
+      case DriverRouteStatus.validated:   return cs.tertiary;
+      case DriverRouteStatus.inProgress:  return cs.primary;
+      case DriverRouteStatus.closed:      return cs.tertiary;
+      case DriverRouteStatus.cancelled:   return cs.error;
     }
   }
 
@@ -185,19 +184,20 @@ class StatusChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final Color bg;
     final Color fg;
     switch (status) {
       case DriverRouteStatus.draft:
-        bg = AppColors.surfaceElevated; fg = AppColors.muted; break;
+        bg = cs.surfaceContainerHighest; fg = cs.onSurfaceVariant; break;
       case DriverRouteStatus.validated:
-        bg = AppColors.infoSubtle; fg = AppColors.info; break;
+        bg = cs.tertiaryContainer; fg = cs.tertiary; break;
       case DriverRouteStatus.inProgress:
-        bg = AppColors.accentSubtle; fg = AppColors.accent; break;
+        bg = cs.primaryContainer; fg = cs.primary; break;
       case DriverRouteStatus.closed:
-        bg = AppColors.successSubtle; fg = AppColors.success; break;
+        bg = cs.tertiaryContainer; fg = cs.tertiary; break;
       case DriverRouteStatus.cancelled:
-        bg = AppColors.dangerSubtle; fg = AppColors.danger; break;
+        bg = cs.errorContainer; fg = cs.error; break;
     }
 
     return Container(
@@ -207,12 +207,11 @@ class StatusChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(6),
       ),
       child: Text(
-        status.label.toUpperCase(),
+        status.label,
         style: GoogleFonts.inter(
           fontSize: 9,
           fontWeight: FontWeight.w800,
           color: fg,
-          letterSpacing: 0.6,
         ),
       ),
     );
@@ -227,12 +226,13 @@ class _MetaPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,

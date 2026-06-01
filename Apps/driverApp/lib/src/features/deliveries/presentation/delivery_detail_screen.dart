@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
 import 'package:lucide_icons/lucide_icons.dart';
@@ -8,7 +7,6 @@ import 'package:lucide_icons/lucide_icons.dart';
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
 import '../../../services/offline_queue_service.dart';
-import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
@@ -106,10 +104,12 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('Encaissement COD requis',
-                        style: GoogleFonts.spaceGrotesk(
-                            fontSize: 13, fontWeight: FontWeight.w800, color: AppColors.textPrimary)),
-                    const Text('Confirmez la collecte du paiement en espèces',
-                        style: TextStyle(fontSize: 11, color: AppColors.muted)),
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        )),
+                    Text('Confirmez la collecte du paiement en espèces',
+                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -119,8 +119,11 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
           TextField(
             controller: _amountCtrl,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: GoogleFonts.spaceGrotesk(
-                fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary),
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.w900,
+              color: Theme.of(context).colorScheme.onSurface,
+            ),
             decoration: InputDecoration(
               labelText: 'Montant encaissé (TND)',
               suffixText: 'TND',
@@ -133,10 +136,10 @@ class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: _submitting ? null : () => _submit(false),
-                  icon: const Icon(Icons.close, size: 16, color: AppColors.danger),
-                  label: const Text('Non encaissé', style: TextStyle(color: AppColors.danger)),
+                  icon: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.error),
+                  label: Text('Non encaissé', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: AppColors.danger),
+                    side: BorderSide(color: Theme.of(context).colorScheme.error),
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
                 ),
@@ -214,11 +217,12 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final asyncDetail = ref.watch(deliveryDetailProvider(widget.args.deliveryId));
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surface,
       appBar: AppBar(
-        backgroundColor: AppColors.background,
+        backgroundColor: cs.surface,
         leading: IconButton(
           icon: const Icon(PhosphorIconsBold.caretLeft, size: 18),
           onPressed: () => Navigator.of(context).pop(),
@@ -227,8 +231,8 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
       ),
       body: asyncDetail.when(
         data: (delivery) => RefreshIndicator(
-          color: AppColors.accent,
-          backgroundColor: AppColors.surface,
+          color: cs.primary,
+          backgroundColor: cs.surfaceContainerLow,
           onRefresh: _refresh,
           child: ListView(
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
@@ -302,12 +306,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
   }
 
   Future<(FailureReason, String?)?> _showFailSheet(BuildContext context) async {
+    final cs = Theme.of(context).colorScheme;
     FailureReason selected = FailureReason.clientAbsent;
     final commentCtrl = TextEditingController();
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surfaceElevated,
+      backgroundColor: cs.surfaceContainerHighest,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
@@ -324,13 +329,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                     child: Container(
                       width: 40,
                       height: 4,
-                      decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(color: cs.outlineVariant, borderRadius: BorderRadius.circular(2)),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Signaler un échec', style: GoogleFonts.plusJakartaSans(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                  Text('Signaler un échec', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
                   const SizedBox(height: 4),
-                  const Text('Sélectionnez la raison de l\'échec de cette livraison.', style: TextStyle(color: AppColors.muted, fontSize: 13)),
+                  Text('Sélectionnez la raison de l\'échec de cette livraison.', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
                   const SizedBox(height: 20),
                   ...FailureReason.values.map((reason) {
                     final isSelected = reason == selected;
@@ -340,24 +345,24 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                         margin: const EdgeInsets.only(bottom: 8),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                         decoration: BoxDecoration(
-                          color: isSelected ? AppColors.dangerSubtle : AppColors.surface,
+                          color: isSelected ? cs.errorContainer : cs.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(
-                            color: isSelected ? AppColors.danger.withValues(alpha: 0.4) : AppColors.border,
+                            color: isSelected ? cs.error.withValues(alpha: 0.4) : cs.outlineVariant,
                           ),
                         ),
                         child: Row(
                           children: [
                             Icon(
                               isSelected ? PhosphorIconsFill.radioButton : PhosphorIconsRegular.circle,
-                              color: isSelected ? AppColors.danger : AppColors.muted,
+                              color: isSelected ? cs.error : cs.onSurfaceVariant,
                               size: 18,
                             ),
                             const SizedBox(width: 12),
                             Text(
                               reason.label,
                               style: TextStyle(
-                                color: isSelected ? AppColors.textPrimary : AppColors.textSecondary,
+                                color: isSelected ? cs.onSurface : cs.onSurfaceVariant,
                                 fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
                                 fontSize: 14,
                               ),
@@ -370,7 +375,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                   const SizedBox(height: 12),
                   TextField(
                     controller: commentCtrl,
-                    style: const TextStyle(color: AppColors.textPrimary),
+                    style: TextStyle(color: cs.onSurface),
                     decoration: const InputDecoration(
                       hintText: 'Commentaire supplémentaire (optionnel)',
                       prefixIcon: Icon(PhosphorIconsRegular.notePencil, size: 18),
@@ -379,11 +384,14 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                   const SizedBox(height: 20),
                   SizedBox(
                     width: double.infinity,
-                    child: AsmDriveButton(
-                      label: 'Soumettre le rapport d\'échec',
-                      variant: AsmDriveButtonVariant.danger,
-                      icon: PhosphorIconsBold.flagPennant,
+                    child: TextButton.icon(
                       onPressed: () => Navigator.pop(context, true),
+                      icon: const Icon(PhosphorIconsBold.flagPennant),
+                      label: const Text('Soumettre le rapport d\'échec'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: cs.error,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
                 ],
@@ -407,12 +415,13 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final statusColor = delivery.status.badgeColor;
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -440,11 +449,10 @@ class _HeroCard extends StatelessWidget {
                         border: Border.all(color: statusColor.withValues(alpha: 0.3)),
                       ),
                       child: Text(
-                        delivery.status.label.toUpperCase(),
-                        style: GoogleFonts.plusJakartaSans(
+                        delivery.status.label,
+                        style: TextStyle(
                           fontSize: 10,
                           fontWeight: FontWeight.w700,
-                          letterSpacing: 0.8,
                           color: statusColor,
                         ),
                       ),
@@ -457,8 +465,11 @@ class _HeroCard extends StatelessWidget {
                     if (delivery.orderRef != null)
                       Text(
                         delivery.orderRef!,
-                        style: GoogleFonts.spaceGrotesk(
-                          fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted),
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurfaceVariant,
+                        ),
                       ),
                   ],
                 ),
@@ -466,18 +477,18 @@ class _HeroCard extends StatelessWidget {
                 if (delivery.clientName != null) ...[
                   Row(
                     children: [
-                      const Icon(Icons.person_outline_rounded, size: 14, color: AppColors.muted),
+                      Icon(Icons.person_outline_rounded, size: 14, color: cs.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(delivery.clientName!, style: GoogleFonts.plusJakartaSans(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+                      Text(delivery.clientName!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurface)),
                       if (delivery.clientPhone != null) ...[
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => launchUrlString('tel:${delivery.clientPhone}'),
                           child: Row(
                             children: [
-                              const Icon(Icons.phone_outlined, size: 13, color: AppColors.accent),
+                              Icon(Icons.phone_outlined, size: 13, color: cs.primary),
                               const SizedBox(width: 3),
-                              Text(delivery.clientPhone!, style: const TextStyle(fontSize: 13, color: AppColors.accent, fontWeight: FontWeight.w500)),
+                              Text(delivery.clientPhone!, style: TextStyle(fontSize: 13, color: cs.primary, fontWeight: FontWeight.w500)),
                             ],
                           ),
                         ),
@@ -488,31 +499,34 @@ class _HeroCard extends StatelessWidget {
                 ],
                 Text(
                   delivery.address ?? 'Aucune adresse fournie',
-                  style: GoogleFonts.plusJakartaSans(fontSize: 18, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: cs.onSurface,
+                  ),
                 ),
                 if (delivery.city != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, size: 14, color: AppColors.muted),
+                      Icon(Icons.location_on_outlined, size: 14, color: cs.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(delivery.city!, style: const TextStyle(fontSize: 14, color: AppColors.muted)),
+                      Text(delivery.city!, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 ],
                 const SizedBox(height: 16),
-                const Divider(color: AppColors.border, height: 1),
+                Divider(color: cs.outlineVariant, height: 1),
                 const SizedBox(height: 16),
                 Row(
                   children: [
                     _StatBox(
-                      label: 'ARTICLES',
+                      label: 'Articles',
                       value: '${delivery.items.length}',
                     ),
                     if (delivery.scheduledAt != null) ...[
                       const SizedBox(width: 12),
                       _StatBox(
-                        label: 'PLANIFIÉE',
+                        label: 'Planifiée',
                         value: _fmtDate(delivery.scheduledAt!),
                       ),
                     ],
@@ -539,20 +553,21 @@ class _StatBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: AppColors.surfaceElevated,
+          color: cs.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: cs.outlineVariant),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: const TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w600, letterSpacing: 0.8)),
+            Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
             const SizedBox(height: 4),
-            Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
+            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface)),
           ],
         ),
       ),
@@ -567,20 +582,21 @@ class _InstructionsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.infoSubtle,
+        color: cs.tertiaryContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.info.withValues(alpha: 0.25)),
+        border: Border.all(color: cs.tertiary.withValues(alpha: 0.25)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline_rounded, color: AppColors.info, size: 18),
+          Icon(Icons.info_outline_rounded, color: cs.tertiary, size: 18),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(text, style: const TextStyle(fontSize: 14, color: AppColors.textSecondary, height: 1.5)),
+            child: Text(text, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant, height: 1.5)),
           ),
         ],
       ),
@@ -595,55 +611,59 @@ class _ItemsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AsmDriveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SectionHeader(title: 'Contenu du colis', subtitle: '${items.length} article${items.length != 1 ? 's' : ''}'),
-          const SizedBox(height: 14),
-          ...items.asMap().entries.map((e) {
-            final isLast = e.key == items.length - 1;
-            return Column(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 32,
-                      height: 32,
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SectionHeader(title: 'Contenu du colis', subtitle: '${items.length} article${items.length != 1 ? 's' : ''}'),
+            const SizedBox(height: 14),
+            ...items.asMap().entries.map((e) {
+              final isLast = e.key == items.length - 1;
+              return Column(
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        width: 32,
+                        height: 32,
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: cs.outlineVariant),
+                        ),
+                        child: Icon(Icons.inventory_2_outlined, size: 14, color: cs.onSurfaceVariant),
                       ),
-                      child: const Icon(Icons.inventory_2_outlined, size: 14, color: AppColors.muted),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(e.value.name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: AppColors.textPrimary)),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.surfaceElevated,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.border),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(e.value.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: cs.onSurface)),
                       ),
-                      child: Text(
-                        'x${e.value.quantity}',
-                        style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.accent),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: cs.surfaceContainerHighest,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: cs.outlineVariant),
+                        ),
+                        child: Text(
+                          'x${e.value.quantity}',
+                          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: cs.primary),
+                        ),
                       ),
-                    ),
+                    ],
+                  ),
+                  if (!isLast) ...[
+                    const SizedBox(height: 10),
+                    Divider(color: cs.outlineVariant, height: 1),
+                    const SizedBox(height: 10),
                   ],
-                ),
-                if (!isLast) ...[
-                  const SizedBox(height: 10),
-                  const Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 10),
                 ],
-              ],
-            );
-          }),
-        ],
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -656,6 +676,7 @@ class _TimestampCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final entries = delivery.timestamps.entries
         .where((e) => e.value != null)
         .map((e) => (label: _keyLabel(e.key), time: e.value!))
@@ -664,31 +685,34 @@ class _TimestampCard extends StatelessWidget {
 
     if (entries.isEmpty) return const SizedBox.shrink();
 
-    return AsmDriveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const SectionHeader(title: 'Chronologie'),
-          const SizedBox(height: 14),
-          ...entries.map((e) {
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 5),
-              child: Row(
-                children: [
-                  const Icon(Icons.circle, size: 6, color: AppColors.accent),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(e.label, style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  ),
-                  Text(
-                    _fmtTs(e.time),
-                    style: const TextStyle(fontSize: 12, color: AppColors.muted, fontWeight: FontWeight.w500),
-                  ),
-                ],
-              ),
-            );
-          }),
-        ],
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SectionHeader(title: 'Chronologie'),
+            const SizedBox(height: 14),
+            ...entries.map((e) {
+              return Padding(
+                padding: const EdgeInsets.symmetric(vertical: 5),
+                child: Row(
+                  children: [
+                    Icon(Icons.circle, size: 6, color: cs.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(e.label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
+                    ),
+                    Text(
+                      _fmtTs(e.time),
+                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant, fontWeight: FontWeight.w500),
+                    ),
+                  ],
+                ),
+              );
+            }),
+          ],
+        ),
       ),
     );
   }
@@ -736,6 +760,8 @@ class _ActionPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+
     // Handoff lock: only blocks the receiver (handoffToDriverId) until QR is scanned
     if (delivery.requiresHandoff &&
         delivery.handoffConfirmedAt == null &&
@@ -770,18 +796,18 @@ class _ActionPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.info_outline_rounded, size: 16, color: AppColors.muted),
+                Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   'En attente de dispatch',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
                 ),
               ],
             ),
@@ -792,21 +818,21 @@ class _ActionPanel extends StatelessWidget {
         buttons.addAll([
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Ramasser le colis',
-              icon: PhosphorIconsBold.package,
-              isLoading: isWorking,
+            child: FilledButton.icon(
               onPressed: isWorking ? null : onPickup,
+              icon: isWorking
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(PhosphorIconsBold.package),
+              label: const Text('Ramasser le colis'),
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Signaler un échec',
-              icon: PhosphorIconsBold.flagPennant,
-              variant: AsmDriveButtonVariant.ghost,
+            child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
+              icon: const Icon(PhosphorIconsBold.flagPennant),
+              label: const Text('Signaler un échec'),
             ),
           ),
         ]);
@@ -816,11 +842,10 @@ class _ActionPanel extends StatelessWidget {
           buttons.add(
             SizedBox(
               width: double.infinity,
-              child: AsmDriveButton(
-                label: 'Naviguer',
-                icon: PhosphorIconsBold.navigationArrow,
-                variant: AsmDriveButtonVariant.secondary,
+              child: OutlinedButton.icon(
                 onPressed: launchNav,
+                icon: const Icon(PhosphorIconsBold.navigationArrow),
+                label: const Text('Naviguer'),
               ),
             ),
           );
@@ -829,36 +854,35 @@ class _ActionPanel extends StatelessWidget {
         buttons.addAll([
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Démarrer le trajet',
-              icon: PhosphorIconsBold.steeringWheel,
-              isLoading: isWorking,
+            child: FilledButton.icon(
               onPressed: isWorking ? null : onTransit,
+              icon: isWorking
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(PhosphorIconsBold.steeringWheel),
+              label: const Text('Démarrer le trajet'),
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Signaler un échec',
-              icon: PhosphorIconsBold.flagPennant,
-              variant: AsmDriveButtonVariant.ghost,
+            child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
+              icon: const Icon(PhosphorIconsBold.flagPennant),
+              label: const Text('Signaler un échec'),
             ),
           ),
           if (delivery.requiresHandoff && delivery.handoffConfirmedAt == null) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: DriveButton(
-                label: 'Générer le code de transfert',
-                icon: LucideIcons.qrCode,
-                variant: DriveButtonVariant.secondary,
+              child: OutlinedButton.icon(
                 onPressed: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
                 ),
+                icon: const Icon(LucideIcons.qrCode),
+                label: const Text('Générer le code de transfert'),
               ),
             ),
           ],
@@ -869,11 +893,10 @@ class _ActionPanel extends StatelessWidget {
           buttons.add(
             SizedBox(
               width: double.infinity,
-              child: AsmDriveButton(
-                label: 'Naviguer',
-                icon: PhosphorIconsBold.navigationArrow,
-                variant: AsmDriveButtonVariant.secondary,
+              child: OutlinedButton.icon(
                 onPressed: launchNav,
+                icon: const Icon(PhosphorIconsBold.navigationArrow),
+                label: const Text('Naviguer'),
               ),
             ),
           );
@@ -882,37 +905,36 @@ class _ActionPanel extends StatelessWidget {
         buttons.addAll([
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Soumettre la preuve de livraison',
-              icon: PhosphorIconsBold.sealCheck,
-              variant: AsmDriveButtonVariant.success,
-              isLoading: isWorking,
+            child: FilledButton.icon(
               onPressed: isWorking ? null : onPod,
+              icon: isWorking
+                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Icon(PhosphorIconsBold.sealCheck),
+              label: const Text('Soumettre la preuve de livraison'),
             ),
           ),
           const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
-            child: AsmDriveButton(
-              label: 'Signaler un échec',
-              icon: PhosphorIconsBold.flagPennant,
-              variant: AsmDriveButtonVariant.danger,
+            child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
+              icon: const Icon(PhosphorIconsBold.flagPennant),
+              label: const Text('Signaler un échec'),
+              style: TextButton.styleFrom(foregroundColor: cs.error),
             ),
           ),
           if (delivery.requiresHandoff && delivery.handoffConfirmedAt == null) ...[
             const SizedBox(height: 10),
             SizedBox(
               width: double.infinity,
-              child: DriveButton(
-                label: 'Générer le code de transfert',
-                icon: LucideIcons.qrCode,
-                variant: DriveButtonVariant.secondary,
+              child: OutlinedButton.icon(
                 onPressed: () => showModalBottomSheet(
                   context: context,
                   isScrollControlled: true,
                   builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
                 ),
+                icon: const Icon(LucideIcons.qrCode),
+                label: const Text('Générer le code de transfert'),
               ),
             ),
           ],
@@ -927,18 +949,18 @@ class _ActionPanel extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: AppColors.surface,
+              color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: cs.outlineVariant),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_rounded, size: 16, color: AppColors.muted),
+                Icon(Icons.lock_rounded, size: 16, color: cs.onSurfaceVariant),
                 const SizedBox(width: 8),
                 Text(
                   'Mission terminée — aucune action requise',
-                  style: const TextStyle(color: AppColors.muted, fontSize: 13),
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
                 ),
               ],
             ),
@@ -959,12 +981,13 @@ class _CodBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final Color color;
     final String label;
     if (codCollected == true) {
-      color = AppColors.success; label = 'COD ✓';
+      color = cs.tertiary; label = 'COD ✓';
     } else if (codCollected == false) {
-      color = AppColors.danger; label = 'COD ✗';
+      color = cs.error; label = 'COD ✗';
     } else {
       color = const Color(0xFFFF8C00); label = 'COD';
     }
@@ -976,8 +999,11 @@ class _CodBadge extends StatelessWidget {
         border: Border.all(color: color.withValues(alpha: 0.4)),
       ),
       child: Text(label,
-          style: GoogleFonts.spaceGrotesk(
-              fontSize: 10, fontWeight: FontWeight.w800, color: color, letterSpacing: 0.5)),
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w800,
+            color: color,
+          )),
     );
   }
 }
@@ -1032,22 +1058,23 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: 0.1),
+              color: cs.tertiary.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: const Icon(Icons.picture_as_pdf_outlined, color: AppColors.info, size: 20),
+            child: Icon(Icons.picture_as_pdf_outlined, color: cs.tertiary, size: 20),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1055,11 +1082,13 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Bon de livraison',
-                    style: GoogleFonts.plusJakartaSans(
-                        fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.textPrimary)),
+                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: cs.onSurface,
+                    )),
                 const SizedBox(height: 2),
-                const Text('Ouvrir le PDF pour impression',
-                    style: TextStyle(color: AppColors.muted, fontSize: 11)),
+                Text('Ouvrir le PDF pour impression',
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
               ],
             ),
           ),
@@ -1075,6 +1104,28 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
   }
 }
 
+// ─── Section Header ───────────────────────────────────────────────────────────
+class SectionHeader extends StatelessWidget {
+  const SectionHeader({super.key, required this.title, this.subtitle});
+  final String title;
+  final String? subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.onSurface)),
+        if (subtitle != null) ...[
+          const SizedBox(height: 2),
+          Text(subtitle!, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+        ],
+      ],
+    );
+  }
+}
+
 // ─── Handoff Lock Panel ───────────────────────────────────────────────────────
 class _HandoffLockPanel extends StatelessWidget {
   const _HandoffLockPanel({this.onScan});
@@ -1082,20 +1133,21 @@ class _HandoffLockPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: 0.1),
+            color: cs.secondary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+            border: Border.all(color: cs.secondary.withValues(alpha: 0.4)),
           ),
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.lock_outline_rounded, color: AppColors.warning, size: 20),
+              Icon(Icons.lock_outline_rounded, color: cs.secondary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
@@ -1103,16 +1155,16 @@ class _HandoffLockPanel extends StatelessWidget {
                   children: [
                     Text(
                       'Remise physique requise',
-                      style: GoogleFonts.spaceGrotesk(
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
-                        color: AppColors.warning,
+                        color: cs.secondary,
                       ),
                     ),
                     const SizedBox(height: 4),
-                    const Text(
+                    Text(
                       'Ce colis vous a été transféré. Scannez le QR du chauffeur expéditeur pour confirmer la réception et débloquer les actions.',
-                      style: TextStyle(fontSize: 12, color: AppColors.textSecondary, height: 1.4),
+                      style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant, height: 1.4),
                     ),
                   ],
                 ),
@@ -1123,10 +1175,10 @@ class _HandoffLockPanel extends StatelessWidget {
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
-          child: AsmDriveButton(
-            label: 'Scanner le QR de l\'expéditeur',
-            icon: PhosphorIconsBold.qrCode,
+          child: FilledButton.icon(
             onPressed: onScan,
+            icon: const Icon(PhosphorIconsBold.qrCode),
+            label: const Text('Scanner le QR de l\'expéditeur'),
           ),
         ),
       ],

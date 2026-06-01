@@ -180,7 +180,8 @@ public class DriverDeliveryController {
             @PathVariable UUID id,
             @Valid @RequestBody HandoffConfirmRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()), req.getToken(), principal));
+        return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()),
+                req.getToken(), req.getLat(), req.getLng(), req.getNotes(), principal));
     }
 
     @PatchMapping("/{id}/cod")

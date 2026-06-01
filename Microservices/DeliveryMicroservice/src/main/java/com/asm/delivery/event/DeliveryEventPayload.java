@@ -43,6 +43,8 @@ public class DeliveryEventPayload {
     private Integer routeDurationMinutes;
     private Integer transitSlaMinutes;
     private String routeProvider;
+    private String routeId;
+    private String routeName;
     private BigDecimal lat;
     private BigDecimal lng;
     

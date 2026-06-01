@@ -1,30 +1,51 @@
 package com.asm.driver.exception;
 
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 @RestControllerAdvice
+@Slf4j
 public class GlobalExceptionHandler {
+
     @ExceptionHandler(AppException.class)
-    public ResponseEntity<?> handleAppException(AppException ex) {
-        return ResponseEntity.status(ex.getStatus())
-                .body(Map.of("error", ex.getMessage(), "status", ex.getStatus().value()));
+    public ResponseEntity<Map<String, Object>> handleAppException(AppException ex) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", ex.getMessage());
+        body.put("status", ex.getStatus().value());
+        if (ex.getRetryAfterSeconds() > 0) {
+            body.put("retryAfterSeconds", ex.getRetryAfterSeconds());
+            return ResponseEntity.status(ex.getStatus())
+                    .header(HttpHeaders.RETRY_AFTER, String.valueOf(ex.getRetryAfterSeconds()))
+                    .body(body);
+        }
+        return ResponseEntity.status(ex.getStatus()).body(body);
     }
 
-    @ExceptionHandler(org.springframework.web.bind.MethodArgumentNotValidException.class)
-    public ResponseEntity<?> handleValidationException(org.springframework.web.bind.MethodArgumentNotValidException ex) {
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<Map<String, Object>> handleValidationException(MethodArgumentNotValidException ex) {
         String message = ex.getBindingResult().getFieldErrors().stream()
                 .map(e -> e.getField() + ": " + e.getDefaultMessage())
                 .reduce((a, b) -> a + "; " + b)
                 .orElse("Validation failed");
-        return ResponseEntity.badRequest().body(Map.of("error", message));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", message);
+        body.put("status", 400);
+        return ResponseEntity.badRequest().body(body);
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<?> handleException(Exception ex) {
-        return ResponseEntity.internalServerError()
-                .body(Map.of("error", "Internal server error: " + ex.getMessage()));
+    public ResponseEntity<Map<String, Object>> handleException(Exception ex) {
+        log.error("Unhandled exception", ex);
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("error", "Internal server error: " + ex.getMessage());
+        body.put("status", 500);
+        return ResponseEntity.internalServerError().body(body);
     }
 }

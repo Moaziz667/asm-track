@@ -6,7 +6,14 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "driver_audit_logs")
+@Table(
+    name = "driver_audit_logs",
+    indexes = {
+        @Index(name = "idx_driver_audit_resource", columnList = "resource_id, created_at DESC"),
+        @Index(name = "idx_driver_audit_action", columnList = "action"),
+        @Index(name = "idx_driver_audit_created", columnList = "created_at DESC")
+    }
+)
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class DriverAuditLog {
 
@@ -32,9 +39,7 @@ public class DriverAuditLog {
     @Column(columnDefinition = "TEXT")
     private String details;
 
-
-
-    @Column(nullable = false, updatable = false)
+    @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 }

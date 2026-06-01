@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../deliveries/models/delivery_models.dart';
-import '../../../../theme/app_theme.dart';
 
 class DeliveryCard extends StatelessWidget {
   const DeliveryCard({
@@ -21,15 +19,16 @@ class DeliveryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final statusColor = delivery.status.badgeColor;
 
     return GestureDetector(
       onTap: onTap,
       child: Container(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: cs.outlineVariant),
           boxShadow: [
             BoxShadow(
               color: const Color(0xFF101014).withValues(alpha: 0.08),
@@ -71,8 +70,8 @@ class DeliveryCard extends StatelessWidget {
                             Container(width: 5, height: 5, decoration: BoxDecoration(color: statusColor, shape: BoxShape.circle)),
                             const SizedBox(width: 5),
                             Text(
-                              delivery.status.label.toUpperCase(),
-                              style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: statusColor, letterSpacing: 0.35),
+                              delivery.status.label,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: statusColor),
                             ),
                           ],
                         ),
@@ -82,13 +81,13 @@ class DeliveryCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.warning.withValues(alpha: 0.1),
+                            color: cs.secondary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
-                            border: Border.all(color: AppColors.warning.withValues(alpha: 0.2)),
+                            border: Border.all(color: cs.secondary.withValues(alpha: 0.2)),
                           ),
                           child: Text(
-                            delivery.priority!.toUpperCase(),
-                            style: GoogleFonts.manrope(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.warning),
+                            _titleCase(delivery.priority!),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w800, color: cs.secondary),
                           ),
                         ),
                     ],
@@ -99,31 +98,34 @@ class DeliveryCard extends StatelessWidget {
                   // Address
                   Text(
                     delivery.address ?? 'Aucune adresse fournie',
-                    style: GoogleFonts.sora(fontSize: 15, fontWeight: FontWeight.w600, color: AppColors.textPrimary, letterSpacing: -0.2),
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w600,
+                      color: cs.onSurface,
+                    ),
                   ),
                   if (delivery.city != null) ...[
                     const SizedBox(height: 3),
                     Row(
                       children: [
-                        const Icon(PhosphorIconsRegular.mapPin, size: 12, color: AppColors.muted),
+                        Icon(PhosphorIconsRegular.mapPin, size: 12, color: cs.onSurfaceVariant),
                         const SizedBox(width: 3),
-                        Text(delivery.city!, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
+                        Text(delivery.city!, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
                       ],
                     ),
                   ],
 
                   const SizedBox(height: 14),
-                  const Divider(color: AppColors.border, height: 1),
+                  Divider(color: cs.outlineVariant, height: 1),
                   const SizedBox(height: 12),
 
                   // Footer metadata
                   Row(
                     children: [
-                      _Meta(label: 'COMMANDE', value: delivery.orderId ?? 'N/A'),
+                      _Meta(label: 'Commande', value: delivery.orderId ?? 'N/A'),
                       const SizedBox(width: 16),
-                      _Meta(label: 'ARTICLES', value: '${delivery.items.length}'),
+                      _Meta(label: 'Articles', value: '${delivery.items.length}'),
                       const Spacer(),
-                      const Icon(PhosphorIconsBold.caretRight, size: 12, color: AppColors.muted),
+                      Icon(PhosphorIconsBold.caretRight, size: 12, color: cs.onSurfaceVariant),
                     ],
                   ),
                 ],
@@ -134,6 +136,11 @@ class DeliveryCard extends StatelessWidget {
       ),
     );
   }
+
+  static String _titleCase(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1).toLowerCase();
+  }
 }
 
 class _Meta extends StatelessWidget {
@@ -142,12 +149,15 @@ class _Meta extends StatelessWidget {
   final String value;
 
   @override
-  Widget build(BuildContext context) => Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: GoogleFonts.manrope(fontSize: 9, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 0.8)),
-          const SizedBox(height: 2),
-          Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.textPrimary)),
-        ],
-      );
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: Theme.of(context).textTheme.labelSmall?.copyWith(fontSize: 9, fontWeight: FontWeight.w800, color: cs.onSurfaceVariant)),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: cs.onSurface)),
+      ],
+    );
+  }
 }

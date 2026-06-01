@@ -3,6 +3,7 @@ package com.asm.driver.service;
 import com.asm.driver.dto.response.AuthResponse;
 import com.asm.driver.dto.response.DriverInfo;
 import com.asm.driver.entity.Driver;
+import com.asm.driver.entity.DriverAccountStatus;
 import com.asm.driver.exception.AppException;
 import com.asm.driver.repository.DriverRepository;
 import com.asm.driver.security.JwtService;
@@ -49,6 +50,7 @@ public class DriverAuthService {
                 .name(name)
                 .phone(phone)
                 .passwordHash(passwordEncoder.encode(password))
+                .accountStatus(DriverAccountStatus.ACTIVE)
                 .build();
         driverRepo.save(driver);
         return Map.of("message", "Registration successful", "driverId", driver.getId().toString());
@@ -59,7 +61,12 @@ public class DriverAuthService {
         Driver driver = driverRepo.findByPhone(phone)
                 .orElseThrow(() -> AppException.unauthorized("Invalid credentials"));
 
-        if (!driver.getActive()) throw AppException.unauthorized("Account disabled");
+        if (driver.getAccountStatus() == DriverAccountStatus.PENDING_SETUP) {
+            throw AppException.unauthorized("Votre compte est en attente d'activation. Veuillez utiliser votre code reçu.");
+        }
+        if (driver.getAccountStatus() == DriverAccountStatus.SUSPENDED) {
+            throw AppException.unauthorized("Votre compte est suspendu. Veuillez contacter votre responsable.");
+        }
 
         Map<String, Object> tokenResponse = callAuthServerPasswordGrant(phone, password);
 

@@ -49,8 +49,9 @@ final authControllerProvider =
 
   final controller = AuthController(repo, storage, fcm, ref);
 
-  // Wire up session expiration callback to break circularity in provider definitions
-  ref.read(apiClientProvider).onSessionExpired = () => controller.logout();
+  // Wire up session expiration callback to break circularity in provider definitions.
+  // The reason drives the message the driver sees on the login screen.
+  ref.read(apiClientProvider).onSessionExpired = controller.endSession;
 
   return controller;
 });

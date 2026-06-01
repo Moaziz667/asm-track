@@ -131,7 +131,9 @@
       "PowerShell(.\\\\node_modules\\\\.bin\\\\tsc --noEmit 2>&1)",
       "PowerShell(Remove-Item -Recurse -Force \"Apps\\\\admin-app\\\\Apps\" -Confirm:$false)",
       "PowerShell(Remove-Item -Recurse -Force \".\\\\Apps\" -Confirm:$false)",
-      "PowerShell(\"---\")"
+      "PowerShell(\"---\")",
+      "Bash(xargs grep -l \"401\\\\|Unauthorized\\\\|JwtAuth\\\\|SecurityWebFilter\\\\|AccountStatus\\\\|DRIVER\")",
+      "Bash(echo \"TSC_EXIT=$?\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

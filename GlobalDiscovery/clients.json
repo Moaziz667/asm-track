@@ -1,4 +1,4 @@
 {
   "ASM01": "http://192.168.10.76:8080",
-  "LOCAL": "http://localhost:8080"
-}
+    "LOCAL": "http://localhost",
+    "EMULATOR": "http://10.0.2.2"}

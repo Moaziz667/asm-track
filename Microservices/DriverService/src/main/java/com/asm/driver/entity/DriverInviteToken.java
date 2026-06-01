@@ -6,7 +6,13 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "driver_invite_tokens")
+@Table(
+    name = "driver_invite_tokens",
+    indexes = {
+        @Index(name = "idx_invite_token_driver", columnList = "driver_id"),
+        @Index(name = "idx_invite_token_expires", columnList = "expires_at")
+    }
+)
 @Getter @Setter @Builder @NoArgsConstructor @AllArgsConstructor
 public class DriverInviteToken {
 

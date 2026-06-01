@@ -165,12 +165,15 @@ public class VehicleService {
     public void delete(UUID id, UserPrincipal principal) {
         requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);
-        if (StringUtils.hasText(vehicle.getImageUrl())) {
-            minioStorageService.deleteFile(vehicle.getImageUrl());
-        }
-        auditLogService.logAction(principal, "DELETE_VEHICLE", "VEHICLE", id.toString(),
-                java.util.Map.of("vehicule", vehicle.getName(), "plaque", vehicle.getPlate(), "action", "Suppression de vehicule"));
-        vehicleRepository.delete(vehicle);
+
+        vehicle.setActive(false);
+        vehicle.setVehicleStatus(VehicleStatus.OUT_OF_SERVICE);
+        vehicle.setDriverId(null);
+
+        Vehicle saved = vehicleRepository.save(vehicle);
+
+        auditLogService.logAction(principal, "DEACTIVATE_VEHICLE", "VEHICLE", saved.getId().toString(),
+                java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(), "action", "Desactivation de vehicule"));
     }
 
     @Transactional

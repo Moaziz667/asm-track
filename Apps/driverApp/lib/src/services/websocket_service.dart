@@ -11,6 +11,9 @@ class RouteWsEvent {
     this.clientName,
     this.erpOrderId,
     this.reason,
+    this.deliveryId,
+    this.fromDriverName,
+    this.toDriverName,
   });
 
   factory RouteWsEvent.fromJson(Map<String, dynamic> json) {
@@ -21,6 +24,9 @@ class RouteWsEvent {
       clientName: json['clientName'] as String?,
       erpOrderId: json['erpOrderId'] as String?,
       reason: json['reason'] as String?,
+      deliveryId: json['deliveryId'] as String?,
+      fromDriverName: json['fromDriverName'] as String?,
+      toDriverName: json['toDriverName'] as String?,
     );
   }
 
@@ -30,6 +36,11 @@ class RouteWsEvent {
   final String? clientName;
   final String? erpOrderId;
   final String? reason;
+
+  // Handoff events
+  final String? deliveryId;
+  final String? fromDriverName;
+  final String? toDriverName;
 }
 
 class WebSocketService {

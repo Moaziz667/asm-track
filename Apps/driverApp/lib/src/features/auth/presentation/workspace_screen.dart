@@ -64,7 +64,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final lookupCode = code.toUpperCase();
     try {
       final dio = Dio();
-      final response = await dio.get('https://discovery.asmtn.com/clients.json');
+      final response = await dio.get('http://localhost:8080/clients.json');
       final Map<String, dynamic> clients = response.data is String 
           ? jsonDecode(response.data) 
           : response.data;
@@ -105,8 +105,9 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(title: Text(_isManualMode ? 'Manual Configuration' : 'Workspace Setup')),
       body: Padding(
         padding: const EdgeInsets.all(24.0),
@@ -116,7 +117,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
           children: [
             Text(
               _isManualMode ? 'Enter Backend API URL' : 'Enter your Company Code',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+              style: theme.textTheme.headlineSmall,
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 8),
@@ -124,7 +125,7 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               _isManualMode 
                   ? 'Specify the full URL of your deployment (e.g., https://api.asm.tn)' 
                   : 'Provided by your dispatcher (e.g., ASM01)',
-              style: const TextStyle(fontSize: 14, color: Colors.grey),
+              style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 32),
@@ -140,14 +141,14 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
               keyboardType: _isManualMode ? TextInputType.url : TextInputType.text,
             ),
             const SizedBox(height: 24),
-            ElevatedButton(
-              onPressed: _isLoading ? null : _submitCode,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+            SizedBox(
+              height: 52,
+              child: FilledButton(
+                onPressed: _isLoading ? null : _submitCode,
+                child: _isLoading 
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2)) 
+                    : const Text('Continue'),
               ),
-              child: _isLoading 
-                  ? const CircularProgressIndicator(color: Colors.white) 
-                  : const Text('Continue'),
             ),
             const SizedBox(height: 16),
             TextButton(

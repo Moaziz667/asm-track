@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
-
-import '../../../app.dart';
-import '../../../app_providers.dart';
-import '../../../theme/app_theme.dart';
 
 class SplashScreen extends ConsumerWidget {
   const SplashScreen({super.key});
@@ -12,94 +7,66 @@ class SplashScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    ref.listen(authControllerProvider, (prev, next) {
-      if (next.status != prev?.status && !next.isLoading) {
-        navigateToHome(context, next.status);
-      }
-    });
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    // Routing is handled centrally in DriverApp's auth listener once bootstrap
+    // resolves the auth status.
 
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: Stack(
         children: [
-          // Tactical pattern — scanning lines or grid
           Positioned.fill(
             child: Opacity(
               opacity: 0.05,
               child: CustomPaint(painter: _GridPainter()),
             ),
           ),
-          // Content
           Center(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo
-                Container(
-                  width: 96,
-                  height: 96,
-                  decoration: BoxDecoration(
-                    color: AppColors.neonYellow,
-                    borderRadius: BorderRadius.circular(4), // Tactical 4px
-                    boxShadow: [
-                      BoxShadow(
-                        color: AppColors.neonYellow.withValues(alpha: 0.3),
-                        blurRadius: 40,
-                        spreadRadius: 5,
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.local_shipping_rounded, color: Colors.black, size: 52),
-                ),
+                Image.asset('assets/icon.png', width: 96, height: 96),
                 const SizedBox(height: 48),
                 Text(
                   'ASMONE',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 48,
+                  style: theme.textTheme.displaySmall?.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
                     letterSpacing: -2,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  'PILOTAGE LOGISTIQUE',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 12,
-                    color: AppColors.neonYellow,
-                    fontWeight: FontWeight.w800,
+                  'Pilotage logistique',
+                  style: theme.textTheme.labelMedium?.copyWith(
+                    color: colorScheme.primary,
                     letterSpacing: 3,
                   ),
                 ),
                 const SizedBox(height: 80),
-                const SizedBox(
+                SizedBox(
                   width: 32,
                   height: 32,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.neonYellow),
+                    color: colorScheme.primary,
                   ),
                 ),
                 const SizedBox(height: 32),
                 Text(
-                  'CONNEXION AU RÉSEAU...',
+                  'Connexion au reseau...',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 10,
+                  style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 5,
-                    color: AppColors.muted,
-                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  '© 2026 OPÉRATIONS LOGISTIQUES ASM',
+                  '(c) 2026 Operations logistiques ASM',
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 9,
-                    letterSpacing: 1.5,
-                    color: AppColors.muted.withValues(alpha: 0.6),
-                    fontWeight: FontWeight.w600,
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -114,7 +81,7 @@ class SplashScreen extends ConsumerWidget {
 class _GridPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = AppColors.textPrimary..strokeWidth = 1;
+    final paint = Paint()..color = const Color(0xFF9CA3AF)..strokeWidth = 1;
     const step = 40.0;
     for (double x = 0; x < size.width; x += step) {
       canvas.drawLine(Offset(x, 0), Offset(x, size.height), paint);

@@ -20,6 +20,10 @@ class DriverApp extends ConsumerStatefulWidget {
   ConsumerState<DriverApp> createState() => _DriverAppState();
 }
 
+/// Single navigator for the whole app so auth-driven routing works from any
+/// screen — including a forced sign-out triggered deep inside the app.
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
 class _DriverAppState extends ConsumerState<DriverApp> {
   @override
   void initState() {
@@ -29,10 +33,21 @@ class _DriverAppState extends ConsumerState<DriverApp> {
 
   @override
   Widget build(BuildContext context) {
+    // Centralized auth-driven routing: whenever the auth status changes — login,
+    // logout, token expiry, or an admin suspending the account — route to the
+    // right screen from a single place instead of each screen doing it ad hoc.
+    ref.listen<AuthState>(authControllerProvider, (prev, next) {
+      if (prev?.status == next.status || next.isLoading) return;
+      navigateToHome(rootNavigatorKey.currentContext, next.status);
+    });
+
     return MaterialApp(
       title: 'asmDrive',
+      navigatorKey: rootNavigatorKey,
       debugShowCheckedModeBanner: false,
-      theme: buildAppTheme(),
+      theme: buildLightTheme(),
+      darkTheme: buildDarkTheme(),
+      themeMode: ThemeMode.system,
       routes: {
         SplashScreen.routeName: (_) => const SplashScreen(),
         LoginScreen.routeName: (_) => const LoginScreen(),
@@ -63,7 +78,8 @@ class _DriverAppState extends ConsumerState<DriverApp> {
   }
 }
 
-void navigateToHome(BuildContext context, AuthStatus status) {
+void navigateToHome(BuildContext? context, AuthStatus status) {
+  if (context == null) return;
   if (status == AuthStatus.authenticated) {
     Navigator.of(context).pushNamedAndRemoveUntil(HomeShell.routeName, (route) => false);
   } else if (status == AuthStatus.unauthenticated) {

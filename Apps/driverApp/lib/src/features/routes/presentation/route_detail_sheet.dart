@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '../../../theme/app_theme.dart';
 import '../models/route_models.dart';
 import 'widgets/route_card.dart' show StatusChip;
 
@@ -24,6 +23,7 @@ class RouteDetailSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final total = route.totalStops ?? route.stops.length;
     final done = route.completedStops ??
         route.stops.where((s) => s.status != DriverRouteStopStatus.pending).length;
@@ -34,11 +34,11 @@ class RouteDetailSheet extends StatelessWidget {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scroll) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
           boxShadow: [
-            BoxShadow(color: Color(0x1A0F172A), blurRadius: 24, offset: Offset(0, -4)),
+            const BoxShadow(color: Color(0x1A0F172A), blurRadius: 24, offset: Offset(0, -4)),
           ],
         ),
         child: ListView(
@@ -53,7 +53,7 @@ class RouteDetailSheet extends StatelessWidget {
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceDim,
+                    color: cs.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
@@ -67,11 +67,9 @@ class RouteDetailSheet extends StatelessWidget {
                 Expanded(
                   child: Text(
                     route.name,
-                    style: GoogleFonts.sora(
-                      fontSize: 18,
+                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
-                      letterSpacing: -0.3,
+                      color: cs.onSurface,
                     ),
                   ),
                 ),
@@ -95,23 +93,23 @@ class RouteDetailSheet extends StatelessWidget {
                   style: GoogleFonts.inter(
                     fontSize: 14,
                     fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: cs.outlineVariant),
                   ),
                   child: Text(
                     '$total',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textSecondary,
+                      color: cs.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -124,7 +122,7 @@ class RouteDetailSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'Aucun arrêt configuré.',
-                  style: TextStyle(color: AppColors.muted, fontSize: 13),
+                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
                 ),
               )
             else
@@ -215,31 +213,32 @@ class _InfoTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surfaceElevated,
+        color: cs.surfaceContainerHighest,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(item.icon, size: 14, color: AppColors.muted),
+          Icon(item.icon, size: 14, color: cs.onSurfaceVariant),
           const SizedBox(width: 7),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 item.label,
-                style: const TextStyle(fontSize: 10, color: AppColors.muted, fontWeight: FontWeight.w500),
+                style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, fontWeight: FontWeight.w500),
               ),
               Text(
                 item.value,
                 style: GoogleFonts.inter(
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
-                  color: AppColors.textPrimary,
+                  color: cs.onSurface,
                 ),
               ),
             ],
@@ -257,25 +256,26 @@ class _ReadOnlyStopRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final Color dotColor;
     switch (stop.status) {
       case DriverRouteStopStatus.arrived:
       case DriverRouteStopStatus.completed:
       case DriverRouteStopStatus.partial:
-        dotColor = AppColors.success; break;
+        dotColor = cs.tertiary; break;
       case DriverRouteStopStatus.failed:
-        dotColor = AppColors.danger; break;
+        dotColor = cs.error; break;
       case DriverRouteStopStatus.pending:
       default:
-        dotColor = AppColors.muted; break;
+        dotColor = cs.onSurfaceVariant; break;
     }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: cs.outlineVariant),
       ),
       child: Row(
         children: [
@@ -290,7 +290,7 @@ class _ReadOnlyStopRow extends StatelessWidget {
             child: Center(
               child: Text(
                 '${stop.stopOrder}',
-                style: GoogleFonts.manrope(
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
                   fontSize: 12,
                   fontWeight: FontWeight.w800,
                   color: dotColor,
@@ -311,14 +311,14 @@ class _ReadOnlyStopRow extends StatelessWidget {
                     style: GoogleFonts.inter(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary,
+                      color: cs.onSurface,
                     ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 if (stop.address != null || stop.city != null)
                   Text(
                     [stop.address, stop.city].where((e) => e != null && e.isNotEmpty).join(', '),
-                    style: const TextStyle(fontSize: 11, color: AppColors.muted),
+                    style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
                     overflow: TextOverflow.ellipsis,
                   ),
               ],
@@ -332,7 +332,7 @@ class _ReadOnlyStopRow extends StatelessWidget {
               style: GoogleFonts.inter(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
         ],

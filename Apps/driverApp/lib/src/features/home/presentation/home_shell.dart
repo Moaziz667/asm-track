@@ -12,9 +12,9 @@ import '../../../services/location_service.dart';
 import '../../../services/notification_store.dart';
 import '../../../services/offline_queue_service.dart';
 import '../../../services/websocket_service.dart';
-import '../../../theme/app_theme.dart';
 import '../../auth/models/auth_models.dart';
 import '../../deliveries/models/delivery_models.dart';
+import '../../deliveries/presentation/delivery_detail_screen.dart';
 import '../../profile/presentation/profile_screen.dart';
 import '../../routes/models/route_models.dart';
 import '../../routes/presentation/calendar_screen.dart';
@@ -38,12 +38,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   final _wsService = WebSocketService();
 
-  static const _navItems = [
-    _NavItem(icon: PhosphorIconsFill.path,         label: 'Tournée'),
-    _NavItem(icon: PhosphorIconsFill.calendarDots, label: 'Calendrier'),
-    _NavItem(icon: PhosphorIconsFill.userCircle,   label: 'Profil'),
-  ];
-
   @override
   void initState() {
     super.initState();
@@ -59,7 +53,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final store = ref.read(notificationStoreProvider.notifier);
     ref.read(fcmServiceProvider).setHandlers(
       onReceived: (title, body, type) => store.add(title: title, body: body, type: type),
-      onTap: () {
+      onTap: (type, deliveryId) {
+        // Deep-link handoff taps straight to the delivery (scanner / code sheet).
+        if (type.startsWith('HANDOFF_') && deliveryId != null && deliveryId.isNotEmpty) {
+          _openHandoffDelivery(deliveryId);
+          return;
+        }
         if (mounted) setState(() => _index = 0);
         _showNotificationPanel();
       },
@@ -71,7 +70,6 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: AppColors.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -99,12 +97,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void _handleWsEvent(RouteWsEvent event) {
     if (!mounted) return;
 
-    // Invalidate providers so UI refreshes automatically
     ref.invalidate(todayRouteProvider);
     ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
+    ref.invalidate(activeDeliveriesProvider);
+
+    // Handoff events get a prominent, actionable in-app banner (beyond OS push).
+    if (event.event.startsWith('handoff.')) {
+      _handleHandoffWsEvent(event);
+      return;
+    }
 
     final locale = ref.read(localeProvider);
-    final routeStr = event.routeName.isNotEmpty ? '«${event.routeName}»' : DriverCopy.get('ws_generic_route', locale);
+    final routeStr = event.routeName.isNotEmpty ? '\u00ab${event.routeName}\u00bb' : DriverCopy.get('ws_generic_route', locale);
     final String message;
     IconData icon;
     Color color;
@@ -141,7 +145,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       case 'STOP_REMOVED':
         final removedClient = event.clientName ?? '';
         final refStr = event.erpOrderId != null ? ' [${event.erpOrderId}]' : '';
-        final why = event.reason != null ? ' — ${event.reason}' : '';
+        final why = event.reason != null ? ' \u2014 ${event.reason}' : '';
         message = DriverCopy.get('ws_stop_removed', locale)
             .replaceAll('{client}', removedClient)
             .replaceAll('{ref}', refStr)
@@ -169,6 +173,124 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         return;
     }
 
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(icon, color: Colors.white, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text(message, style: const TextStyle(color: Colors.white))),
+          ],
+        ),
+        backgroundColor: color,
+        behavior: SnackBarBehavior.floating,
+        duration: const Duration(seconds: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+
+  // ── Handoff live banners (real-time, beyond the OS push) ───────────────────
+
+  void _handleHandoffWsEvent(RouteWsEvent event) {
+    if (!mounted) return;
+    final locale = ref.read(localeProvider);
+
+    final refStr = (event.erpOrderId != null && event.erpOrderId!.isNotEmpty)
+        ? '#${event.erpOrderId}'
+        : (event.deliveryId != null && event.deliveryId!.length >= 8
+            ? '#${event.deliveryId!.substring(0, 8)}'
+            : '');
+    String build(String key, String? name) => DriverCopy.get(key, locale)
+        .replaceAll('{ref}', refStr)
+        .replaceAll('{name}', (name != null && name.isNotEmpty) ? name : DriverCopy.get('ws_handoff_other', locale))
+        .replaceAll('  ', ' ')
+        .trim();
+
+    switch (event.event) {
+      case 'handoff.incoming':
+      case 'handoff.code_ready':
+        _showHandoffBanner(
+          message: build('ws_handoff_incoming', event.fromDriverName),
+          icon: Icons.qr_code_scanner_rounded,
+          color: const Color(0xFF2563EB),
+          actionLabel: DriverCopy.get('handoff_action_scan', locale),
+          onAction: () => _openHandoffDelivery(event.deliveryId),
+          locale: locale,
+        );
+        break;
+      case 'handoff.outgoing':
+        _showHandoffBanner(
+          message: build('ws_handoff_outgoing', event.toDriverName),
+          icon: Icons.swap_horiz_rounded,
+          color: const Color(0xFFF59E0B),
+          actionLabel: DriverCopy.get('handoff_action_show', locale),
+          onAction: () => _openHandoffDelivery(event.deliveryId),
+          locale: locale,
+        );
+        break;
+      case 'handoff.confirmed':
+        ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+        _showHandoffSnack(build('ws_handoff_confirmed', null), Icons.check_circle_outline, const Color(0xFF16A34A));
+        break;
+      case 'handoff.cancelled':
+        ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+        _showHandoffSnack(build('ws_handoff_cancelled', null), Icons.cancel_outlined, const Color(0xFFDC2626));
+        break;
+      default:
+        return;
+    }
+  }
+
+  void _openHandoffDelivery(String? deliveryId) {
+    ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
+    if (deliveryId == null || deliveryId.isEmpty || !mounted) return;
+    setState(() => _index = 0);
+    Navigator.of(context).pushNamed(
+      DeliveryDetailScreen.routeName,
+      arguments: DeliveryDetailArgs(deliveryId: deliveryId),
+    );
+  }
+
+  void _showHandoffBanner({
+    required String message,
+    required IconData icon,
+    required Color color,
+    required String actionLabel,
+    required VoidCallback onAction,
+    required String locale,
+  }) {
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final theme = Theme.of(context);
+    messenger.hideCurrentMaterialBanner();
+    messenger.showMaterialBanner(
+      MaterialBanner(
+        backgroundColor: theme.colorScheme.surface,
+        dividerColor: theme.colorScheme.outlineVariant,
+        leading: Icon(icon, color: color),
+        content: Text(
+          message,
+          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => messenger.hideCurrentMaterialBanner(),
+            child: Text(DriverCopy.get('cancel', locale)),
+          ),
+          TextButton(
+            onPressed: () { messenger.hideCurrentMaterialBanner(); onAction(); },
+            style: TextButton.styleFrom(foregroundColor: color),
+            child: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showHandoffSnack(String message, IconData icon, Color color) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Row(
@@ -192,11 +314,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       if (!mounted) return;
       setState(() => _isOffline = !isOnline);
       if (isOnline) {
-        // Belt + suspenders: trigger queue replay on reconnect
         ref.read(offlineQueueProvider.notifier).processQueue();
       }
     });
-    // Initial check
     connectivity.isOnline.then((online) {
       if (mounted) setState(() => _isOffline = !online);
     });
@@ -242,7 +362,9 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final locale = ref.watch(localeProvider);
+    final colorScheme = theme.colorScheme;
 
     ref.listen(activeDeliveriesProvider, (_, next) {
       next.whenData((list) {
@@ -270,21 +392,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
       const SafeArea(child: ProfileScreen()),
     ];
 
-    final navItems = [
-      _NavItem(icon: PhosphorIconsFill.path,         label: DriverCopy.get('tab_route', locale)),
-      _NavItem(icon: PhosphorIconsFill.calendarDots, label: DriverCopy.get('tab_calendar', locale)),
-      _NavItem(icon: PhosphorIconsFill.userCircle,   label: DriverCopy.get('tab_profile', locale)),
-    ];
-
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      value: const SystemUiOverlayStyle(
+      value: SystemUiOverlayStyle(
         statusBarColor: Colors.transparent,
-        statusBarIconBrightness: Brightness.light,
-        systemNavigationBarColor: AppColors.surface,
-        systemNavigationBarIconBrightness: Brightness.dark,
+        statusBarIconBrightness: theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
+        systemNavigationBarColor: colorScheme.surface,
+        systemNavigationBarIconBrightness: theme.brightness == Brightness.dark ? Brightness.light : Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: AppColors.background,
         body: Stack(
           children: [
             Column(
@@ -298,7 +413,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       left: 16,
                       right: 16,
                     ),
-                    color: AppColors.warning.withValues(alpha: 0.92),
+                    color: Colors.amber.shade700,
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
@@ -332,7 +447,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                        color: AppColors.surface,
+                        color: colorScheme.surfaceContainerLow,
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
@@ -363,48 +478,18 @@ class _HomeShellState extends ConsumerState<HomeShell> {
                 ),
               ],
             ),
-            // Bell icon with unread badge
             Positioned(
               top: MediaQuery.of(context).padding.top + 8,
               right: 12,
               child: Consumer(
                 builder: (context, ref, _) {
                   final unread = ref.watch(unreadNotifCountProvider);
-                  return GestureDetector(
-                    onTap: _showNotificationPanel,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            color: AppColors.surface.withValues(alpha: 0.92),
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.border),
-                          ),
-                          child: const Icon(Icons.notifications_outlined, size: 18),
-                        ),
-                        if (unread > 0)
-                          Positioned(
-                            top: -2,
-                            right: -2,
-                            child: Container(
-                              width: 16,
-                              height: 16,
-                              decoration: const BoxDecoration(
-                                color: AppColors.danger,
-                                shape: BoxShape.circle,
-                              ),
-                              child: Center(
-                                child: Text(
-                                  unread > 9 ? '9+' : '$unread',
-                                  style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
+                  return IconButton(
+                    onPressed: _showNotificationPanel,
+                    icon: Badge(
+                      isLabelVisible: unread > 0,
+                      label: Text(unread > 9 ? '9+' : '$unread'),
+                      child: const Icon(Icons.notifications_outlined),
                     ),
                   );
                 },
@@ -412,10 +497,23 @@ class _HomeShellState extends ConsumerState<HomeShell> {
             ),
           ],
         ),
-        bottomNavigationBar: _BottomNav(
-          index: _index,
-          items: navItems,
-          onTap: (i) => setState(() => _index = i),
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _index,
+          onDestinationSelected: (i) => setState(() => _index = i),
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(PhosphorIconsFill.path),
+              label: DriverCopy.get('tab_route', locale),
+            ),
+            NavigationDestination(
+              icon: const Icon(PhosphorIconsFill.calendarDots),
+              label: DriverCopy.get('tab_calendar', locale),
+            ),
+            NavigationDestination(
+              icon: const Icon(PhosphorIconsFill.userCircle),
+              label: DriverCopy.get('tab_profile', locale),
+            ),
+          ],
         ),
       ),
     );
@@ -435,11 +533,11 @@ class _NotificationPanel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
     final notifications = ref.watch(notificationStoreProvider);
     final store = ref.read(notificationStoreProvider.notifier);
     final locale = ref.watch(localeProvider);
 
-    // Mark all as read when panel opens
     WidgetsBinding.instance.addPostFrameCallback((_) => store.markAllRead());
 
     return DraggableScrollableSheet(
@@ -450,13 +548,23 @@ class _NotificationPanel extends ConsumerWidget {
       builder: (_, controller) => Column(
         children: [
           const SizedBox(height: 8),
-          Container(width: 36, height: 4, decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2))),
+          Container(
+            width: 36,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.outlineVariant,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           const SizedBox(height: 12),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Row(
               children: [
-                Text(DriverCopy.get('notifications', locale), style: GoogleFonts.manrope(fontSize: 16, fontWeight: FontWeight.w700)),
+                Text(
+                  DriverCopy.get('notifications', locale),
+                  style: theme.textTheme.titleMedium,
+                ),
               ],
             ),
           ),
@@ -468,9 +576,12 @@ class _NotificationPanel extends ConsumerWidget {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Icon(Icons.notifications_off_outlined, size: 40, color: Color(0xFF9CA3AF)),
+                        const Icon(Icons.notifications_off_outlined, size: 40),
                         const SizedBox(height: 8),
-                        Text(DriverCopy.get('no_notifications', locale), style: GoogleFonts.inter(color: const Color(0xFF9CA3AF))),
+                        Text(
+                          DriverCopy.get('no_notifications', locale),
+                          style: theme.textTheme.bodySmall,
+                        ),
                       ],
                     ),
                   )
@@ -485,12 +596,18 @@ class _NotificationPanel extends ConsumerWidget {
                           backgroundColor: _typeColor(n.type).withValues(alpha: 0.15),
                           child: Icon(_typeIcon(n.type), size: 18, color: _typeColor(n.type)),
                         ),
-                        title: Text(n.title, style: GoogleFonts.manrope(fontWeight: FontWeight.w600, fontSize: 13)),
+                        title: Text(n.title, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            if (n.body.isNotEmpty) Text(n.body, style: GoogleFonts.inter(fontSize: 12)),
-                            Text(_formatTime(n.receivedAt, locale), style: GoogleFonts.inter(fontSize: 11, color: const Color(0xFF9CA3AF))),
+                            if (n.body.isNotEmpty)
+                              Text(
+                                n.body,
+                                style: theme.textTheme.bodySmall,
+                                maxLines: 4,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            Text(_formatTime(n.receivedAt, locale), style: theme.textTheme.labelSmall),
                           ],
                         ),
                         isThreeLine: n.body.isNotEmpty,
@@ -537,82 +654,10 @@ class _NotificationPanel extends ConsumerWidget {
       if (diff.inHours < 24) return '${diff.inHours}h ago';
       return '${diff.inDays}d ago';
     } else {
-      if (diff.inMinutes < 1) return 'À l\'instant';
+      if (diff.inMinutes < 1) return 'A l\'instant';
       if (diff.inMinutes < 60) return 'Il y a ${diff.inMinutes} min';
       if (diff.inHours < 24) return 'Il y a ${diff.inHours}h';
       return 'Il y a ${diff.inDays}j';
     }
-  }
-}
-
-class _NavItem {
-  const _NavItem({required this.icon, required this.label});
-  final IconData icon;
-  final String label;
-}
-
-class _BottomNav extends StatelessWidget {
-  const _BottomNav({required this.index, required this.items, required this.onTap});
-  final int index;
-  final List<_NavItem> items;
-  final ValueChanged<int> onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(top: BorderSide(color: AppColors.border, width: 1.2)),
-        boxShadow: [
-          BoxShadow(color: Color(0x1A101014), blurRadius: 26, offset: Offset(0, -8)),
-        ],
-      ),
-      child: SafeArea(
-        top: false,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-          child: Row(
-            children: List.generate(items.length, (i) {
-              final item = items[i];
-              final selected = i == index;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => onTap(i),
-                  behavior: HitTestBehavior.opaque,
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 180),
-                    curve: Curves.easeOut,
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.accent : Colors.transparent,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          item.icon,
-                          size: 22,
-                          color: selected ? Colors.black : AppColors.muted,
-                        ),
-                        const SizedBox(height: 3),
-                        Text(
-                          item.label,
-                          style: GoogleFonts.manrope(
-                            fontSize: 10,
-                            fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                            color: selected ? Colors.black : AppColors.muted,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }),
-          ),
-        ),
-      ),
-    );
   }
 }

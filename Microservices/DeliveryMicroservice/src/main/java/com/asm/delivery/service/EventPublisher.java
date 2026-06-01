@@ -1,10 +1,12 @@
 package com.asm.delivery.service;
 
 import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.entity.Handoff;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.event.CloudEventWrapper;
 import com.asm.delivery.event.DeliveryEventPayload;
+import com.asm.delivery.event.HandoffEventPayload;
 import com.asm.delivery.event.RouteEventPayload;
 import com.asm.delivery.transport.TransportPort;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -36,6 +38,9 @@ public class EventPublisher {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private com.asm.delivery.repository.RouteStopRepository routeStopRepository;
+
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     private String getDriverName(UUID driverId) {
@@ -52,6 +57,21 @@ public class EventPublisher {
         String erpRef = order != null ? order.getErpOrderId() : null;
         if (erpRef == null && order != null) {
             erpRef = order.getId().toString();
+        }
+        
+        String routeId = null;
+        String routeName = null;
+        try {
+            var activeStop = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId());
+            if (activeStop.isPresent()) {
+                var route = activeStop.get().getRoute();
+                if (route != null) {
+                    routeId = route.getId().toString();
+                    routeName = route.getName();
+                }
+            }
+        } catch (Exception e) {
+            // ignore
         }
         
         return DeliveryEventPayload.builder()
@@ -74,6 +94,8 @@ public class EventPublisher {
             .routeDurationMinutes(delivery.getRouteDurationMinutes())
             .transitSlaMinutes(delivery.getTransitSlaMinutesComputed())
             .routeProvider(delivery.getRouteProvider())
+            .routeId(routeId)
+            .routeName(routeName)
             .build();
     }
 
@@ -107,6 +129,107 @@ public class EventPublisher {
             .data(payload)
             .build();
         ws.convertAndSend("/topic/admin.routes", envelope);
+    }
+
+    private void sendErp(String eventType, Object payload) {
+        CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+            .source("/delivery-service")
+            .type(eventType)
+            .data(payload)
+            .build();
+        ws.convertAndSend("/topic/admin.erp", envelope);
+    }
+
+    /** Push a real-time event to a single driver's personal STOMP topic. */
+    private void sendDriver(UUID driverId, String eventType, Object payload) {
+        if (driverId == null) return;
+        CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+            .source("/delivery-service")
+            .type(eventType)
+            .data(payload)
+            .build();
+        ws.convertAndSend("/topic/driver." + driverId, envelope);
+    }
+
+    // ── Handoff lifecycle events (real-time: driver topics + admin + FCM) ───────
+
+    private HandoffEventPayload handoffPayload(Handoff h, Order order) {
+        return HandoffEventPayload.builder()
+            .handoffId(h.getId().toString())
+            .state(h.getState() != null ? h.getState().name() : null)
+            .deliveryId(h.getDeliveryId() != null ? h.getDeliveryId().toString() : null)
+            .routeId(h.getRouteId() != null ? h.getRouteId().toString() : null)
+            .erpOrderId(order != null ? order.resolveRef() : null)
+            .clientName(order != null ? order.getClientName() : null)
+            .dropoffAddress(order != null ? order.getDropoffAddress() : null)
+            .fromDriverId(h.getFromDriverId() != null ? h.getFromDriverId().toString() : null)
+            .fromDriverName(getDriverName(h.getFromDriverId()))
+            .toDriverId(h.getToDriverId() != null ? h.getToDriverId().toString() : null)
+            .toDriverName(getDriverName(h.getToDriverId()))
+            .reason(h.getReason())
+            .build();
+    }
+
+    /** A handoff was requested: tell the receiver (incoming), the sender (outgoing) and admins. */
+    public void publishHandoffRequested(Handoff h, Order order) {
+        executeAfterCommitAsync(() -> {
+            HandoffEventPayload p = handoffPayload(h, order);
+            log.info("EVENT handoff.requested handoffId={} from={} to={}", h.getId(), h.getFromDriverId(), h.getToDriverId());
+            sendDriver(h.getToDriverId(), "handoff.incoming", p);
+            sendDriver(h.getFromDriverId(), "handoff.outgoing", p);
+            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+                .source("/delivery-service").type("handoff.requested").data(p).build());
+            sendFcmFatPayload(h.getToDriverId() != null ? h.getToDriverId().toString() : null, "HANDOFF_INCOMING", p);
+            sendFcmFatPayload(h.getFromDriverId() != null ? h.getFromDriverId().toString() : null, "HANDOFF_OUTGOING", p);
+        });
+    }
+
+    /** The sender generated the one-time code: nudge the receiver to scan. */
+    public void publishHandoffCodeReady(Handoff h, Order order) {
+        executeAfterCommitAsync(() -> {
+            HandoffEventPayload p = handoffPayload(h, order);
+            sendDriver(h.getToDriverId(), "handoff.code_ready", p);
+        });
+    }
+
+    /** Custody confirmed: tell both drivers and the admin dashboard. */
+    public void publishHandoffConfirmed(Handoff h, Order order) {
+        executeAfterCommitAsync(() -> {
+            HandoffEventPayload p = handoffPayload(h, order);
+            log.info("EVENT handoff.confirmed handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
+            sendDriver(h.getToDriverId(), "handoff.confirmed", p);
+            sendDriver(h.getFromDriverId(), "handoff.confirmed", p);
+            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+                .source("/delivery-service").type("delivery.handoff_confirmed").data(p).build());
+            sendFcmFatPayload(h.getToDriverId() != null ? h.getToDriverId().toString() : null, "HANDOFF_CONFIRMED", p);
+            sendFcmFatPayload(h.getFromDriverId() != null ? h.getFromDriverId().toString() : null, "HANDOFF_CONFIRMED", p);
+        });
+    }
+
+    /** Handoff aborted: tell both drivers and admins. */
+    public void publishHandoffCancelled(Handoff h, Order order) {
+        executeAfterCommitAsync(() -> {
+            HandoffEventPayload p = handoffPayload(h, order);
+            log.info("EVENT handoff.cancelled handoffId={} reason={}", h.getId(), h.getReason());
+            sendDriver(h.getToDriverId(), "handoff.cancelled", p);
+            sendDriver(h.getFromDriverId(), "handoff.cancelled", p);
+            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+                .source("/delivery-service").type("handoff.cancelled").data(p).build());
+            sendFcmFatPayload(h.getToDriverId() != null ? h.getToDriverId().toString() : null, "HANDOFF_CANCELLED", p);
+            sendFcmFatPayload(h.getFromDriverId() != null ? h.getFromDriverId().toString() : null, "HANDOFF_CANCELLED", p);
+        });
+    }
+
+    /** SLA overdue: escalate to admins and remind both drivers. */
+    public void publishHandoffOverdue(Handoff h, Order order) {
+        executeAfterCommitAsync(() -> {
+            HandoffEventPayload p = handoffPayload(h, order);
+            log.warn("EVENT handoff.overdue handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
+            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+                .source("/delivery-service").type("handoff.overdue").data(p).build());
+            sendDriver(h.getToDriverId(), "handoff.incoming", p);
+            sendDriver(h.getFromDriverId(), "handoff.outgoing", p);
+        });
     }
     
     private void sendFcmFatPayload(String driverId, String eventType, Object payload) {
@@ -261,13 +384,24 @@ public class EventPublisher {
     }
 
     public void publishDeliveryReassigned(Order order, Delivery delivery, UUID previousDriverId, UUID newDriverId) {
+        publishDeliveryReassigned(order, delivery, previousDriverId, newDriverId, true);
+    }
+
+    /**
+     * @param notifyDrivers when false, only the admin dashboard event is sent and the
+     *        driver FCMs are suppressed — used when a custody handoff is being created,
+     *        so the drivers receive accurate handoff prompts instead of the misleading
+     *        "new delivery"/"removed" pushes.
+     */
+    public void publishDeliveryReassigned(Order order, Delivery delivery, UUID previousDriverId, UUID newDriverId, boolean notifyDrivers) {
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={}", order != null ? order.getId() : null, delivery.getId(), previousDriverId, newDriverId);
+            log.info("EVENT delivery.reassigned orderId={} deliveryId={} previousDriverId={} newDriverId={} notifyDrivers={}", order != null ? order.getId() : null, delivery.getId(), previousDriverId, newDriverId, notifyDrivers);
             DeliveryEventPayload p = deliveryPayload("delivery.reassigned", order, delivery);
             p.setPreviousDriverId(previousDriverId != null ? previousDriverId.toString() : null);
             p.setNewDriverId(newDriverId != null ? newDriverId.toString() : null);
             sendDelivery("delivery.reassigned", p);
-            
+
+            if (!notifyDrivers) return;
             if (newDriverId != null) {
                 sendFcmFatPayload(newDriverId.toString(), "DELIVERY_ASSIGNED", p);
             }
@@ -326,15 +460,27 @@ public class EventPublisher {
         });
     }
 
-    public void publishErpSyncFailed(Order order) {
+    /**
+     * Notifies admins/dispatchers that an order failed to sync to the ERP after
+     * all retries were exhausted (permanent dead-letter). {@code operation} is a
+     * stable code (STOCK / CANCELLATION / FAILURE_REPORT) the UI localizes.
+     * Field reads happen synchronously while the caller's transaction is still
+     * open; only the WebSocket publish is deferred to after commit.
+     */
+    public void publishErpSyncFailed(Order order, UUID deliveryId, String operation) {
+        if (order == null) return;
+        final String dId = deliveryId != null ? deliveryId.toString() : order.getId().toString();
+        final String erpId = order.getErpOrderId();
+        final String client = order.getClientName();
         executeAfterCommitAsync(() -> {
-            log.error("EVENT erp.sync_failed orderId={} erpOrderId={}", order.getId(), order.getErpOrderId());
+            log.error("EVENT erp.sync_failed deliveryId={} erpOrderId={} operation={}", dId, erpId, operation);
             DeliveryEventPayload p = DeliveryEventPayload.builder()
-                    .deliveryId(order.getId().toString())
-                    .erpOrderId(order.getErpOrderId())
-                    .clientName(order.getClientName())
+                    .deliveryId(dId)
+                    .erpOrderId(erpId)
+                    .clientName(client)
+                    .motif(operation)
                     .build();
-            sendDelivery("erp.sync_failed", p);
+            sendErp("erp.sync_failed", p);
         });
     }
 

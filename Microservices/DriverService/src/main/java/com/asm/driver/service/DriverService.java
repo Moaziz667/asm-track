@@ -5,6 +5,7 @@ import com.asm.driver.dto.response.DriverProfileResponse;
 import com.asm.driver.dto.response.HistoryResponse;
 import com.asm.driver.dto.response.StatsResponse;
 import com.asm.driver.entity.Driver;
+import com.asm.driver.entity.DriverAccountStatus;
 import com.asm.driver.entity.DriverOnlineStatus;
 import com.asm.driver.entity.DriverStats;
 import com.asm.driver.exception.AppException;
@@ -91,7 +92,10 @@ public class DriverService {
     public void toggleDuty(UUID driverId, boolean onDuty) {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
-        driver.setActive(onDuty);
+        if (driver.getAccountStatus() != DriverAccountStatus.ACTIVE) {
+            throw AppException.forbidden("Cannot toggle duty status on an inactive/suspended account");
+        }
+        driver.setOnlineStatus(onDuty ? DriverOnlineStatus.ONLINE : DriverOnlineStatus.OFFLINE);
         driverRepo.save(driver);
     }
 
@@ -128,7 +132,7 @@ public class DriverService {
                 .id(d.getId().toString())
                 .name(d.getName())
                 .phone(d.getPhone())
-                .active(d.getActive())
+                .active(d.getAccountStatus() == DriverAccountStatus.ACTIVE)
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())

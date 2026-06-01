@@ -8,8 +8,13 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import com.asm.driver.entity.DriverAccountStatus;
+
 public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByPhone(String phone);
+    Optional<Driver> findByEmail(String email);
     boolean existsByPhone(String phone);
-    List<Driver> findByActiveTrue();    List<Driver> findByOnlineStatusNotAndLastLocationAtBefore(DriverOnlineStatus status, LocalDateTime threshold);
+    List<Driver> findByAccountStatus(DriverAccountStatus accountStatus);
+    List<Driver> findByAccountStatusAndOnlineStatus(DriverAccountStatus accountStatus, DriverOnlineStatus onlineStatus);
+    List<Driver> findByOnlineStatusNotAndLastLocationAtBefore(DriverOnlineStatus status, LocalDateTime threshold);
 }

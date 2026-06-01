@@ -15,6 +15,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.beans.factory.annotation.Value;
+import com.asm.delivery.transport.TransportPort;
+import com.asm.delivery.transport.DriverDTO;
 
 import java.io.IOException;
 import java.util.List;
@@ -25,6 +27,7 @@ import java.util.List;
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final TransportPort transportPort;
 
     @Value("${app.security.trust-gateway-headers:false}")
     private boolean trustGatewayHeaders;
@@ -53,6 +56,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     log.debug("Gateway headers verified: X-User-Id={}, X-User-Role={}", userId, role);
                     if (userId != null && role != null
                             && SecurityContextHolder.getContext().getAuthentication() == null) {
+                        
+                        if ("DRIVER".equalsIgnoreCase(role)) {
+                            if (!isDriverActive(userId)) {
+                                response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                                response.setContentType("application/json");
+                                response.getWriter().write("{\"error\": \"unauthorized\", \"message\": \"DRIVER_ACCOUNT_DISABLED\"}");
+                                return;
+                            }
+                        }
+
                         String name      = request.getHeader("X-User-Name");
                         String odooStr   = request.getHeader("X-Odoo-Partner-Id");
                         Integer odooId   = odooStr != null ? Integer.valueOf(odooStr) : null;
@@ -91,6 +104,16 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             log.debug("JWT token valid: subject={} role={} name={}", subject, role, name);
 
             if (subject != null && role != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                
+                if ("DRIVER".equalsIgnoreCase(role)) {
+                    if (!isDriverActive(subject)) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\": \"unauthorized\", \"message\": \"DRIVER_ACCOUNT_DISABLED\"}");
+                        return;
+                    }
+                }
+
                 log.debug("Setting authentication from JWT token subject={} role={}", subject, role);
                 UserPrincipal principal = new UserPrincipal(subject, role, name, phone, odooPartnerId);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
@@ -105,5 +128,15 @@ public class JwtAuthFilter extends OncePerRequestFilter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    private boolean isDriverActive(String userId) {
+        try {
+            DriverDTO driver = transportPort.getDriver(userId);
+            return driver != null && Boolean.TRUE.equals(driver.getActive());
+        } catch (Exception e) {
+            log.warn("Failed to check if driver is active for userId={}: {}", userId, e.getMessage());
+            return true; // Fall back to true to avoid locking out driver if service is temporarily down
+        }
     }
 }

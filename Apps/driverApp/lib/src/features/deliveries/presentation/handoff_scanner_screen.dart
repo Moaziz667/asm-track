@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
-import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 
 class HandoffScannerScreen extends ConsumerStatefulWidget {
@@ -38,6 +36,7 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
       backgroundColor: Colors.black,
       body: Stack(
@@ -71,11 +70,11 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
             right: 30,
             child: Column(
               children: [
-                const Icon(LucideIcons.scan, color: AppColors.neonYellow, size: 32),
+                Icon(LucideIcons.scan, color: cs.primary, size: 32),
                 const SizedBox(height: 16),
                 Text(
-                  'SCANNER LE QR DE L\'EXPÉDITEUR',
-                  style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, letterSpacing: 1),
+                  'Scanner le QR de l\'expéditeur',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900, color: Colors.white, fontFamily: 'Inter'),
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -98,12 +97,13 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
   }
 
   Widget _buildOverlay() {
+    final cs = Theme.of(context).colorScheme;
     return Center(
       child: Container(
         width: 250,
         height: 250,
         decoration: BoxDecoration(
-          border: Border.all(color: AppColors.neonYellow.withValues(alpha: 0.3), width: 1),
+          border: Border.all(color: cs.primary.withValues(alpha: 0.3), width: 1),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Stack(
@@ -119,17 +119,18 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
   }
 
   Widget _corner(double angle) {
+    final cs = Theme.of(context).colorScheme;
     return Transform.rotate(
       angle: angle,
       child: Container(
         width: 40,
         height: 40,
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: AppColors.neonYellow, width: 6),
-            left: BorderSide(color: AppColors.neonYellow, width: 6),
+            top: BorderSide(color: cs.primary, width: 6),
+            left: BorderSide(color: cs.primary, width: 6),
           ),
-          borderRadius: BorderRadius.only(topLeft: Radius.circular(2)),
+          borderRadius: const BorderRadius.only(topLeft: Radius.circular(2)),
         ),
       ),
     );
@@ -138,12 +139,6 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
   Future<void> _processToken(String token) async {
     setState(() => _isProcessing = true);
     try {
-      // In a real app, the QR might contain more than just the token (e.g. deliveryId:token)
-      // For now we assume token is the 6-char code.
-      // We need to know which delivery it is. 
-      // Option A: QR contains "deliveryId|token"
-      // Option B: QR contains only "token" and we try to find a matching delivery in the active list.
-      
       String deliveryId = "";
       String cleanToken = token;
       
@@ -152,8 +147,6 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
         deliveryId = parts[0];
         cleanToken = parts[1];
       } else {
-        // Fallback: try to find a delivery that matches if possible, but backend needs deliveryId.
-        // Let's assume the QR format is "deliveryId|token"
         throw Exception('Invalid QR format. Expected deliveryId|token');
       }
 
@@ -170,8 +163,9 @@ class _HandoffScannerScreenState extends ConsumerState<HandoffScannerScreen> {
       }
     } catch (e) {
       if (mounted) {
+        final cs = Theme.of(context).colorScheme;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Échec du transfert : $e'), backgroundColor: AppColors.danger),
+          SnackBar(content: Text('Échec du transfert : $e'), backgroundColor: cs.error),
         );
         setState(() => _isProcessing = false);
       }

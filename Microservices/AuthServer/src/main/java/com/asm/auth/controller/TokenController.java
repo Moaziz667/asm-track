@@ -181,11 +181,11 @@ public class TokenController {
 
     private Map<String, Object> reloadDriver(String userId) {
         List<Map<String, Object>> rows = driverJdbc.queryForList(
-                "SELECT id::text, name, phone, active FROM drivers WHERE id = ?::uuid", userId);
+                "SELECT id::text, name, phone, account_status FROM drivers WHERE id = ?::uuid", userId);
         if (rows.isEmpty()) return null;
         Map<String, Object> row = rows.get(0);
-        Object active = row.get("active");
-        if (Boolean.FALSE.equals(active) || Integer.valueOf(0).equals(active)) return null;
+        String accountStatus = (String) row.get("account_status");
+        if (!"ACTIVE".equals(accountStatus)) return null;
         Map<String, Object> u = new HashMap<>();
         u.put("id",    row.get("id"));
         u.put("name",  row.get("name"));

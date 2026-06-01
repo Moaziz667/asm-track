@@ -124,7 +124,7 @@ public class RoutePlanningService {
                     .toList();
             
             Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                    .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+                    .collect(Collectors.toMap(Delivery::getId, Function.identity(), (existing, replacement) -> existing));
 
             // 3. Fetch driver data outside (or if we are okay with connection being open)
             // Note: Since we need to return the response, we map everything here while session is potentially open
@@ -631,7 +631,7 @@ public class RoutePlanningService {
             throw AppException.badRequest("Reorder payload does not match current stop count");
         }
 
-        Map<UUID, RouteStop> byId = existing.stream().collect(Collectors.toMap(RouteStop::getId, Function.identity()));
+        Map<UUID, RouteStop> byId = existing.stream().collect(Collectors.toMap(RouteStop::getId, Function.identity(), (a, b) -> a));
         for (int i = 0; i < stopIds.size(); i++) {
             RouteStop stop = byId.get(stopIds.get(i));
             if (stop == null) {
@@ -671,7 +671,7 @@ public class RoutePlanningService {
 
         List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
         Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+                .collect(Collectors.toMap(Delivery::getId, Function.identity(), (existing, replacement) -> existing));
 
         for (RouteStop stop : stops) {
             Delivery delivery = deliveryMap.get(stop.getDeliveryId());
@@ -977,7 +977,7 @@ public class RoutePlanningService {
         List<UUID> deliveryIds = routeStops.stream().map(RouteStop::getDeliveryId).toList();
         if (!deliveryIds.isEmpty()) {
             deliveriesById = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                    .collect(Collectors.toMap(Delivery::getId, Function.identity()));
+                    .collect(Collectors.toMap(Delivery::getId, Function.identity(), (existing, replacement) -> existing));
         }
 
         // Separate active and legacy stops

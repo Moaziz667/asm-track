@@ -1,14 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:lucide_icons/lucide_icons.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
 
-import '../../../app.dart';
 import '../../../app_providers.dart';
-import '../../../theme/app_theme.dart';
-import '../../../theme/widgets.dart';
+import '../../../config/app_config.dart';
 import 'setup_account_screen.dart';
+import 'workspace_screen.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -38,26 +35,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             phone: _phoneCtrl.text.trim(),
             password: _passwordCtrl.text.trim(),
           );
-      if (mounted) navigateToHome(context, ref.read(authControllerProvider).status);
+      // Navigation on success is handled centrally by DriverApp's auth listener.
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Échec de l\'authentification. Vérifiez vos identifiants.')),
-        );
+        final message = ref.read(authControllerProvider).error ??
+            'Echec de l\'authentification. Vérifiez vos identifiants.';
+        ScaffoldMessenger.of(context)
+          ..clearSnackBars()
+          ..showSnackBar(SnackBar(content: Text(message)));
       }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final auth = ref.watch(authControllerProvider);
     return Scaffold(
-      backgroundColor: AppColors.background,
       body: Column(
         children: [
-          // ── High-Vis header band ──────────────────────────────────────────────
           Container(
-            color: AppColors.background, // Absolute Black
             width: double.infinity,
             child: SafeArea(
               bottom: false,
@@ -70,30 +68,27 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       width: 52,
                       height: 52,
                       decoration: BoxDecoration(
-                        color: AppColors.neonYellow,
-                        borderRadius: BorderRadius.circular(4), // Tactical 4px
+                        color: colorScheme.primary,
+                        borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Icon(LucideIcons.truck, color: Colors.black, size: 28),
+                      child: const Icon(Icons.local_shipping_rounded, color: Colors.white, size: 28),
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      'ESPACE CHAUFFEUR',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 32, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: -1.5),
+                      'Espace chauffeur',
+                      style: theme.textTheme.headlineMedium,
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'ACCÈS SÉCURISÉ ASMONE',
-                      style: GoogleFonts.spaceGrotesk(fontSize: 12, color: AppColors.neonYellow, fontWeight: FontWeight.w800, letterSpacing: 1.5),
+                      'Acces securise AsmOne',
+                      style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.primary),
                     ),
                   ],
                 ),
               ),
             ),
           ),
-          
-          const Divider(height: 1, color: AppColors.border),
-
-          // ── Form area ─────────────────────────────────────────────────────
+          Divider(height: 1, color: colorScheme.outlineVariant),
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
@@ -102,25 +97,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('IDENTIFICATION', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    Text('Identification', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _phoneCtrl,
                       keyboardType: TextInputType.phone,
-                      style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                       decoration: const InputDecoration(
-                        hintText: 'Numéro de téléphone',
+                        hintText: 'Numero de telephone',
                         prefixIcon: Icon(LucideIcons.phone, size: 20),
                       ),
                       validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
                     ),
                     const SizedBox(height: 24),
-                    Text('SÉCURITÉ', style: GoogleFonts.spaceGrotesk(fontSize: 11, fontWeight: FontWeight.w800, color: AppColors.muted, letterSpacing: 1)),
+                    Text('Securite', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
                     TextFormField(
                       controller: _passwordCtrl,
                       obscureText: _obscure,
-                      style: GoogleFonts.spaceGrotesk(color: AppColors.textPrimary, fontWeight: FontWeight.w600),
                       decoration: InputDecoration(
                         hintText: 'Mot de passe',
                         prefixIcon: const Icon(LucideIcons.lock, size: 20),
@@ -128,34 +121,54 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           icon: Icon(
                             _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
                             size: 18,
-                            color: AppColors.muted,
                           ),
                           onPressed: () => setState(() => _obscure = !_obscure),
                         ),
                       ),
-                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 caractères' : null,
+                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 caracteres' : null,
                     ),
                     const SizedBox(height: 40),
-                    DriveButton(
-                      label: 'SE CONNECTER',
-                      icon: LucideIcons.logIn,
-                      isLoading: auth.isLoading,
-                      onPressed: auth.isLoading ? null : _onSubmit,
-                      fullWidth: true,
-                      size: DriveButtonSize.lg,
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: FilledButton.icon(
+                        onPressed: auth.isLoading ? null : _onSubmit,
+                        icon: auth.isLoading
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Icon(LucideIcons.logIn),
+                        label: Text(auth.isLoading ? 'Connexion...' : 'Se connecter'),
+                      ),
                     ),
                     if (auth.error != null) ...[
                       const SizedBox(height: 20),
-                      _ErrorBanner(auth.error!),
+                      _ErrorBanner(auth.error!, colorScheme),
                     ],
                     const SizedBox(height: 48),
                     Center(
-                      child: TextButton(
-                        onPressed: () => Navigator.of(context).pushNamed(SetupAccountScreen.routeName),
-                        child: Text(
-                          "CONFIGURER MON COMPTE",
-                          style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w800, color: AppColors.neonYellow, letterSpacing: 2),
-                        ),
+                      child: Column(
+                        children: [
+                          TextButton(
+                            onPressed: () => Navigator.of(context).pushNamed(SetupAccountScreen.routeName),
+                            child: Text(
+                              'Configurer mon compte',
+                              style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.primary),
+                            ),
+                          ),
+                          TextButton(
+                            onPressed: () async {
+                              final storage = ref.read(tokenStorageProvider);
+                              await storage.saveApiBaseUrl('');
+                              ref.read(appConfigProvider.notifier).state = const AppConfig(apiBaseUrl: '');
+                              if (context.mounted) {
+                                Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
+                              }
+                            },
+                            child: Text(
+                              "Changer d'espace de travail",
+                              style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.secondary),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -169,34 +182,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 }
 
-class _Label extends StatelessWidget {
-  const _Label(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) => Text(
-        text,
-      style: GoogleFonts.manrope(fontSize: 13, fontWeight: FontWeight.w700, color: AppColors.textSecondary),
-      );
-}
-
 class _ErrorBanner extends StatelessWidget {
-  const _ErrorBanner(this.message);
+  const _ErrorBanner(this.message, this.colorScheme);
   final String message;
+  final ColorScheme colorScheme;
 
   @override
   Widget build(BuildContext context) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.dangerSubtle,
+          color: colorScheme.errorContainer,
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.dangerBorder),
+          border: Border.all(color: colorScheme.error),
         ),
         child: Row(
           children: [
-            const Icon(PhosphorIconsFill.warningCircle, size: 16, color: AppColors.danger),
+            Icon(Icons.error_outline_rounded, size: 16, color: colorScheme.error),
             const SizedBox(width: 8),
-            Expanded(child: Text(message, style: const TextStyle(fontSize: 13, color: AppColors.danger))),
+            Expanded(child: Text(message, style: TextStyle(fontSize: 13, color: colorScheme.error))),
           ],
         ),
       );

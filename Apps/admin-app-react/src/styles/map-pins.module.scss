@@ -1,0 +1,104 @@
+// Map Pin Styles - Linear Minimal Aesthetic
+// ─────────────────────────────────────────────────────────────────────────
+
+.pinWrapper {
+  width: fit-content;
+  height: fit-content;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ── Stop Pin (Teardrop) ───────────────────────────────────────────────────────
+// Linear design: minimal shadows, desaturated colors aligned with StatusBadge
+
+.stopPin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  width: 28px;
+  height: 36px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-weight: 800;
+  font-size: 10px;
+  letter-spacing: -0.3px;
+  color: white;
+  user-select: none;
+  pointer-events: none;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+    transition: transform 0.15s ease-out, filter 0.15s ease-out;
+  }
+
+  // Hover/Selected state (subtle)
+  &.selected svg {
+    transform: scale(1.12);
+    filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.25));
+  }
+
+  // Status color variants - aligned with StatusBadge linear palette
+  &.delivered svg path { fill: #4CAF82; }
+  &.completed svg path { fill: #4CAF82; }
+  &.failed svg path { fill: #C7372F; }
+  &.cancelled svg path { fill: #8A8F98; }
+  &.failedAttempt svg path { fill: #C7372F; }
+  &.partial svg path { fill: #7B6FCC; }
+  &.partiallyDelivered svg path { fill: #7B6FCC; }
+  &.inTransit svg path { fill: #D4772C; }
+  &.pickedUp svg path { fill: #2594B8; }
+  &.arrived svg path { fill: #8A8F98; }
+  &.scheduled svg path { fill: #5E6AD2; }
+  &.pending svg path { fill: #8A8F98; }
+  &.unscheduled svg path { fill: #C4881A; }
+}
+
+// ── Driver Pin (Van/Truck) ────────────────────────────────────────────────────
+
+.driverPin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  pointer-events: none;
+  user-select: none;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+    animation: driverPulse 2.5s ease-in-out infinite;
+  }
+
+  @keyframes driverPulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.75;
+    }
+  }
+}
+
+// ── Depot Pin (Home) ──────────────────────────────────────────────────────────
+
+.depotPin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  pointer-events: none;
+  user-select: none;
+
+  svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));
+  }
+}
+

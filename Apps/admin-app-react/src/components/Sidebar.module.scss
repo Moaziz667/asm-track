@@ -1,0 +1,631 @@
+// ─────────────────────────────────────────────────────────────────────────────
+// ASM Track — Premium Operational Sidebar
+// "Apple precision applied to enterprise dispatch software."
+//
+// Architecture:
+//   All colour tokens are CSS custom props on .sidebar.
+//   Light values are defaults; dark values override via :global(.dark) &.
+//   No duplication. One source of truth per token.
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── Static SCSS constants (geometry + motion) ─────────────────────────────────
+
+$accent:     #F08734;
+$live:       #34c77b;
+$width:      212px;
+$width-icon: 48px;
+
+// Apple UIKit deceleration — the curve that makes motion feel physical
+$ease-out:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
+// Slightly springier for interactive feedback
+$ease-back:  cubic-bezier(0.34, 1.12, 0.64, 1);
+
+$t-fast:  0.12s $ease-out;
+$t-mid:   0.18s $ease-out;
+$t-slow:  0.26s $ease-out;
+
+
+// ── Colour tokens ─────────────────────────────────────────────────────────────
+
+.sidebar {
+
+  // ── Light ─────────────────────────────────────────────────────────────────
+  // White surface. Separation from content via shadow, not a heavy border.
+  // "Enterprise white" — not consumer-app bright, not template-flat.
+
+  --sb-bg:              #ffffff;
+  --sb-bg-hover:        #f4f4f5;
+  --sb-bg-active:       var(--brand-soft);
+  --sb-sep-right:       #e4e4e7;  // zinc-200 (crisp solid gray border)
+  --sb-sep-h:           #f4f4f5;  // zinc-100 (horizontal separator)
+
+  // Brand
+  --sb-brand-name:      #09090b;  // zinc-950 (high contrast)
+  --sb-brand-sub:       #71717a;  // zinc-500
+
+  // Navigation text
+  --sb-label:           #71717a;  // zinc-500 (distinct headers)
+  --sb-item:            #3f3f46;  // zinc-700 (solid text color)
+  --sb-item-hover:      #09090b;  // zinc-950
+  --sb-item-active:     #09090b;  // zinc-950
+
+  // Icons
+  --sb-icon:            #71717a;  // zinc-500
+  --sb-icon-hover:      #09090b;  // zinc-950
+  --sb-icon-active:     #09090b;  // zinc-950
+
+  // Accent indicator
+  --sb-bar:             #F08734;  // brand accent
+
+  // Operational status
+  --sb-status:          #71717a;  // zinc-500
+
+  // Controls
+  --sb-ctrl:            #71717a;  // zinc-500
+  --sb-ctrl-hover:      #09090b;  // zinc-950
+
+  // Tooltip surface
+  --sb-tip-bg:          #ffffff;
+  --sb-tip-border:      #e4e4e7;
+  --sb-tip-text:        #09090b;
+  --sb-tip-shadow:      0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+
+
+  // ── Dark override ─────────────────────────────────────────────────────────
+  // Deep charcoal — operational control surface.
+  // "Realtime dispatch center, not cyberpunk dashboard."
+
+  :global(.dark) & {
+    --sb-bg:              #0a0a0a;  // deep obsidian black
+    --sb-bg-hover:        #18181b;  // zinc-900
+    --sb-bg-active:       var(--brand-soft);
+    --sb-sep-right:       #27272a;  // zinc-800
+    --sb-sep-h:           #18181b;  // zinc-900
+
+    --sb-brand-name:      #f4f4f5;  // zinc-100
+    --sb-brand-sub:       #a1a1aa;  // zinc-400
+
+    --sb-label:           #a1a1aa;  // zinc-400
+    --sb-item:            #d4d4d8;  // zinc-300
+    --sb-item-hover:      #fafafa;  // zinc-50
+    --sb-item-active:     #fafafa;  // zinc-50
+
+    --sb-icon:            #a1a1aa;  // zinc-400
+    --sb-icon-hover:      #fafafa;  // zinc-50
+    --sb-icon-active:     #fafafa;  // zinc-50
+
+    --sb-bar:             #F08734;  // brand accent
+
+    --sb-status:          #a1a1aa;  // zinc-400
+
+    --sb-ctrl:            #a1a1aa;  // zinc-400
+    --sb-ctrl-hover:      #fafafa;  // zinc-50
+
+    --sb-tip-bg:          #18181b;
+    --sb-tip-border:      #27272a;
+    --sb-tip-text:        #fafafa;
+    --sb-tip-shadow:      0 4px 20px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.20);
+  }
+
+
+  // ── Shell ─────────────────────────────────────────────────────────────────
+
+  position: fixed;
+  // Logical properties: auto-mirrors to inset-inline-start:auto on RTL
+  inset-block: 0;
+  inset-inline-start: 0;
+  inset-inline-end: auto;
+  width: $width;
+  background: var(--sb-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  // Inline-end edge: logical border mirrors to left in RTL
+  border-inline-end: 1px solid var(--sb-sep-right);
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.035), 1px 0 0 rgba(0, 0, 0, 0.015);
+  transition: width $t-mid;
+  overflow: hidden;
+  // Subpixel rendering precision
+  -webkit-font-smoothing: antialiased;
+
+  &.collapsed {
+    width: $width-icon;
+
+    .group__label,
+    .item__label,
+    .brand__text,
+    .status__text,
+    .footer__label {
+      opacity: 0;
+      pointer-events: none;
+      // Slightly faster fade-out than fade-in for snappier collapse
+      transition: opacity 0.10s $ease-out;
+    }
+  }
+}
+
+
+// ── Brand ─────────────────────────────────────────────────────────────────────
+
+.brand {
+  height: 56px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border-bottom: 1px solid var(--sb-sep-h);
+  flex-shrink: 0;
+  text-decoration: none;
+  &:active { opacity: 0.80; }
+
+  .collapsed & {
+    justify-content: flex-start;
+    padding-inline-start: 6px;
+    padding-inline-end: 0;
+  }
+
+  &__icon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+
+  &__logo {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+  }
+
+  &__text {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  &__text-name {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--sb-brand-name);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  &__text-sub {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--sb-brand-sub);
+    letter-spacing: 0.04em;
+    line-height: 1;
+    margin-top: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+
+// ── Operational status bar ────────────────────────────────────────────────────
+// Subtle realtime indicator — shows system is alive without demanding attention.
+
+.status {
+  padding: 6px 11px;
+  border-bottom: 1px solid var(--sb-sep-h);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  min-width: 0;
+
+  &__dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: $live;
+    flex-shrink: 0;
+    // Calm, slow pulse — not alarming
+    animation: live-pulse 3.2s $ease-out infinite;
+  }
+
+  &__text {
+    font-size: 9px;
+    font-weight: 500;
+    color: var(--sb-status);
+    letter-spacing: 0.055em;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity $t-mid;
+  }
+}
+
+
+// ── Navigation ────────────────────────────────────────────────────────────────
+
+.nav {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 5px 0 4px;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.group {
+  & + & {
+    margin-top: 2px;
+    padding-top: 2px;
+    border-top: 1px solid var(--sb-sep-h);
+  }
+
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: calc(100% - 10px);
+    margin: 2px 5px;
+    padding: 6px 8px;
+    border-radius: 5px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: inherit;
+    transition: background $t-fast;
+    outline: none;
+
+    &:hover {
+      background: var(--sb-bg-hover);
+    }
+  }
+
+  &__label {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--sb-label);
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    user-select: none;
+    transition: opacity $t-mid;
+  }
+
+  &__label_collapsed_sep {
+    height: 1px;
+    margin: 6px 0;
+    background: var(--sb-sep-h);
+  }
+
+  &__indicator {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    
+    &--alert {
+      background: #c7372f;
+      box-shadow: 0 0 0 2px rgba(199, 55, 47, 0.15);
+      :global(.dark) & {
+        background: #fca5a5;
+        box-shadow: 0 0 0 2px rgba(199, 55, 47, 0.3);
+      }
+    }
+    
+    &--info {
+      background: #5e6ad2;
+      box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.15);
+      :global(.dark) & {
+        background: #93c5fd;
+        box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.3);
+      }
+    }
+    
+    &--neutral {
+      background: #2594b8;
+      box-shadow: 0 0 0 2px rgba(37, 148, 184, 0.15);
+      :global(.dark) & {
+        background: #93e2fd;
+        box-shadow: 0 0 0 2px rgba(37, 148, 184, 0.3);
+      }
+    }
+  }
+
+  &__items {
+    display: flex;
+    flex-direction: column;
+    padding: 1px 5px 2px;
+    max-height: 240px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--sb-sep-right) transparent;
+    transition: max-height 0.22s $ease-out, opacity 0.15s ease, padding 0.15s ease;
+
+    &--collapsed {
+      max-height: 0px !important;
+      opacity: 0 !important;
+      overflow: hidden !important;
+      padding-top: 0px !important;
+      padding-bottom: 0px !important;
+      pointer-events: none;
+    }
+
+    .item__label {
+      font-size: 11px;
+    }
+
+    &::-webkit-scrollbar {
+      width: 3px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: var(--sb-sep-right);
+      border-radius: 9999px;
+    }
+  }
+}
+
+
+// ── Nav item ──────────────────────────────────────────────────────────────────
+
+.item {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-block: 5px;
+  padding-inline-start: 10px;
+  padding-inline-end: 8px;
+  border-radius: 5px;
+  margin-bottom: 1px;
+  cursor: pointer;
+  text-decoration: none;
+  // Background + text transition on separate curves for layered feel
+  transition:
+    background $t-fast,
+    box-shadow $t-fast;
+  min-width: 0;
+  overflow: hidden;
+  outline: none;
+
+  &:focus-visible {
+    box-shadow: 0 0 0 2px rgba(240, 135, 52, 0.45);
+  }
+
+  &__icon {
+    flex-shrink: 0;
+    color: var(--sb-icon);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color $t-fast;
+    width: 16px;
+    height: 16px;
+    position: relative;
+  }
+
+  &__label {
+    font-size: 12.5px;
+    font-weight: 430;
+    color: var(--sb-item);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    letter-spacing: -0.014em;
+    line-height: 1;
+    transition: color $t-fast, font-weight $t-fast, opacity $t-mid;
+    // Prevent layout shift when weight changes
+    font-variant-numeric: tabular-nums;
+  }
+
+  // ── Hover ────────────────────────────────────────────────────────────────
+  &:hover {
+    background: var(--sb-bg-hover);
+
+    .item__icon  { color: var(--sb-icon-hover); }
+    .item__label { color: var(--sb-item-hover); }
+  }
+
+  // ── Active ───────────────────────────────────────────────────────────────
+  // Anchored, calm, amber-accented. Not a pill, not a highlight.
+  &--active {
+    background: var(--sb-bg-active);
+
+    // Inline-start indicator: logical property mirrors automatically in RTL
+    &::before {
+      content: '';
+      position: absolute;
+      inset-inline-start: 0;
+      top: calc(50% - 8px);
+      height: 16px;
+      width: 2px;
+      // LTR: rounded right corners; RTL: swap via direction-aware calc
+      border-start-end-radius: 2px;
+      border-end-end-radius: 2px;
+      background: var(--sb-bar);
+    }
+
+    .item__icon  { color: var(--sb-icon-active); }
+
+    .item__label {
+      color: var(--sb-item-active);
+      font-weight: 560;
+      letter-spacing: -0.018em;
+    }
+
+    &:hover { background: var(--sb-bg-active); }
+  }
+
+  // ── Collapsed tooltip ────────────────────────────────────────────────────
+  // Appears only when sidebar is collapsed (label is opacity:0)
+  // Logical: inset-inline-start clears sidebar in both LTR and RTL
+  &__tooltip {
+    position: fixed; // fixed avoids clipping issues
+    // LTR: appear to the right of the icon rail
+    inset-inline-start: calc(#{$width-icon} + 8px);
+    inset-inline-end: auto;
+    background: var(--sb-tip-bg);
+    border: 1px solid var(--sb-tip-border);
+    border-radius: 5px;
+    padding: 5px 10px;
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--sb-tip-text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    // Use translate with no physical direction — JS-controlled RTL flips via dir attribute
+    transform: translateX(-4px);
+    :global([dir='rtl']) & {
+      transform: translateX(4px);
+    }
+    transition:
+      opacity 0.10s $ease-out,
+      transform 0.10s $ease-out;
+    z-index: 200;
+    box-shadow: var(--sb-tip-shadow);
+  }
+
+  &:hover &__tooltip {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  &__badge {
+    margin-inline-start: auto;
+    font-size: 9.5px;
+    font-weight: 700;
+    padding: 1.5px 5.5px;
+    border-radius: 9999px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+    transition: all $t-fast;
+
+    &--alert {
+      background: rgba(199, 55, 47, 0.09);
+      color: #A52B24;
+      border: 1px solid rgba(199, 55, 47, 0.15);
+      :global(.dark) & {
+        background: rgba(199, 55, 47, 0.15);
+        color: #fca5a5;
+        border: 1px solid rgba(199, 55, 47, 0.3);
+      }
+    }
+
+    &--info {
+      background: rgba(94, 106, 210, 0.09);
+      color: #4C56B8;
+      border: 1px solid rgba(94, 106, 210, 0.15);
+      :global(.dark) & {
+        background: rgba(94, 106, 210, 0.15);
+        color: #93c5fd;
+        border: 1px solid rgba(94, 106, 210, 0.3);
+      }
+    }
+
+    &--neutral {
+      background: rgba(37, 148, 184, 0.09);
+      color: #1A7A9A;
+      border: 1px solid rgba(37, 148, 184, 0.15);
+      font-weight: 600;
+      :global(.dark) & {
+        background: rgba(37, 148, 184, 0.15);
+        color: #93e2fd;
+        border: 1px solid rgba(37, 148, 184, 0.3);
+      }
+    }
+  }
+
+  &__dot {
+    position: absolute;
+    top: -2.5px;
+    inset-inline-end: -2.5px;
+    width: 5.5px;
+    height: 5.5px;
+    border-radius: 50%;
+    border: 1.5px solid var(--sb-bg);
+    box-sizing: content-box;
+
+    &--alert {
+      background: #c7372f;
+      :global(.dark) & {
+        background: #fca5a5;
+      }
+    }
+
+    &--info {
+      background: #5e6ad2;
+      :global(.dark) & {
+        background: #93c5fd;
+      }
+    }
+
+    &--neutral {
+      background: #2594b8;
+      :global(.dark) & {
+        background: #93e2fd;
+      }
+    }
+  }
+}
+
+
+// ── Footer / collapse toggle ──────────────────────────────────────────────────
+
+.footer {
+  border-top: 1px solid var(--sb-sep-h);
+  padding: 7px 5px;
+  flex-shrink: 0;
+
+  &__toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 28px;
+    border-radius: 5px;
+    border: none;
+    background: transparent;
+    color: var(--sb-ctrl);
+    cursor: pointer;
+    transition: background $t-fast, color $t-fast;
+    gap: 6px;
+
+    &:hover {
+      background: var(--sb-bg-hover);
+      color: var(--sb-ctrl-hover);
+    }
+
+    &:active { opacity: 0.70; }
+  }
+
+  &__label {
+    font-size: 11px;
+    font-weight: 440;
+    letter-spacing: -0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity $t-mid;
+  }
+}
+
+
+// ── Keyframes ─────────────────────────────────────────────────────────────────
+
+// Calm, slow — presence without urgency
+@keyframes live-pulse {
+  0%   { opacity: 1;    box-shadow: 0 0 0 0 rgba(52, 199, 123, 0); }
+  40%  { opacity: 0.55; box-shadow: 0 0 0 3px rgba(52, 199, 123, 0.12); }
+  100% { opacity: 1;    box-shadow: 0 0 0 0 rgba(52, 199, 123, 0); }
+}

@@ -13,12 +13,18 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import io.jsonwebtoken.Claims;
 import java.io.IOException;
 import java.util.List;
+import java.util.UUID;
+import java.util.Optional;
+import com.asm.driver.repository.DriverRepository;
+import com.asm.driver.entity.Driver;
+import com.asm.driver.entity.DriverAccountStatus;
 
 @Component
 @RequiredArgsConstructor
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final DriverRepository driverRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
@@ -39,9 +45,27 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                 String userId    = claims.getSubject();
                 String role      = claims.get("role", String.class);
 
+                if ("DRIVER".equalsIgnoreCase(role)) {
+                    try {
+                        UUID driverId = UUID.fromString(userId);
+                        Optional<Driver> driverOpt = driverRepository.findById(driverId);
+                        if (driverOpt.isEmpty() || driverOpt.get().getAccountStatus() != DriverAccountStatus.ACTIVE) {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json");
+                            response.getWriter().write("{\"error\": \"unauthorized\", \"message\": \"DRIVER_ACCOUNT_DISABLED\"}");
+                            return;
+                        }
+                    } catch (IllegalArgumentException e) {
+                        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\": \"unauthorized\", \"message\": \"INVALID_DRIVER_ID\"}");
+                        return;
+                    }
+                }
+
                 UserPrincipal principal = new UserPrincipal(userId, role);
                 UsernamePasswordAuthenticationToken auth = new UsernamePasswordAuthenticationToken(
-                        principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + role))
+                        principal, null, List.of(new SimpleGrantedAuthority("ROLE_" + role.toUpperCase()))
                 );
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }

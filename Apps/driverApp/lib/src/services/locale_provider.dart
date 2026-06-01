@@ -79,6 +79,13 @@ class DriverCopy {
       'ws_stops_transferred_out': 'Des arrêts ont été retirés de {route}.',
       'ws_stops_transferred_in': 'De nouveaux arrêts ont été ajoutés à {route}.',
       'ws_generic_route': 'votre tournée',
+      'ws_handoff_incoming': 'Réception requise — colis {ref} de {name}',
+      'ws_handoff_outgoing': 'À remettre — colis {ref} à {name}',
+      'ws_handoff_confirmed': 'Transfert confirmé — colis {ref}',
+      'ws_handoff_cancelled': 'Transfert annulé — colis {ref}',
+      'ws_handoff_other': 'un chauffeur',
+      'handoff_action_scan': 'Scanner',
+      'handoff_action_show': 'Afficher le code',
       
       // Settings language selection
       'language_setting': 'Langue',
@@ -136,6 +143,13 @@ class DriverCopy {
       'ws_stops_transferred_out': 'Stops were removed from route {route}.',
       'ws_stops_transferred_in': 'New stops were added to route {route}.',
       'ws_generic_route': 'your route',
+      'ws_handoff_incoming': 'Pickup required — parcel {ref} from {name}',
+      'ws_handoff_outgoing': 'To hand over — parcel {ref} to {name}',
+      'ws_handoff_confirmed': 'Handover confirmed — parcel {ref}',
+      'ws_handoff_cancelled': 'Handover cancelled — parcel {ref}',
+      'ws_handoff_other': 'a driver',
+      'handoff_action_scan': 'Scan',
+      'handoff_action_show': 'Show code',
       
       // Settings language selection
       'language_setting': 'Language',
@@ -193,6 +207,13 @@ class DriverCopy {
       'ws_stops_transferred_out': 'تم إزالة محطات من رحلتك {route}.',
       'ws_stops_transferred_in': 'تم إضافة محطات جديدة إلى رحلتك {route}.',
       'ws_generic_route': 'رحلتك',
+      'ws_handoff_incoming': 'استلام مطلوب — الطرد {ref} من {name}',
+      'ws_handoff_outgoing': 'للتسليم — الطرد {ref} إلى {name}',
+      'ws_handoff_confirmed': 'تم تأكيد التسليم — الطرد {ref}',
+      'ws_handoff_cancelled': 'أُلغي التسليم — الطرد {ref}',
+      'ws_handoff_other': 'سائق',
+      'handoff_action_scan': 'مسح',
+      'handoff_action_show': 'إظهار الرمز',
       
       // Settings language selection
       'language_setting': 'اللغة',

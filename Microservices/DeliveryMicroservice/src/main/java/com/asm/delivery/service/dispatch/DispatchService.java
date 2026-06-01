@@ -9,6 +9,7 @@ import com.asm.delivery.dto.request.PinDropoffRequest;
 import com.asm.delivery.dto.response.AdminDeliveryDetailResponse;
 import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
 import com.asm.delivery.dto.response.AdminDriverResponse;
+import com.asm.delivery.dto.response.ActiveMissionsDTO;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.dto.response.StatusHistoryResponse;
 import com.asm.delivery.entity.*;
@@ -61,6 +62,7 @@ public class DispatchService {
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final com.asm.delivery.service.AuditLogService auditLogService;
     private final EventPublisher eventPublisher;
+    private final com.asm.delivery.service.HandoffService handoffService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
@@ -263,6 +265,27 @@ public class DispatchService {
                 ));
         
         return new DriverData(activeDeliveryMap, activeRouteMap);
+    }
+
+    @Transactional(readOnly = true)
+    public Map<UUID, ActiveMissionsDTO> getActiveMissions() {
+        DriverData data = getActiveDriverData();
+        Map<UUID, ActiveMissionsDTO> result = new HashMap<>();
+        
+        Set<String> driverIds = new HashSet<>();
+        driverIds.addAll(data.activeDeliveryMap().keySet());
+        driverIds.addAll(data.activeRouteMap().keySet());
+        
+        for (String id : driverIds) {
+            try {
+                UUID driverUuid = UUID.fromString(id);
+                result.put(driverUuid, ActiveMissionsDTO.builder()
+                        .activeDeliveryId(data.activeDeliveryMap().get(id))
+                        .activeRouteId(data.activeRouteMap().get(id))
+                        .build());
+            } catch (Exception ignored) {}
+        }
+        return result;
     }
 
     private record DriverData(Map<String, UUID> activeDeliveryMap, Map<String, UUID> activeRouteMap) {}
@@ -693,6 +716,7 @@ public class DispatchService {
 
         List<com.asm.delivery.dto.response.TransferStopsResponse.Warning> warnings = new ArrayList<>();
         List<UUID> transferredStops = new ArrayList<>();
+        List<UUID> handoffDeliveryIds = new ArrayList<>();
 
         int currentOrder = startOrder;
         for (UUID stopId : req.getStopIds()) {
@@ -710,11 +734,8 @@ public class DispatchService {
                 if (!StringUtils.hasText(req.getReason())) {
                     throw AppException.badRequest("Reason is required when transferring picked up packages");
                 }
-                // Flag for formal handoff — Driver B must confirm physical receipt
-                stop.setRequiresHandoff(true);
-                stop.setHandoffFromDriverId(sourceRoute.getDriverId());
-                stop.setHandoffToDriverId(targetRoute.getDriverId());
-                stop.setHandoffConfirmedAt(null);
+                // Formal custody handoff opened after the stop is moved (see below).
+                handoffDeliveryIds.add(stop.getDeliveryId());
 
                 warnings.add(com.asm.delivery.dto.response.TransferStopsResponse.Warning.builder()
                         .stopId(stopId)
@@ -767,13 +788,18 @@ public class DispatchService {
         routeWebSocketService.notifyDriver(sourceRoute.getDriverId(), "STOPS_TRANSFERRED_OUT", sourceRoute.getId(), sourceRoute.getName());
         routeWebSocketService.notifyDriver(targetRoute.getDriverId(), "STOPS_TRANSFERRED_IN", targetRoute.getId(), targetRoute.getName());
 
-        // FCM: notify both drivers
-        boolean anyHandoff = warnings.stream().anyMatch(w -> "HANDOFF".equals(w.getCode()));
+        // Open a formal custody handoff per in-field parcel — each side gets an
+        // accurate, per-parcel real-time prompt (incoming / outgoing).
+        for (UUID deliveryId : handoffDeliveryIds) {
+            handoffService.request(deliveryId, sourceRoute.getDriverId(), targetRoute.getDriverId(), null, req.getReason());
+        }
+
+        // FCM: summary of the bulk move (handoffs are notified per-parcel above).
         eventPublisher.publishStopsTransferred(
                 sourceRoute.getDriverId(),
                 targetRoute.getDriverId(),
                 transferredStops.size(),
-                anyHandoff);
+                false);
 
         return com.asm.delivery.dto.response.TransferStopsResponse.builder()
                 .targetRouteId(targetRoute.getId())

@@ -1,144 +1,369 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/material.dart' show VoidCallback;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'api_client.dart';
 
-// ── Localized Notification Templates ──────────────────────────────────────────
+// ── Notification content builder ──────────────────────────────────────────────
+// Notifications are assembled on-device from the rich data payload the backend
+// sends (clientName, address, COD, ETA, stop counts…) and localized to the
+// driver's app language. Each segment is appended only when its data is present,
+// so a message never shows an empty reference or a dangling separator.
 
-const Map<String, Map<String, Map<String, String>>> notificationTemplates = {
-  'fr': {
-    'DELIVERY_ASSIGNED': {
-      'title': '📦 Nouvelle livraison',
-      'body': 'La commande {ref} est prête à être récupérée.',
-    },
-    'DELIVERY_REMOVED': {
-      'title': '🚫 Livraison retirée',
-      'body': 'La commande {ref} a été retirée de votre tournée.',
-    },
-    'HANDOFF_REQUIRED': {
-      'title': '🔄 Passation requise',
-      'body': 'Veuillez remettre le colis {ref} au nouveau livreur.',
-    },
-    'ROUTE_VALIDATED': {
-      'title': '✅ Tournée validée',
-      'body': 'Votre tournée {routeName} est prête. Consultez votre itinéraire.',
-    },
-    'ROUTE_SCHEDULE_CHANGED': {
-      'title': '📅 Horaire mis à jour',
-      'body': 'Les horaires de votre tournée {routeName} ont été modifiés.',
-    },
-    'ROUTE_STOP_ADDED': {
-      'title': '📍 Arrêt ajouté',
-      'body': '{clientName} a été ajouté à votre tournée {routeName}.',
-    },
-    'ROUTE_STOP_REMOVED': {
-      'title': '❌ Arrêt retiré',
-      'body': '{clientName} a été retiré de votre tournée {routeName}.',
-    },
-    'STOPS_TRANSFERRED_OUT': {
-      'title': '🔄 Transfert sortant',
-      'body': '{count} arrêts ont été retirés de votre tournée.',
-    },
-    'STOPS_TRANSFERRED_IN': {
-      'title': '🔄 Transfert entrant',
-      'body': '{count} arrêts ont été ajoutés à votre tournée.',
-    },
-    'ROUTE_UPDATED': {
-      'title': '🔄 Tournée modifiée',
-      'body': 'Votre tournée a été mise à jour.',
-    },
-  },
-  'en': {
-    'DELIVERY_ASSIGNED': {
-      'title': '📦 New Delivery Assigned',
-      'body': 'Order {ref} is ready for pickup.',
-    },
-    'DELIVERY_REMOVED': {
-      'title': '🚫 Delivery Removed',
-      'body': 'Order {ref} has been removed from your route.',
-    },
-    'HANDOFF_REQUIRED': {
-      'title': '🔄 Handover Required',
-      'body': 'Please hand over package {ref} to the new driver.',
-    },
-    'ROUTE_VALIDATED': {
-      'title': '✅ Route Validated',
-      'body': 'Your route {routeName} is validated and ready.',
-    },
-    'ROUTE_SCHEDULE_CHANGED': {
-      'title': '📅 Schedule Updated',
-      'body': 'The schedule for route {routeName} has changed.',
-    },
-    'ROUTE_STOP_ADDED': {
-      'title': '📍 Stop Added',
-      'body': '{clientName} has been added to your route {routeName}.',
-    },
-    'ROUTE_STOP_REMOVED': {
-      'title': '❌ Stop Removed',
-      'body': '{clientName} has been removed from route {routeName}.',
-    },
-    'STOPS_TRANSFERRED_OUT': {
-      'title': '🔄 Stops Transferred Out',
-      'body': '{count} stops have been removed from your route.',
-    },
-    'STOPS_TRANSFERRED_IN': {
-      'title': '🔄 Stops Transferred In',
-      'body': '{count} stops have been added to your route.',
-    },
-    'ROUTE_UPDATED': {
-      'title': '🔄 Route Updated',
-      'body': 'Your route has been updated.',
-    },
-  },
-  'ar': {
-    'DELIVERY_ASSIGNED': {
-      'title': '📦 شحنة جديدة معينة',
-      'body': 'الطلب {ref} جاهز للاستلام.',
-    },
-    'DELIVERY_REMOVED': {
-      'title': '🚫 إزالة شحنة',
-      'body': 'تمت إزالة الطلب {ref} من مسار رحلتك.',
-    },
-    'HANDOFF_REQUIRED': {
-      'title': '🔄 تسليم مطلوب',
-      'body': 'يرجى تسليم الطرد {ref} إلى السائق الجديد.',
-    },
-    'ROUTE_VALIDATED': {
-      'title': '✅ تم تأكيد الرحلة',
-      'body': 'رحلتك {routeName} جاهزة ومؤكدة.',
-    },
-    'ROUTE_SCHEDULE_CHANGED': {
-      'title': '📅 تحديث الجدول الزمني',
-      'body': 'تم تعديل مواعيد رحلتك {routeName}.',
-    },
-    'ROUTE_STOP_ADDED': {
-      'title': '📍 إضافة محطة',
-      'body': 'تم إضافة {clientName} إلى رحلتك {routeName}.',
-    },
-    'ROUTE_STOP_REMOVED': {
-      'title': '❌ إزالة محطة',
-      'body': 'تم إزالة {clientName} من رحلتك {routeName}.',
-    },
-    'STOPS_TRANSFERRED_OUT': {
-      'title': '🔄 نقل محطات للخارج',
-      'body': 'تم إزالة {count} محطات من رحلتك.',
-    },
-    'STOPS_TRANSFERRED_IN': {
-      'title': '🔄 استلام محطات',
-      'body': 'تم إضافة {count} محطات إلى رحلتك.',
-    },
-    'ROUTE_UPDATED': {
-      'title': '🔄 تحديث الرحلة',
-      'body': 'تم تحديث مسار رحلتك.',
-    },
-  },
-};
+const Set<String> notificationLocales = {'fr', 'en', 'ar'};
 
-import 'dart:convert';
+String _pick(String locale, {required String fr, required String en, required String ar}) {
+  switch (locale) {
+    case 'en':
+      return en;
+    case 'ar':
+      return ar;
+    default:
+      return fr;
+  }
+}
+
+/// Order reference for display: the ERP order id when available, otherwise a
+/// short slice of the delivery UUID. Returns '' when nothing usable is present.
+String _orderRef(Map<String, dynamic> d) {
+  final erp = (d['erpOrderId'] ?? '').toString().trim();
+  if (erp.isNotEmpty) return erp;
+  final id = (d['deliveryId'] ?? '').toString().trim();
+  return id.length >= 8 ? id.substring(0, 8) : id;
+}
+
+/// "45 000 TND" — grouped thousands, trailing zeros trimmed. Null when absent.
+String? _fmtMoney(dynamic amount, dynamic currency) {
+  if (amount == null) return null;
+  final n = amount is num ? amount : num.tryParse(amount.toString());
+  if (n == null) return null;
+  final whole = n == n.roundToDouble();
+  final raw = whole ? n.toStringAsFixed(0) : n.toStringAsFixed(2);
+  final parts = raw.split('.');
+  final intPart = parts[0].replaceFirst('-', '');
+  final buf = StringBuffer(n < 0 ? '-' : '');
+  for (var i = 0; i < intPart.length; i++) {
+    if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(' ');
+    buf.write(intPart[i]);
+  }
+  final grouped = parts.length > 1 ? '${buf.toString()},${parts[1]}' : buf.toString();
+  final cur = (currency?.toString().trim().isNotEmpty ?? false) ? currency.toString().trim() : 'TND';
+  return '$grouped $cur';
+}
+
+/// "HH:mm" from an ISO datetime; null when unparseable.
+String? _fmtTime(dynamic iso) {
+  if (iso == null) return null;
+  final dt = DateTime.tryParse(iso.toString());
+  if (dt == null) return null;
+  final l = dt.toLocal();
+  return '${l.hour.toString().padLeft(2, '0')}:${l.minute.toString().padLeft(2, '0')}';
+}
+
+/// "HH:mm" from a backend LocalTime string ("HH:mm:ss"); null otherwise.
+/// Guards against non-string (e.g. array) serializations by returning null.
+String? _fmtClock(dynamic v) {
+  if (v is! String) return null;
+  final m = RegExp(r'^(\d{2}):(\d{2})').firstMatch(v);
+  return m != null ? '${m.group(1)}:${m.group(2)}' : null;
+}
+
+String _stopsLabel(int n, String locale) {
+  switch (locale) {
+    case 'en':
+      return '$n stop${n > 1 ? 's' : ''}';
+    case 'ar':
+      return '$n محطة';
+    default:
+      return '$n arrêt${n > 1 ? 's' : ''}';
+  }
+}
+
+/// Builds the localized title/body for an event from its data payload.
+Map<String, String> _buildNotification(
+    String eventType, Map<String, dynamic> d, String locale) {
+  final ref = _orderRef(d);
+  final client = (d['clientName'] ?? '').toString().trim();
+  final address = (d['dropoffAddress'] ?? '').toString().trim();
+  final routeName = (d['routeName'] ?? '').toString().trim();
+  final reason = (d['reason'] ?? '').toString().trim();
+  final isCod = d['isCod'] == true;
+  final money = _fmtMoney(d['totalAmount'], d['currency']);
+  final eta = _fmtTime(d['etaAt']);
+  final startClock = _fmtClock(d['plannedStartTime']);
+  final endClock = _fmtClock(d['plannedEndTime']);
+  final stopCount =
+      (d['stopCount'] is num) ? (d['stopCount'] as num).toInt() : int.tryParse('${d['stopCount']}');
+  final count = (d['count'] is num) ? (d['count'] as num).toInt() : int.tryParse('${d['count']}');
+  final fromDriverName = (d['fromDriverName'] ?? '').toString().trim();
+  final toDriverName = (d['toDriverName'] ?? '').toString().trim();
+
+  // "#ref · client", omitting whichever segment is missing.
+  String identity() {
+    final parts = <String>[];
+    if (ref.isNotEmpty) parts.add('#$ref');
+    if (client.isNotEmpty) parts.add(client);
+    return parts.join(' · ');
+  }
+
+  String routeLabel() => routeName.isNotEmpty
+      ? routeName
+      : _pick(locale, fr: 'votre tournée', en: 'your route', ar: 'رحلتك');
+
+  String joinLines(List<String?> lines) =>
+      lines.where((l) => l != null && l.trim().isNotEmpty).cast<String>().join('\n');
+
+  switch (eventType) {
+    case 'DELIVERY_ASSIGNED':
+      final id = identity();
+      return {
+        'title': _pick(locale, fr: '📦 Nouvelle livraison', en: '📦 New delivery', ar: '📦 شحنة جديدة'),
+        'body': joinLines([
+          id.isNotEmpty
+              ? id
+              : _pick(locale,
+                  fr: 'Nouvelle livraison à récupérer.',
+                  en: 'A new delivery to pick up.',
+                  ar: 'شحنة جديدة للاستلام.'),
+          address.isNotEmpty ? '📍 $address' : null,
+          (isCod && money != null)
+              ? _pick(locale,
+                  fr: '💰 Paiement à la livraison : $money',
+                  en: '💰 Cash on delivery: $money',
+                  ar: '💰 الدفع عند الاستلام: $money')
+              : null,
+          eta != null
+              ? _pick(locale, fr: '🕒 ETA $eta', en: '🕒 ETA $eta', ar: '🕒 الوصول المتوقع $eta')
+              : null,
+        ]),
+      };
+
+    case 'DELIVERY_REMOVED':
+      final id = identity();
+      return {
+        'title': _pick(locale, fr: '🚫 Livraison retirée', en: '🚫 Delivery removed', ar: '🚫 إزالة شحنة'),
+        'body': id.isNotEmpty
+            ? _pick(locale,
+                fr: '$id — retirée de votre tournée.',
+                en: '$id — removed from your route.',
+                ar: '$id — أُزيلت من رحلتك.')
+            : _pick(locale,
+                fr: 'Une livraison a été retirée de votre tournée.',
+                en: 'A delivery was removed from your route.',
+                ar: 'أُزيلت إحدى الشحنات من رحلتك.'),
+      };
+
+    case 'HANDOFF_REQUIRED':
+      final hasInfo = ref.isNotEmpty || client.isNotEmpty;
+      final desc = StringBuffer();
+      if (ref.isNotEmpty) desc.write(' #$ref');
+      if (client.isNotEmpty) desc.write(' ($client)');
+      return {
+        'title': _pick(locale, fr: '🔄 Passation requise', en: '🔄 Handover required', ar: '🔄 تسليم مطلوب'),
+        'body': hasInfo
+            ? _pick(locale,
+                fr: 'Remettez le colis$desc au nouveau livreur.',
+                en: 'Hand over package$desc to the new driver.',
+                ar: 'سلّم الطرد$desc إلى السائق الجديد.')
+            : _pick(locale,
+                fr: 'Un colis doit être remis au nouveau livreur.',
+                en: 'A package must be handed over to the new driver.',
+                ar: 'يجب تسليم طرد إلى السائق الجديد.'),
+      };
+
+    case 'ROUTE_VALIDATED':
+      return {
+        'title': _pick(locale, fr: '✅ Tournée validée', en: '✅ Route validated', ar: '✅ تم تأكيد الرحلة'),
+        'body': joinLines([
+          _pick(locale,
+              fr: 'Tournée ${routeLabel()} validée.',
+              en: 'Route ${routeLabel()} validated.',
+              ar: 'تم تأكيد الرحلة ${routeLabel()}.'),
+          (stopCount != null && stopCount > 0)
+              ? _pick(locale,
+                  fr: '${_stopsLabel(stopCount, locale)} à livrer',
+                  en: '${_stopsLabel(stopCount, locale)} to deliver',
+                  ar: '${_stopsLabel(stopCount, locale)} للتسليم')
+              : null,
+          startClock != null
+              ? _pick(locale,
+                  fr: '🕒 Départ prévu $startClock',
+                  en: '🕒 Planned start $startClock',
+                  ar: '🕒 الانطلاق المقرر $startClock')
+              : null,
+        ]),
+      };
+
+    case 'ROUTE_SCHEDULE_CHANGED':
+      final window = (startClock != null && endClock != null) ? '$startClock–$endClock' : null;
+      return {
+        'title': _pick(locale, fr: '📅 Horaire mis à jour', en: '📅 Schedule updated', ar: '📅 تحديث الموعد'),
+        'body': window != null
+            ? _pick(locale,
+                fr: 'Nouveaux horaires pour ${routeLabel()} : $window.',
+                en: 'New schedule for ${routeLabel()}: $window.',
+                ar: 'مواعيد جديدة لـ ${routeLabel()}: $window.')
+            : _pick(locale,
+                fr: 'Les horaires de ${routeLabel()} ont changé.',
+                en: 'The schedule for ${routeLabel()} has changed.',
+                ar: 'تغيّرت مواعيد ${routeLabel()}.'),
+      };
+
+    case 'ROUTE_STOP_ADDED':
+      final who = client.isNotEmpty ? client : _pick(locale, fr: 'Un arrêt', en: 'A stop', ar: 'محطة');
+      return {
+        'title': _pick(locale, fr: '📍 Arrêt ajouté', en: '📍 Stop added', ar: '📍 إضافة محطة'),
+        'body': joinLines([
+          _pick(locale,
+              fr: '$who ajouté à ${routeLabel()}.',
+              en: '$who added to ${routeLabel()}.',
+              ar: 'تمت إضافة $who إلى ${routeLabel()}.'),
+          (stopCount != null && stopCount > 0)
+              ? _pick(locale,
+                  fr: 'Total : ${_stopsLabel(stopCount, locale)}',
+                  en: 'Total: ${_stopsLabel(stopCount, locale)}',
+                  ar: 'الإجمالي: ${_stopsLabel(stopCount, locale)}')
+              : null,
+        ]),
+      };
+
+    case 'ROUTE_STOP_REMOVED':
+      final who = client.isNotEmpty ? client : _pick(locale, fr: 'Un arrêt', en: 'A stop', ar: 'محطة');
+      return {
+        'title': _pick(locale, fr: '❌ Arrêt retiré', en: '❌ Stop removed', ar: '❌ إزالة محطة'),
+        'body': joinLines([
+          _pick(locale,
+              fr: '$who retiré de ${routeLabel()}.',
+              en: '$who removed from ${routeLabel()}.',
+              ar: 'أُزيل $who من ${routeLabel()}.'),
+          reason.isNotEmpty
+              ? _pick(locale, fr: 'Motif : $reason', en: 'Reason: $reason', ar: 'السبب: $reason')
+              : null,
+        ]),
+      };
+
+    case 'STOPS_TRANSFERRED_OUT':
+      final n = count ?? 0;
+      return {
+        'title': _pick(locale, fr: '🔄 Transfert sortant', en: '🔄 Stops transferred out', ar: '🔄 نقل محطات'),
+        'body': _pick(locale,
+            fr: '${_stopsLabel(n, locale)} retiré${n > 1 ? 's' : ''} de votre tournée.',
+            en: '${_stopsLabel(n, locale)} removed from your route.',
+            ar: 'تمت إزالة ${_stopsLabel(n, locale)} من رحلتك.'),
+      };
+
+    case 'STOPS_TRANSFERRED_IN':
+      final n = count ?? 0;
+      return {
+        'title': _pick(locale, fr: '🔄 Transfert entrant', en: '🔄 Stops transferred in', ar: '🔄 استلام محطات'),
+        'body': _pick(locale,
+            fr: '${_stopsLabel(n, locale)} ajouté${n > 1 ? 's' : ''} à votre tournée.',
+            en: '${_stopsLabel(n, locale)} added to your route.',
+            ar: 'تمت إضافة ${_stopsLabel(n, locale)} إلى رحلتك.'),
+      };
+
+    case 'HANDOFF_INCOMING':
+      {
+        final id = identity();
+        final fromPart = fromDriverName.isNotEmpty
+            ? _pick(locale, fr: ' de $fromDriverName', en: ' from $fromDriverName', ar: ' من $fromDriverName')
+            : '';
+        return {
+          'title': _pick(locale, fr: '🤝 Réception de colis', en: '🤝 Incoming handover', ar: '🤝 استلام طرد'),
+          'body': joinLines([
+            id.isNotEmpty
+                ? _pick(locale,
+                    fr: 'Recevez le colis $id$fromPart.',
+                    en: 'Receive parcel $id$fromPart.',
+                    ar: 'استلم الطرد $id$fromPart.')
+                : _pick(locale,
+                    fr: 'Un colis doit vous être remis$fromPart.',
+                    en: 'A parcel is being handed to you$fromPart.',
+                    ar: 'سيتم تسليمك طردًا$fromPart.'),
+            address.isNotEmpty ? '📍 $address' : null,
+            _pick(locale,
+                fr: 'Scannez le code du chauffeur pour confirmer.',
+                en: "Scan the sender's code to confirm.",
+                ar: 'امسح رمز السائق للتأكيد.'),
+          ]),
+        };
+      }
+
+    case 'HANDOFF_OUTGOING':
+      {
+        final id = identity();
+        final toPart = toDriverName.isNotEmpty
+            ? _pick(locale, fr: ' à $toDriverName', en: ' to $toDriverName', ar: ' إلى $toDriverName')
+            : _pick(locale, fr: ' au nouveau livreur', en: ' to the new driver', ar: ' إلى السائق الجديد');
+        return {
+          'title': _pick(locale, fr: '🤝 Remise de colis', en: '🤝 Hand over parcel', ar: '🤝 تسليم طرد'),
+          'body': joinLines([
+            id.isNotEmpty
+                ? _pick(locale,
+                    fr: 'Remettez le colis $id$toPart.',
+                    en: 'Hand over parcel $id$toPart.',
+                    ar: 'سلّم الطرد $id$toPart.')
+                : _pick(locale,
+                    fr: 'Remettez le colis$toPart.',
+                    en: 'Hand over the parcel$toPart.',
+                    ar: 'سلّم الطرد$toPart.'),
+            _pick(locale,
+                fr: 'Affichez votre code de transfert.',
+                en: 'Show your handover code.',
+                ar: 'اعرض رمز التسليم الخاص بك.'),
+          ]),
+        };
+      }
+
+    case 'HANDOFF_CONFIRMED':
+      {
+        final id = identity();
+        return {
+          'title': _pick(locale, fr: '✅ Transfert confirmé', en: '✅ Handover confirmed', ar: '✅ تم تأكيد التسليم'),
+          'body': id.isNotEmpty
+              ? _pick(locale,
+                  fr: 'Colis $id — transfert confirmé.',
+                  en: 'Parcel $id — handover confirmed.',
+                  ar: 'الطرد $id — تم تأكيد التسليم.')
+              : _pick(locale,
+                  fr: 'Le transfert du colis a été confirmé.',
+                  en: 'The parcel handover was confirmed.',
+                  ar: 'تم تأكيد تسليم الطرد.'),
+        };
+      }
+
+    case 'HANDOFF_CANCELLED':
+      {
+        final id = identity();
+        return {
+          'title': _pick(locale, fr: '⚠️ Transfert annulé', en: '⚠️ Handover cancelled', ar: '⚠️ أُلغي التسليم'),
+          'body': id.isNotEmpty
+              ? _pick(locale,
+                  fr: 'Le transfert du colis $id a été annulé.',
+                  en: 'The handover of parcel $id was cancelled.',
+                  ar: 'أُلغي تسليم الطرد $id.')
+              : _pick(locale,
+                  fr: 'Le transfert du colis a été annulé.',
+                  en: 'The parcel handover was cancelled.',
+                  ar: 'أُلغي تسليم الطرد.'),
+        };
+      }
+
+    case 'ROUTE_UPDATED':
+    default:
+      return {
+        'title': _pick(locale, fr: '🔄 Tournée modifiée', en: '🔄 Route updated', ar: '🔄 تحديث الرحلة'),
+        'body': _pick(locale,
+            fr: 'Votre tournée a été mise à jour.',
+            en: 'Your route has been updated.',
+            ar: 'تم تحديث رحلتك.'),
+      };
+  }
+}
 
 Map<String, String> getLocalizedNotificationPayload(Map<String, dynamic> rawData, String locale) {
   Map<String, dynamic> data = {};
@@ -150,25 +375,16 @@ Map<String, String> getLocalizedNotificationPayload(Map<String, dynamic> rawData
   }
 
   final eventType = rawData['event_type'] as String? ?? data['event'] as String? ?? 'ROUTE_UPDATED';
-  final templates = notificationTemplates[locale] ?? notificationTemplates['fr']!;
-  final template = templates[eventType] ?? {
-    'title': '🔔 ASMTrack Driver',
-    'body': 'Mise à jour opérationnelle',
-  };
+  // Merge root-level fields (some events send flat data, not a nested payload).
+  // Nested payload fields take precedence over root-level ones.
+  final merged = <String, dynamic>{...rawData, ...data};
+  final lang = notificationLocales.contains(locale) ? locale : 'fr';
 
-  var title = template['title']!;
-  var body = template['body']!;
-
-  final combinedData = <String, dynamic>{...rawData, ...data};
-
-  combinedData.forEach((key, val) {
-    title = title.replaceAll('{$key}', val?.toString() ?? '');
-    body = body.replaceAll('{$key}', val?.toString() ?? '');
-  });
+  final content = _buildNotification(eventType, merged, lang);
 
   return {
-    'title': title,
-    'body': body,
+    'title': content['title']!,
+    'body': content['body']!,
     'type': eventType,
   };
 }
@@ -198,6 +414,11 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
         importance: Importance.high,
         priority: Priority.high,
         icon: '@mipmap/ic_launcher',
+        // Expand multi-line bodies so the full, enriched message is readable.
+        styleInformation: BigTextStyleInformation(
+          localized['body'] ?? '',
+          contentTitle: localized['title'],
+        ),
       ),
     ),
   );
@@ -224,14 +445,27 @@ class FcmService {
   final ApiClient _client;
 
   void Function(String title, String body, String type)? _onNotificationReceived;
-  VoidCallback? _onNotificationTap;
+  void Function(String type, String? deliveryId)? _onNotificationTap;
 
   void setHandlers({
     required void Function(String title, String body, String type) onReceived,
-    required VoidCallback onTap,
+    required void Function(String type, String? deliveryId) onTap,
   }) {
     _onNotificationReceived = onReceived;
     _onNotificationTap = onTap;
+  }
+
+  /// Parses the tapped message for deep-link routing (event type + deliveryId).
+  void _notifyTap(Map<String, dynamic> rawData) {
+    Map<String, dynamic> data = {};
+    if (rawData.containsKey('payload')) {
+      try {
+        data = (jsonDecode(rawData['payload']) as Map<String, dynamic>)['data'] as Map<String, dynamic>? ?? {};
+      } catch (_) {}
+    }
+    final type = rawData['event_type'] as String? ?? data['event'] as String? ?? '';
+    final deliveryId = (data['deliveryId'] ?? rawData['deliveryId'])?.toString();
+    _onNotificationTap?.call(type, deliveryId);
   }
 
   Future<void> init() async {
@@ -266,14 +500,14 @@ class FcmService {
     // 7. Background tap → app was in background, user tapped notification
     FirebaseMessaging.onMessageOpenedApp.listen((message) async {
       await _storeMessage(message);
-      _onNotificationTap?.call();
+      _notifyTap(message.data);
     });
 
     // 8. Terminated tap → app was killed, user tapped notification
     final initial = await FirebaseMessaging.instance.getInitialMessage();
     if (initial != null) {
       await _storeMessage(initial);
-      Future.delayed(const Duration(milliseconds: 600), () => _onNotificationTap?.call());
+      Future.delayed(const Duration(milliseconds: 600), () => _notifyTap(initial.data));
     }
   }
 
@@ -314,6 +548,11 @@ class FcmService {
             importance: Importance.high,
             priority: Priority.high,
             icon: '@mipmap/ic_launcher',
+            // Expand multi-line bodies so the full, enriched message is readable.
+            styleInformation: BigTextStyleInformation(
+              localized['body'] ?? '',
+              contentTitle: localized['title'],
+            ),
           ),
         ),
       );

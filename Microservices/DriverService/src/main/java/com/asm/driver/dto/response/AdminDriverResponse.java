@@ -12,9 +12,9 @@ import java.util.UUID;
 public class AdminDriverResponse {
     private String id;
     private String name;
-
     private String phone;
     private boolean active;
+    private String accountStatus;
     private BigDecimal currentLat;
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;
@@ -24,4 +24,10 @@ public class AdminDriverResponse {
     private int failed;
     private String onlineStatus;
     private String email;
+    private String activeDeliveryId;
+    private String activeRouteId;
+    private String suspendedReason;
+    private LocalDateTime invitationExpiresAt;
+    private LocalDateTime lastInvitedAt;
+    private String invitedByName;
 }

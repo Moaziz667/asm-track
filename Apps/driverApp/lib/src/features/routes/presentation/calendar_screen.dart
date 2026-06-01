@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
-import '../../../theme/app_theme.dart';
 import '../models/route_models.dart';
 import 'route_detail_sheet.dart';
 import 'widgets/route_card.dart';
@@ -42,6 +40,7 @@ class CalendarScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cs = Theme.of(context).colorScheme;
     final weekStart  = ref.watch(calendarWeekProvider);
     final selectedDay = ref.watch(selectedCalendarDayProvider);
     final routesAsync = ref.watch(weekRoutesProvider(weekStart));
@@ -63,10 +62,10 @@ class CalendarScreen extends ConsumerWidget {
       ref.read(selectedCalendarDayProvider.notifier).state = todayNorm;
     }
 
-    final routes = routesAsync.value ?? const [];
+    final routes = routesAsync.valueOrNull ?? const [];
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surface,
       body: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,9 +127,9 @@ class CalendarScreen extends ConsumerWidget {
                     onNavigateToRoute: onNavigateToRoute,
                   );
                 },
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(
-                    color: AppColors.accent,
+                    color: cs.primary,
                     strokeWidth: 2,
                   ),
                 ),
@@ -158,6 +157,7 @@ class _CalendarHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
     final currentWeekStart = _weekStartOf(todayNorm);
@@ -174,23 +174,19 @@ class _CalendarHeader extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_kMonths[selectedDay.month - 1].toUpperCase()} ${selectedDay.year}',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 24,
+                  '${_kMonths[selectedDay.month - 1]} ${selectedDay.year}',
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: AppColors.textPrimary,
-                    letterSpacing: -0.8,
-                    height: 1,
+                    color: cs.onSurface,
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   'Semaine $weekNum',
-                  style: GoogleFonts.inter(
+                  style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w500,
-                    color: AppColors.muted,
-                    letterSpacing: 0.2,
+                    color: cs.onSurfaceVariant,
                   ),
                 ),
               ],
@@ -202,24 +198,24 @@ class _CalendarHeader extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: AppColors.accent.withValues(alpha: 0.12),
+                  color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(
-                    color: AppColors.accent.withValues(alpha: 0.35),
+                    color: cs.primary.withValues(alpha: 0.35),
                     width: 1,
                   ),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(PhosphorIconsBold.calendar, size: 13, color: AppColors.accent),
+                    Icon(PhosphorIconsBold.calendar, size: 13, color: cs.primary),
                     const SizedBox(width: 6),
                     Text(
                       "Aujourd'hui",
-                      style: GoogleFonts.inter(
+                      style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.accent,
+                        color: cs.primary,
                       ),
                     ),
                   ],
@@ -266,6 +262,7 @@ class _WeekStrip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final today = DateTime.now();
     final todayNorm = DateTime(today.year, today.month, today.day);
     final byDay = _byDay();
@@ -282,9 +279,9 @@ class _WeekStrip extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 4),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: cs.outlineVariant),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withValues(alpha: 0.12),
@@ -337,15 +334,18 @@ class _NavArrow extends StatelessWidget {
   final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        behavior: HitTestBehavior.opaque,
-        child: SizedBox(
-          width: 28,
-          height: 64,
-          child: Icon(icon, size: 13, color: AppColors.muted),
-        ),
-      );
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 28,
+        height: 64,
+        child: Icon(icon, size: 13, color: cs.onSurfaceVariant),
+      ),
+    );
+  }
 }
 
 class _DayCell extends StatelessWidget {
@@ -380,21 +380,23 @@ class _DayCell extends StatelessWidget {
     return routes.first.status;
   }
 
-  static Color _statusColor(DriverRouteStatus s) {
+  static Color _statusColor(BuildContext context, DriverRouteStatus s) {
+    final cs = Theme.of(context).colorScheme;
     switch (s) {
-      case DriverRouteStatus.draft:      return AppColors.muted;
-      case DriverRouteStatus.validated:  return AppColors.info;
-      case DriverRouteStatus.inProgress: return AppColors.accent;
-      case DriverRouteStatus.closed:     return AppColors.success;
-      case DriverRouteStatus.cancelled:  return AppColors.danger;
+      case DriverRouteStatus.draft:      return cs.onSurfaceVariant;
+      case DriverRouteStatus.validated:  return cs.tertiary;
+      case DriverRouteStatus.inProgress: return cs.primary;
+      case DriverRouteStatus.closed:     return cs.tertiary;
+      case DriverRouteStatus.cancelled:  return cs.error;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final hasRoutes = dayRoutes.isNotEmpty;
     final dominant = _dominant(dayRoutes);
-    final dotColor = dominant != null ? _statusColor(dominant) : null;
+    final dotColor = dominant != null ? _statusColor(context, dominant) : null;
     final routeCount = dayRoutes.length;
 
     // Circle styling
@@ -403,20 +405,20 @@ class _DayCell extends StatelessWidget {
     final BoxBorder? circleBorder;
 
     if (isToday && isSelected) {
-      circleBg = AppColors.neonYellow;
+      circleBg = cs.primary;
       circleText = Colors.black;
       circleBorder = null;
     } else if (isToday) {
-      circleBg = AppColors.neonYellow.withValues(alpha: 0.85);
+      circleBg = cs.primary.withValues(alpha: 0.85);
       circleText = Colors.black;
       circleBorder = null;
     } else if (isSelected) {
-      circleBg = AppColors.accent.withValues(alpha: 0.15);
-      circleText = AppColors.accent;
-      circleBorder = Border.all(color: AppColors.accent, width: 1.5);
+      circleBg = cs.primary.withValues(alpha: 0.15);
+      circleText = cs.primary;
+      circleBorder = Border.all(color: cs.primary, width: 1.5);
     } else {
       circleBg = Colors.transparent;
-      circleText = hasRoutes ? AppColors.textPrimary : AppColors.textSecondary;
+      circleText = hasRoutes ? cs.onSurface : cs.onSurfaceVariant;
       circleBorder = null;
     }
 
@@ -431,11 +433,10 @@ class _DayCell extends StatelessWidget {
             // Day letter
             Text(
               _kDayLetters[day.weekday - 1],
-              style: GoogleFonts.inter(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w700,
-                color: isSelected || isToday ? AppColors.accent : AppColors.muted,
-                letterSpacing: 0.5,
+                color: isSelected || isToday ? cs.primary : cs.onSurfaceVariant,
               ),
             ),
             const SizedBox(height: 6),
@@ -451,7 +452,7 @@ class _DayCell extends StatelessWidget {
               child: Center(
                 child: Text(
                   '${day.day}',
-                  style: GoogleFonts.manrope(
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
                     fontSize: 14,
                     fontWeight: FontWeight.w800,
                     color: circleText,
@@ -477,7 +478,7 @@ class _DayCell extends StatelessWidget {
                 child: Center(
                   child: Text(
                     '$routeCount',
-                    style: GoogleFonts.inter(
+                    style: TextStyle(
                       fontSize: 9,
                       fontWeight: FontWeight.w800,
                       color: dotColor,
@@ -492,7 +493,7 @@ class _DayCell extends StatelessWidget {
                 height: 10,
                 child: CircularProgressIndicator(
                   strokeWidth: 1.5,
-                  color: AppColors.accent.withValues(alpha: 0.5),
+                  color: cs.primary.withValues(alpha: 0.5),
                 ),
               )
             else
@@ -512,6 +513,7 @@ class _DayStatsBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final dayRoutes = routes
         .where((r) => r.date != null && _sameDay(r.date!, selectedDay))
         .toList();
@@ -537,9 +539,9 @@ class _DayStatsBar extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: cs.surfaceContainerLow,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: cs.outlineVariant),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.06),
@@ -553,14 +555,14 @@ class _DayStatsBar extends StatelessWidget {
             _StatItem(
               value: '$totalRoutes',
               label: totalRoutes > 1 ? 'Tournées' : 'Tournée',
-              color: AppColors.info,
+              color: cs.tertiary,
               icon: PhosphorIconsRegular.path,
             ),
             _StatDivider(),
             _StatItem(
               value: '$totalStops',
               label: 'Arrêts',
-              color: AppColors.accent,
+              color: cs.primary,
               icon: PhosphorIconsRegular.package,
             ),
             if (hasProgress) ...[
@@ -568,7 +570,7 @@ class _DayStatsBar extends StatelessWidget {
               _StatItem(
                 value: '$completedStops/$totalStops',
                 label: 'Livrés',
-                color: AppColors.success,
+                color: cs.tertiary,
                 icon: PhosphorIconsRegular.checkCircle,
               ),
             ],
@@ -577,7 +579,7 @@ class _DayStatsBar extends StatelessWidget {
               _StatItem(
                 value: '$inProgressCount',
                 label: 'En cours',
-                color: AppColors.warning,
+                color: cs.secondary,
                 icon: PhosphorIconsFill.circle,
               ),
             ],
@@ -609,20 +611,19 @@ class _StatItem extends StatelessWidget {
             const SizedBox(height: 5),
             Text(
               value,
-              style: GoogleFonts.spaceGrotesk(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontSize: 17,
                 fontWeight: FontWeight.w900,
                 color: color,
-                letterSpacing: -0.5,
               ),
             ),
             const SizedBox(height: 2),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: TextStyle(
                 fontSize: 10,
                 fontWeight: FontWeight.w500,
-                color: AppColors.muted,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
           ],
@@ -632,12 +633,15 @@ class _StatItem extends StatelessWidget {
 
 class _StatDivider extends StatelessWidget {
   @override
-  Widget build(BuildContext context) => Container(
-        width: 1,
-        height: 32,
-        color: AppColors.border,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-      );
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Container(
+      width: 1,
+      height: 32,
+      color: cs.outlineVariant,
+      margin: const EdgeInsets.symmetric(horizontal: 4),
+    );
+  }
 }
 
 // ─── Day route list ───────────────────────────────────────────────────────────
@@ -663,6 +667,7 @@ class _DayRouteList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     final label = _dayLabel();
 
     if (routes.isEmpty) return _EmptyDay(label: label);
@@ -676,29 +681,26 @@ class _DayRouteList extends StatelessWidget {
           child: Row(
             children: [
               Text(
-                label.toUpperCase(),
-                style: GoogleFonts.spaceGrotesk(
-                  fontSize: 11,
+                label,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w900,
-                  color: AppColors.muted,
-                  letterSpacing: 1.5,
+                  color: cs.onSurfaceVariant,
                 ),
               ),
               const SizedBox(width: 10),
-              Expanded(child: Container(height: 1, color: AppColors.border)),
+              Expanded(child: Container(height: 1, color: cs.outlineVariant)),
               const SizedBox(width: 10),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: AppColors.neonYellow.withValues(alpha: 0.12),
+                  color: cs.primary.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
                   '${routes.length}',
-                  style: GoogleFonts.spaceGrotesk(
-                    fontSize: 11,
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     fontWeight: FontWeight.w900,
-                    color: AppColors.neonYellow,
+                    color: cs.primary,
                   ),
                 ),
               ),
@@ -736,13 +738,14 @@ class _DayRouteList extends StatelessWidget {
   }
 
   static void _showCancelledSheet(BuildContext context, DriverRoute route) {
+    final cs = Theme.of(context).colorScheme;
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => Container(
-        decoration: const BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         ),
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
         child: Column(
@@ -754,7 +757,7 @@ class _DayRouteList extends StatelessWidget {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceDim,
+                  color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -763,24 +766,23 @@ class _DayRouteList extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.dangerSubtle,
+                color: cs.errorContainer,
                 borderRadius: BorderRadius.circular(14),
               ),
-              child: const Icon(PhosphorIconsFill.xCircle, size: 24, color: AppColors.danger),
+              child: Icon(PhosphorIconsFill.xCircle, size: 24, color: cs.error),
             ),
             const SizedBox(height: 14),
             Text(
               'Tournée annulée',
-              style: GoogleFonts.sora(
-                fontSize: 18,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
+                color: cs.onSurface,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               'La tournée "${route.name}" a été annulée par la dispatch.',
-              style: const TextStyle(fontSize: 14, color: AppColors.muted, height: 1.5),
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant, height: 1.5),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 24),
@@ -789,16 +791,19 @@ class _DayRouteList extends StatelessWidget {
               child: TextButton(
                 onPressed: () => Navigator.of(context).pop(),
                 style: TextButton.styleFrom(
-                  foregroundColor: AppColors.textSecondary,
+                  foregroundColor: cs.onSurfaceVariant,
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
-                    side: const BorderSide(color: AppColors.border),
+                    side: BorderSide(color: cs.outlineVariant),
                   ),
                 ),
                 child: Text(
                   'Fermer',
-                  style: GoogleFonts.manrope(fontWeight: FontWeight.w700, fontSize: 14),
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
                 ),
               ),
             ),
@@ -815,41 +820,43 @@ class _EmptyDay extends StatelessWidget {
   final String label;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 72,
-              height: 72,
-              decoration: BoxDecoration(
-                color: AppColors.surfaceElevated,
-                borderRadius: BorderRadius.circular(22),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: const Icon(
-                PhosphorIconsRegular.calendarBlank,
-                size: 30,
-                color: AppColors.muted,
-              ),
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(color: cs.outlineVariant),
             ),
-            const SizedBox(height: 18),
-            Text(
-              'Aucune tournée',
-              style: GoogleFonts.sora(
-                fontSize: 17,
-                fontWeight: FontWeight.w700,
-                color: AppColors.textPrimary,
-              ),
+            child: Icon(
+              PhosphorIconsRegular.calendarBlank,
+              size: 30,
+              color: cs.onSurfaceVariant,
             ),
-            const SizedBox(height: 5),
-            Text(
-              label,
-              style: GoogleFonts.inter(fontSize: 13, color: AppColors.muted),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            'Aucune tournée',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w700,
+              color: cs.onSurface,
             ),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(height: 5),
+          Text(
+            label,
+            style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 // ─── Error state ──────────────────────────────────────────────────────────────
@@ -858,26 +865,29 @@ class _ErrorState extends StatelessWidget {
   final String message;
 
   @override
-  Widget build(BuildContext context) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(PhosphorIconsRegular.cloudSlash, size: 34, color: AppColors.muted),
-            const SizedBox(height: 12),
-            Text(
-              'Impossible de charger les tournées',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textPrimary,
-              ),
+  Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(PhosphorIconsRegular.cloudSlash, size: 34, color: cs.onSurfaceVariant),
+          const SizedBox(height: 12),
+          Text(
+            'Impossible de charger les tournées',
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: cs.onSurface,
             ),
-            const SizedBox(height: 4),
-            const Text(
-              'Vérifiez votre connexion et réessayez.',
-              style: TextStyle(fontSize: 12, color: AppColors.muted),
-            ),
-          ],
-        ),
-      );
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Vérifiez votre connexion et réessayez.',
+            style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant),
+          ),
+        ],
+      ),
+    );
+  }
 }

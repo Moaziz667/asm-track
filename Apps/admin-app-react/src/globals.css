@@ -1,0 +1,596 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&family=JetBrains+Mono:wght@400;600&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* ── Dark mode variant for Tailwind v4 ─────────────────────────────────────── */
+@custom-variant dark (&:is(.dark *));
+
+/* ── Design tokens → Tailwind utilities ────────────────────────────────────── */
+@theme inline {
+  /* Backgrounds */
+  --color-app-bg:    var(--app-bg);
+  --color-sidebar:   var(--sidebar-bg);
+  --color-surface:   var(--surface);
+  --color-elevated:  var(--elevated);
+
+  /* Brand */
+  --color-brand:        var(--brand);
+  --color-brand-hover:  var(--brand-hover);
+  --color-brand-soft:   var(--brand-soft);
+
+  /* Text */
+  --color-text-primary:    var(--text-primary);
+  --color-text-secondary:  var(--text-secondary);
+  --color-text-muted:      var(--text-muted);
+  --color-text-soft:       var(--text-soft);
+
+  /* Border */
+  --color-border:       var(--border);
+  --color-border-strong:var(--border-strong);
+
+  /* Status */
+  --color-success:     var(--success);
+  --color-success-bg:  var(--success-bg);
+  --color-warning:     var(--warning);
+  --color-warning-bg:  var(--warning-bg);
+  --color-danger:      var(--danger);
+  --color-danger-bg:   var(--danger-bg);
+  --color-info:        var(--info);
+  --color-info-bg:     var(--info-bg);
+
+  /* Fonts */
+  --font-sans:    var(--font-sans);
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Radius */
+  --radius-sm:  4px;
+  --radius-md:  6px;
+  --radius-lg:  8px;
+  --radius-xl:  12px;
+  --font-heading:    var(--font-sans);
+  --color-sidebar-ring:    var(--sidebar-ring);
+  --color-sidebar-border:    var(--sidebar-border);
+  --color-sidebar-accent-foreground:    var(--sidebar-accent-foreground);
+  --color-sidebar-accent:    var(--sidebar-accent);
+  --color-sidebar-primary-foreground:    var(--sidebar-primary-foreground);
+  --color-sidebar-primary:    var(--sidebar-primary);
+  --color-sidebar-foreground:    var(--sidebar-foreground);
+  --color-chart-5:    var(--chart-5);
+  --color-chart-4:    var(--chart-4);
+  --color-chart-3:    var(--chart-3);
+  --color-chart-2:    var(--chart-2);
+  --color-chart-1:    var(--chart-1);
+  --color-ring:    var(--ring);
+  --color-input:    var(--input);
+  --color-destructive:    var(--destructive);
+  --color-accent-foreground:    var(--accent-foreground);
+  --color-accent:    var(--accent);
+  --color-muted-foreground:    var(--muted-foreground);
+  --color-muted:    var(--muted);
+  --color-secondary-foreground:    var(--secondary-foreground);
+  --color-secondary:    var(--secondary);
+  --color-primary-foreground:    var(--primary-foreground);
+  --color-primary:    var(--primary);
+  --color-popover-foreground:    var(--popover-foreground);
+  --color-popover:    var(--popover);
+  --color-card-foreground:    var(--card-foreground);
+  --color-card:    var(--card);
+  --color-foreground:    var(--foreground);
+  --color-background:    var(--background);
+  --radius-2xl:    calc(var(--radius) * 1.8);
+  --radius-3xl:    calc(var(--radius) * 2.2);
+  --radius-4xl:    calc(var(--radius) * 2.6);
+}
+
+/* ── Light mode ─────────────────────────────────────────────────────────────── */
+:root {
+  /* Brand — change ONE line to retheme the whole app */
+  --brand:       #F08734;
+  --brand-hover: #D9701E;
+  --brand-soft:  rgba(240, 135, 52, 0.08);
+
+  /* Backgrounds */
+  --app-bg:     #FAFAFA;
+  --sidebar-bg: #FFFFFF;
+  --surface:    #FFFFFF;
+  --elevated:   #FFFFFF;
+  --hover-bg:   #F4F4F5;
+
+  /* Borders */
+  --border:    oklch(0.922 0 0);
+  --border-strong: #D4D4D8;
+
+  /* Text — zinc scale */
+  --text-primary:   #09090B;
+  --text-secondary: #52525B;
+  --text-muted:     #71717A;
+  --text-soft:      #A1A1AA;
+
+  /* Status */
+  --success:    #16A34A;  --success-bg: #F0FDF4;
+  --warning:    #D97706;  --warning-bg: #FFFBEB;
+  --danger:     #DC2626;  --danger-bg:  #FEF2F2;
+  --info:       #2563EB;  --info-bg:    #EFF6FF;
+
+  /* shadcn compatibility — primary = brand orange */
+  --background:          var(--app-bg);
+  --foreground:          var(--text-primary);
+  --card:                var(--surface);
+  --card-foreground:     var(--text-primary);
+  --popover:             var(--surface);
+  --popover-foreground:  var(--text-primary);
+  --primary:             var(--brand);
+  --primary-foreground:  #09090B;
+  --secondary:           var(--sidebar-bg);
+  --secondary-foreground:var(--text-primary);
+  --muted:               var(--sidebar-bg);
+  --muted-foreground:    var(--text-muted);
+  --accent:              var(--hover-bg);
+  --accent-foreground:   var(--text-primary);
+  --destructive:         var(--danger);
+  --destructive-foreground: #ffffff;
+  --input:               var(--border);
+  --ring:                var(--brand);
+  --radius:              6px;
+
+  /* Sidebar shadcn */
+  --sidebar:                    var(--sidebar-bg);
+  --sidebar-foreground:         var(--text-primary);
+  --sidebar-primary:            var(--brand);
+  --sidebar-primary-foreground: #09090B;
+  --sidebar-accent:             var(--hover-bg);
+  --sidebar-accent-foreground:  var(--text-primary);
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--brand);
+
+  /* Legacy aliases — keep during Mantine migration */
+  --brand-orange:      var(--brand);
+  --brand-orange-dark: var(--brand-hover);
+  --brand-orange-soft: var(--brand-soft);
+  --app-bg:            var(--app-bg);
+  --surface-1:         var(--surface);
+  --surface-2:         var(--app-bg);
+  --surface-3:         var(--sidebar-bg);
+  --border-color:      var(--border);
+  --border-subtle:     var(--sidebar-bg);
+  --text-strong:       var(--text-primary);
+  --text:              var(--text-secondary);
+  --chart-1: #18181B; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+}
+
+/* ── Dark mode ──────────────────────────────────────────────────────────────── */
+.dark {
+  --brand:       #F08734;
+  --brand-hover: #FFA64D;
+  --brand-soft:  rgba(240, 135, 52, 0.15);
+
+  --app-bg:     #121212;
+  --sidebar-bg: #0A0A0A;
+  --surface:    #1A1A1A;
+  --elevated:   #242424;
+  --hover-bg:   #2A2A2A;
+
+  --border:    rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
+
+  --text-primary:   #F5F5F5;
+  --text-secondary: #A0A0A0;
+  --text-muted:     #707070;
+  --text-soft:      #404040;
+
+  /* Status — dark pastels (subtle tints over #1A1A1A surface) */
+  --success:    #22C55E;  --success-bg: #0D2818;
+  --warning:    #F59E0B;  --warning-bg: #2A1F0A;
+  --danger:     #EF4444;  --danger-bg:  #2A1215;
+  --info:       #3B82F6;  --info-bg:    #0F1A2E;
+
+  /* Legacy dark aliases */
+  --brand-orange-dark: #D9701E;
+  --brand-orange-soft: rgba(240, 135, 52, 0.15);
+  --surface-1:    var(--surface);
+  --surface-2:    var(--app-bg);
+  --surface-3:    var(--sidebar-bg);
+  --border-color: var(--border);
+  --border-subtle:var(--sidebar-bg);
+  --text-strong:  var(--text-primary);
+  --text:         var(--text-secondary);
+  --text-muted:   var(--text-muted);
+  --text-soft:    var(--text-soft);
+  --hover-bg:     var(--hover-bg);
+  --background:          var(--app-bg);
+  --foreground:          var(--text-primary);
+  --card:                var(--surface);
+  --card-foreground:     var(--text-primary);
+  --popover:             var(--surface);
+  --popover-foreground:  var(--text-primary);
+  --primary:             var(--brand);
+  --primary-foreground:  #09090B;
+  --secondary:           var(--sidebar-bg);
+  --secondary-foreground:var(--text-primary);
+  --muted:               var(--sidebar-bg);
+  --muted-foreground:    var(--text-muted);
+  --accent:              var(--hover-bg);
+  --accent-foreground:   var(--text-primary);
+  --destructive:         var(--danger);
+  --input:               var(--border);
+  --ring:                var(--brand);
+  --chart-1: #18181B; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+  --sidebar:                    var(--sidebar-bg);
+  --sidebar-foreground:         var(--text-primary);
+  --sidebar-primary:            var(--brand);
+  --sidebar-primary-foreground: #121212;
+  --sidebar-accent:             #2E2E2E;
+  --sidebar-accent-foreground:  #E5E5E5;
+  --sidebar-border:             var(--border);
+  --sidebar-ring:               var(--brand);
+}
+
+/* ── Also support [data-mantine-color-scheme=dark] during migration ─────────── */
+[data-mantine-color-scheme='dark'] {
+  --brand:       #F08734;
+  --brand-hover: #FFA64D;
+  --brand-soft:  rgba(240, 135, 52, 0.15);
+  --app-bg:      #121212;
+  --sidebar-bg:  #0A0A0A;
+  --surface:     #1A1A1A;
+  --elevated:    #242424;
+  --hover-bg:    #2A2A2A;
+  --border:      rgba(255, 255, 255, 0.08);
+  --border-strong:rgba(255, 255, 255, 0.16);
+  --text-primary: #F5F5F5;
+  --text-secondary:#A0A0A0;
+  --text-muted:  #707070;
+  --text-soft:   #404040;
+  --brand-orange-dark: #D9701E;
+  --brand-orange-soft: rgba(240, 135, 52, 0.15);
+  --surface-1:   var(--surface);
+  --surface-2:   var(--app-bg);
+  --surface-3:   var(--sidebar-bg);
+  --border-color:var(--border);
+  --border-subtle:var(--sidebar-bg);
+  --text-strong: var(--text-primary);
+  --text:        var(--text-secondary);
+  --hover-bg:    var(--hover-bg);
+  --success:    #22C55E;  --success-bg: #0D2818;
+  --warning:    #F59E0B;  --warning-bg: #2A1F0A;
+  --danger:     #EF4444;  --danger-bg:  #2A1215;
+  --info:       #3B82F6;  --info-bg:    #0F1A2E;
+}
+
+/* ── Base ───────────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    box-sizing: border-box;
+    border-color: var(--border);
+    @apply border-border outline-ring/50;
+  }
+
+  html, body {
+    font-family: 'Inter', system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    background-color: var(--app-bg);
+    color: var(--text-secondary);
+    font-size: 13px;
+    line-height: 1.5;
+    letter-spacing: -0.01em;
+    min-height: 100dvh;
+    @apply bg-background text-foreground;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+  }
+
+  /* Focus ring */
+  :focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: var(--radius);
+  }
+  html {
+    @apply font-sans;
+  }
+}
+
+/* ── Typography scale ───────────────────────────────────────────────────────── */
+@layer components {
+  /* Labels / section group headers */
+  .label-xs {
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.06em;
+    color: var(--text-soft);
+    text-transform: uppercase;
+  }
+
+  /* Table column headers */
+  .label-sm {
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+  }
+
+  /* Body — default */
+  .body-sm {
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  .body-md {
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--text-secondary);
+  }
+
+  /* Emphasis */
+  .body-strong {
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+  }
+
+  /* Page title — Linear uses 14-15px, NOT huge */
+  .page-title {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.02em;
+  }
+
+  /* Section title inside cards */
+  .section-title {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.01em;
+  }
+
+  /* KPI number */
+  .kpi-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--text-primary);
+    letter-spacing: -0.03em;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Monospace data */
+  .mono {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* ── Surface / card patterns ────────────────────────────────────────────────── */
+@layer components {
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+  }
+
+  .card-hover {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    transition: border-color 0.1s, background 0.1s;
+  }
+
+  .card-hover:hover {
+    border-color: var(--border-strong);
+    background: var(--elevated);
+  }
+
+  .hover-row {
+    transition: background 0.08s;
+  }
+
+  .hover-row:hover {
+    background: var(--hover-bg);
+  }
+
+  .hover-reveal {
+    transition: all 0.12s ease-out;
+  }
+
+  .hover-reveal:hover {
+    background: var(--hover-bg);
+  }
+}
+
+/* ── Table ──────────────────────────────────────────────────────────────────── */
+@layer components {
+  .pro-table-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+
+  .pro-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+  }
+
+  .pro-table-header {
+    background: var(--app-bg);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .pro-table-th {
+    padding: 8px 14px;
+    text-align: start;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .pro-table-td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text-secondary);
+    font-size: 12px;
+    font-weight: 400;
+  }
+
+  .pro-table-row:last-child .pro-table-td {
+    border-bottom: none;
+  }
+
+  .pro-table-row:hover .pro-table-td {
+    background: var(--hover-bg);
+    cursor: pointer;
+  }
+
+  /* Dispatch rows */
+  .dispatch-row > td {
+    border-bottom: 1px solid var(--border) !important;
+    transition: background 0.08s;
+  }
+
+  .dispatch-row:last-child > td {
+    border-bottom: none !important;
+  }
+
+  .dispatch-row:hover > td {
+    background: var(--hover-bg) !important;
+  }
+
+  /* Action buttons: always visible */
+  .dispatch-row .action-reveal {
+    opacity: 1;
+  }
+}
+
+/* ── Top nav ────────────────────────────────────────────────────────────────── */
+@layer components {
+  .pro-top-nav {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+
+  .pro-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+  }
+}
+
+/* ── Skeleton shimmer ───────────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--sidebar-bg) 25%,
+    var(--hover-bg) 50%,
+    var(--sidebar-bg) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.4s ease-in-out infinite;
+  border-radius: var(--radius);
+}
+
+@keyframes skeleton-shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Scrollbars ─────────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+::-webkit-scrollbar       { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-soft); }
+
+/* ── Leaflet route animation (keep untouched) ───────────────────────────────── */
+.route-flow {
+  stroke-dasharray: 14 7;
+  animation: route-flow-anim 0.55s linear infinite;
+}
+
+@keyframes route-flow-anim {
+  to { stroke-dashoffset: -21; }
+}
+
+/* ── Noise overlay ──────────────────────────────────────────────────────────── */
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0.04;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+}
+
+/* ── Odoo HTML notes (timeline) ─────────────────────────────────────────────── */
+.odoo-html-note b  { font-weight: 600; color: var(--text-primary); }
+.odoo-html-note i  { font-style: italic; }
+.odoo-html-note ul { margin: 3px 0 3px 14px; padding: 0; list-style: disc; }
+.odoo-html-note li { margin: 1px 0; }
+
+/* ── Mantine overrides (active during migration, delete after) ──────────────── */
+.mantine-Button-label {
+  text-transform: none;
+  letter-spacing: -0.01em;
+}
+
+.mantine-Tooltip-tooltip {
+  background: var(--elevated) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+  letter-spacing: -0.01em !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.12) !important;
+  padding: 5px 9px !important;
+  border-radius: var(--radius) !important;
+}
+
+.mantine-Tooltip-arrow {
+  background: var(--elevated) !important;
+  border: 1px solid var(--border) !important;
+}
+
+/* Mobile: modal full-screen on small viewports */
+@media (max-width: 640px) {
+  .mantine-Modal-inner   { padding: 0 !important; align-items: flex-end !important; }
+  .mantine-Modal-content { max-width: 100vw !important; border-radius: 8px 8px 0 0 !important; max-height: 92dvh !important; }
+}
+
+/* ── Dark Mode Button Contrast Fixes ───────────────────────────────────────── */
+.dark .bg-\[var\(--brand-orange\)\],
+.dark .bg-\[var\(--brand\)\],
+.dark .bg-primary,
+[data-mantine-color-scheme='dark'] .bg-\[var\(--brand-orange\)\],
+[data-mantine-color-scheme='dark'] .bg-\[var\(--brand\)\],
+[data-mantine-color-scheme='dark'] .bg-primary {
+  color: #121212 !important;
+}
+
+.dark .bg-\[var\(--brand-orange\)\] *,
+.dark .bg-\[var\(--brand\)\] *,
+.dark .bg-primary *,
+[data-mantine-color-scheme='dark'] .bg-\[var\(--brand-orange\)\] *,
+[data-mantine-color-scheme='dark'] .bg-\[var\(--brand\)\] *,
+[data-mantine-color-scheme='dark'] .bg-primary * {
+  color: inherit !important;
+}
+

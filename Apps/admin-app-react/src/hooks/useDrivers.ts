@@ -1,0 +1,156 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import type { Driver } from '@/types';
+
+export const DRIVERS_QUERY_KEY = ['drivers'] as const;
+
+export interface DriverPayload {
+  name: string;
+  phone: string;
+  email?: string;
+}
+
+interface DriverStatusBody {
+  active: boolean;
+  reason?: string;
+}
+
+interface CancelInviteBody {
+  reason?: string;
+}
+
+export function useDrivers() {
+  return useQuery<Driver[]>({
+    queryKey: DRIVERS_QUERY_KEY,
+    queryFn: async () => {
+      const res = await api.get<Driver[]>('/api/admin/drivers');
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    retry: 1,
+    staleTime: 30000,
+  });
+}
+
+export function useCreateDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (payload: DriverPayload) => {
+      const res = await api.post<Driver>('/api/admin/drivers', payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriverCreated');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDriverCreateFailed');
+    },
+  });
+}
+
+export function useUpdateDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, payload }: { id: string; payload: Partial<DriverPayload> }) => {
+      const res = await api.put<Driver>(`/api/admin/drivers/${id}`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriverUpdated');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDriverUpdateFailed');
+    },
+  });
+}
+
+export function useToggleDriverStatus() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, active, reason }: { id: string; active: boolean; reason?: string }) => {
+      const body: DriverStatusBody = { active };
+      if (reason) body.reason = reason;
+      const res = await api.patch<Driver>(`/api/admin/drivers/${id}/status`, body);
+      return res.data;
+    },
+    onSuccess: (_, variables) => {
+      if (variables.active === false) {
+        showSuccessToast('successDriverDeactivated');
+      } else {
+        showSuccessToast('successDriverActivated');
+      }
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any, variables) => {
+      const isSuspend = variables.active === false;
+      showErrorToast(
+        err,
+        isSuspend ? 'errorDriverSuspendFailed' : 'errorDriverUpdateFailed'
+      );
+    },
+  });
+}
+
+export function useCancelDriverInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
+      const body: CancelInviteBody = {};
+      if (reason) body.reason = reason;
+      await api.delete(`/api/admin/drivers/${id}`, { data: body });
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriverInviteCancelled');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDriverCancelInviteFailed');
+    },
+  });
+}
+
+export function useResendDriverInvite() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<{ expiresAt: string; status: string }>(
+        `/api/admin/drivers/${id}/resend-invite`
+      );
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriverInviteResent');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDriverInviteResendFailed');
+    },
+  });
+}
+
+export function useImportDrivers() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (formData: FormData) => {
+      const res = await api.post<void>('/api/admin/drivers/import', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriversImported');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorImportFailed');
+    },
+  });
+}

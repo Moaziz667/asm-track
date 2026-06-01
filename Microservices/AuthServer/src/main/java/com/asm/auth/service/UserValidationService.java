@@ -64,15 +64,15 @@ public class UserValidationService {
      */
     public Map<String, Object> validateDriver(String phone, String password) {
         List<Map<String, Object>> rows = driverJdbc.queryForList(
-                "SELECT id::text, name, phone, password_hash, active " +
+                "SELECT id::text, name, phone, password_hash, account_status " +
                 "FROM drivers WHERE phone = ?", phone);
 
         if (rows.isEmpty()) return null;
         Map<String, Object> row = rows.get(0);
 
-        Object activeVal = row.get("active");
-        if (Boolean.FALSE.equals(activeVal) || Integer.valueOf(0).equals(activeVal)) {
-            log.warn("Login attempt for disabled driver: {}", phone);
+        String accountStatus = (String) row.get("account_status");
+        if (!"ACTIVE".equals(accountStatus)) {
+            log.warn("Login attempt for disabled/inactive driver: {} (status: {})", phone, accountStatus);
             return null;
         }
 

@@ -33,6 +33,7 @@ public class OutboxProcessor {
     private final ObjectMapper objectMapper;
     private final DeliveryRepository deliveryRepo;
     private final TransportPort transportPort;
+    private final EventPublisher eventPublisher;
     private final RestTemplate alertRestTemplate = new RestTemplate();
 
     @Value("${outbox.alert.webhook-url:}")
@@ -40,12 +41,13 @@ public class OutboxProcessor {
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
-                           TransportPort transportPort) {
+                           TransportPort transportPort, EventPublisher eventPublisher) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
         this.deliveryRepo = deliveryRepo;
         this.transportPort = transportPort;
+        this.eventPublisher = eventPublisher;
     }
 
     @Scheduled(fixedDelay = 20000)
@@ -107,9 +109,43 @@ public class OutboxProcessor {
                 log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
                         eventId, event.getEventType(), newRetryCount, error);
                 sendDeadLetterAlert(eventId, event.getEventType(), error);
+                notifyErpSyncFailed(event);
             }
             outboxRepo.save(event);
         });
+    }
+
+    /**
+     * On a permanently dead-lettered ERP sync, surface an admin notification so a
+     * dispatcher can intervene (the dead-letter webhook is ops-only). Resolves the
+     * order from the event payload; best-effort — never blocks failure handling.
+     */
+    private void notifyErpSyncFailed(OutboxEvent event) {
+        final String type = event.getEventType();
+        if (type == null || !type.startsWith("ERP_")) return;
+        try {
+            Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+            Delivery delivery = null;
+            if (payload.get("deliveryId") != null) {
+                delivery = deliveryRepo.findByIdWithOrder(UUID.fromString((String) payload.get("deliveryId"))).orElse(null);
+            } else if (payload.get("orderId") != null) {
+                delivery = deliveryRepo.findByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).orElse(null);
+            }
+            if (delivery != null && delivery.getOrder() != null) {
+                eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), erpOperationCode(type));
+            }
+        } catch (Exception ex) {
+            log.warn("Could not publish erp.sync_failed admin notification for eventId={}: {}", event.getId(), ex.getMessage());
+        }
+    }
+
+    private String erpOperationCode(String eventType) {
+        switch (eventType) {
+            case "ERP_SYNC_STOCK":        return "STOCK";
+            case "ERP_SYNC_FAILURE":      return "FAILURE_REPORT";
+            case "ERP_SYNC_CANCELLATION": return "CANCELLATION";
+            default:                      return "SYNC";
+        }
     }
 
     private void handleEvent(OutboxEvent event) throws Exception {

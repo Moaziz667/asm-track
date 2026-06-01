@@ -1,0 +1,120 @@
+/* ── Route Builder Sass Stylesheet ── */
+
+.rb-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  color: var(--text-muted);
+  transition: color 0.1s ease;
+
+  &:hover {
+    color: var(--text-strong);
+  }
+
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+/* Custom reset for dense time inputs to remove browser clock icons */
+.rb-time-input {
+  font-family: var(--font-mono);
+  background: transparent;
+  color: var(--text-strong);
+  border: none;
+  font-size: 12px;
+  width: 54px;
+  padding: 0;
+  text-align: center;
+  outline: none;
+  border-bottom: 1px dashed transparent;
+  transition: border-color 0.1s, background 0.1s;
+  border-radius: 2px;
+  cursor: pointer;
+
+  &:hover, &:focus {
+    background: var(--hover-bg);
+    border-bottom-color: var(--text-soft);
+  }
+
+  &::-webkit-calendar-picker-indicator {
+    display: none !important;
+    -webkit-appearance: none;
+  }
+}
+
+/* Minimal linear flat progress bars for payload capacity indicators */
+.rb-progress-track {
+  height: 3px;
+  width: 100%;
+  background-color: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+  position: relative;
+}
+
+.rb-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Timeline vertical nodes styling */
+.rb-timeline {
+  position: relative;
+  padding-left: 20px;
+  border-left: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.rb-timeline-item {
+  position: relative;
+}
+
+.rb-timeline-dot {
+  position: absolute;
+  left: -27px;
+  top: 2px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: var(--surface);
+  border: 2px solid var(--brand);
+  display: flex;
+  align-items: center;
+  justify: center;
+  z-index: 10;
+  transition: transform 0.1s;
+
+  &.active {
+    border-color: var(--brand);
+    background: var(--brand);
+  }
+}
+
+/* Compact modern scrollbar definitions */
+.rb-compact-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+
+  ::-webkit-scrollbar {
+    width: 4px;
+    height: 4px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border);
+    border-radius: 99px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-soft);
+  }
+}

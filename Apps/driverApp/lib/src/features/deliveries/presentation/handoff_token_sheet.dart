@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
-import '../../../theme/app_theme.dart';
 import '../../../theme/widgets.dart';
 
 class HandoffTokenSheet extends ConsumerStatefulWidget {
@@ -44,12 +42,13 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-      decoration: const BoxDecoration(
-        color: AppColors.background,
-        borderRadius: BorderRadius.vertical(top: Radius.circular(4)), // Tactical 4px
-        border: Border(top: BorderSide(color: AppColors.border, width: 2)),
+      decoration: BoxDecoration(
+        color: cs.surface,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(4)), // Tactical 4px
+        border: Border(top: BorderSide(color: cs.outlineVariant, width: 2)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -57,19 +56,22 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
           Container(
             width: 40,
             height: 4,
-            decoration: BoxDecoration(color: AppColors.border, borderRadius: BorderRadius.circular(2)),
+            decoration: BoxDecoration(color: cs.outlineVariant, borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 24),
-          const Icon(LucideIcons.arrowLeftRight, color: AppColors.neonYellow, size: 32),
+          Icon(LucideIcons.arrowLeftRight, color: cs.primary, size: 32),
           const SizedBox(height: 16),
           Text(
-            'AUTHENTIFICATION DU TRANSFERT',
-            style: GoogleFonts.spaceGrotesk(fontSize: 18, fontWeight: FontWeight.w900, color: AppColors.textPrimary, letterSpacing: 0.5),
+            'Authentification du transfert',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: cs.onSurface,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text(
+          Text(
             'Demandez à l\'autre chauffeur de scanner ce code pour confirmer le transfert de responsabilité.',
-            style: TextStyle(color: AppColors.muted, fontSize: 13),
+            style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
@@ -84,11 +86,12 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
             const SizedBox(height: 200),
 
           const SizedBox(height: 32),
-          DriveButton(
-            label: 'FERMER',
-            variant: DriveButtonVariant.ghost,
-            fullWidth: true,
-            onPressed: () => Navigator.pop(context),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Fermer'),
+            ),
           ),
         ],
       ),
@@ -96,6 +99,7 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
   }
 
   Widget _buildQr(String token) {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
         Container(
@@ -115,31 +119,31 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: cs.surfaceContainerLow,
             borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: AppColors.neonYellow, width: 1),
+            border: Border.all(color: cs.primary, width: 1),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'JETON : ',
-                style: GoogleFonts.spaceGrotesk(fontSize: 12, fontWeight: FontWeight.w700, color: AppColors.muted, letterSpacing: 1),
+                'Jeton : ',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: cs.onSurfaceVariant),
               ),
               Text(
                 token,
-                style: GoogleFonts.spaceGrotesk(fontSize: 22, fontWeight: FontWeight.w900, color: AppColors.neonYellow, letterSpacing: 4),
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22, fontWeight: FontWeight.w900, color: cs.primary),
               ),
             ],
           ),
         ),
         const SizedBox(height: 12),
-        const Row(
+        Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.clock, size: 14, color: AppColors.muted),
-            SizedBox(width: 6),
-            Text('Expire dans 5 minutes', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+            Icon(LucideIcons.clock, size: 14, color: cs.onSurfaceVariant),
+            const SizedBox(width: 6),
+            Text('Expire dans 5 minutes', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
           ],
         ),
       ],
@@ -147,13 +151,21 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
   }
 
   Widget _buildError() {
+    final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
-        const Icon(LucideIcons.alertCircle, color: AppColors.danger, size: 48),
+        Icon(LucideIcons.alertCircle, color: cs.error, size: 48),
         const SizedBox(height: 16),
-        Text(_error!, style: const TextStyle(color: AppColors.textSecondary), textAlign: TextAlign.center),
+        Text(_error!, style: TextStyle(color: cs.onSurfaceVariant), textAlign: TextAlign.center),
         const SizedBox(height: 24),
-        DriveButton(label: 'RÉESSAYER', onPressed: _fetchToken, size: DriveButtonSize.sm),
+        SizedBox(
+          width: double.infinity,
+          height: 36,
+          child: FilledButton(
+            onPressed: _fetchToken,
+            child: const Text('Réessayer'),
+          ),
+        ),
       ],
     );
   }

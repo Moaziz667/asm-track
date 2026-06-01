@@ -2,6 +2,7 @@ package com.asm.driver.config;
 
 import com.asm.driver.entity.Driver;
 import com.asm.driver.entity.DriverOnlineStatus;
+import com.asm.driver.repository.DriverInviteTokenRepository;
 import com.asm.driver.repository.DriverRepository;
 import com.asm.driver.service.DriverAuditLogService;
 import com.asm.driver.service.DriverEventPublisher;
@@ -20,6 +21,7 @@ import java.util.List;
 public class ScheduledTasks {
 
     private final DriverRepository driverRepo;
+    private final DriverInviteTokenRepository inviteTokenRepo;
     private final DriverAuditLogService auditLogService;
     private final DriverEventPublisher eventPublisher;
 
@@ -51,6 +53,15 @@ public class ScheduledTasks {
 
         if (!stale.isEmpty()) {
             log.info("Auto-offlined {} stale driver(s)", stale.size());
+        }
+    }
+
+    @Scheduled(fixedDelay = 3_600_000)
+    @Transactional
+    public void cleanupExpiredInviteTokens() {
+        int deleted = inviteTokenRepo.deleteAllExpired(LocalDateTime.now());
+        if (deleted > 0) {
+            log.info("Cleaned up {} expired invite token(s)", deleted);
         }
     }
 }

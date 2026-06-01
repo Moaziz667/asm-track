@@ -147,6 +147,10 @@ public class RouteStop {
     @Column(name = "handoff_token_expires_at")
     private LocalDateTime handoffTokenExpiresAt;
 
+    /** Points at the active {@link Handoff} aggregate (REQUESTED/IN_PROGRESS), if any. */
+    @Column(name = "active_handoff_id")
+    private UUID activeHandoffId;
+
     // ─────────────────────────────────────────────────────────────────────────────
 
     @PrePersist

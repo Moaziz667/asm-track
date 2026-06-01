@@ -1,0 +1,138 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/lib/api';
+import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+
+// ── Types ──────────────────────────────────────────────────────────────────────
+
+export interface RouteStop {
+  id: string;
+  stopOrder: number;
+  status: string;
+  clientName?: string;
+  deliveryAddress?: string;
+  deliveryCity?: string;
+  orderRef?: string;
+  deliveryId?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+}
+
+export interface RouteItem {
+  id: string;
+  name: string;
+  driverName?: string;
+  driverId?: string;
+  date: string;
+  status: string;
+  city?: string;
+  stops: RouteStop[];
+}
+
+export interface RoutesQueryParams {
+  from?: string;
+  to?: string;
+  status?: string;
+  driverId?: string;
+  page?: number;
+  size?: number;
+}
+
+// ── Query Keys ─────────────────────────────────────────────────────────────────
+
+export const ROUTES_QUERY_KEY = (params?: RoutesQueryParams) =>
+  params ? (['routes', params] as const) : (['routes'] as const);
+
+// ── Hooks ──────────────────────────────────────────────────────────────────────
+
+/**
+ * Fetch routes with optional date-range / status / driver filters.
+ * Suitable for OperationsPage today/week tabs.
+ */
+export function useRoutes(params?: RoutesQueryParams, enabled = true) {
+  return useQuery<RouteItem[]>({
+    queryKey: ROUTES_QUERY_KEY(params),
+    queryFn: async () => {
+      const res = await api.get<RouteItem[]>('/api/admin/routes', { params });
+      return Array.isArray(res.data) ? res.data : [];
+    },
+    enabled,
+    retry: 1,
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Fetch a single route by ID.
+ */
+export function useRoute(routeId: string | null | undefined) {
+  return useQuery<RouteItem>({
+    queryKey: ['route', routeId],
+    queryFn: async () => {
+      const res = await api.get<RouteItem>(`/api/admin/routes/${routeId}`);
+      return res.data;
+    },
+    enabled: Boolean(routeId),
+    retry: 1,
+    staleTime: 20_000,
+  });
+}
+
+/**
+ * Reassign a route to a different driver.
+ */
+export function useReassignRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ routeId, driverId }: { routeId: string; driverId: string }) => {
+      const res = await api.post(`/api/admin/routes/${routeId}/reassign`, { driverId });
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successRouteReassigned');
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+    onError: (err: unknown) => {
+      showErrorToast(err, 'errorRouteReassignFailed');
+    },
+  });
+}
+
+/**
+ * Close a route (transition to CLOSED status).
+ */
+export function useCloseRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (routeId: string) => {
+      const res = await api.post(`/api/admin/routes/${routeId}/close`);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successRouteClosed');
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+    onError: (err: unknown) => {
+      showErrorToast(err, 'errorRouteClosureFailed');
+    },
+  });
+}
+
+/**
+ * Validate a route (transition to VALIDATED status).
+ */
+export function useValidateRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (routeId: string) => {
+      const res = await api.post(`/api/admin/routes/${routeId}/validate`);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successRouteValidated');
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+    onError: (err: unknown) => {
+      showErrorToast(err, 'errorRouteValidateFailed');
+    },
+  });
+}

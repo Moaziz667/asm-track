@@ -6,6 +6,17 @@ import '../config/app_config.dart';
 import '../models/auth_tokens.dart';
 import 'token_storage.dart';
 
+/// Why an authenticated session was terminated. Lets the UI show an accurate,
+/// professional message instead of a generic "please log in again".
+enum SessionEndReason {
+  /// Access/refresh tokens are no longer valid (expired, revoked, etc.).
+  expired,
+
+  /// The driver account was suspended or removed by an administrator.
+  /// Refreshing tokens cannot recover this — the driver must be signed out.
+  accountDisabled,
+}
+
 class ApiClient {
   ApiClient({required this.config, required this.tokenStorage, this.onSessionExpired}) {
     dio = Dio(
@@ -43,7 +54,7 @@ class ApiClient {
             // Generate a unique key for the request if not already present.
             // Note: If the Repository provided a stable key (e.g., 'accept-123'), we MUST use it.
             if (!options.headers.containsKey('X-Idempotency-Key')) {
-              options.headers['X-Idempotency-Key'] = 
+              options.headers['X-Idempotency-Key'] =
                   'req-${DateTime.now().millisecondsSinceEpoch}-${options.path.hashCode}';
             }
           }
@@ -54,13 +65,29 @@ class ApiClient {
           handler.next(options);
         },
         onError: (error, handler) async {
+          // A session-end is already in progress: swallow the trailing burst of
+          // 401s from in-flight requests instead of re-triggering logout/refresh.
+          if (_endingSession) {
+            handler.next(error);
+            return;
+          }
+
+          // An administrator suspended/removed this account. Refreshing the token
+          // cannot fix this — the server will keep returning 401. Sign the driver
+          // out immediately and route them to login. This is what stops the
+          // previous infinite refresh→retry→401 loop (the "401 flood").
+          if (_isAccountDisabled(error)) {
+            _endSession(SessionEndReason.accountDisabled);
+            handler.next(error);
+            return;
+          }
+
           if (_shouldAttemptRefresh(error)) {
             try {
               final response = await _refreshAndRetry(error);
               return handler.resolve(response);
             } catch (_) {
-              await tokenStorage.clear();
-              onSessionExpired?.call();
+              _endSession(SessionEndReason.expired);
             }
           }
           handler.next(error);
@@ -71,15 +98,52 @@ class ApiClient {
 
   final AppConfig config;
   final TokenStorage tokenStorage;
-  void Function()? onSessionExpired;
+
+  /// Invoked once when the session ends. Carries the [SessionEndReason] so the
+  /// UI can present an accurate message.
+  void Function(SessionEndReason reason)? onSessionExpired;
   late final Dio dio;
 
   Completer<void>? _refreshCompleter;
+
+  /// Guards against re-entrancy: once a session-end is triggered, every queued
+  /// 401 from concurrent in-flight requests is ignored until the next sign-in.
+  bool _endingSession = false;
+
+  /// Re-arms session handling after a fresh sign-in. Must be called by the auth
+  /// layer when new tokens are persisted, otherwise a later expiry/suspension
+  /// would be silently swallowed.
+  void resetSession() => _endingSession = false;
+
+  void _endSession(SessionEndReason reason) {
+    if (_endingSession) return;
+    _endingSession = true;
+    onSessionExpired?.call(reason);
+  }
+
+  /// True when the backend explicitly signalled the account is no longer usable.
+  /// DriverService's JwtAuthFilter returns these markers in the 401 body.
+  bool _isAccountDisabled(DioException error) {
+    if (error.response?.statusCode != 401) return false;
+    final data = error.response?.data;
+    String? message;
+    if (data is Map) {
+      message = data['message']?.toString();
+    } else if (data is String) {
+      message = data;
+    }
+    if (message == null) return false;
+    return message.contains('DRIVER_ACCOUNT_DISABLED') ||
+        message.contains('INVALID_DRIVER_ID');
+  }
 
   bool _shouldAttemptRefresh(DioException error) {
     final status = error.response?.statusCode;
     final path = error.requestOptions.path;
     if (status != 401) return false;
+    // Never refresh twice for the same request — a 401 on the retried request
+    // means refreshing did not help, so stop instead of looping.
+    if (error.requestOptions.extra['__retried'] == true) return false;
     if (path.contains('/login') || path.contains('/register') || path.contains('/refresh-token')) {
       return false;
     }
@@ -97,6 +161,8 @@ class ApiClient {
       followRedirects: request.followRedirects,
       validateStatus: request.validateStatus,
       receiveDataWhenStatusError: request.receiveDataWhenStatusError,
+      // Mark the retry so a second 401 won't kick off another refresh cycle.
+      extra: {...request.extra, '__retried': true},
     );
     return dio.request<dynamic>(
       request.path,

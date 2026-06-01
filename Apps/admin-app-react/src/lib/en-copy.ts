@@ -1,0 +1,2371 @@
+// ── Notification template helpers (kept local to avoid a cycle with ux-copy) ─
+const _en_fmtEta = (iso: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+const _en_ref = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+const _en_stops = (n: number): string => `${n} stop${n > 1 ? 's' : ''}`;
+const _en_money = (amount: any, currency?: string): string => {
+  if (amount == null || amount === '') return '';
+  const n = Number(amount);
+  if (!isFinite(n)) return '';
+  const cur = (currency && String(currency).trim()) || 'TND';
+  return `${n.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${cur}`;
+};
+const _en_clock = (v: any): string => {
+  if (typeof v !== 'string') return '';
+  const m = /^(\d{2}):(\d{2})/.exec(v);
+  return m ? `${m[1]}:${m[2]}` : '';
+};
+const _en_window = (start: any, end: any): string => {
+  const s = _en_clock(start);
+  const e = _en_clock(end);
+  if (s && e) return `${s}–${e}`;
+  return s || e || '';
+};
+
+export const EN_COPY = {
+  // ── Actions (button labels) ────────────────────────────────────────
+  actions: {
+    cancelRoute: 'Cancel Route',
+    validateRoute: 'Validate Route',
+    reassignRoute: 'Reassign Route',
+    closeRoute: 'Close Route',
+    deleteDraft: 'Delete Draft',
+    addStop: 'Add Stop',
+    removeStop: 'Remove Stop',
+    pinLocation: 'Pin GPS Location',
+    confirm: 'Confirm',
+    cancel: 'Cancel',
+    close: 'Close',
+    back: '← Back',
+    refresh: 'Refresh',
+    save: 'Save',
+    create: 'Create',
+    edit: 'Edit',
+    delete: 'Delete',
+    view: 'View Details',
+    export: 'Export',
+    import: 'Import',
+    search: 'Search',
+    filter: 'Filter',
+    clearFilters: 'Clear Filters',
+    newRoute: 'New Route',
+    newVehicle: 'New Vehicle',
+    newDriver: 'New Driver',
+    // Delivery exception actions
+    reassignDelivery: 'Reassign to Driver',
+    transferToRoute: 'Transfer to Route',
+    unassignDelivery: 'Return to Pool',
+    bulkReassign: 'Bulk Reassign',
+    swapDeliveries: 'Swap Deliveries',
+    postpone: 'Postpone to Next Day',
+    returnToDepot: 'Return to Depot & Redispatch',
+    handoverInField: 'Field Handoff',
+  },
+
+  // ── Tooltips (title of icon buttons) ────────────────────────────
+  tooltips: {
+    cancelRoute: 'Permanently cancel this route',
+    validateRoute: 'Change route status to Validated',
+    reassignRoute: 'Assign this route to another driver',
+    closeRoute: 'Manually close this route',
+    deleteDraft: 'Delete this route draft',
+    viewDetail: 'View details for this item',
+    addStop: 'Add a delivery to this route',
+    removeStop: 'Remove this stop from the route',
+    pinLocation: 'Manually set GPS coordinates',
+    refresh: 'Refresh data',
+    export: 'Export data',
+    // Delivery exception tooltips
+    reassignDelivery: 'Transfer this delivery to another driver (maintains ownership)',
+    transferToRoute: 'Place this delivery into an existing route at selected sequence',
+    unassignDelivery: 'Remove from route and return to unassigned pool (dispatch later)',
+    capacityOver: 'Vehicle capacity exceeded — choose another vehicle or split delivery',
+    capacityOk: 'Vehicle capacity available',
+  },
+
+  // ── Empty States ──────────────────────────────────────────────────────
+  empty: {
+    routes: 'No routes match the selected filters',
+    deliveries: 'No deliveries match the selected criteria',
+    drivers: 'No drivers registered — start by adding a driver',
+    vehicles: 'No vehicles in fleet — add your first vehicle',
+    depots: 'No depots configured',
+    zones: 'No geographic zones defined',
+    stops: 'No stops in this route',
+    history: 'No history available for this item',
+    pod: 'No proof of delivery available for this stop',
+    exceptions: 'No exceptions to process — all clear',
+    notifications: 'No pending notifications',
+    auditLogs: 'No audit logs available',
+    search: 'No results found for this search',
+    generic: 'No results',
+  },
+
+  // ── Toast Errors ────────────────────────────────────────────────────
+  errors: {
+    missingGps: 'Cannot validate — some stops lack GPS coordinates',
+    cancelFailed: 'Error while cancelling route',
+    reassignFailed: 'Error while reassigning',
+    validateFailed: 'Error while validating route',
+    closeFailed: 'Error while closing route',
+    deleteFailed: 'Error while deleting',
+    loadFailed: 'Unable to load data — please try again',
+    saveFailed: 'Error while saving',
+    importFailed: 'Error while importing',
+    exportFailed: 'Error while exporting',
+    networkError: 'Network error — check your connection',
+    // Reassign/transfer errors
+    capacityExceeded: 'Vehicle capacity exceeded for this route',
+    stopOrderInvalid: 'Invalid sequence — must be between 1 and stop count + 1',
+    timeWindowInvalid: 'Time window is outside route boundaries',
+    unassignFailed: 'Error while returning to pool',
+    transferFailed: 'Error while transferring',
+  },
+
+  // ── Toast Success ─────────────────────────────────────────────────────
+  success: {
+    routeCancelled: 'Route cancelled — planned deliveries returned to queue',
+    routeValidated: 'Route successfully validated',
+    routeClosed: 'Route closed',
+    routeDeleted: 'Draft deleted',
+    routeReassigned: 'Route reassigned',
+    saved: 'Saved successfully',
+    created: 'Created successfully',
+    deleted: 'Deleted successfully',
+    exported: 'Exported successfully',
+    imported: 'Imported successfully',
+    deliveryReassigned: 'Delivery reassigned',
+    deliveryUnassigned: 'Delivery returned to pool',
+    deliveryTransferred: 'Delivery transferred to target route',
+  },
+
+  // ── Confirmation Dialogs ────────────────────────────────────────
+  confirm: {
+    cancelRoute: {
+      title: 'Cancel route?',
+      body: 'Planned deliveries will be returned to queue. Already picked up packages remain with the driver.',
+      confirm: 'Yes, cancel',
+    },
+    deleteRoute: {
+      title: 'Delete draft?',
+      body: 'This action is irreversible. The draft will be permanently deleted.',
+      confirm: 'Delete',
+    },
+    closeRoute: {
+      title: 'Close route?',
+      body: 'The route will be marked as closed. This action cannot be undone.',
+      confirm: 'Close',
+    },
+    deleteVehicle: {
+      title: 'Delete vehicle?',
+      body: 'The vehicle will be removed from fleet. This action is irreversible.',
+      confirm: 'Delete',
+    },
+    deleteDriver: {
+      title: 'Delete driver?',
+      body: 'The driver profile will be removed from the system.',
+      confirm: 'Delete',
+    },
+  },
+
+  // ── Field Placeholders ──────────────────────────────────────────────
+  placeholders: {
+    searchRoutes: 'Search routes...',
+    searchDeliveries: 'Client, reference, ID...',
+    searchDrivers: 'Driver name or phone...',
+    searchVehicles: 'Make, model, license plate...',
+    searchGeneric: 'Search...',
+    reason: 'Reason',
+    city: 'City...',
+    date: 'Date',
+    notes: 'Notes or instructions...',
+  },
+
+  // ── Section and Page Labels ─────────────────────────────────────────
+  pages: {
+    routes: {
+      title: 'Routes',
+      subtitle: 'Planning and tracking delivery routes',
+    },
+    routeDetail: {
+      backLabel: '← Back to routes',
+      kpiProgress: 'Progress',
+      kpiDelay: 'Accumulated Delay',
+      kpiSla: 'SLA Punctuality',
+      kpiRevenue: 'Total Revenue',
+      kpiDistance: 'Total Distance',
+      kpiDriver: 'Driver',
+      kpiVehicle: 'Vehicle',
+      stopsTitle: 'Delivery Sequence',
+      orderInfo: 'Order Information',
+      statusLog: 'Status History',
+      pod: 'Proof of Delivery',
+      legacyTitle: 'Stops Removed from Route',
+      sidebarDriver: 'Assigned Driver',
+      sidebarVehicle: 'Vehicle',
+      sidebarDepot: 'Starting Depot',
+      sidebarMetrics: 'Route Metrics',
+      sidebarLifecycle: 'Lifecycle',
+    },
+    deliveries: {
+      title: 'Qualification',
+      subtitle: 'Operational qualification pipeline for deliveries',
+      // Quick views
+      quickViewAll: 'All Statuses',
+      quickViewNeedsPinning: 'Geolocation Required',
+      quickViewUnassigned: 'Awaiting Assignment',
+      quickViewInTransit: 'In Transit Flow',
+      quickViewCompleted: 'Validated Deliveries',
+      quickViewFailed: 'Incidents & Returns',
+      // Filter labels
+      filterLabel: 'Filters',
+      showFilters: 'Show Filters',
+      hideFilters: 'Hide Filters',
+      filterByStatus: 'All Statuses',
+      filterByDriver: 'No Driver Filter',
+      filterByZone: 'All Zones',
+      filterClear: 'Clear Filters',
+      searchPlaceholder: 'Search by reference, client, address...',
+      // Tabs
+      tabList: 'List',
+      tabMap: 'Map',
+      // Table headers
+      refHeader: 'Reference',
+      clientHeader: 'Client',
+      addressHeader: 'Address',
+      driverHeader: 'Driver',
+      zoneHeader: 'Zone',
+      statusHeader: 'Status',
+      // Buttons & Actions
+      pinButton: 'Pin',
+      cancelButton: 'Cancel Delivery',
+      downloadBl: 'Download BL',
+      trackingLink: 'Tracking Link',
+      // Modals & Messages
+      pinModalTitle: 'Geolocation Validation',
+      pinModalSearch: 'Search for an address...',
+      pinModalConfirm: 'Position Confirmed',
+      pinReverseGeocoding: 'Geocoding...',
+      cancelModalTitle: 'Cancel Delivery',
+      cancelModalLabel: 'Reason (optional)',
+      cancelModalPlaceholder: 'Explain why this delivery is being cancelled...',
+      // Messages
+      backorderCreated: 'Backorder Created',
+      deliveryCreated: 'Delivery Created',
+      deliveryCancelled: 'Delivery Cancelled',
+      trackingCopied: 'Tracking Link Copied!',
+      loadError: 'Load Error',
+      backorderError: 'Backorder Error',
+      pinError: 'Geolocation Error',
+      downloadError: 'BL Download Error',
+      unknownDriver: 'Unknown Assignment',
+      outOfZone: 'Out of Zone',
+      lockedGeocoding: 'Qualification Locked',
+      // Pagination & Layout
+      totalFlow: 'Total Flow',
+    },
+    drivers: {
+      title: 'Drivers',
+      subtitle: 'Personnel management and operational tracking',
+    },
+    vehicles: {
+      title: 'Vehicle Fleet',
+      subtitle: 'Fleet management and rolling assets',
+    },
+    dashboard: {
+      title: 'Dashboard',
+      subtitle: 'Operational Command Center',
+    },
+    depots: {
+      title: 'Depots',
+      subtitle: 'Configuration of start and end hubs',
+    },
+    zones: {
+      title: 'Geographic Zones',
+      subtitle: 'Territorial division for route optimization',
+    },
+    exceptions: {
+      title: 'Exceptions',
+      subtitle: 'Incidents, delivery failures, return to pool',
+    },
+    dispatch: {
+      title: 'Dispatch',
+      subtitle: 'Check exceptions — reassign or assign a delivery',
+    },
+    import: {
+      title: 'Import Center',
+      subtitle: 'ERP data integration and qualification',
+    },
+    settings: {
+      title: 'Settings',
+      subtitle: 'Administration system configuration',
+    },
+    auditLogs: {
+      title: 'Audit Logs',
+      subtitle: 'Complete traceability of administrative actions',
+    },
+    performance: {
+      title: 'Performance',
+      subtitle: 'Operational performance analysis and metrics',
+    },
+    notifications: {
+      title: 'Notifications',
+      subtitle: 'Notification Center and Alerts',
+    },
+    reports: {
+      title: 'Reports',
+      subtitle: 'Operational report generation and export',
+    },
+    operations: {
+      title: 'Overview',
+      subtitle: 'Real-time supervision of operations and fleet',
+    },
+    routeBuilder: {
+      title: 'Create Route',
+      subtitle: 'Map planning and route optimization',
+    },
+    companies: {
+      title: 'Companies',
+      subtitle: 'Tenant management and ERP configurations',
+    },
+  },
+
+  // ── Status Labels ──────────────────────────────────
+  statusLabels: {
+    DRAFT: 'Draft',
+    VALIDATED: 'Validated',
+    IN_PROGRESS: 'In Progress',
+    CLOSED: 'Closed',
+    COMPLETED: 'Completed',
+    CANCELLED: 'Cancelled',
+    FAILED: 'Failed',
+    SLA_BREACH: 'SLA Breach',
+    UNSCHEDULED: 'Unscheduled',
+    SCHEDULED: 'Scheduled',
+    PENDING: 'Pending',
+    ARRIVED: 'Arrived',
+    PICKED_UP: 'Picked Up',
+    IN_TRANSIT: 'In Transit',
+    DELIVERED: 'Delivered',
+    PARTIALLY_DELIVERED: 'Partial',
+    PARTIAL: 'Partial',
+    REMOVED: 'Removed',
+    REMOVED_REPLANNED: 'Replanned',
+    REMOVED_CANCELLED: 'Cancelled (Removed)',
+    FAILED_ATTEMPT: 'Failed Attempt',
+  } as Record<string, string>,
+
+  // ── Delivery Failure Codes ────────────────────────────────────────
+  failureCodes: {
+    CLIENT_ABSENT:   'Client Absent',
+    REFUSED:         'Client Refused',
+    WRONG_ADDRESS:   'Incorrect Address',
+    DAMAGED:         'Item Damaged',
+    OTHER:           'Other Reason',
+  } as Record<string, string>,
+
+  // ── Order Source ─────────────────────────────────────────────
+  sources: {
+    APP:    'Mobile App',
+    ODOO:   'Odoo ERP',
+    MANUAL: 'Manual Entry',
+    ERP:    'ERP',
+  } as Record<string, string>,
+
+  // ── ERP Synchronization Status ────────────────────────────────────
+  syncStatus: {
+    SYNCED:          'Synced',
+    PENDING_RETRY:   'Retry Pending',
+    PENDING_CANCEL:  'Cancellation Pending',
+    SYNC_FAILED:     'Sync Failed',
+  } as Record<string, string>,
+
+  // ── Delivery Priority ─────────────────────────────────────────────
+  priorities: {
+    HIGH:   'High',
+    NORMAL: 'Normal',
+    LOW:    'Low',
+    URGENT: 'Urgent',
+  } as Record<string, string>,
+
+  // ── Event Actor ─────────────────────────────────
+  actors: {
+    SYSTEM:     'System',
+    AUTO:       'Automatic',
+    DRIVER:     'Driver',
+    ADMIN:      'Administrator',
+    DISPATCHER: 'Dispatcher',
+    MANAGER:    'Manager',
+    ERP:        'ERP',
+    ODOO:       'Odoo ERP',
+  } as Record<string, string>,
+
+  // ── Refusal Reason / Item Issue ───────────────────────────────
+  itemReasons: {
+    CLIENT_ABSENT:    'Client Absent',
+    CLIENT_REJECTED:  'Client Refused',
+    DAMAGED:          'Item Damaged',
+    WRONG_ITEM:       'Wrong Item',
+    WRONG_ADDRESS:    'Incorrect Address',
+    POSTPONED:        'Postponed',
+    OTHER:            'Other',
+    REFUSED:          'Refused by Client',
+  } as Record<string, string>,
+
+  // ── Item Outcome (partial delivery) ───────────────────────
+  outcomes: {
+    DELIVERED:           'Delivered',
+    PARTIAL:             'Partial',
+    PARTIALLY_DELIVERED: 'Partial',
+    REFUSED:             'Refused',
+    DAMAGED:             'Damaged',
+    MISSING:             'Missing',
+    RETURNED:            'Returned',
+    WRONG_ITEM:          'Wrong Item',
+    NOT_HOME:            'Client Absent',
+    EXPIRED:             'Expired',
+    POSTPONED:           'Postponed',
+  } as Record<string, string>,
+
+  // ── SLA Status / Delay ────────────────────────────────────────────────
+  delayStatus: {
+    EARLY:   'Early',
+    ON_TIME: 'On Time',
+    LATE:    'Late',
+  } as Record<string, string>,
+
+  // ── Driver / Vehicle Availability ───────────────────────────────
+  availability: {
+    driverAvailable: 'Available for Assignment',
+    driverBusy: 'On Active Route',
+    driverOnStandby: 'On Standby',
+    vehicleAvailable: 'Available',
+    vehicleBusy: 'Assigned to Route',
+    vehicleOffline: 'Out of Service',
+  },
+
+  // ── Loading States ───────────────────────────────────────────────────────
+  loading: {
+    map: 'Loading map...',
+    data: 'Loading data...',
+    saving: 'Saving...',
+    generic: 'Loading...',
+  },
+
+  // ── notificationsDropdown ─────────────────────────────────────────────
+  notificationsDropdown: {
+    title: 'Notifications',
+    markAllRead: 'Mark all read',
+    viewAll: 'View all',
+    noNotifications: 'No notifications',
+    today: 'Today',
+    thisWeek: 'This week',
+    older: 'Older',
+    viewMore: 'View {count} more notifications →',
+    justNow: 'just now',
+    minutesAgo: '{minutes} m',
+    hoursAgo: '{hours} h',
+    daysAgo: '{days} d',
+  },
+
+  notificationsPage: {
+    title: 'Ops feed',
+    statUnread: 'unread',
+    statCritical: 'critical',
+    statTotal: 'events',
+    markAllRead: 'Mark all read',
+    clearAll: 'Clear all',
+    eventSingular: 'event',
+    eventPlural: 'events',
+    filters: {
+      all: 'All',
+      unread: 'Unread',
+      critical: 'Critical',
+      warning: 'Warnings',
+      info: 'Info',
+    },
+    groups: {
+      today: 'Today',
+      week: 'This week',
+      older: 'Older',
+    },
+    empty: {
+      title: 'All clear',
+      subtitleAll: 'Fleet running smooth. Delivery, route and ERP events will stream here in real time.',
+      subtitleFiltered: 'No events match this filter.',
+    },
+    time: {
+      justNow: 'just now',
+      minutesAgo: '{minutes} min ago',
+      hoursAgo: '{hours} h ago',
+      daysAgo: '{days} d ago',
+      dateLocale: 'en-US',
+    },
+  },
+
+  // ── globalSearch ──────────────────────────────────────────────────────
+  globalSearch: {
+    triggerPlaceholder: 'Search or jump to...',
+    inputPlaceholder: 'Type to search...',
+    searching: 'Searching...',
+    minChars: 'Type at least 2 characters',
+    noResults: 'No results found',
+    groups: {
+      recents: 'Recents',
+      systemActions: 'System Actions',
+      quickNav: 'Quick Navigation',
+      deliveries: 'Deliveries',
+      routes: 'Routes',
+      drivers: 'Drivers',
+      vehicles: 'Vehicles',
+      depots: 'Depots',
+      zones: 'Zones',
+    },
+    system: {
+      themeTitle: 'Change theme mode',
+      themeDesc: 'Toggle between light and dark visual themes',
+      refreshTitle: 'Refresh system telemetry',
+      refreshDesc: 'Synchronize dashboard with backend server state',
+      driverTitle: 'Add a new driver',
+      driverDesc: 'Invite a courier to join the ASM logistics platform',
+    },
+    shortcuts: {
+      navigate: 'navigate',
+      open: 'open',
+      close: 'close',
+    },
+  },
+
+  // ── Dashboard page ──────────────────────────────────────────────────────
+  dashboardPage: {
+    syncError: 'Sync failed',
+    kpiTotal: 'Total',
+    kpiInTransit: 'In Transit',
+    kpiDelivered: 'Delivered',
+    kpiExceptions: 'Exceptions',
+    periodDay: 'Today',
+    periodWeek: 'Week',
+    periodMonth: 'Month',
+    periodAll: 'All',
+    dispatchFlowTitle: 'dispatch flow',
+    plannerButton: 'Planner',
+    emptyState: 'empty',
+    driverPerformanceTitle: 'performance by driver',
+    chartLegendTotal: 'Total',
+    chartLegendDelivered: 'Delivered',
+    serviceQualityTitle: 'service quality',
+    slaRateLabel: 'SLA rate',
+    statsCompleted: 'Completed',
+    statsInProgress: 'In Progress',
+    statsExceptions: 'Exceptions',
+    unknownClient: 'Unknown Client',
+    moreDeliveries: '+{count} more',
+  },
+
+  // ── Operations Page ─────────────────────────────────────────────────────
+  operationsPage: {
+    // Header
+    subtitle: 'Route Tracking',
+    title: 'Operations Control Center',
+    // Tabs
+    tabToday: 'Today',
+    tabWeek: 'Week',
+    // KPIs
+    kpiActiveRoutes: 'Active Routes',
+    kpiFieldDrivers: 'Field Drivers',
+    kpiCompletedStops: 'Completed Stops',
+    kpiFailures: 'Failures / Alerts',
+    // Section: To Start
+    sectionStart: 'To Start',
+    noRoutesWaiting: 'No pending routes',
+    // Section: Watchpoints
+    sectionWatchpoints: 'Watchpoints',
+    allUnderControl: 'Everything is under control',
+    // Performance analysis
+    sectionPerformance: 'Performance Analysis',
+    labelSuccess: 'Successful',
+    labelFailures: 'Failures',
+    labelOngoing: 'Ongoing',
+    // Routes table
+    tableTodayRoutes: "Today's Routes",
+    tableRoute: 'Route',
+    tableDriver: 'Driver',
+    tableStatus: 'Status',
+    tableProgress: 'Progress',
+    noRoutes: 'No routes',
+    // Week tab
+    thisWeek: 'This Week',
+    routesCount: 'routes',
+    completion: 'completion',
+    weekInProgress: 'in progress',
+    weekClosed: 'closed',
+    weekTotal: 'total',
+    // Day and month names
+    dayNames: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+    monthNames: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+  },
+
+  // ── Dispatch Desk Page ─────────────────────────────────────────────────────
+  dispatchDeskPage: {
+    // Mobile tabs
+    tabFilters: 'Filters',
+    tabDispatch: 'Dispatch',
+    // Filter panel
+    filterToggleReduce: 'Collapse filters',
+    filterToggleShow: 'Show filters',
+    filterQuickSearch: 'Quick Search',
+    filterQuickSearchPlaceholder: 'Ref, Client, Driver...',
+    // Period filter
+    filterPeriod: 'Period',
+    periodDay: 'Today',
+    periodWeek: 'Week',
+    periodMonth: 'Month',
+    periodAll: 'All',
+    periodCustom: 'Range',
+    dateFrom: 'From',
+    dateTo: 'To',
+    // Other filters
+    filterDriver: 'Driver',
+    filterDriverPlaceholder: 'All drivers',
+    filterDriverNoFilter: 'No driver filter',
+    filterZone: 'Zone',
+    filterZonePlaceholder: 'All zones',
+    filterZoneGlobal: 'All zones',
+    filterRoute: 'Route',
+    filterRoutePlaceholder: 'All',
+    filterStatus: 'Status',
+    filterStatusPlaceholder: 'All statuses',
+    filterStatusAll: 'All statuses',
+    filterStatusUnscheduled: 'Unscheduled',
+    filterStatusScheduled: 'Scheduled',
+    filterStatusPickedUp: 'Picked Up',
+    filterStatusInTransit: 'In Transit',
+    filterStatusDelivered: 'Delivered',
+    filterStatusPartial: 'Partial',
+    filterStatusCancelled: 'Cancelled',
+    filterStatusFailed: 'Failed',
+    // Buttons
+    buttonLoading: 'Loading…',
+    buttonRefresh: 'Refresh',
+    // Active drivers section
+    activeDriversLabel: 'On Duty',
+    // KPI strip
+    kpiCritical: 'Critical',
+    kpiUnassigned: 'Unassigned',
+    kpiInTransit: 'In Transit',
+    kpiFailed: 'Failed',
+    // Tabs
+    tabAssign: 'Assignments',
+    tabAction: 'Action Required',
+    tabFailed: 'Failed',
+    tabMissingGps: 'Missing GPS',
+    tabHandoff: 'Handovers',
+    kpiUpdated: 'Updated',
+    cardCreated: 'Created',
+    handoffEmpty: 'No handovers in progress',
+    handoffStateRequested: 'Awaiting code',
+    handoffStateInProgress: 'Code issued · awaiting scan',
+    handoffStateOverdue: 'Overdue',
+    handoffCancelButton: 'Cancel',
+    handoffCancelTitle: 'Cancel handover',
+    handoffCancelDescription: 'The handover will be cancelled. The parcel stays with the sending driver and must be re-planned.',
+    handoffCancelReasonLabel: 'Reason (optional)',
+    handoffCancelConfirm: 'Cancel handover',
+    // New alerts banner
+    newAlertSingular: 'new alert',
+    newAlertPlural: 'new alerts',
+    newAlertBannerRefresh: 'Refresh',
+    // Toast messages
+    errorLoadingAlerts: 'Failed to load alerts',
+    errorCannotReassign: 'This delivery cannot be reassigned in its current state',
+    errorCannotReplan: 'This delivery cannot be rescheduled in its current state',
+    successReplanned: 'Delivery rescheduled successfully',
+    errorReplan: 'Failed to reschedule delivery',
+    errorNoteRequired: 'Please add a note before confirming',
+    successCancelled: 'Delivery cancelled',
+    errorCancel: 'Failed to cancel delivery',
+    successReturnConfirmed: 'Return confirmed',
+    errorReturnConfirm: 'Failed to confirm return',
+    // Table headers
+    tableHeaderOrder: 'Order',
+    tableHeaderStatus: 'Status',
+    tableHeaderClient: 'Client',
+    tableHeaderZone: 'Zone',
+    tableHeaderDriver: 'Driver',
+    tableHeaderMotif: 'Reason',
+    tableHeaderAlert: 'Alert',
+    tableHeaderCoordinates: 'Coordinates',
+    // Table content
+    noActionRequired: 'No action required',
+    noOrdersFound: 'No orders found',
+    unassigned: 'Unassigned',
+    missingGps: 'Missing GPS',
+    fixGps: 'Fix →',
+    // Modal titles
+    returnTitle: 'Confirm Return to Depot',
+    returnDescription: 'The package has been returned to the depot. It will be put back in the queue to be rescheduled.',
+    returnNoteLabel: 'Return Note (optional)',
+    returnConfirmLabel: 'Confirm Return',
+    cancelTitle: 'Permanently Cancel Delivery',
+    cancelDescription: 'This action is irreversible. The delivery will be marked as cancelled and cannot be rescheduled.',
+    cancelReasonLabel: 'Cancellation Reason (required)',
+    cancelConfirmLabel: 'Permanently Cancel',
+    keepLabel: 'Keep',
+    // Detail modal
+    detailTitle: 'Details',
+    orderLabel: 'Order',
+    openLink: 'Open →',
+    driverLabel: 'Driver',
+    replanButton: 'Reschedule',
+    reassignButton: 'Reassign',
+    // Tooltips
+    reassignTooltip: 'Reassign',
+    assignDriverTooltip: 'Assign a driver',
+    replanTooltip: 'Reschedule',
+    callClientTooltip: 'Call client',
+    callDriverTooltip: 'Call driver',
+    // Additional descriptions
+    reasonLabel: 'Reason',
+    noComment: 'No comment',
+    reprogrammationLabel: 'Reschedule',
+    byLabel: 'by',
+    // Motif labels (formatMotif)
+    motifSlaUnscheduled: 'Unscheduled Order',
+    motifSlaScheduled: 'Stuck at Depot',
+    motifSlaPickup: 'Late Pickup',
+    motifSlaInTransit: 'Late Delivery',
+    motifScheduledMonitoring: 'Previous Stop In Progress',
+    motifClientAbsent: 'Client Absent',
+    motifRefused: 'Delivery Refused',
+    motifWrongAddress: 'Wrong Address',
+    motifDamaged: 'Package Damaged',
+    motifOther: 'Other Reason',
+    motifPartialDelivery: 'Partial Delivery',
+    motifFailed: 'Delivery Failed',
+    motifCancelled: 'Delivery Cancelled',
+    motifUnscheduled: 'Unscheduled',
+    motifScheduled: 'Scheduled',
+    motifPickedUp: 'Picked Up',
+    motifInTransit: 'In Transit',
+    motifDelivered: 'Delivered',
+    motifPartiallyDelivered: 'Partially Delivered',
+    motifUnknown: 'Unknown Incident',
+    // Time elapsed (formatElapsed)
+    timeJustNow: 'just now',
+    timeMinutes: '{diff} min',
+    timeHours: '{h}h{mm}',
+    timeDays: '{d}d',
+    // Comments (formatComment)
+    commentSlaUnscheduled: 'Waiting for a route since {time}',
+    commentSlaScheduled: 'Package at depot but not picked up since {time}',
+    commentSlaPickup: 'Driver has not yet arrived at client · Waiting since {time}',
+    commentSlaInTransit: 'In transit but running late · Reported {time} ago',
+    commentScheduledMonitoring: 'Driver finalizing previous stop · Will be handled next',
+    commentClientAbsent: 'Client was absent during attempt · {time} ago',
+    commentRefused: 'Client refused delivery · {time} ago',
+    commentWrongAddress: 'Delivery address not found or incorrect · {time} ago',
+    commentDamaged: 'Package reported damaged · {time} ago',
+    commentOther: 'Delivery failed without specific reason · {time} ago',
+    commentPartial: 'Partial delivery reported {time} ago',
+    commentFailed: 'Delivery failed · {time} ago',
+    commentCancelled: 'Cancelled {time} ago',
+    commentDefault: 'Reported {time} ago',
+    // Suggestions (formatSuggestion)
+    suggestionSlaUnscheduled: '→ Schedule in a route',
+    suggestionScheduledMonitoring: '→ Monitor — no immediate action',
+    suggestionWrongAddress: '→ Correct the address in the order details',
+    suggestionOther: '→ Check driver comment',
+    // ReplanModal
+    replanModalTitleReplan: 'Reschedule for Planning',
+    replanModalTitleReassign: 'Reassign Delivery',
+    replanModalLabelOrder: 'Order',
+    replanModalLabelProblem: 'Issue',
+    replanModalLabelClient: 'Client',
+    replanModalWhatWillHappen: 'What Will Happen?',
+    replanModalDescription: 'This delivery will be removed from the current route{routeName} and put back in the queue. A planner will then reassign it to a new route.',
+    replanModalNoteLabel: 'Note (required)',
+    replanModalNoteHint: 'Briefly explain why you are performing this action',
+    replanModalNotePlaceholder: 'Ex: Client absent, wrong address, driver unavailable…',
+    // ActionRow button tooltips
+    buttonReassign: 'Reassign',
+    buttonAssign: 'Assign a driver',
+    buttonReplan: 'Reschedule',
+    buttonCallClient: 'Call client',
+    buttonContactClient: 'Contact client',
+    buttonCallDriver: 'Call driver',
+    buttonReturnToDepot: 'Return to depot',
+    // ActionRow labels
+    unassignedLabel: 'Unassigned',
+    incidentLabel: 'Incident',
+    criticalLabel: 'Critical',
+    reportedLabel: 'Reported',
+    updatedLabel: 'Updated',
+    clientLabel: 'Client',
+    routeLabel: 'Route',
+    routeInProgress: 'In progress',
+    routeValidated: 'Validated',
+    routeDraft: 'Draft',
+    noRouteAssigned: 'No route assigned',
+  },
+
+  // ── ReassignDrawer ───────────────────────────────────────────────────────
+  reassignDrawer: {
+    // Step labels
+    stepDriver: 'Driver',
+    stepRoute: 'Route',
+    stepConfigure: 'Configure',
+    // Route status
+    routeDraft: 'Draft',
+    routeValidated: 'Validated',
+    routeInProgress: 'In progress',
+    routeClosed: 'Closed',
+    routeCancelled: 'Cancelled',
+    // Drawer title
+    assignTitle: 'Assign Delivery',
+    assignBatchTitle: '{count} assignments',
+    reassignTitle: 'Reassign',
+    batchTitle: '{count} deliveries',
+    // Buttons
+    backButton: 'Back',
+    changeDriver: 'Change',
+    confirmReassign: 'Confirm reassignment',
+    confirmBatch: 'Confirm ({count} deliveries)',
+    // Step 1: Driver selection
+    searchPlaceholder: 'Search driver…',
+    onlineWithRoute: 'Online — with route',
+    onlineNoRoute: 'Online — no route',
+    autoRouteCreated: 'Route automatically created as draft',
+    onBreak: 'On break',
+    showOffline: 'Show',
+    hideOffline: 'Hide',
+    offlineLabel: 'offline',
+    offlineWarning: 'Offline drivers will receive the assignment but are not active.',
+    noDriver: 'No drivers found',
+    // Stop info
+    stopFree: 'available',
+    loadingRoutes: 'Loading…',
+    noRoutes: 'No route',
+    // Step 2: Route selection
+    loadingRoutesStep2: 'Loading routes…',
+    noActiveRoutes: 'No active routes (next 30 days)',
+    noActiveRoutesDesc: 'This driver has no scheduled routes. Create one from the Routes page.',
+    routeCount: '{count} route{plural}',
+    // Step 3: Configure
+    timeWindowLabel: 'Delivery Time Window',
+    timeWindowStart: 'Start',
+    timeWindowEnd: 'End',
+    timeWindowError: 'End before start',
+    timeWindowErrorDesc: 'End time must be after start time',
+    noteForDriver: 'Note for Driver',
+    noteOptional: '(Optional)',
+    noteRequired: '*',
+    notePlaceholder: 'Explain the reassignment…',
+    noteInternalPlaceholder: 'Internal note (optional)…',
+  },
+
+  reassignCommandOverlay: {
+    deliveryLabel: 'Delivery',
+    title: 'Reassign Entity',
+    driverTab: 'Driver',
+    routeTab: 'Route',
+    searchDriver: 'Search driver…',
+    searchRoute: 'Search route…',
+    unnamed: 'Unnamed Driver',
+    activeRoute: 'Active Route',
+    stops: 'Stops',
+    noResults: 'No entities found',
+    noDriver: 'No driver assigned',
+    operationParams: 'Operational Parameters',
+    orderLabel: 'Stop Sequence Order',
+    timeStart: 'Start Time',
+    timeEnd: 'End Time',
+    noteLabel: 'Note',
+    notePlaceholder: 'Explain the reassignment…',
+    capacityTarget: 'Capacity Utilization',
+    forceWarning: 'Force assignment (ignore warning)',
+    cancelBtn: 'Cancel',
+    confirmBtn: 'Confirm',
+  },
+
+  // ── Delivery Detail Page ──────────────────────────────────────────────────
+  deliveryPage: {
+    notFound: 'Delivery not found',
+    cancelled: 'Cancelled',
+    loadingFile: 'Loading file...',
+    returnButton: 'Back',
+    // Section: Client
+    sectionClient: 'Client',
+    labelName: 'Name',
+    labelPhone: 'Phone',
+    labelAddress: 'Address',
+    labelCity: 'City',
+    labelPostalCode: 'Postal Code',
+    labelZone: 'Zone',
+    // Section: Order
+    sectionOrder: 'Order',
+    labelReference: 'Reference',
+    labelInternalId: 'Internal ID',
+    labelTotalWeight: 'Total Weight',
+    labelAmount: 'Amount',
+    labelSource: 'Source',
+    labelSyncErp: 'ERP Sync',
+    labelCreatedAt: 'Created',
+    labelUpdatedAt: 'Updated',
+    // Section: Driver & Route
+    sectionDriverRoute: 'Driver & Route',
+    labelDriver: 'Driver',
+    labelRoute: 'Route',
+    seeRoute: 'View route',
+    // Section: Items
+    sectionItems: 'Items',
+    itemsCount: 'Items · {count} line{plural}',
+    // Table headers
+    tableDesignation: 'Description',
+    tableSku: 'SKU',
+    tableQty: 'Qty',
+    tableQtyDone: 'Qty Delivered',
+    tableUnitPrice: 'Unit Price',
+    tableTotal: 'Total',
+    // Section: Timeline
+    sectionTimeline: 'Status Timeline',
+    noHistory: 'No history available.',
+    // Section: Proof of Delivery
+    sectionProof: 'Proof of Delivery',
+    noPhoto: 'No photo',
+    noBL: 'No signed delivery note',
+  },
+
+  // ── Breadcrumbs ──────────────────────────────────────────────────────────
+  breadcrumbs: {
+    home: 'Home',
+    separator: '/',
+  },
+
+  // ── TopNav & Theme ──────────────────────────────────────────────────────
+  topNav: {
+    toggleSidebar: 'Toggle sidebar',
+    myAccount: 'My Account',
+    logout: 'Logout',
+    lightMode: 'Light Mode',
+    darkMode: 'Dark Mode',
+    enableLightMode: 'Enable light mode',
+    enableDarkMode: 'Enable dark mode',
+    user: 'User',
+  },
+
+  // ── Routes Detail Page ──────────────────────────────────────────────────
+  routeDetailPage: {
+    labelOrder: 'Order',
+    labelErpRef: 'ERP Ref.',
+    labelWeight: 'Weight',
+    labelQty: 'Qty',
+    labelSource: 'Source',
+    labelTimeWindow: 'Time Window',
+    labelInstructions: 'Instructions',
+    labelNotes: 'Note',
+    labelDepot: 'Depot',
+    labelDeparture: 'Departure',
+    noDepot: 'No depot',
+    labelLifecycle: 'Lifecycle',
+    statusCreated: 'Created',
+    statusValidated: 'Validated',
+    statusStarted: 'Started',
+    statusClosed: 'Closed',
+    labelStopsSequence: 'Stop Sequence',
+    tabDetails: 'Details',
+    tabHistory: 'History',
+    tabProof: 'Proof',
+    labelArticles: 'Articles',
+    tableArticle: 'Article',
+    tableOrdered: 'Ordered',
+    tableDelivered: 'Delivered',
+    tableStatus: 'Status',
+    tableUnitPrice: 'Unit Price',
+    labelTotal: 'Total',
+    createBackorder: 'Create Backorder',
+    loading: 'Loading...',
+    noPodAvailable: 'No proof of delivery available',
+    signedBL: 'Signed BL',
+    photoPod: 'Photo POD',
+    photo: 'Photo',
+    deliveryNote: 'Delivery Note',
+    buttonTimeWindow: 'Window',
+    buttonRemove: 'Remove',
+    buttonCancel: 'Cancel',
+    modalCancelStopTitle: 'Cancel this stop',
+    modalCancelStopDesc: 'Cancel',
+    modalRemoveStopTitle: 'Remove this stop',
+    modalRemoveStopDesc: 'Remove',
+    modalCancel: 'Cancel',
+    modalRemove: 'Remove',
+    modalClose: 'Close',
+    modalSave: 'Save',
+    labelStart: 'Start',
+    labelEnd: 'End',
+    dataNotLoaded: 'Data not loaded',
+    generatingBL: 'Generating delivery note...',
+    blDownloaded: 'Delivery note downloaded',
+    blGenerationError: 'Error generating delivery note',
+    backorderCreated: 'Backorder created',
+    backorderError: 'Backorder error',
+    stopCancelled: 'Stop cancelled',
+    stopCancelError: 'Failed to cancel stop',
+    stopRemoved: 'Stop removed',
+    stopRemoveError: 'Failed to remove stop',
+    windowUpdated: 'Time window updated',
+    updateError: 'Update failed',
+    overlapWarning: '⚠️ This window overlaps with other stops on the route.',
+    routeNotFound: 'Route not found.',
+    backToRoutes: 'Back to routes',
+    by: 'by',
+    tabMap: 'Map',
+    tabStops: 'Stops',
+    dispatchActionRecorded: 'Dispatch action recorded.',
+    deliveryReplanned: 'Delivery rescheduled for redelivery attempt.',
+    deliveryReassigned: 'Delivery reassigned to another driver.',
+    reason: 'Reason',
+    reasonPlaceholder: 'Explain why you are removing this stop...',
+    refERP: 'ERP',
+    refDelivery: 'DEL',
+    unitKg: 'kg',
+    unitMin: 'min',
+    back: 'Back',
+    breadcrumbDetail: 'Detail',
+    optimized: 'Optimized',
+    refresh: 'Refresh',
+    labelDriver: 'Driver',
+    notAssigned: 'Not assigned',
+    labelProgress: 'Progress',
+    failed: 'failed',
+    stops: 'stops',
+    labelCumulativeDelay: 'Cumulative Delay',
+    departure: 'Departure',
+    labelPunctuality: 'Punctuality',
+    withinWindow: 'within window',
+    labelDistance: 'Distance',
+    labelVehicle: 'Vehicle',
+    labelTotalLoad: 'Total Load',
+    capacity: 'cap.',
+    buttonRemoveRoute: 'Remove from Route',
+    tooltipRemoveStop: 'Remove this stop from the route — delivery returns to unscheduled pool for redispatch. Driver will be notified immediately.',
+    tooltipEditWindow: 'Edit the delivery time window for this stop. Available only for validated routes with pending or scheduled stops.',
+  },
+
+  // ── Import Page ────────────────────────────────────────────────────────
+  importPage: {
+    // Page structure
+    pageSubtitle: 'Data Flow',
+    pageTitle: 'ERP',
+    pageTitleBrand: 'Import',
+
+    // Mobile tabs
+    tabFilters: 'Filters',
+    tabOrders: 'Orders',
+
+    // Search & sync
+    searchPlaceholder: 'Ref., customer...',
+    syncButton: 'Sync ERP',
+
+    // Filter pills / Tabs
+    pillAll: 'All Orders',
+    pillReady: 'Ready to Import',
+    pillDone: 'Already Imported',
+
+    // Table headers
+    headerReference: 'ERP Reference',
+    headerCustomer: 'Customer',
+    headerDestination: 'Destination',
+    headerAmount: 'Amount',
+    headerStatus: 'Status',
+    headerActions: 'Actions',
+
+    // Table content
+    emptyState: 'No pending orders',
+    statusSynced: 'Synced',
+    statusReady: 'Ready for import',
+    tooltipDetails: 'Details',
+    buttonView: 'View',
+    buttonConfirm: 'Confirm',
+    buttonImport: 'Import',
+
+    // Bulk actions
+    selectedMessage: 'order{plural} selected',
+    deselect: 'Deselect',
+    bulkImport: 'Import ({count})',
+
+    // Pagination
+    showing: 'Showing {showing} of {total} orders',
+
+    // Preview drawer
+    drawerTitle: 'Pre-Import Validation',
+    loadingError: 'Loading failed',
+
+    // Preview section labels
+    previewRefERP: 'ERP Reference',
+    previewCustomer: 'Final Customer',
+    previewLocation: 'Delivery Location',
+
+    // Metrics
+    metricsArticles: 'Items',
+    metricsWeight: 'Weight',
+    metricsTotal: 'Total',
+
+    // Items list
+    itemsListTitle: 'Order Contents',
+    itemsColArticle: 'Item',
+    itemsColQty: 'Qty',
+    itemsColPrice: 'Price',
+
+    // Warnings
+    backorderWarning: 'Backorder detected (ID: {backorderId})',
+
+    // Action buttons
+    buttonViewDelivery: 'View Delivery',
+    buttonImportFlow: 'Import to Flow',
+
+    // Last sync
+    lastSync: 'Last sync:',
+  },
+
+  // ── Route Builder Page ─────────────────────────────────────────────────
+  routeBuilderPage: {
+    // Loading
+    loadingMap: 'Loading Map...',
+
+    // KPI labels
+    kpiScheduled: 'Scheduled',
+    kpiUnscheduled: 'Unscheduled',
+    kpiTotal: 'Total',
+    kpiRoutes: 'Routes',
+
+    // Date filter
+    buttonToday: 'Today',
+    tooltipTodayRoutes: 'Show today\'s routes',
+
+    // Toggle buttons
+    buttonExpand: 'Expand',
+    buttonCollapse: 'Collapse',
+
+    // Sidebar (RouteSidebar)
+    noRoutesForDate: 'No routes for this date',
+    lockRoute: 'Lock route',
+    unlockRoute: 'Unlock route',
+    selectForBatchOptimize: 'Select for batch optimization',
+    selectAll: 'Select all',
+    deselectAll: 'Deselect all',
+    newRoute: 'New route',
+
+    // Modals
+    createRouteTitle: 'Create a route',
+    settingsTitle: 'Route settings',
+    settingsSubtitlePrefix: 'Configuration',
+    settingsWarning: 'Schedules will be recalculated after saving.',
+    routeNameReadOnly: 'Name (read-only)',
+    deleteConfirmTitle: 'Irreversible action',
+    deleteDraftModalTitle: 'Delete draft?',
+    deleteDraftModalBody: 'This action is irreversible. All orders at this stop will become unscheduled.',
+    validateTitle: 'Route validation',
+    routeNameLabel: 'Route name',
+    operationDateLabel: 'Operation date',
+    assignedDriverLabel: 'Assigned driver',
+    vehicleLabel: 'Vehicle',
+    departureDepotLabel: 'Departure depot',
+    logisticsDepotLabel: 'Logistics depot',
+    selectDepot: 'Select depot…',
+    selectPlaceholder: 'Select…',
+    selectRoutePlaceholder: 'Choose a route…',
+    deleteRouteButton: 'Delete route',
+    vehicleBusy: ' — Busy',
+
+    // Search & filters
+    searchClientRefId: 'Search client, ID, reference…',
+    searchPlaceholder: 'Search…',
+    noResults: 'No results',
+    clearSelection: 'Clear selection',
+    selectedStops: '{count} stop{plural} selected{plural}',
+
+    // Orders table
+    emptyOrdersState: 'No orders to import',
+
+    // ValidationModal & Modals general
+    finalReviewSubtitle: 'Final review',
+    chronoErrors: 'Chronology errors',
+    readyForValidation: 'Ready for validation',
+    noStopsDetected: 'No stops detected.',
+    headerIndex: '#',
+    headerClientDestination: 'Client & destination',
+    headerStart: 'Start',
+    headerEnd: 'End',
+    headerStatus: 'Status',
+
+    // StopsPanel / General Panel
+    selectRoutePromptTitle: 'Select a route',
+    selectRoutePromptDesc: 'Choose a route on the left to manage its stops.',
+    validatedBadge: 'Validated',
+    draftBadge: 'Draft',
+    stopsCountLabelSingular: '{count} stop',
+    stopsCountLabelPlural: '{count} stops',
+    payloadLabel: 'Payload',
+    overloadLabel: 'Overload: +{amount} kg',
+    chronoConflictWarning: 'Timeline chronology conflicts.',
+    finalizeValidateButton: 'Finalize & validate',
+
+    // OrdersTable
+    headerIdErp: 'ERP ID',
+    headerIdAsm: 'ASM ID',
+    headerClient: 'Client',
+    headerArticles: 'Articles',
+    headerWeight: 'Load',
+    headerDate: 'Date',
+    articlesCountSingular: '{count} article',
+    articlesCountPlural: '{count} articles',
+    assignButton: 'Assign ({count})',
+
+    // RoutesTable
+    headerRoute: 'Route',
+    headerDriver: 'Driver',
+    headerVehicle: 'Vehicle',
+    headerStops: 'Stops',
+    headerDistance: 'Distance',
+    headerDuration: 'Duration',
+
+    // TimelineGantt
+    emptyTimelineGantt: 'No routes to display in the timeline',
+    noDriver: 'No driver',
+
+    // ActionBar
+    actionBarSettingsTooltip: 'Route settings',
+    actionBarSettingsLabel: 'Settings',
+    optimizingProgress: 'Optimizing...',
+    optimize: 'Optimize',
+    validate: 'Validate',
+    savingProgress: 'Saving...',
+    save: 'Save',
+
+    // StopsList
+    dragDropPrompt: 'Drag and drop orders to start planning.',
+    deselectButton: 'Deselect',
+    removeButton: 'Remove ({count})',
+
+    // OptimizePreview
+    optimizePreviewTitle: 'Optimization Preview',
+    gainLabel: 'Gain',
+    suggestedRouteLabel: 'Route suggested by OSRM',
+    applyButton: 'Apply',
+    departureTimeLabel: 'Departure time',
+    durationLabel: 'Duration',
+    noSuggestionLabel: 'No suggestion to display',
+    sincePreviousStopLabel: 'since previous stop',
+
+    // Map & Overlays
+    mapLayerStreet: 'Map',
+    mapLayerHot: 'HOT',
+    mapLayerSatellite: 'Satellite',
+    layerDepots: 'Depots',
+    layerTraces: 'Routes',
+    activeZoneLabel: 'Active Zone',
+    activeZoneNone: 'No Active Zone',
+    tabOrders: 'Orders',
+    tabRoutes: 'Routes',
+    tabTimeline: 'Timeline',
+    dragCardOrder: 'Order',
+    dragCardOrders: '{count} orders',
+    dragCardArticles: 'Items',
+    dragCardOtherArticles: '+{count} other items',
+    dragCardArticleCount: '{count} item{plural}',
+    dragCardDropPrompt: 'Drop on a route',
+    dragCardScrollPrompt: 'scroll to preview',
+    mapSearchPlaceholder: 'Search for a place…',
+    pageTitle: 'Route Planning',
+    breadcrumbDashboard: 'Dashboard',
+    selectedRoutes: '{count} selected',
+    eligibleRoutes: '({count} eligible)',
+    lockOrLessStopsIgnored: 'Locked routes or routes with less than 2 stops are ignored.',
+    batchOptimizeButton: 'Optimize',
+    clearSelectionTooltip: 'Clear selection',
+
+    // Toast messages
+    toastLoadFailed: 'Failed to load data',
+    toastRouteNameRequired: 'Route name is required',
+    toastDateRequired: 'Route date is required',
+    toastDriverRequired: 'Please select a driver',
+    toastDepotRequired: 'Please select a depot',
+    toastRouteCreated: 'Route created',
+    toastOrderNotPinned: 'Order {order} is not pinned — pin it on the map first before assigning.',
+    toastSelectRouteFirst: 'Select a route first',
+    toastNoOrderSelected: 'No order selected',
+    toastOrderAssigned: 'Order {order} assigned',
+    toastOrdersAssigned: '{count} orders assigned',
+    toastOsrmSuggested: 'OSRM suggestion generated: order, path and ETA ready to preview.',
+    toastOsrmFailed: 'OSRM backend optimization failed',
+    toastRouteLocked: 'Route locked',
+    toastRouteUnlocked: 'Route unlocked',
+    toastLockFailed: 'Lock failed',
+    toastUnlockFailed: 'Unlock failed',
+    toastNoEligibleRoutes: 'No eligible routes (locked or < 2 stops).',
+    toastBatchOptimizeOk: '{count} route{plural} optimized.',
+    toastBatchOptimizePartial: '{ok} optimized, {ko} failed.',
+    toastBatchOptimizeFailed: 'Batch optimization failed.',
+    toastOsrmApplied: 'OSRM optimization and time windows applied',
+    toastStopRemoved: 'Stop removed from route',
+    toastStopsRemoved: '{count} stops removed',
+    toastTimeWindowRequired: 'All stops must have a time window (start and end)',
+    toastTimeWindowEndBeforeStart: 'End time must be after start time',
+    toastTimeWindowChronoError: 'Chronology error: each stop must start after the previous ends',
+    toastTimeWindowsSaved: 'Time windows saved',
+    toastSettingsDateRequired: 'Date is required',
+    toastSettingsSaved: 'Route settings saved',
+    toastItineraryClear: 'Itinerary cleared',
+    toastRouteValidated: 'Route validated',
+    toastRouteNotFound: 'Route not found',
+    toastReorgFailed: 'Reorganization failed, reverted',
+    toastStopTransferred: 'Stop transferred',
+    toastTransferFailed: 'Transfer failed, reverted',
+  },
+
+  // ── Routes Table Page ──────────────────────────────────────────────────
+  routesTablePage: {
+    // Page structure
+    pageSubtitle: 'Route Optimization',
+    pageTitle: 'Routes',
+    pageTitleBrand: 'Tracking',
+
+    // Mobile tabs
+    tabFilters: 'Filters',
+    tabList: 'Routes',
+
+    // New route button
+    newRouteButton: 'New Route',
+    searchPlaceholder: 'Search Customer...',
+
+    // Status filters
+    filterStatusLabel: 'Status Filters',
+    filterAllRoutes: 'All Routes',
+    filterInProgress: 'In Progress',
+    filterReady: 'Ready to Depart',
+    filterClosed: 'History / Closed',
+
+    // Advanced filters
+    advancedFiltersLabel: 'Advanced Configuration',
+    filterPeriodLabel: 'Period',
+    filterAllDates: 'All dates',
+    filterToday: 'Today',
+    filterYesterday: 'Yesterday',
+    filterWeek: 'Last 7 days',
+    filterDriverLabel: 'Driver',
+    filterAllDrivers: 'All drivers',
+    filterVehicleLabel: 'Vehicle',
+    filterAllVehicles: 'All vehicles',
+    filterDepotLabel: 'Site / Depot',
+    filterAllDepots: 'All sites',
+    filterZoneLabel: 'Geographic Zone',
+    filterAllZones: 'All zones',
+    clearFiltersButton: 'Clear Filters',
+    refreshButton: 'Refresh Registry',
+
+    // Table headers
+    headerRoute: 'Route',
+    headerScheduled: 'Scheduled',
+    headerZoneDepot: 'Zone · Depot',
+    headerDriver: 'Driver',
+    headerStops: 'Stops',
+    headerStatus: 'Status',
+    headerActions: 'Actions',
+
+    // Detail table headers
+    headerIndex: '#',
+    headerClient: 'Client',
+    headerAddress: 'Address',
+    headerERP: 'ERP Ref',
+    headerWeight: 'Weight',
+    headerDeliveryStatus: 'Status',
+
+    // Route details
+    noActiveStops: 'No active stops',
+    movementLabel: 'movement',
+    notAssigned: 'Not assigned',
+    addressNotProvided: 'Address not provided',
+
+    // Close route tooltip
+    closeRouteTooltip: 'Close',
+
+    // Close route modal
+    closeRouteTitle: 'Close Route',
+    closeRouteDescription: 'Permanent closure of "{routeName}". All incomplete deliveries will be archived.',
+    closeRouteConfirm: 'Confirm Closure',
+    closeRouteCancel: 'Cancel',
+
+    // Error messages
+    loadError: 'Failed to load routes',
+  },
+
+  // ── Drivers Page ───────────────────────────────────────────────────────
+  driversPage: {
+    pageSubtitle: 'Human Resources',
+    pageTitle: 'Driver',
+    pageTitleBrand: 'Management',
+    tabFilters: 'Filters',
+    tabList: 'Drivers',
+    newDriverButton: 'New Driver',
+    importCsvButton: 'Import CSV',
+    searchPlaceholder: 'Name or Mobile...',
+    refreshButton: 'Refresh',
+    fleetStatusLabel: 'Fleet Status',
+    totalDriversLabel: 'Total Drivers',
+    onMissionLabel: 'On Mission',
+    operationalStatusLabel: 'Operational Status',
+    allFleet: 'All Fleet',
+    busy: 'On Mission',
+    available: 'Available',
+    tableHeaderDriver: 'Driver',
+    tableHeaderContact: 'Contact',
+    tableHeaderActivity: 'Activity',
+    tableHeaderActions: 'Actions',
+    displayedCount: '{count} driver(s) displayed',
+    onMissionStatus: 'On Mission',
+    availableStatus: 'Available',
+    activeDelivery: 'In Progress',
+    onRoute: 'On Route',
+    free: 'Free',
+    deactivateTooltip: 'Deactivate',
+    activateTooltip: 'Activate',
+    editModalTitle: 'Edit Driver',
+    newDriverModalTitle: 'New Driver',
+    loadingFleet: 'Loading Fleet...',
+    // Modal form fields
+    formInstructionLabel: 'Enter Driver Information',
+    nameLabel: 'Full Name',
+    namePlaceholder: 'First Last Name',
+    phoneLabel: 'Phone Number',
+    phonePlaceholder: '+216 XX XXX XXX',
+    emailLabel: 'Email Address',
+    emailPlaceholder: 'driver@company.com',
+    invitationEmailHelp: 'An invitation email will be sent to this address',
+    saveButton: 'Save',
+    createButton: 'Create',
+    cancelButton: 'Cancel',
+    // Additional modal & tooltip text
+    modifyTooltip: 'Edit',
+    deleteTooltip: 'Deactivate / Delete',
+    profileModalTitle: 'Driver Profile',
+    modifyButton: 'Edit',
+    closeButton: 'Close',
+    activityLogTitle: 'Recent Activity Log',
+    noActivityDetected: 'No activity detected',
+    deleteDriverTitle: 'Delete this driver?',
+    deleteDriverDescription: 'The profile of {driverName} will be deleted from the system. This action is irreversible.',
+    deleteButton: 'Delete',
+    statusActive: 'Active',
+    statusInactive: 'Inactive',
+    statusPending: 'Pending',
+    statusSuspended: 'Suspended',
+    pendingStatusLockedTooltip: 'The driver must finish onboarding before any action is available.',
+    pendingEditLockedTooltip: 'Edit is unavailable while the driver has not activated their account.',
+    cancelInviteTitle: 'Cancel invitation?',
+    cancelInviteDescription: 'The invitation for {driverName} will be cancelled and the driver removed. This action is irreversible.',
+    cancelInviteButton: 'Cancel invitation',
+    cancelInviteReasonLabel: 'Reason (optional)',
+    cancelInviteReasonPlaceholder: 'E.g. duplicate, typo…',
+    cancelInviteSuccess: 'Invitation cancelled',
+    suspendDriverTitle: 'Suspend this driver?',
+    suspendDriverDescription: 'The account of {driverName} will be disabled. They can no longer log in, but their history is preserved. Reversible action.',
+    suspendDriverButton: 'Suspend',
+    suspendReasonLabel: 'Reason (optional)',
+    suspendReasonPlaceholder: 'E.g. extended absence, internal review…',
+    suspendSuccess: 'Driver suspended',
+    resendInviteButton: 'Resend invitation',
+    resendInviteTooltip: 'Send a new activation code to this driver',
+    resendInviteSuccess: 'Invitation resent',
+    resendInProgress: 'Sending…',
+    resendCooldown: 'Retry in {seconds}s',
+    resendRateLimited: 'Too many attempts. Please wait {seconds}s before retrying.',
+    invitationExpired: 'The invitation has expired. Resend a new code to continue.',
+    invitationExpiresIn: 'Expires in {time}',
+    invitationExpiredChip: 'Expired',
+  },
+
+  // ── Vehicles Page ──────────────────────────────────────────────────────
+  vehiclesPage: {
+    // Page header & navigation
+    pageSubtitle: 'Fleet Management',
+    pageTitle: 'Vehicle',
+    pageTitleBrand: 'Management',
+    tabFilters: 'Filters',
+    tabList: 'Vehicles',
+    // Vehicle types
+    vehicleTypeHeavy: 'Heavy Truck',
+    vehicleTypeVan: 'Van',
+    vehicleTypeCar: 'Commercial',
+    vehicleTypeMoto: 'Motorcycle / Scooter',
+    // Status labels
+    statusEngaged: 'Engaged',
+    statusAvailable: 'Available',
+    statusOutOfService: 'Out of Service',
+    // Sidebar
+    newVehicleButton: 'Add Resource',
+    searchPlaceholder: 'Technical Search...',
+    operationalStatusLabel: 'Operational Status',
+    fleetTotal: 'Total Fleet',
+    operational: 'Operational',
+    engaged: 'Engaged',
+    maintenance: 'Maintenance',
+    logisticsCapacityLabel: 'Logistics Capacity',
+    totalTonnageLabel: 'Total Tonnage',
+    fleetOccupancyLabel: 'Fleet Occupancy',
+    // Grid & toolbar
+    displayedCount: 'Displaying {count} technical units',
+    noVehiclesFound: 'No vehicles found',
+    // Card labels
+    assignedDriver: 'Assigned Driver',
+    unassigned: '— Unassigned',
+    capacityLabel: 'Capacity',
+    volumeLabel: 'Volume',
+    // Modal - Create/Edit
+    modalTitle: 'Technical Configuration',
+    editSubtitle: 'Edit Asset',
+    createSubtitle: 'New Strategic Resource',
+    modalImageLabel: 'Asset Visual',
+    imageUploadButton: 'Upload',
+    imageChangeButton: 'Change',
+    cancelButton: 'Cancel',
+    saveButton: 'Save Certificate',
+    createButton: 'Create Asset',
+    // Form fields
+    makeLabel: 'Make',
+    modelLabel: 'Model',
+    plateLabel: 'Plate',
+    typeLabel: 'Type',
+    capacityKgLabel: 'Capacity (KG)',
+    volumeM3Label: 'Volume (M³)',
+    yearLabel: 'Year',
+    statusLabel: 'Status',
+    operationalStatus: 'Operational',
+    // Delete modal
+    deleteTitle: 'Delete Asset',
+    deleteDescription: 'Are you sure you want to permanently remove the vehicle {vehicleName} from the fleet?',
+    deleteButton: 'Confirm Removal',
+    deleteCancel: 'Cancel',
+  },
+
+  // ── Depots Page ────────────────────────────────────────────────────────
+  depotsPage: {
+    pageSubtitle: 'Logistics Network',
+    pageTitle: 'Depot',
+    pageTitleBrand: 'Management',
+    depotsCount: '{count} Operational Centers Referenced',
+    newHubButton: 'New Hub',
+    mapInitializing: 'Initializing Map...',
+    mapLoading: 'Loading Network...',
+    mapTitle: 'Territorial Network',
+    totalHubs: 'Total Hubs',
+    operationalHubs: 'Operational',
+    registryTitle: 'Registry of Locations',
+    noDepots: 'No Hubs Detected',
+    headerDesignation: 'Hub Designation',
+    headerLocation: 'Physical Location',
+    headerCoordinates: 'Coordinates',
+    headerStatus: 'Status',
+    statusOperational: 'Operational',
+    statusInactive: 'Inactive',
+    modalTitle: 'Hub Configuration',
+    modalSubtitle: 'Technical Blueprint Certification',
+    cancelButton: 'Cancel',
+    saveButton: 'Save Hub',
+    updateButton: 'Update Hub',
+    nameLabel: 'Hub Name',
+    nameExample: 'HUB_ALPHA_01',
+    addressLabel: 'Address',
+    addressPlaceholder: 'Physical location...',
+    latitudeLabel: 'Latitude',
+    longitudeLabel: 'Longitude',
+    geometricAdjustment: 'Geometric Adjustment',
+    operationalAvailability: 'Operational Availability',
+    deleteTitle: 'Hub Archival',
+    deleteDescription: 'Do you confirm the deactivation of {hubName}? The territorial network will be recalculated.',
+    deleteButton: 'Archive Hub',
+    deleteCancel: 'Cancel',
+  },
+
+  // ── Performance Page ───────────────────────────────────────────────────
+  performancePage: {
+    pageSubtitle: 'Performance Flow',
+    pageTitle: 'Logistics',
+    pageTitleBrand: 'Analysis',
+    operationalDashboard: 'Operational Control Dashboard',
+    periodLabel: 'Period:',
+    periodDay: 'Today',
+    periodWeek: 'Week',
+    periodMonth: 'Month',
+    periodAll: 'All',
+    lastUpdated: 'Last updated:',
+    operationalVolume: 'Operational Volume',
+    completionRate: 'Completion Rate',
+    deliveryPerformance: 'Delivery Performance',
+    avgDelay: 'Average Delay',
+    basedOnTarget: 'Based on target time',
+    lifeCycle: 'Life Cycle',
+    assignmentToDestination: 'Assignment → Destination',
+    volumeCurve: 'Volume Curve',
+    lastSevenDays: 'Last 7 days activity',
+    temporalFragmentation: 'Temporal Fragmentation',
+    efficiencyByPhase: 'Efficiency by business phase (Min)',
+    driverResponse: 'Driver Response',
+    assignmentToPickup: 'Assignment → Pickup',
+    depotLoading: 'Depot Loading',
+    pickupToTransit: 'Pickup → Dispatch',
+    effectiveTransit: 'Effective Transit',
+    transitToCompletion: 'Transit → Destination',
+    totalCycleIndex: 'Total Cycle Index',
+    densityByZone: 'Density by Zone',
+    driverPerformanceRanking: 'Driver Performance Ranking',
+    actor: 'Actor',
+    volume: 'Volume',
+    success: 'Success',
+    delay: 'Delay',
+    downloadPdfTooltip: 'Download PDF report',
+    notAssigned: 'Not assigned',
+    successSlash: 'success',
+    failureSlash: 'failures',
+    errorMissingDriverId: 'Missing driver ID',
+    successReportDownloaded: 'Report for {name} downloaded',
+    errorReportGeneration: 'Error generating report',
+  },
+
+  // ── Zones Page ─────────────────────────────────────────────────────────
+  zonesPage: {
+    pageSubtitle: 'Logistics Network',
+    pageTitle: 'Zone',
+    pageTitleBrand: 'Management',
+    tabZones: 'Zones',
+    tabMap: 'Map',
+    newZoneButton: 'New Sector',
+    syncButton: 'Sync',
+    syncTooltip: 'Synchronize all deliveries with current zones',
+    meshIndicators: 'Mesh Indicators',
+    activeSectors: 'Active Sectors',
+    postalPoints: 'Postal Points',
+    operationalHelp: 'Operational Help',
+    helpText: 'Define your perimeters by grouping postal codes. Automatic dispatching will use these zones for optimization.',
+    registryTitle: 'Registry of Operational Sectors',
+    zonesConfigured: '{count} Entities Configured',
+    noZones: 'No zones registered',
+    headerDesignation: 'Sector / Designation',
+    headerCoverage: 'Postal Coverage',
+    headerDensity: 'Density',
+    headerStatus: 'Status',
+    statusOperational: 'Operational',
+    statusInactive: 'Inactive',
+    extraCodes: '+{count}',
+    mapInitializing: 'Initializing ASM Network...',
+    modalTitle: 'Territory Configuration',
+    modalSubtitle: 'Technical Sectorization Certification',
+    cancelButton: 'Cancel',
+    saveButton: 'Save',
+    sectorNameLabel: 'Sector Name',
+    sectorNamePlaceholder: 'Ex. North Tunis',
+    zoneColorLabel: 'Zone Color',
+    operationalNotesLabel: 'Operational Notes',
+    operationalNotesPlaceholder: 'Details about the zone...',
+    dispatchAvailability: 'Dispatch Availability',
+    postalCoverageLabel: 'Postal Coverage',
+    postalCodePlaceholder: 'Postal code ex. 1000',
+    conflictsDetected: 'Conflicts Detected',
+    conflictWarning: 'These codes are already assigned to other zones.',
+    removeConflicts: 'Remove Conflicts',
+    activePostalPoints: 'Active postal points',
+    deleteTitle: 'Zone Archival',
+    deleteDescription: 'Do you confirm the deactivation of {zoneName}? The territorial network will be recalculated.',
+    deleteButton: 'Archive Zone',
+    deleteCancel: 'Cancel',
+  },
+
+  // ── Audit Logs Page ───────────────────────────────────────────────────
+  auditLogsPage: {
+    pageSubtitle: 'System Security',
+    pageTitle: 'Audit',
+    pageTitleBrand: 'Log',
+    eventsRecorded: 'Events Recorded',
+    actionLabel: 'Action',
+    actionPlaceholder: 'e.g. DELETE_ROUTE',
+    actorLabel: 'Actor',
+    actorPlaceholder: 'Name or email',
+    roleLabel: 'Role Entity',
+    allRoles: 'All Roles',
+    fromLabel: 'From',
+    toLabel: 'To',
+    resetButton: 'Reset',
+    timestampHeader: 'Timestamp',
+    actorHeader: 'Actor',
+    roleHeader: 'Role',
+    actionHeader: 'Action Nature',
+    resourceHeader: 'Target Resource',
+    ipHeader: 'IP Address',
+    loadingLogs: 'Loading logs...',
+    noLogs: 'No logs found',
+    eventId: 'Event ID',
+    engineCategory: 'Engine Category',
+    payloadDetails: 'Payload Details',
+    noTechnicalDetails: 'No technical details recorded.',
+    // Timeline date grouping
+    dateToday: 'Today',
+    dateYesterday: 'Yesterday',
+    dateEarlierWeek: 'Earlier this week',
+    dateOlder: 'Older',
+    // Timeline metadata
+    byActor: 'by',
+    fullId: 'Full:',
+    // Action categories
+    actionFluxRoute: 'Route Flow',
+    actionExecution: 'Execution',
+    actionFleetManagement: 'Fleet Management',
+    actionAssignment: 'Assignment',
+    actionMeshing: 'Meshing',
+    actionMobility: 'Mobility',
+    actionIntervention: 'Intervention',
+    actionSystem: 'System',
+    actionErpSync: 'ERP Sync',
+    actionSystemAudit: 'System Audit',
+    actionDriverInvited: 'Driver invited',
+    actionDriverActivated: 'Driver activated',
+    actionDriverSuspended: 'Driver suspended',
+    actionDriverInviteResent: 'Invitation resent',
+    actionDriverInviteCancelled: 'Invitation cancelled',
+    actionDriverUpdated: 'Driver updated',
+    actionDriverPasswordReset: 'Password reset',
+    actionDriverBulkImported: 'Bulk import',
+  },
+
+  // ── Settings Page ─────────────────────────────────────────────────────
+  settingsPage: {
+    platformNexus: 'ASM Track Platform',
+    pageTitle: 'Settings',
+    pageTitleBrand: 'general',
+    generalConfig: 'General Configuration',
+    slaParameters: 'Flow Parameters (SLA)',
+    identitiesAccess: 'Identities & Access',
+    tabSections: 'Sections',
+    tabParameters: 'Parameters',
+    systemAdmin: 'System Administration',
+    readOnlyMode: 'READ-ONLY MODE',
+    coreService: 'Core Service',
+    coreServiceDesc: 'Fundamental instance settings.',
+    systemNotifications: 'System Notifications',
+    systemNotificationsDesc: 'Enable visual alerts for critical delays.',
+    autoArchiving: 'Auto-Archiving',
+    autoArchivingDesc: 'Move completed routes to history after 24h.',
+    companyBranding: 'Company Information',
+    instanceName: 'Instance Name',
+    supportContact: 'Support Contact',
+    companyAddress: 'Company Address',
+    primaryColor: 'Primary Color',
+    slaagreement: 'Service Level Agreement (SLA)',
+    slaDesc: 'Time thresholds for operational compliance calculation.',
+    waitingTime: 'Waiting Time (Waiting)',
+    waitingTimeDesc: 'From order creation until assignment to a driver',
+    assignmentDelay: 'Route Start Delay (Assign)',
+    assignmentDelayDesc: 'From planned or actual route start until the package is picked up from depot',
+    transitDelay: 'Departure Delay (Pickup)',
+    transitDelayDesc: 'From package pickup until actual departure from the depot (route begins)',
+    accessControl: 'Access Control (IAM)',
+    newUser: 'New User',
+    actor: 'Actor',
+    authorization: 'Authorization',
+    creationDate: 'Creation Date',
+    iamGovernance: 'IAM Governance',
+    cancelButton: 'Cancel',
+    initializeAccess: 'Initialize Access',
+    fullName: 'Full Name',
+    fullNameExample: 'ex: Admin Alpha',
+    loginEmail: 'Login Email',
+    loginEmailExample: 'admin@asmtrack.com',
+    temporaryPassword: 'Temporary Password',
+    profilePrivileges: 'Profile Privileges',
+    slaThresholdCert: 'SLA Threshold Certification',
+    setpointValue: 'Setpoint Value (Minutes)',
+    applyButton: 'Apply',
+    // SLA Modal
+    whatMeasure: 'What does this measure?',
+    currentThreshold: 'Current Threshold',
+    setNewThreshold: 'Set New Threshold',
+    slaBreachWarning: 'Any delivery exceeding this time will be flagged as SLA breach',
+    recommendation: '💡 Recommendation',
+    waitingRec: 'Typical range: 10-30 minutes. Time from order creation to driver assignment.',
+    assignmentRec: 'Typical range: 10-30 minutes. From route start to warehouse pickup. Account for vehicle prep and picking.',
+    pickupRec: 'Typical range: 5-15 minutes. From pickup until actual departure. Allows for loading and vehicle checks.',
+    // Integration
+    integrationConfig: 'ERP Integration',
+    erpProvider: 'ERP Provider',
+    erpUrl: 'JSON-RPC Connection URL',
+    erpUrlDesc: 'e.g. http://odoo:8069/jsonrpc',
+    erpDb: 'Database Name',
+    erpUid: 'User ID (UID)',
+    erpPassword: 'Password / API Key',
+    saveConfig: 'Save Configuration',
+    testConnection: 'Test Connection',
+    testSuccess: 'ERP connection established successfully.',
+    testFailed: 'ERP connection failed. Check your credentials.',
+    noErpDesc: 'No ERP provider is active. Orders must be entered manually or via import.',
+    erpOdooDesc: 'Direct connection to Odoo via JSON-RPC interface for automatic order synchronization.',
+    erpDuxDesc: 'Connection to Dux (Integration in progress). Full support coming soon.',
+  },
+
+  // ── Deliveries Page ────────────────────────────────────────────────────
+  deliveriesPage: {
+    // Page structure
+    pageSubtitle: 'Logistics Network',
+    pageTitle: 'Delivery',
+    pageTitleBrand: 'Tracking',
+
+    // Filter section
+    filterLabel: 'Filters',
+    showFilters: 'Show filters',
+    hideFilters: 'Hide filters',
+    searchPlaceholder: 'Quick search',
+    filterByStatus: 'All statuses',
+    filterByDriver: 'All drivers',
+    filterByZone: 'All zones',
+    filterClear: 'Filters',
+    dateLabel: 'Delivery Date',
+    qualificationLabel: 'Qualification',
+    refreshButton: 'Refresh',
+    tabList: 'List',
+
+    // Quick views
+    totalFlow: 'All deliveries',
+    quickViewNeedsPinning: 'Need pinning',
+    quickViewUnassigned: 'Unassigned',
+    quickViewInTransit: 'In Transit',
+    quickViewCompleted: 'Delivered',
+    quickViewFailed: 'Failed',
+
+    // Table display
+    displayLabel: 'Display:',
+    entityDetected: 'entities detected',
+    pageSize: '/ page',
+
+    // Table headers
+    refHeader: 'Ref.',
+    clientHeader: 'Client',
+    addressHeader: 'Address',
+    driverHeader: 'Driver',
+    zoneHeader: 'Zone',
+    statusHeader: 'Status',
+    actionsHeader: 'Actions',
+
+    // Table content
+    unknownDriver: 'Unknown address',
+    notAssigned: 'Not assigned',
+    outOfZone: 'Zone not defined',
+
+    // Pagination
+    pageLabel: 'Page',
+    resultsLabel: 'results',
+    prevButton: '← Prev',
+    nextButton: 'Next →',
+
+    // Pin/Location modal
+    pinModalTitle: 'Pin delivery location',
+    pinModalSearch: 'Search address...',
+    pinModalConfirm: 'Position confirmed',
+    lockedGeocoding: 'Position locked — Delivery in progress',
+    pinReverseGeocoding: 'Locating...',
+    addressLocated: 'Location found — Click on the map to confirm',
+    analyzeInProgress: 'Analyzing...',
+    addressTarget: 'Target Location',
+    addressPlaceholder: 'Manual entry...',
+    postalCodeLabel: 'Postal Code',
+    postalCodePlaceholder: '20XX',
+    pinButtonConfirm: 'Confirm location',
+    lockedDeliveryMessage: 'Active delivery. Location is locked to ensure integrity of optimized route.',
+
+    // Tooltips
+    tooltipPinLocation: 'Confirm GPS position on the map',
+    tooltipRepin: 'Edit position',
+    tooltipCancel: 'Cancel delivery',
+    tooltipDownloadBL: 'Download delivery note (PDF)',
+    trackingLink: 'Copy public tracking link',
+
+    // Cancel modal
+    cancelModalTitle: 'Cancel delivery',
+    cancelModalDescription: 'This action is irreversible. The order will be cancelled and synced with ERP.',
+    cancelModalLabel: 'Cancellation reason',
+    cancelModalPlaceholder: 'Explain the reason for this cancellation...',
+    cancelButtonConfirm: 'Cancel permanently',
+    cancelButtonKeep: 'Keep',
+
+    // Success/Error messages
+    deliveryCancelled: 'Delivery cancelled',
+    deliveryCreated: 'Delivery created',
+    backorderCreated: 'Backorder created',
+    trackingCopied: 'Tracking link copied',
+
+    // Error messages
+    loadError: 'Failed to load deliveries',
+    backorderError: 'Error creating backorder',
+    pinError: 'Error saving position',
+    downloadError: 'Error downloading delivery note',
+
+    // Page loading
+    pageLoading: 'Loading deliveries...',
+  },
+
+  // ── API Messages & Errors ──────────────────────────────────────────────
+  apiMessages: {
+    successStopCancelled: 'Stop removed from route',
+    successStopRemoved: 'Stop deleted',
+    successWindowUpdated: 'Time window updated',
+    successWindowsSaved: 'Time windows saved',
+    successRouteValidated: 'Route validated',
+    successRouteReassigned: 'Route reassigned',
+    successRouteClosed: 'Route closed',
+    successRouteCancelled: 'Route cancelled',
+    successBackorderCreated: 'Backorder created',
+    successDeliveryRescheduled: 'Delivery rescheduled',
+    successDeliveryReassigned: 'Delivery reassigned',
+    successPositionConfirmed: 'Position confirmed',
+    successTrackingLinkCopied: 'Tracking link copied',
+    successLogin: 'Login successful',
+    errorDataNotLoaded: 'Data not loaded',
+    infoBlGenerating: 'Generating delivery note...',
+    successBlDownloaded: 'Delivery note downloaded successfully',
+    errorBlGenerationFailed: 'Error generating delivery note',
+    successSlaUpdated: 'SLA settings updated',
+    successErpUpdated: 'ERP integration settings updated',
+    successUserCreated: 'User created successfully',
+    successDeliveryCreated: 'Delivery created successfully',
+    errorDeliveryCreateFailed: 'Failed to create delivery',
+    errorDriverRoutesLoadFailed: 'Could not load driver routes',
+    errorNoteRequired: 'Please add an explanatory note',
+    errorTimeWindowRequired: 'Time window required for this delivery',
+    successReassignToDraft: 'Delivery(ies) added to route draft',
+    successReassignToActive: 'Delivery(ies) successfully reassigned',
+    errorReassignPartialSuccess: 'Some deliveries could not be transferred',
+    errorReassignFailed: 'Could not reassign delivery',
+
+    errorStopNotFound: 'Stop not found',
+    errorStopInvalidStatus: 'Stop in invalid status',
+    errorStopInTransit: 'Cannot cancel a stop in transit',
+    errorStopCancellationNotAllowed: 'Stop cancellation only allowed on VALIDATED or IN_PROGRESS routes',
+    errorStopDoesNotBelong: 'This stop does not belong to this route',
+
+    errorRouteNotFound: 'Route not found',
+    errorRouteInvalidStatus: 'Operation not allowed for this route status',
+    errorRouteValidationFailed: 'Route validation failed',
+    errorRouteReassignmentFailed: 'Route reassignment failed',
+    errorRouteClosureFailed: 'Route closure failed',
+    errorRouteCancellationFailed: 'Route cancellation failed',
+    errorOnlyValidatedRoutes: 'Only VALIDATED or IN_PROGRESS routes can be modified',
+
+    errorDeliveryNotFound: 'Delivery not found',
+    errorDeliveryInvalidStatus: 'Operation not allowed for this delivery status',
+    errorBackorderCreationFailed: 'Backorder creation failed',
+    errorDeliveryReassignmentFailed: 'Delivery reassignment failed',
+
+    errorWindowInvalid: 'Invalid time window',
+    errorWindowOutOfBounds: 'Time window out of route bounds',
+    errorWindowOverlap: 'Time window conflicts with another stop',
+    errorWindowUpdateFailed: 'Failed to update time window',
+
+    errorMissingGPS: 'Some stops are missing GPS coordinates',
+    errorMissingLocation: 'Location missing',
+    errorCapacityExceeded: 'Vehicle capacity exceeded',
+    errorVehicleAlreadyAssigned: 'The selected vehicle is already assigned',
+    errorInvalidOrderSequence: 'Invalid stop sequence',
+
+    errorBadRequest: 'Invalid request',
+    errorUnauthorized: 'You are not authorized to perform this action',
+    errorForbidden: 'Access denied',
+    errorConflict: 'Data conflict - the object may have been modified',
+    errorServerError: 'Server error - please try again',
+    errorNetworkError: 'Network error - check your connection',
+    errorTimeoutError: 'Request timeout',
+    errorUnknownError: 'An error occurred',
+
+    errorDataLoadFailed: 'Failed to load data',
+    errorSaveFailed: 'Failed to save changes',
+    errorDeleteFailed: 'Failed to delete item',
+    errorExportFailed: 'Export failed',
+    errorImportFailed: 'Import failed',
+
+    // Company CRUD
+    successCompanyCreated: 'Company created successfully',
+    successCompanyUpdated: 'Company updated successfully',
+    successCompanyDeactivated: 'Company deactivated successfully',
+    errorCompanyCreateFailed: 'Failed to create company',
+    errorCompanyUpdateFailed: 'Failed to update company',
+    errorCompanyDeactivateFailed: 'Failed to deactivate company',
+    errorCompaniesLoadFailed: 'Failed to load companies',
+    errorCompanyNameRequired: 'Company name is required',
+
+    // Depot CRUD
+    successDepotCreated: 'Depot created successfully',
+    successDepotUpdated: 'Depot updated successfully',
+    successDepotDeleted: 'Depot deleted successfully',
+    errorDepotCreateFailed: 'Failed to create depot',
+    errorDepotUpdateFailed: 'Failed to update depot',
+    errorDepotDeleteFailed: 'Failed to delete depot',
+    errorDepotsLoadFailed: 'Failed to load depots',
+    successDepotGeolocate: 'Depot location resolved successfully',
+    errorDepotGeolocateFailed: 'Depot location not found',
+    successDepotSync: 'Depot address synchronized successfully',
+    errorDepotSyncFailed: 'Failed to synchronize depot address',
+    errorDepotAddressRequired: 'Depot address is required',
+    errorDepotNameRequired: 'Depot name is required',
+
+    // Driver CRUD
+    successDriverCreated: 'Driver invited successfully',
+    successDriverUpdated: 'Driver updated successfully',
+    successDriverActivated: 'Driver activated successfully',
+    successDriverDeactivated: 'Driver deactivated successfully',
+    successDriverSuspended: 'Driver suspended successfully',
+    successDriverInviteCancelled: 'Invitation cancelled',
+    successDriverInviteResent: 'Invitation resent',
+    errorDriverCreateFailed: 'Failed to invite driver',
+    errorDriverUpdateFailed: 'Failed to update driver',
+    errorDriverDeactivateFailed: 'Failed to deactivate driver',
+    errorDriverSuspendFailed: 'Failed to suspend driver',
+    errorDriverCancelInviteFailed: 'Failed to cancel invitation',
+    errorDriverInviteResendFailed: 'Failed to resend invitation',
+    errorDriversLoadFailed: 'Failed to load drivers',
+    errorDriverNameRequired: 'Driver name and phone are required',
+    errorDriverEmailRequired: 'Driver email is required',
+    errorDriverInviteExpired: 'The invitation has expired. Resend a new code.',
+    errorPendingStatusLocked: 'Cannot change the status of an account waiting for activation.',
+    errorDriverRateLimited: 'Too many attempts. Please wait.',
+    successDriversImported: 'Drivers imported successfully',
+
+    // Import
+    successImportCompleted: 'Order import completed',
+    errorImportBatchFailed: 'Some orders could not be imported',
+    successImportSingle: 'Order imported successfully',
+    errorImportSingleFailed: 'Failed to import order',
+    errorImportAlreadyExists: 'This order already exists in the system',
+
+    // Vehicle CRUD
+    successVehicleCreated: 'Vehicle created successfully',
+    successVehicleUpdated: 'Vehicle updated successfully',
+    successVehicleDeleted: 'Vehicle deleted successfully',
+    errorVehicleCreateFailed: 'Failed to create vehicle',
+    errorVehicleUpdateFailed: 'Failed to update vehicle',
+    errorVehicleDeleteFailed: 'Failed to delete vehicle',
+    errorVehiclesLoadFailed: 'Failed to load vehicles',
+    errorVehiclePlateRequired: 'Vehicle license plate is required',
+
+    // Zone CRUD
+    successZoneCreated: 'Zone created successfully',
+    successZoneUpdated: 'Zone updated successfully',
+    successZoneDeleted: 'Zone deleted successfully',
+    errorZoneCreateFailed: 'Failed to create zone',
+    errorZoneUpdateFailed: 'Failed to update zone',
+    errorZoneDeleteFailed: 'Failed to delete zone',
+    errorZonesLoadFailed: 'Failed to load zones',
+    successZonesSynced: 'Deliveries reassigned to zones',
+    errorZonesSyncFailed: 'Failed to synchronize zones',
+    errorZoneNameRequired: 'Zone name is required',
+    errorZoneMinPostalCodesRequired: 'At least one postal code is required',
+    errorZoneConflictingCodes: 'Some postal codes are already assigned',
+    errorZoneCodeAlreadyAdded: 'Postal code already added',
+    errorZoneCodeLookupFailed: 'Postal code not found',
+
+    // Undo / Optimistic
+    successUndoAction: 'Action undone successfully',
+    errorUndoActionFailed: 'Failed to undo action',
+    errorActionFailed: 'Action failed',
+  },
+
+  // ── sidebar ─────────────────────────────────────────────────────────────
+  sidebar: {
+    collapse: 'Collapse',
+    groups: {
+      operations: 'Operations',
+      deliveries: 'Deliveries',
+      planning: 'Planning',
+      fleet: 'Fleet',
+      analytics: 'Analytics',
+      platform: 'Platform',
+    },
+    items: {
+      dashboard: 'Dashboard',
+      overview: 'Overview',
+      dispatch: 'Dispatch',
+      tracking: 'Tracking',
+      import: 'Import',
+      createRoute: 'Create Route',
+      routes: 'Routes',
+      drivers: 'Drivers',
+      vehicles: 'Vehicles',
+      depots: 'Depots',
+      zones: 'Zones',
+      performance: 'Performance',
+      audit: 'Audit',
+      settings: 'Settings',
+      erpIntegration: 'ERP Integration',
+      companies: 'Companies',
+    }
+  },
+
+  // ── notifications ────────────────────────────────────────────────────────
+  notifications: {
+    FAILED: {
+      title: 'Delivery Failed',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivery failed${p.motif ? ` · ${p.motif}` : ''}`,
+    },
+    DELIVERED: {
+      title: 'Delivery Successful',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
+    },
+    'delivery.created': {
+      title: 'New Delivery',
+      message: (p: any) => {
+        const base = p.orderId
+          ? `Order ${p.orderId} created${p.clientName ? ` · ${p.clientName}` : ''}`
+          : `New order${p.clientName ? ` · ${p.clientName}` : ''}`;
+        const cod = p.isCod ? ` · 💰 ${_en_money(p.totalAmount, p.currency)}` : '';
+        return `${base}${cod}`;
+      },
+    },
+    'delivery.scheduled': {
+      title: 'Delivery Scheduled',
+      message: (p: any) => {
+        const parts = [`${p.clientName || 'Client'} — scheduled`];
+        if (p.driverName) parts.push(p.driverName);
+        if (p.dropoffAddress) parts.push(p.dropoffAddress);
+        if (p.isCod) parts.push(`💰 ${_en_money(p.totalAmount, p.currency)}`);
+        return `${_en_ref(p)}${parts.join(' · ')}`;
+      },
+    },
+    'delivery.picked_up': {
+      title: 'Package Loaded',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — loaded`,
+    },
+    'delivery.in_transit': {
+      title: 'En Route',
+      message: (p: any) => {
+        const eta = _en_fmtEta(p.etaAt);
+        const parts = [`${p.clientName || 'Client'} — en route`];
+        if (p.driverName) parts.push(p.driverName);
+        if (eta) parts.push(`ETA ${eta}`);
+        if (p.routeDistanceKm) parts.push(`${Number(p.routeDistanceKm).toFixed(1)} km`);
+        return `${_en_ref(p)}${parts.join(' · ')}`;
+      },
+    },
+    'delivery.completed': {
+      title: 'Delivery Successful',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
+    },
+    'delivery.failed': {
+      title: 'Delivery Failed',
+      message: (p: any) => {
+        const parts = [`${p.clientName || 'Client'} — failed`];
+        if (p.motif) parts.push(p.motif);
+        if (p.driverName) parts.push(p.driverName);
+        return `${_en_ref(p)}${parts.join(' · ')}`;
+      },
+    },
+    'delivery.cancelled': {
+      title: 'Delivery Cancelled',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — cancelled`,
+    },
+    'delivery.reassigned': {
+      title: 'Delivery Reassigned',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — new driver${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'delivery.reassigned_away': {
+      title: 'Delivery Removed',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — removed from driver's route`,
+    },
+    'delivery.handoff_required': {
+      title: 'Handover Required',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — package handover required${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'delivery.replanned': {
+      title: 'Delivery Postponed',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — postponed`,
+    },
+    'route.validated': {
+      title: 'Route Validated',
+      message: (p: any) => {
+        const n = Number(p.stopCount);
+        const win = _en_window(p.plannedStartTime, p.plannedEndTime);
+        const parts = [`"${p.routeName || 'Route'}" — ready to start`];
+        if (Number.isFinite(n) && n > 0) parts.push(_en_stops(n));
+        if (win) parts.push(win);
+        if (p.driverName) parts.push(p.driverName);
+        return parts.join(' · ');
+      },
+    },
+    'route.schedule_changed': {
+      title: 'Schedule Updated',
+      message: (p: any) => {
+        const win = _en_window(p.plannedStartTime, p.plannedEndTime);
+        return win
+          ? `"${p.routeName || 'Route'}" — new window ${win}`
+          : `"${p.routeName || 'Route'}" — schedule updated`;
+      },
+    },
+    'route.stop_added': {
+      title: 'Stop Added',
+      message: (p: any) => p.clientName ? `${p.clientName} added to "${p.routeName || 'Route'}"` : `"${p.routeName || 'Route'}" — new stop`,
+    },
+    'route.stop_removed': {
+      title: 'Stop Removed',
+      message: (p: any) => p.clientName ? `${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} removed from "${p.routeName || 'Route'}"${p.reason ? ` — ${p.reason}` : ''}` : `"${p.routeName || 'Route'}" — stop removed`,
+    },
+    'delivery.handoff_confirmed': {
+      title: 'Handoff Confirmed',
+      message: (p: any) => `Package for ${p.clientName || 'Client'} handed over to new driver`,
+    },
+    'handoff.requested': {
+      title: 'Handover Required',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover ${p.fromDriverName || '—'} → ${p.toDriverName || '—'}`,
+    },
+    'handoff.overdue': {
+      title: 'Handover Overdue',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover not confirmed (${p.fromDriverName || '—'} → ${p.toDriverName || '—'})`,
+    },
+    'handoff.cancelled': {
+      title: 'Handover Cancelled',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover cancelled${p.reason ? ` · ${p.reason}` : ''}`,
+    },
+    'sla.breach': {
+      title: 'SLA Breach Alert',
+      message: (p: any) => {
+        const head = `${_en_ref(p)}${p.clientName || 'Client'} — `;
+        if (p.motif === 'SLA_WAITING') {
+          return `${head}Awaiting assignment for ${p.elapsed} min (limit ${p.limit} min)`;
+        }
+        if (p.motif === 'SLA_ASSIGNMENT') {
+          return `${head}Start overdue: ${p.elapsed} min since assignment (limit ${p.limit} min)`;
+        }
+        if (p.motif === 'SLA_PICKUP') {
+          return `${head}Depot departure overdue: ${p.elapsed} min (limit ${p.limit} min)`;
+        }
+        if (p.motif === 'SLA_TRANSIT') {
+          return `${head}Delivery running late vs. planned window`;
+        }
+        return p.slaMessage || `${head}Critical delay (SLA)`;
+      },
+    },
+    'STOPS_TRANSFERRED_OUT': {
+      title: 'Stops Transferred Out',
+      message: (p: any) => `Stops were removed from "${p.routeName || 'Route'}"`,
+    },
+    'STOPS_TRANSFERRED_IN': {
+      title: 'Stops Transferred In',
+      message: (p: any) => `Stops were added to "${p.routeName || 'Route'}"`,
+    },
+    'erp.sync_failed': {
+      title: 'ERP Sync Failed',
+      message: (p: any) => {
+        const op = ({ STOCK: 'stock update', CANCELLATION: 'cancellation', FAILURE_REPORT: 'failure report' } as Record<string, string>)[p.motif] || '';
+        return `${_en_ref(p)}${p.clientName || 'Order'} — ERP sync failed${op ? ` (${op})` : ''}. Action required.`;
+      },
+    },
+    'erp.orders_ready': {
+      title: 'ERP Orders Ready',
+      message: (p: any) => `${p.count || 'New'} ERP order${Number(p.count) > 1 ? 's' : ''} awaiting import — review required`,
+    },
+  },
+  landingPage: {
+    metaTitle: "ASM Track — Logistics Orchestration",
+    heroBadge: "Logistics Orchestration Platform",
+    heroTitle1: "Logistics",
+    heroTitle2: "reinvented.",
+    heroDesc: "Real-time orchestration, intelligent dispatch and fleet tracking — in a single nervous system.",
+    heroCta: "Contact team",
+    heroDashboard: "Access dashboard →",
+    statDeliveries: "Deliveries",
+    statOptimization: "Optimization",
+    statUptime: "Uptime",
+    featuresTitle: "Features",
+    featuresSubtitle1: "Every delivery,",
+    featuresSubtitle2: "under control.",
+    featureRealtime: "Real-time tracking",
+    featureRealtimeDesc: "Visualize the exact location of each driver and the progress of each route live.",
+    featureDispatch: "Dispatch & Reassignment",
+    featureDispatchDesc: "Reassign deliveries on the fly with automatic alerts. Zero friction, decision in 3 clicks.",
+    featureErp: "ERP/Odoo Integration",
+    featureErpDesc: "Native bidirectional synchronization with Odoo — orders, inventory and delivery notes.",
+    manifestoTitle: "Manifesto",
+    manifestoDesc: "Most logistics tools focus on planning.",
+    manifestoFocus1: "We focus on",
+    manifestoFocus2: "execution.",
+    manifestoPillar1: "Responsiveness",
+    manifestoPillar1Desc: "Every incident is detected and addressed before the client notices.",
+    manifestoPillar2: "Transparency",
+    manifestoPillar2Desc: "Every stakeholder sees exactly what they need to see, no more, no less.",
+    manifestoPillar3: "Reliability",
+    manifestoPillar3Desc: "Delivery promises are kept. Systematically. Without exception.",
+    methodTitle: "Method",
+    methodSubtitle1: "From order",
+    methodSubtitle2: "to signature.",
+    methodStep1: "Import & Planning",
+    methodStep1Desc: "ERP orders are imported automatically. AI generates optimal routes in under 2 seconds.",
+    methodStep2: "Dispatch & In-Flight Tracking",
+    methodStep2Desc: "Drivers receive routes in real time. Every movement is tracked and visible from the dashboard.",
+    methodStep3: "Analysis & Optimization",
+    methodStep3Desc: "Every completed route feeds optimization algorithms to continuously improve performance.",
+    ctaTitle: "Let's Begin",
+    ctaSubtitle1: "Ready to take",
+    ctaSubtitle2: "control.",
+    ctaDesc: "Contact the ASM Track team for a personalized demonstration of the platform.",
+    ctaButton: "Contact team →",
+    footerDesc: "Next-generation logistics nervous system.",
+    footerNav: "Navigation",
+    footerContact: "Contact",
+    footerRights: "© 2026 ASMTRACK — INDUSTRIAL SOFTWARE",
+    navFeatures: "Features",
+    navMethod: "Method",
+    navContact: "Contact",
+    navLogin: "Login",
+  },
+  loginPage: {
+    auth: "Authentication",
+    welcomeBack: "Welcome back",
+    signInToContinue: "Sign in to your account to continue.",
+    title1: "Access the",
+    title2: "dashboard.",
+    emailLabel: "Email address",
+    emailPh: "your@email.com",
+    passLabel: "Password",
+    passPh: "••••••••••",
+    button: "Access Dashboard",
+    buttonLoading: "Connecting...",
+    needAccess: "Need access?",
+    contactTeam: "Contact team →",
+    back: "Back",
+    errorDefault: "Invalid email or password",
+    successToast: "Successful login",
+    brandTagline: "Dispatch. Track. Deliver.",
+    pillLogistics: "Logistics Orchestration",
+    pillRealtime: "Real-time orchestration and total operational reliability.",
+    pillPilotez: "Steer with",
+    pillCertitude: "Certainty.",
+  },
+  mapSection: {
+    dispatch: {
+      title: "Automated\nPlanning",
+      desc: "ERP orders imported. Routes optimized in under 2 seconds.",
+      tag: "Dispatch",
+    },
+    scooter: {
+      title: "Driver\nNotified",
+      desc: "Route dispatched in real time. Built-in navigation.",
+      tag: "En Route",
+    },
+    delivery: {
+      title: "Delivery\nConfirmed",
+      desc: "Electronic signature. Photo proof of delivery.",
+      tag: "Delivery",
+    },
+    confirm: {
+      title: "Mission\nAccomplied",
+      desc: "Automated report generated. Telemetry KPIs updated.",
+      tag: "Completed",
+    },
+  },
+} as const;

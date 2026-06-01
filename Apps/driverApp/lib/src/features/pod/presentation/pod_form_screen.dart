@@ -7,17 +7,25 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../../app_providers.dart';
 import '../../../services/location_service.dart';
-import '../../../theme/app_theme.dart';
-import '../../../theme/widgets.dart';
 import '../../deliveries/models/delivery_models.dart';
 
 // ─── Outcome descriptor ───────────────────────────────────────────────────────
 class _OutcomeOption {
-  const _OutcomeOption(this.value, this.label, this.icon, this.color);
+  const _OutcomeOption(this.value, this.label, this.icon, this.colorKey);
   final String value;
   final String label;
   final IconData icon;
-  final Color color;
+  final String colorKey;
+
+  Color resolve(ColorScheme cs) {
+    switch (colorKey) {
+      case 'success': return cs.tertiary;
+      case 'danger':  return cs.error;
+      case 'warning': return cs.secondary;
+      case 'info':    return cs.tertiary;
+      default:        return cs.onSurface;
+    }
+  }
 }
 
 class PodFormArgs {
@@ -60,10 +68,10 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   late Map<String, TextEditingController> _itemCommentControllers;
 
   static const _outcomes = [
-    _OutcomeOption('DELIVERED', 'Livré',     Icons.check_circle_outline_rounded, AppColors.success),
-    _OutcomeOption('REFUSED',   'Refusé',    Icons.cancel_outlined,              AppColors.danger),
-    _OutcomeOption('DAMAGED',   'Endommagé', Icons.warning_amber_rounded,        AppColors.warning),
-    _OutcomeOption('MISSING',   'Manquant',  Icons.search_off_rounded,           AppColors.info),
+    _OutcomeOption('DELIVERED', 'Livré',     Icons.check_circle_outline_rounded, 'success'),
+    _OutcomeOption('REFUSED',   'Refusé',    Icons.cancel_outlined,              'danger'),
+    _OutcomeOption('DAMAGED',   'Endommagé', Icons.warning_amber_rounded,        'warning'),
+    _OutcomeOption('MISSING',   'Manquant',  Icons.search_off_rounded,           'info'),
   ];
 
   static const _reasonsByOutcome = {
@@ -178,8 +186,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final cs = Theme.of(context).colorScheme;
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: cs.surface,
       appBar: AppBar(
         title: const Text('Preuve de livraison'),
         leading: IconButton(
@@ -195,15 +204,15 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.info.withValues(alpha: 0.08),
+                color: cs.tertiary.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.info.withValues(alpha: 0.2)),
+                border: Border.all(color: cs.tertiary.withValues(alpha: 0.2)),
               ),
-              child: const Text(
+              child: Text(
                 '1. Imprimez le bon de livraison et faites-le signer par le client.\n'
                 '2. Photographiez le bon signé.\n'
                 '3. Photographiez la remise du colis.',
-                style: TextStyle(fontSize: 13, color: AppColors.info, height: 1.5),
+                style: TextStyle(fontSize: 13, color: cs.tertiary, height: 1.5),
               ),
             ),
             const SizedBox(height: 16),
@@ -256,16 +265,21 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   _missingReasonItem != null
                       ? 'Raison obligatoire pour : $_missingReasonItem'
                       : 'Les 2 photos sont obligatoires.',
-                  style: TextStyle(fontSize: 12, color: AppColors.danger.withValues(alpha: 0.8)),
+                  style: TextStyle(fontSize: 12, color: cs.error.withValues(alpha: 0.8)),
                   textAlign: TextAlign.center,
                 ),
               ),
 
-            AsmDriveButton(
-              label: 'Confirmer la livraison',
-              icon: Icons.check,
-              isLoading: _submitting,
-              onPressed: (_submitting || !_canSubmit) ? null : _submit,
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: FilledButton.icon(
+                onPressed: (_submitting || !_canSubmit) ? null : _submit,
+                icon: _submitting
+                    ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.check),
+                label: const Text('Confirmer la livraison'),
+              ),
             ),
           ],
         ),
@@ -282,171 +296,187 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     required ValueChanged<Uint8List> onPick,
     required VoidCallback onClear,
   }) {
-    return AsmDriveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Text(title, style: Theme.of(context).textTheme.titleMedium),
-                        if (required)
-                          const Text(' *', style: TextStyle(color: AppColors.danger, fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Text(subtitle, style: const TextStyle(fontSize: 12, color: AppColors.muted)),
-                  ],
-                ),
-              ),
-              if (bytes != null)
-                Container(
-                  width: 22,
-                  height: 22,
-                  decoration: const BoxDecoration(color: AppColors.success, shape: BoxShape.circle),
-                  child: const Icon(Icons.check, size: 14, color: Colors.white),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          if (bytes != null)
-            ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: Image.memory(bytes, height: 160, width: double.infinity, fit: BoxFit.cover),
-            )
-          else
-            GestureDetector(
-              onTap: () => _pickPhoto(onPick),
-              child: Container(
-                height: 120,
-                decoration: BoxDecoration(
-                  color: AppColors.surfaceElevated,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border, style: BorderStyle.solid),
-                ),
-                child: const Center(
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Expanded(
                   child: Column(
-                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.camera_alt_outlined, size: 32, color: AppColors.muted),
-                      SizedBox(height: 6),
-                      Text('Appuyer pour photographier', style: TextStyle(fontSize: 12, color: AppColors.muted)),
+                      Row(
+                        children: [
+                          Text(title, style: Theme.of(context).textTheme.titleMedium),
+                          if (required)
+                            Text(' *', style: TextStyle(color: cs.error, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      Text(subtitle, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              OutlinedButton.icon(
-                onPressed: () => _pickPhoto(onPick),
-                icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                label: Text(bytes == null ? 'Prendre une photo' : 'Reprendre'),
-                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
-              ),
-              if (bytes != null) ...[
-                const SizedBox(width: 8),
-                TextButton.icon(
-                  onPressed: onClear,
-                  icon: const Icon(Icons.delete_outline, size: 16),
-                  label: const Text('Supprimer'),
-                  style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                ),
+                if (bytes != null)
+                  Container(
+                    width: 22,
+                    height: 22,
+                    decoration: BoxDecoration(color: cs.tertiary, shape: BoxShape.circle),
+                    child: const Icon(Icons.check, size: 14, color: Colors.white),
+                  ),
               ],
-            ],
-          ),
-        ],
+            ),
+            const SizedBox(height: 12),
+            if (bytes != null)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: Image.memory(bytes, height: 160, width: double.infinity, fit: BoxFit.cover),
+              )
+            else
+              GestureDetector(
+                onTap: () => _pickPhoto(onPick),
+                child: Container(
+                  height: 120,
+                  decoration: BoxDecoration(
+                    color: cs.surfaceContainerHighest,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: cs.outlineVariant, style: BorderStyle.solid),
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.camera_alt_outlined, size: 32, color: cs.onSurfaceVariant),
+                        const SizedBox(height: 6),
+                        Text('Appuyer pour photographier', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 10),
+            Row(
+              children: [
+                OutlinedButton.icon(
+                  onPressed: () => _pickPhoto(onPick),
+                  icon: const Icon(Icons.camera_alt_outlined, size: 16),
+                  label: Text(bytes == null ? 'Prendre une photo' : 'Reprendre'),
+                  style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
+                ),
+                if (bytes != null) ...[
+                  const SizedBox(width: 8),
+                  TextButton.icon(
+                    onPressed: onClear,
+                    icon: const Icon(Icons.delete_outline, size: 16),
+                    label: const Text('Supprimer'),
+                    style: TextButton.styleFrom(foregroundColor: cs.error),
+                  ),
+                ],
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildNotesField(BuildContext context) {
-    return AsmDriveCard(
-      child: TextField(
-        controller: _notesController,
-        minLines: 2,
-        maxLines: 5,
-        decoration: const InputDecoration(
-          labelText: 'Commentaires (code porte, nom personne, etc.)',
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: TextField(
+          controller: _notesController,
+          minLines: 2,
+          maxLines: 5,
+          decoration: const InputDecoration(
+            labelText: 'Commentaires (code porte, nom personne, etc.)',
+          ),
         ),
       ),
     );
   }
 
   Widget _buildLocationToggle(BuildContext context) {
-    return AsmDriveCard(
-      child: Row(
-        children: [
-          const Icon(Icons.my_location, color: AppColors.success),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Joindre la position GPS'),
-                Text(
-                  'Coordonnées envoyées une seule fois à la soumission.',
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-                ),
-              ],
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Row(
+          children: [
+            Icon(Icons.my_location, color: cs.tertiary),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Joindre la position GPS'),
+                  Text(
+                    'Coordonnées envoyées une seule fois à la soumission.',
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                  ),
+                ],
+              ),
             ),
-          ),
-          Switch(
-            value: _attachLocation,
-            onChanged: (value) => setState(() => _attachLocation = value),
-          ),
-        ],
+            Switch(
+              value: _attachLocation,
+              onChanged: (value) => setState(() => _attachLocation = value),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildPartialDeliveryToggle(BuildContext context) {
-    return AsmDriveCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // ── Toggle header ──────────────────────────────────────────────
-          Row(
-            children: [
-              const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('Livraison partielle'),
-                    Text(
-                      'Activez si certains articles n\'ont pas été livrés.',
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: AppColors.muted),
-                    ),
-                  ],
+    final cs = Theme.of(context).colorScheme;
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Toggle header ──────────────────────────────────────────────
+            Row(
+              children: [
+                Icon(Icons.warning_amber_rounded, color: cs.secondary),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Livraison partielle'),
+                      Text(
+                        'Activez si certains articles n\'ont pas été livrés.',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              Switch(
-                value: _isPartial,
-                onChanged: (value) => setState(() => _isPartial = value),
-              ),
-            ],
-          ),
+                Switch(
+                  value: _isPartial,
+                  onChanged: (value) => setState(() => _isPartial = value),
+                ),
+              ],
+            ),
 
-          // ── Per-item outcome section ───────────────────────────────────
-          if (_isPartial) ...[
-            const Divider(height: 24),
-            Text('Résultat par article :', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: 12),
-            ...widget.args.delivery.items.map((item) => _buildItemOutcomeRow(context, item)),
+            // ── Per-item outcome section ───────────────────────────────────
+            if (_isPartial) ...[
+              const Divider(height: 24),
+              Text('Résultat par article :', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: 12),
+              ...widget.args.delivery.items.map((item) => _buildItemOutcomeRow(context, item)),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
 
   Widget _buildItemOutcomeRow(BuildContext context, dynamic item) {
+    final cs = Theme.of(context).colorScheme;
     final key         = (item.sku ?? item.name) as String;
     final plannedQty  = item.quantity as int;
     final currentQty  = _itemsDone[key] ?? plannedQty;
@@ -455,14 +485,15 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     final commentCtrl = _itemCommentControllers[key]!;
 
     final opt          = _outcomes.firstWhere((o) => o.value == outcome, orElse: () => _outcomes.first);
+    final optColor     = opt.resolve(cs);
     final isPartialQty = outcome == 'DELIVERED' && currentQty < plannedQty;
     final needsExtra   = _requiresReason.contains(outcome) || isPartialQty;
-    final borderColor  = isPartialQty ? AppColors.warning : opt.color;
+    final borderColor  = isPartialQty ? cs.secondary : optColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: borderColor.withValues(alpha: 0.4), width: 1.5),
       ),
@@ -490,10 +521,10 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                     children: [
                       Text(
                         item.name as String,
-                        style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: AppColors.textPrimary),
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14, color: cs.onSurface),
                       ),
                       if (item.sku != null && item.sku != item.name)
-                        Text(item.sku as String, style: const TextStyle(fontSize: 11, color: AppColors.muted)),
+                        Text(item.sku as String, style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant)),
                     ],
                   ),
                 ),
@@ -501,17 +532,17 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: AppColors.surfaceElevated,
+                    color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border),
+                    border: Border.all(color: cs.outlineVariant),
                   ),
                   child: Text(
                     outcome == 'DELIVERED' ? '$currentQty / $plannedQty' : '0 / $plannedQty',
                     style: TextStyle(
                       fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace',
-                      color: isPartialQty ? AppColors.warning
-                           : outcome != 'DELIVERED' ? AppColors.danger
-                           : AppColors.success,
+                      color: isPartialQty ? cs.secondary
+                           : outcome != 'DELIVERED' ? cs.error
+                           : cs.tertiary,
                     ),
                   ),
                 ),
@@ -532,6 +563,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               mainAxisSpacing: 8,
               childAspectRatio: 2.8,
               children: _outcomes.map((o) {
+                final oColor = o.resolve(cs);
                 final selected = outcome == o.value;
                 return GestureDetector(
                   onTap: () => setState(() {
@@ -542,24 +574,24 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 150),
                     decoration: BoxDecoration(
-                      color: selected ? o.color.withValues(alpha: 0.18) : AppColors.surfaceElevated,
+                      color: selected ? oColor.withValues(alpha: 0.18) : cs.surfaceContainerHighest,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: selected ? o.color : AppColors.border,
+                        color: selected ? oColor : cs.outlineVariant,
                         width: selected ? 1.5 : 1,
                       ),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(o.icon, size: 15, color: selected ? o.color : AppColors.muted),
+                        Icon(o.icon, size: 15, color: selected ? oColor : cs.onSurfaceVariant),
                         const SizedBox(width: 6),
                         Text(
                           o.label,
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
-                            color: selected ? o.color : AppColors.textSecondary,
+                            color: selected ? oColor : cs.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -573,13 +605,13 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
           // ── Quantity stepper (DELIVERED only) ────────────────────────
           if (outcome == 'DELIVERED') ...[
             const SizedBox(height: 12),
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: cs.outlineVariant),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  const Text('Quantité livrée',
-                      style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                  Text('Quantité livrée',
+                      style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
                   const Spacer(),
                   GestureDetector(
                     onTap: currentQty > 0
@@ -588,12 +620,12 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                     child: Container(
                       width: 32, height: 32,
                       decoration: BoxDecoration(
-                        color: currentQty > 0 ? AppColors.dangerSubtle : AppColors.surfaceElevated,
+                        color: currentQty > 0 ? cs.errorContainer : cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: currentQty > 0 ? AppColors.dangerBorder : AppColors.border),
+                        border: Border.all(color: currentQty > 0 ? cs.error : cs.outlineVariant),
                       ),
                       child: Icon(Icons.remove, size: 16,
-                          color: currentQty > 0 ? AppColors.danger : AppColors.muted),
+                          color: currentQty > 0 ? cs.error : cs.onSurfaceVariant),
                     ),
                   ),
                   Padding(
@@ -602,7 +634,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                       '$currentQty',
                       style: TextStyle(
                         fontWeight: FontWeight.w800, fontSize: 18,
-                        color: isPartialQty ? AppColors.warning : AppColors.textPrimary,
+                        color: isPartialQty ? cs.secondary : cs.onSurface,
                       ),
                     ),
                   ),
@@ -613,13 +645,13 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                     child: Container(
                       width: 32, height: 32,
                       decoration: BoxDecoration(
-                        color: currentQty < plannedQty ? AppColors.successSubtle : AppColors.surfaceElevated,
+                        color: currentQty < plannedQty ? cs.tertiaryContainer : cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: currentQty < plannedQty ? AppColors.successBorder : AppColors.border),
+                            color: currentQty < plannedQty ? cs.tertiary : cs.outlineVariant),
                       ),
                       child: Icon(Icons.add, size: 16,
-                          color: currentQty < plannedQty ? AppColors.success : AppColors.muted),
+                          color: currentQty < plannedQty ? cs.tertiary : cs.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -629,14 +661,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
 
           // ── Reason chips (wrapped grid) ───────────────────────────────
           if (needsExtra) ...[
-            const Divider(height: 1, color: AppColors.border),
+            Divider(height: 1, color: cs.outlineVariant),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Text(
                 isPartialQty ? 'Motif — livraison partielle *' : 'Motif *',
-                style: const TextStyle(
+                style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700,
-                    color: AppColors.muted, letterSpacing: 0.5),
+                    color: cs.onSurfaceVariant),
               ),
             ),
             Padding(
@@ -653,10 +685,10 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                       duration: const Duration(milliseconds: 120),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
                       decoration: BoxDecoration(
-                        color: selected ? opt.color.withValues(alpha: 0.15) : AppColors.surfaceElevated,
+                        color: selected ? optColor.withValues(alpha: 0.15) : cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                          color: selected ? opt.color : AppColors.border,
+                          color: selected ? optColor : cs.outlineVariant,
                           width: selected ? 1.5 : 1,
                         ),
                       ),
@@ -665,7 +697,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
-                          color: selected ? opt.color : AppColors.textSecondary,
+                          color: selected ? optColor : cs.onSurfaceVariant,
                         ),
                       ),
                     ),
@@ -685,7 +717,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
                 hintText: 'Commentaire sur cet article (optionnel)',
-                hintStyle: const TextStyle(fontSize: 13, color: AppColors.muted),
+                hintStyle: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
               ),
@@ -720,23 +752,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       if (_attachLocation) {
         final point = await _locationService.currentPosition();
         if (point != null) {
-          // DISABLED FOR TESTING \u2014 re-enable before production
-          // // P0: Accuracy Check
-          // if (point.accuracy > 100) {
-          //   throw 'Pr\u00e9cision GPS insuffisante (${point.accuracy.toInt()}m). Veuillez vous d\u00e9placer vers un endroit d\u00e9gag\u00e9.';
-          // }
-
-          // // P0: Geofence Check
-          // final destLat = widget.args.delivery.lat;
-          // final destLng = widget.args.delivery.lng;
-          // if (destLat != null && destLng != null) {
-          //   final distance = _locationService.calculateDistance(
-          //     point.lat, point.lng, destLat.toDouble(), destLng.toDouble());
-          //   if (distance > 250) {
-          //     throw 'Vous \u00eates trop loin du point de livraison (${distance.toInt()}m). Distance max autoris\u00e9e : 250m.';
-          //   }
-          // }
-
           lat = point.lat;
           lng = point.lng;
         }

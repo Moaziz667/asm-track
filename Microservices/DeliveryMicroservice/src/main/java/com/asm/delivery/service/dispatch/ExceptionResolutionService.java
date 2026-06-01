@@ -61,6 +61,7 @@ public class ExceptionResolutionService {
     private final DispatchService dispatchService;
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
+    private final com.asm.delivery.service.HandoffService handoffService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private ExceptionResolutionService self;
 
@@ -202,16 +203,8 @@ public class ExceptionResolutionService {
 				request.getEndTimeWindow()
 		);
 
-		// If the parcel was already physically picked up, flag the new stop for formal handoff.
-		if (wasInField && previousDriverId != null) {
-			routeStopRepository.findActiveByDeliveryId(delivery.getId()).ifPresent(newStop -> {
-				newStop.setRequiresHandoff(true);
-				newStop.setHandoffFromDriverId(previousDriverId);
-				newStop.setHandoffToDriverId(request.getDriverId());
-				newStop.setHandoffConfirmedAt(null);
-				routeStopRepository.save(newStop);
-			});
-		}
+		// Custody handoff (parcel already in the field) is opened below, after the
+		// stop has been moved onto the new driver's route — see the event section.
 
 		// RECALCULATION MOVED TO ORCHESTRATOR
 
@@ -240,9 +233,16 @@ public class ExceptionResolutionService {
 								   "reason", request.getNote() != null ? request.getNote() : ""));
 		}
 
+		boolean handoffNeeded = wasInField && previousDriverId != null
+				&& !previousDriverId.equals(request.getDriverId());
 		if (targetRouteStatus != RouteStatus.DRAFT) {
 			if (previousStatus == DeliveryStatus.UNSCHEDULED) {
 				eventPublisher.publishDeliveryScheduled(delivery.getOrder(), delivery, request.getDriverId());
+			} else if (handoffNeeded) {
+				// In-field parcel changing hands: admin sees the reassignment, but the
+				// drivers get accurate handoff prompts (not "new delivery"/"removed").
+				eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId(), false);
+				handoffService.request(delivery.getId(), previousDriverId, request.getDriverId(), principal, request.getNote());
 			} else {
 				eventPublisher.publishDeliveryReassigned(delivery.getOrder(), delivery, previousDriverId, request.getDriverId());
 			}

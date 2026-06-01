@@ -51,6 +51,8 @@ public class DriverDeliveryService {
     private final OutboxProcessor                outboxProcessor;
     private final ProcessedRequestRepository      idempotencyRepo;
     private final ObjectMapper                    objectMapper;
+    private final HandoffService                  handoffService;
+    private final com.asm.delivery.repository.HandoffRepository handoffRepository;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
@@ -676,101 +678,38 @@ public class DriverDeliveryService {
 
     // ── Handoff confirmation (Driver B confirms physical receipt) ──────────────
 
+    /**
+     * Legacy delivery-id-keyed endpoints — thin adapters over {@link HandoffService},
+     * which owns the lifecycle, hardened token, evidence and real-time events.
+     */
     @Transactional
     public HandoffTokenResponse generateHandoffToken(UUID deliveryId, UUID driverId) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
-
-        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
-                .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
-
-        if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
-            throw AppException.badRequest("This delivery is not marked for handoff");
-        }
-
-        // Only the handoff sender (from-driver) can generate the token
-        boolean isSender = driverId.equals(stop.getHandoffFromDriverId());
-        boolean isCurrentOwner = driverId.equals(delivery.getDriverId());
-        if (!isSender && !isCurrentOwner) {
-            throw AppException.forbidden("Only the sending driver can generate the handoff token");
-        }
-
-        // Generate a 6-character alphanumeric secure token
-        String token = java.util.UUID.randomUUID().toString().substring(0, 6).toUpperCase();
-        LocalDateTime expiresAt = LocalDateTime.now().plusMinutes(5);
-
-        stop.setHandoffToken(token);
-        stop.setHandoffTokenExpiresAt(expiresAt);
-        routeStopRepository.save(stop);
-
-        log.info("HANDOFF_TOKEN_GENERATED deliveryId={} driverId={} token={}", deliveryId, driverId, token);
-
+        Handoff handoff = handoffRepository.findActiveByDeliveryId(deliveryId)
+                .orElseThrow(() -> AppException.badRequest("This delivery is not awaiting a handoff"));
+        Handoff updated = handoffService.generateToken(handoff.getId(), driverId);
         return HandoffTokenResponse.builder()
-                .token(token)
+                .token(updated.getToken())
                 .deliveryId(deliveryId.toString())
-                .expiresAt(expiresAt)
+                .expiresAt(updated.getTokenExpiresAt())
                 .build();
     }
 
     @Transactional
     public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token, UserPrincipal principal) {
-        Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+        return confirmHandoff(deliveryId, driverId, token, null, null, null, principal);
+    }
 
-        RouteStop stop = routeStopRepository.findByDeliveryIdWithRoute(deliveryId)
-                .orElseThrow(() -> AppException.notFound("No route stop found for this delivery"));
-
-        if (!Boolean.TRUE.equals(stop.getRequiresHandoff())) {
-            throw AppException.badRequest("This delivery does not require a handoff confirmation");
+    @Transactional
+    public DriverDeliveryResponse confirmHandoff(UUID deliveryId, UUID driverId, String token,
+            java.math.BigDecimal lat, java.math.BigDecimal lng, String notes, UserPrincipal principal) {
+        Handoff handoff = handoffRepository.findActiveByDeliveryId(deliveryId).orElse(null);
+        if (handoff == null) {
+            // No open handoff — already confirmed or never required: return current state idempotently.
+            Delivery current = deliveryRepo.findByIdWithOrder(deliveryId)
+                    .orElseThrow(() -> AppException.notFound("Delivery not found"));
+            return toDriverDeliveryResponse(current);
         }
-
-        if (stop.getHandoffConfirmedAt() != null) {
-            // Already confirmed — idempotent return
-            return toDriverDeliveryResponse(delivery);
-        }
-
-        if (!driverId.equals(stop.getHandoffToDriverId())) {
-            throw AppException.forbidden("Only the receiving driver can confirm the handoff");
-        }
-
-        // Validate Token
-        if (stop.getHandoffToken() == null || !stop.getHandoffToken().equals(token)) {
-            throw AppException.badRequest("Invalid handoff token");
-        }
-        if (stop.getHandoffTokenExpiresAt() != null && stop.getHandoffTokenExpiresAt().isBefore(LocalDateTime.now())) {
-            throw AppException.badRequest("Handoff token has expired. Please ask the sender to generate a new one.");
-        }
-
-        LocalDateTime now = LocalDateTime.now();
-        stop.setHandoffConfirmedAt(now);
-        stop.setRequiresHandoff(false);
-        routeStopRepository.save(stop);
-
-        // Auto-advance to PICKED_UP — Driver 2 physically has the package after the scan
-        if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
-            delivery.setStatus(DeliveryStatus.PICKED_UP);
-            delivery.setPickedUpAt(now);
-            deliveryRepo.save(delivery);
-            routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.PICKED_UP, now, "Handoff confirmed — package received");
-        }
-
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
-        String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
-        auditLogService.logAction(principal, "HANDOFF_CONFIRMED", "DELIVERY", deliveryId.toString(),
-                Map.of("chauffeur", driverName, "client", clientName,
-                       "fromDriver", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : "unknown",
-                       "action", "Confirmation de remise du colis"));
-
-        appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER,
-                "DELIVERY_HANDOFF_CONFIRMED",
-                Map.of("driverId", driverId.toString(), "fromDriverId", stop.getHandoffFromDriverId() != null ? stop.getHandoffFromDriverId().toString() : ""));
-
-        // Notify admin dashboard
-        eventPublisher.publishHandoffConfirmed(deliveryId, stop.getRoute().getId(), driverId);
-
-
-        log.info("HANDOFF_CONFIRMED deliveryId={} fromDriver={} toDriver={}",
-                deliveryId, stop.getHandoffFromDriverId(), driverId);
-
+        Delivery delivery = handoffService.confirm(handoff.getId(), driverId, token, lat, lng, null, notes);
         return toDriverDeliveryResponse(delivery);
     }
 

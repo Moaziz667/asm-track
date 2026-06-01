@@ -1,0 +1,832 @@
+'use client';
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
+import { api } from '@/lib/api';
+import { Driver, DeliveryStatus, Zone } from '@/types';
+import StatusBadge from '@/components/StatusBadge';
+import { toast } from 'sonner';
+import { AlertTriangle, Clock, MapPin, CheckCircle2, XCircle, Search, RefreshCw, Filter, ArrowRight, User, Phone, Package, Trash2, Edit3, ChevronRight, MoreVertical, RotateCcw, ShieldCheck, Calendar, UserPlus, X } from 'lucide-react';
+import { formatRelative } from '@/lib/date';
+import { DEFAULT_OPERATIONAL_FILTERS, useGlobalFilters } from '@/lib/global-filters';
+import { SurfaceCard } from '@/components/ui/surfaces';
+import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/auth';
+import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+type OpsException = {
+  deliveryId: string;
+  orderId?: string;
+  orderRef?: string;
+  routeId?: string;
+  routeName?: string;
+  status: DeliveryStatus;
+  failureCode?: string;
+  motif: string;
+  driverId?: string;
+  driverName?: string;
+  clientName?: string;
+  city?: string;
+  zoneName?: string;
+  severity: string;
+  comment?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
+type OpsExceptionResponse = {
+  generatedAt: string;
+  period: string;
+  periodStart: string;
+  periodEnd: string;
+  total: number;
+  items: OpsException[];
+};
+
+type OpsLane = {
+  type: string;
+  count: number;
+  slaBreachCount: number;
+  label: string;
+};
+
+type AdminOpsOverviewResponse = {
+  generatedAt: string;
+  period: string;
+  lanes: OpsLane[];
+  totalExceptions: number;
+  criticalExceptions: number;
+  unpinnedCount: number;
+};
+
+type Period = 'day' | 'week' | 'month' | 'custom';
+type ActionKind = 'reassign' | 'replan';
+type DeskTab = 'all' | 'failed' | 'waitingSla' | 'assignSla' | 'pickupSla' | 'missingPin' | 'customer';
+
+const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['SCHEDULED', 'PICKED_UP'];
+const REPLANNABLE_STATUSES: DeliveryStatus[] = ['SCHEDULED', 'PICKED_UP', 'FAILED'];
+
+type PendingAction = {
+  kind: ActionKind;
+  row: OpsException;
+};
+
+export default function ExceptionsPage() {
+  const { filters: globalFilters, applyFilters, clearFilters, globalContext } = useGlobalFilters();
+  const [rows, setRows] = useState<OpsException[]>([]);
+  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [zones, setZones] = useState<Zone[]>([]);
+  const [driverSelection, setDriverSelection] = useState<Record<string, string>>({});
+
+  const [period, setPeriod] = useState<Period>('month');
+  const [customFrom, setCustomFrom] = useState('');
+  const [customTo, setCustomTo] = useState('');
+  const [motif, setMotif] = useState(globalFilters.search || '');
+  const [zoneFilter, setZoneFilter] = useState(globalFilters.zone || '');
+  const [driverId, setDriverId] = useState(globalFilters.driver || '');
+  const [statusFilter, setStatusFilter] = useState(globalFilters.status || '');
+  const [activeTab, setActiveTab] = useState<DeskTab>('all');
+
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [runningAction, setRunningAction] = useState<string | null>(null);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
+  const [actionNote, setActionNote] = useState('');
+  const [actionDriverId, setActionDriverId] = useState('');
+  
+  const [startTimeWindow, setStartTimeWindow] = useState('');
+  const [endTimeWindow, setEndTimeWindow] = useState('');
+  const [driverRouteStops, setDriverRouteStops] = useState<any[]>([]);
+  const [loadingRoute, setLoadingRoute] = useState(false);
+
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [overview, setOverview] = useState<AdminOpsOverviewResponse | null>(null);
+  const [slaSettings, setSlaSettings] = useState<Record<string, string>>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentRole, setCurrentRole] = useState<any>('UNKNOWN');
+
+  const searchParams = useSearchParams();
+  const initialSyncRef = useRef(false);
+
+  useEffect(() => {
+    setCurrentUser(getCurrentUser());
+    setCurrentRole(getCurrentRole());
+  }, []);
+
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const res = await api.get('/api/admin/deliveries/drivers');
+      setDrivers(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setDrivers([]);
+    }
+  }, []);
+
+  const fetchZones = useCallback(async () => {
+    try {
+      const res = await api.get('/api/v1/zones/active');
+      setZones(Array.isArray(res.data) ? res.data : []);
+    } catch {
+      setZones([]);
+    }
+  }, []);
+
+  const fetchExceptions = useCallback(async (silent = false) => {
+    if (silent) setRefreshing(true);
+    else setLoading(true);
+    try {
+      const params: Record<string, string | number> = { period, limit: 200 };
+      if (period === 'custom') {
+        if (!customFrom || !customTo) {
+          if (!silent) toast.error('Select custom dates');
+          setRows([]);
+          return;
+        }
+        params.from = customFrom;
+        params.to = customTo;
+      }
+      if (motif.trim()) params.motif = motif.trim();
+      if (zoneFilter.trim()) params.zone = zoneFilter.trim();
+      if (driverId) params.driverId = driverId;
+      if (statusFilter) params.status = statusFilter;
+
+      const res = await api.get<OpsExceptionResponse>('/api/admin/ops/exceptions', { params });
+      setRows(Array.isArray(res.data?.items) ? res.data.items : []);
+      setLastUpdated(new Date());
+    } catch {
+      toast.error('Impossible de charger les exceptions');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, [customFrom, customTo, driverId, motif, period, statusFilter, zoneFilter]);
+
+  const fetchOverview = useCallback(async () => {
+    try {
+      const params: Record<string, string | number> = { period };
+      if (period === 'custom' && customFrom && customTo) {
+        params.from = customFrom;
+        params.to = customTo;
+      }
+      const res = await api.get<AdminOpsOverviewResponse>('/api/admin/ops/overview', { params });
+      setOverview(res.data);
+    } catch {}
+  }, [period, customFrom, customTo]);
+
+  const fetchSlaSettings = useCallback(async () => {
+    try {
+      const res = await api.get('/api/admin/reports/settings');
+      setSlaSettings(res.data && typeof res.data === 'object' ? res.data : {});
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    fetchDrivers();
+    fetchZones();
+    fetchSlaSettings();
+  }, [fetchDrivers, fetchSlaSettings, fetchZones]);
+
+  useEffect(() => {
+    if (!globalContext || initialSyncRef.current) return;
+    initialSyncRef.current = true;
+
+    const qSearch = searchParams?.get('search') ?? searchParams?.get('deliveryId');
+    if (qSearch) {
+      setMotif(qSearch);
+      applyFilters({ search: qSearch });
+    } else {
+      setMotif(globalFilters.search);
+      setZoneFilter(globalFilters.zone);
+      setDriverId(globalFilters.driver);
+      setStatusFilter(globalFilters.status);
+    }
+  }, [globalContext, searchParams, applyFilters, globalFilters.search, globalFilters.zone, globalFilters.driver, globalFilters.status]);
+
+  useEffect(() => {
+    if (!initialSyncRef.current) return;
+    applyFilters({
+      search: motif,
+      zone: zoneFilter,
+      driver: driverId,
+      status: statusFilter,
+    });
+    fetchOverview();
+  }, [motif, zoneFilter, driverId, statusFilter, applyFilters, fetchOverview]);
+
+  useEffect(() => {
+    fetchExceptions();
+    setCurrentPage(1); 
+  }, [fetchExceptions]);
+
+  const tabFilter = useCallback((row: OpsException) => {
+    const bucketText = `${row.motif ?? ''} ${row.comment ?? ''}`.toLowerCase();
+    const isWaitingSla = bucketText.includes('sla_unscheduled') || bucketText.includes('waiting') || bucketText.includes('planification');
+    const isAssignSla = bucketText.includes('assign') || bucketText.includes('affectation');
+    const isPickupSla = bucketText.includes('pickup') || bucketText.includes('ramassage');
+
+    if (activeTab === 'all') return true;
+    if (activeTab === 'failed') return row.status === 'FAILED' || row.status === 'CANCELLED';
+    if (activeTab === 'waitingSla') return isWaitingSla;
+    if (activeTab === 'assignSla') return isAssignSla;
+    if (activeTab === 'pickupSla') return isPickupSla;
+    return true;
+  }, [activeTab]);
+
+  const filtered = useMemo(
+    () => rows.filter((row) => (statusFilter ? row.status === statusFilter : true)).filter(tabFilter),
+    [rows, statusFilter, tabFilter]
+  );
+
+  const pageSize = 20;
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  
+  const pagedRows = useMemo(() => {
+    const start = (currentPage - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, currentPage]);
+
+  const activeSlaThresholds = useMemo(() => ({
+    waiting: slaSettings['ops.sla.waiting-limit-minutes'] ?? '15',
+    assign: slaSettings['ops.sla.assign-limit-minutes'] ?? '20',
+    pickup: slaSettings['ops.sla.pickup-limit-minutes'] ?? '6',
+  }), [slaSettings]);
+
+  const zoneOptions = useMemo(
+    () => [...zones].sort((a, b) => a.name.localeCompare(b.name, 'fr', { sensitivity: 'base' })),
+    [zones]
+  );
+
+  const hasWaitingLane = useMemo(
+    () => Boolean(overview?.lanes?.some((lane) => lane.type === 'UNSCHEDULED')),
+    [overview]
+  );
+
+  const resetActionState = () => {
+    setPendingAction(null);
+    setActionNote('');
+    setActionDriverId('');
+    setStartTimeWindow('');
+    setEndTimeWindow('');
+    setDriverRouteStops([]);
+  };
+
+  const fetchDriverRoute = useCallback(async (driverId: string) => {
+    if (!driverId) {
+      setDriverRouteStops([]);
+      setStartTimeWindow('');
+      setEndTimeWindow('');
+      return;
+    }
+    setLoadingRoute(true);
+    try {
+      const res = await api.get('/api/admin/routes', {
+        params: { driverId },
+      });
+
+      const routes = Array.isArray(res.data) ? res.data : [];
+      const activeRoute = routes.find((r: any) => r.status === 'IN_PROGRESS' || r.status === 'VALIDATED');
+
+      if (!activeRoute?.id) {
+        setDriverRouteStops([]);
+        return;
+      }
+
+      const fullRes = await api.get(`/api/admin/routes/${activeRoute.id}/full`);
+      setDriverRouteStops(Array.isArray(fullRes.data?.stops) ? fullRes.data.stops : []);
+    } catch {
+      setDriverRouteStops([]);
+    } finally {
+      setLoadingRoute(false);
+    }
+  }, []);
+
+  const openActionModal = (kind: ActionKind, row: OpsException) => {
+    if (kind === 'reassign' && !REASSIGNABLE_STATUSES.includes(row.status)) {
+      toast.error('La réassignation est autorisée uniquement pour les livraisons SCHEDULED ou PICKED_UP');
+      return;
+    }
+    if (kind === 'replan' && !REPLANNABLE_STATUSES.includes(row.status)) {
+      toast.error('La replanification n\'est pas autorisée pour ce statut de livraison');
+      return;
+    }
+
+    setPendingAction({ kind, row });
+    const actorPart = currentUser?.name ? ` par ${currentUser.name}` : '';
+
+    if (kind === 'reassign') {
+      const dId = driverSelection[row.deliveryId] ?? row.driverId ?? '';
+      setActionDriverId(dId);
+      setActionNote(`Réassignation${actorPart} depuis le bureau des exceptions (${row.motif})`);
+      if (dId) fetchDriverRoute(dId);
+    } else {
+      setActionNote(`${row.status === 'FAILED' ? 'Relance' : 'Replanification'}${actorPart} depuis le bureau des exceptions (${row.motif})`);
+    }
+  };
+
+  const confirmAction = async () => {
+    if (!pendingAction) return;
+
+    const note = actionNote.trim();
+    if (!note) {
+      toast.error('La note est obligatoire');
+      return;
+    }
+
+    const { deliveryId } = pendingAction.row;
+    setRunningAction(`${pendingAction.kind}:${deliveryId}`);
+
+    try {
+      if (pendingAction.kind === 'reassign') {
+        if (!actionDriverId) {
+          toast.error('Sélectionnez un chauffeur');
+          return;
+        }
+        const payload: any = { driverId: actionDriverId, note };
+        if (startTimeWindow) payload.startTimeWindow = startTimeWindow.length === 5 ? `${startTimeWindow}:00` : startTimeWindow;
+        if (endTimeWindow) payload.endTimeWindow = endTimeWindow.length === 5 ? `${endTimeWindow}:00` : endTimeWindow;
+        
+        await api.post(`/api/admin/ops/exceptions/${deliveryId}/reassign`, payload);
+        toast.success('Livraison réassignée');
+      } else {
+        await api.post(`/api/admin/ops/exceptions/${deliveryId}/replan`, { note });
+        toast.success('Livraison replanifiée');
+      }
+      await fetchExceptions(true);
+      resetActionState();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message ?? 'Échec de l\'opération');
+    } finally {
+      setRunningAction(null);
+    }
+  };
+
+  const formatMotif = (motif?: string) => {
+    const key = (motif ?? '').toUpperCase();
+    if (key.includes('SLA_UNSCHEDULED')) return 'Attente planification';
+    if (key.includes('SLA_SCHEDULED') || key.includes('SLA_PICKUP')) return 'Retard ramassage';
+    if (key.includes('SLA_IN_TRANSIT')) return 'Retard livraison';
+    if (key.includes('CANCELLED')) return 'Annulée';
+    if (key.includes('FAILED')) return 'Échec';
+    if (key.includes('PARTIAL')) return 'Partielle';
+    return motif ?? 'Motif non défini';
+  };
+
+  const formatComment = (comment?: string) => {
+    const normalized = (comment ?? '').toLowerCase();
+    if (normalized.includes('unscheduled sla breached')) return 'Le délai maximum d\'attente avant planification a été dépassé.';
+    if (normalized.includes('not been picked up within sla')) return 'Le livreur tarde à récupérer le colis au dépôt.';
+    if (normalized.includes('transit sla breached')) return 'Le délai de transit (fenêtre client) est dépassé.';
+    return comment;
+  };
+
+  const formatTimeValue = (value: unknown) => {
+    if (!value) return '--:--';
+    const text = String(value);
+    return text.length >= 5 ? text.slice(0, 5) : text;
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* ── Nexus Exceptions Header ─────────────────────────────────── */}
+      <div className="flex justify-between items-start">
+        <div className="space-y-1">
+          <h1 className="text-3xl font-black text-slate-950 tracking-tightest uppercase">Bureau des Exceptions</h1>
+          <div className="text-[12px] font-bold text-slate-400 uppercase tracking-widest">Pipeline de résolution et qualité opérationnelle</div>
+          <p className="text-[13px] font-medium text-slate-500 max-w-2xl leading-relaxed mt-2">
+            Suivez et résolvez les anomalies de livraison en temps réel. Gérez les retards SLA et les échecs de livraison 
+            pour garantir l'excellence opérationnelle et la satisfaction client.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className="text-right">
+            <div className="text-[11px] font-black text-slate-900 uppercase tracking-tight">État de Synchronisation</div>
+            <div className="text-[10px] font-bold text-slate-400 italic">
+              {lastUpdated ? `Prêt · ${formatRelative(lastUpdated)}` : 'Synchronisation en cours...'}
+            </div>
+          </div>
+          <button
+            onClick={() => { fetchExceptions(true); fetchOverview(); fetchSlaSettings(); }}
+            disabled={loading || refreshing}
+            className="flex items-center gap-2 h-10 px-4 rounded-xl border border-slate-200 bg-white text-[11px] font-black text-slate-900 hover:bg-slate-50 transition-all shadow-sm"
+          >
+            <RefreshCw size={14} className={refreshing ? 'animate-spin' : ''} />
+            <span>Synchroniser</span>
+          </button>
+        </div>
+      </div>
+
+      {hasWaitingLane && (
+        <div className="flex gap-4">
+          <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4 flex items-center gap-4 shadow-sm">
+            <div className="size-10 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-600 shadow-inner">
+              <Clock size={20} />
+            </div>
+            <div>
+              <div className="text-[10px] font-black text-amber-700 uppercase tracking-widest mb-0.5">SLA Hors-tournée (Attente)</div>
+              <div className="text-2xl font-black text-amber-900 font-mono tracking-tighter">
+                {overview?.lanes?.find(l => l.type === 'UNSCHEDULED')?.slaBreachCount ?? 0}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
+        <div className="flex items-center gap-2 mb-4 border-b border-slate-100 pb-3">
+          <ShieldCheck size={16} className="text-emerald-600" />
+          <h2 className="text-[11px] font-black text-slate-900 uppercase tracking-widest">Seuils SLA Actifs (Paramètres Système)</h2>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="space-y-1">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Attente Max</div>
+            <div className="text-2xl font-black text-slate-900 font-mono italic">
+              {activeSlaThresholds.waiting} <span className="text-[10px] uppercase opacity-40 italic">min</span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic border-t border-slate-50 pt-1.5">Délai limite avant planification requise.</p>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Affectation Max</div>
+            <div className="text-2xl font-black text-slate-900 font-mono italic">
+              {activeSlaThresholds.assign} <span className="text-[10px] uppercase opacity-40 italic">min</span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic border-t border-slate-50 pt-1.5">Délai limite avant ramassage effectif.</p>
+          </div>
+          <div className="space-y-1">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Ramassage Max</div>
+            <div className="text-2xl font-black text-slate-900 font-mono italic">
+              {activeSlaThresholds.pickup} <span className="text-[10px] uppercase opacity-40 italic">min</span>
+            </div>
+            <p className="text-[10px] text-slate-400 font-bold leading-relaxed italic border-t border-slate-50 pt-1.5">Délai limite avant mise en transit.</p>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Nexus Desk Tabs ────────────────────────────────────────── */}
+      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+        {[
+          { id: 'all', label: 'Vue d\'ensemble', icon: null },
+          { id: 'failed', label: 'Incidents / Échecs', icon: <XCircle size={12} />, activeColor: 'bg-red-600 border-red-600 text-white' },
+          { id: 'waitingSla', label: 'SLA Attente', icon: <Clock size={12} /> },
+          { id: 'assignSla', label: 'SLA Affectation', icon: <UserPlus size={12} /> },
+          { id: 'pickupSla', label: 'SLA Ramassage', icon: <Package size={12} /> },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id as DeskTab)}
+            className={cn(
+              "flex items-center gap-2 h-9 px-4 rounded-full border transition-all text-[11px] font-black uppercase tracking-tight whitespace-nowrap",
+              activeTab === tab.id 
+                ? tab.activeColor || "bg-slate-900 text-white border-slate-900 shadow-md"
+                : "bg-white text-slate-500 border-slate-200 hover:border-slate-300"
+            )}
+          >
+            {tab.icon}
+            <span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* ── Nexus Filter Bar ────────────────────────────────────────── */}
+      <div className="bg-white border border-slate-200 rounded-xl p-4 shadow-sm">
+        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4 items-end">
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Période</label>
+            <select
+              value={period}
+              onChange={(e) => setPeriod(e.target.value as Period)}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold"
+            >
+              <option value="day">Aujourd'hui</option>
+              <option value="week">Cette Semaine</option>
+              <option value="month">Ce Mois</option>
+              <option value="custom">Personnalisé</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Filtre Motif</label>
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                value={motif}
+                onChange={(e) => setMotif(e.target.value)}
+                placeholder="Ex: SLA_UNSCHEDULED..."
+                className="w-full h-10 pl-9 pr-4 rounded-lg border border-slate-200 bg-slate-50/50 text-[12px] font-bold focus:ring-2 focus:ring-slate-900 transition-all"
+              />
+            </div>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Zone</label>
+            <select
+              value={zoneFilter}
+              onChange={(e) => setZoneFilter(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold"
+            >
+              <option value="">Toutes les zones</option>
+              {zoneOptions.map((zone) => <option key={zone.id} value={zone.name}>{zone.name}</option>)}
+            </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Statut</label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="UNSCHEDULED">Non planifiée</option>
+              <option value="SCHEDULED">Assignée</option>
+              <option value="PICKED_UP">Récupérée</option>
+              <option value="IN_TRANSIT">En transit</option>
+              <option value="FAILED">Échec</option>
+              <option value="CANCELLED">Annulée</option>
+              <option value="PARTIALLY_DELIVERED">Partielle</option>
+            </select>
+          </div>
+
+          <div className="space-y-1.5 lg:col-span-1">
+            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Chauffeur</label>
+            <select
+              value={driverId}
+              onChange={(e) => setDriverId(e.target.value)}
+              className="w-full h-10 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold"
+            >
+              <option value="">Tous les chauffeurs</option>
+              {drivers.map((driver) => <option key={driver.id} value={driver.id}>{driver.name}</option>)}
+            </select>
+          </div>
+
+          <button
+            onClick={() => {
+              setPeriod('day'); setMotif(''); setZoneFilter(''); setDriverId(''); setStatusFilter(''); clearFilters();
+            }}
+            className="flex items-center justify-center h-10 w-10 rounded-lg border border-slate-200 bg-slate-50 text-slate-400 hover:text-slate-900 transition-colors"
+            title="Réinitialiser"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
+      </div>
+
+      {/* ── Nexus Exceptions Table ──────────────────────────────────── */}
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
+        <table className="w-full text-left border-collapse">
+          <thead>
+            <tr className="border-b border-slate-100 bg-slate-50/50">
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Référence / ID</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">État</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Anomalie Détectée</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Client & Ville</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Livreur</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Zone / Tournée</th>
+              <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest">Dernière Activité</th>
+              {!isReadOnlyRole(currentRole) && <th className="px-6 py-4 text-[10px] font-black text-slate-400 uppercase tracking-widest text-right">Actions</th>}
+            </tr>
+          </thead>
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center gap-3">
+                    <RefreshCw size={24} className="text-slate-300 animate-spin" />
+                    <div className="text-[11px] font-black text-slate-400 uppercase tracking-widest">Synchronisation Opérationnelle...</div>
+                  </div>
+                </td>
+              </tr>
+            ) : pagedRows.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="px-6 py-20 text-center">
+                  <div className="flex flex-col items-center gap-2 opacity-20">
+                    <ShieldCheck size={40} />
+                    <div className="text-[11px] font-black uppercase tracking-widest">Aucune exception à signaler</div>
+                  </div>
+                </td>
+              </tr>
+            ) : pagedRows.map((row) => {
+              const busyReplan = runningAction === `replan:${row.deliveryId}`;
+              const busyReassign = runningAction === `reassign:${row.deliveryId}`;
+              const canReassign = REASSIGNABLE_STATUSES.includes(row.status);
+              const canReplan = REPLANNABLE_STATUSES.includes(row.status);
+              
+              return (
+                <tr key={row.deliveryId} className="border-b border-slate-50 hover:bg-slate-50/50 transition-colors group">
+                  <td className="px-6 py-4 align-top">
+                    <div className="text-[12px] font-black text-slate-900 font-mono tracking-tight uppercase">{row.orderRef || 'SANS RÉF'}</div>
+                    <div className="text-[9px] font-bold text-slate-400 uppercase mt-1 opacity-60">ID: {row.deliveryId.slice(0, 8)}</div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <StatusBadge status={row.status} />
+                  </td>
+                  <td className="px-6 py-4 align-top max-w-xs">
+                    <div className="flex flex-col gap-1">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "size-2 rounded-full",
+                          row.severity?.toUpperCase() === 'CRITICAL' ? "bg-red-500 animate-pulse" : "bg-amber-500"
+                        )} />
+                        <span className={cn(
+                          "text-[11px] font-black uppercase tracking-tight",
+                          row.severity?.toUpperCase() === 'CRITICAL' ? "text-red-700" : "text-amber-700"
+                        )}>
+                          {formatMotif(row.motif)}
+                        </span>
+                      </div>
+                      {row.comment && (
+                        <div className="text-[10px] text-slate-500 font-medium italic leading-relaxed line-clamp-2">
+                          {formatComment(row.comment)}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="text-[12px] font-black text-slate-900 truncate max-w-[140px] uppercase">{row.clientName || 'Inconnu'}</div>
+                    <div className="text-[10px] font-bold text-slate-500 mt-0.5">{row.city || '-'}</div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="flex items-center gap-2">
+                      <div className="size-6 rounded bg-slate-100 flex items-center justify-center text-slate-400 border border-slate-200">
+                        <User size={12} />
+                      </div>
+                      <span className="text-[11px] font-bold text-slate-600 truncate max-w-[100px]">
+                        {row.driverName || 'Non assigné'}
+                      </span>
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top">
+                    <div className="flex flex-col gap-1">
+                      <div className="text-[10px] font-black text-slate-800 uppercase tracking-tighter w-fit px-1.5 py-0.5 bg-slate-100 border border-slate-200 rounded">
+                        {row.zoneName || 'GLOBAL'}
+                      </div>
+                      {row.routeName && (
+                        <div className="text-[9px] font-bold text-slate-400 uppercase tracking-widest whitespace-nowrap">
+                          {row.routeName}
+                        </div>
+                      )}
+                    </div>
+                  </td>
+                  <td className="px-6 py-4 align-top whitespace-nowrap">
+                    <div className="text-[11px] font-bold text-slate-600">
+                      {row.updatedAt ? formatRelative(new Date(row.updatedAt)) : '--'}
+                    </div>
+                    {row.createdAt && (
+                      <div className="text-[9px] text-slate-400 font-medium mt-0.5">
+                        Créé {formatRelative(new Date(row.createdAt))}
+                      </div>
+                    )}
+                  </td>
+                  {!isReadOnlyRole(currentRole) && (
+                    <td className="px-6 py-4 align-top text-right">
+                      <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openActionModal('reassign', row)}
+                          disabled={!canReassign || busyReassign || busyReplan}
+                          className="h-8 px-3 rounded-lg border border-slate-200 bg-white text-[10px] font-black uppercase tracking-widest text-slate-900 hover:bg-slate-950 hover:text-white transition-all disabled:opacity-20"
+                        >
+                          Réassigner
+                        </button>
+                        <button
+                          onClick={() => openActionModal('replan', row)}
+                          disabled={!canReplan || busyReassign || busyReplan}
+                          className="h-8 px-3 rounded-lg border border-emerald-200 bg-emerald-50/50 text-[10px] font-black uppercase tracking-widest text-emerald-700 hover:bg-emerald-600 hover:text-white transition-all disabled:opacity-20"
+                        >
+                          Replanifier
+                        </button>
+                      </div>
+                    </td>
+                  )}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+
+        {!loading && filtered.length > 0 && (
+          <div className="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-between">
+            <div className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+              Page <span className="text-slate-900">{currentPage}</span> / {totalPages} · <span className="text-slate-900">{filtered.length}</span> Exceptions
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-[11px] font-black text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Précédent
+              </button>
+              <button
+                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="h-9 px-4 rounded-lg border border-slate-200 bg-white text-[11px] font-black text-slate-600 disabled:opacity-30 hover:bg-slate-50 transition-colors shadow-sm"
+              >
+                Suivant
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Nexus Corrective Action Modal ──────────────────────────── */}
+      {pendingAction && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={resetActionState} />
+          
+          <div className="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="p-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="size-10 rounded-xl bg-slate-900 flex items-center justify-center text-white shadow-lg">
+                  {pendingAction.kind === 'reassign' ? <UserPlus size={20} /> : <RotateCcw size={20} />}
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-slate-900 tracking-tight leading-none uppercase">
+                    {pendingAction.kind === 'reassign' ? 'Réassignation Manuelle' : 'Replanification'}
+                  </h2>
+                  <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1.5 flex items-center gap-2">
+                    <span className="text-slate-900">ID Livraison:</span> {pendingAction.row.deliveryId.slice(0, 8)}
+                  </div>
+                </div>
+              </div>
+              <button onClick={resetActionState} className="size-8 flex items-center justify-center rounded-lg hover:bg-slate-200/50 transition-colors text-slate-400">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-6 space-y-6">
+              <div className="bg-amber-50 border border-amber-200/60 rounded-xl p-4">
+                <div className="flex items-center gap-2 text-amber-700 mb-1.5">
+                  <AlertTriangle size={14} />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Anomalie Détectée</span>
+                </div>
+                <div className="text-[13px] font-black text-amber-900 leading-tight mb-1">
+                  {formatMotif(pendingAction.row.motif)}
+                </div>
+                <div className="text-[11px] text-amber-700/70 font-medium italic leading-relaxed">
+                  {formatComment(pendingAction.row.comment)}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {pendingAction.kind === 'reassign' && (
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sélectionner un nouveau chauffeur</label>
+                    <select
+                      value={actionDriverId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setActionDriverId(id);
+                        if (id) fetchDriverRoute(id);
+                      }}
+                      className="w-full h-11 px-3 rounded-lg border border-slate-200 bg-white text-[12px] font-bold outline-none focus:ring-2 focus:ring-slate-900/10 transition-all"
+                    >
+                      <option value="">-- Choisir un chauffeur --</option>
+                      {drivers.map(d => (
+                        <option key={d.id} value={d.id}>{d.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Note Opérationnelle (Justification)</label>
+                  <textarea
+                    value={actionNote}
+                    onChange={(e) => setActionNote(e.target.value)}
+                    placeholder="Pourquoi effectuez-vous ce changement ?"
+                    className="w-full h-28 p-3 rounded-lg border border-slate-200 bg-slate-50/50 text-[12px] font-bold focus:ring-2 focus:ring-slate-900/10 transition-all outline-none resize-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-slate-100 bg-slate-50/30 flex gap-3">
+              <button 
+                onClick={resetActionState}
+                className="flex-1 h-11 rounded-xl border border-slate-200 text-[11px] font-black uppercase tracking-widest hover:bg-slate-50 transition-all"
+              >
+                Annuler
+              </button>
+              <button 
+                onClick={confirmAction}
+                disabled={runningAction !== null || (pendingAction.kind === 'reassign' && !actionDriverId)}
+                className="flex-[2] h-11 rounded-xl bg-slate-950 text-white text-[11px] font-black uppercase tracking-widest shadow-lg shadow-slate-950/20 hover:bg-slate-800 disabled:opacity-50 transition-all"
+              >
+                {runningAction ? 'Enregistrement...' : 'Confirmer le Correctif'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

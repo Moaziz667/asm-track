@@ -1,0 +1,615 @@
+
+
+import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
+import { lazy as dynamic } from 'react';
+import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { useLocaleStore } from '@/lib/i18n';
+import { useT, getCopy } from '@/lib/LocaleContext';
+import {
+  IconAlertTriangle, IconMapPin, IconPencil, IconPlus,
+  IconRefresh, IconScan, IconTrash, IconX, IconWorld,
+  IconLayoutDashboard, IconPoint
+} from '@tabler/icons-react';
+import { isReadOnlyRole, getCurrentRole } from '@/lib/auth';
+import type { Zone } from '@/types';
+import { cn } from '@/lib/utils';
+import type { CoordMap } from '@/components/ZoneSelectorMap';
+import { AppModal } from '@/components/overlays/AppModal';
+import { ConfirmModal } from '@/components/overlays/ConfirmModal';
+import { Button } from '@/components/ui/button';
+import {
+  useZones,
+  useCreateZone,
+  useUpdateZone,
+  useDeleteZone,
+  useSyncZones
+} from '@/hooks/useZones';
+
+const ZoneSelectorMap = dynamic(() => import('@/components/ZoneSelectorMap'));
+
+const ZONE_COLORS = [
+  '#5E6AD2', '#C7372F', '#4CAF82', '#7B6FCC', '#C4881A',
+  '#2594B8', '#D45E8B', '#8CB83E', '#D4772C', '#2E8B83',
+  '#6A5ACD', '#A0522D',
+];
+
+const emptyForm = {
+  name: '',
+  color: '#5E6AD2',
+  description: '',
+  postalCodes: [] as string[],
+  isActive: true,
+  geometry: undefined as string | undefined,
+};
+
+export default function ZonesPage() {
+  const t = useT();
+  const locale = useLocaleStore(state => state.locale);
+  const role = getCurrentRole();
+  const readOnly = isReadOnlyRole(role);
+
+  // TanStack Query Hooks
+  const { data: zones = [], isLoading: loading, refetch: fetchZones } = useZones();
+  const createZoneMutation = useCreateZone();
+  const updateZoneMutation = useUpdateZone();
+  const deleteZoneMutation = useDeleteZone();
+  const syncZonesMutation = useSyncZones();
+
+  const [editorOpen, setEditorOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [form, setForm] = useState(emptyForm);
+  const [knownCoords, setKnownCoords] = useState<CoordMap>({});
+  const [manualCode, setManualCode] = useState('');
+  const [addingManual, setAddingManual] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Zone | null>(null);
+
+  const openCreate = () => {
+    if (readOnly) return;
+    const usedColors = new Set(zones.map(z => z.color));
+    const autoColor = ZONE_COLORS.find(c => !usedColors.has(c)) ?? ZONE_COLORS[0];
+    setEditingId(null);
+    setForm({ ...emptyForm, color: autoColor });
+    setKnownCoords({});
+    setManualCode('');
+    setEditorOpen(true);
+  };
+
+  const openEdit = (zone: Zone) => {
+    if (readOnly) return;
+    setEditingId(zone.id);
+    setForm({
+      name: zone.name,
+      color: zone.color ?? '#2563eb',
+      description: zone.description ?? '',
+      postalCodes: zone.postalCodes ?? [],
+      isActive: zone.isActive,
+      geometry: zone.geometry,
+    });
+    setKnownCoords({});
+    setManualCode('');
+    setEditorOpen(true);
+  };
+
+  const conflictCodes = useMemo(() => {
+    const otherCodes = new Set(
+      zones.filter(z => z.id !== editingId).flatMap(z => z.postalCodes ?? [])
+    );
+    return form.postalCodes.filter(c => otherCodes.has(c));
+  }, [zones, form.postalCodes, editingId]);
+
+  const addManualCode = async () => {
+    const code = manualCode.trim();
+    if (!code) return;
+    if (form.postalCodes.includes(code)) {
+      return showErrorToast(null, 'errorZoneCodeAlreadyAdded');
+    }
+    setAddingManual(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&postalcode=${encodeURIComponent(code)}&country=Tunisia&limit=1`);
+      const data = await res.json();
+      if (data?.[0]) {
+        const lat = parseFloat(data[0].lat);
+        const lng = parseFloat(data[0].lon);
+        const name = data[0].display_name?.split(',')[0]?.trim();
+        setKnownCoords(prev => ({ ...prev, [code]: { lat, lng, name } }));
+        setForm(p => ({ ...p, postalCodes: [...p.postalCodes, code] }));
+        setManualCode('');
+      } else {
+        showErrorToast(null, 'errorZoneCodeLookupFailed');
+      }
+    } catch (err) {
+      showErrorToast(err, 'errorNetworkError');
+    }
+    finally { setAddingManual(false); }
+  };
+
+  const togglePostalCode = (code: string) => {
+    setForm((p) => ({
+      ...p,
+      postalCodes: p.postalCodes.includes(code)
+        ? p.postalCodes.filter((c) => c !== code)
+        : [...p.postalCodes, code],
+    }));
+  };
+
+  const save = async () => {
+    if (!form.name.trim()) {
+      return showErrorToast(null, 'errorZoneNameRequired');
+    }
+    if (form.postalCodes.length === 0) {
+      return showErrorToast(null, 'errorZoneMinPostalCodesRequired');
+    }
+    if (conflictCodes.length > 0) {
+      return showErrorToast(null, 'errorZoneConflictingCodes');
+    }
+
+    const payload = {
+      name: form.name.trim(),
+      color: form.color || null,
+      description: form.description.trim() || null,
+      cities: [],
+      postalCodes: form.postalCodes,
+      isActive: form.isActive,
+      geometry: form.geometry,
+    };
+    try {
+      if (editingId) {
+        await updateZoneMutation.mutateAsync({ id: editingId, payload });
+      } else {
+        await createZoneMutation.mutateAsync(payload);
+      }
+      setEditorOpen(false);
+    } catch (err: any) {
+      // Errors are handled by query mutation callbacks
+    }
+  };
+
+  const syncZones = async () => {
+    try {
+      await syncZonesMutation.mutateAsync();
+    } catch (err) {
+      // Errors are handled by query mutation callbacks
+    }
+  };
+
+  const doDelete = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteZoneMutation.mutateAsync(deleteTarget.id);
+      setDeleteTarget(null);
+    } catch (err) {
+      // Errors are handled by query mutation callbacks
+    }
+  };
+
+  const saving = createZoneMutation.isPending || updateZoneMutation.isPending;
+  const syncing = syncZonesMutation.isPending;
+  const deleting = deleteZoneMutation.isPending;
+
+  const stats = useMemo(() => {
+    const active = zones.filter(z => z.isActive).length;
+    const codes = zones.reduce((acc, z) => acc + (z.postalCodes?.length || 0), 0);
+    return { total: zones.length, active, codes };
+  }, [zones]);
+
+  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
+
+  return (
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
+      {/* Mobile Tab Bar */}
+      <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
+        {([['filters', t.zonesPage.tabZones], ['list', t.zonesPage.tabMap]] as const).map(([tab, label]) => (
+          <button
+            key={tab}
+            onClick={() => setMobileTab(tab)}
+            className={`flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors ${
+              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex flex-1 gap-0" style={{ minHeight: 0, overflow: 'hidden' }}>
+        {/* ── Rail Sectoriel ────────────────── */}
+        <div
+          className={`lg:w-[280px] shrink-0 flex flex-col gap-0 ${mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'}`}
+          style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}
+        >
+          <div className="p-5 border-b border-[var(--border)]">
+            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.zonesPage.pageSubtitle}</span>
+            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
+              {t.zonesPage.pageTitle} <span className="text-[var(--brand)]">{t.zonesPage.pageTitleBrand}</span>
+            </h1>
+          </div>
+
+          <div className="flex flex-col gap-3 p-5" style={{ borderBottom: '1px solid var(--border)' }}>
+            {!readOnly && (
+              <button
+                onClick={openCreate}
+                className="flex items-center justify-center gap-2 h-9 w-full font-semibold text-[11px] rounded-md transition-colors hover:opacity-90 text-white dark:text-[#121212]"
+                style={{ background: 'var(--brand)', border: 'none' }}
+              >
+                <IconPlus size={14} />
+                {t.zonesPage.newZoneButton}
+              </button>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                className="w-7 h-9 flex-1 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                onClick={() => fetchZones()}
+                disabled={loading}
+              >
+                <IconRefresh size={16} className={loading ? 'animate-spin' : ''} />
+              </button>
+              <button
+                type="button"
+                className="flex-1 h-9 flex items-center justify-center gap-1 rounded-md border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                onClick={() => syncZones()}
+                disabled={syncing}
+                title={t.zonesPage.syncTooltip}
+              >
+                <IconRefresh size={16} style={{ color: 'var(--brand)' }} className={syncing ? 'animate-spin' : ''} />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-y-auto flex-1 p-3.5">
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.meshIndicators}</p>
+                <div className="p-3 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activeSectors}</p>
+                      <p className="text-[16px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{stats.active} / {stats.total}</p>
+                    </div>
+                    <IconWorld size={20} style={{ color: 'var(--brand)' }} strokeWidth={1.5} />
+                  </div>
+                </div>
+                <div className="p-3 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.postalPoints}</p>
+                      <p className="text-[16px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{stats.codes}</p>
+                    </div>
+                    <IconMapPin size={20} style={{ color: 'var(--brand)' }} strokeWidth={1.5} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2.5">
+                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.operationalHelp}</p>
+                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                  {t.zonesPage.helpText}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Registry Slab ────────────────────────── */}
+        <div
+          className={`flex-1 flex flex-col gap-0 overflow-hidden min-w-0 ${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'}`}
+          style={{ background: 'var(--app-bg)' }}
+        >
+          <div className="flex items-center justify-between px-6 h-16 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+            <div className="flex items-center gap-2">
+              <IconLayoutDashboard size={14} style={{ color: 'var(--brand)' }} />
+              <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.registryTitle}</p>
+            </div>
+            <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+              {t.zonesPage.zonesConfigured.replace('{count}', zones.length.toString())}
+            </p>
+          </div>
+
+          <div className="overflow-y-auto flex-1">
+            {loading ? (
+              <div className="flex items-center justify-center h-[400px]">
+                <svg className="animate-spin h-8 w-8" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              </div>
+            ) : zones.length === 0 ? (
+              <div className="flex flex-col items-center py-[120px] gap-2">
+                <IconWorld size={48} style={{ color: 'var(--border)' }} />
+                <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.noZones}</p>
+              </div>
+            ) : (
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}>
+                    <th className="w-2 p-0" style={{ background: 'var(--app-bg)' }}></th>
+                    <th className="text-[11px] font-semibold py-4 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerDesignation}</th>
+                    <th className="text-[11px] font-semibold py-4 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerCoverage}</th>
+                    <th className="text-[11px] font-semibold py-4 text-center px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerDensity}</th>
+                    <th className="text-[11px] font-semibold py-4 text-center px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerStatus}</th>
+                    <th className="w-24" style={{ background: 'var(--app-bg)' }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {zones.map((zone) => {
+                    const displayed = zone.postalCodes?.slice(0, 10) ?? [];
+                    const extra = (zone.postalCodes?.length ?? 0) - 10;
+                    return (
+                      <tr key={zone.id} className="group transition-colors hover:bg-[var(--hover-bg)]" style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td className="p-0">
+                          <div className="w-[3px] h-6 rounded-r-md" style={{ background: zone.color }} />
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: zone.color ?? 'var(--text-muted)' }} />
+                            <div>
+                              <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
+                              {zone.description && <p className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-4 py-3">
+                          <div className="flex flex-wrap gap-1 max-w-[400px]">
+                            {displayed.map((pc) => (
+                              <span key={pc} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                {pc}
+                              </span>
+                            ))}
+                            {extra > 0 && <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--brand)' }}>{t.zonesPage.extraCodes.replace('{count}', extra.toString())}</span>}
+                          </div>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <p className="text-[11px] font-extrabold font-mono" style={{ color: 'var(--text-primary)' }}>{zone.postalCodes?.length || 0}</p>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span
+                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
+                            style={{
+                              color: zone.isActive ? '#2D8A5E' : '#6B7280',
+                              background: zone.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
+                              borderColor: zone.isActive ? 'rgba(76,175,130,0.15)' : 'rgba(138,143,152,0.15)',
+                            }}
+                          >
+                            <IconPoint size={10} />
+                            {zone.isActive ? t.zonesPage.statusOperational : t.zonesPage.statusInactive}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {!readOnly && (
+                            <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                type="button"
+                                className="w-7 h-7 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                                onClick={() => openEdit(zone)}
+                              >
+                                <IconPencil size={14} />
+                              </button>
+                              <button
+                                type="button"
+                                className="w-7 h-7 flex items-center justify-center rounded-md border border-[var(--border)] text-red-500 hover:bg-red-50 transition-colors"
+                                onClick={() => setDeleteTarget(zone)}
+                              >
+                                <IconTrash size={14} />
+                              </button>
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Delete Confirm Modal ─────────────────────────────────────────────── */}
+      <ConfirmModal
+        open={deleteTarget !== null}
+        title={t.zonesPage.deleteTitle}
+        description={deleteTarget ? t.zonesPage.deleteDescription.replace('{zoneName}', deleteTarget.name) : ''}
+        confirmLabel={t.zonesPage.deleteButton}
+        cancelLabel={t.zonesPage.deleteCancel}
+        variant="danger"
+        loading={deleting}
+        onConfirm={doDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
+
+      {/* ── Technical Sector Certifier ─────────────────────── */}
+      <AppModal
+        open={editorOpen}
+        onClose={() => setEditorOpen(false)}
+        title={t.zonesPage.modalTitle}
+        subtitle={t.zonesPage.modalSubtitle}
+        size="xl"
+        className="max-w-[95vw] max-h-[90dvh]"
+        footer={
+          <div className="flex items-center justify-end gap-2">
+            <button
+              type="button"
+              className="px-4 h-8 text-[11px] font-semibold rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+              style={{ color: 'var(--text-muted)' }}
+              onClick={() => setEditorOpen(false)}
+            >
+              {t.zonesPage.cancelButton}
+            </button>
+            <Button
+              className="min-w-[100px] h-8 font-semibold text-[11px] rounded-md"
+              onClick={save}
+              disabled={saving}
+            >
+              {saving ? (
+                <svg className="animate-spin h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              ) : null}
+              {t.zonesPage.saveButton}
+            </Button>
+          </div>
+        }
+      >
+        <div className="flex gap-0" style={{ height: 'calc(90vh - 140px)' }}>
+          {/* Config Rail */}
+          <div className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-0" style={{ borderRight: '1px solid var(--border)' }}>
+            <div className="p-6 flex flex-col gap-6">
+              {/* Name */}
+              <div>
+                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.sectorNameLabel}</label>
+                <input
+                  className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  placeholder={t.zonesPage.sectorNamePlaceholder}
+                  value={form.name}
+                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  required
+                />
+              </div>
+
+              {/* Color picker */}
+              <div>
+                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.zoneColorLabel}</label>
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {ZONE_COLORS.map(c => (
+                    <button
+                      key={c}
+                      type="button"
+                      className={cn("w-6 h-6 rounded-md transition-transform hover:scale-110", form.color === c ? 'ring-2 ring-offset-1 ring-[var(--text-primary)]' : '')}
+                      style={{ background: c }}
+                      onClick={() => setForm(p => ({ ...p, color: c }))}
+                    />
+                  ))}
+                </div>
+                <input
+                  type="color"
+                  className="w-full h-8 rounded-md cursor-pointer"
+                  style={{ border: '1px solid var(--border)' }}
+                  value={form.color}
+                  onChange={e => setForm(p => ({ ...p, color: e.target.value }))}
+                />
+              </div>
+
+              {/* Description */}
+              <div>
+                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.operationalNotesLabel}</label>
+                <textarea
+                  rows={3}
+                  className="w-full px-3 py-2 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
+                  style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  placeholder={t.zonesPage.operationalNotesPlaceholder}
+                  value={form.description}
+                  onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+                />
+              </div>
+
+              {/* Active toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
+                <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{t.zonesPage.dispatchAvailability}</p>
+                <input
+                  type="checkbox"
+                  role="switch"
+                  checked={form.isActive}
+                  onChange={(e) => {
+                    const checked = e.target.checked;
+                    setForm((p) => ({ ...p, isActive: checked }));
+                  }}
+                  className="w-9 h-5 rounded-full cursor-pointer accent-[var(--brand)]"
+                />
+              </div>
+
+              {/* Postal codes */}
+              <div className="flex flex-col gap-2">
+                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.postalCoverageLabel}</p>
+                <div className="flex gap-2">
+                  <input
+                    className="flex-1 h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                    style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                    placeholder={t.zonesPage.postalCodePlaceholder}
+                    value={manualCode}
+                    onChange={e => setManualCode(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && addManualCode()}
+                  />
+                  <button
+                    type="button"
+                    className="w-9 h-9 flex items-center justify-center rounded-md border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                    onClick={addManualCode}
+                    disabled={addingManual}
+                  >
+                    {addingManual
+                      ? <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                      : <IconPlus size={14} />}
+                  </button>
+                </div>
+
+                {conflictCodes.length > 0 && (
+                  <div className="p-2 rounded-lg" style={{ border: '1px solid rgba(255,87,34,0.3)', background: 'var(--app-bg)' }}>
+                    <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--brand)' }}>{t.zonesPage.conflictsDetected}</p>
+                    <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.conflictWarning}</p>
+                    <button
+                      type="button"
+                      className="w-full h-6 text-[11px] font-semibold rounded-md bg-[var(--brand)] text-white"
+                      onClick={() => setForm(p => ({ ...p, postalCodes: p.postalCodes.filter(c => !conflictCodes.includes(c)) }))}
+                    >
+                      {t.zonesPage.removeConflicts}
+                    </button>
+                  </div>
+                )}
+
+                <div className="p-3 rounded-lg flex items-center justify-between" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                  <p className="text-[18px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{form.postalCodes.length}</p>
+                  <IconScan size={18} style={{ color: 'var(--brand)' }} />
+                </div>
+                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activePostalPoints}</p>
+
+                <div className="max-h-[200px] overflow-y-auto">
+                  <div className="flex flex-wrap gap-1">
+                    {form.postalCodes.map(pc => (
+                      <span key={pc} className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                        {pc}
+                        <button type="button" className="hover:text-red-500 transition-colors" onClick={() => togglePostalCode(pc)}>
+                          <IconX size={8} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Map Selector */}
+          <div className="flex-1 relative" style={{ background: 'var(--app-bg)' }}>
+            <Suspense fallback={
+              <div className="flex items-center justify-center h-[600px]"
+                style={{ background: 'var(--app-bg)', border: '1px dashed var(--border)', borderRadius: 2 }}>
+                <div className="flex flex-col items-center gap-2">
+                  <svg className="animate-spin h-4 w-4 text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                  <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                    {getCopy(locale).zonesPage.mapInitializing}
+                  </span>
+                </div>
+              </div>
+            }>
+              <ZoneSelectorMap
+              selectedCodes={form.postalCodes}
+              geometry={form.geometry}
+              color={form.color}
+              zoneName={form.name || 'Zone sans nom'}
+              externalCoords={knownCoords}
+              onGeometryChange={(geo) => setForm(p => ({ ...p, geometry: geo }))}
+              onPostalCodesChange={(codes) => setForm(p => ({ ...p, postalCodes: codes }))}
+              onCoordsFound={(coords) => setKnownCoords(prev => ({ ...prev, ...coords }))}
+            />
+            </Suspense>
+          </div>
+        </div>
+      </AppModal>
+    </div>
+  );
+}
+

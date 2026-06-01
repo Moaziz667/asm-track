@@ -41,5 +41,13 @@ CREATE TABLE IF NOT EXISTS admin_users (
   created_at    TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
--- Multi-tenancy: link admin users to their company (NULL = ASM super-admin)
+-- Link admin users to the single-tenant company profile
 ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS company_id UUID;
+
+-- System Settings
+CREATE TABLE IF NOT EXISTS system_settings (
+  id                  VARCHAR(50) PRIMARY KEY,
+  active_erp_provider VARCHAR(50),
+  erp_configuration   TEXT,
+  updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
+);

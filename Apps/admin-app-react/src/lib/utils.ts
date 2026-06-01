@@ -1,0 +1,36 @@
+import { clsx, type ClassValue } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+
+export function resolveOrderRef(item: {
+  orderRef?: string | null;
+  erpOrderId?: string | null;
+  erpExternalRef?: string | null;
+  erpId?: string | null;
+} | null | undefined): string {
+  if (!item) return '—';
+  return item.orderRef || item.erpOrderId || item.erpExternalRef || item.erpId || '—';
+}
+
+export function shortId(id: string | null | undefined): string {
+  if (!id) return '—';
+  return id.replace(/-/g, '').substring(0, 8).toUpperCase();
+}
+
+export function formatMoney(
+  amount: number | string | null | undefined,
+  currency = 'TND'
+): string {
+  if (amount == null || amount === '') return '—';
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+  if (isNaN(num)) return '—';
+  const decimals = currency === 'TND' ? 3 : 2;
+  const formatted = num.toLocaleString('fr-FR', {
+    minimumFractionDigits: decimals,
+    maximumFractionDigits: decimals,
+  });
+  return `${formatted} ${currency}`;
+}

@@ -2,6 +2,7 @@ package com.asm.driver.service;
 
 import com.asm.driver.dto.response.InternalDriverResponse;
 import com.asm.driver.entity.Driver;
+import com.asm.driver.entity.DriverAccountStatus;
 import com.asm.driver.entity.DriverHistory;
 import com.asm.driver.entity.DriverStats;
 import com.asm.driver.exception.AppException;
@@ -27,7 +28,7 @@ public class InternalDriverService {
     private final DriverHistoryRepository historyRepo;
 
     public List<InternalDriverResponse> getAvailableDrivers() {
-        List<Driver> drivers = driverRepo.findByActiveTrue();
+        List<Driver> drivers = driverRepo.findByAccountStatus(DriverAccountStatus.ACTIVE);
         return drivers.stream().map(this::mapToInternal).collect(Collectors.toList());
     }
 
@@ -88,7 +89,7 @@ public class InternalDriverService {
                 .lastLocationAt(d.getLastLocationAt())
                 .createdAt(d.getCreatedAt())
                 .fcmToken(d.getFcmToken())
-                .active(d.getActive())
+                .active(d.getAccountStatus() == DriverAccountStatus.ACTIVE)
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
                 .build();
     }

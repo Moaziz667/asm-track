@@ -31,9 +31,10 @@ public class Driver {
 
     private LocalDateTime lastLocationAt;
 
-    @Column(nullable = false)
+    @Enumerated(EnumType.STRING)
+    @Column(name = "account_status", nullable = false, length = 30)
     @Builder.Default
-    private Boolean active = true;
+    private DriverAccountStatus accountStatus = DriverAccountStatus.PENDING_SETUP;
 
     @Enumerated(EnumType.STRING)
     @Column(name = "online_status", length = 20, nullable = false)
@@ -47,6 +48,9 @@ public class Driver {
 
     @Column(length = 500)
     private String fcmToken;
+
+    @Column(name = "suspended_reason", length = 500)
+    private String suspendedReason;
 
     @Column(nullable = false, updatable = false)
     @Builder.Default
