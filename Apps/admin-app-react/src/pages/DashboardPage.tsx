@@ -42,6 +42,15 @@ const STATUS_ROW_COLOR_MAP: Record<DeliveryStatus, { text: string; bg: string; b
   CANCELLED:            { text: '#6B7280', bg: 'rgba(138,143,152,0.08)', border: 'rgba(138,143,152,0.15)' },
 };
 
+const KANBAN_GRADIENT_MAP: Record<string, string> = {
+  UNSCHEDULED:          'var(--gradient-orange)',
+  SCHEDULED:            'var(--gradient-purple)',
+  PICKED_UP:            'var(--gradient-teal)',
+  IN_TRANSIT:           'var(--gradient-blue)',
+  FAILED:               'var(--gradient-fuchsia)',
+  DELIVERED:            'var(--gradient-blue)',
+};
+
 const DISPATCH_STATUSES: DeliveryStatus[] = [
   'UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'FAILED', 'DELIVERED',
 ];
@@ -423,6 +432,7 @@ export default function DashboardPage() {
                 const config = getStatusConfig(status);
                 const data = laneMap[status];
                 const items = data?.items ?? [];
+                const gradient = KANBAN_GRADIENT_MAP[status] || 'var(--gradient-blue)';
 
                 return (
                   <div
@@ -430,6 +440,9 @@ export default function DashboardPage() {
                     className="border-r border-[var(--border)] last:border-r-0 flex flex-col bg-[var(--app-bg)]/35"
                     style={{ width: 268, flexShrink: 0, height: '100%' }}
                   >
+                    {/* Top Accent Gradient Border */}
+                    <div style={{ height: 3, background: gradient, width: '100%' }} />
+
                     {/* Column Header */}
                     <div className="flex-none px-3 py-2.5 flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]">
                       <div className="flex items-center gap-1.5 min-w-0">
@@ -530,34 +543,62 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
     window.open(url, '_blank');
   };
 
-  const routeLabel = d.routeName || d.routeRef;
+  const routeLabel = d.routeName || d.routeRef || (d.routeId ? `Route #${d.routeId.slice(0, 5)}` : null);
+
+  const formatCardDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + 
+             date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch {
+      return dateStr.slice(5, 16).replace('T', ' ');
+    }
+  };
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      className="w-full text-left p-3 rounded-md bg-[var(--surface)] cursor-pointer focus:outline-none transition-colors hover:brightness-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+      className="w-full text-left p-3.5 rounded-lg bg-[var(--surface)] cursor-pointer focus:outline-none transition-all hover:shadow-sm hover:brightness-[0.98] dispatch-card active:scale-[0.99]"
       style={{
         border: '1px solid var(--border)',
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `4px solid ${color}`,
       }}
     >
-      <div className="mb-1.5 flex items-center justify-between">
-        <span className="font-mono text-[9.5px] font-bold tracking-tight" style={{ color }}>
-          {d.orderRef}
+      {/* Card Header: Order ref + Creation Time */}
+      <div className="mb-2 flex items-center justify-between border-b border-[var(--border)]/30 pb-1.5">
+        <span className="font-mono text-[10px] font-bold tracking-tight" style={{ color }}>
+          {d.orderRef || d.deliveryId?.slice(0, 8)}
         </span>
+        {d.createdAt && (
+          <span className="flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-soft)]">
+            <IconClock size={10} stroke={2.5} />
+            <span>{formatCardDate(d.createdAt)}</span>
+          </span>
+        )}
       </div>
 
-      <p className="text-[12px] font-bold text-[var(--text-primary)] leading-snug mb-2.5 truncate">
+      {/* Main Client info */}
+      <p className="text-[13px] font-bold text-[var(--text-primary)] leading-snug mb-1.5 truncate">
         {d.clientName || t.dashboardPage.unknownClient}
       </p>
 
-      <div className="flex flex-wrap gap-1">
+      {/* Location / City Details */}
+      {d.city && (
+        <div className="text-[10.5px] text-[var(--text-soft)] font-semibold mb-3 flex items-center gap-1">
+          <IconMapPin size={11} stroke={2.5} className="text-primary shrink-0" />
+          <span className="truncate">{d.city}</span>
+        </div>
+      )}
+
+      {/* Metadata Chips */}
+      <div className="flex flex-wrap gap-1.5 pt-0.5">
         {d.driverName && (
-          <Chip icon={<IconUser size={9} />} label={d.driverName} />
+          <Chip icon={<IconUser size={10.5} stroke={2.5} />} label={d.driverName} />
         )}
         {routeLabel && (
-          <Chip icon={<IconRoute size={9} />} label={routeLabel} />
+          <Chip icon={<IconRoute size={10.5} stroke={2.5} />} label={routeLabel} />
         )}
       </div>
     </button>
@@ -577,46 +618,64 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
     window.open(url, '_blank');
   };
 
+  const formatCardDate = (dateStr?: string) => {
+    if (!dateStr) return '';
+    try {
+      const date = new Date(dateStr);
+      return date.toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + 
+             date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+    } catch {
+      return dateStr.slice(5, 16).replace('T', ' ');
+    }
+  };
+
   return (
     <button
       type="button"
       onClick={handleClick}
-      className="w-full text-left p-3 rounded-md bg-[var(--surface)] cursor-pointer focus:outline-none transition-colors hover:brightness-[0.97] shadow-[0_1px_2px_rgba(0,0,0,0.04)]"
+      className="w-full text-left p-3.5 rounded-lg bg-[var(--surface)] cursor-pointer focus:outline-none transition-all hover:shadow-sm hover:brightness-[0.98] dispatch-card active:scale-[0.99]"
       style={{
         border: '1px solid var(--border)',
-        borderLeft: `3px solid ${color}`,
+        borderLeft: `4px solid ${color}`,
       }}
     >
-      <div className="mb-1.5 flex items-center gap-1 justify-between">
+      {/* Header */}
+      <div className="mb-2 flex items-center justify-between border-b border-[var(--border)]/30 pb-1.5">
         <div className="flex items-center gap-1">
-          <IconPackage size={9} style={{ color }} />
-          <span className="font-mono text-[9.5px] font-bold tracking-tight" style={{ color }}>
+          <IconPackage size={10.5} style={{ color }} stroke={2.5} />
+          <span className="font-mono text-[10px] font-bold tracking-tight" style={{ color }}>
             {d.orderRef || 'LOT'}
           </span>
         </div>
+        {d.createdAt && (
+          <span className="flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-soft)]">
+            <IconClock size={10} stroke={2.5} />
+            <span>{formatCardDate(d.createdAt)}</span>
+          </span>
+        )}
       </div>
 
-      <div className="flex flex-col gap-0.5 mb-2.5 min-w-0">
+      <div className="flex flex-col gap-1 mb-3 min-w-0">
         {deliveries.slice(0, 2).map((x: any, i: number) => (
-          <p key={i} className="text-[12px] font-bold text-[var(--text-primary)] leading-snug truncate">
+          <p key={i} className="text-[13px] font-bold text-[var(--text-primary)] leading-snug truncate">
             {x.clientName}
           </p>
         ))}
         {deliveries.length > 2 && (
-          <p className="text-[10px] font-semibold text-[var(--text-soft)] mt-0.5">
+          <p className="text-[10.5px] font-bold text-[var(--text-soft)] mt-0.5">
             {t.dashboardPage.moreDeliveries.replace('{count}', String(deliveries.length - 2))}
           </p>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <div className="flex-1 h-0.5 bg-[var(--border)] rounded-full overflow-hidden">
+      <div className="flex items-center gap-2.5">
+        <div className="flex-1 h-1 bg-[var(--border)]/65 rounded-full overflow-hidden">
           <div
-            className="h-full transition-all duration-500"
-            style={{ width: `${progress}%`, backgroundColor: color }}
+             className="h-full transition-all duration-500 rounded-full"
+             style={{ width: `${progress}%`, backgroundColor: color }}
           />
         </div>
-        <span className="text-[9.5px] font-bold font-mono tabular-nums shrink-0" style={{ color }}>
+        <span className="text-[10px] font-bold font-mono tabular-nums shrink-0" style={{ color }}>
           {completedCount}/{totalCount}
         </span>
       </div>
@@ -628,11 +687,33 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
 function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; muted?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-[9.5px] font-semibold px-1.5 py-0.5 rounded-[3px] border border-[var(--border)] bg-[var(--hover-bg)] leading-none"
+      className="inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2 py-0.5 rounded-[4px] border border-[var(--border)] bg-[var(--hover-bg)] leading-none select-none transition-all"
       style={{ color: muted ? 'var(--text-soft)' : 'var(--text-muted)' }}
     >
       {icon}
-      <span className="truncate max-w-[96px]">{label}</span>
+      <span className="truncate max-w-[105px]">{label}</span>
     </span>
+  );
+}
+
+// Helper icons
+function IconClock({ size = 12, className = '', style = {}, stroke = 2 } = {}) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={stroke}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      style={style}
+    >
+      <circle cx="12" cy="12" r="10" />
+      <polyline points="12 6 12 12 16 14" />
+    </svg>
   );
 }

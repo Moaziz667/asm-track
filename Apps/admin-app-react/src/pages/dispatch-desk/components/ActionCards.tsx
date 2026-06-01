@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconArrowBack, IconCheck } from '@tabler/icons-react';
+import { IconArrowBack, IconCheck, IconClock, IconCalendar } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppLoader } from '@/components/AppLoader';
@@ -10,15 +10,55 @@ import {
   REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, STATUS_TIP, SEVERITY_CHIP,
 } from '../constants';
 import {
-  formatMotif, formatComment, formatElapsed, formatSuggestion,
+  formatMotif, formatComment, formatElapsed, formatShortDate, formatSuggestion,
   needsClientContact, needsDriverContact, needsReturnToDepot,
 } from '../formatters';
 import type { OpsException } from '../types';
+import type { Delivery } from '@/types';
 
 // Pastel severity palette, aligned with the StatusBadge Linear tones.
 function severityStyle(severity?: string): { accent: string; chipColor: string; chipBg: string } {
   const c = SEVERITY_CHIP[severity === 'CRITICAL' ? 'CRITICAL' : severity === 'WARNING' ? 'WARNING' : 'INFO'];
   return { accent: c.accent, chipColor: c.text, chipBg: c.bg };
+}
+
+function getSlaPill(d: Delivery | undefined, t: any) {
+  if (!d) return null;
+  if (!['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(d.status)) return null;
+  if (!d.timeSlotEndTime) return null;
+
+  try {
+    const [h, m] = d.timeSlotEndTime.split(':').map(Number);
+    const deadline = new Date();
+    deadline.setHours(h, m, 0, 0);
+
+    const targetDate = d.requestedDeliveryDate ? new Date(d.requestedDeliveryDate) : new Date();
+    deadline.setFullYear(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+    const now = new Date();
+    const eta = d.routeEtaAt ? new Date(d.routeEtaAt) : null;
+
+    const compareTime = eta || now;
+    const diffMs = deadline.getTime() - compareTime.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+
+    if (diffMins < 0) {
+      return (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] flex items-center gap-1">
+          <span>⏰ En retard de {Math.abs(diffMins)} min</span>
+        </span>
+      );
+    } else if (diffMins <= 45) {
+      return (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] flex items-center gap-1 animate-pulse">
+          <span>⏳ Limite SLA {diffMins} min</span>
+        </span>
+      );
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
 }
 
 const CTA_ICON = 'w-7 h-7 flex items-center justify-center rounded shrink-0 transition-opacity hover:opacity-80';
@@ -46,7 +86,7 @@ export function ActionCards() {
   if (actionRows.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-        <IconCheck size={22} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
+        <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
         <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
       </div>
     );
@@ -92,13 +132,22 @@ export function ActionCards() {
               const isChecked = selectedIds.has(row.deliveryId);
               const suggestion = formatSuggestion(row, t);
 
+              const d = deliveryMap.get(row.deliveryId);
+              const created = formatElapsed(row.updatedAt ?? row.createdAt, t);
+              const slot = d?.timeSlotStartTime && d?.timeSlotEndTime
+                ? `${d.timeSlotStartTime.slice(0, 5)}–${d.timeSlotEndTime.slice(0, 5)}`
+                : d?.timeSlotName || (d?.requestedDeliveryDate ? d.requestedDeliveryDate.slice(0, 10) : null);
+              const amount = d && typeof d.totalAmount === 'number' && d.totalAmount > 0
+                ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
+                : null;
+
               const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(row.status);
               const canReplan   = (REPLANNABLE_STATUSES as string[]).includes(row.status) && !canReassign;
 
               return (
                 <article
                   key={row.deliveryId}
-                  className="rounded-[var(--radius)] border flex flex-col"
+                  className="rounded-[var(--radius)] border flex flex-col dispatch-card"
                   style={{
                     borderColor: isChecked ? 'var(--brand)' : 'var(--border)',
                     background: isChecked ? 'var(--brand-soft)' : 'var(--surface)',
@@ -115,53 +164,85 @@ export function ActionCards() {
                         onChange={() => toggleRow(row.deliveryId)}
                       />
                       <div className="min-w-0 flex-1">
-                        <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-[11px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
+                        <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-[12.5px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
                           {row.orderRef ?? row.deliveryId.slice(0, 8)}
                         </Link>
-                        <p className="text-[12px] font-[600] truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        <p className="text-[14px] font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
                           {row.clientName ?? '—'}
                         </p>
                         {(row.city || row.zoneName) && (
-                          <p className="text-[10px] truncate" style={{ color: 'var(--text-muted)' }}>
+                          <p className="text-[11.5px] truncate" style={{ color: 'var(--text-muted)' }}>
                             {row.city ?? row.zoneName}{row.zoneName && row.city ? ` · ${row.zoneName}` : ''}
                           </p>
                         )}
                       </div>
-                      <span className="text-[10px] font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
+                      <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
                         {formatMotif(row.motif, t)}
                       </span>
                     </div>
 
                     {/* Status + driver */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <StatusBadge status={row.status} size="sm" />
-                      {row.driverName ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1.5 cursor-default">
-                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                              <span className="text-[11px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{row.driverName}</span>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusBadge status={row.status} size="sm" />
+                        {row.driverName ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1.5 cursor-default">
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
+                                <span className="text-[12.5px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{row.driverName}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-[11.5px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                            {t.dispatchDeskPage.unassignedLabel}
+                          </span>
+                        )}
+                        {getSlaPill(d, t)}
+                      </div>
+
+                      {/* Articles list under status badge */}
+                      {d?.items && d.items.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-0.5 border-t border-[var(--border)]/20 pt-1.5">
+                          {d.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-[11.5px] pl-0.5">
+                              <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                              <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="text-[10px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-                          {t.dispatchDeskPage.unassignedLabel}
-                        </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {slot && (
+                        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] select-none pl-0.5">
+                          <IconCalendar size={11} stroke={2.5} />
+                          <span>{slot}</span>
+                        </div>
                       )}
                     </div>
 
-                    {/* Incident detail */}
-                    <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{formatComment(row, t)}</p>
-                    {suggestion && <p className="text-[10px] font-[500]" style={{ color: 'var(--brand)' }}>{suggestion}</p>}
+                    {/* Incident detail Callout */}
+                    <div className="text-[13px] leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
+                      {formatComment(row, t)}
+                    </div>
+                    {suggestion && <p className="text-[11.5px] font-semibold" style={{ color: 'var(--brand)' }}>{suggestion}</p>}
                   </div>
 
-                  {/* Footer: age + actions */}
+                  {/* Footer: age, amount + actions */}
                   <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }}>
-                    <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                      {formatElapsed(row.updatedAt ?? row.createdAt, t)}
-                    </span>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                      <span className="inline-flex items-center gap-1 font-mono font-medium" title={formatShortDate(row.createdAt)}>
+                        <IconClock size={11} stroke={2.5} />
+                        <span>{t.dispatchDeskPage.cardCreated} {created}</span>
+                      </span>
+                      {amount && (
+                        <span className="font-[600]" style={{ color: 'var(--text-secondary)' }}>
+                          · {amount}
+                        </span>
+                      )}
+                    </div>
                     {!isReadOnly && (
                       <div className="flex items-center gap-1">
                         {canReassign && (
@@ -208,7 +289,7 @@ export function ActionCards() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <button type="button" className={CTA_ICON} style={{ background: 'var(--brand)', color: '#fff' }} onClick={() => setReturnTarget(row)}>
-                                <IconArrowBack size={14} />
+                                <IconArrowBack size={14} stroke={2.5} />
                               </button>
                             </TooltipTrigger>
                             <TooltipContent>{t.dispatchDeskPage.buttonReturnToDepot}</TooltipContent>

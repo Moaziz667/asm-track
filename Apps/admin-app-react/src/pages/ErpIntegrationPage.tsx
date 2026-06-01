@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 
 function SurgicalSettingCard({ title, children, icon: Icon, description }: { title: string; children: React.ReactNode; icon?: any; description?: string }) {
   return (
-    <div className="rounded-[2px] overflow-hidden animate-fade-in" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+    <div className="rounded-[16px] overflow-hidden animate-fade-in" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
       <div className="px-5 py-4 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
         <div className="flex items-center justify-between">
           <div className="flex flex-col gap-0.5">
@@ -102,11 +102,11 @@ export default function ErpIntegrationPage() {
 
           <div className="flex items-center gap-2">
             {!canManage && (
-              <span className="text-[11px] font-semibold px-2 py-1 rounded-none" style={{ color: 'var(--brand)', background: 'var(--hover-bg)', border: '1px solid var(--border-strong)' }}>
+              <span className="text-[11px] font-semibold px-2 py-1 rounded-[4px]" style={{ color: 'var(--brand)', background: 'var(--hover-bg)', border: '1px solid var(--border-strong)' }}>
                 {t.settingsPage.readOnlyMode}
               </span>
             )}
-            <Button size="sm" variant="outline" onClick={handleTestConnection} disabled={erpTesting || erpSaving || !erpSettings} className="rounded-[2px]">
+            <Button size="sm" variant="outline" onClick={handleTestConnection} disabled={erpTesting || erpSaving || !erpSettings} className="rounded-full px-4">
               {erpTesting && (
                 <svg className="animate-spin h-3 w-3 mr-2" fill="none" viewBox="0 0 24 24">
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -116,7 +116,7 @@ export default function ErpIntegrationPage() {
               {t.settingsPage.testConnection}
             </Button>
             {canManage && erpSettings && (
-              <Button size="sm" onClick={handleSaveErp} disabled={erpSaving || erpTesting} className="rounded-[2px]">
+              <Button size="sm" onClick={handleSaveErp} disabled={erpSaving || erpTesting} className="rounded-full px-4">
                 {erpSaving && (
                   <svg className="animate-spin h-3 w-3 mr-2" fill="none" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
@@ -151,7 +151,7 @@ export default function ErpIntegrationPage() {
                   <div>
                     <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.erpProvider}</label>
                     <select
-                      className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                      className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                       style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                       value={erpSettings.activeErpProvider || 'NONE'}
                       onChange={e => {
@@ -171,11 +171,11 @@ export default function ErpIntegrationPage() {
                   </div>
 
                   {erpSettings.activeErpProvider === 'ODOO' && erpSettings.erpConfiguration && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2 p-5 rounded-[2px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2 p-5 rounded-[16px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
                       <div className="md:col-span-2">
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUrl}</label>
                         <input
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           placeholder={t.settingsPage.erpUrlDesc}
                           value={erpSettings.erpConfiguration.url || ''}
@@ -186,7 +186,7 @@ export default function ErpIntegrationPage() {
                       <div>
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpDb}</label>
                         <input
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           value={erpSettings.erpConfiguration.db || ''}
                           onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, db: e.target.value}})}
@@ -197,7 +197,7 @@ export default function ErpIntegrationPage() {
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUid}</label>
                         <input
                           type="number"
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           value={erpSettings.erpConfiguration.uid || ''}
                           onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, uid: parseInt(e.target.value) || 0}})}
@@ -208,7 +208,7 @@ export default function ErpIntegrationPage() {
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpPassword}</label>
                         <input
                           type="password"
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           placeholder="********"
                           value={erpSettings.erpConfiguration.password || ''}
@@ -220,11 +220,11 @@ export default function ErpIntegrationPage() {
                   )}
 
                   {erpSettings.activeErpProvider === 'DUX' && erpSettings.erpConfiguration && (
-                    <div className="grid grid-cols-1 gap-5 mt-2 p-5 rounded-[2px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
+                    <div className="grid grid-cols-1 gap-5 mt-2 p-5 rounded-[16px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
                       <div>
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUrl}</label>
                         <input
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           placeholder="e.g. https://api.dux.com/v1"
                           value={erpSettings.erpConfiguration.url || ''}
@@ -236,7 +236,7 @@ export default function ErpIntegrationPage() {
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">API Key (Placeholder)</label>
                         <input
                           type="password"
-                          className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                           placeholder="********"
                           value={erpSettings.erpConfiguration.apiKey || ''}

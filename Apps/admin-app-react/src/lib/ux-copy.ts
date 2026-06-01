@@ -696,7 +696,7 @@ export const FR_COPY = {
     tabMissingGps: 'GPS manquant',
     tabHandoff: 'Passations',
     kpiUpdated: 'Mis à jour',
-    cardCreated: 'Créée',
+    cardCreated: 'Créé depuis',
     handoffEmpty: 'Aucune passation en cours',
     handoffStateRequested: 'En attente du code',
     handoffStateInProgress: 'Code émis · attente du scan',

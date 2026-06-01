@@ -50,7 +50,7 @@
   .refBadge {
     font-size: 10px;
     font-weight: 700;
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     padding: 4px 8px;
     border-radius: 3px;
     border: 1px solid;
@@ -112,7 +112,7 @@
 
   .value {
     flex: 1;
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     color: var(--text-strong);
   }
 
@@ -193,7 +193,7 @@
           }
 
           &.qty {
-            font-family: 'Courier New', monospace;
+            font-family: var(--font-mono);
             font-weight: 600;
           }
 
@@ -240,7 +240,7 @@
           &:last-child {
             color: var(--text-strong);
             text-align: right;
-            font-family: 'Courier New', monospace;
+            font-family: var(--font-mono);
           }
         }
       }
@@ -259,7 +259,7 @@
   white-space: nowrap;
 
   .icon {
-    font-family: 'Courier New', monospace;
+    font-family: var(--font-mono);
     font-size: 11px;
     flex-shrink: 0;
   }
@@ -393,7 +393,7 @@
         .timestamp {
           font-size: 10px;
           color: var(--text-muted);
-          font-family: 'Courier New', monospace;
+          font-family: var(--font-mono);
         }
       }
 
@@ -438,7 +438,7 @@
 
     .coords {
       color: var(--text-muted);
-      font-family: 'Courier New', monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
     }
 

@@ -91,7 +91,7 @@ export function DispatchTabs() {
           {newSinceLoad > 0 && (
             <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
               <div className="flex items-center gap-2">
-                <IconAlertCircle size={13} style={{ color: 'var(--text-secondary)' }} />
+                <IconAlertCircle size={13} stroke={2.5} style={{ color: 'var(--text-secondary)' }} />
                 <span className="text-[11px] font-[500]" style={{ color: 'var(--text-secondary)' }}>
                   {newSinceLoad} {newSinceLoad > 1 ? t.dispatchDeskPage.newAlertPlural : t.dispatchDeskPage.newAlertSingular}
                 </span>
@@ -111,7 +111,7 @@ export function DispatchTabs() {
                   style={{ color: 'var(--text-muted)' }}
                   onClick={() => setNewSinceLoad(0)}
                 >
-                  <IconX size={11} />
+                  <IconX size={11} stroke={2.5} />
                 </button>
               </div>
             </div>

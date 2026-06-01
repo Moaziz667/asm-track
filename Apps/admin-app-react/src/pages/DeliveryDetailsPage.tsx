@@ -157,7 +157,7 @@ export default function DeliveryDetailPage() {
   const isCancelled = delivery.status === 'CANCELLED';
 
   return (
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)]" style={{ scrollbarWidth: 'thin' }}>
+    <div className="h-full overflow-y-auto bg-[var(--app-bg)] dispatch-card" style={{ scrollbarWidth: 'thin' }}>
       <div className="max-w-[960px] mx-auto px-6 py-8 pb-12">
         <div className="flex flex-col gap-6">
 

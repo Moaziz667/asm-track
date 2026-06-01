@@ -27,12 +27,50 @@ function MetaLine({ d, t }: { d: Delivery; t: any }) {
   return (
     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
       <span className="inline-flex items-center gap-1" title={formatShortDate(d.createdAt)}>
-        <IconClock size={11} /> {t.dispatchDeskPage.cardCreated} {created}
+        <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated} {created}
       </span>
-      {slot && <span className="inline-flex items-center gap-1"><IconCalendar size={11} /> {slot}</span>}
+      {slot && <span className="inline-flex items-center gap-1"><IconCalendar size={11} stroke={2.5} /> {slot}</span>}
       {amount && <span className="font-[500]" style={{ color: 'var(--text-secondary)' }}>{amount}</span>}
     </div>
   );
+}
+
+function getSlaPill(d: Delivery, t: any) {
+  if (!['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(d.status)) return null;
+  if (!d.timeSlotEndTime) return null;
+
+  try {
+    const [h, m] = d.timeSlotEndTime.split(':').map(Number);
+    const deadline = new Date();
+    deadline.setHours(h, m, 0, 0);
+
+    const targetDate = d.requestedDeliveryDate ? new Date(d.requestedDeliveryDate) : new Date();
+    deadline.setFullYear(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
+
+    const now = new Date();
+    const eta = d.routeEtaAt ? new Date(d.routeEtaAt) : null;
+
+    const compareTime = eta || now;
+    const diffMs = deadline.getTime() - compareTime.getTime();
+    const diffMins = Math.round(diffMs / 60000);
+
+    if (diffMins < 0) {
+      return (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] flex items-center gap-1">
+          <span>⏰ En retard de {Math.abs(diffMins)} min</span>
+        </span>
+      );
+    } else if (diffMins <= 45) {
+      return (
+        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] flex items-center gap-1 animate-pulse">
+          <span>⏳ Limite SLA {diffMins} min</span>
+        </span>
+      );
+    }
+  } catch (e) {
+    return null;
+  }
+  return null;
 }
 
 export function DeliveryCards() {
@@ -58,7 +96,7 @@ export function DeliveryCards() {
   if (deliveryRows.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-        <IconCheck size={22} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
+        <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
         <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noOrdersFound}</p>
       </div>
     );
@@ -104,6 +142,14 @@ export function DeliveryCards() {
               const canAssign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
               const canReplan = (REPLANNABLE_STATUSES as string[]).includes(d.status);
 
+              const created = formatElapsed(d.createdAt, t);
+              const slot = d.timeSlotStartTime && d.timeSlotEndTime
+                ? `${d.timeSlotStartTime.slice(0, 5)}–${d.timeSlotEndTime.slice(0, 5)}`
+                : d.timeSlotName || (d.requestedDeliveryDate ? d.requestedDeliveryDate.slice(0, 10) : null);
+              const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
+                ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
+                : null;
+
               const target = {
                 deliveryId: id, orderRef: d.orderRef, clientName: d.clientName,
                 city: d.dropoffCity, status: d.status, driverName: d.driverName,
@@ -113,7 +159,7 @@ export function DeliveryCards() {
               return (
                 <article
                   key={id}
-                  className={isFailedTab ? 'rounded-[var(--radius)] border flex flex-col cursor-pointer' : 'rounded-[var(--radius)] border flex flex-col'}
+                  className={isFailedTab ? 'rounded-[var(--radius)] border flex flex-col cursor-pointer dispatch-card' : 'rounded-[var(--radius)] border flex flex-col dispatch-card'}
                   style={{
                     borderColor: isChecked ? 'var(--brand)' : 'var(--border)',
                     background: isChecked ? 'var(--brand-soft)' : 'var(--surface)',
@@ -135,69 +181,97 @@ export function DeliveryCards() {
                         <Link
                           to={`/deliveries/${id}`}
                           onClick={e => e.stopPropagation()}
-                          className="font-mono text-[11px] font-[600] hover:underline"
+                          className="font-mono text-[12.5px] font-[600] hover:underline"
                           style={{ color: 'var(--brand)' }}
                         >
                           {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
                         </Link>
-                        <p className="text-[12px] font-[600] truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>{d.clientName ?? '—'}</p>
+                        <p className="text-[14px] font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>{d.clientName ?? '—'}</p>
                         {(d.dropoffAddress || d.dropoffCity || d.zoneName) && (
                           <div className="flex items-center gap-1 min-w-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
-                            <IconMapPin size={10} className="shrink-0" />
-                            <span className="text-[10px] truncate">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+                            <IconMapPin size={10} stroke={2.5} className="shrink-0" />
+                            <span className="text-[11.5px] truncate">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
                           </div>
                         )}
                       </div>
                       {/* Per-tab right chip */}
                       {isAssignTab && alert && (
-                        <span className="text-[10px] font-[600] px-1.5 py-0.5 rounded shrink-0"
+                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0"
                           style={{ color: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].text, background: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].bg }}>
                           {formatMotif(alert.motif, t)}
                         </span>
                       )}
                       {isGpsTab && (
-                        <span className="text-[10px] font-[600] px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1"
+                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1"
                           style={{ color: SEVERITY_CHIP.CRITICAL.text, background: SEVERITY_CHIP.CRITICAL.bg }}>
-                          <IconMapPinOff size={11} /> {t.dispatchDeskPage.missingGps}
+                          <IconMapPinOff size={11} stroke={2.5} /> {t.dispatchDeskPage.missingGps}
                         </span>
                       )}
                     </div>
 
                     {/* Status + driver */}
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <StatusBadge status={d.status} size="sm" />
-                      {d.driverName ? (
-                        <Tooltip>
-                          <TooltipTrigger asChild>
-                            <div className="flex items-center gap-1.5 cursor-default">
-                              <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                              <span className="text-[11px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <StatusBadge status={d.status} size="sm" />
+                        {d.driverName ? (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <div className="flex items-center gap-1.5 cursor-default">
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
+                                <span className="text-[12.5px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
+                              </div>
+                            </TooltipTrigger>
+                            <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
+                          </Tooltip>
+                        ) : (
+                          <span className="text-[11.5px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                            {t.dispatchDeskPage.unassignedLabel}
+                          </span>
+                        )}
+                        {getSlaPill(d, t)}
+                      </div>
+
+                      {/* Articles list under status badge */}
+                      {d.items && d.items.length > 0 && (
+                        <div className="flex flex-col gap-1 mt-0.5 border-t border-[var(--border)]/20 pt-1.5">
+                          {d.items.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-[11.5px] pl-0.5">
+                              <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
+                              <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
                             </div>
-                          </TooltipTrigger>
-                          <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="text-[10px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
-                          {t.dispatchDeskPage.unassignedLabel}
+                          ))}
+                        </div>
+                      )}
+
+                      {slot && (
+                        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] select-none pl-0.5">
+                          <IconCalendar size={11} stroke={2.5} />
+                          <span>{slot}</span>
+                        </div>
+                      )}
+                    </div>
+ 
+                    {/* Failure reason (failed tab) Callout */}
+                    {isFailedTab && d.failureReason && (
+                      <div className="text-[13px] leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
+                        {formatMotif(d.failureReason, t)}
+                      </div>
+                    )}
+                  </div>
+ 
+                  {/* Footer: age, amount + actions */}
+                  <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                      <span className="inline-flex items-center gap-1 font-mono font-medium" title={formatShortDate(d.createdAt)}>
+                        <IconClock size={11} stroke={2.5} />
+                        <span>{t.dispatchDeskPage.cardCreated} {created}</span>
+                      </span>
+                      {amount && (
+                        <span className="font-[600]" style={{ color: 'var(--text-secondary)' }}>
+                          · {amount}
                         </span>
                       )}
                     </div>
-
-                    {/* Failure reason (failed tab) */}
-                    {isFailedTab && d.failureReason && (
-                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-secondary)' }}>
-                        {formatMotif(d.failureReason, t)}
-                      </p>
-                    )}
-
-                    <MetaLine d={d} t={t} />
-                  </div>
-
-                  {/* Footer: updated + actions */}
-                  <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
-                    <span className="text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                      {formatElapsed(d.updatedAt ?? d.createdAt, t)}
-                    </span>
                     {!isReadOnly && (
                       <div className="flex items-center gap-1">
                         {isAssignTab && canAssign && (

@@ -3,6 +3,36 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+/* ── AWS Amazon Ember Fonts ─────────────────────────────────────────────────── */
+@font-face {
+  font-family: 'Amazon Ember Display';
+  src: url('./assets/fonts/AmazonEmberDisplay_Rg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember Display';
+  src: url('./assets/fonts/AmazonEmberDisplay_Md.ttf') format('truetype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('./assets/fonts/AmazonEmber_Rg.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Amazon Ember';
+  src: url('./assets/fonts/AmazonEmber_Bd.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* ── Dark mode variant for Tailwind v4 ─────────────────────────────────────── */
 @custom-variant dark (&:is(.dark *));
 
@@ -40,14 +70,15 @@
   --color-info-bg:     var(--info-bg);
 
   /* Fonts */
-  --font-sans:    var(--font-sans);
-  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --font-sans: 'Amazon Ember Display', 'Amazon Ember', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Amazon Ember', ui-monospace, monospace;
 
   /* Radius */
-  --radius-sm:  4px;
-  --radius-md:  6px;
-  --radius-lg:  8px;
-  --radius-xl:  12px;
+  --radius-xs:  4px;
+  --radius-sm:  8px;
+  --radius-md:  16px;
+  --radius-lg:  24px;
+  --radius-xl:  40px;
   --font-heading:    var(--font-sans);
   --color-sidebar-ring:    var(--sidebar-ring);
   --color-sidebar-border:    var(--sidebar-border);
@@ -85,33 +116,46 @@
 
 /* ── Light mode ─────────────────────────────────────────────────────────────── */
 :root {
-  /* Brand — change ONE line to retheme the whole app */
-  --brand:       #F08734;
-  --brand-hover: #D9701E;
-  --brand-soft:  rgba(240, 135, 52, 0.08);
+  /* Brand — AWS Amazon Orange interactive voltage */
+  --brand:       #DF7C1C;
+  --brand-hover: #C3640F;
+  --brand-soft:  rgba(223, 124, 28, 0.08);
+
+  /* Brand Blue — AWS Cerulean Blue supporting accent */
+  --brand-blue:       #0972d3;
+  --brand-blue-hover: #035eb4;
+  --brand-blue-soft:  rgba(9, 114, 211, 0.08);
+
+  /* AWS Spectral Gradients (123deg editorial gradients) */
+  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
+  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
+  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
+  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
 
   /* Backgrounds */
-  --app-bg:     #FAFAFA;
-  --sidebar-bg: #FFFFFF;
-  --surface:    #FFFFFF;
-  --elevated:   #FFFFFF;
-  --hover-bg:   #F4F4F5;
+  --app-bg:     #FCFCFD; /* Canvas */
+  --sidebar-bg: #1B232D; /* Nav-bg */
+  --surface:    #ffffff; /* Cards */
+  --elevated:   #ffffff;
+  --hover-bg:   #f4f4f5; /* Hover */
 
   /* Borders */
-  --border:    oklch(0.922 0 0);
-  --border-strong: #D4D4D8;
+  --border:    #ccccd1; /* Hairline */
+  --border-strong: #dedee3;
 
-  /* Text — zinc scale */
-  --text-primary:   #09090B;
-  --text-secondary: #52525B;
-  --text-muted:     #71717A;
-  --text-soft:      #A1A1AA;
+  /* Text — slate scale */
+  --text-primary:   #161d26; /* Ink */
+  --text-secondary: #232b37; /* Ink Body */
+  --text-muted:     #333333; /* Ink Secondary */
+  --text-soft:      #72747e; /* Ink Muted */
+  --text-faded:     #a4a4ad; /* Ink Faded */
 
   /* Status */
   --success:    #16A34A;  --success-bg: #F0FDF4;
   --warning:    #D97706;  --warning-bg: #FFFBEB;
   --danger:     #DC2626;  --danger-bg:  #FEF2F2;
-  --info:       #2563EB;  --info-bg:    #EFF6FF;
+  --info:       #DF7C1C;  --info-bg:    #EFF6FF;
 
   /* shadcn compatibility — primary = brand orange */
   --background:          var(--app-bg);
@@ -121,10 +165,10 @@
   --popover:             var(--surface);
   --popover-foreground:  var(--text-primary);
   --primary:             var(--brand);
-  --primary-foreground:  #09090B;
-  --secondary:           var(--sidebar-bg);
+  --primary-foreground:  #ffffff;
+  --secondary:           var(--hover-bg);
   --secondary-foreground:var(--text-primary);
-  --muted:               var(--sidebar-bg);
+  --muted:               var(--hover-bg);
   --muted-foreground:    var(--text-muted);
   --accent:              var(--hover-bg);
   --accent-foreground:   var(--text-primary);
@@ -132,16 +176,16 @@
   --destructive-foreground: #ffffff;
   --input:               var(--border);
   --ring:                var(--brand);
-  --radius:              6px;
+  --radius:              16px;
 
   /* Sidebar shadcn */
   --sidebar:                    var(--sidebar-bg);
-  --sidebar-foreground:         var(--text-primary);
+  --sidebar-foreground:         #ffffff;
   --sidebar-primary:            var(--brand);
-  --sidebar-primary-foreground: #09090B;
-  --sidebar-accent:             var(--hover-bg);
-  --sidebar-accent-foreground:  var(--text-primary);
-  --sidebar-border:             var(--border);
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent:             rgba(255, 255, 255, 0.08);
+  --sidebar-accent-foreground:  #ffffff;
+  --sidebar-border:             rgba(255, 255, 255, 0.08);
   --sidebar-ring:               var(--brand);
 
   /* Legacy aliases — keep during Mantine migration */
@@ -151,43 +195,54 @@
   --app-bg:            var(--app-bg);
   --surface-1:         var(--surface);
   --surface-2:         var(--app-bg);
-  --surface-3:         var(--sidebar-bg);
+  --surface-3:         var(--hover-bg);
   --border-color:      var(--border);
-  --border-subtle:     var(--sidebar-bg);
+  --border-subtle:     var(--border);
   --text-strong:       var(--text-primary);
   --text:              var(--text-secondary);
-  --chart-1: #18181B; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+  --chart-1: #DF7C1C; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
 }
 
 /* ── Dark mode ──────────────────────────────────────────────────────────────── */
 .dark {
-  --brand:       #F08734;
-  --brand-hover: #FFA64D;
-  --brand-soft:  rgba(240, 135, 52, 0.15);
+  --brand:       #DF7C1C;
+  --brand-hover: #F1953D;
+  --brand-soft:  rgba(223, 124, 28, 0.15);
 
-  --app-bg:     #121212;
-  --sidebar-bg: #0A0A0A;
-  --surface:    #1A1A1A;
-  --elevated:   #242424;
-  --hover-bg:   #2A2A2A;
+  --brand-blue:       #0972d3;
+  --brand-blue-hover: #035eb4;
+  --brand-blue-soft:  rgba(9, 114, 211, 0.15);
+
+  /* AWS Spectral Gradients (123deg editorial gradients) */
+  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
+  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
+  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
+  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
+
+  --app-bg:     #0f141a; /* AWS pitch black nav/footer canvas */
+  --sidebar-bg: #1B232D;
+  --surface:    #161d26; /* AWS Ink as surface card background */
+  --elevated:   #232b37;
+  --hover-bg:   #232b37;
 
   --border:    rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
 
-  --text-primary:   #F5F5F5;
-  --text-secondary: #A0A0A0;
-  --text-muted:     #707070;
-  --text-soft:      #404040;
+  --text-primary:   #f3f3f7;
+  --text-secondary: #dedee3;
+  --text-muted:     #a4a4ad;
+  --text-soft:      #72747e;
 
   /* Status — dark pastels (subtle tints over #1A1A1A surface) */
   --success:    #22C55E;  --success-bg: #0D2818;
   --warning:    #F59E0B;  --warning-bg: #2A1F0A;
   --danger:     #EF4444;  --danger-bg:  #2A1215;
-  --info:       #3B82F6;  --info-bg:    #0F1A2E;
+  --info:       #DF7C1C;  --info-bg:    #0F1A2E;
 
   /* Legacy dark aliases */
-  --brand-orange-dark: #D9701E;
-  --brand-orange-soft: rgba(240, 135, 52, 0.15);
+  --brand-orange-dark: #F1953D;
+  --brand-orange-soft: rgba(223, 124, 28, 0.15);
   --surface-1:    var(--surface);
   --surface-2:    var(--app-bg);
   --surface-3:    var(--sidebar-bg);
@@ -205,7 +260,7 @@
   --popover:             var(--surface);
   --popover-foreground:  var(--text-primary);
   --primary:             var(--brand);
-  --primary-foreground:  #09090B;
+  --primary-foreground:  #ffffff;
   --secondary:           var(--sidebar-bg);
   --secondary-foreground:var(--text-primary);
   --muted:               var(--sidebar-bg);
@@ -215,11 +270,11 @@
   --destructive:         var(--danger);
   --input:               var(--border);
   --ring:                var(--brand);
-  --chart-1: #18181B; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+  --chart-1: #DF7C1C; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
   --sidebar:                    var(--sidebar-bg);
   --sidebar-foreground:         var(--text-primary);
   --sidebar-primary:            var(--brand);
-  --sidebar-primary-foreground: #121212;
+  --sidebar-primary-foreground: #ffffff;
   --sidebar-accent:             #2E2E2E;
   --sidebar-accent-foreground:  #E5E5E5;
   --sidebar-border:             var(--border);
@@ -228,22 +283,33 @@
 
 /* ── Also support [data-mantine-color-scheme=dark] during migration ─────────── */
 [data-mantine-color-scheme='dark'] {
-  --brand:       #F08734;
-  --brand-hover: #FFA64D;
-  --brand-soft:  rgba(240, 135, 52, 0.15);
-  --app-bg:      #121212;
-  --sidebar-bg:  #0A0A0A;
-  --surface:     #1A1A1A;
-  --elevated:    #242424;
-  --hover-bg:    #2A2A2A;
+  --brand:       #DF7C1C;
+  --brand-hover: #F1953D;
+  --brand-soft:  rgba(223, 124, 28, 0.15);
+
+  --brand-blue:       #0972d3;
+  --brand-blue-hover: #035eb4;
+  --brand-blue-soft:  rgba(9, 114, 211, 0.15);
+
+  /* AWS Spectral Gradients (123deg editorial gradients) */
+  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
+  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
+  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
+  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
+  --app-bg:      #0f141a;
+  --sidebar-bg:  #1B232D;
+  --surface:     #161d26;
+  --elevated:    #232b37;
+  --hover-bg:    #232b37;
   --border:      rgba(255, 255, 255, 0.08);
   --border-strong:rgba(255, 255, 255, 0.16);
-  --text-primary: #F5F5F5;
-  --text-secondary:#A0A0A0;
-  --text-muted:  #707070;
-  --text-soft:   #404040;
-  --brand-orange-dark: #D9701E;
-  --brand-orange-soft: rgba(240, 135, 52, 0.15);
+  --text-primary: #f3f3f7;
+  --text-secondary:#dedee3;
+  --text-muted:  #a4a4ad;
+  --text-soft:   #72747e;
+  --brand-orange-dark: #F1953D;
+  --brand-orange-soft: rgba(223, 124, 28, 0.15);
   --surface-1:   var(--surface);
   --surface-2:   var(--app-bg);
   --surface-3:   var(--sidebar-bg);
@@ -255,7 +321,7 @@
   --success:    #22C55E;  --success-bg: #0D2818;
   --warning:    #F59E0B;  --warning-bg: #2A1F0A;
   --danger:     #EF4444;  --danger-bg:  #2A1215;
-  --info:       #3B82F6;  --info-bg:    #0F1A2E;
+  --info:       #DF7C1C;  --info-bg:    #0F1A2E;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -267,7 +333,7 @@
   }
 
   html, body {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Amazon Ember', 'Inter', system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
@@ -283,6 +349,7 @@
   }
 
   h1, h2, h3, h4, h5, h6 {
+    font-family: 'Amazon Ember Display', 'Amazon Ember', sans-serif;
     color: var(--text-primary);
     letter-spacing: -0.02em;
     line-height: 1.3;
@@ -364,7 +431,7 @@
 
   /* Monospace data */
   .mono {
-    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-family: 'Amazon Ember', ui-monospace, monospace;
     font-variant-numeric: tabular-nums;
     letter-spacing: -0.02em;
   }
@@ -404,6 +471,10 @@
 
   .hover-reveal:hover {
     background: var(--hover-bg);
+  }
+
+  .dispatch-card {
+    font-family: 'Amazon Ember', 'Inter', system-ui, -apple-system, sans-serif !important;
   }
 }
 
@@ -592,5 +663,19 @@
 [data-mantine-color-scheme='dark'] .bg-\[var\(--brand\)\] *,
 [data-mantine-color-scheme='dark'] .bg-primary * {
   color: inherit !important;
+}
+
+/* ── Force Sidebar Background to be #1B232D in light mode ─────────────────── */
+aside,
+[class*="sidebar"] {
+  background-color: #1B232D !important;
+}
+
+/* Maintain dark mode for sidebar */
+.dark aside,
+.dark [class*="sidebar"],
+[data-mantine-color-scheme='dark'] aside,
+[data-mantine-color-scheme='dark'] [class*="sidebar"] {
+  background-color: #1B232D !important;
 }
 

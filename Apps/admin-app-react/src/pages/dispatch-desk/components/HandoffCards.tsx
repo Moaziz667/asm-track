@@ -76,7 +76,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
   if (open.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-        <IconCheck size={22} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
+        <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
         <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.handoffEmpty}</p>
       </div>
     );
@@ -123,7 +123,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                   style={{ background: 'var(--app-bg)' }}
                 >
                   <DriverChip name={h.fromDriverName} />
-                  <IconArrowRight size={14} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
+                  <IconArrowRight size={14} stroke={2.5} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
                   <DriverChip name={h.toDriverName} />
                 </div>
 
@@ -139,7 +139,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                 style={{ borderColor: 'var(--border)' }}
               >
                 <div className="flex items-center gap-1 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
-                  <IconClock size={12} />
+                  <IconClock size={12} stroke={2.5} />
                   {formatElapsed(h.requestedAt, t)}
                 </div>
                 {!isReadOnly && (
@@ -150,7 +150,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                     className="text-[11px] font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50"
                     style={{ borderColor: 'var(--border)', color: 'var(--danger)' }}
                   >
-                    <IconArrowsExchange size={12} />
+                    <IconArrowsExchange size={12} stroke={2.5} />
                     {t.dispatchDeskPage.handoffCancelButton}
                   </button>
                 )}

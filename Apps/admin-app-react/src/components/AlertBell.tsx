@@ -142,7 +142,7 @@ export default function AlertBell() {
             open && 'bg-[var(--hover-bg)] text-[var(--text-primary)]',
           )}
         >
-          <IconBell size={16} />
+          <IconBell size={16} stroke={2.5} />
         </button>
 
         {/* Badge — static, no pulse */}

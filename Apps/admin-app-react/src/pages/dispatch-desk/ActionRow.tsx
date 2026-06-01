@@ -81,7 +81,7 @@ function getCtaButtons(
   }
 
   if (needsReturnToDepot(motif)) {
-    btns.push({ tip: t.dispatchDeskPage.buttonReturnToDepot, icon: <IconArrowBack size={14} />, color: 'var(--brand)', onClick: () => onReturnToDepot(row) });
+    btns.push({ tip: t.dispatchDeskPage.buttonReturnToDepot, icon: <IconArrowBack size={14} stroke={2.5} />, color: 'var(--brand)', onClick: () => onReturnToDepot(row) });
   }
 
   return btns;
@@ -214,7 +214,7 @@ export function ActionRow({
               className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
               onClick={onToggleExpand}
             >
-              {isExpanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
+              {isExpanded ? <IconChevronDown size={14} stroke={2.5} /> : <IconChevronRight size={14} stroke={2.5} />}
             </button>
           </td>
         </tr>

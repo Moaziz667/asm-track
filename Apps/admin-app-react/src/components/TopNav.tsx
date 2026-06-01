@@ -211,7 +211,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
                 />
               }
             >
-              {isDark ? <IconSun size={14} /> : <IconMoon size={14} />}
+              {isDark ? <IconSun size={14} stroke={2.5} /> : <IconMoon size={14} stroke={2.5} />}
             </TooltipTrigger>
             <TooltipContent>{isDark ? t.topNav.lightMode : t.topNav.darkMode}</TooltipContent>
           </Tooltip>

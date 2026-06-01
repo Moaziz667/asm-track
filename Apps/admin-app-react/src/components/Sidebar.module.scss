@@ -10,7 +10,7 @@
 
 // ── Static SCSS constants (geometry + motion) ─────────────────────────────────
 
-$accent:     #F08734;
+$accent:     #DF7C1C;
 $live:       #34c77b;
 $width:      212px;
 $width-icon: 48px;
@@ -33,52 +33,48 @@ $t-slow:  0.26s $ease-out;
   // White surface. Separation from content via shadow, not a heavy border.
   // "Enterprise white" — not consumer-app bright, not template-flat.
 
-  --sb-bg:              #ffffff;
-  --sb-bg-hover:        #f4f4f5;
-  --sb-bg-active:       var(--brand-soft);
-  --sb-sep-right:       #e4e4e7;  // zinc-200 (crisp solid gray border)
-  --sb-sep-h:           #f4f4f5;  // zinc-100 (horizontal separator)
+  --sb-bg:              #1B232D;  // Deep Navy Sidebar
+  --sb-bg-hover:        rgba(255, 255, 255, 0.08);
+  --sb-bg-active:       rgba(223, 124, 28, 0.15);
+  --sb-sep-right:       rgba(255, 255, 255, 0.08);
+  --sb-sep-h:           rgba(255, 255, 255, 0.08);
 
   // Brand
-  --sb-brand-name:      #09090b;  // zinc-950 (high contrast)
-  --sb-brand-sub:       #71717a;  // zinc-500
+  --sb-brand-name:      #ffffff;
+  --sb-brand-sub:       #cbd5e1;  // bright light-slate
 
   // Navigation text
-  --sb-label:           #71717a;  // zinc-500 (distinct headers)
-  --sb-item:            #3f3f46;  // zinc-700 (solid text color)
-  --sb-item-hover:      #09090b;  // zinc-950
-  --sb-item-active:     #09090b;  // zinc-950
+  --sb-label:           #cbd5e1;  // bright light-slate (group headers)
+  --sb-item:            #cbd5e1;  // bright light-slate (inactive items)
+  --sb-item-hover:      #ffffff;
+  --sb-item-active:     #ffffff;
 
   // Icons
-  --sb-icon:            #71717a;  // zinc-500
-  --sb-icon-hover:      #09090b;  // zinc-950
-  --sb-icon-active:     #09090b;  // zinc-950
+  --sb-icon:            #94a3b8;  // soft light-slate
+  --sb-icon-hover:      #ffffff;
+  --sb-icon-active:     #ffffff;
 
   // Accent indicator
-  --sb-bar:             #F08734;  // brand accent
+  --sb-bar:             #DF7C1C;  // AWS Amazon Orange
 
   // Operational status
-  --sb-status:          #71717a;  // zinc-500
+  --sb-status:          #94a3b8;
 
   // Controls
-  --sb-ctrl:            #71717a;  // zinc-500
-  --sb-ctrl-hover:      #09090b;  // zinc-950
+  --sb-ctrl:            #94a3b8;
+  --sb-ctrl-hover:      #ffffff;
 
   // Tooltip surface
-  --sb-tip-bg:          #ffffff;
-  --sb-tip-border:      #e4e4e7;
-  --sb-tip-text:        #09090b;
-  --sb-tip-shadow:      0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
-
+  --sb-tip-bg:          #161d26;
+  --sb-tip-border:      rgba(255, 255, 255, 0.08);
+  --sb-tip-text:        #ffffff;
+  --sb-tip-shadow:      0 4px 20px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.20);
 
   // ── Dark override ─────────────────────────────────────────────────────────
-  // Deep charcoal — operational control surface.
-  // "Realtime dispatch center, not cyberpunk dashboard."
-
   :global(.dark) & {
-    --sb-bg:              #0a0a0a;  // deep obsidian black
+    --sb-bg:              #1B232D;
     --sb-bg-hover:        #18181b;  // zinc-900
-    --sb-bg-active:       var(--brand-soft);
+    --sb-bg-active:       #18181b;  // zinc-900
     --sb-sep-right:       #27272a;  // zinc-800
     --sb-sep-h:           #18181b;  // zinc-900
 
@@ -94,7 +90,7 @@ $t-slow:  0.26s $ease-out;
     --sb-icon-hover:      #fafafa;  // zinc-50
     --sb-icon-active:     #fafafa;  // zinc-50
 
-    --sb-bar:             #F08734;  // brand accent
+    --sb-bar:             #DF7C1C;  // brand accent
 
     --sb-status:          #a1a1aa;  // zinc-400
 
@@ -269,7 +265,7 @@ $t-slow:  0.26s $ease-out;
     width: calc(100% - 10px);
     margin: 2px 5px;
     padding: 6px 8px;
-    border-radius: 5px;
+    border-radius: 8px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -379,7 +375,7 @@ $t-slow:  0.26s $ease-out;
   padding-block: 5px;
   padding-inline-start: 10px;
   padding-inline-end: 8px;
-  border-radius: 5px;
+  border-radius: 8px;
   margin-bottom: 1px;
   cursor: pointer;
   text-decoration: none;
@@ -392,7 +388,7 @@ $t-slow:  0.26s $ease-out;
   outline: none;
 
   &:focus-visible {
-    box-shadow: 0 0 0 2px rgba(240, 135, 52, 0.45);
+    box-shadow: 0 0 0 2px rgba(223, 124, 28, 0.45);
   }
 
   &__icon {
@@ -470,7 +466,7 @@ $t-slow:  0.26s $ease-out;
     inset-inline-end: auto;
     background: var(--sb-tip-bg);
     border: 1px solid var(--sb-tip-border);
-    border-radius: 5px;
+    border-radius: 8px;
     padding: 5px 10px;
     font-size: 11.5px;
     font-weight: 500;
@@ -594,7 +590,7 @@ $t-slow:  0.26s $ease-out;
     justify-content: center;
     width: 100%;
     height: 28px;
-    border-radius: 5px;
+    border-radius: 8px;
     border: none;
     background: transparent;
     color: var(--sb-ctrl);

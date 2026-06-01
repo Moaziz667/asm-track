@@ -58,7 +58,7 @@ export function FiltersSidebar() {
           className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
           title={filtersOpen ? t.dispatchDeskPage.filterToggleReduce : t.dispatchDeskPage.filterToggleShow}
         >
-          {filtersOpen ? <IconChevronLeft size={13} /> : <IconChevronRight size={13} />}
+          {filtersOpen ? <IconChevronLeft size={13} stroke={2.5} /> : <IconChevronRight size={13} stroke={2.5} />}
         </button>
       </div>
 
@@ -69,7 +69,7 @@ export function FiltersSidebar() {
             <FieldInput
               label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterQuickSearch}</span>}
               placeholder={t.dispatchDeskPage.filterQuickSearchPlaceholder}
-              leftSection={<IconSearch size={14} className="text-[var(--text-muted)]" />}
+              leftSection={<IconSearch size={14} stroke={2.5} className="text-[var(--text-muted)]" />}
               value={search}
               onChange={e => setSearch(e.currentTarget.value)}
               className="h-9 text-[12px]"
@@ -181,7 +181,7 @@ export function FiltersSidebar() {
                 className="w-9 h-9 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--brand)] transition-colors"
                 onClick={clearFilters}
               >
-                <IconX size={14} />
+                <IconX size={14} stroke={2.5} />
               </button>
             </div>
           </div>

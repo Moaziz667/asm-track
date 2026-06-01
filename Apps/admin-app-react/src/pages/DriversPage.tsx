@@ -466,7 +466,7 @@ function DriversPageContent() {
               <>
                 <button
                   type="button"
-                  className="w-full h-9 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-[2px] flex items-center justify-center gap-2 transition-opacity"
+                  className="w-full h-9 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-full flex items-center justify-center gap-2 transition-opacity"
                   onClick={openCreate}
                 >
                   <SVGPlus size={14} />
@@ -481,7 +481,7 @@ function DriversPageContent() {
                 />
                 <button
                   type="button"
-                  className="w-full h-9 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] font-bold text-[11px] rounded-[2px] flex items-center justify-center gap-2 transition-colors"
+                  className="w-full h-9 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] font-bold text-[11px] rounded-full flex items-center justify-center gap-2 transition-colors"
                   onClick={() => csvInputRef.current?.click()}
                 >
                   <SVGUpload size={14} />
@@ -767,7 +767,7 @@ function DriversPageContent() {
             {!readOnly && selected && selected.accountStatus !== 'PENDING_SETUP' && (
               <button
                 type="button"
-                className="h-8 px-4 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] hover:text-[var(--text-primary)] font-semibold text-xs rounded transition-colors flex items-center justify-center gap-1.5"
+                className="h-8 px-4 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] hover:text-[var(--text-primary)] font-semibold text-xs rounded-full transition-colors flex items-center justify-center gap-1.5"
                 onClick={() => { setDetailsOpen(false); openEdit(selected); }}
               >
                 <SVGPencil size={13} />
@@ -777,7 +777,7 @@ function DriversPageContent() {
             <Button
               size="sm"
               onClick={() => setDetailsOpen(false)}
-              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded-[2px]"
+              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded-full px-4"
             >
               {t.driversPage.cancelButton || 'Fermer'}
             </Button>
@@ -868,12 +868,12 @@ function DriversPageContent() {
                           
                           <div className="flex items-center justify-between py-3 border-b border-[var(--border)]/40">
                             <span className="text-xs text-[var(--text-muted)] font-medium">{t.driversPage.nameLabel}</span>
-                            <span className="text-xs text-[var(--text-primary)] font-bold">{selected.name}</span>
+                            <span className="text-xs text-[var(--text-primary)] dark:text-white font-bold">{selected.name}</span>
                           </div>
 
                           <div className="flex items-center justify-between py-3 border-b border-[var(--border)]/40">
                             <span className="text-xs text-[var(--text-muted)] font-medium">{t.driversPage.phoneLabel}</span>
-                            <span className="text-xs text-[var(--text-primary)] font-mono font-bold">{selected.phone}</span>
+                            <span className="text-xs text-[var(--text-primary)] dark:text-white font-mono font-bold">{selected.phone}</span>
                           </div>
 
                           {selected.email && (
@@ -1034,12 +1034,12 @@ function DriversPageContent() {
         size="sm"
         footer={
           <div className="flex items-center justify-end gap-2 w-full mt-2">
-            <Button variant="ghost" size="sm" className="text-xs font-semibold text-slate-500 rounded" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
+            <Button variant="ghost" size="sm" className="text-xs font-semibold text-slate-500 rounded-full px-4" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
             <Button
               size="sm"
               onClick={saveDriver}
               disabled={saving}
-              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded px-4"
+              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded-full px-4"
             >
               {saving ? t.driversPage.resendInProgress : editingDriver ? t.driversPage.saveButton : t.driversPage.createButton}
             </Button>
@@ -1053,7 +1053,7 @@ function DriversPageContent() {
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="text-slate-800"
+            className="text-slate-800 dark:text-white"
           />
           <FieldInput
             label={t.driversPage.phoneLabel}
@@ -1061,7 +1061,7 @@ function DriversPageContent() {
             required
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="font-mono text-slate-800"
+            className="font-mono text-slate-800 dark:text-white"
           />
           {!editingDriver && (
             <FieldInput
@@ -1072,7 +1072,7 @@ function DriversPageContent() {
               value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })}
               hint={t.driversPage.invitationEmailHelp}
-              className="text-slate-800"
+              className="text-slate-800 dark:text-white"
             />
           )}
         </div>

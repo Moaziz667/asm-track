@@ -425,7 +425,7 @@ export default function DepotsPage() {
               variant="ghost"
               size="sm"
               onClick={() => setEditorOpen(false)}
-              className="text-[11px] font-semibold rounded-[2px]"
+              className="text-[11px] font-semibold rounded-full px-4"
             >
               {t.depotsPage.cancelButton}
             </Button>
@@ -433,7 +433,7 @@ export default function DepotsPage() {
               size="sm"
               onClick={save}
               disabled={saving}
-              className="text-[11px] font-semibold rounded-[2px]"
+              className="text-[11px] font-semibold rounded-full px-4"
               style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}
             >
               {saving && (
@@ -495,7 +495,7 @@ export default function DepotsPage() {
               {t.depotsPage.geometricAdjustment}
             </p>
             <div
-              className="rounded-[2px] overflow-hidden"
+              className="rounded-[8px] overflow-hidden"
               style={{ height: 300, border: '1px solid var(--border)', background: 'var(--app-bg)' }}
             >
               <DepotPinMap

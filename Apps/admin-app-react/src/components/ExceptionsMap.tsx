@@ -67,7 +67,7 @@ function makeDriverIcon(name: string) {
       width:28px;height:28px;border-radius:50%;
       background:#09090B;border:2px solid white;
       display:flex;align-items:center;justify-content:center;
-      font-size:9px;font-weight:800;color:white;font-family:'IBM Plex Sans',sans-serif;
+      font-size:9px;font-weight:800;color:white;font-family:inherit;
     ">${initials}</div>`,
   });
 }
@@ -138,7 +138,7 @@ function ExceptionsMapInner({ exceptions, drivers, selectedId, onSelect }: Props
               eventHandlers={{ click: () => onSelect?.(ex.deliveryId) }}
             >
               <Popup>
-                <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
+                <div style={{ fontFamily: 'inherit', minWidth: 160 }}>
                   <div style={{ fontSize: 10, fontWeight: 800, color: SEVERITY_COLORS[ex.severity] ?? '#71717A', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
                     {ex.severity} · {ex.status}
                   </div>
@@ -164,7 +164,7 @@ function ExceptionsMapInner({ exceptions, drivers, selectedId, onSelect }: Props
               icon={makeDriverIcon(driver.name)}
             >
               <Popup>
-                <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+                <div style={{ fontFamily: 'inherit' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
                   <div style={{ fontSize: 9, color: '#71717A', marginTop: 2 }}>Position en temps réel</div>
                 </div>

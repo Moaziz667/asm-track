@@ -49,7 +49,7 @@ export function AppModal({
       <DialogContent
         showCloseButton={false}
         className={cn(
-          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)]',
+          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)] rounded-[16px]',
           'max-h-[90dvh]',
           SIZE[size],
           className,

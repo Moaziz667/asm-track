@@ -217,7 +217,7 @@
 
     .value {
       flex: 1;
-      font-family: 'Courier New', monospace;
+      font-family: var(--font-mono);
       color: var(--text-strong);
     }
 
@@ -232,7 +232,7 @@
 
   .box {
     padding: 8px 10px;
-    background: var(--surface-3);
+    background: var(--surface-1);
     border-radius: 4px;
     border: 1px solid var(--border-color);
     font-size: 11px;
@@ -298,7 +298,7 @@
         &:nth-child(3),
         &:nth-child(5) {
           text-align: right;
-          font-family: 'Courier New', monospace;
+          font-family: var(--font-mono);
         }
 
         &.articleName {
@@ -325,7 +325,7 @@
 
         &:last-child {
           text-align: right;
-          font-family: 'Courier New', monospace;
+          font-family: var(--font-mono);
         }
       }
     }
@@ -384,7 +384,7 @@
         .timestamp {
           font-size: 10px;
           color: var(--text-muted);
-          font-family: 'Courier New', monospace;
+          font-family: var(--font-mono);
         }
       }
 
@@ -422,7 +422,7 @@
 
     .coords {
       color: var(--text-muted);
-      font-family: 'Courier New', monospace;
+      font-family: var(--font-mono);
       font-size: 10px;
     }
 
