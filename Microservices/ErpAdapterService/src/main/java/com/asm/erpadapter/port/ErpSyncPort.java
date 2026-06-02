@@ -25,20 +25,25 @@ public interface ErpSyncPort {
     /**
      * Cancel a confirmed sale order in the ERP.
      */
-    boolean syncOrderCancellation(String erpOrderId, String transactionId);
+    boolean syncOrderCancellation(String erpOrderId, String transactionId, String pickingRef);
 
     /**
      * Validate the stock transfer for a fully delivered order.
+     *
+     * @param pickingRef exact delivery-note (picking) number to target; when set it
+     *        disambiguates multi-depot orders (several pickings per sale order).
      */
-    boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId);
+    boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId, String pickingRef);
 
     /**
      * Validate a partial stock transfer and create a backorder for remaining items.
+     *
+     * @param pickingRef exact delivery-note (picking) number to target (multi-depot).
      */
-    ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId);
+    ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId, String pickingRef);
 
     /**
      * Post a failure note on the ERP order when delivery could not be completed.
      */
-    boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId);
+    boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String pickingRef);
 }

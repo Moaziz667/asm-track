@@ -10,4 +10,6 @@ public class SyncFailureRequest {
     private String transactionId;
     private String failureCode;
     private String comment;
+    /** Exact delivery-note (picking) number this failure concerns (multi-depot). */
+    private String pickingRef;
 }

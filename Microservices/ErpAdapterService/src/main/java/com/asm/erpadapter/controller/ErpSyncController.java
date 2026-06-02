@@ -32,9 +32,10 @@ public class ErpSyncController {
     public ResponseEntity<Map<String, Object>> syncOrderCancellation(
             @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId,
-            @RequestParam(required = false) String transactionId) {
+            @RequestParam(required = false) String transactionId,
+            @RequestParam(required = false) String pickingRef) {
 
-        boolean success = resolve(erpProvider).syncOrderCancellation(erpOrderId, transactionId);
+        boolean success = resolve(erpProvider).syncOrderCancellation(erpOrderId, transactionId, pickingRef);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -45,7 +46,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncFullDeliveryRequest request) {
 
         boolean success = resolve(erpProvider)
-                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId());
+                .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(Map.of("success", success));
     }
 
@@ -56,7 +57,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncPartialDeliveryRequest request) {
 
         ErpPartialDeliveryResultDTO result = resolve(erpProvider)
-                .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId());
+                .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(result);
     }
 
@@ -67,7 +68,7 @@ public class ErpSyncController {
             @Valid @RequestBody SyncFailureRequest request) {
 
         boolean success = resolve(erpProvider)
-                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId());
+                .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(Map.of("success", success));
     }
 }

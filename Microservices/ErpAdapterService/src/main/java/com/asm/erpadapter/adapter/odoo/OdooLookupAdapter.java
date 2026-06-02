@@ -36,6 +36,24 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 public class OdooLookupAdapter implements ErpLookupPort {
 
     private final OdooJsonRpcClient rpc;
+    private final OdooReportClient reportClient;
+
+    // ── Delivery Note PDF ───────────────────────────────────────────────────────
+
+    @Override
+    public byte[] getDeliveryNotePdf(String blNumber) {
+        Map<String, Object> picking = fetchPickingByName(blNumber);
+        if (picking == null) {
+            throw com.asm.erpadapter.exception.ErpAdapterException.notFound("BL introuvable dans Odoo: " + blNumber);
+        }
+        Integer pickingId = asInt(picking.get("id"));
+        if (pickingId == null) {
+            throw com.asm.erpadapter.exception.ErpAdapterException.notFound("BL introuvable dans Odoo: " + blNumber);
+        }
+
+        String cookie = reportClient.authenticate();
+        return reportClient.fetchReportPdf(pickingId, cookie);
+    }
 
     // ── Search Clients ──────────────────────────────────────────────────────────
 

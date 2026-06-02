@@ -26,7 +26,7 @@ public class ErpSyncService {
     public void syncOrderCancellation(Order order, String transactionId) {
         if (order.getErpOrderId() == null) return;
 
-        boolean success = erpAdapterClient.syncOrderCancellation(order.getErpOrderId(), transactionId, null);
+        boolean success = erpAdapterClient.syncOrderCancellation(order.getErpOrderId(), transactionId, null, order.getBlNumber());
         if (success) {
             markSynced(order);
         } else {
@@ -40,7 +40,7 @@ public class ErpSyncService {
         if (erpOrderId == null) return;
 
         boolean success = erpAdapterClient.syncFullDelivery(
-                erpOrderId, order.getOdooBackorderId(), transactionId, null);
+                erpOrderId, order.getOdooBackorderId(), transactionId, null, order.getBlNumber());
         if (success) {
             markSynced(order);
         } else {
@@ -53,7 +53,7 @@ public class ErpSyncService {
         if (erpOrderId == null) return;
 
         Map<String, Object> result = erpAdapterClient.syncPartialDelivery(
-                erpOrderId, partialItems, transactionId, null);
+                erpOrderId, partialItems, transactionId, null, order.getBlNumber());
         boolean success = Boolean.TRUE.equals(result.get("success"));
 
         if (success) {
@@ -73,7 +73,7 @@ public class ErpSyncService {
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
 
-        boolean success = erpAdapterClient.syncFailure(erpOrderId, failureCode, comment, transactionId, null);
+        boolean success = erpAdapterClient.syncFailure(erpOrderId, failureCode, comment, transactionId, null, order.getBlNumber());
         if (success) {
             markSynced(order);
         } else {

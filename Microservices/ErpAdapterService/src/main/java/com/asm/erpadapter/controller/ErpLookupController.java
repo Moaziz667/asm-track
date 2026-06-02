@@ -79,4 +79,19 @@ public class ErpLookupController {
             return ResponseEntity.notFound().build();
         }
     }
+
+    @GetMapping(value = "/delivery-note-pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
+    public ResponseEntity<byte[]> deliveryNotePdf(
+            @RequestParam(defaultValue="odoo") String erpProvider,
+            @RequestParam String blNumber) {
+        try {
+            byte[] pdf = resolve(erpProvider).getDeliveryNotePdf(blNumber);
+            if (pdf == null) {
+                return ResponseEntity.notFound().build();
+            }
+            return ResponseEntity.ok(pdf);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        }
+    }
 }

@@ -87,23 +87,24 @@ public class ErpAdapterClient {
     /**
      * Sync order cancellation via the adapter.
      */
-    public boolean syncOrderCancellation(String erpOrderId, String transactionId, String erpProvider) {
-        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/order-cancellation")
+    public boolean syncOrderCancellation(String erpOrderId, String transactionId, String erpProvider, String pickingRef) {
+        UriComponentsBuilder b = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/order-cancellation")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
                 .queryParam("erpOrderId", erpOrderId)
-                .queryParam("transactionId", transactionId)
-                .toUriString();
-        return postBooleanResult(url, null);
+                .queryParam("transactionId", transactionId);
+        if (pickingRef != null && !pickingRef.isBlank()) b.queryParam("pickingRef", pickingRef);
+        return postBooleanResult(b.toUriString(), null);
     }
 
     /**
      * Sync full delivery via the adapter.
      */
-    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId, String erpProvider) {
+    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId, String erpProvider, String pickingRef) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
         body.put("transactionId", transactionId);
         if (backorderPickingId != null) body.put("backorderPickingId", backorderPickingId);
+        if (pickingRef != null && !pickingRef.isBlank()) body.put("pickingRef", pickingRef);
 
         String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/full-delivery")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
@@ -115,10 +116,11 @@ public class ErpAdapterClient {
      * Sync partial delivery via the adapter.
      * Returns map with { success, pickingId, backorderPickingId }.
      */
-    public Map<String, Object> syncPartialDelivery(String erpOrderId, List<PartialDeliveryItem> partialItems, String transactionId, String erpProvider) {
+    public Map<String, Object> syncPartialDelivery(String erpOrderId, List<PartialDeliveryItem> partialItems, String transactionId, String erpProvider, String pickingRef) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
         body.put("transactionId", transactionId);
+        if (pickingRef != null && !pickingRef.isBlank()) body.put("pickingRef", pickingRef);
         if (partialItems != null) {
             List<Map<String, Object>> items = partialItems.stream().map(item -> {
                 Map<String, Object> m = new HashMap<>();
@@ -155,12 +157,13 @@ public class ErpAdapterClient {
     /**
      * Sync failure note via the adapter.
      */
-    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String erpProvider) {
+    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String erpProvider, String pickingRef) {
         Map<String, Object> body = new HashMap<>();
         body.put("erpOrderId", erpOrderId);
         body.put("transactionId", transactionId);
         body.put("failureCode", failureCode);
         body.put("comment", comment);
+        if (pickingRef != null && !pickingRef.isBlank()) body.put("pickingRef", pickingRef);
 
         String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/sync/failure")
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
@@ -220,6 +223,26 @@ public class ErpAdapterClient {
             return response.getBody();
         } catch (Exception e) {
             log.error("Adapter getPendingOrderPreview failed for erpOrderId={}", erpOrderId, e);
+            return null;
+        }
+    }
+
+    /**
+     * Get the delivery note PDF.
+     */
+    public byte[] getDeliveryNotePdf(String blNumber, String erpProvider) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/delivery-note-pdf")
+                .queryParam("blNumber", blNumber)
+                .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
+                .toUriString();
+
+        try {
+            ResponseEntity<byte[]> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
+                    byte[].class);
+            return response.getBody();
+        } catch (Exception e) {
+            log.error("Adapter getDeliveryNotePdf failed for blNumber={}", blNumber, e);
             return null;
         }
     }

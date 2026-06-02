@@ -33,39 +33,48 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private volatile Integer deliveryFailedTagId;
 
+    /** Per-picking in-flight key so two pickings of the same sale order don't block each other. */
+    private static String inFlightKey(String erpOrderId, String pickingRef) {
+        return (pickingRef != null && !pickingRef.isBlank()) ? erpOrderId + "|" + pickingRef : erpOrderId;
+    }
+
     @Override
-    public boolean syncOrderCancellation(String erpOrderId, String transactionId) {
+    public boolean syncOrderCancellation(String erpOrderId, String transactionId, String pickingRef) {
         return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
-            if (!inFlight.add(erpOrderId)) return false;
-            try { return doSyncOrderCancellation(erpOrderId); }
-            finally { inFlight.remove(erpOrderId); }
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
+            try { return doSyncOrderCancellation(erpOrderId, pickingRef); }
+            finally { inFlight.remove(key); }
         });
     }
 
     @Override
-    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId) {
+    public boolean syncFullDelivery(String erpOrderId, Integer backorderPickingId, String transactionId, String pickingRef) {
         return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
-            if (!inFlight.add(erpOrderId)) return false;
-            try { return doSyncFullDelivery(erpOrderId, backorderPickingId); }
-            finally { inFlight.remove(erpOrderId); }
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
+            try { return doSyncFullDelivery(erpOrderId, backorderPickingId, pickingRef); }
+            finally { inFlight.remove(key); }
         });
     }
 
     @Override
-    public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId) {
+    public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId, String pickingRef) {
         return idempotency.execute(transactionId, erpOrderId, ErpPartialDeliveryResultDTO.class, () -> {
-            if (!inFlight.add(erpOrderId)) return ErpPartialDeliveryResultDTO.builder().success(false).build();
-            try { return doSyncPartialDelivery(erpOrderId, items); }
-            finally { inFlight.remove(erpOrderId); }
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return ErpPartialDeliveryResultDTO.builder().success(false).build();
+            try { return doSyncPartialDelivery(erpOrderId, items, pickingRef); }
+            finally { inFlight.remove(key); }
         });
     }
 
     @Override
-    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId) {
+    public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String pickingRef) {
         return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
-            if (!inFlight.add(erpOrderId)) return false;
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
             try { return doSyncFailure(erpOrderId, failureCode, comment); }
-            finally { inFlight.remove(erpOrderId); }
+            finally { inFlight.remove(key); }
         });
     }
 
@@ -74,10 +83,21 @@ public class OdooSyncAdapter implements ErpSyncPort {
     //  Core Sync Logic (Internal)
     // ══════════════════════════════════════════════════════════════════════════
 
-    private boolean doSyncOrderCancellation(String erpOrderId) {
+    private boolean doSyncOrderCancellation(String erpOrderId, String pickingRef) {
+        // Multi-depot: cancel only the targeted delivery note (picking), leaving sibling
+        // pickings of the same sale order intact. Legacy single-picking → cancel the order.
+        if (pickingRef != null && !pickingRef.isBlank()) {
+            Map<String, Object> picking = findPickingByName(pickingRef);
+            if (picking == null) {
+                log.warn("ERP sync failed — provider=odoo operation=syncOrderCancellation pickingRef={} reason=picking_not_found retryable=false", pickingRef);
+                return false;
+            }
+            return cancelPicking(((Number) picking.get("id")).intValue());
+        }
+
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) return false;
-        
+
         int attempts = 0;
         boolean success = false;
         while (attempts < 3 && !success) {
@@ -87,7 +107,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
         return success;
     }
 
-    private boolean doSyncFullDelivery(String erpOrderId, Integer backorderPickingId) {
+    private boolean doSyncFullDelivery(String erpOrderId, Integer backorderPickingId, String pickingRef) {
         // Backorder path: when we already know the Odoo picking ID, skip the sale order lookup.
         if (backorderPickingId != null) {
             try {
@@ -101,6 +121,22 @@ public class OdooSyncAdapter implements ErpSyncPort {
             } catch (Exception e) {
                 log.error("ERP sync exception — provider=odoo operation=syncFullDelivery (backorder) erpOrderId={} backorderPickingId={} errorClass={} reason={} retryable=true",
                         erpOrderId, backorderPickingId, e.getClass().getSimpleName(), e.getMessage(), e);
+                return false;
+            }
+        }
+
+        // Multi-depot: validate the exact delivery note targeted by its BL number.
+        if (pickingRef != null && !pickingRef.isBlank()) {
+            Map<String, Object> picking = findPickingByName(pickingRef);
+            if (picking == null) {
+                log.warn("ERP sync failed — provider=odoo operation=syncFullDelivery pickingRef={} reason=picking_not_found retryable=false", pickingRef);
+                return false;
+            }
+            try {
+                return validateTransferByPickingId(((Number) picking.get("id")).intValue());
+            } catch (Exception e) {
+                log.error("ERP sync exception — provider=odoo operation=syncFullDelivery pickingRef={} errorClass={} reason={} retryable=true",
+                        pickingRef, e.getClass().getSimpleName(), e.getMessage(), e);
                 return false;
             }
         }
@@ -124,16 +160,20 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
     }
 
-    private ErpPartialDeliveryResultDTO doSyncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items) {
+    private ErpPartialDeliveryResultDTO doSyncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String pickingRef) {
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) return ErpPartialDeliveryResultDTO.builder().success(false).build();
 
         try {
             confirmOrder(erpId);
-            Map<String, Object> picking = findSinglePicking(erpId);
+            // Multi-depot: target the exact delivery note by BL number when provided,
+            // otherwise fall back to the single-picking resolution (legacy behaviour).
+            Map<String, Object> picking = (pickingRef != null && !pickingRef.isBlank())
+                    ? findPickingByName(pickingRef)
+                    : findSinglePicking(erpId);
             if (picking == null) {
-                log.warn("ERP sync failed — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} reason=no_picking_found retryable=true",
-                        erpOrderId, erpId);
+                log.warn("ERP sync failed — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} pickingRef={} reason=no_picking_found retryable=true",
+                        erpOrderId, erpId, pickingRef);
                 return ErpPartialDeliveryResultDTO.builder().success(false).build();
             }
 
@@ -527,6 +567,28 @@ public class OdooSyncAdapter implements ErpSyncPort {
         Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read", List.of(List.of(List.of("id", "=", pickingId))), Map.of("fields", List.of("id", "state"), "limit", 1)));
         List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
         return (result != null && !result.isEmpty()) ? result.get(0) : null;
+    }
+
+    /** Resolve a picking by its delivery-note number (BL), e.g. "WH/OUT/00012". Multi-depot precision. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findPickingByName(String name) {
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+                List.of(List.of(List.of("name", "=", name))),
+                Map.of("fields", List.of("id", "state"), "limit", 1)));
+        List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
+        return (result != null && !result.isEmpty()) ? result.get(0) : null;
+    }
+
+    /** Cancel a single delivery note (picking). 'done' is treated as idempotent success. */
+    private boolean cancelPicking(Integer pickingId) {
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", "action_cancel", List.of(List.of(pickingId))));
+        if (resp != null && resp.containsKey("error")) {
+            log.warn("ERP sync failed — provider=odoo operation=cancelPicking pickingId={} odooError={} retryable=true", pickingId, resp.get("error"));
+            return false;
+        }
+        String state = readPickingState(pickingId);
+        log.info("provider=odoo operation=cancelPicking pickingId={} finalState={}", pickingId, state);
+        return "cancel".equalsIgnoreCase(state) || "done".equalsIgnoreCase(state);
     }
 
     private Integer findBackorderPickingId(Integer originPickingId) {

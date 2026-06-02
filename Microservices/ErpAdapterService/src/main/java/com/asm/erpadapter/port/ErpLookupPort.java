@@ -11,4 +11,5 @@ public interface ErpLookupPort {
     List<ErpProductDTO> searchProducts(String search, int limit);
     List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit);
     ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId);
+    byte[] getDeliveryNotePdf(String blNumber);
 }
