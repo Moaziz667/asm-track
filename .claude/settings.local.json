@@ -137,7 +137,8 @@
       "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"C:/Users/M S I/OneDrive/Documents/PFE/Microservices/ErpAdapterService:/workspace\" -w /workspace gradle:8.5-jdk17 gradle compileJava --no-daemon -x test --console=plain)",
       "Bash(echo \"EXIT=$?\")",
       "Read(//tmp/**)",
-      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"C:/Users/M S I/OneDrive/Documents/PFE/Microservices/ErpAdapterService:/workspace\" -v asm-gradle-cache:/home/gradle/.gradle -w /workspace gradle:8.5-jdk17 gradle compileJava --no-daemon -x test --console=plain)"
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"C:/Users/M S I/OneDrive/Documents/PFE/Microservices/ErpAdapterService:/workspace\" -v asm-gradle-cache:/home/gradle/.gradle -w /workspace gradle:8.5-jdk17 gradle compileJava --no-daemon -x test --console=plain)",
+      "Bash(MSYS_NO_PATHCONV=1 docker compose build erp-adapter delivery-service)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

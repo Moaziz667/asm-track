@@ -1141,6 +1141,13 @@ export const AR_COPY = {
 
   // ── صفحة منشئ المسارات ────────────────────────────────────────────────
   routeBuilderPage: {
+    // Multi-depot (slice 5)
+    pickupTitle: 'تحميل {count} طرود — مستودع {depot}',
+    pickListLabel: 'قائمة التحميل',
+    pickupDepotPopup: 'تحميل — {count} طرود · {depot}',
+    precedenceViolation: 'لا يمكن ترتيب التسليم قبل تحميل مستودعه',
+    unmappedDepotChip: 'المستودع غير متزامن',
+    sourceDepotLabel: 'المستودع المصدر',
     // Loading
     loadingMap: 'جاري تحميل الخريطة...',
 
@@ -1566,6 +1573,10 @@ export const AR_COPY = {
     pageTitleBrand: 'المستودعات',
     depotsCount: '{count} مراكز عمليات مرجعية',
     newHubButton: 'مركز جديد',
+    syncButton: 'مزامنة من ERP',
+    erpReadOnlyNote: 'المستودعات تأتي من نظام ERP (مستودعات Odoo) — قم بالمزامنة للتحديث. للقراءة فقط.',
+    headerWarehouseCode: 'رمز المستودع',
+    coordsMissing: 'الإحداثيات مفقودة',
     mapInitializing: 'جاري تهيئة الخريطة...',
     mapLoading: 'جاري تحميل الشبكة...',
     mapTitle: 'الشبكة الإقليمية',
@@ -2020,6 +2031,7 @@ export const AR_COPY = {
     successDepotGeolocate: 'تم تحديد موقع المستودع بنجاح',
     errorDepotGeolocateFailed: 'موقع المستودع غير موجود',
     successDepotSync: 'تمت مزامنة عنوان المستودع بنجاح',
+    successDepotSynced: 'تمت مزامنة المستودعات من نظام ERP',
     errorDepotSyncFailed: 'فشل مزامنة عنوان المستودع',
     errorDepotAddressRequired: 'عنوان المستودع مطلوب',
     errorDepotNameRequired: 'اسم المستودع مطلوب',

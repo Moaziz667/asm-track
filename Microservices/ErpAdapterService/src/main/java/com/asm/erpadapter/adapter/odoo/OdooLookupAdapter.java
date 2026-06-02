@@ -218,6 +218,51 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .build();
     }
 
+    // ── Warehouses (source depots) ────────────────────────────────────────────────
+
+    @Override
+    public List<ErpWarehouseDTO> getWarehouses() {
+        long start = System.currentTimeMillis();
+        List<Map<String, Object>> warehouses = rpc.searchReadStrict("stock.warehouse",
+                List.of(), List.of("id", "code", "name", "partner_id"), 0, "name asc");
+        if (warehouses.isEmpty()) return List.of();
+
+        // Resolve address partners in bulk (street/city/zip + coordinates when populated in Odoo).
+        Set<Integer> partnerIds = relIds(warehouses, "partner_id");
+        Map<Integer, Map<String, Object>> partners = partnerIds.isEmpty() ? Map.of()
+                : rpc.searchReadStrict("res.partner",
+                        List.of(List.of("id", "in", partnerIds.stream().toList())),
+                        List.of("id", "street", "street2", "city", "zip",
+                                "partner_latitude", "partner_longitude"),
+                        partnerIds.size(), "id asc").stream()
+                .filter(p -> asInt(p.get("id")) != null)
+                .collect(Collectors.toMap(p -> asInt(p.get("id")), p -> p, (a, b) -> a));
+
+        List<ErpWarehouseDTO> result = new ArrayList<>();
+        for (Map<String, Object> w : warehouses) {
+            String code = asString(w.get("code"));
+            if (code == null) continue; // code is the stable key ASM maps to a depot
+            Map<String, Object> partner = partners.get(asRelId(w.get("partner_id")));
+            Double lat = partner != null ? asDouble(partner.get("partner_latitude")) : null;
+            Double lng = partner != null ? asDouble(partner.get("partner_longitude")) : null;
+            // Odoo stores 0.0 for "unset" coordinates — treat as missing so ASM can geocode.
+            if (lat != null && lat == 0.0) lat = null;
+            if (lng != null && lng == 0.0) lng = null;
+            result.add(ErpWarehouseDTO.builder()
+                    .erpWarehouseId(String.valueOf(asInt(w.get("id"))))
+                    .code(code)
+                    .name(firstNonBlank(asString(w.get("name")), code))
+                    .address(buildAddress(partner))
+                    .city(partner != null ? asString(partner.get("city")) : null)
+                    .latitude(lat)
+                    .longitude(lng)
+                    .build());
+        }
+
+        log.info("getWarehouses count={} durationMs={}", result.size(), System.currentTimeMillis() - start);
+        return result;
+    }
+
     // ═══════════════════════════════════════════════════════════════════════════
     //  Internal helpers
     // ═══════════════════════════════════════════════════════════════════════════

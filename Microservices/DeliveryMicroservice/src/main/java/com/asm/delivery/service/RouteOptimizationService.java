@@ -49,16 +49,16 @@ public class RouteOptimizationService {
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         if (stops.isEmpty()) throw AppException.badRequest("Route has no stops to optimize");
 
-        Map<UUID, Order> orderMap = loadOrderMap(stops);
+        Map<UUID, Delivery> deliveryMap = loadDeliveryMap(stops);
 
         // Current order total (for savings calculation)
-        double[] currentTotals = computeTotalsWithMatrix(depot, stops, orderMap);
+        double[] currentTotals = computeTotalsWithMatrix(depot, stops, deliveryMap);
 
         // Build coordinates: depot first, then stops in current order
-        List<double[]> points = buildCoordinateList(depot, stops, orderMap);
+        List<double[]> points = buildCoordinateList(depot, stops, deliveryMap);
 
         // Try OSRM Trip API, fall back to nearest-neighbor
-        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops.size());
+        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops);
 
         // Reorder stops according to optimized order
         List<RouteStop> reorderedStops = new ArrayList<>();
@@ -68,7 +68,7 @@ public class RouteOptimizationService {
 
         // Calculate ETAs for the suggested order (without saving)
         LocalDateTime departure = resolveDepartureTime(route);
-        List<RouteStopEtaResponse> etaList = computeEtaList(depot, reorderedStops, orderMap, departure);
+        List<RouteStopEtaResponse> etaList = computeEtaList(depot, reorderedStops, deliveryMap, departure);
 
         double newTotalDuration = etaList.stream()
                 .mapToDouble(s -> s.getDriveDurationSeconds() != null ? s.getDriveDurationSeconds() : 0)
@@ -78,7 +78,7 @@ public class RouteOptimizationService {
                 .sum();
 
         String suggestedGeometry = osrmRoutingService
-            .routeFullGeometry(buildCoordinateList(depot, reorderedStops, orderMap))
+            .routeFullGeometry(buildCoordinateList(depot, reorderedStops, deliveryMap))
             .orElse(null);
 
         return OptimizeRouteResponse.builder()
@@ -106,9 +106,9 @@ public class RouteOptimizationService {
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         if (stops.isEmpty()) return;
 
-        Map<UUID, Order> orderMap = loadOrderMap(stops);
-        List<double[]> points = buildCoordinateList(depot, stops, orderMap);
-        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops.size());
+        Map<UUID, Delivery> deliveryMap = loadDeliveryMap(stops);
+        List<double[]> points = buildCoordinateList(depot, stops, deliveryMap);
+        List<Integer> optimizedOrder = resolveOptimizedOrder(points, stops);
 
         // Apply new sequence order
         for (int pos = 0; pos < optimizedOrder.size(); pos++) {
@@ -118,7 +118,7 @@ public class RouteOptimizationService {
 
         // Recalculate ETAs and SLAs on the newly ordered list
         List<RouteStop> reordered = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-        calculateAndSaveETAs(route, depot, reordered, orderMap);
+        calculateAndSaveETAs(route, depot, reordered, deliveryMap);
 
         route.setIsOptimized(true);
         routeRepository.save(route);
@@ -149,7 +149,7 @@ public class RouteOptimizationService {
         }
         routeStopRepository.saveAll(existing);
 
-        Map<UUID, Order> orderMap = loadOrderMap(existing);
+        Map<UUID, Delivery> deliveryMap = loadDeliveryMap(existing);
         List<RouteStop> reordered = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
 
         // Chronological validation
@@ -166,7 +166,7 @@ public class RouteOptimizationService {
             else if (s.getEtaAt() != null) lastRef = s.getEtaAt().toLocalTime();
         }
 
-        calculateAndSaveETAs(route, depot, reordered, orderMap);
+        calculateAndSaveETAs(route, depot, reordered, deliveryMap);
 
         route.setIsOptimized(false);
         routeRepository.save(route);
@@ -189,8 +189,8 @@ public class RouteOptimizationService {
         Depot depot = getDepotForRoute(route);
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-        Map<UUID, Order> orderMap = loadOrderMap(stops);
-        calculateAndSaveETAs(route, depot, stops, orderMap);
+        Map<UUID, Delivery> deliveryMap = loadDeliveryMap(stops);
+        calculateAndSaveETAs(route, depot, stops, deliveryMap);
     }
 
     // ─── SLA status update (called by SlaMonitoringService) ──────────────────────
@@ -226,11 +226,11 @@ public class RouteOptimizationService {
 
     private void calculateAndSaveETAs(Route route, Depot depot,
                                       List<RouteStop> stopsInOrder,
-                                      Map<UUID, Order> orderMap) {
+                                      Map<UUID, Delivery> deliveryMap) {
         LocalDateTime departure = resolveDepartureTime(route);
 
         // Use Table API for all durations in one call (efficient batch)
-        List<double[]> points = buildCoordinateList(depot, stopsInOrder, orderMap);
+        List<double[]> points = buildCoordinateList(depot, stopsInOrder, deliveryMap);
         Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
 
         double[][] durations = null;
@@ -322,9 +322,9 @@ public class RouteOptimizationService {
 
     private List<RouteStopEtaResponse> computeEtaList(Depot depot,
                                                        List<RouteStop> stopsInOrder,
-                                                       Map<UUID, Order> orderMap,
+                                                       Map<UUID, Delivery> deliveryMap,
                                                        LocalDateTime departure) {
-        List<double[]> points = buildCoordinateList(depot, stopsInOrder, orderMap);
+        List<double[]> points = buildCoordinateList(depot, stopsInOrder, deliveryMap);
         Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
 
         double[][] durations = null;
@@ -374,28 +374,49 @@ public class RouteOptimizationService {
     // ─── Coordinate list helpers ──────────────────────────────────────────────────
 
     private List<double[]> buildCoordinateList(Depot depot, List<RouteStop> stops,
-                                               Map<UUID, Order> orderMap) {
+                                               Map<UUID, Delivery> deliveryMap) {
         List<double[]> points = new ArrayList<>();
         points.add(new double[]{depot.getLatitude(), depot.getLongitude()});
+        
+        Set<UUID> depotIds = new HashSet<>();
+        for (RouteStop s : stops) {
+            if (s.getSourceDepotId() != null) depotIds.add(s.getSourceDepotId());
+            Delivery d = s.getDeliveryId() != null ? deliveryMap.get(s.getDeliveryId()) : null;
+            if (d != null && d.getSourceDepotId() != null) depotIds.add(d.getSourceDepotId());
+        }
+        Map<UUID, Depot> depotMap = depotIds.isEmpty() ? Map.of() :
+            depotRepository.findAllById(depotIds).stream()
+            .collect(Collectors.toMap(Depot::getId, Function.identity()));
 
         for (RouteStop stop : stops) {
-            Order order = orderMap.get(stop.getDeliveryId());
-            if (order != null && order.getDropoffLat() != null && order.getDropoffLng() != null) {
-                points.add(new double[]{
-                        order.getDropoffLat().doubleValue(),
-                        order.getDropoffLng().doubleValue()
-                });
+            if (stop.getStopType() == RouteStopType.PICKUP) {
+                UUID srcId = stop.getSourceDepotId();
+                Depot src = srcId != null ? depotMap.get(srcId) : null;
+                if (src != null) {
+                    points.add(new double[]{src.getLatitude(), src.getLongitude()});
+                } else {
+                    points.add(new double[]{depot.getLatitude(), depot.getLongitude()});
+                }
             } else {
-                // Use depot coords as placeholder for unpinned stops
-                points.add(new double[]{depot.getLatitude(), depot.getLongitude()});
+                Delivery delivery = stop.getDeliveryId() != null ? deliveryMap.get(stop.getDeliveryId()) : null;
+                Order order = delivery != null ? delivery.getOrder() : null;
+                if (order != null && order.getDropoffLat() != null && order.getDropoffLng() != null) {
+                    points.add(new double[]{
+                            order.getDropoffLat().doubleValue(),
+                            order.getDropoffLng().doubleValue()
+                    });
+                } else {
+                    // Use depot coords as placeholder for unpinned stops
+                    points.add(new double[]{depot.getLatitude(), depot.getLongitude()});
+                }
             }
         }
         return points;
     }
 
     private double[] computeTotalsWithMatrix(Depot depot, List<RouteStop> stops,
-                                             Map<UUID, Order> orderMap) {
-        List<double[]> points = buildCoordinateList(depot, stops, orderMap);
+                                             Map<UUID, Delivery> deliveryMap) {
+        List<double[]> points = buildCoordinateList(depot, stops, deliveryMap);
         Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
         if (matrixOpt.isEmpty()) return new double[]{0, 0};
 
@@ -415,24 +436,42 @@ public class RouteOptimizationService {
 
     // ─── TSP order resolution ─────────────────────────────────────────────────────
 
-    private List<Integer> resolveOptimizedOrder(List<double[]> points, int numStops) {
+    private List<Integer> resolveOptimizedOrder(List<double[]> points, List<RouteStop> stops) {
+        List<Integer> osrmOrder = null;
         // Try OSRM Trip API
         Optional<OsrmRoutingService.OptimizedRoute> tripOpt = osrmRoutingService.optimizeTrip(points);
         if (tripOpt.isPresent() && !tripOpt.get().optimizedOrder().isEmpty()) {
-            return tripOpt.get().optimizedOrder();
+            osrmOrder = tripOpt.get().optimizedOrder();
+        } else {
+            // Fall back to nearest-neighbor using duration matrix
+            log.info("OSRM Trip API unavailable, falling back to nearest-neighbor heuristic");
+            Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
+            if (matrixOpt.isPresent()) {
+                osrmOrder = osrmRoutingService.nearestNeighborOrder(matrixOpt.get().durations(), stops.size());
+            }
         }
 
-        // Fall back to nearest-neighbor using duration matrix
-        log.info("OSRM Trip API unavailable, falling back to nearest-neighbor heuristic");
-        Optional<OsrmRoutingService.DurationMatrix> matrixOpt = osrmRoutingService.durationMatrix(points);
-        if (matrixOpt.isPresent()) {
-            return osrmRoutingService.nearestNeighborOrder(matrixOpt.get().durations(), numStops);
+        if (osrmOrder == null) {
+            // No OSRM at all — return identity order
+            List<Integer> identity = new ArrayList<>();
+            for (int i = 0; i < stops.size(); i++) identity.add(i);
+            return identity;
         }
 
-        // No OSRM at all — return identity order
-        List<Integer> identity = new ArrayList<>();
-        for (int i = 0; i < numStops; i++) identity.add(i);
-        return identity;
+        // Precedence-safe: enforce all PICKUP stops appear before DELIVERY stops
+        List<Integer> pickups = new ArrayList<>();
+        List<Integer> deliveries = new ArrayList<>();
+        for (Integer idx : osrmOrder) {
+            if (stops.get(idx).getStopType() == RouteStopType.PICKUP) {
+                pickups.add(idx);
+            } else {
+                deliveries.add(idx);
+            }
+        }
+        
+        List<Integer> finalOrder = new ArrayList<>(pickups);
+        finalOrder.addAll(deliveries);
+        return finalOrder;
     }
 
     // ─── SLA status computation ───────────────────────────────────────────────────
@@ -488,14 +527,13 @@ public class RouteOptimizationService {
                 .orElseThrow(() -> AppException.notFound("Depot not found"));
     }
 
-    private Map<UUID, Order> loadOrderMap(List<RouteStop> stops) {
-        List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
+    private Map<UUID, Delivery> loadDeliveryMap(List<RouteStop> stops) {
+        List<UUID> deliveryIds = stops.stream()
+                .filter(s -> s.getDeliveryId() != null)
+                .map(RouteStop::getDeliveryId).toList();
         if (deliveryIds.isEmpty()) return Collections.emptyMap();
         return deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                .collect(Collectors.toMap(
-                        d -> d.getId(),          // keyed by delivery.id = stop.deliveryId
-                        d -> d.getOrder() != null ? d.getOrder() : new Order()
-                ));
+                .collect(Collectors.toMap(Delivery::getId, Function.identity()));
     }
 
     private LocalDateTime resolveDepartureTime(Route route) {

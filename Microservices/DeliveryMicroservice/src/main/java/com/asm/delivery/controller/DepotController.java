@@ -1,30 +1,31 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.dto.request.DepotRequest;
 import com.asm.delivery.dto.response.DepotResponse;
-import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.DepotService;
+import com.asm.delivery.service.DepotSyncService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 import java.util.UUID;
 
+/**
+ * Read-only depot access plus an ERP sync trigger. Depots mirror the ERP's warehouses
+ * (Odoo {@code stock.warehouse}) and are populated by {@link DepotSyncService}, not created by hand.
+ */
 @RestController
 @RequestMapping("/api/v1/depots")
-@Tag(name = "Depots", description = "Depot/warehouse management")
+@Tag(name = "Depots", description = "ERP-sourced depots/warehouses (read-only + sync)")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class DepotController {
 
     private final DepotService depotService;
+    private final DepotSyncService depotSyncService;
 
     @GetMapping
     @Operation(summary = "List all depots")
@@ -44,29 +45,9 @@ public class DepotController {
         return ResponseEntity.ok(depotService.get(id));
     }
 
-    @PostMapping
-    @Operation(summary = "Create depot")
-    public ResponseEntity<DepotResponse> create(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody DepotRequest request) {
-        return ResponseEntity.status(HttpStatus.CREATED).body(depotService.create(principal, request));
-    }
-
-    @PutMapping("/{id}")
-    @Operation(summary = "Update depot")
-    public ResponseEntity<DepotResponse> update(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody DepotRequest request) {
-        return ResponseEntity.ok(depotService.update(id, principal, request));
-    }
-
-    @DeleteMapping("/{id}")
-    @Operation(summary = "Delete depot")
-    public ResponseEntity<Void> delete(
-            @PathVariable UUID id,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        depotService.delete(id, principal);
-        return ResponseEntity.noContent().build();
+    @PostMapping("/sync")
+    @Operation(summary = "Sync depots from the ERP warehouses (Odoo stock.warehouse)")
+    public ResponseEntity<DepotSyncService.SyncResult> sync() {
+        return ResponseEntity.ok(depotSyncService.syncFromErp());
     }
 }

@@ -48,7 +48,7 @@ public class ErpLookupService {
     private final DeliveryStatusHistoryRepository historyRepository;
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
-    private final com.asm.delivery.repository.WarehouseDepotMappingRepository warehouseDepotMappingRepository;
+    private final com.asm.delivery.repository.DepotRepository depotRepository;
 
     // Cache to match original logic signature layout, though simplified here.
     private final ConcurrentHashMap<String, CacheEntry<List<ErpClientDTO>>> clientCache = new ConcurrentHashMap<>();
@@ -135,16 +135,17 @@ public class ErpLookupService {
             throw AppException.badRequest("Order " + erpOrderId + " already imported");
         }
 
-        // Resolve the source depot from the delivery-note warehouse (else leave null
-        // for the dispatcher to assign — never block the import).
+        // Resolve the source depot from the delivery-note warehouse. Depots mirror ERP
+        // warehouses 1:1 (by code); if the warehouse isn't synced yet, leave null and let
+        // the dispatcher resolve it by syncing depots — never block the import.
         String warehouseCode = preview.getWarehouseCode();
         UUID sourceDepotId = null;
         if (StringUtils.hasText(warehouseCode)) {
-            sourceDepotId = warehouseDepotMappingRepository.findByWarehouseCode(warehouseCode)
-                    .map(com.asm.delivery.entity.WarehouseDepotMapping::getDepotId)
+            sourceDepotId = depotRepository.findByWarehouseCode(warehouseCode)
+                    .map(com.asm.delivery.entity.Depot::getId)
                     .orElse(null);
             if (sourceDepotId == null) {
-                log.warn("Import bl={} : warehouse '{}' is not mapped to a depot — dispatcher must assign the source depot",
+                log.warn("Import bl={} : warehouse '{}' has no synced depot — run depot sync from ERP to resolve the source depot",
                         blNumber, warehouseCode);
             }
         }

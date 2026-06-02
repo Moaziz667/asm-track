@@ -123,6 +123,25 @@ function makeDepotIcon() {
   });
 }
 
+/** Pickup-depot marker (cyan) — a non-home source depot the driver loads from. */
+function makePickupDepotIcon() {
+  return L.divIcon({
+    className: '',
+    iconSize: [38, 38],
+    iconAnchor: [19, 19],
+    popupAnchor: [0, -20],
+    html: `<div style="width:38px;height:38px;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.4));">
+  <svg width="38" height="38" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="21" cy="21" r="21" fill="#0891B2"/>
+    <circle cx="21" cy="21" r="19" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.5"/>
+    <polygon points="21,10 10,19 32,19" fill="white" fill-opacity="0.95"/>
+    <rect x="12" y="19" width="18" height="11" fill="white" fill-opacity="0.9" rx="1"/>
+    <rect x="18" y="23" width="6" height="7" fill="#0891B2" rx="1"/>
+  </svg>
+</div>`,
+  });
+}
+
 // ── Utilities ────────────────────────────────────────────────────────────────
 
 function pointInPolygon(point: { lat: number; lng: number }, polygon: Array<{ lat: number; lng: number }>): boolean {
@@ -330,6 +349,7 @@ function RouteBuilderMapInner({
   showDepot = true,
 }: Props) {
   const rb = useRouteBuilderContext();
+  const t = useT();
   const {
     waitingDeliveries: orders,
     routes,
@@ -384,6 +404,29 @@ function RouteBuilderMapInner({
       })
       .filter((line): line is { id: string; points: [number, number][]; color: string } => line !== null);
   }, [routes]);
+
+  // Multi-depot: one marker per distinct non-home source depot among PICKUP stops
+  // (limited to the highlighted route when one is selected). Count = deliveries loaded there.
+  const pickupDepotMarkers = useMemo(() => {
+    const byId = new Map<string, { name: string; lat: number; lng: number; count: number }>();
+    routes.forEach((route) => {
+      if (highlightedRouteId && route.id !== highlightedRouteId) return;
+      const stops = route.stops ?? [];
+      stops.forEach((s) => {
+        if (s.stopType === 'PICKUP' && s.sourceDepotId
+            && typeof s.sourceDepotLat === 'number' && typeof s.sourceDepotLng === 'number') {
+          const count = stops.filter((d) => d.stopType !== 'PICKUP' && d.sourceDepotId === s.sourceDepotId).length;
+          byId.set(s.sourceDepotId, {
+            name: s.sourceDepotName ?? '',
+            lat: s.sourceDepotLat,
+            lng: s.sourceDepotLng,
+            count,
+          });
+        }
+      });
+    });
+    return Array.from(byId.values());
+  }, [routes, highlightedRouteId]);
 
   const suggestedGeometryPoints = useMemo(() => {
     const parsed = parseGeometry(suggestedRouteGeometry);
@@ -562,6 +605,20 @@ function RouteBuilderMapInner({
             </Popup>
           </Marker>
         )}
+
+        {/* Pickup-depot markers (multi-depot: one per non-home source depot) */}
+        {showDepot && pickupDepotMarkers.map((d, i) => (
+          <Marker key={`pickup-depot-${i}`} position={[d.lat, d.lng]} icon={makePickupDepotIcon()}>
+            <Popup>
+              <div style={{ fontSize: 12, fontWeight: 800, color: '#0891B2' }}>{d.name || '—'}</div>
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>
+                {t.routeBuilderPage.pickupDepotPopup
+                  .replace('{count}', String(d.count))
+                  .replace('{depot}', d.name || '—')}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
 
         {/* Order/stop markers */}
         {orderMarkers}

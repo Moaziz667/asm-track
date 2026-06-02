@@ -49,6 +49,12 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Order source", example = "ODOO")
     private OrderSource source;
 
+    @Schema(description = "ERP source-warehouse code from the delivery note (bon de livraison)")
+    private String warehouseCode;
+
+    @Schema(description = "Resolved source depot id (null when the warehouse has no synced depot)")
+    private UUID sourceDepotId;
+
     @Schema(description = "Client full name")
     private String clientName;
 

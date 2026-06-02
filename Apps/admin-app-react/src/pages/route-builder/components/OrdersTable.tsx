@@ -1,6 +1,6 @@
 'use client';
 
-import { IconSearch, IconPackage, IconInfoCircle, IconGripVertical } from '@tabler/icons-react';
+import { IconSearch, IconPackage, IconInfoCircle, IconGripVertical, IconAlertTriangle } from '@tabler/icons-react';
 import { useDraggable } from '@dnd-kit/core';
 import { DroppableZone } from './DroppableZone';
 import { DeliveryOption } from '../types';
@@ -74,8 +74,24 @@ function DraggableOrderRow({
           #{shortId(delivery.id)}
         </span>
       </TableCell>
-      <TableCell className="max-w-[220px] truncate font-medium text-[var(--text-strong)]">
-        {delivery.clientName || '—'}
+      <TableCell className="max-w-[220px] font-medium text-[var(--text-strong)]">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <span className="truncate">{delivery.clientName || '—'}</span>
+          {delivery.warehouseCode && !delivery.sourceDepotId && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span
+                  className="inline-flex items-center gap-1 shrink-0 rounded-[2px] px-1 py-0.5 text-[9px] font-bold cursor-help"
+                  style={{ color: '#B45309', background: 'rgba(217,119,6,0.12)' }}
+                >
+                  <IconAlertTriangle size={10} />
+                  {delivery.warehouseCode}
+                </span>
+              </TooltipTrigger>
+              <TooltipContent className="max-w-xs">{t.routeBuilderPage.unmappedDepotChip}</TooltipContent>
+            </Tooltip>
+          )}
+        </div>
       </TableCell>
       <TableCell className="max-w-[240px]">
         <div className="flex items-center gap-1.5 min-w-0">

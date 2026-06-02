@@ -15,6 +15,11 @@ export interface RouteStop {
   deliveryId?: string;
   dropoffLat?: number;
   dropoffLng?: number;
+  stopType?: 'PICKUP' | 'DELIVERY';
+  sourceDepotId?: string | null;
+  sourceDepotName?: string | null;
+  sourceDepotLat?: number | null;
+  sourceDepotLng?: number | null;
 }
 
 export interface RouteItem {

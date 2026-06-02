@@ -12,6 +12,9 @@ public class DepotResponse {
     private UUID id;
     private String name;
     private String address;
+    private String warehouseCode;
+    private String erpWarehouseId;
+    private String provider;
     private Double latitude;
     private Double longitude;
     private Boolean isActive;

@@ -247,6 +247,17 @@ public class ErpAdapterClient {
         }
     }
 
+    /**
+     * List ERP warehouses (source depots) with address + coordinates.
+     * Each map carries: erpWarehouseId, code, name, address, city, latitude, longitude.
+     */
+    public List<Map<String, Object>> getWarehouses(String erpProvider) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/warehouses")
+                .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
+                .toUriString();
+        return getListResult(url);
+    }
+
     // ── Internal ────────────────────────────────────────────────────────────────
 
     /**

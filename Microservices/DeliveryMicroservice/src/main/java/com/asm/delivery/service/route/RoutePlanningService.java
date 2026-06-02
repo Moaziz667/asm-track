@@ -315,6 +315,7 @@ public class RoutePlanningService {
             }
         }
 
+        reconcilePickupStops(route);
         assertRouteWeightWithinVehicleCapacity(route);
 
         auditLogService.logAction(null, "UPDATE_ROUTE", "ROUTE", route.getId().toString(),
@@ -480,6 +481,7 @@ public class RoutePlanningService {
         ensureDraft(route);
         int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId).size() + 1;
         addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
+        reconcilePickupStops(route);
         assertRouteWeightWithinVehicleCapacity(route);
         auditLogService.logAction(null, "ADD_STOP", "ROUTE", routeId.toString(),
                 Map.of("tournee", route.getName(), "action", "Ajout d'un arret"));
@@ -497,6 +499,7 @@ public class RoutePlanningService {
         int nextOrder = (int) routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
                 .stream().filter(s -> !isRemovedStatus(s.getStatus())).count() + 1;
         addStopInternal(route, request.getDeliveryId(), nextOrder, request.getStartTimeWindow(), request.getEndTimeWindow(), request.getBufferMinutes());
+        reconcilePickupStops(route);
         // Also schedule the delivery
         deliveryRepository.findById(request.getDeliveryId()).ifPresent(delivery -> {
             if (delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
@@ -573,6 +576,8 @@ public class RoutePlanningService {
         route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
         routeRepository.save(route);
 
+        reconcilePickupStops(route);
+
         // Re-pack stop order on remaining active stops
         List<RouteStop> activeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)
                 .stream().filter(s -> !isRemovedStatus(s.getStatus())).toList();
@@ -632,14 +637,17 @@ public class RoutePlanningService {
         }
 
         Map<UUID, RouteStop> byId = existing.stream().collect(Collectors.toMap(RouteStop::getId, Function.identity(), (a, b) -> a));
+        List<RouteStop> ordered = new ArrayList<>();
         for (int i = 0; i < stopIds.size(); i++) {
             RouteStop stop = byId.get(stopIds.get(i));
             if (stop == null) {
                 throw AppException.badRequest("Stop id does not belong to this route");
             }
             stop.setStopOrder(i + 1);
+            ordered.add(stop);
         }
-        routeStopRepository.saveAll(new java.util.ArrayList<>(byId.values()));
+        assertPickupPrecedence(ordered);
+        routeStopRepository.saveAll(ordered);
 
         return toResponse(route);
     }
@@ -662,18 +670,25 @@ public class RoutePlanningService {
         Route route = getRoute(routeId);
         ensureDraft(route);
 
+        reconcilePickupStops(route);
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+        assertPickupPrecedence(stops);
+
         assertRouteWeightWithinVehicleCapacity(route);
 
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
         if (stops.isEmpty()) {
             throw AppException.badRequest("Cannot validate route without stops");
         }
 
-        List<UUID> deliveryIds = stops.stream().map(RouteStop::getDeliveryId).toList();
+        List<UUID> deliveryIds = stops.stream()
+                .filter(s -> s.getStopType() == RouteStopType.DELIVERY && s.getDeliveryId() != null)
+                .map(RouteStop::getDeliveryId).toList();
         Map<UUID, Delivery> deliveryMap = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
                 .collect(Collectors.toMap(Delivery::getId, Function.identity(), (existing, replacement) -> existing));
 
         for (RouteStop stop : stops) {
+            if (stop.getStopType() == RouteStopType.PICKUP) continue;
+
             Delivery delivery = deliveryMap.get(stop.getDeliveryId());
             if (delivery == null) {
                 throw AppException.badRequest("Delivery not found for stop: " + stop.getDeliveryId());
@@ -772,39 +787,57 @@ public class RoutePlanningService {
 
     private void assertRouteWeightWithinVehicleCapacity(Route route) {
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        if (stops.isEmpty()) {
-            return;
-        }
+        if (stops.isEmpty()) return;
 
         if (route.getVehicleId() == null) {
             throw AppException.badRequest("Route vehicle is required before this operation");
         }
-        
         Vehicle vehicle = vehicleRepository.findById(route.getVehicleId()).orElse(null);
-        if (vehicle == null) {
-            return; // Fallback, let it pass if vehicle cannot be verified
-        }
+        if (vehicle == null) return;
 
         Integer payloadKg = vehicle.getPayloadKg();
-        if (payloadKg == null || payloadKg <= 0) {
-            return; // Vehicle has no strict capacity limit set
-        }
+        if (payloadKg == null || payloadKg <= 0) return;
 
         List<UUID> deliveryIds = stops.stream()
-            .filter(s -> !isRemovedStatus(s.getStatus()))
-            .map(RouteStop::getDeliveryId)
-            .toList();
-
+                .filter(s -> !isRemovedStatus(s.getStatus()) && s.getStopType() == RouteStopType.DELIVERY)
+                .map(RouteStop::getDeliveryId)
+                .toList();
         if (deliveryIds.isEmpty()) return;
 
-        java.math.BigDecimal totalWeight = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-            .filter(d -> d.getOrder() != null && d.getOrder().getTotalWeightKg() != null)
-            .map(d -> d.getOrder().getTotalWeightKg())
-            .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add);
+        List<Delivery> deliveries = deliveryRepository.findAllByIdInWithOrder(deliveryIds);
+        Map<UUID, java.math.BigDecimal> orderWeights = new HashMap<>();
+        java.math.BigDecimal initialLoad = java.math.BigDecimal.ZERO;
+        Map<UUID, java.math.BigDecimal> depotLoad = new HashMap<>();
 
-        if (totalWeight.compareTo(java.math.BigDecimal.valueOf(payloadKg)) > 0) {
-            throw AppException.unprocessableEntity(String.format("Capacity Exceeded: Attached orders weigh %.2f kg, but vehicle '%s' is limited to %d kg.",
-                    totalWeight.doubleValue(), vehicle.getPlate(), payloadKg));
+        for (Delivery d : deliveries) {
+            if (d.getOrder() != null && d.getOrder().getTotalWeightKg() != null) {
+                java.math.BigDecimal weight = d.getOrder().getTotalWeightKg();
+                orderWeights.put(d.getId(), weight);
+                UUID depot = d.getSourceDepotId();
+                if (depot == null || depot.equals(route.getDepotId())) {
+                    initialLoad = initialLoad.add(weight);
+                } else {
+                    depotLoad.put(depot, depotLoad.getOrDefault(depot, java.math.BigDecimal.ZERO).add(weight));
+                }
+            }
+        }
+
+        java.math.BigDecimal running = initialLoad;
+        java.math.BigDecimal peak = initialLoad;
+
+        for (RouteStop stop : stops) {
+            if (isRemovedStatus(stop.getStatus())) continue;
+            if (stop.getStopType() == RouteStopType.PICKUP && stop.getSourceDepotId() != null) {
+                running = running.add(depotLoad.getOrDefault(stop.getSourceDepotId(), java.math.BigDecimal.ZERO));
+                if (running.compareTo(peak) > 0) peak = running;
+            } else if (stop.getStopType() == RouteStopType.DELIVERY && stop.getDeliveryId() != null) {
+                running = running.subtract(orderWeights.getOrDefault(stop.getDeliveryId(), java.math.BigDecimal.ZERO));
+            }
+        }
+
+        if (peak.compareTo(java.math.BigDecimal.valueOf(payloadKg)) > 0) {
+            throw AppException.unprocessableEntity(String.format("Capacity Exceeded: Route peak load is %.2f kg, but vehicle '%s' is limited to %d kg.",
+                    peak.doubleValue(), vehicle.getPlate(), payloadKg));
         }
     }
 
@@ -974,11 +1007,22 @@ public class RoutePlanningService {
         List<RouteStop> routeStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
 
         Map<UUID, Delivery> deliveriesById = new HashMap<>();
-        List<UUID> deliveryIds = routeStops.stream().map(RouteStop::getDeliveryId).toList();
+        List<UUID> deliveryIds = routeStops.stream().filter(s -> s.getDeliveryId() != null).map(RouteStop::getDeliveryId).toList();
         if (!deliveryIds.isEmpty()) {
             deliveriesById = deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
                     .collect(Collectors.toMap(Delivery::getId, Function.identity(), (existing, replacement) -> existing));
         }
+
+        Set<UUID> depotIds = new HashSet<>();
+        if (route.getDepotId() != null) depotIds.add(route.getDepotId());
+        for (RouteStop s : routeStops) {
+            if (s.getSourceDepotId() != null) depotIds.add(s.getSourceDepotId());
+            Delivery d = s.getDeliveryId() != null ? deliveriesById.get(s.getDeliveryId()) : null;
+            if (d != null && d.getSourceDepotId() != null) depotIds.add(d.getSourceDepotId());
+        }
+        Map<UUID, com.asm.delivery.entity.Depot> depotMap = depotIds.isEmpty() ? Map.of() :
+                depotRepository.findAllById(depotIds).stream()
+                .collect(Collectors.toMap(com.asm.delivery.entity.Depot::getId, Function.identity()));
 
         // Separate active and legacy stops
         List<RouteStop> activeStops = routeStops.stream()
@@ -1000,9 +1044,18 @@ public class RoutePlanningService {
                     ? SlaStatus.valueOf(delayInfo.delayStatus)
                     : stop.getSlaStatus();
 
+                UUID sourceDepotId = stop.getStopType() == RouteStopType.PICKUP ? stop.getSourceDepotId() : 
+                                     (delivery != null ? delivery.getSourceDepotId() : null);
+                com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotMap.get(sourceDepotId) : null;
+
                 stops.add(RouteStopResponse.builder()
                     .id(stop.getId())
                     .deliveryId(stop.getDeliveryId())
+                    .stopType(stop.getStopType())
+                    .sourceDepotId(sourceDepotId)
+                    .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
+                    .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
+                    .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)
                     .stopOrder(stop.getStopOrder())
                     .status(stop.getStatus())
                     .arrivedAt(stop.getArrivedAt())
@@ -1106,7 +1159,7 @@ public class RoutePlanningService {
                 : String.join(" · ", detectedZoneNames);
 
         com.asm.delivery.entity.Depot depot = route.getDepotId() != null
-                ? depotRepository.findById(route.getDepotId()).orElse(null) : null;
+                ? depotMap.get(route.getDepotId()) : null;
 
         return RouteResponse.builder()
                 .id(route.getId())
@@ -1115,6 +1168,11 @@ public class RoutePlanningService {
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
                 .date(route.getDate())
+                .depotId(route.getDepotId())
+                .depotName(depot != null ? depot.getName() : null)
+                .depotAddress(depot != null ? depot.getAddress() : null)
+                .depotLatitude(depot != null ? depot.getLatitude() : null)
+                .depotLongitude(depot != null ? depot.getLongitude() : null)
                 .plannedStartTime(route.getPlannedStartTime())
                 .plannedEndTime(route.getPlannedEndTime())
                 .city(route.getCity())
@@ -1327,14 +1385,13 @@ public class RoutePlanningService {
     }
 
     private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap) {
-        Delivery delivery = deliveryMap.get(stop.getDeliveryId());
-        if (delivery == null) {
+        Delivery delivery = stop.getDeliveryId() != null ? deliveryMap.get(stop.getDeliveryId()) : null;
+        if (delivery == null && stop.getDeliveryId() != null) {
             // Fallback for safety, though it shouldn't happen with the pre-fetch
-            delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
-                .orElseThrow(() -> new com.asm.delivery.exception.AppException(org.springframework.http.HttpStatus.NO_CONTENT, "Delivery not found for stop " + stop.getId()));
+            delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId()).orElse(null);
         }
 
-        com.asm.delivery.entity.Order orderInfo = delivery.getOrder();
+        com.asm.delivery.entity.Order orderInfo = delivery != null ? delivery.getOrder() : null;
         
         // Calculate delay details
         DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
@@ -1344,9 +1401,18 @@ public class RoutePlanningService {
         Integer transitSlaMinutesComputed = null; // Removed as it is not in DelayInfo
 
 
+        UUID sourceDepotId = stop.getStopType() == RouteStopType.PICKUP ? stop.getSourceDepotId() : 
+                             (delivery != null ? delivery.getSourceDepotId() : null);
+        com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotRepository.findById(sourceDepotId).orElse(null) : null;
+
         return RouteStopFullResponse.builder()
                 .id(stop.getId())
                 .deliveryId(stop.getDeliveryId())
+                .stopType(stop.getStopType())
+                .sourceDepotId(sourceDepotId)
+                .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
+                .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
+                .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)
                 .stopOrder(stop.getStopOrder())
                 .status(resolveStopStatus(stop, delivery))
                 .arrivedAt(stop.getArrivedAt())
@@ -1370,7 +1436,7 @@ public class RoutePlanningService {
                 .delayReason(delayReason)
                 .startTimeWindow(stop.getStartTimeWindow())
                 .endTimeWindow(stop.getEndTimeWindow())
-                .delivery(com.asm.delivery.dto.response.DeliveryResponse.builder()
+                .delivery(delivery != null ? com.asm.delivery.dto.response.DeliveryResponse.builder()
                         .id(delivery.getId())
                         .orderId(orderInfo != null ? orderInfo.getId() : null)
                         .status(delivery.getStatus() != null ? delivery.getStatus().name() : null)
@@ -1383,7 +1449,7 @@ public class RoutePlanningService {
                         .failReason(delivery.getFailReason())
                         .cancelReason(delivery.getCancelReason())
                         .createdAt(delivery.getCreatedAt())
-                        .build())
+                        .build() : null)
                 .order(orderInfo != null ? com.asm.delivery.dto.response.OrderResponse.builder()
                         .id(orderInfo.getId())
                         .source(orderInfo.getSource() != null ? orderInfo.getSource().name() : null)
@@ -1403,8 +1469,8 @@ public class RoutePlanningService {
                         .totalQuantity(orderInfo.getTotalQuantity())
                         .totalWeightKg(orderInfo.getTotalWeightKg())
                         .status(orderInfo.getStatus() != null ? orderInfo.getStatus().name() : null)
-                        .deliveryId(delivery.getId())
-                        .deliveryStatus(delivery.getStatus() != null ? delivery.getStatus().name() : null)
+                        .deliveryId(delivery != null ? delivery.getId() : null)
+                        .deliveryStatus(delivery != null && delivery.getStatus() != null ? delivery.getStatus().name() : null)
                         .erpOrderId(orderInfo.getErpOrderId())
                         .odooSyncStatus(orderInfo.getOdooSyncStatus())
                         .createdAt(orderInfo.getCreatedAt())
@@ -1544,10 +1610,126 @@ public class RoutePlanningService {
     private RouteStopStatus resolveStopStatus(RouteStop stop, Delivery d) {
         RouteStopStatus current = stop.getStatus();
         if (current == RouteStopStatus.PENDING || current == null) {
-            RouteStopStatus fallback = mapDeliveryToRouteStopStatus(d.getStatus());
-            return fallback != null ? fallback : current;
+            RouteStopStatus fallback = d != null ? mapDeliveryToRouteStopStatus(d.getStatus()) : null;
+            return fallback != null ? fallback : (current != null ? current : RouteStopStatus.PENDING);
         }
         return current;
+    }
+
+    // ── Multi-depot Routing Core ──────────────────────────────────────────────────
+
+    private void reconcilePickupStops(Route route) {
+        if (route.getStatus() != RouteStatus.DRAFT && route.getStatus() != RouteStatus.VALIDATED) {
+            return;
+        }
+
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        List<RouteStop> deliveryStops = stops.stream()
+                .filter(s -> !isRemovedStatus(s.getStatus()) && s.getStopType() == RouteStopType.DELIVERY)
+                .toList();
+        List<RouteStop> pickupStops = stops.stream()
+                .filter(s -> !isRemovedStatus(s.getStatus()) && s.getStopType() == RouteStopType.PICKUP)
+                .toList();
+
+        List<UUID> deliveryIds = deliveryStops.stream().map(RouteStop::getDeliveryId).toList();
+        List<Delivery> deliveries = deliveryIds.isEmpty() ? List.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds);
+
+        Set<UUID> neededDepots = deliveries.stream()
+                .filter(d -> d.getSourceDepotId() != null 
+                        && !d.getSourceDepotId().equals(route.getDepotId()) 
+                        && (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED))
+                .map(Delivery::getSourceDepotId)
+                .collect(Collectors.toSet());
+
+        // Remove unneeded pickups
+        for (RouteStop pickup : pickupStops) {
+            if (!neededDepots.contains(pickup.getSourceDepotId())) {
+                routeStopRepository.delete(pickup);
+            }
+        }
+
+        // Add missing pickups
+        Set<UUID> existingPickups = pickupStops.stream().map(RouteStop::getSourceDepotId).collect(Collectors.toSet());
+        for (UUID depotId : neededDepots) {
+            if (!existingPickups.contains(depotId)) {
+                RouteStop newPickup = RouteStop.builder()
+                        .route(route)
+                        .stopType(RouteStopType.PICKUP)
+                        .sourceDepotId(depotId)
+                        .deliveryId(null)
+                        .status(RouteStopStatus.PENDING)
+                        .build();
+                routeStopRepository.save(newPickup);
+            }
+        }
+        
+        normalizeStopOrder(route);
+    }
+
+    private void normalizeStopOrder(Route route) {
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        List<RouteStop> activeStops = stops.stream().filter(s -> !isRemovedStatus(s.getStatus())).toList();
+        
+        List<RouteStop> deliveryStops = activeStops.stream().filter(s -> s.getStopType() == RouteStopType.DELIVERY).toList();
+        List<RouteStop> pickupStops = activeStops.stream().filter(s -> s.getStopType() == RouteStopType.PICKUP).toList();
+        
+        List<UUID> deliveryIds = deliveryStops.stream().map(RouteStop::getDeliveryId).toList();
+        Map<UUID, UUID> deliveryToDepot = deliveryIds.isEmpty() ? Map.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                .filter(d -> d.getSourceDepotId() != null)
+                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
+                
+        Map<UUID, RouteStop> pickupByDepot = pickupStops.stream().collect(Collectors.toMap(RouteStop::getSourceDepotId, Function.identity()));
+        Set<UUID> emittedPickups = new HashSet<>();
+        
+        List<RouteStop> ordered = new ArrayList<>();
+        
+        for (RouteStop deliveryStop : deliveryStops) {
+            UUID depotId = deliveryToDepot.get(deliveryStop.getDeliveryId());
+            if (depotId != null && pickupByDepot.containsKey(depotId) && !emittedPickups.contains(depotId)) {
+                ordered.add(pickupByDepot.get(depotId));
+                emittedPickups.add(depotId);
+            }
+            ordered.add(deliveryStop);
+        }
+        
+        for (RouteStop pickup : pickupStops) {
+            if (!emittedPickups.contains(pickup.getSourceDepotId())) {
+                ordered.add(pickup);
+            }
+        }
+        
+        for (int i = 0; i < ordered.size(); i++) {
+            ordered.get(i).setStopOrder(i + 1);
+        }
+        routeStopRepository.saveAll(ordered);
+    }
+
+    private void assertPickupPrecedence(List<RouteStop> orderedStops) {
+        Map<UUID, Integer> pickupOrder = new HashMap<>();
+        List<UUID> deliveryIds = orderedStops.stream()
+                .filter(s -> s.getStopType() == RouteStopType.DELIVERY && s.getDeliveryId() != null)
+                .map(RouteStop::getDeliveryId)
+                .toList();
+        Map<UUID, UUID> deliveryToDepot = deliveryIds.isEmpty() ? Map.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
+                .filter(d -> d.getSourceDepotId() != null)
+                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
+
+        for (RouteStop stop : orderedStops) {
+            if (stop.getStopType() == RouteStopType.PICKUP && stop.getSourceDepotId() != null) {
+                pickupOrder.put(stop.getSourceDepotId(), stop.getStopOrder());
+            }
+        }
+
+        for (RouteStop stop : orderedStops) {
+            if (stop.getStopType() == RouteStopType.DELIVERY && stop.getDeliveryId() != null) {
+                UUID depotId = deliveryToDepot.get(stop.getDeliveryId());
+                if (depotId != null && pickupOrder.containsKey(depotId)) {
+                    if (pickupOrder.get(depotId) > stop.getStopOrder()) {
+                        throw AppException.badRequest("La livraison ne peut pas être planifiée avant le chargement de son dépôt");
+                    }
+                }
+            }
+        }
     }
 
 }

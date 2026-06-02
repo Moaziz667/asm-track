@@ -1,9 +1,11 @@
 'use client';
 
+import { useMemo } from 'react';
 import { IconMapPin, IconTrash, IconX } from '@tabler/icons-react';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { StopRow } from './StopRow';
 import { RouteStop, DeliveryOption, StopWindowDraft } from '../types';
+import { resolveOrderRef, shortId } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { useLocaleStore } from '@/lib/i18n';
@@ -43,8 +45,32 @@ export function StopsList({
 }: StopsListProps) {
   const t = useT();
   const locale = useLocaleStore((state) => state.locale);
-  const allSelected = stops.length > 0 && selectedStopIds.length === stops.length;
+  const selectableStops = stops.filter((s) => s.stopType !== 'PICKUP');
+  const allSelected = selectableStops.length > 0 && selectedStopIds.length === selectableStops.length;
   const someSelected = selectedStopIds.length > 0;
+
+  // Multi-depot derivations: a delivery is "non-home" iff its source depot has a PICKUP stop.
+  const { pickupDepotIds, deliveriesByDepot } = useMemo(() => {
+    const depots = new Set<string>();
+    const byDepot = new Map<string, RouteStop[]>();
+    for (const s of stops) {
+      if (s.stopType === 'PICKUP' && s.sourceDepotId) depots.add(s.sourceDepotId);
+    }
+    for (const s of stops) {
+      if (s.stopType !== 'PICKUP' && s.sourceDepotId && depots.has(s.sourceDepotId)) {
+        const list = byDepot.get(s.sourceDepotId) ?? [];
+        list.push(s);
+        byDepot.set(s.sourceDepotId, list);
+      }
+    }
+    return { pickupDepotIds: depots, deliveriesByDepot: byDepot };
+  }, [stops]);
+
+  const pickListFor = (depotId: string | null | undefined) =>
+    (depotId ? deliveriesByDepot.get(depotId) ?? [] : []).map((s) => {
+      const d = waitingMap.get(s.deliveryId);
+      return { id: s.id, label: d ? `${resolveOrderRef(d)} · ${d.clientName ?? ''}`.trim() : shortId(s.deliveryId) };
+    });
 
   const toggleAll = () => {
     if (allSelected) {
@@ -128,22 +154,31 @@ export function StopsList({
       >
         <div className="flex-1 overflow-y-auto bg-[var(--surface-1)]">
           <div className="flex flex-col min-h-full">
-            {stops.map((stop, index) => (
-              <StopRow
-                key={stop.id}
-                stop={stop}
-                index={index}
-                routeId={routeId}
-                delivery={waitingMap.get(stop.deliveryId)}
-                window={stopWindows[stop.id]}
-                violation={chronoViolations[stop.id]}
-                onRemove={onRemove}
-                onUpdateWindow={onUpdateWindow}
-                isRemoving={removingStopId === stop.id}
-                isSelected={selectedStopIds.includes(stop.id)}
-                onToggleSelect={onToggleStopSelect}
-              />
-            ))}
+            {stops.map((stop, index) => {
+              const isPickup = stop.stopType === 'PICKUP';
+              const depotChip = !isPickup && stop.sourceDepotId && pickupDepotIds.has(stop.sourceDepotId)
+                ? (stop.sourceDepotName ?? null)
+                : null;
+              return (
+                <StopRow
+                  key={stop.id}
+                  stop={stop}
+                  index={index}
+                  routeId={routeId}
+                  delivery={waitingMap.get(stop.deliveryId)}
+                  window={stopWindows[stop.id]}
+                  violation={chronoViolations[stop.id]}
+                  onRemove={onRemove}
+                  onUpdateWindow={onUpdateWindow}
+                  isRemoving={removingStopId === stop.id}
+                  isSelected={selectedStopIds.includes(stop.id)}
+                  onToggleSelect={isPickup ? undefined : onToggleStopSelect}
+                  pickupCount={isPickup ? pickListFor(stop.sourceDepotId).length : undefined}
+                  pickList={isPickup ? pickListFor(stop.sourceDepotId) : undefined}
+                  depotChipLabel={depotChip}
+                />
+              );
+            })}
           </div>
         </div>
       </SortableContext>

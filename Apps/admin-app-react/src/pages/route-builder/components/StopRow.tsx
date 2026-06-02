@@ -1,6 +1,7 @@
 'use client';
 
-import { IconX, IconGripVertical, IconAlertTriangle } from '@tabler/icons-react';
+import { useState } from 'react';
+import { IconX, IconGripVertical, IconAlertTriangle, IconBuildingWarehouse, IconChevronDown } from '@tabler/icons-react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { RouteStop, DeliveryOption, StopWindowDraft } from '../types';
@@ -9,6 +10,9 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Button } from '@/components/ui/button';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
+
+/** Pickup-phase accent (cyan family, matches PICKED_UP status token). */
+const PICKUP_COLOR = '#0891B2';
 
 interface StopRowProps {
   stop: RouteStop;
@@ -24,6 +28,12 @@ interface StopRowProps {
   onToggleSelect?: (id: string) => void;
   /** When true the row renders as a floating drag overlay — no dnd handles, full opacity */
   isOverlay?: boolean;
+  /** PICKUP rows: number of deliveries loaded at this depot. */
+  pickupCount?: number;
+  /** PICKUP rows: the deliveries loaded here (orderRef/clientName) for the pick list. */
+  pickList?: { id: string; label: string }[];
+  /** DELIVERY rows: source depot name to chip when sourced from a non-home depot. */
+  depotChipLabel?: string | null;
 }
 
 export function StopRow({
@@ -39,9 +49,14 @@ export function StopRow({
   isSelected = false,
   onToggleSelect,
   isOverlay = false,
+  pickupCount = 0,
+  pickList = [],
+  depotChipLabel = null,
 }: StopRowProps) {
   const t = useT();
   const locale = useLocaleStore((state) => state.locale);
+  const [pickListOpen, setPickListOpen] = useState(false);
+  const isPickup = stop.stopType === 'PICKUP';
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: `stop:${stop.id}:${routeId}`,
     disabled: isOverlay,
@@ -53,6 +68,61 @@ export function StopRow({
     opacity: isDragging ? 0 : 1,
     zIndex: isDragging ? 999 : undefined,
   };
+
+  // ── PICKUP stop: depot loading row + collapsible pick list ──
+  if (isPickup) {
+    const depotName = stop.sourceDepotName || '—';
+    const title = t.routeBuilderPage.pickupTitle
+      .replace('{count}', String(pickupCount))
+      .replace('{depot}', depotName);
+    return (
+      <div
+        ref={isOverlay ? undefined : setNodeRef}
+        style={{ ...(isOverlay ? {} : style), borderLeft: `3px solid ${PICKUP_COLOR}` }}
+        className="border-b border-[var(--border)] transition-colors w-full min-w-0 bg-[var(--surface-1)]"
+        {...(isOverlay ? {} : attributes)}
+        data-dragging={isDragging || undefined}
+      >
+        <div className="flex items-center w-full min-w-0">
+          <div
+            {...(isOverlay ? {} : listeners)}
+            className={`w-11 py-2 flex items-center justify-center gap-1.5 border-r border-[var(--border)] shrink-0 self-stretch touch-action-none ${isOverlay ? 'cursor-grabbing' : 'cursor-grab'}`}
+          >
+            <IconGripVertical size={11} className="text-[var(--text-muted)] shrink-0" />
+            <IconBuildingWarehouse size={13} style={{ color: PICKUP_COLOR }} className="shrink-0" />
+          </div>
+
+          <button
+            type="button"
+            onClick={() => pickList.length > 0 && setPickListOpen((v) => !v)}
+            className="flex-1 min-w-0 flex items-center gap-2 px-3 py-2 text-left"
+          >
+            <span className="text-xs font-semibold truncate" style={{ color: PICKUP_COLOR }}>
+              {title}
+            </span>
+            {pickList.length > 0 && (
+              <IconChevronDown
+                size={13}
+                className="text-[var(--text-muted)] shrink-0 transition-transform"
+                style={{ transform: pickListOpen ? 'rotate(180deg)' : undefined }}
+              />
+            )}
+          </button>
+        </div>
+
+        {pickListOpen && pickList.length > 0 && (
+          <div className="ps-12 pe-3 pb-2 flex flex-col gap-1">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+              {t.routeBuilderPage.pickListLabel}
+            </span>
+            {pickList.map((p) => (
+              <span key={p.id} className="text-[11px] text-[var(--text-muted)] truncate">• {p.label}</span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
 
   const rowStyles = `border-b border-[var(--border)] transition-colors flex items-center w-full min-w-0 ${
     isOverlay
@@ -124,6 +194,15 @@ export function StopRow({
           {delivery?.dropoffAddress || delivery?.dropoffCity || '—'}
           {(delivery?.totalWeightKg ?? 0) > 0 ? ` · ${delivery!.totalWeightKg!.toFixed(1)} kg` : ''}
         </span>
+        {depotChipLabel && (
+          <span
+            className="mt-0.5 inline-flex items-center gap-1 self-start rounded-[2px] px-1.5 py-0.5 text-[10px] font-semibold"
+            style={{ color: PICKUP_COLOR, background: 'color-mix(in srgb, ' + PICKUP_COLOR + ' 10%, transparent)' }}
+          >
+            <IconBuildingWarehouse size={10} />
+            {depotChipLabel}
+          </span>
+        )}
       </div>
 
       {/* Time window inputs */}

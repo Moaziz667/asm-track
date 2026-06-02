@@ -22,8 +22,16 @@ public class RouteStop {
     @JoinColumn(name = "route_id", nullable = false)
     private Route route;
 
-    @Column(name = "delivery_id", nullable = false)
+    @Column(name = "delivery_id")
     private UUID deliveryId;
+
+    @Enumerated(EnumType.STRING)
+    @Builder.Default
+    @Column(name = "stop_type", nullable = false, length = 20)
+    private RouteStopType stopType = RouteStopType.DELIVERY;
+
+    @Column(name = "source_depot_id")
+    private UUID sourceDepotId;
 
     @Column(name = "stop_order", nullable = false)
     private Integer stopOrder;

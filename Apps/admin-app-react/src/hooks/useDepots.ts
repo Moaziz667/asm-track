@@ -6,12 +6,13 @@ import type { Depot } from '@/types';
 // Query keys constant
 export const DEPOTS_QUERY_KEY = ['depots'] as const;
 
-export interface DepotPayload {
-  name: string;
-  address?: string;
-  latitude: number;
-  longitude: number;
-  isActive: boolean;
+/** Result of an ERP depot sync (mirrors DepotSyncService.SyncResult). */
+export interface DepotSyncResult {
+  total: number;
+  created: number;
+  updated: number;
+  geocoded: number;
+  missingCoords: number;
 }
 
 export function useDepots() {
@@ -26,56 +27,24 @@ export function useDepots() {
   });
 }
 
-export function useCreateDepot() {
+/**
+ * Sync depots from the ERP warehouses (Odoo stock.warehouse). Depots are ERP-owned —
+ * they are no longer created/edited/deleted from the admin UI.
+ */
+export function useSyncDepotsFromErp() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async (payload: DepotPayload) => {
-      const res = await api.post<Depot>('/api/v1/depots', payload);
+    mutationFn: async () => {
+      const res = await api.post<DepotSyncResult>('/api/v1/depots/sync');
       return res.data;
     },
     onSuccess: () => {
-      showSuccessToast('successDepotCreated');
+      showSuccessToast('successDepotSynced');
       queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
     },
     onError: (err: any) => {
-      showErrorToast(err, 'errorDepotCreateFailed');
-    }
-  });
-}
-
-export function useUpdateDepot() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async ({ id, payload }: { id: string; payload: Partial<DepotPayload> }) => {
-      const res = await api.put<Depot>(`/api/v1/depots/${id}`, payload);
-      return res.data;
+      showErrorToast(err, 'errorDepotSyncFailed');
     },
-    onSuccess: () => {
-      showSuccessToast('successDepotUpdated');
-      queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
-    },
-    onError: (err: any) => {
-      showErrorToast(err, 'errorDepotUpdateFailed');
-    }
-  });
-}
-
-export function useDeleteDepot() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const res = await api.delete<void>(`/api/v1/depots/${id}`);
-      return res.data;
-    },
-    onSuccess: () => {
-      showSuccessToast('successDepotDeleted');
-      queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
-    },
-    onError: (err: any) => {
-      showErrorToast(err, 'errorDepotDeleteFailed');
-    }
   });
 }

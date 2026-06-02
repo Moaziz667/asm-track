@@ -4,6 +4,7 @@ import com.asm.erpadapter.dto.ErpClientDTO;
 import com.asm.erpadapter.dto.ErpPendingOrderPreviewDTO;
 import com.asm.erpadapter.dto.ErpPendingOrderSummaryDTO;
 import com.asm.erpadapter.dto.ErpProductDTO;
+import com.asm.erpadapter.dto.ErpWarehouseDTO;
 import java.util.List;
 
 public interface ErpLookupPort {
@@ -12,4 +13,7 @@ public interface ErpLookupPort {
     List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit);
     ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId);
     byte[] getDeliveryNotePdf(String blNumber);
+
+    /** Source depots: the ERP's warehouses (Odoo {@code stock.warehouse}) with address/coordinates. */
+    List<ErpWarehouseDTO> getWarehouses();
 }

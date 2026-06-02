@@ -24,10 +24,23 @@ public class Depot {
     @Column(name = "address", columnDefinition = "TEXT")
     private String address;
 
-    @Column(name = "latitude", nullable = false)
+    /** ERP warehouse code this depot mirrors (the stable sync/resolution key). */
+    @Column(name = "warehouse_code", length = 50)
+    private String warehouseCode;
+
+    /** ERP warehouse identifier (e.g. Odoo stock.warehouse id). Informational. */
+    @Column(name = "erp_warehouse_id", length = 50)
+    private String erpWarehouseId;
+
+    /** ERP provider that owns this depot (e.g. "odoo"). Informational. */
+    @Column(name = "provider", length = 20)
+    private String provider;
+
+    /** Nullable until coordinates are read from Odoo or geocoded from the address. */
+    @Column(name = "latitude")
     private Double latitude;
 
-    @Column(name = "longitude", nullable = false)
+    @Column(name = "longitude")
     private Double longitude;
 
     @Builder.Default

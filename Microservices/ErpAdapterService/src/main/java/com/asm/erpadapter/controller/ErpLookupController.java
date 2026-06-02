@@ -80,6 +80,17 @@ public class ErpLookupController {
         }
     }
 
+    @GetMapping("/warehouses")
+    @Operation(summary = "List ERP warehouses (source depots)")
+    public ResponseEntity<List<ErpWarehouseDTO>> getWarehouses(
+            @RequestParam(defaultValue = "odoo") String erpProvider) {
+        try {
+            return ResponseEntity.ok(resolve(erpProvider).getWarehouses());
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.ok(List.of());
+        }
+    }
+
     @GetMapping(value = "/delivery-note-pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> deliveryNotePdf(
             @RequestParam(defaultValue="odoo") String erpProvider,

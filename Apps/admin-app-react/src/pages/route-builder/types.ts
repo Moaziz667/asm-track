@@ -1,7 +1,10 @@
 import type { Driver } from '@/types';
 
+export type RouteStopType = 'PICKUP' | 'DELIVERY';
+
 export type RouteStop = {
   id: string;
+  /** Null at runtime for PICKUP stops; branch on stopType before using. */
   deliveryId: string;
   stopOrder: number;
   startTimeWindow?: string;
@@ -10,6 +13,12 @@ export type RouteStop = {
   dropoffLat?: number;
   dropoffLng?: number;
   dropoffPinned?: boolean;
+  // Multi-depot (slice 4/5)
+  stopType?: RouteStopType;
+  sourceDepotId?: string | null;
+  sourceDepotName?: string | null;
+  sourceDepotLat?: number | null;
+  sourceDepotLng?: number | null;
 };
 
 export type RouteItem = {
@@ -55,6 +64,9 @@ export type DeliveryOption = {
   totalWeightKg?: number;
   totalQuantity?: number;
   itemsSummary?: string;
+  // Multi-depot sourcing (slice 5)
+  warehouseCode?: string | null;
+  sourceDepotId?: string | null;
   items?: Array<{
     id: string;
     sku?: string;

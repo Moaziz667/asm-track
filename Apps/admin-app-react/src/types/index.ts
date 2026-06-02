@@ -299,8 +299,15 @@ export interface Depot {
   id: string;
   name: string;
   address?: string;
-  latitude: number;
-  longitude: number;
+  /** ERP warehouse code this depot mirrors (the stable sync/resolution key). */
+  warehouseCode?: string;
+  /** ERP warehouse id (e.g. Odoo stock.warehouse id). */
+  erpWarehouseId?: string;
+  /** ERP provider that owns this depot (e.g. "odoo"). */
+  provider?: string;
+  /** Nullable until coordinates are read from Odoo or geocoded. */
+  latitude?: number | null;
+  longitude?: number | null;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

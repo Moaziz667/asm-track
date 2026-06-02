@@ -19,6 +19,11 @@ public class RouteStopResponse {
 
     @Schema(description = "Linked delivery id")
     private UUID deliveryId;
+    private com.asm.delivery.entity.RouteStopType stopType;
+    private UUID sourceDepotId;
+    private String sourceDepotName;
+    private Double sourceDepotLat;
+    private Double sourceDepotLng;
 
     @Schema(description = "Sequence order in route")
     private Integer stopOrder;

@@ -1164,6 +1164,13 @@ export const FR_COPY = {
 
   // ── Route Builder Page ─────────────────────────────────────────────────
   routeBuilderPage: {
+    // Multi-depot (slice 5)
+    pickupTitle: 'Charger {count} colis — Dépôt {depot}',
+    pickListLabel: 'Liste de chargement',
+    pickupDepotPopup: 'Chargement — {count} colis · {depot}',
+    precedenceViolation: 'Une livraison ne peut pas précéder le chargement de son dépôt',
+    unmappedDepotChip: 'Dépôt non synchronisé',
+    sourceDepotLabel: 'Dépôt source',
     // Loading
     loadingMap: 'Chargement Carte...',
 
@@ -1595,6 +1602,10 @@ export const FR_COPY = {
     pageTitleBrand: 'dépôts',
     depotsCount: '{count} Centres opérationnels référencés',
     newHubButton: 'Nouveau Hub',
+    syncButton: 'Synchroniser ERP',
+    erpReadOnlyNote: 'Les dépôts proviennent de l\'ERP (entrepôts Odoo) — synchronisez pour les mettre à jour. Lecture seule.',
+    headerWarehouseCode: 'Code Entrepôt',
+    coordsMissing: 'Coordonnées manquantes',
     mapInitializing: 'Initialisation Cartographie...',
     mapLoading: 'Chargement du Maillage...',
     mapTitle: 'Maillage Territorial',
@@ -2060,6 +2071,7 @@ export const FR_COPY = {
     successDepotGeolocate: 'Position du dépôt localisée avec succès',
     errorDepotGeolocateFailed: 'Emplacement du dépôt introuvable',
     successDepotSync: 'Adresse du dépôt synchronisée avec succès',
+    successDepotSynced: 'Dépôts synchronisés depuis l\'ERP',
     errorDepotSyncFailed: 'Erreur de synchronisation de l\'adresse du dépôt',
     errorDepotAddressRequired: 'Adresse du dépôt requise',
     errorDepotNameRequired: 'Nom du dépôt requis',

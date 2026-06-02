@@ -18,6 +18,28 @@ import type {
   OptimizeSuggestion 
 } from '../types';
 
+/**
+ * Multi-depot precedence rule (mirrors the backend's assertPickupPrecedence): for an ordered
+ * list of stops, every DELIVERY sourced from a non-home depot must come after that depot's
+ * PICKUP stop. Home-depot deliveries (no PICKUP stop for their depot) are unconstrained.
+ */
+export function isPickupPrecedenceValid(stops: RouteStop[]): boolean {
+  const pickupIndexByDepot = new Map<string, number>();
+  stops.forEach((s, i) => {
+    if (s.stopType === 'PICKUP' && s.sourceDepotId) pickupIndexByDepot.set(s.sourceDepotId, i);
+  });
+  if (pickupIndexByDepot.size === 0) return true;
+  for (let i = 0; i < stops.length; i++) {
+    const s = stops[i];
+    if (s.stopType === 'PICKUP') continue;
+    const depot = s.sourceDepotId;
+    if (depot && pickupIndexByDepot.has(depot) && pickupIndexByDepot.get(depot)! > i) {
+      return false;
+    }
+  }
+  return true;
+}
+
 // 8-color palette for per-route identity (sidebar dot, map pin, polyline,
 // timeline block). Brand orange (#FF5722) is intentionally excluded so the
 // active-route accent stays unambiguous.
@@ -320,6 +342,8 @@ export function useRouteBuilder() {
               items: item?.items ?? [],
               createdAt: item?.createdAt,
               status: item?.status ?? item?.delivery?.status ?? item?.order?.status ?? '',
+              warehouseCode: item?.warehouseCode ?? item?.order?.warehouseCode ?? null,
+              sourceDepotId: item?.sourceDepotId ?? item?.delivery?.sourceDepotId ?? item?.order?.sourceDepotId ?? null,
             } as DeliveryOption;
           })
           .filter((item: DeliveryOption | null): item is DeliveryOption => item !== null)
@@ -579,6 +603,13 @@ export function useRouteBuilder() {
     const items = [...selectedRouteStops];
     const [moved] = items.splice(fromIndex, 1);
     items.splice(toIndex, 0, moved);
+
+    // Inline precedence guard (mirrors the server's assertPickupPrecedence): a DELIVERY stop
+    // sourced from a non-home depot may not be ordered before that depot's PICKUP stop.
+    if (!isPickupPrecedenceValid(items)) {
+      showErrorToast(null, t.routeBuilderPage.precedenceViolation);
+      return; // reject the drop; refreshAll() is skipped so the UI reverts to server order
+    }
 
     const stopIds = items.map((item) => item.id);
     await api.put(`/api/admin/routes/${selectedRoute.id}/stops/reorder`, { stopIds });

@@ -35,7 +35,7 @@ function MapUpdater({ depots }: { depots: Depot[] }) {
     const validDepots = depots.filter(d => typeof d.latitude === 'number' && typeof d.longitude === 'number');
     if (validDepots.length === 0) return;
 
-    const bounds = L.latLngBounds(validDepots.map(d => [d.latitude, d.longitude]));
+    const bounds = L.latLngBounds(validDepots.map(d => [d.latitude as number, d.longitude as number]));
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
   }, [map, depots]);
 
@@ -46,7 +46,7 @@ export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
   const center: [number, number] = useMemo(() => {
     if (depots.length > 0) {
       const first = depots.find(d => typeof d.latitude === 'number' && typeof d.longitude === 'number');
-      if (first) return [first.latitude, first.longitude];
+      if (first) return [first.latitude as number, first.longitude as number];
     }
     return [36.8065, 10.1815]; // Tunis
   }, [depots]);

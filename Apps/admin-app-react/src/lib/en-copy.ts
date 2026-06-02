@@ -1133,6 +1133,13 @@ export const EN_COPY = {
 
   // ── Route Builder Page ─────────────────────────────────────────────────
   routeBuilderPage: {
+    // Multi-depot (slice 5)
+    pickupTitle: 'Load {count} parcels — Depot {depot}',
+    pickListLabel: 'Pick list',
+    pickupDepotPopup: 'Loading — {count} parcels · {depot}',
+    precedenceViolation: 'A delivery cannot be ordered before its depot pickup',
+    unmappedDepotChip: 'Depot not synced',
+    sourceDepotLabel: 'Source depot',
     // Loading
     loadingMap: 'Loading Map...',
 
@@ -1558,6 +1565,10 @@ export const EN_COPY = {
     pageTitleBrand: 'Management',
     depotsCount: '{count} Operational Centers Referenced',
     newHubButton: 'New Hub',
+    syncButton: 'Sync from ERP',
+    erpReadOnlyNote: 'Depots come from the ERP (Odoo warehouses) — sync to refresh. Read-only.',
+    headerWarehouseCode: 'Warehouse Code',
+    coordsMissing: 'Coordinates missing',
     mapInitializing: 'Initializing Map...',
     mapLoading: 'Loading Network...',
     mapTitle: 'Territorial Network',
@@ -2012,6 +2023,7 @@ export const EN_COPY = {
     successDepotGeolocate: 'Depot location resolved successfully',
     errorDepotGeolocateFailed: 'Depot location not found',
     successDepotSync: 'Depot address synchronized successfully',
+    successDepotSynced: 'Depots synced from the ERP',
     errorDepotSyncFailed: 'Failed to synchronize depot address',
     errorDepotAddressRequired: 'Depot address is required',
     errorDepotNameRequired: 'Depot name is required',
