@@ -52,6 +52,18 @@ public class Order {
     @Column(name = "erp_external_ref", length = 100)
     private String erpExternalRef;
 
+    /** Official ERP delivery-note / picking number (bon de livraison) this order maps to. */
+    @Column(name = "bl_number", length = 100)
+    private String blNumber;
+
+    /** Raw source-warehouse code from the ERP (kept for re-mapping to a depot). */
+    @Column(name = "warehouse_code", length = 50)
+    private String warehouseCode;
+
+    /** Resolved source depot (where the goods are loaded). Null until mapped/assigned. */
+    @Column(name = "source_depot_id")
+    private java.util.UUID sourceDepotId;
+
     // ── Origin ────────────────────────────────────────────────────────────────
     @Column(name = "origin_name", length = 100)
     private String originName;

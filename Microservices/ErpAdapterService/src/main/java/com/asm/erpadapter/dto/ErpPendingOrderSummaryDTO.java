@@ -29,4 +29,16 @@ public class ErpPendingOrderSummaryDTO {
     private String invoiceStatus;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;
+
+    // ── Delivery-note (bon de livraison) fields — enterprise multi-depot ──────────
+    /** Official delivery-note / picking number from the ERP (e.g. Odoo "WH/OUT/00012"). */
+    private String blNumber;
+    /** Source sale-order reference (e.g. "S00042"). */
+    private String saleOrderRef;
+    /** Short code of the source warehouse (e.g. "SFAX"). */
+    private String warehouseCode;
+    /** Human name of the source warehouse. */
+    private String warehouseName;
+    /** True when ready to ship (Odoo picking state = 'assigned'). */
+    private Boolean ready;
 }

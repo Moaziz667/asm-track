@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.exception.ErpAdapterException;
 import com.asm.erpadapter.service.SettingsClient;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -171,6 +172,68 @@ public class OdooJsonRpcClient {
                     model, e.getClass().getSimpleName(), e.getMessage(), e);
             return List.of();
         }
+    }
+
+    /**
+     * Strict variant of {@link #searchRead}: raises a structured {@link ErpAdapterException}
+     * when Odoo is unreachable or rejects the request (bad field/model/access), instead of
+     * silently returning an empty list. Use for operator-facing flows where the cause must
+     * be surfaced clearly. A genuinely empty result still returns an empty list.
+     */
+    @SuppressWarnings("unchecked")
+    public List<Map<String, Object>> searchReadStrict(String model, List<Object> domain,
+                                                       List<String> fields, int limit, String order) {
+        Map<String, Object> searchKwargs = new HashMap<>();
+        if (limit > 0) searchKwargs.put("limit", limit);
+        if (order != null && !order.isBlank()) searchKwargs.put("order", order);
+
+        Map<String, Object> searchResponse = callRpc(
+                buildArgs(model, "search", List.of(domain != null ? domain : List.of()), searchKwargs));
+        requireOk(searchResponse, model, "search", domain);
+
+        Object searchResult = searchResponse.get("result");
+        if (!(searchResult instanceof List<?> rawIds)) return List.of();
+        List<Integer> ids = new ArrayList<>();
+        for (Object rawId : rawIds) if (rawId instanceof Number n) ids.add(n.intValue());
+        if (ids.isEmpty()) return List.of();
+
+        Map<String, Object> readKwargs = new HashMap<>();
+        if (fields != null && !fields.isEmpty()) readKwargs.put("fields", fields);
+        Map<String, Object> readResponse = callRpc(buildArgs(model, "read", List.of(ids), readKwargs));
+        requireOk(readResponse, model, "read", domain);
+
+        Object readResult = readResponse.get("result");
+        return readResult instanceof List<?> list ? (List<Map<String, Object>>) list : List.of();
+    }
+
+    /** Throws a structured error if the Odoo response is missing or carries an error payload. */
+    private void requireOk(Map<String, Object> response, String model, String method, Object domain) {
+        if (response == null) {
+            throw ErpAdapterException.internal(
+                    "Odoo unreachable or not configured — model=" + model + " method=" + method
+                    + " (check ERP URL/credentials in Settings)");
+        }
+        if (response.containsKey("error")) {
+            throw new ErpAdapterException(
+                    "Odoo rejected the request — model=" + model + " method=" + method
+                    + " domain=" + domain + " — " + extractOdooError(response.get("error")), 502);
+        }
+    }
+
+    /** Pulls the most useful human message out of an Odoo JSON-RPC error object. */
+    private static String extractOdooError(Object error) {
+        if (error instanceof Map<?, ?> m) {
+            Object data = m.get("data");
+            if (data instanceof Map<?, ?> dm) {
+                Object msg = dm.get("message");
+                if (msg != null && !String.valueOf(msg).isBlank()) return String.valueOf(msg);
+                Object name = dm.get("name");
+                if (name != null) return String.valueOf(name);
+            }
+            Object message = m.get("message");
+            if (message != null) return String.valueOf(message);
+        }
+        return String.valueOf(error);
     }
 
     // ── Type-safe value helpers ─────────────────────────────────────────────

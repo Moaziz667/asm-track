@@ -48,6 +48,7 @@ public class ErpLookupService {
     private final DeliveryStatusHistoryRepository historyRepository;
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
+    private final com.asm.delivery.repository.WarehouseDepotMappingRepository warehouseDepotMappingRepository;
 
     // Cache to match original logic signature layout, though simplified here.
     private final ConcurrentHashMap<String, CacheEntry<List<ErpClientDTO>>> clientCache = new ConcurrentHashMap<>();
@@ -96,11 +97,16 @@ public class ErpLookupService {
         if (cached != null && !cached.isExpired()) return cached.value();
 
         Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
+        Set<String> importedBls = orderRepository.findAllBlNumbers();
 
         List<Map<String, Object>> res = erpAdapterClient.getPendingOrders(limit, null);
         List<ErpPendingOrderSummaryDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
-                .filter(dto -> dto.getErpOrderId() != null && !importedErpIds.contains(dto.getErpOrderId()))
+                // Dedup per delivery-note (BL) when present, else per ERP order ref.
+                .filter(dto -> dto.getErpOrderId() != null)
+                .filter(dto -> StringUtils.hasText(dto.getBlNumber())
+                        ? !importedBls.contains(dto.getBlNumber())
+                        : !importedErpIds.contains(dto.getErpOrderId()))
                 .collect(Collectors.toList());
 
         pendingOrderCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));
@@ -119,15 +125,39 @@ public class ErpLookupService {
     public OrderResponse importPendingOrder(String erpOrderId) {
         ErpPendingOrderPreviewDTO preview = getPendingOrderPreview(erpOrderId);
 
-        Optional<Order> existingOrder = orderRepository.findByErpOrderId(erpOrderId);
-        if (existingOrder.isPresent()) {
+        // Idempotency: per delivery-note (BL) when available, else per ERP order ref.
+        String blNumber = preview.getBlNumber();
+        if (StringUtils.hasText(blNumber)) {
+            if (orderRepository.findByBlNumber(blNumber).isPresent()) {
+                throw AppException.badRequest("Delivery note " + blNumber + " already imported");
+            }
+        } else if (orderRepository.findByErpOrderId(erpOrderId).isPresent()) {
             throw AppException.badRequest("Order " + erpOrderId + " already imported");
         }
+
+        // Resolve the source depot from the delivery-note warehouse (else leave null
+        // for the dispatcher to assign — never block the import).
+        String warehouseCode = preview.getWarehouseCode();
+        UUID sourceDepotId = null;
+        if (StringUtils.hasText(warehouseCode)) {
+            sourceDepotId = warehouseDepotMappingRepository.findByWarehouseCode(warehouseCode)
+                    .map(com.asm.delivery.entity.WarehouseDepotMapping::getDepotId)
+                    .orElse(null);
+            if (sourceDepotId == null) {
+                log.warn("Import bl={} : warehouse '{}' is not mapped to a depot — dispatcher must assign the source depot",
+                        blNumber, warehouseCode);
+            }
+        }
+
+        // Keep erpOrderId = the sale-order reference (cancel/failure sync act on the sale order);
+        // the BL number is tracked separately and drives delivery/partial sync (per-picking).
+        String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : preview.getErpOrderId();
+
         Order order = Order.builder()
                 .source(OrderSource.ODOO)
                 .clientId(null)
                 .erpClientId(null)
-                
+
                 .clientName(preview.getCustomerName())
                 .clientPhone(preview.getCustomerPhone())
                 .dropoffAddress(StringUtils.hasText(preview.getDeliveryAddress()) ? preview.getDeliveryAddress() : "Address not provided")
@@ -143,7 +173,11 @@ public class ErpLookupService {
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
-                .erpOrderId(preview.getErpOrderId())
+                .erpOrderId(saleRef)
+                .erpExternalRef(preview.getExternalRef())
+                .blNumber(blNumber)
+                .warehouseCode(warehouseCode)
+                .sourceDepotId(sourceDepotId)
                 .build();
 
         if (preview.getItems() != null) {
@@ -166,7 +200,7 @@ public class ErpLookupService {
         Delivery delivery = Delivery.builder()
                 .order(order)
                 .status(DeliveryStatus.UNSCHEDULED)
-                
+                .sourceDepotId(sourceDepotId)
                 .build();
         delivery = deliveryRepository.save(delivery);
 

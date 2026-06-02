@@ -25,6 +25,10 @@ public class Delivery {
     @Column(name = "driver_id")
     private UUID driverId;
 
+    /** Source depot the goods are loaded from (mirrors Order.sourceDepotId for fast route queries). */
+    @Column(name = "source_depot_id")
+    private UUID sourceDepotId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default

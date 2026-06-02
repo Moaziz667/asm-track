@@ -16,11 +16,19 @@ import java.util.stream.Collectors;
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 
 /**
- * Odoo implementation of ErpLookupPort.
+ * Odoo implementation of {@link ErpLookupPort} (Odoo 19).
  *
- * Searches clients, products, pending orders, and previews from Odoo.
- * Moved from ErpLookupService's Odoo-specific query logic.
- * Bean name must match the sync adapter key ("odoo") for router.
+ * <p>Enterprise multi-depot model: the source of truth for what to deliver is the
+ * Odoo <b>delivery order / bon de livraison</b> ({@code stock.picking}, outgoing).
+ * A ready picking ({@code state = 'assigned'}) carries the official BL number
+ * ({@code name}), the <b>source warehouse</b> (→ ASM depot), and the line items
+ * actually being shipped. We therefore list/preview <b>ready delivery notes</b>,
+ * not raw confirmed sale orders. A sale order that ships from two warehouses yields
+ * two delivery notes → two ASM deliveries from two depots (natural multi-depot).
+ *
+ * <p>Operator-facing reads use {@link OdooJsonRpcClient#searchReadStrict} so a
+ * misconfigured Odoo (wrong field/model/access) surfaces a structured error rather
+ * than a silently empty page.
  */
 @Component("odooLookup")
 @RequiredArgsConstructor
@@ -108,51 +116,55 @@ public class OdooLookupAdapter implements ErpLookupPort {
         }
     }
 
-    // ── Pending Orders ──────────────────────────────────────────────────────────
+    // ── Pending delivery notes (ready outgoing pickings) ──────────────────────────
+
+    private static final List<Object> READY_DELIVERY_DOMAIN = List.of(
+            List.of("picking_type_id.code", "=", "outgoing"),
+            List.of("state", "=", "assigned"));
+
+    private static final List<String> PICKING_FIELDS = List.of(
+            "id", "name", "origin", "state", "partner_id",
+            "scheduled_date", "date_deadline", "picking_type_id", "sale_id");
 
     @Override
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         long start = System.currentTimeMillis();
-        try {
-            List<Object> domain = List.of(List.of("state", "=", "sale"));
+        List<Map<String, Object>> pickings = rpc.searchReadStrict(
+                "stock.picking", READY_DELIVERY_DOMAIN, PICKING_FIELDS, limit, "scheduled_date asc");
+        if (pickings.isEmpty()) return List.of();
 
-            List<Map<String, Object>> rows = rpc.searchRead("sale.order", domain,
-                    List.of("id", "name", "client_order_ref", "partner_id", "partner_shipping_id",
-                            "amount_total", "currency_id", "state", "invoice_status",
-                            "date_order", "commitment_date"),
-                    limit, "date_order desc");
+        Map<Integer, Warehouse> warehouses = resolveWarehouses(pickings);
+        Map<Integer, Map<String, Object>> partners = fetchPartnersByIds(relIds(pickings, "partner_id"));
+        Map<Integer, Map<String, Object>> saleOrders = fetchSaleOrdersByIds(relIds(pickings, "sale_id"));
 
-            Map<Integer, Map<String, Object>> partners = fetchPartnersForOrders(rows);
+        List<ErpPendingOrderSummaryDTO> summaries = pickings.stream()
+                .map(p -> mapToSummary(p, warehouses, partners, saleOrders))
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
 
-            List<ErpPendingOrderSummaryDTO> summaries = rows.stream()
-                    .map(row -> mapToSummary(row, partners))
-                    .filter(Objects::nonNull)
-                    .sorted(Comparator.comparing(ErpPendingOrderSummaryDTO::getDateOrder,
-                            Comparator.nullsLast(Comparator.reverseOrder())))
-                    .collect(Collectors.toList());
-
-            log.info("getPendingOrders count={} durationMs={}", summaries.size(), System.currentTimeMillis() - start);
-            return summaries;
-        } catch (Exception e) {
-            log.warn("getPendingOrders failed: {}", e.getMessage());
-            return List.of();
-        }
+        log.info("getPendingOrders (ready BLs) count={} durationMs={}", summaries.size(), System.currentTimeMillis() - start);
+        return summaries;
     }
 
-    // ── Order Preview ───────────────────────────────────────────────────────────
+    // ── Delivery-note preview (single picking, full detail) ───────────────────────
 
     @Override
-    public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
-        Map<String, Object> row = fetchSaleOrderByRef(erpOrderId);
-        if (row == null) return null;
+    public ErpPendingOrderPreviewDTO getPendingOrderPreview(String blNumber) {
+        Map<String, Object> picking = fetchPickingByName(blNumber);
+        if (picking == null) return null;
 
-        Map<Integer, Map<String, Object>> partners = fetchPartnersForOrders(List.of(row));
-        Map<String, Object> addressPartner = resolveAddressPartner(row, partners);
+        Integer pickingId = asInt(picking.get("id"));
+        Map<Integer, Warehouse> warehouses = resolveWarehouses(List.of(picking));
+        Warehouse wh = warehouses.get(asRelId(picking.get("picking_type_id")));
 
-        List<ErpOrderItemDTO> items = fetchOrderItems(row);
-        int totalQty = items.stream()
-                .map(i -> i.getQuantity() != null ? i.getQuantity() : 0)
-                .reduce(0, Integer::sum);
+        Map<Integer, Map<String, Object>> partners = fetchPartnersByIds(relIds(List.of(picking), "partner_id"));
+        Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
+
+        Map<Integer, Map<String, Object>> saleOrders = fetchSaleOrdersByIds(relIds(List.of(picking), "sale_id"));
+        Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
+
+        List<ErpOrderItemDTO> items = pickingId != null ? fetchItemsFromPicking(pickingId) : List.of();
+        int totalQty = items.stream().map(i -> i.getQuantity() != null ? i.getQuantity() : 0).reduce(0, Integer::sum);
         BigDecimal totalWeight = items.stream()
                 .map(i -> {
                     BigDecimal w = i.getUnitWeightKg() != null ? i.getUnitWeightKg() : BigDecimal.ZERO;
@@ -161,20 +173,27 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 })
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        boolean ready = "assigned".equals(asString(picking.get("state")));
+
         return ErpPendingOrderPreviewDTO.builder()
-                .erpOrderId(asString(row.get("name")))
-                .externalRef(asString(row.get("client_order_ref")))
-                .customerName(resolveCustomerName(row, addressPartner))
-                .customerPhone(resolveCustomerPhone(addressPartner))
-                .deliveryAddress(buildAddress(addressPartner))
-                .deliveryCity(addressPartner != null ? asString(addressPartner.get("city")) : null)
-                .deliveryInstructions(asString(row.get("note")))
-                .totalAmount(asBigDecimal(row.get("amount_total")))
-                .currency(resolveCurrency(row))
-                .paymentTermName(resolvePaymentTermName(row))
+                .erpOrderId(asString(picking.get("name")))            // import identity = the BL number
+                .blNumber(asString(picking.get("name")))
+                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
+                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
+                .warehouseCode(wh != null ? wh.code() : null)
+                .warehouseName(wh != null ? wh.name() : null)
+                .ready(ready)
+                .customerName(resolveCustomerName(sale, partner, picking))
+                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
+                .deliveryAddress(buildAddress(partner))
+                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
+                .deliveryInstructions(sale != null ? asString(sale.get("note")) : null)
+                .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
+                .currency(resolveCurrency(sale))
+                .paymentTermName(sale != null ? asRelName(sale.get("payment_term_id")) : null)
                 .priority("NORMAL")
-                .dateOrder(parseOdooDateTime(row.get("date_order")))
-                .scheduledAt(parseOdooDateTime(row.get("commitment_date")))
+                .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
+                .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
                 .items(items)
                 .totalQuantity(totalQty)
                 .totalWeightKg(totalWeight)
@@ -185,75 +204,107 @@ public class OdooLookupAdapter implements ErpLookupPort {
     //  Internal helpers
     // ═══════════════════════════════════════════════════════════════════════════
 
-    private Map<Integer, Map<String, Object>> fetchPartnersForOrders(List<Map<String, Object>> rows) {
-        Set<Integer> partnerIds = new HashSet<>();
-        for (Map<String, Object> row : rows) {
-            Integer shippingId = asRelId(row.get("partner_shipping_id"));
-            Integer partnerId = asRelId(row.get("partner_id"));
-            if (shippingId != null) partnerIds.add(shippingId);
-            if (partnerId != null) partnerIds.add(partnerId);
-        }
-        if (partnerIds.isEmpty()) return Map.of();
+    private record Warehouse(String code, String name) {}
 
-        List<Map<String, Object>> partnerRows = rpc.searchRead("res.partner",
+    private Map<String, Object> fetchPickingByName(String blNumber) {
+        String name = asString(blNumber);
+        if (name == null) return null;
+        List<Map<String, Object>> rows = rpc.searchReadStrict("stock.picking",
+                List.of(List.of("name", "=", name), List.of("picking_type_id.code", "=", "outgoing")),
+                PICKING_FIELDS, 1, "id desc");
+        return rows.isEmpty() ? null : rows.get(0);
+    }
+
+    /** picking → picking_type → warehouse (code + name). Keyed by picking_type_id. */
+    private Map<Integer, Warehouse> resolveWarehouses(List<Map<String, Object>> pickings) {
+        Set<Integer> typeIds = relIds(pickings, "picking_type_id");
+        if (typeIds.isEmpty()) return Map.of();
+
+        List<Map<String, Object>> typeRows = rpc.searchReadStrict("stock.picking.type",
+                List.of(List.of("id", "in", typeIds.stream().toList())),
+                List.of("id", "warehouse_id"), typeIds.size(), "id asc");
+
+        Map<Integer, Integer> typeToWarehouseId = new HashMap<>();
+        for (Map<String, Object> t : typeRows) {
+            Integer tid = asInt(t.get("id"));
+            Integer wid = asRelId(t.get("warehouse_id"));
+            if (tid != null && wid != null) typeToWarehouseId.put(tid, wid);
+        }
+        if (typeToWarehouseId.isEmpty()) return Map.of();
+
+        Set<Integer> whIds = new HashSet<>(typeToWarehouseId.values());
+        List<Map<String, Object>> whRows = rpc.searchReadStrict("stock.warehouse",
+                List.of(List.of("id", "in", whIds.stream().toList())),
+                List.of("id", "code", "name"), whIds.size(), "id asc");
+
+        Map<Integer, Warehouse> whById = new HashMap<>();
+        for (Map<String, Object> w : whRows) {
+            Integer id = asInt(w.get("id"));
+            if (id != null) whById.put(id, new Warehouse(asString(w.get("code")), asString(w.get("name"))));
+        }
+
+        Map<Integer, Warehouse> byType = new HashMap<>();
+        typeToWarehouseId.forEach((tid, wid) -> {
+            Warehouse w = whById.get(wid);
+            if (w != null) byType.put(tid, w);
+        });
+        return byType;
+    }
+
+    private Map<Integer, Map<String, Object>> fetchPartnersByIds(Set<Integer> partnerIds) {
+        if (partnerIds.isEmpty()) return Map.of();
+        List<Map<String, Object>> rows = rpc.searchReadStrict("res.partner",
                 List.of(List.of("id", "in", partnerIds.stream().toList())),
                 List.of("id", "name", "phone", "street", "street2", "city", "zip"),
-                Math.max(partnerIds.size(), 1), "id asc");
-
+                partnerIds.size(), "id asc");
         Map<Integer, Map<String, Object>> result = new HashMap<>();
-        for (Map<String, Object> pr : partnerRows) {
+        for (Map<String, Object> pr : rows) {
             Integer id = asInt(pr.get("id"));
             if (id != null) result.put(id, pr);
         }
         return result;
     }
 
-    private Map<String, Object> fetchSaleOrderByRef(String erpOrderId) {
-        String normalized = asString(erpOrderId);
-        if (normalized == null) return null;
-
-        List<Map<String, Object>> rows = rpc.searchRead("sale.order",
-                List.of(List.of("name", "=", normalized)),
-                List.of("id", "name", "client_order_ref", "partner_id", "partner_shipping_id",
-                        "amount_total", "currency_id", "state", "invoice_status",
-                        "date_order", "commitment_date", "note", "order_line", "invoice_ids",
-                        "payment_term_id"),
-                1, "id desc");
-        return rows.isEmpty() ? null : rows.get(0);
+    private Map<Integer, Map<String, Object>> fetchSaleOrdersByIds(Set<Integer> saleIds) {
+        if (saleIds.isEmpty()) return Map.of();
+        List<Map<String, Object>> rows = rpc.searchReadStrict("sale.order",
+                List.of(List.of("id", "in", saleIds.stream().toList())),
+                List.of("id", "name", "client_order_ref", "partner_id", "amount_total",
+                        "currency_id", "payment_term_id", "note", "date_order"),
+                saleIds.size(), "id asc");
+        Map<Integer, Map<String, Object>> result = new HashMap<>();
+        for (Map<String, Object> r : rows) {
+            Integer id = asInt(r.get("id"));
+            if (id != null) result.put(id, r);
+        }
+        return result;
     }
 
-    private List<ErpOrderItemDTO> fetchOrderItems(Map<String, Object> saleOrderRow) {
-        List<Integer> lineIds = asIdList(saleOrderRow.get("order_line"));
-        if (lineIds.isEmpty()) return List.of();
+    /** Line items actually shipped on this delivery note (the picking's stock moves). */
+    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId) {
+        List<Map<String, Object>> moves = rpc.searchReadStrict("stock.move",
+                List.of(List.of("picking_id", "=", pickingId)),
+                List.of("id", "product_id", "name", "product_uom_qty"), 0, "id asc");
+        if (moves.isEmpty()) return List.of();
 
-        List<Map<String, Object>> lineRows = rpc.searchRead("sale.order.line",
-                List.of(List.of("id", "in", lineIds)),
-                List.of("id", "product_id", "name", "product_uom_qty", "qty_delivered", "price_unit"),
-                Math.max(lineIds.size(), 1), "id asc");
+        Set<Integer> productIds = moves.stream()
+                .map(m -> asRelId(m.get("product_id"))).filter(Objects::nonNull).collect(Collectors.toSet());
+        ProductDetails pd = fetchProductDetails(productIds);
 
-        Set<Integer> productIds = lineRows.stream()
-                .map(l -> asRelId(l.get("product_id")))
-                .filter(Objects::nonNull)
-                .collect(Collectors.toSet());
-
-        ProductDetails productDetails = fetchProductDetails(productIds);
-
-        return lineRows.stream().map(line -> {
-            Integer productId = asRelId(line.get("product_id"));
-            String productName = asRelName(line.get("product_id"));
-            String name = firstNonBlank(asString(line.get("name")), productName, "ERP Item");
-            Integer qty = asInt(line.get("product_uom_qty"));
-            BigDecimal unitWeight = productId != null ? productDetails.weights.getOrDefault(productId, BigDecimal.ZERO) : BigDecimal.ZERO;
-            String sku         = productId != null ? productDetails.skus.get(productId)  : null;
-            String productType = productId != null ? productDetails.types.get(productId) : null;
-
+        return moves.stream().map(m -> {
+            Integer productId = asRelId(m.get("product_id"));
+            String name = firstNonBlank(asRelName(m.get("product_id")), asString(m.get("name")), "ERP Item");
+            int qty = (int) Math.round(asDouble(m.get("product_uom_qty")) != null ? asDouble(m.get("product_uom_qty")) : 1d);
+            BigDecimal unitWeight = productId != null ? pd.weights.getOrDefault(productId, BigDecimal.ZERO) : BigDecimal.ZERO;
+            String sku  = productId != null ? pd.skus.get(productId)  : null;
+            String type = productId != null ? pd.types.get(productId) : null;
             return ErpOrderItemDTO.builder()
                     .name(name)
                     .sku(sku)
-                    .quantity(qty != null && qty > 0 ? qty : 1)
-                    .unitPrice(asBigDecimal(line.get("price_unit")))
+                    .quantity(qty > 0 ? qty : 1)
+                    .unitPrice(null) // delivery moves carry no price; order total comes from the sale order
                     .unitWeightKg(unitWeight)
-                    .productType(productType)
+                    .productType(type)
                     .build();
         }).collect(Collectors.toList());
     }
@@ -262,21 +313,10 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private ProductDetails fetchProductDetails(Set<Integer> productIds) {
         if (productIds == null || productIds.isEmpty()) return new ProductDetails(Map.of(), Map.of(), Map.of());
-        // detailed_type exists in Odoo 16+; older versions only have 'type'
-        List<String> typeField = List.of("detailed_type");
-        List<Map<String, Object>> rows;
-        try {
-            rows = rpc.searchRead("product.product",
-                    List.of(List.of("id", "in", productIds.stream().toList())),
-                    List.of("id", "weight", "default_code", "detailed_type"), Math.max(productIds.size(), 1), "id asc");
-        } catch (Exception e) {
-            log.warn("fetchProductDetails: detailed_type not available ({}), retrying with 'type'", e.getMessage());
-            rows = rpc.searchRead("product.product",
-                    List.of(List.of("id", "in", productIds.stream().toList())),
-                    List.of("id", "weight", "default_code", "type"), Math.max(productIds.size(), 1), "id asc");
-            typeField = List.of("type");
-        }
-        final String typeKey = typeField.get(0);
+        // Odoo 19: product type lives on `type` (consu/service/combo); `is_storable` flags stockable goods.
+        List<Map<String, Object>> rows = rpc.searchReadStrict("product.product",
+                List.of(List.of("id", "in", productIds.stream().toList())),
+                List.of("id", "weight", "default_code", "type"), productIds.size(), "id asc");
         Map<Integer, BigDecimal> weights = new HashMap<>();
         Map<Integer, String>     skus    = new HashMap<>();
         Map<Integer, String>     types   = new HashMap<>();
@@ -286,60 +326,65 @@ public class OdooLookupAdapter implements ErpLookupPort {
             weights.put(id, asBigDecimal(row.get("weight")));
             String dc = asString(row.get("default_code"));
             if (dc != null && !dc.isBlank()) skus.put(id, dc);
-            String dt = asString(row.get(typeKey));
+            String dt = asString(row.get("type"));
             if (dt != null && !dt.isBlank()) types.put(id, dt);
         }
         return new ProductDetails(weights, skus, types);
     }
 
-    private ErpPendingOrderSummaryDTO mapToSummary(Map<String, Object> row, Map<Integer, Map<String, Object>> partners) {
-        String erpOrderId = asString(row.get("name"));
-        if (erpOrderId == null) return null;
+    private ErpPendingOrderSummaryDTO mapToSummary(Map<String, Object> picking,
+                                                   Map<Integer, Warehouse> warehouses,
+                                                   Map<Integer, Map<String, Object>> partners,
+                                                   Map<Integer, Map<String, Object>> saleOrders) {
+        String bl = asString(picking.get("name"));
+        if (bl == null) return null;
 
-        Map<String, Object> addressPartner = resolveAddressPartner(row, partners);
+        Warehouse wh = warehouses.get(asRelId(picking.get("picking_type_id")));
+        Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
+        Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
 
         return ErpPendingOrderSummaryDTO.builder()
-                .erpOrderId(erpOrderId)
-                .externalRef(asString(row.get("client_order_ref")))
-                .customerName(resolveCustomerName(row, addressPartner))
-                .customerPhone(resolveCustomerPhone(addressPartner))
-                .deliveryAddress(buildAddress(addressPartner))
-                .deliveryCity(addressPartner != null ? asString(addressPartner.get("city")) : null)
-                .totalAmount(asBigDecimal(row.get("amount_total")))
-                .currency(resolveCurrency(row))
-                .state(asString(row.get("state")))
-                .invoiceStatus(asString(row.get("invoice_status")))
-                .dateOrder(parseOdooDateTime(row.get("date_order")))
-                .scheduledAt(parseOdooDateTime(row.get("commitment_date")))
+                .erpOrderId(bl)                                       // import identity = BL number
+                .blNumber(bl)
+                .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
+                .externalRef(sale != null ? asString(sale.get("client_order_ref")) : null)
+                .warehouseCode(wh != null ? wh.code() : null)
+                .warehouseName(wh != null ? wh.name() : null)
+                .ready("assigned".equals(asString(picking.get("state"))))
+                .customerName(resolveCustomerName(sale, partner, picking))
+                .customerPhone(partner != null ? asString(partner.get("phone")) : null)
+                .deliveryAddress(buildAddress(partner))
+                .deliveryCity(partner != null ? asString(partner.get("city")) : null)
+                .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
+                .currency(resolveCurrency(sale))
+                .state(asString(picking.get("state")))
+                .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
+                .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
                 .build();
     }
 
-    private Map<String, Object> resolveAddressPartner(Map<String, Object> order, Map<Integer, Map<String, Object>> partners) {
-        Integer shippingId = asRelId(order.get("partner_shipping_id"));
-        Integer partnerId = asRelId(order.get("partner_id"));
-        if (shippingId != null && partners.containsKey(shippingId)) return partners.get(shippingId);
-        if (partnerId != null) return partners.get(partnerId);
-        return null;
+    // ── Small resolvers ───────────────────────────────────────────────────────
+
+    /** Collect the related-record ids for a Many2one field across rows. */
+    private static Set<Integer> relIds(List<Map<String, Object>> rows, String field) {
+        Set<Integer> ids = new HashSet<>();
+        for (Map<String, Object> row : rows) {
+            Integer id = asRelId(row.get(field));
+            if (id != null) ids.add(id);
+        }
+        return ids;
     }
 
-    private String resolveCustomerName(Map<String, Object> order, Map<String, Object> partner) {
-        String partnerName = asRelName(order.get("partner_id"));
-        String shippingName = partner != null ? asString(partner.get("name")) : null;
-        return firstNonBlank(shippingName, partnerName, "ERP Customer");
+    private String resolveCustomerName(Map<String, Object> sale, Map<String, Object> partner, Map<String, Object> picking) {
+        String partnerName = partner != null ? asString(partner.get("name")) : null;
+        String pickingPartner = asRelName(picking.get("partner_id"));
+        String salePartner = sale != null ? asRelName(sale.get("partner_id")) : null;
+        return firstNonBlank(partnerName, pickingPartner, salePartner, "ERP Customer");
     }
 
-    private String resolveCustomerPhone(Map<String, Object> partner) {
-        if (partner == null) return null;
-        return asString(partner.get("phone"));
-    }
-
-    private String resolvePaymentTermName(Map<String, Object> order) {
-        // payment_term_id is a Many2one — Odoo returns [id, "Term Name"] or false
-        return asRelName(order.get("payment_term_id"));
-    }
-
-    private String resolveCurrency(Map<String, Object> order) {
-        String raw = asRelName(order.get("currency_id"));
+    private String resolveCurrency(Map<String, Object> sale) {
+        if (sale == null) return "TND";
+        String raw = asRelName(sale.get("currency_id"));
         if (raw == null || raw.length() < 3) return "TND";
         return raw.substring(0, 3).toUpperCase(Locale.ROOT);
     }

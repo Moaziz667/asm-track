@@ -26,6 +26,11 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     boolean existsByErpOrderId(String erpOrderId);
 
+    /** Idempotency key for per-delivery-note (bon de livraison) imports. */
+    Optional<Order> findByBlNumber(String blNumber);
+
+    boolean existsByBlNumber(String blNumber);
+
     List<Order> findTop100ByOdooSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
 
     /**
@@ -54,6 +59,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     @Query("SELECT o.erpOrderId FROM Order o WHERE o.erpOrderId IS NOT NULL")
     Set<String> findAllErpOrderIds();
+
+    @Query("SELECT o.blNumber FROM Order o WHERE o.blNumber IS NOT NULL")
+    Set<String> findAllBlNumbers();
 
 
 }

@@ -61,4 +61,21 @@ public class ErpPendingOrderSummaryDTO {
 
     @Schema(description = "Odoo backorder picking ID if a partial delivery was previously done", example = "42")
     private Integer existingBackorderId;
+
+    // ── Delivery-note (bon de livraison) fields — enterprise multi-depot ──────────
+
+    @Schema(description = "Official ERP delivery-note / picking number", example = "WH/OUT/00012")
+    private String blNumber;
+
+    @Schema(description = "Source sale-order reference", example = "S00042")
+    private String saleOrderRef;
+
+    @Schema(description = "Short code of the source warehouse", example = "SFAX")
+    private String warehouseCode;
+
+    @Schema(description = "Human name of the source warehouse", example = "Entrepôt Sfax")
+    private String warehouseName;
+
+    @Schema(description = "True when ready to ship", example = "true")
+    private Boolean ready;
 }
