@@ -2,4 +2,6 @@ node_modules
 dist
 .git
 .env.local
-*.log
+.env
+.gitignore
+README.md
