@@ -653,6 +653,9 @@ export const EN_COPY = {
     buttonRefresh: 'Refresh',
     // Active drivers section
     activeDriversLabel: 'On Duty',
+    driverOnline: 'Online',
+    driverOnBreak: 'On Break',
+    driverOffline: 'Offline',
     // KPI strip
     kpiCritical: 'Critical',
     kpiUnassigned: 'Unassigned',
@@ -664,6 +667,12 @@ export const EN_COPY = {
     tabFailed: 'Failed',
     tabMissingGps: 'Missing GPS',
     tabHandoff: 'Handovers',
+    // Batch action bar
+    batchCount: '{count} selected',
+    batchMixedWarning: 'Mixed selection — choose one type',
+    batchAssign: 'Assign ({count})',
+    batchReassign: 'Reassign ({count})',
+    batchCancel: 'Cancel',
     kpiUpdated: 'Updated',
     cardCreated: 'Created',
     handoffEmpty: 'No handovers in progress',
@@ -731,8 +740,9 @@ export const EN_COPY = {
     // Additional descriptions
     reasonLabel: 'Reason',
     noComment: 'No comment',
-    reprogrammationLabel: 'Reschedule',
+    reprogrammationLabel: 'Rescheduling',
     byLabel: 'by',
+    scheduledDateLabel: 'Scheduled Date',
     // Motif labels (formatMotif)
     motifSlaUnscheduled: 'Unscheduled Order',
     motifSlaScheduled: 'Stuck at Depot',
@@ -754,6 +764,8 @@ export const EN_COPY = {
     motifDelivered: 'Delivered',
     motifPartiallyDelivered: 'Partially Delivered',
     motifUnknown: 'Unknown Incident',
+    motifSlaUnscheduledLate: 'Late (Unscheduled)',
+    motifSlaUnscheduledToday: 'Scheduled Today',
     // Time elapsed (formatElapsed)
     timeJustNow: 'just now',
     timeMinutes: '{diff} min',
@@ -774,11 +786,14 @@ export const EN_COPY = {
     commentFailed: 'Delivery failed · {time} ago',
     commentCancelled: 'Cancelled {time} ago',
     commentDefault: 'Reported {time} ago',
+    commentSlaUnscheduledLate: 'Late · {time}',
+    commentSlaUnscheduledToday: 'Scheduled for today',
     // Suggestions (formatSuggestion)
     suggestionSlaUnscheduled: '→ Schedule in a route',
     suggestionScheduledMonitoring: '→ Monitor — no immediate action',
     suggestionWrongAddress: '→ Correct the address in the order details',
     suggestionOther: '→ Check driver comment',
+    suggestionSlaUnscheduledLate: '→ Assign to an urgent route',
     // ReplanModal
     replanModalTitleReplan: 'Reschedule for Planning',
     replanModalTitleReassign: 'Reassign Delivery',
@@ -787,6 +802,8 @@ export const EN_COPY = {
     replanModalLabelClient: 'Client',
     replanModalWhatWillHappen: 'What Will Happen?',
     replanModalDescription: 'This delivery will be removed from the current route{routeName} and put back in the queue. A planner will then reassign it to a new route.',
+    replanModalScheduledLabel: 'New scheduled date',
+    replanModalScheduledHint: 'Overrides the stale ERP date — the assignment SLA uses this date.',
     replanModalNoteLabel: 'Note (required)',
     replanModalNoteHint: 'Briefly explain why you are performing this action',
     replanModalNotePlaceholder: 'Ex: Client absent, wrong address, driver unavailable…',
@@ -810,6 +827,7 @@ export const EN_COPY = {
     routeValidated: 'Validated',
     routeDraft: 'Draft',
     noRouteAssigned: 'No route assigned',
+    pageTitleFallback: 'Dispatch',
   },
 
   // ── ReassignDrawer ───────────────────────────────────────────────────────
@@ -917,6 +935,13 @@ export const EN_COPY = {
     labelUpdatedAt: 'Updated',
     // Section: Driver & Route
     sectionDriverRoute: 'Driver & Route',
+    sectionFulfillment: 'Commitment & Delivery note',
+    scheduledLabel: 'Promised date',
+    blNumberLabel: 'Delivery note no.',
+    sourceDepotLabel: 'Source depot',
+    viewBL: 'View delivery note',
+    rescheduledBadge: 'Rescheduled',
+    rescheduledTooltip: 'Date rescheduled by the dispatcher (overrides the ERP date)',
     labelDriver: 'Driver',
     labelRoute: 'Route',
     seeRoute: 'View route',
@@ -967,6 +992,11 @@ export const EN_COPY = {
     labelTimeWindow: 'Time Window',
     labelInstructions: 'Instructions',
     labelNotes: 'Note',
+    pickupLabel: 'Depot',
+    pickupTitle: 'Loading — Depot {depot}',
+    pickupLoadCount: '{count} parcels to load',
+    pickupArrival: 'ETA at',
+    pickupCompleted: 'Pickup confirmed',
     labelDepot: 'Depot',
     labelDeparture: 'Departure',
     noDepot: 'No depot',
@@ -1076,7 +1106,7 @@ export const EN_COPY = {
     pillDone: 'Already Imported',
 
     // Table headers
-    headerReference: 'ERP Reference',
+    headerReference: 'BL / ERP Ref',
     headerCustomer: 'Customer',
     headerDestination: 'Destination',
     headerAmount: 'Amount',
@@ -1197,6 +1227,9 @@ export const EN_COPY = {
 
     // Orders table
     emptyOrdersState: 'No orders to import',
+    quickViewAll: 'All',
+    quickViewToday: 'Today',
+    quickViewThisWeek: 'This Week',
 
     // ValidationModal & Modals general
     finalReviewSubtitle: 'Final review',
@@ -1512,6 +1545,7 @@ export const EN_COPY = {
     statusEngaged: 'Engaged',
     statusAvailable: 'Available',
     statusOutOfService: 'Out of Service',
+    statusRetired: 'Retired',
     // Sidebar
     newVehicleButton: 'Add Resource',
     searchPlaceholder: 'Technical Search...',
@@ -1552,10 +1586,15 @@ export const EN_COPY = {
     statusLabel: 'Status',
     operationalStatus: 'Operational',
     // Delete modal
-    deleteTitle: 'Delete Asset',
-    deleteDescription: 'Are you sure you want to permanently remove the vehicle {vehicleName} from the fleet?',
-    deleteButton: 'Confirm Removal',
+    deleteTitle: 'Retire Vehicle',
+    deleteDescription: 'Are you sure you want to retire the vehicle {vehicleName} from the fleet? It can be reactivated later.',
+    deleteButton: 'Confirm Retirement',
     deleteCancel: 'Cancel',
+    // Retire/Reactivate
+    retireTitle: 'Retire Vehicle',
+    retireDescription: 'Are you sure you want to retire the vehicle {vehicleName} from the fleet? It can be reactivated later.',
+    retireButton: 'Retire',
+    reactivateButton: 'Reactivate',
   },
 
   // ── Depots Page ────────────────────────────────────────────────────────
@@ -1775,8 +1814,8 @@ export const EN_COPY = {
     primaryColor: 'Primary Color',
     slaagreement: 'Service Level Agreement (SLA)',
     slaDesc: 'Time thresholds for operational compliance calculation.',
-    waitingTime: 'Waiting Time (Waiting)',
-    waitingTimeDesc: 'From order creation until assignment to a driver',
+    waitingTime: 'Assignment lead-time (before scheduled date)',
+    waitingTimeDesc: 'Max time before the ERP scheduled date (Odoo) to assign the order to a driver. Alerts if not assigned in time.',
     assignmentDelay: 'Route Start Delay (Assign)',
     assignmentDelayDesc: 'From planned or actual route start until the package is picked up from depot',
     transitDelay: 'Departure Delay (Pickup)',
@@ -1804,7 +1843,7 @@ export const EN_COPY = {
     setNewThreshold: 'Set New Threshold',
     slaBreachWarning: 'Any delivery exceeding this time will be flagged as SLA breach',
     recommendation: '💡 Recommendation',
-    waitingRec: 'Typical range: 10-30 minutes. Time from order creation to driver assignment.',
+    waitingRec: 'Typical range: 60-180 minutes before the scheduled date. The order must be assigned to a driver before this threshold.',
     assignmentRec: 'Typical range: 10-30 minutes. From route start to warehouse pickup. Account for vehicle prep and picking.',
     pickupRec: 'Typical range: 5-15 minutes. From pickup until actual departure. Allows for loading and vehicle checks.',
     // Integration
@@ -1852,6 +1891,9 @@ export const EN_COPY = {
     quickViewInTransit: 'In Transit',
     quickViewCompleted: 'Delivered',
     quickViewFailed: 'Failed',
+    quickViewOverdue: 'Overdue',
+    quickViewToday: 'Today',
+    quickViewFuture: 'Future',
 
     // Table display
     displayLabel: 'Display:',
@@ -1865,12 +1907,14 @@ export const EN_COPY = {
     driverHeader: 'Driver',
     zoneHeader: 'Zone',
     statusHeader: 'Status',
+    scheduledHeader: 'Scheduled',
     actionsHeader: 'Actions',
 
     // Table content
     unknownDriver: 'Unknown address',
     notAssigned: 'Not assigned',
     outOfZone: 'Zone not defined',
+    unscheduled: 'Unscheduled',
 
     // Pagination
     pageLabel: 'Page',
@@ -2060,10 +2104,12 @@ export const EN_COPY = {
     // Vehicle CRUD
     successVehicleCreated: 'Vehicle created successfully',
     successVehicleUpdated: 'Vehicle updated successfully',
-    successVehicleDeleted: 'Vehicle deleted successfully',
+    successVehicleDeleted: 'Vehicle retired successfully',
+    successVehicleReactivated: 'Vehicle reactivated successfully',
     errorVehicleCreateFailed: 'Failed to create vehicle',
     errorVehicleUpdateFailed: 'Failed to update vehicle',
-    errorVehicleDeleteFailed: 'Failed to delete vehicle',
+    errorVehicleDeleteFailed: 'Failed to retire vehicle',
+    errorVehicleReactivateFailed: 'Failed to reactivate vehicle',
     errorVehiclesLoadFailed: 'Failed to load vehicles',
     errorVehiclePlateRequired: 'Vehicle license plate is required',
 
@@ -2208,6 +2254,24 @@ export const EN_COPY = {
         if (win) parts.push(win);
         if (p.driverName) parts.push(p.driverName);
         return parts.join(' · ');
+      },
+    },
+    'ROUTE_STARTED': {
+      title: 'Route started',
+      message: (p: any) => {
+        const n = Number(p.stopCount);
+        const parts = [`${p.driverName || 'Driver'} started "${p.routeName || 'route'}"`];
+        if (Number.isFinite(n) && n > 0) parts.push(_en_stops(n));
+        return parts.join(' · ');
+      },
+    },
+    'PICKUP_CONFIRMED': {
+      title: 'Loading confirmed',
+      message: (p: any) => {
+        const n = Number(p.parcelCount);
+        const parcels = Number.isFinite(n) && n > 0 ? `${n} parcel${n > 1 ? 's' : ''}` : 'parcels';
+        const depot = p.depotName ? ` at ${p.depotName}` : '';
+        return `${p.driverName || 'Driver'} loaded ${parcels}${depot} · "${p.routeName || 'route'}"`;
       },
     },
     'route.schedule_changed': {

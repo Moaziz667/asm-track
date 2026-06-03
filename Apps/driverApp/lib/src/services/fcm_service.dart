@@ -213,6 +213,20 @@ Map<String, String> _buildNotification(
                 ar: 'تغيّرت مواعيد ${routeLabel()}.'),
       };
 
+    case 'PICKUP_OVERDUE':
+      return {
+        'title': _pick(locale, fr: '⏰ Chargement en retard', en: '⏰ Pickup overdue', ar: '⏰ تأخر التحميل'),
+        'body': joinLines([
+          _pick(locale,
+              fr: 'Dépôt ${client.isNotEmpty ? client : routeLabel()}${reason.isNotEmpty ? ' ($reason)' : ''}',
+              en: 'Depot ${client.isNotEmpty ? client : routeLabel()}${reason.isNotEmpty ? ' ($reason)' : ''}',
+              ar: 'مستودع ${client.isNotEmpty ? client : routeLabel()}${reason.isNotEmpty ? ' ($reason)' : ''}'),
+          _pick(locale,
+              fr: 'Confirmez le chargement pour continuer.',
+              en: 'Confirm the pickup to continue.',
+              ar: 'أكّد التحميل للمتابعة.'),
+        ]),
+      };
     case 'ROUTE_STOP_ADDED':
       final who = client.isNotEmpty ? client : _pick(locale, fr: 'Un arrêt', en: 'A stop', ar: 'محطة');
       return {

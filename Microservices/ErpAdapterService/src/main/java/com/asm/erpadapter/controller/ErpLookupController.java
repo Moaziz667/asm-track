@@ -65,11 +65,11 @@ public class ErpLookupController {
         }
     }
 
-    @GetMapping("/pending-orders/{erpOrderId}")
+    @GetMapping("/pending-orders/preview")
     @Operation(summary = "Preview a pending ERP order")
     public ResponseEntity<ErpPendingOrderPreviewDTO> getPendingOrderPreview(
             @RequestParam(defaultValue = "odoo") String erpProvider,
-            @PathVariable String erpOrderId) {
+            @RequestParam String erpOrderId) {
         try {
             ErpPendingOrderPreviewDTO preview = resolve(erpProvider)
                     .getPendingOrderPreview(erpOrderId);
@@ -88,6 +88,20 @@ public class ErpLookupController {
             return ResponseEntity.ok(resolve(erpProvider).getWarehouses());
         } catch (IllegalArgumentException e) {
             return ResponseEntity.ok(List.of());
+        }
+    }
+
+    @GetMapping("/picking-ref")
+    @Operation(summary = "Resolve a picking reference/name from its ERP id")
+    public ResponseEntity<java.util.Map<String, String>> getPickingRef(
+            @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestParam String pickingId) {
+        try {
+            String ref = resolve(erpProvider).getPickingRef(pickingId);
+            if (ref == null) return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(java.util.Map.of("ref", ref));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
         }
     }
 

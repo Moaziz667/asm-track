@@ -5,7 +5,9 @@ import { useLocaleStore } from '@/lib/i18n';
 export function formatMotif(motif?: string, copy?: any): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (motif ?? '').toUpperCase().trim();
-  if (key === 'SLA_UNSCHEDULED' || key.includes('SLA_UNSCHEDULED')) return resolvedCopy.dispatchDeskPage.motifSlaUnscheduled;
+  if (key === 'SLA_UNSCHEDULED_LATE') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduledLate;
+  if (key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduledToday;
+  if (key === 'SLA_UNSCHEDULED') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduled;
   if (key === 'SLA_SCHEDULED'   || key.includes('SLA_SCHEDULED'))   return resolvedCopy.dispatchDeskPage.motifSlaScheduled;
   if (key === 'SLA_PICKUP'      || key.includes('SLA_PICKUP'))      return resolvedCopy.dispatchDeskPage.motifSlaPickup;
   if (key === 'SLA_IN_TRANSIT'  || key.includes('SLA_IN_TRANSIT'))  return resolvedCopy.dispatchDeskPage.motifSlaInTransit;
@@ -44,7 +46,9 @@ export function formatComment(row: OpsException, copy?: any): string {
   const comment = row.comment ?? '';
   const key = (row.motif ?? '').toUpperCase().trim();
   const t = formatElapsed(row.createdAt, resolvedCopy);
-  if (key.includes('SLA_UNSCHEDULED')) return resolvedCopy.dispatchDeskPage.commentSlaUnscheduled.replace('{time}', t);
+  if (key === 'SLA_UNSCHEDULED_LATE')  return comment || resolvedCopy.dispatchDeskPage.commentSlaUnscheduledLate.replace('{time}', t);
+  if (key === 'SLA_UNSCHEDULED_TODAY') return comment || resolvedCopy.dispatchDeskPage.commentSlaUnscheduledToday;
+  if (key === 'SLA_UNSCHEDULED')       return resolvedCopy.dispatchDeskPage.commentSlaUnscheduled.replace('{time}', t);
   if (key.includes('SLA_SCHEDULED'))   return resolvedCopy.dispatchDeskPage.commentSlaScheduled.replace('{time}', t);
   if (key.includes('SLA_PICKUP'))      return resolvedCopy.dispatchDeskPage.commentSlaPickup.replace('{time}', t);
   if (key.includes('SLA_IN_TRANSIT'))  return resolvedCopy.dispatchDeskPage.commentSlaInTransit.replace('{time}', t);
@@ -64,6 +68,7 @@ export function formatComment(row: OpsException, copy?: any): string {
 export function formatSuggestion(row: OpsException, copy?: any): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (row.motif ?? '').toUpperCase().trim();
+  if (key === 'SLA_UNSCHEDULED_LATE' || key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduledLate;
   if (key.includes('SLA_UNSCHEDULED')) return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduled;
   if (key === 'SCHEDULED_MONITORING')  return resolvedCopy.dispatchDeskPage.suggestionScheduledMonitoring;
   if (key === 'WRONG_ADDRESS')         return resolvedCopy.dispatchDeskPage.suggestionWrongAddress;
@@ -88,7 +93,8 @@ export function needsReturnToDepot(motif?: string): boolean {
 export function formatShortDate(dateStr?: string): string {
   if (!dateStr) return '—';
   try {
-    return new Date(dateStr).toLocaleString('fr-FR', {
+    const locale = useLocaleStore.getState().locale || 'fr';
+    return new Date(dateStr).toLocaleString(locale === 'ar' ? 'ar-EG' : locale === 'en' ? 'en-US' : 'fr-FR', {
       day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
     });
   } catch { return dateStr.slice(0, 16); }

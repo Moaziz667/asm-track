@@ -78,7 +78,7 @@ export function StopRow({
     return (
       <div
         ref={isOverlay ? undefined : setNodeRef}
-        style={{ ...(isOverlay ? {} : style), borderLeft: `3px solid ${PICKUP_COLOR}` }}
+        style={{ ...(isOverlay ? {} : style) }}
         className="border-b border-[var(--border)] transition-colors w-full min-w-0 bg-[var(--surface-1)]"
         {...(isOverlay ? {} : attributes)}
         data-dragging={isDragging || undefined}

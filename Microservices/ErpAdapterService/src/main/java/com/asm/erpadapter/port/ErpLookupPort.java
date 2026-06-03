@@ -16,4 +16,7 @@ public interface ErpLookupPort {
 
     /** Source depots: the ERP's warehouses (Odoo {@code stock.warehouse}) with address/coordinates. */
     List<ErpWarehouseDTO> getWarehouses();
+
+    /** Resolve a picking's reference/name (e.g. "WH/OUT/00007") from its ERP id — used to link backorders. */
+    String getPickingRef(String pickingId);
 }

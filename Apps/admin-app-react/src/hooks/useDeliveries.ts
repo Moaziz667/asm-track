@@ -24,7 +24,7 @@ export function useDeliveries(params: {
   unpinned?: string;
 }) {
   return useQuery({
-    queryKey: [DELIVERIES_QUERY_KEY, params],
+    queryKey: ['deliveries', params],
     queryFn: async () => {
       const res = await api.get('/api/admin/deliveries', { params });
       return res.data;

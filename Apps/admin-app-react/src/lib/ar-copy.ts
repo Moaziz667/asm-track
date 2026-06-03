@@ -661,6 +661,9 @@ export const AR_COPY = {
     buttonRefresh: 'تحديث',
     // Active drivers section
     activeDriversLabel: 'في الخدمة',
+    driverOnline: 'متصل',
+    driverOnBreak: 'في استراحة',
+    driverOffline: 'غير متصل',
     // KPI strip
     kpiCritical: 'حرجة',
     kpiUnassigned: 'غير معينة',
@@ -672,6 +675,12 @@ export const AR_COPY = {
     tabFailed: 'فشلت',
     tabMissingGps: 'GPS مفقود',
     tabHandoff: 'التسليمات',
+    // شريط الإجراءات الجماعية
+    batchCount: '{count} مختارة',
+    batchMixedWarning: 'اختيار مختلط — اختر نوعًا واحدًا',
+    batchAssign: 'تعيين ({count})',
+    batchReassign: 'إعادة تعيين ({count})',
+    batchCancel: 'إلغاء',
     kpiUpdated: 'آخر تحديث',
     cardCreated: 'أُنشئت',
     handoffEmpty: 'لا توجد تسليمات جارية',
@@ -739,8 +748,9 @@ export const AR_COPY = {
     // Additional descriptions
     reasonLabel: 'السبب',
     noComment: 'لا توجد ملاحظات',
-    reprogrammationLabel: 'إعادة الجدولة',
+    reprogrammationLabel: 'إعادة جدولة',
     byLabel: 'من قبل',
+    scheduledDateLabel: 'التاريخ المجدول',
     // Motif labels (formatMotif)
     motifSlaUnscheduled: 'طلب غير مجدول',
     motifSlaScheduled: 'عالق في المستودع',
@@ -762,6 +772,8 @@ export const AR_COPY = {
     motifDelivered: 'تم التسليم',
     motifPartiallyDelivered: 'تم التسليم جزئياً',
     motifUnknown: 'حادثة غير معروفة',
+    motifSlaUnscheduledLate: 'متأخر (غير مجدول)',
+    motifSlaUnscheduledToday: 'مجدول اليوم',
     // Time elapsed (formatElapsed)
     timeJustNow: 'للتو',
     timeMinutes: '{diff} دقيقة',
@@ -782,11 +794,14 @@ export const AR_COPY = {
     commentFailed: 'فشل التسليم · منذ {time}',
     commentCancelled: 'تم الإلغاء منذ {time}',
     commentDefault: 'تم الإبلاغ عنه منذ {time}',
+    commentSlaUnscheduledLate: 'متأخر · {time}',
+    commentSlaUnscheduledToday: 'مجدول لليوم',
     // Suggestions (formatSuggestion)
     suggestionSlaUnscheduled: '→ جدولة في رحلة',
     suggestionScheduledMonitoring: '→ مراقبة — لا توجد إجراءات فورية',
     suggestionWrongAddress: '→ تصحيح العنوان في تفاصيل الطلب',
     suggestionOther: '→ التحقق من تعليق السائق',
+    suggestionSlaUnscheduledLate: '→ تعيين لرحلة عاجلة',
     // ReplanModal
     replanModalTitleReplan: 'إعادة جدولة للتخطيط',
     replanModalTitleReassign: 'إعادة تعيين التسليم',
@@ -795,6 +810,8 @@ export const AR_COPY = {
     replanModalLabelClient: 'العميل',
     replanModalWhatWillHappen: 'ماذا سيحدث؟',
     replanModalDescription: 'سيتم إزالة هذا التسليم من الرحلة الحالية{routeName} وإعادته إلى قائمة الانتظار. سيقوم المخطط بإعادة تعيينه إلى رحلة جديدة.',
+    replanModalScheduledLabel: 'تاريخ مجدول جديد',
+    replanModalScheduledHint: 'يحلّ محل تاريخ ERP القديم — يعتمد SLA التعيين على هذا التاريخ.',
     replanModalNoteLabel: 'ملاحظة (مطلوبة)',
     replanModalNoteHint: 'اشرح بإيجاز سبب قيامك بهذا الإجراء',
     replanModalNotePlaceholder: 'مثال: العميل غائب، عنوان خاطئ، السائق غير متاح…',
@@ -818,6 +835,7 @@ export const AR_COPY = {
     routeValidated: 'موثق',
     routeDraft: 'مسودة',
     noRouteAssigned: 'لا توجد رحلة مخصصة',
+    pageTitleFallback: 'التوزيع',
   },
 
   // ── ReassignDrawer ───────────────────────────────────────────────────────
@@ -925,6 +943,13 @@ export const AR_COPY = {
     labelUpdatedAt: 'تم التحديث',
     // Section: Driver & Route
     sectionDriverRoute: 'السائق والرحلة',
+    sectionFulfillment: 'الالتزام وسند التسليم',
+    scheduledLabel: 'التاريخ الموعود',
+    blNumberLabel: 'رقم سند التسليم',
+    sourceDepotLabel: 'المستودع المصدر',
+    viewBL: 'عرض سند التسليم',
+    rescheduledBadge: 'أُعيدت جدولته',
+    rescheduledTooltip: 'تاريخ أعاد المرسل جدولته (يحلّ محل تاريخ ERP)',
     labelDriver: 'السائق',
     labelRoute: 'الرحلة',
     seeRoute: 'عرض الرحلة',
@@ -975,6 +1000,11 @@ export const AR_COPY = {
     labelTimeWindow: 'نافذة التسليم',
     labelInstructions: 'التعليمات',
     labelNotes: 'ملاحظة',
+    pickupLabel: 'مستودع',
+    pickupTitle: 'تحميل — مستودع {depot}',
+    pickupLoadCount: '{count} طرود للتحميل',
+    pickupArrival: 'الوصول المتوقع',
+    pickupCompleted: 'تم تأكيد التحميل',
     labelDepot: 'المستودع',
     labelDeparture: 'المغادرة',
     noDepot: 'لا يوجد مستودع',
@@ -1084,7 +1114,7 @@ export const AR_COPY = {
     pillDone: 'تم استيراده بالفعل',
 
     // Table headers
-    headerReference: 'مرجع ERP',
+    headerReference: 'BL / مرجع ERP',
     headerCustomer: 'العميل',
     headerDestination: 'الوجهة',
     headerAmount: 'المبلغ',
@@ -1205,6 +1235,9 @@ export const AR_COPY = {
 
     // Orders table
     emptyOrdersState: 'لا توجد طلبات للاستيراد',
+    quickViewAll: 'الكل',
+    quickViewToday: 'اليوم',
+    quickViewThisWeek: 'هذا الأسبوع',
 
     // ValidationModal & Modals general
     finalReviewSubtitle: 'مراجعة نهائية',
@@ -1520,6 +1553,7 @@ export const AR_COPY = {
     statusEngaged: 'مشغول',
     statusAvailable: 'متاح',
     statusOutOfService: 'خارج الخدمة',
+    statusRetired: 'متقاعد',
     // Sidebar
     newVehicleButton: 'إضافة مورد',
     searchPlaceholder: 'بحث تقني...',
@@ -1560,10 +1594,15 @@ export const AR_COPY = {
     statusLabel: 'الحالة',
     operationalStatus: 'جاهز للعمل',
     // Delete modal
-    deleteTitle: 'حذف الأصل',
-    deleteDescription: 'هل أنت متأكد من أنك تريد إزالة المركبة {vehicleName} من الأسطول بشكل دائم؟',
-    deleteButton: 'تأكيد الإزالة',
+    deleteTitle: 'إحالة المركبة للتقاعد',
+    deleteDescription: 'هل أنت متأكد من إحالة المركبة {vehicleName} للتقاعد؟ يمكن إعادة تفعيلها لاحقاً.',
+    deleteButton: 'تأكيد الإحالة للتقاعد',
     deleteCancel: 'إلغاء',
+    // Retire/Reactivate
+    retireTitle: 'إحالة المركبة للتقاعد',
+    retireDescription: 'هل أنت متأكد من إحالة المركبة {vehicleName} للتقاعد؟ يمكن إعادة تفعيلها لاحقاً.',
+    retireButton: 'إحالة للتقاعد',
+    reactivateButton: 'إعادة تفعيل',
   },
 
   // ── صفحة المستودعات ──────────────────────────────────────────────────
@@ -1783,8 +1822,8 @@ export const AR_COPY = {
     primaryColor: 'اللون الأساسي',
     slaagreement: 'اتفاقية مستوى الخدمة (SLA)',
     slaDesc: 'حدود زمنية لحساب الامتثال التشغيلي.',
-    waitingTime: 'وقت الانتظار (Waiting)',
-    waitingTimeDesc: 'من لحظة إنشاء الطلب حتى تعيينه لسائق',
+    waitingTime: 'مهلة التعيين (قبل التاريخ المجدول)',
+    waitingTimeDesc: 'المهلة القصوى قبل التاريخ المجدول (Odoo) لتعيين الطلب لسائق. تنبيه إذا لم يُعيَّن في الوقت المناسب.',
     assignmentDelay: 'تأخير بدء المسار (Assign)',
     assignmentDelayDesc: 'من بدء المسار المخطط أو الفعلي حتى سحب الحزمة من المستودع',
     transitDelay: 'تأخير المغادرة (Pickup)',
@@ -1812,7 +1851,7 @@ export const AR_COPY = {
     setNewThreshold: 'تعيين حد أدنى جديد',
     slaBreachWarning: 'سيتم وضع علامة على أي عملية تسليم تتجاوز هذا الوقت كانتهاك SLA',
     recommendation: '💡 التوصية',
-    waitingRec: 'النطاق الشائع: 10-30 دقيقة. الوقت من إنشاء الطلب إلى تعيين السائق.',
+    waitingRec: 'النطاق الشائع: 60-180 دقيقة قبل التاريخ المجدول. يجب تعيين الطلب لسائق قبل هذا الحد.',
     assignmentRec: 'النطاق الشائع: 10-30 دقيقة. من بدء المسار إلى الاستلام من المستودع. مع الأخذ في الاعتبار تحضير السيارة والاختيار.',
     pickupRec: 'النطاق الشائع: 5-15 دقيقة. من الاستلام حتى المغادرة الفعلية. يسمح بالتحميل والفحوصات.',
     // Integration
@@ -1860,6 +1899,9 @@ export const AR_COPY = {
     quickViewInTransit: 'قيد النقل',
     quickViewCompleted: 'مسلمة',
     quickViewFailed: 'فشلت',
+    quickViewOverdue: 'متأخر',
+    quickViewToday: 'اليوم',
+    quickViewFuture: 'القادمة',
 
     // Table display
     displayLabel: 'العرض:',
@@ -1873,12 +1915,14 @@ export const AR_COPY = {
     driverHeader: 'السائق',
     zoneHeader: 'المنطقة',
     statusHeader: 'الحالة',
+    scheduledHeader: 'مجدول',
     actionsHeader: 'الإجراءات',
 
     // Table content
     unknownDriver: 'عنوان غير معروف',
     notAssigned: 'غير معين',
     outOfZone: 'المنطقة غير محددة',
+    unscheduled: 'غير مجدول',
 
     // Pagination
     pageLabel: 'صفحة',
@@ -2068,10 +2112,12 @@ export const AR_COPY = {
     // Vehicle CRUD
     successVehicleCreated: 'تم إنشاء المركبة بنجاح',
     successVehicleUpdated: 'تم تحديث المركبة بنجاح',
-    successVehicleDeleted: 'تم حذف المركبة بنجاح',
+    successVehicleDeleted: 'تم إحالة المركبة للتقاعد بنجاح',
+    successVehicleReactivated: 'تم إعادة تفعيل المركبة بنجاح',
     errorVehicleCreateFailed: 'فشل إنشاء المركبة',
     errorVehicleUpdateFailed: 'فشل تحديث المركبة',
-    errorVehicleDeleteFailed: 'فشل حذف المركبة',
+    errorVehicleDeleteFailed: 'فشل إحالة المركبة للتقاعد',
+    errorVehicleReactivateFailed: 'فشل إعادة تفعيل المركبة',
     errorVehiclesLoadFailed: 'فشل تحميل المركبات',
     errorVehiclePlateRequired: 'رقم لوحة المركبة مطلوب',
 
@@ -2216,6 +2262,24 @@ export const AR_COPY = {
         if (win) parts.push(win);
         if (p.driverName) parts.push(p.driverName);
         return parts.join(' · ');
+      },
+    },
+    'ROUTE_STARTED': {
+      title: 'انطلقت الجولة',
+      message: (p: any) => {
+        const n = Number(p.stopCount);
+        const parts = [`${p.driverName || 'السائق'} بدأ "${p.routeName || 'الجولة'}"`];
+        if (Number.isFinite(n) && n > 0) parts.push(_ar_stops(n));
+        return parts.join(' · ');
+      },
+    },
+    'PICKUP_CONFIRMED': {
+      title: 'تم تأكيد التحميل',
+      message: (p: any) => {
+        const n = Number(p.parcelCount);
+        const parcels = Number.isFinite(n) && n > 0 ? `${n} طرد` : 'الطرود';
+        const depot = p.depotName ? ` في مستودع ${p.depotName}` : '';
+        return `${p.driverName || 'السائق'} حمّل ${parcels}${depot} · "${p.routeName || 'الجولة'}"`;
       },
     },
     'route.schedule_changed': {

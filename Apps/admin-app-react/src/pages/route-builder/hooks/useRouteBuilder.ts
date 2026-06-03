@@ -118,6 +118,7 @@ export function useRouteBuilder() {
   const [routeWeightById, setRouteWeightById] = useState<Record<string, number>>({});
   const [confirmDeleteRouteId, setConfirmDeleteRouteId] = useState<string | null>(null);
   const [deliverySearch, setDeliverySearch] = useState(searchParam);
+  const [orderQuickView, setOrderQuickView] = useState<'all' | 'today' | 'thisWeek'>('all');
   const [optimizationStartTime, setOptimizationStartTime] = useState('08:00');
 
   // Phase 2: date filter, multi-select, batch optimize
@@ -341,6 +342,7 @@ export function useRouteBuilder() {
               itemsSummary: item?.itemsSummary ?? '',
               items: item?.items ?? [],
               createdAt: item?.createdAt,
+              scheduledAt: item?.scheduledAt ?? item?.delivery?.scheduledAt ?? item?.order?.scheduledAt,
               status: item?.status ?? item?.delivery?.status ?? item?.order?.status ?? '',
               warehouseCode: item?.warehouseCode ?? item?.order?.warehouseCode ?? null,
               sourceDepotId: item?.sourceDepotId ?? item?.delivery?.sourceDepotId ?? item?.order?.sourceDepotId ?? null,
@@ -396,6 +398,8 @@ export function useRouteBuilder() {
   useEffect(() => {
     const next: Record<string, StopWindowDraft> = {};
     selectedRouteStops.forEach((stop) => {
+      // PICKUP stops are system-reconciled — they carry no time window.
+      if (stop.stopType === 'PICKUP') return;
       next[stop.id] = {
         startTime: toShortTime(stop.startTimeWindow) || toShortTime(selectedRoute?.plannedStartTime) || '08:00',
         endTime: toShortTime(stop.endTimeWindow) || toShortTime(selectedRoute?.plannedEndTime) || '18:00',
@@ -555,13 +559,20 @@ export function useRouteBuilder() {
     if (!routeIdToUse) { showErrorToast(null, t.routeBuilderPage.toastSelectRouteFirst); return; }
     if (selectedOrderIds.length === 0) { showErrorToast(null, t.routeBuilderPage.toastNoOrderSelected); return; }
 
+    // Hard-block: a delivery whose ERP warehouse has no synced depot cannot be routed.
+    const mappedIds = selectedOrderIds.filter((id) => {
+      const d = waitingMap.get(id);
+      return !d || !(d.warehouseCode && !d.sourceDepotId);
+    });
+    if (mappedIds.length === 0) { showErrorToast(null, t.routeBuilderPage.unmappedDepotChip); return; }
+
     try {
       setBatchAssigning(true);
       const assignedIds: string[] = [];
       const targetStops = routes.find((r) => r.id === routeIdToUse)?.stops ?? [];
       let nextStopOrder = targetStops.length + 1;
 
-      for (const deliveryId of selectedOrderIds) {
+      for (const deliveryId of mappedIds) {
         try {
           await assignDeliveryToRoute(routeIdToUse, deliveryId);
           const delivery = waitingMap.get(deliveryId);
@@ -797,7 +808,8 @@ export function useRouteBuilder() {
   const saveStopWindows = async () => {
     if (!selectedRoute || selectedRoute.status !== 'DRAFT') return;
 
-    const ordered = [...selectedRouteStops];
+    // Pickups are reconciled server-side; only delivery stops carry windows + ids.
+    const ordered = selectedRouteStops.filter((s) => s.stopType !== 'PICKUP');
     let prevEnd = toShortTime(selectedRoute.plannedStartTime) || '08:00';
     for (const stop of ordered) {
       const w = stopWindows[stop.id];
@@ -861,7 +873,8 @@ export function useRouteBuilder() {
       }
     }
 
-    const ordered = [...selectedRouteStops];
+    // Pickups are reconciled server-side; only delivery stops carry windows + ids.
+    const ordered = selectedRouteStops.filter((s) => s.stopType !== 'PICKUP');
     const timeBounds = derivePlannedBounds(selectedRoute, ordered, stopWindows);
 
     const payload = {
@@ -1131,10 +1144,13 @@ export function useRouteBuilder() {
 
   const computeChronologicalViolations = (
     departureTime: string,
-    stops: RouteStop[],
+    allStops: RouteStop[],
     configs: Record<string, StopWindowDraft>,
   ): Record<string, string | null> => {
     const violations: Record<string, string | null> = {};
+    // PICKUP stops are system-managed (default 08:00–18:00 windows) — exclude them from the
+    // delivery time-window chain so a depot pickup's end window never blocks a delivery.
+    const stops = allStops.filter((s) => s.stopType !== 'PICKUP');
     for (let i = 0; i < stops.length; i++) {
       const stopId = stops[i].id;
       const cfg = configs[stopId];
@@ -1188,6 +1204,7 @@ export function useRouteBuilder() {
   const hasChronoViolation = Object.values(chronoViolations).some(Boolean);
   
   const missingWindowCount = selectedRouteStops.filter((stop) => {
+    if (stop.stopType === 'PICKUP') return false; // pickups are auto-created, not window-validated
     const cfg = stopWindows[stop.id];
     return !(cfg && cfg.startTime && cfg.endTime);
   }).length;
@@ -1195,17 +1212,54 @@ export function useRouteBuilder() {
   const canValidate = missingWindowCount === 0 && !hasChronoViolation;
 
   const filteredDeliveries = useMemo(() => {
-    if (!deliverySearch.trim()) return waitingDeliveries;
-    const q = deliverySearch.toLowerCase();
-    return waitingDeliveries.filter((d) =>
-      (d.clientName ?? '').toLowerCase().includes(q) ||
-      (d.dropoffAddress ?? '').toLowerCase().includes(q) ||
-      (d.dropoffCity ?? '').toLowerCase().includes(q) ||
-      (d.erpOrderId ?? '').toLowerCase().includes(q) ||
-      (d.orderRef ?? '').toLowerCase().includes(q) ||
-      (d.id ?? '').toLowerCase().includes(q),
-    );
-  }, [waitingDeliveries, deliverySearch]);
+    let result = waitingDeliveries;
+
+    // Text search
+    if (deliverySearch.trim()) {
+      const q = deliverySearch.toLowerCase();
+      result = result.filter((d) =>
+        (d.clientName ?? '').toLowerCase().includes(q) ||
+        (d.dropoffAddress ?? '').toLowerCase().includes(q) ||
+        (d.dropoffCity ?? '').toLowerCase().includes(q) ||
+        (d.erpOrderId ?? '').toLowerCase().includes(q) ||
+        (d.orderRef ?? '').toLowerCase().includes(q) ||
+        (d.id ?? '').toLowerCase().includes(q),
+      );
+    }
+
+    // Date quick view
+    if (orderQuickView !== 'all') {
+      const now = new Date();
+      // Use local date (matches DeliveriesPage behaviour)
+      const localDate = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+      if (orderQuickView === 'today') {
+        result = result.filter((d) => {
+          const dateToCheck = d.scheduledAt ?? d.createdAt;
+          return !!dateToCheck && dateToCheck.slice(0, 10) === localDate;
+        });
+      } else if (orderQuickView === 'thisWeek') {
+        // Build local-tz week boundaries using the same local‑date trick
+        const localNow = new Date(now.getTime() - now.getTimezoneOffset() * 60000);
+        const localDay = localNow.getUTCDay();
+        const mondayOffset = localDay === 0 ? -6 : 1 - localDay;
+        const weekStart = new Date(Date.UTC(localNow.getUTCFullYear(), localNow.getUTCMonth(), localNow.getUTCDate() + mondayOffset));
+        const weekEnd = new Date(weekStart);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        const weekStartStr = weekStart.toISOString().slice(0, 10);
+        const weekEndStr = weekEnd.toISOString().slice(0, 10);
+
+        result = result.filter((d) => {
+          const dateToCheck = d.scheduledAt ?? d.createdAt;
+          if (!dateToCheck) return false;
+          const dStr = dateToCheck.slice(0, 10);
+          return dStr >= weekStartStr && dStr <= weekEndStr;
+        });
+      }
+    }
+
+    return result;
+  }, [waitingDeliveries, deliverySearch, orderQuickView]);
 
   const suggestionEtaRows = useMemo(() => {
     if (!suggestion || !selectedRoute) return [];
@@ -1241,12 +1295,18 @@ export function useRouteBuilder() {
         // Advance clock by service time before next leg
         currentTime.setMinutes(currentTime.getMinutes() + SERVICE_MINUTES);
 
+        const isPickup = routeStop?.stopType === 'PICKUP';
+
         return {
           key: etaStop.stopId,
           sequenceOrder: etaStop.sequenceOrder,
-          clientName: delivery?.clientName?.trim() ? delivery.clientName : (routeStop?.deliveryId ? routeStop.deliveryId.slice(0, 8).toUpperCase() : 'Stop'),
-          dropoffAddress: delivery?.dropoffAddress ?? '',
-          dropoffCity: delivery?.dropoffCity ?? '',
+          stopType: routeStop?.stopType,
+          sourceDepotName: routeStop?.sourceDepotName ?? undefined,
+          clientName: isPickup
+            ? (routeStop?.sourceDepotName ?? '')
+            : (delivery?.clientName?.trim() ? delivery.clientName : (routeStop?.deliveryId ? routeStop.deliveryId.slice(0, 8).toUpperCase() : 'Stop')),
+          dropoffAddress: isPickup ? '' : (delivery?.dropoffAddress ?? ''),
+          dropoffCity: isPickup ? '' : (delivery?.dropoffCity ?? ''),
           etaAt: arrivalISO,
           suggestedStart,
           suggestedEnd,
@@ -1319,6 +1379,8 @@ export function useRouteBuilder() {
     setShowSuggestionTrajet,
     setConfirmDeleteRouteId,
     setDeliverySearch,
+    orderQuickView,
+    setOrderQuickView,
     optimizationStartTime,
     setOptimizationStartTime,
     setCreateForm,

@@ -128,7 +128,7 @@ public class ErpController {
 
     // ── Order Preview ─────────────────────────────────────────────────────────
 
-    @GetMapping("/pending-orders/{erpOrderId}")
+    @GetMapping("/pending-orders/preview")
     @Operation(
         summary = "Preview a pending ERP order",
         description = """
@@ -145,15 +145,15 @@ public class ErpController {
         @ApiResponse(responseCode = "404", description = "Order not found in ERP", content = @Content)
     })
     public ResponseEntity<ErpPendingOrderPreviewDTO> getPendingOrderPreview(
-            @Parameter(description = "ERP order reference (e.g. S-00042)", example = "S-00042", required = true)
-            @PathVariable @Size(min = 1, max = 100) String erpOrderId
+            @Parameter(description = "ERP order reference (e.g. WH/OUT/00042)", example = "WH/OUT/00042", required = true)
+            @RequestParam @Size(min = 1, max = 100) String erpOrderId
     ) {
         return ResponseEntity.ok(erpLookupService.getPendingOrderPreview(erpOrderId));
     }
 
     // ── Single Import ─────────────────────────────────────────────────────────
 
-    @PostMapping("/import-order/{erpOrderId}")
+    @PostMapping("/import-order")
     @Operation(
         summary = "Import a single ERP order",
         description = """
@@ -176,8 +176,8 @@ public class ErpController {
         @ApiResponse(responseCode = "503", description = "ERP adapter unreachable", content = @Content)
     })
     public ResponseEntity<com.asm.delivery.dto.response.OrderResponse> importOrder(
-            @Parameter(description = "ERP order reference (e.g. S-00042)", example = "S-00042", required = true)
-            @PathVariable @Size(min = 1, max = 100) String erpOrderId
+            @Parameter(description = "ERP order reference (e.g. WH/OUT/00042)", example = "WH/OUT/00042", required = true)
+            @RequestParam @Size(min = 1, max = 100) String erpOrderId
     ) {
         return ResponseEntity.ok(erpLookupService.importPendingOrder(erpOrderId));
     }

@@ -428,6 +428,33 @@ function RouteBuilderMapInner({
     return Array.from(byId.values());
   }, [routes, highlightedRouteId]);
 
+  // Phase-colored legs for the highlighted route: a straight "spine" from the home depot
+  // through each stop, where pickup legs (→ a source depot) are cyan and delivery legs use
+  // the route colour. Makes the loading phase visually distinct from the delivery phase.
+  const phaseLegs = useMemo(() => {
+    if (!highlightedRouteId) return [] as { id: string; points: [number, number][]; pickup: boolean }[];
+    const route = routes.find((r) => r.id === highlightedRouteId);
+    if (!route) return [];
+    const ordered = [...(route.stops ?? [])].sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0));
+    const coordOf = (s: typeof ordered[number]): [number, number] | null => {
+      if (s.stopType === 'PICKUP') {
+        return (typeof s.sourceDepotLat === 'number' && typeof s.sourceDepotLng === 'number')
+          ? [s.sourceDepotLat, s.sourceDepotLng] : null;
+      }
+      return (typeof s.dropoffLat === 'number' && typeof s.dropoffLng === 'number')
+        ? [s.dropoffLat, s.dropoffLng] : null;
+    };
+    const segs: { id: string; points: [number, number][]; pickup: boolean }[] = [];
+    let prev: [number, number] | null = (depot && Number.isFinite(depot.latitude) && Number.isFinite(depot.longitude))
+      ? [depot.latitude, depot.longitude] : null;
+    for (const s of ordered) {
+      const c = coordOf(s);
+      if (prev && c) segs.push({ id: s.id, points: [prev, c], pickup: s.stopType === 'PICKUP' });
+      if (c) prev = c;
+    }
+    return segs;
+  }, [routes, highlightedRouteId, depot]);
+
   const suggestedGeometryPoints = useMemo(() => {
     const parsed = parseGeometry(suggestedRouteGeometry);
     if (parsed.length > 1) return parsed;
@@ -581,6 +608,18 @@ function RouteBuilderMapInner({
             />
           );
         })}
+
+        {/* Pickup phase legs (cyan dashed) — the "loading" legs to source depots on the highlighted route */}
+        {showRouteTrajet && phaseLegs.filter((l) => l.pickup).map((leg) => (
+          <Polyline
+            key={`phase-${leg.id}`}
+            positions={leg.points}
+            color="#0891B2"
+            weight={4}
+            opacity={0.9}
+            dashArray="6, 8"
+          />
+        ))}
 
         {/* Suggested/preview route — dashed black */}
         {suggestedGeometryPoints.length > 1 && (

@@ -23,6 +23,7 @@ import {
   IconRoute,
   IconFilter,
   IconMapPin,
+  IconFileText,
   IconClock,
   IconUser,
   IconCheck,
@@ -30,7 +31,6 @@ import {
   IconScan,
   IconAlertCircle,
   IconLink,
-  IconFileText,
   IconMap2,
   IconTruck,
   IconChevronLeft,
@@ -64,7 +64,7 @@ function cleanTunisianAdminName(name: string | null | undefined): string {
 
 const RouteTrackingMap = dynamic(() => import('@/components/RouteTrackingMap'));
 
-type QuickView = 'all' | 'needsPinning' | 'unassigned' | 'inTransit' | 'completed' | 'failed';
+type QuickView = 'all' | 'needsPinning' | 'unassigned' | 'inTransit' | 'completed' | 'failed' | 'overdue' | 'today' | 'future';
 type DeliveryRow = Delivery & { rowId: string };
 
 const DELIVERY_STATUSES: Array<{ value: string; label: string }> = [
@@ -115,6 +115,10 @@ function DeliveriesPageContent() {
   const [driverId, setDriverId] = useState(globalFilters.driver);
   const [zoneId, setZoneId] = useState(globalFilters.zone);
   const [quickView, setQuickView] = useState<QuickView>('all');
+  const [sortAsc, setSortAsc] = useState(false);
+  const [groupByClient, setGroupByClient] = useState(false);
+  const [groupByZone, setGroupByZone] = useState(false);
+  const [groupByStatus, setGroupByStatus] = useState(false);
 
   // Pin modal state
   const [pinModal, setPinModal] = useState<{ deliveryId: string; clientName: string; address: string; city: string; locked: boolean } | null>(null);
@@ -236,28 +240,72 @@ function DeliveriesPageContent() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((item: DeliveryRow) => {
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
+    let result = rows.filter((item: DeliveryRow) => {
+      const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
+      const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+
       if (quickView === 'needsPinning') return !item.dropoffPinned;
       if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
       if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT') return false;
       if (quickView === 'completed' && item.status !== 'DELIVERED') return false;
       if (quickView === 'failed' && !['FAILED','CANCELLED'].includes(item.status)) return false;
+      if (quickView === 'overdue') return isPending && scheduledDate && scheduledDate < todayStr;
+      if (quickView === 'today') return isPending && scheduledDate === todayStr;
+      if (quickView === 'future') return isPending && scheduledDate && scheduledDate > todayStr;
+      
       if (!q) return true;
       return [item.rowId, item.orderId, item.erpOrderId, item.orderRef, item.erpId, item.clientName, item.dropoffCity, item.driverName, item.routeName, item.status]
         .some(v => String(v ?? '').toLowerCase().includes(q));
     });
-  }, [query, quickView, rows]);
+
+    // Sort layers: status → zone → client → createdAt (stacked group-by toggles)
+    result.sort((a: DeliveryRow, b: DeliveryRow) => {
+      if (groupByStatus) {
+        const cmp = (a.status ?? '').localeCompare(b.status ?? '');
+        if (cmp !== 0) return cmp;
+      }
+      if (groupByZone) {
+        const cmp = (a.zoneName ?? '').localeCompare(b.zoneName ?? '');
+        if (cmp !== 0) return cmp;
+      }
+      if (groupByClient) {
+        const cmp = (a.clientName ?? '').localeCompare(b.clientName ?? '');
+        if (cmp !== 0) return cmp;
+      }
+      const da = a.createdAt ?? '';
+      const db = b.createdAt ?? '';
+      const cmp = da.localeCompare(db);
+      return sortAsc ? cmp : -cmp;
+    });
+
+    return result;
+  }, [query, quickView, rows, sortAsc, groupByClient, groupByZone, groupByStatus]);
 
   const quickCounts = useMemo(() => {
     let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0;
+    let overdue = 0, today = 0, future = 0;
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+
     rows.forEach((item: DeliveryRow) => {
       if (!item.dropoffPinned) needsPinning++;
       if (!item.driverId) unassigned++;
       if (item.status === 'IN_TRANSIT') inTransit++;
       if (item.status === 'DELIVERED') completed++;
       if (['FAILED','CANCELLED'].includes(item.status)) failed++;
+
+      const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+      const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
+      if (isPending && scheduledDate) {
+        if (scheduledDate < todayStr) overdue++;
+        else if (scheduledDate === todayStr) today++;
+        else future++;
+      }
     });
-    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed };
+    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future };
   }, [rows]);
 
   const openPinModal = async (item: DeliveryRow) => {
@@ -477,7 +525,7 @@ function DeliveriesPageContent() {
                 label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.dateLabel}</span>}
                 type="date"
                 value={date}
-                onChange={(e) => { setPage(0); setDate(e.currentTarget.value); }}
+                onChange={(e) => { setPage(0); setDate(e.currentTarget.value); setQuickView('all'); }}
                 className="h-9 text-[12px]"
               />
 
@@ -507,6 +555,9 @@ function DeliveriesPageContent() {
               <div className="flex flex-col gap-1">
                 {[
                   { id: 'all', label: t.deliveriesPage.totalFlow, count: quickCounts.all, color: 'var(--text-primary)', icon: <IconScan size={14} /> },
+                  { id: 'overdue', label: t.deliveriesPage.quickViewOverdue, count: quickCounts.overdue, color: '#EF4444', icon: <IconClock size={14} /> },
+                  { id: 'today', label: t.deliveriesPage.quickViewToday, count: quickCounts.today, color: '#F59E0B', icon: <IconClock size={14} /> },
+                  { id: 'future', label: t.deliveriesPage.quickViewFuture, count: quickCounts.future, color: '#3B82F6', icon: <IconClock size={14} /> },
                   { id: 'needsPinning', label: t.deliveriesPage.quickViewNeedsPinning, count: quickCounts.needsPinning, color: '#EF4444', icon: <IconMapPin size={14} /> },
                   { id: 'unassigned', label: t.deliveriesPage.quickViewUnassigned, count: quickCounts.unassigned, color: '#F59E0B', icon: <IconRoute size={14} /> },
                   { id: 'inTransit', label: t.deliveriesPage.quickViewInTransit, count: quickCounts.inTransit, color: '#3B82F6', icon: <IconTruck size={14} /> },
@@ -516,7 +567,7 @@ function DeliveriesPageContent() {
                   <button
                     type="button"
                     key={capsule.id}
-                    onClick={() => setQuickView(capsule.id as QuickView)}
+                    onClick={() => { setQuickView(capsule.id as QuickView); if (['overdue','today','future'].includes(capsule.id)) setDate(''); setPage(0); }}
                     className={cn(
                       "px-3 py-2.5 rounded-[2px] transition-all flex items-center justify-between group",
                       quickView === capsule.id
@@ -576,11 +627,32 @@ function DeliveriesPageContent() {
                   <thead className="sticky top-0 z-20 bg-[var(--surface)] border-b border-[var(--border)]">
                     <tr>
                       <th className="w-2 px-0"></th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.refHeader}</th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}</th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.statusHeader}</th>
+                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                        <button onClick={() => setSortAsc(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                          {t.deliveriesPage.refHeader}
+                          <span className="text-[9px]">{sortAsc ? '▲' : '▼'}</span>
+                        </button>
+                      </th>
+                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                        <button onClick={() => setGroupByClient(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                          {t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}
+                          <span className="text-[9px]">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                        </button>
+                      </th>
+                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.scheduledHeader}</th>
+                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                        <button onClick={() => setGroupByStatus(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                          {t.deliveriesPage.statusHeader}
+                          <span className="text-[9px]">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                        </button>
+                      </th>
                       <th className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</th>
-                      <th className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.zoneHeader}</th>
+                      <th className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">
+                        <button onClick={() => setGroupByZone(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                          {t.deliveriesPage.zoneHeader}
+                          <span className="text-[9px]">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                        </button>
+                      </th>
                       <th className="h-10 px-6 text-right text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
                     </tr>
                   </thead>
@@ -635,6 +707,44 @@ function DeliveriesPageContent() {
                                 <span className="text-[10px] font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
                               </div>
                             </div>
+                          </td>
+
+                          <td className="px-6">
+                            {(() => {
+                              if (!item.scheduledAt) {
+                                return <span className="text-[11px] text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
+                              }
+                              const scheduledDate = item.scheduledAt.split('T')[0];
+                              const now = new Date();
+                              const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                              const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+                              
+                              let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
+                              if (isPending) {
+                                if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
+                                else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
+                                else colorClass = 'text-[#3B82F6] bg-blue-50 border-blue-200';
+                              }
+
+                              return (
+                                <div className="inline-flex items-center gap-1">
+                                  <span className={cn("text-[11px] font-bold", colorClass.split(' ')[0])}>
+                                    {new Date(item.scheduledAt).toLocaleDateString('fr-FR')}
+                                    <span className="mr-0.5">,</span>
+                                    {new Date(item.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                  </span>
+                                  {item.rescheduledAt && (
+                                    <span
+                                      title={t.deliveryPage.rescheduledTooltip}
+                                      className="text-[9px] font-bold px-1 py-0.5 rounded-[2px]"
+                                      style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
+                                    >
+                                      {t.deliveryPage.rescheduledBadge}
+                                    </span>
+                                  )}
+                                </div>
+                              );
+                            })()}
                           </td>
 
                           <td className="px-6">
@@ -706,6 +816,23 @@ function DeliveriesPageContent() {
                                         <TooltipContent>{t.deliveriesPage.tooltipRepin}</TooltipContent>
                                       </Tooltip>
                                     ) : null}
+
+                                    {/* Bon de livraison (ERP PDF) */}
+                                    {item.blNumber && (
+                                      <Tooltip>
+                                        <TooltipTrigger asChild>
+                                          <button
+                                            type="button"
+                                            className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                                            style={{ color: 'var(--brand)' }}
+                                            onClick={(e) => { e.stopPropagation(); window.open(`/api/admin/deliveries/${item.id}/bon-livraison`, '_blank'); }}
+                                          >
+                                            <IconFileText size={14} />
+                                          </button>
+                                        </TooltipTrigger>
+                                        <TooltipContent>{t.deliveryPage.viewBL}</TooltipContent>
+                                      </Tooltip>
+                                    )}
 
                                     {/* Route */}
                                     {item.routeName && (

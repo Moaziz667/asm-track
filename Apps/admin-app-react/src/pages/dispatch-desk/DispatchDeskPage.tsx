@@ -13,7 +13,7 @@ import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { ReassignDrawer } from '@/components/overlays/ReassignDrawer';
 import { cn } from '@/lib/utils';
 
-import { STATUS_DOT, STATUS_TIP, REPLANNABLE_STATUSES, REASSIGNABLE_STATUSES } from './constants';
+import { STATUS_DOT, getDriverStatusTip, REPLANNABLE_STATUSES, REASSIGNABLE_STATUSES } from './constants';
 import type { OpsException } from './types';
 import { formatMotif, formatComment, formatSuggestion } from './formatters';
 import { rowId } from './utils';
@@ -38,6 +38,8 @@ function DispatchDeskContentInner() {
     pendingAction,
     actionNote,
     setActionNote,
+    replanScheduledAt,
+    setReplanScheduledAt,
     confirmAction,
     resetActionState,
     returnTarget,
@@ -126,6 +128,8 @@ function DispatchDeskContentInner() {
           pendingAction={pendingAction}
           actionNote={actionNote}
           onNoteChange={setActionNote}
+          scheduledAt={replanScheduledAt}
+          onScheduledAtChange={setReplanScheduledAt}
           onConfirm={confirmAction}
           onCancel={resetActionState}
           loading={!!runningAction}
@@ -212,7 +216,7 @@ function DispatchDeskContentInner() {
                         {r.driverPhone && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{r.driverPhone}</p>}
                       </div>
                       <span className="text-[10px] font-[500] ml-auto" style={{ color: 'var(--text-muted)' }}>
-                        {STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}
+                        {getDriverStatusTip(driver?.onlineStatus, t)}
                       </span>
                     </div>
                   </div>

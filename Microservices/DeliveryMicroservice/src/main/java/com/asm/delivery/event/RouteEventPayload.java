@@ -25,7 +25,12 @@ public class RouteEventPayload {
     private LocalTime plannedEndTime;
     
     private Integer stopCount;
-    private String clientName; 
-    private String erpOrderId; 
-    private String reason; 
+    private String clientName;
+    private String erpOrderId;
+    private String reason;
+
+    // Pickup-confirmed / route-started precise info
+    private String depotName;
+    private Integer parcelCount;
+    private java.time.LocalDateTime occurredAt;
 }

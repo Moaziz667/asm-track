@@ -16,6 +16,11 @@ export type ErpPendingOrderSummaryDTO = {
   alreadyImported: boolean
   existingDeliveryId?: string
   existingBackorderId?: number
+  blNumber?: string
+  saleOrderRef?: string
+  warehouseCode?: string
+  warehouseName?: string
+  ready?: boolean
 }
 
 export interface ErpPendingOrderPreviewDTO extends ErpPendingOrderSummaryDTO {

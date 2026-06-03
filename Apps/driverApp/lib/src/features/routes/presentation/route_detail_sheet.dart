@@ -257,6 +257,37 @@ class _ReadOnlyStopRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+
+    if (stop.isPickup) {
+      const pickup = Color(0xFF0891B2);
+      return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: cs.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: pickup.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 28,
+              height: 28,
+              decoration: BoxDecoration(color: pickup.withValues(alpha: 0.12), borderRadius: BorderRadius.circular(7)),
+              child: const Icon(Icons.warehouse_outlined, size: 15, color: pickup),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Chargement — Dépôt ${stop.sourceDepotName ?? ''}'.trim(),
+                style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w700, color: pickup),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     final Color dotColor;
     switch (stop.status) {
       case DriverRouteStopStatus.arrived:

@@ -5,9 +5,9 @@ import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import {
   IconRefresh, IconPlus, IconSearch,
-  IconTruck, IconCar, IconUserCheck, IconGasStation,
+  IconTruck, IconCar, IconUserCheck,
   IconWeight, IconCalendar, IconPencil, IconTrash,
-  IconGauge, IconSettings, IconX,
+  IconGauge, IconX,
   IconPoint, IconPackage
 } from '@tabler/icons-react';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
@@ -25,6 +25,7 @@ import {
   useCreateVehicle,
   useUpdateVehicle,
   useDeleteVehicle,
+  useReactivateVehicle,
   VehicleItem
 } from '@/hooks/useVehicles';
 
@@ -68,6 +69,7 @@ function VehicleTechnicalCard({
   driverName,
   onEdit,
   onDelete,
+  onReactivate,
   readOnly,
   canEdit,
 }: {
@@ -75,6 +77,7 @@ function VehicleTechnicalCard({
   driverName?: string;
   onEdit: (v: VehicleItem) => void;
   onDelete: (v: VehicleItem) => void;
+  onReactivate: (v: VehicleItem) => void;
   readOnly: boolean;
   canEdit: boolean;
 }) {
@@ -85,13 +88,17 @@ function VehicleTechnicalCard({
     CAR:   t.vehiclesPage.vehicleTypeCar,
     MOTO:  t.vehiclesPage.vehicleTypeMoto,
   };
+  const isRetired = !vehicle.active;
   const isBusy = vehicle.assigned ?? Boolean(vehicle.driverId);
-  const statusColor = vehicle.active ? (isBusy ? '#4C56B8' : '#2D8A5E') : '#A52B24';
-  const statusLabel = vehicle.active ? (isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable) : t.vehiclesPage.statusOutOfService;
-  const dotColor = vehicle.active ? (isBusy ? '#4C56B8' : '#2D8A5E') : '#A52B24';
+  const statusColor = isRetired ? '#A52B24' : (isBusy ? '#4C56B8' : '#2D8A5E');
+  const statusLabel = isRetired ? t.vehiclesPage.statusRetired : (isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable);
+  const dotColor = statusColor;
 
   return (
-    <Card className="group relative overflow-hidden flex flex-col transition-all hover:shadow-md border-border bg-card p-0 gap-0 rounded-lg">
+    <Card className={cn(
+      "group relative overflow-hidden flex flex-col transition-all hover:shadow-md border-border bg-card p-0 gap-0 rounded-lg",
+      isRetired && "opacity-60"
+    )}>
       {/* Status ribbon */}
       <div className="absolute left-0 top-0 bottom-0 w-[3px] z-10" style={{ background: statusColor }} />
 
@@ -115,6 +122,15 @@ function VehicleTechnicalCard({
             {typeLabel[vehicle.type]}
           </span>
         </div>
+
+        {/* Retired badge */}
+        {isRetired && (
+          <div className="absolute top-3 right-3">
+            <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-red-500/10 text-red-600 border border-red-500/20">
+              {t.vehiclesPage.statusRetired}
+            </span>
+          </div>
+        )}
       </div>
 
       <CardContent className="flex flex-col gap-4 p-4 flex-1">
@@ -130,8 +146,8 @@ function VehicleTechnicalCard({
               className="text-[11px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 whitespace-nowrap border"
               style={{
                 color: dotColor,
-                background: vehicle.active ? (isBusy ? 'rgba(94,106,210,0.09)' : 'rgba(76,175,130,0.09)') : 'rgba(199,55,47,0.09)',
-                borderColor: vehicle.active ? (isBusy ? 'rgba(94,106,210,0.15)' : 'rgba(76,175,130,0.15)') : 'rgba(199,55,47,0.15)',
+                background: isRetired ? 'rgba(199,55,47,0.09)' : (isBusy ? 'rgba(94,106,210,0.09)' : 'rgba(76,175,130,0.09)'),
+                borderColor: isRetired ? 'rgba(199,55,47,0.15)' : (isBusy ? 'rgba(94,106,210,0.15)' : 'rgba(76,175,130,0.15)'),
               }}
             >
               <span
@@ -198,24 +214,39 @@ function VehicleTechnicalCard({
         <div className="flex items-center gap-1.5">
           {!readOnly && canEdit && (
             <div className="flex gap-1 mr-1">
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8"
-                onClick={() => onEdit(vehicle)}
-              >
-                <IconPencil size={15} className="text-muted-foreground" />
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon"
-                className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
-                onClick={() => onDelete(vehicle)}
-              >
-                <IconTrash size={15} />
-              </Button>
+              {isRetired ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-8 px-3 text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                  onClick={() => onReactivate(vehicle)}
+                >
+                  <IconRefresh size={14} className="mr-1" />
+                  {t.vehiclesPage.reactivateButton}
+                </Button>
+              ) : (
+                <>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8"
+                    onClick={() => onEdit(vehicle)}
+                  >
+                    <IconPencil size={15} className="text-muted-foreground" />
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="w-8 h-8 hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors"
+                    onClick={() => onDelete(vehicle)}
+                  >
+                    <IconTrash size={15} />
+                  </Button>
+                </>
+              )}
             </div>
           )}
           <div className="w-8 h-8 flex items-center justify-center rounded-md bg-background border shadow-sm">
@@ -247,6 +278,7 @@ function VehiclesPageContent() {
   const createVehicleMutation = useCreateVehicle();
   const updateVehicleMutation = useUpdateVehicle();
   const deleteVehicleMutation = useDeleteVehicle();
+  const reactivateVehicleMutation = useReactivateVehicle();
 
   const loading = loadingVehicles || loadingDrivers;
   const fetchData = useCallback(async () => {
@@ -278,9 +310,10 @@ function VehiclesPageContent() {
         v.model.toLowerCase().includes(searchTerm.toLowerCase()) ||
         v.plate.toLowerCase().includes(searchTerm.toLowerCase());
       const isBusy = v.assigned ?? Boolean(v.driverId);
-      if (statusFilter === 'ACTIVE') return matchesSearch && v.active;
+      if (statusFilter === 'ACTIVE') return matchesSearch && v.active && !isBusy;
       if (statusFilter === 'BUSY') return matchesSearch && v.active && isBusy;
-      if (statusFilter === 'MAINTENANCE') return matchesSearch && !v.active;
+      if (statusFilter === 'MAINTENANCE') return matchesSearch && v.active && !v.active;
+      if (statusFilter === 'RETIRED') return matchesSearch && !v.active;
       return matchesSearch;
     });
   }, [vehicles, searchTerm, statusFilter]);
@@ -289,8 +322,9 @@ function VehiclesPageContent() {
     const total = vehicles.length;
     const active = vehicles.filter(v => v.active).length;
     const busy = vehicles.filter(v => v.active && (v.assigned ?? Boolean(v.driverId))).length;
+    const retired = vehicles.filter(v => !v.active).length;
     const tonnage = vehicles.reduce((acc, v) => acc + (v.payloadKg || 0), 0);
-    return { total, active, busy, tonnage };
+    return { total, active, busy, retired, tonnage };
   }, [vehicles]);
 
   const resetForm = () => {
@@ -349,6 +383,14 @@ function VehiclesPageContent() {
       await deleteVehicleMutation.mutateAsync(pendingDelete.id);
       setConfirmOpen(false);
       setPendingDelete(null);
+    } catch (err) {
+      // Errors are handled by query mutation callbacks
+    }
+  };
+
+  const reactivateVehicle = async (v: VehicleItem) => {
+    try {
+      await reactivateVehicleMutation.mutateAsync(v.id);
     } catch (err) {
       // Errors are handled by query mutation callbacks
     }
@@ -436,7 +478,7 @@ function VehiclesPageContent() {
               { id: 'ALL', label: t.vehiclesPage.fleetTotal, icon: <IconTruck size={14} />, count: stats.total },
               { id: 'ACTIVE', label: t.vehiclesPage.operational, icon: <IconPoint size={14} className="text-[#2D8A5E]" />, count: stats.active },
               { id: 'BUSY', label: t.vehiclesPage.statusEngaged, icon: <IconUserCheck size={14} />, count: stats.busy },
-              { id: 'MAINTENANCE', label: t.vehiclesPage.maintenance, icon: <IconSettings size={14} />, count: stats.total - stats.active },
+              { id: 'RETIRED', label: t.vehiclesPage.statusRetired, icon: <IconX size={14} className="text-[#A52B24]" />, count: stats.retired },
             ].map((pill) => (
               <button
                 key={pill.id}
@@ -556,6 +598,7 @@ function VehiclesPageContent() {
                       driverName={drivers.find(d => d.id === v.driverId)?.name}
                       onEdit={openEdit}
                       onDelete={deleteVehicle}
+                      onReactivate={reactivateVehicle}
                       readOnly={readOnly}
                       canEdit={!readOnly}
                     />
@@ -700,16 +743,16 @@ function VehiclesPageContent() {
         </div>
       </AppModal>
 
-      {/* ── Delete Confirm Modal ── */}
+      {/* ── Retire Confirm Modal ── */}
       <ConfirmModal
         open={confirmOpen}
-        title={t.vehiclesPage.deleteTitle}
+        title={t.vehiclesPage.retireTitle}
         description={
           pendingDelete
-            ? t.vehiclesPage.deleteDescription.replace('{vehicleName}', `${pendingDelete.make} ${pendingDelete.model}`)
+            ? t.vehiclesPage.retireDescription.replace('{vehicleName}', `${pendingDelete.make} ${pendingDelete.model}`)
             : ''
         }
-        confirmLabel={t.vehiclesPage.deleteButton}
+        confirmLabel={t.vehiclesPage.retireButton}
         cancelLabel={t.vehiclesPage.deleteCancel}
         variant="danger"
         loading={confirmDeleting}

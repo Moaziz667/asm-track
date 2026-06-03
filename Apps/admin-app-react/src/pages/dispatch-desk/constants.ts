@@ -11,10 +11,17 @@ export const STATUS_DOT: Record<string, string> = {
 };
 
 export const STATUS_TIP: Record<string, string> = {
-  ONLINE:   'En service',
-  ON_BREAK: 'En pause',
-  OFFLINE:  'Hors ligne',
+  ONLINE: 'En service', ON_BREAK: 'En pause', OFFLINE: 'Hors ligne',
 };
+
+export function getDriverStatusTip(status: string | undefined, t: any): string {
+  const map: Record<string, string> = {
+    ONLINE: t.dispatchDeskPage.driverOnline,
+    ON_BREAK: t.dispatchDeskPage.driverOnBreak,
+    OFFLINE: t.dispatchDeskPage.driverOffline,
+  };
+  return map[status ?? 'OFFLINE'] ?? t.dispatchDeskPage.driverOffline;
+}
 
 // Pastel severity chips driven by themed tokens so they adapt to light AND
 // dark mode (AWS-console style). Each token already has light/dark values.

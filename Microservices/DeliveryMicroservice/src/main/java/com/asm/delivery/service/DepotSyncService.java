@@ -47,19 +47,23 @@ public class DepotSyncService {
             Depot depot = depotRepository.findByWarehouseCode(code).orElseGet(Depot::new);
             boolean isNew = depot.getId() == null;
 
+            String newAddress = asString(w.get("address"));
+            String newCity = asString(w.get("city"));
+            boolean addressChanged = !java.util.Objects.equals(depot.getAddress(), newAddress);
+
             depot.setWarehouseCode(code);
             depot.setErpWarehouseId(asString(w.get("erpWarehouseId")));
             depot.setProvider(defaultProvider);
             depot.setName(StringUtils.hasText(asString(w.get("name"))) ? asString(w.get("name")) : code);
-            depot.setAddress(asString(w.get("address")));
+            depot.setAddress(newAddress);
             if (depot.getIsActive() == null) depot.setIsActive(true);
 
             Double lat = asDouble(w.get("latitude"));
             Double lng = asDouble(w.get("longitude"));
             if (lat == null || lng == null) {
-                // Fallback: geocode the warehouse address (only when we don't already have coords).
-                if (depot.getLatitude() == null || depot.getLongitude() == null) {
-                    double[] coords = geocode(asString(w.get("address")), asString(w.get("city")));
+                // Re-geocode if the depot is new, the address changed in Odoo, or we have no coords yet.
+                if (isNew || addressChanged || depot.getLatitude() == null || depot.getLongitude() == null) {
+                    double[] coords = geocode(newAddress, newCity);
                     if (coords != null) {
                         lat = coords[0];
                         lng = coords[1];
@@ -90,12 +94,14 @@ public class DepotSyncService {
                 ? (StringUtils.hasText(city) ? address + ", " + city : address)
                 : city;
         if (!StringUtils.hasText(query)) return null;
-        GeocodeSuggestionResponse geo = geocodingService.geocode(query);
+        // Use geocodeGlobal so depot addresses from any country can be resolved
+        GeocodeSuggestionResponse geo = geocodingService.geocodeGlobal(query);
         if (geo != null && geo.isFound() && geo.getLat() != null && geo.getLng() != null) {
             return new double[]{geo.getLat(), geo.getLng()};
         }
         return null;
     }
+
 
     private static String asString(Object v) {
         if (v == null) return null;

@@ -19,6 +19,8 @@ interface ReplanModalProps {
   pendingAction: { kind: 'reassign' | 'replan'; row: OpsException } | null;
   actionNote: string;
   onNoteChange: (v: string) => void;
+  scheduledAt?: string;
+  onScheduledAtChange?: (v: string) => void;
   onConfirm: () => void;
   onCancel: () => void;
   loading: boolean;
@@ -29,6 +31,8 @@ export function ReplanModal({
   pendingAction,
   actionNote,
   onNoteChange,
+  scheduledAt = '',
+  onScheduledAtChange,
   onConfirm,
   onCancel,
   loading,
@@ -49,7 +53,7 @@ export function ReplanModal({
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={onCancel}>
-            {t.actions?.cancel || 'Annuler'}
+            {t.actions?.cancel || t.dispatchDeskPage?.batchCancel || 'Annuler'}
           </Button>
           <Button
             onClick={onConfirm}
@@ -99,6 +103,17 @@ export function ReplanModal({
                 </span>
               </div>
             </div>
+          )}
+
+          {/* New scheduled date (replan only) — overrides the stale ERP date for SLA */}
+          {isReplan && (
+            <FieldInput
+              type="datetime-local"
+              label={t.dispatchDeskPage.replanModalScheduledLabel}
+              hint={t.dispatchDeskPage.replanModalScheduledHint}
+              value={scheduledAt}
+              onChange={(e) => onScheduledAtChange?.(e.currentTarget.value)}
+            />
           )}
 
           {/* Note input */}

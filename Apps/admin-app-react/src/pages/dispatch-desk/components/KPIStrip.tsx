@@ -36,7 +36,7 @@ export function KPIStrip() {
           <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
             <IconClock size={11} stroke={2.5} />
             <span>{t.dispatchDeskPage.kpiUpdated}</span>
-            <span className="font-mono">{lastUpdated.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}</span>
+            <span className="font-mono">{lastUpdated.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' })}</span>
           </span>
         )}
         <span style={{ width: 1, height: 16, background: 'var(--border)' }} />

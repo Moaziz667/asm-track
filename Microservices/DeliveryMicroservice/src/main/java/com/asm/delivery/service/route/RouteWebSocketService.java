@@ -111,6 +111,73 @@ public class RouteWebSocketService {
     }
 
     /**
+     * Admin dashboard: a driver has started a route (left the depot). Carries precise info
+     * so the dashboard can show "{driver} a démarré {route} — {n} arrêts".
+     */
+    public void notifyRouteStarted(UUID routeId, String routeName, UUID driverId,
+                                   String driverName, int stopCount,
+                                   java.time.LocalDateTime startedAt) {
+        executeAfterCommitAsync(() -> {
+            RouteEventPayload payload = RouteEventPayload.builder()
+                .routeId(routeId != null ? routeId.toString() : null)
+                .routeName(routeName != null ? routeName : "")
+                .driverId(driverId != null ? driverId.toString() : null)
+                .driverName(driverName)
+                .status("IN_PROGRESS")
+                .stopCount(stopCount)
+                .occurredAt(startedAt)
+                .build();
+
+            CloudEventWrapper<RouteEventPayload> envelope = CloudEventWrapper.<RouteEventPayload>builder()
+                .source("/route-service")
+                .type("ROUTE_STARTED")
+                .data(payload)
+                .build();
+
+            try {
+                messaging.convertAndSend("/topic/admin.routes", envelope);
+                log.info("notifyRouteStarted: routeId={} driverId={} stops={}", routeId, driverId, stopCount);
+            } catch (Exception e) {
+                log.warn("notifyRouteStarted: failed for routeId={}: {}", routeId, e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * Admin dashboard: a driver has confirmed loading at a depot (pickup stop completed).
+     * Carries depot name + parcel count so the dashboard can show
+     * "{driver} a chargé {n} colis au dépôt {depot}".
+     */
+    public void notifyPickupConfirmed(UUID routeId, String routeName, UUID driverId,
+                                      String driverName, String depotName, int parcelCount,
+                                      java.time.LocalDateTime confirmedAt) {
+        executeAfterCommitAsync(() -> {
+            RouteEventPayload payload = RouteEventPayload.builder()
+                .routeId(routeId != null ? routeId.toString() : null)
+                .routeName(routeName != null ? routeName : "")
+                .driverId(driverId != null ? driverId.toString() : null)
+                .driverName(driverName)
+                .depotName(depotName)
+                .parcelCount(parcelCount)
+                .occurredAt(confirmedAt)
+                .build();
+
+            CloudEventWrapper<RouteEventPayload> envelope = CloudEventWrapper.<RouteEventPayload>builder()
+                .source("/route-service")
+                .type("PICKUP_CONFIRMED")
+                .data(payload)
+                .build();
+
+            try {
+                messaging.convertAndSend("/topic/admin.routes", envelope);
+                log.info("notifyPickupConfirmed: routeId={} depot={} parcels={}", routeId, depotName, parcelCount);
+            } catch (Exception e) {
+                log.warn("notifyPickupConfirmed: failed for routeId={}: {}", routeId, e.getMessage());
+            }
+        });
+    }
+
+    /**
      * Pushes a general route update signal to the admin dashboard.
      */
     public void notifyRouteUpdate(UUID routeId) {

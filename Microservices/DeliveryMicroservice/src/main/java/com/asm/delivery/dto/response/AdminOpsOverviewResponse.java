@@ -61,6 +61,7 @@ public class AdminOpsOverviewResponse {
         private String city;
         private String driverName;
         private LocalDateTime createdAt;
+        private LocalDateTime scheduledAt;
         private UUID routeId;
     }
 
@@ -79,6 +80,7 @@ public class AdminOpsOverviewResponse {
         private String severity;
         private String message;
         private LocalDateTime createdAt;
+        private LocalDateTime scheduledAt;
         private UUID routeId;
         private String routeName;
         private String routeStatus;

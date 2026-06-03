@@ -128,13 +128,13 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
         await ref.read(routeRepositoryProvider).start(id);
       });
 
-  Future<void> _arriveStop(String routeId, String stopId) => _doAction(() async {
+  Future<void> _confirmPickup(String routeId, String stopId) => _doAction(() async {
         final pt = await LocationService().currentPosition();
         if (pt != null) {
           await ref.read(profileRepositoryProvider).updateLocation(pt.lat, pt.lng);
         }
 
-        await ref.read(routeRepositoryProvider).arrive(routeId, stopId);
+        await ref.read(routeRepositoryProvider).confirmPickup(routeId, stopId);
       });
 
   Future<void> _startTransit(String deliveryId) => _doAction(() async {
@@ -234,7 +234,7 @@ class _RoutesScreenState extends ConsumerState<RoutesScreen> {
           mapController: _mapController,
           sheetController: _sheetController,
           onStart: route == null ? null : () => _startRoute(route.id),
-          onArrive: route == null ? null : (stopId) => _arriveStop(route.id, stopId),
+          onConfirmPickup: route == null ? null : (stopId) => _confirmPickup(route.id, stopId),
           onStartTransit: _startTransit,
           onOpenPod: (deliveryId) => _openPod(context, deliveryId),
           onOpenDetails: (deliveryId) => _openDetails(context, deliveryId),
@@ -258,7 +258,7 @@ class _RouteMapBody extends StatelessWidget {
     required this.mapController,
     required this.sheetController,
     required this.onStart,
-    required this.onArrive,
+    required this.onConfirmPickup,
     required this.onStartTransit,
     required this.onOpenPod,
     required this.onOpenDetails,
@@ -272,7 +272,7 @@ class _RouteMapBody extends StatelessWidget {
   final MapController mapController;
   final DraggableScrollableController sheetController;
   final VoidCallback? onStart;
-  final ValueChanged<String>? onArrive;
+  final ValueChanged<String>? onConfirmPickup;
   final ValueChanged<String> onStartTransit;
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
@@ -407,7 +407,7 @@ class _RouteMapBody extends StatelessWidget {
             route: route,
             isWorking: isWorking,
             onStart: onStart,
-            onArrive: onArrive,
+            onConfirmPickup: onConfirmPickup,
             onStartTransit: onStartTransit,
             onOpenPod: onOpenPod,
             onOpenDetails: onOpenDetails,
@@ -877,7 +877,7 @@ class _BottomSheet extends StatelessWidget {
     required this.route,
     required this.isWorking,
     required this.onStart,
-    required this.onArrive,
+    required this.onConfirmPickup,
     required this.onStartTransit,
     required this.onOpenPod,
     required this.onOpenDetails,
@@ -889,7 +889,7 @@ class _BottomSheet extends StatelessWidget {
   final DriverRoute? route;
   final bool isWorking;
   final VoidCallback? onStart;
-  final ValueChanged<String>? onArrive;
+  final ValueChanged<String>? onConfirmPickup;
   final ValueChanged<String> onStartTransit;
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
@@ -979,11 +979,19 @@ class _BottomSheet extends StatelessWidget {
                   width: double.infinity,
                   height: 52,
                   child: FilledButton.icon(
-                    onPressed: isWorking ? null : () => onArrive?.call(nextPendingStop.id),
+                    onPressed: isWorking
+                        ? null
+                        : () => nextPendingStop.isPickup
+                            ? onConfirmPickup?.call(nextPendingStop.id)
+                            : onOpenDetails(nextPendingStop.deliveryId),
                     icon: isWorking
                         ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                        : const Icon(PhosphorIconsBold.flagPennant),
-                    label: Text('Arrivé au point ${nextPendingStop.stopOrder}'),
+                        : Icon(nextPendingStop.isPickup
+                            ? PhosphorIconsBold.package
+                            : PhosphorIconsBold.arrowRight),
+                    label: Text(nextPendingStop.isPickup
+                        ? 'Confirmer le chargement'
+                        : 'Ouvrir le point ${nextPendingStop.stopOrder}'),
                   ),
                 )
               else
@@ -1038,12 +1046,21 @@ class _BottomSheet extends StatelessWidget {
             else
               ...route!.stops.map((stop) => Padding(
                     padding: const EdgeInsets.only(bottom: 8),
-                    child: _StopListItem(
-                      stop: stop,
-                      onStartTransit: onStartTransit,
-                      onOpenPod: onOpenPod,
-                      onOpenDetails: onOpenDetails,
-                    ),
+                    child: stop.isPickup
+                        ? _PickupStopCard(
+                            stop: stop,
+                            parcelCount: route!.pickupParcelCount(stop),
+                            pickList: route!.deliveriesForDepot(stop.sourceDepotId),
+                            isWorking: isWorking,
+                            onConfirm: onConfirmPickup == null ? null : () => onConfirmPickup!(stop.id),
+                          )
+                        : _StopListItem(
+                            stop: stop,
+                            depotPicked: route!.isDepotPicked(stop),
+                            onStartTransit: onStartTransit,
+                            onOpenPod: onOpenPod,
+                            onOpenDetails: onOpenDetails,
+                          ),
                   )),
           ],
         ],
@@ -1133,18 +1150,118 @@ class _RouteSummaryBar extends StatelessWidget {
   }
 }
 
+/// Multi-depot PICKUP stop: "Charger N colis — Dépôt X" with a pick list and a confirm button.
+class _PickupStopCard extends StatelessWidget {
+  const _PickupStopCard({
+    required this.stop,
+    required this.parcelCount,
+    required this.pickList,
+    required this.isWorking,
+    required this.onConfirm,
+  });
+
+  final DriverRouteStop stop;
+  final int parcelCount;
+  final List<DriverRouteStop> pickList;
+  final bool isWorking;
+  final VoidCallback? onConfirm;
+
+  static const Color _pickup = Color(0xFF0891B2);
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final cs = theme.colorScheme;
+    final done = stop.status == DriverRouteStopStatus.completed;
+
+    return Container(
+      decoration: BoxDecoration(
+        color: cs.surfaceContainerLow,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: done ? cs.outlineVariant : _pickup.withValues(alpha: 0.5)),
+        boxShadow: const [BoxShadow(color: Color(0x0F000000), blurRadius: 8, offset: Offset(0, 2))],
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    color: _pickup.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.warehouse_outlined, size: 16, color: _pickup),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'Charger $parcelCount colis — Dépôt ${stop.sourceDepotName ?? ''}'.trim(),
+                    style: theme.textTheme.labelLarge?.copyWith(fontSize: 13, fontWeight: FontWeight.w800, color: done ? cs.onSurfaceVariant : _pickup),
+                  ),
+                ),
+                if (done)
+                  const Icon(Icons.check_circle, size: 18, color: _pickup),
+              ],
+            ),
+            if (pickList.isNotEmpty) ...[
+              const SizedBox(height: 10),
+              ...pickList.map((d) => Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Row(
+                      children: [
+                        Icon(Icons.circle, size: 5, color: cs.onSurfaceVariant),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            [d.orderRef, d.clientName].where((e) => e != null && e.isNotEmpty).join(' · '),
+                            style: TextStyle(fontSize: 11, color: cs.onSurfaceVariant),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  )),
+            ],
+            if (!done) ...[
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: (isWorking || onConfirm == null) ? null : onConfirm,
+                  style: FilledButton.styleFrom(backgroundColor: _pickup),
+                  icon: const Icon(Icons.inventory_2_outlined, size: 16),
+                  label: const Text('Confirmer le chargement'),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _StopListItem extends StatelessWidget {
   const _StopListItem({
     required this.stop,
     required this.onStartTransit,
     required this.onOpenPod,
     required this.onOpenDetails,
+    this.depotPicked = true,
   });
 
   final DriverRouteStop stop;
   final ValueChanged<String> onStartTransit;
   final ValueChanged<String> onOpenPod;
   final ValueChanged<String> onOpenDetails;
+  /// False when this delivery's source depot hasn't been picked up yet — the row
+  /// is locked until the driver confirms that depot's pickup stop.
+  final bool depotPicked;
 
   @override
   Widget build(BuildContext context) {
@@ -1153,7 +1270,11 @@ class _StopListItem extends StatelessWidget {
     final ds = stop.parsedDeliveryStatus;
 
     return GestureDetector(
-      onTap: () => onOpenDetails(stop.deliveryId),
+      onTap: depotPicked
+          ? () => onOpenDetails(stop.deliveryId)
+          : () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Confirmez d\'abord le chargement au dépôt')),
+              ),
       behavior: HitTestBehavior.opaque,
       child: Card(
         child: Padding(

@@ -8,6 +8,7 @@ import {
   IconArrowRight,
   IconMapPin,
   IconGauge,
+  IconBuildingWarehouse,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { useLocaleStore } from '@/lib/i18n';
@@ -16,6 +17,8 @@ import { useT } from '@/lib/LocaleContext';
 interface OptimizePreviewRow {
   key: string;
   sequenceOrder: number;
+  stopType?: 'PICKUP' | 'DELIVERY';
+  sourceDepotName?: string;
   clientName: string;
   dropoffAddress?: string;
   dropoffCity?: string;
@@ -166,19 +169,33 @@ export function OptimizePreview({
           </div>
         ) : (
           <div className="relative pl-8 border-l border-[var(--border)] flex flex-col gap-6 ml-3 my-2">
-            {rows.map((row) => (
+            {rows.map((row) => {
+              const isPickup = row.stopType === 'PICKUP';
+              return (
               <div key={row.key} className="relative flex flex-col gap-1.5">
-                {/* Node dot with order number */}
-                <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[var(--brand-orange)] text-[var(--brand-orange)] text-[10px] font-bold flex items-center justify-center font-mono z-10">
-                  {String(row.sequenceOrder).padStart(2, '0')}
-                </div>
+                {/* Node dot — warehouse glyph for pickups, order number for deliveries */}
+                {isPickup ? (
+                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[#06B6D4] text-[#0891B2] flex items-center justify-center z-10">
+                    <IconBuildingWarehouse size={12} />
+                  </div>
+                ) : (
+                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[var(--brand-orange)] text-[var(--brand-orange)] text-[10px] font-bold flex items-center justify-center font-mono z-10">
+                    {String(row.sequenceOrder).padStart(2, '0')}
+                  </div>
+                )}
 
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex flex-col gap-0.5 min-w-0">
-                    <span className="text-xs font-semibold text-[var(--text-strong)] truncate">
-                      {row.clientName}
-                    </span>
-                    {(row.dropoffAddress || row.dropoffCity) && (
+                    {isPickup ? (
+                      <span className="text-xs font-semibold text-[#0891B2] truncate">
+                        {t.routeBuilderPage.pickupLabel} · {row.clientName || row.sourceDepotName}
+                      </span>
+                    ) : (
+                      <span className="text-xs font-semibold text-[var(--text-strong)] truncate">
+                        {row.clientName}
+                      </span>
+                    )}
+                    {!isPickup && (row.dropoffAddress || row.dropoffCity) && (
                       <div className="flex items-center gap-1 text-[11px] text-[var(--text-soft)] truncate">
                         <IconMapPin size={11} className="text-[var(--text-muted)]" />
                         <span className="truncate">
@@ -214,7 +231,8 @@ export function OptimizePreview({
                   </div>
                 )}
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

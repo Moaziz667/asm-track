@@ -21,6 +21,7 @@ import java.util.Map;
 public class OdooReportClient {
 
     private final SettingsClient settingsClient;
+    private final OdooJsonRpcClient rpc;
     private final RestTemplate restTemplate = new RestTemplate();
 
     private Map<String, Object> getConf() {
@@ -44,8 +45,17 @@ public class OdooReportClient {
     public String authenticate() {
         Map<String, Object> conf = getConf();
         String login = (String) conf.get("login");
+        // The report download uses Odoo's web session, which keys on the username (login),
+        // whereas the rest of the integration authenticates by numeric uid + password.
+        // To avoid requiring a second, separately-configured credential, derive the login
+        // from the configured uid via JSON-RPC (reusing the uid+password sync already uses).
         if (login == null || login.isBlank()) {
-            throw ErpAdapterException.badRequest("Odoo login/username manquant dans la configuration ERP");
+            login = resolveLoginFromUid(conf);
+        }
+        if (login == null || login.isBlank()) {
+            throw ErpAdapterException.badRequest(
+                "Odoo login introuvable : ni 'login' configuré, ni dérivable du uid. "
+                + "Vérifiez 'uid'/'password' dans la configuration ERP.");
         }
 
         String urlStr = (String) conf.get("url");
@@ -77,6 +87,34 @@ public class OdooReportClient {
             throw e;
         } catch (Exception e) {
             throw ErpAdapterException.internal("Erreur lors de l'authentification Odoo: " + e.getMessage());
+        }
+    }
+
+    /**
+     * Resolve the Odoo username (login) for the configured uid via JSON-RPC, so the
+     * web-session report download can reuse the same credentials as the rest of the
+     * integration. Returns null if uid is unset or res.users can't be read.
+     */
+    private String resolveLoginFromUid(Map<String, Object> conf) {
+        Object uidObj = conf.get("uid");
+        Integer uid;
+        try {
+            uid = uidObj != null ? Integer.valueOf(String.valueOf(uidObj).trim()) : null;
+        } catch (NumberFormatException e) {
+            uid = null;
+        }
+        if (uid == null || uid <= 0) return null;
+        try {
+            List<Map<String, Object>> rows = rpc.searchRead(
+                    "res.users",
+                    List.of(List.of("id", "=", uid)),
+                    List.of("id", "login"),
+                    1, null);
+            if (rows.isEmpty()) return null;
+            return OdooJsonRpcClient.asString(rows.get(0).get("login"));
+        } catch (Exception e) {
+            log.warn("Could not derive Odoo login from uid {}: {}", uid, e.getMessage());
+            return null;
         }
     }
 

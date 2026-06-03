@@ -366,13 +366,19 @@ public class OpsAnalyticsService {
 
         LocalDateTime now = LocalDateTime.now();
 
+        // Assignment lead-time breach: unassigned and past (scheduledAt − leadTime). Falls back to
+        // legacy "since creation > threshold" only when the order has no ERP scheduled date.
+        int assignLeadTimeMins = systemSettingsService.getInt("ops.sla.assign-leadtime-minutes", 120);
         long waitingBreaches = scopedDeliveries.stream()
                 .filter(d -> d.getStatus() == DeliveryStatus.UNSCHEDULED)
                 .filter(d -> {
+                    LocalDateTime scheduledAt = d.getOrder() != null ? d.getOrder().effectiveScheduledAt() : null;
+                    if (scheduledAt != null) {
+                        return now.isAfter(scheduledAt.minusMinutes(assignLeadTimeMins));
+                    }
                     LocalDateTime start = d.getOrder() != null ? d.getOrder().getCreatedAt() : d.getCreatedAt();
                     if (start == null) return false;
-                    long diff = java.time.Duration.between(start, now).toMinutes();
-                    return diff > effectiveWaitingSlaMinutes;
+                    return java.time.Duration.between(start, now).toMinutes() > effectiveWaitingSlaMinutes;
                 })
                 .count();
 
@@ -542,6 +548,8 @@ public class OpsAnalyticsService {
                 .routeEtaAt(d.getRouteEtaAt())
                 .routeGeometry(d.getRouteGeometry())
                 .routeProvider(d.getRouteProvider())
+                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
+                .rescheduledAt(order != null ? order.getRescheduledAt() : null)
                 .createdAt(d.getCreatedAt())
                 .assignedAt(d.getAssignedAt())
                 .inTransitAt(d.getInTransitAt())
@@ -595,6 +603,7 @@ public class OpsAnalyticsService {
                                                 .city(s.getDropoffCity())
                                                 .driverName(s.getDriverName())
                                                 .createdAt(s.getCreatedAt())
+                                                .scheduledAt(s.getScheduledAt())
                                                 .routeId(s.getRouteId())
                                                 .build())
                                 .toList();
@@ -620,12 +629,23 @@ public class OpsAnalyticsService {
                 if ("PARTIALLY_DELIVERED".equals(s.getStatus())) {
                         return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Partial delivery reported");
                 }
-                if ("UNSCHEDULED".equals(s.getStatus()) && s.getCreatedAt() != null) {
-                        int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
-                        long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
-                        if (elapsed > waitingLimit) {
-                                return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING", 
-                                     String.format("Planning SLA exceeded: unscheduled for %d minutes", elapsed));
+                if ("UNSCHEDULED".equals(s.getStatus())) {
+                        // Lead-time vs ERP scheduled date; fallback to since-creation when absent.
+                        if (s.getScheduledAt() != null) {
+                                int assignLeadTimeMins = systemSettingsService.getInt("ops.sla.assign-leadtime-minutes", 120);
+                                LocalDateTime deadline = s.getScheduledAt().minusMinutes(assignLeadTimeMins);
+                                if (now.isAfter(deadline)) {
+                                        long over = Duration.between(deadline, now).toMinutes();
+                                        return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING",
+                                             String.format("Affectation tardive: %d min apres le seuil avant date planifiee", over));
+                                }
+                        } else if (s.getCreatedAt() != null) {
+                                int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
+                                long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
+                                if (elapsed > waitingLimit) {
+                                        return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING",
+                                             String.format("Planning SLA exceeded: unscheduled for %d minutes", elapsed));
+                                }
                         }
                 }
                 if ("SCHEDULED".equals(s.getStatus())) {
@@ -687,6 +707,7 @@ public class OpsAnalyticsService {
                                 .severity(severity)
                                 .message(message)
                                 .createdAt(s.getCreatedAt())
+                                .scheduledAt(s.getScheduledAt())
                                 .routeId(s.getRouteId())
                                 .routeName(s.getRouteName())
                                 .routeStatus(s.getRouteStatus())
@@ -734,6 +755,7 @@ public class OpsAnalyticsService {
                                 .comment(classification.comment())
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
+                                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
                                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                                 .build();
@@ -780,6 +802,17 @@ public class OpsAnalyticsService {
                         return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Partial delivery reported");
                 }
                 if (status == DeliveryStatus.UNSCHEDULED) {
+                        Order order = delivery.getOrder();
+                        if (order != null && order.effectiveScheduledAt() != null) {
+                                LocalDate scheduledDate = order.effectiveScheduledAt().toLocalDate();
+                                LocalDate today = now.toLocalDate();
+                                if (scheduledDate.isBefore(today)) {
+                                        return new ExceptionClassification("CRITICAL", "SLA_UNSCHEDULED_LATE", "En retard (Planifié le " + scheduledDate + ")");
+                                } else if (scheduledDate.isEqual(today)) {
+                                        return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED_TODAY", "Planifié pour aujourd'hui");
+                                }
+                                return new ExceptionClassification("INFO", "UNSCHEDULED", "Awaiting planning");
+                        }
                         LocalDateTime baseline = delivery.getUpdatedAt() != null
                                 ? delivery.getUpdatedAt() : delivery.getCreatedAt();
                         long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
@@ -842,6 +875,7 @@ public class OpsAnalyticsService {
                                 .comment(comment)
                                 .createdAt(delivery.getCreatedAt())
                                 .updatedAt(delivery.getUpdatedAt())
+                                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
                                 .dropoffLat(order != null ? order.getDropoffLat() : null)
                                 .dropoffLng(order != null ? order.getDropoffLng() : null)
                                 .build();

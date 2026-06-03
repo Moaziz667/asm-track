@@ -68,6 +68,8 @@ export interface DispatchDeskContextProps {
   setPendingAction: React.Dispatch<React.SetStateAction<PendingAction | null>>;
   actionNote: string;
   setActionNote: React.Dispatch<React.SetStateAction<string>>;
+  replanScheduledAt: string;
+  setReplanScheduledAt: React.Dispatch<React.SetStateAction<string>>;
   
   // Overlays State
   drawerTargets: ReassignTarget[];
@@ -164,6 +166,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [runningAction, setRunningAction] = useState<string | null>(null);
   const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
   const [actionNote, setActionNote]       = useState('');
+  // New scheduled date for replan (datetime-local string). Overrides the stale ERP date for SLA.
+  const [replanScheduledAt, setReplanScheduledAt] = useState('');
 
   // ── Overlays ──────────────────────────────────────────────────────────────
   const [drawerTargets, setDrawerTargets]     = useState<ReassignTarget[]>([]);
@@ -287,6 +291,14 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       return true;
     });
     return sortByRoute(result, d => {
+      if (dispatchTab === 'assign' && d.scheduledAt) {
+        const dateStr = d.scheduledAt.split('T')[0];
+        const now = new Date();
+        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        if (dateStr < todayStr) return 0;
+        if (dateStr === todayStr) return 1;
+        return 2;
+      }
       const s = alertMap.get(rowId(d))?.severity;
       return s === 'CRITICAL' ? 0 : s === 'WARNING' ? 1 : s ? 2 : 3;
     });
@@ -365,6 +377,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const resetActionState = useCallback(() => {
     setPendingAction(null);
     setActionNote('');
+    setReplanScheduledAt('');
   }, []);
 
   const openActionModal = useCallback((kind: ActionKind, row: OpsException) => {
@@ -396,11 +409,14 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     }
   }, [currentUser, t]);
 
-  const runReplan = useCallback(async (deliveryId: string, note: string) => {
+  const runReplan = useCallback(async (deliveryId: string, note: string, scheduledAt?: string) => {
     if (runningAction) return;
     setRunningAction(`replan:${deliveryId}`);
     try {
-      await api.post(`/api/admin/ops/exceptions/${deliveryId}/replan`, { note });
+      const payload: { note: string; scheduledAt?: string } = { note };
+      // datetime-local has no seconds — backend LocalDateTime parses 'yyyy-MM-ddTHH:mm'.
+      if (scheduledAt && scheduledAt.trim()) payload.scheduledAt = scheduledAt.trim();
+      await api.post(`/api/admin/ops/exceptions/${deliveryId}/replan`, payload);
       showSuccessToast(t.apiMessages.successDeliveryRescheduled);
       await fetchExceptions(true);
     } catch (err: any) {
@@ -418,10 +434,10 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       return;
     }
     if (pendingAction.kind === 'replan') {
-      await runReplan(pendingAction.row.deliveryId, note);
+      await runReplan(pendingAction.row.deliveryId, note, replanScheduledAt);
       resetActionState();
     }
-  }, [pendingAction, runningAction, actionNote, runReplan, resetActionState, t]);
+  }, [pendingAction, runningAction, actionNote, replanScheduledAt, runReplan, resetActionState, t]);
 
   const runCancel = useCallback(async () => {
     if (!cancelTarget || !cancelReason.trim()) return;
@@ -509,6 +525,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setPendingAction,
     actionNote,
     setActionNote,
+    replanScheduledAt,
+    setReplanScheduledAt,
     drawerTargets,
     setDrawerTargets,
     cancelTarget,
@@ -573,6 +591,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     runningAction,
     pendingAction,
     actionNote,
+    replanScheduledAt,
     drawerTargets,
     cancelTarget,
     cancelReason,

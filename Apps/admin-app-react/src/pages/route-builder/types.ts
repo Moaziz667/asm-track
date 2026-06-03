@@ -61,6 +61,7 @@ export type DeliveryOption = {
   motif?: string;
   dropoffPinned?: boolean;
   createdAt?: string;
+  scheduledAt?: string;
   totalWeightKg?: number;
   totalQuantity?: number;
   itemsSummary?: string;

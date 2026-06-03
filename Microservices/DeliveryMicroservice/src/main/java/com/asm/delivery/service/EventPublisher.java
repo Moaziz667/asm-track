@@ -4,6 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Handoff;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.Route;
+import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.event.CloudEventWrapper;
 import com.asm.delivery.event.DeliveryEventPayload;
 import com.asm.delivery.event.HandoffEventPayload;
@@ -232,6 +233,26 @@ public class EventPublisher {
         });
     }
     
+    /**
+     * A depot PICKUP stop is overdue (route in progress, not yet confirmed past the threshold).
+     * Real-time banner to the driver + Dispatch Desk, plus an FCM push that deep-links to the route.
+     */
+    public void publishPickupOverdue(Route route, RouteStop pickupStop, String depotName, int parcelCount) {
+        executeAfterCommitAsync(() -> {
+            Map<String, Object> p = new HashMap<>();
+            p.put("routeId", route.getId().toString());
+            p.put("routeName", route.getName());
+            p.put("stopId", pickupStop.getId().toString());
+            p.put("clientName", depotName != null ? depotName : "");
+            p.put("reason", parcelCount + " colis");
+            log.warn("EVENT pickup.overdue routeId={} stopId={} depot={}", route.getId(), pickupStop.getId(), depotName);
+            sendDriver(route.getDriverId(), "pickup.overdue", p);
+            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+                .source("/delivery-service").type("pickup.overdue").data(p).build());
+            sendFcmFatPayload(route.getDriverId() != null ? route.getDriverId().toString() : null, "PICKUP_OVERDUE", p);
+        });
+    }
+
     private void sendFcmFatPayload(String driverId, String eventType, Object payload) {
         if (fcm == null || driverId == null) return;
         try {
@@ -293,7 +314,13 @@ public class EventPublisher {
         
         String elapsedStr = p.getSlaParams().get("elapsed") != null ? p.getSlaParams().get("elapsed") + " min" : "";
         String msg = p.getClientName() != null ? p.getClientName() + " — " : "";
-        if ("SLA_WAITING".equals(motif)) msg += "Attente de " + elapsedStr + " (Dépassement SLA)";
+        if ("SLA_WAITING".equals(motif)) {
+            boolean hasSchedule = p.getSlaParams().get("scheduledAt") != null
+                    && !String.valueOf(p.getSlaParams().get("scheduledAt")).isBlank();
+            msg += hasSchedule
+                    ? "Affectation tardive — " + elapsedStr + " après le seuil avant la date planifiée"
+                    : "Attente de " + elapsedStr + " (Dépassement SLA)";
+        }
         else if ("SLA_ASSIGNMENT".equals(motif)) msg += "Délai démarrage " + elapsedStr + " (Dépassement SLA)";
         else if ("SLA_PICKUP".equals(motif)) msg += "Délai de départ " + elapsedStr + " (Dépassement SLA)";
         else if ("SLA_TRANSIT".equals(motif)) msg += "En retard sur le trajet (Dépassement SLA)";

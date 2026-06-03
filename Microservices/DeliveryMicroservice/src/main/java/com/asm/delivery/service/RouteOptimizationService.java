@@ -477,6 +477,13 @@ public class RouteOptimizationService {
     // ─── SLA status computation ───────────────────────────────────────────────────
 
     public static SlaStatus computeSlaStatus(RouteStop stop, LocalDateTime now) {
+        // PICKUP stops are system-reconciled depot loads — they have their own
+        // departure/overdue SLA (SlaMonitoringService) and must never be judged
+        // against a client time window. Skip window/deadline scoring entirely.
+        if (stop.getStopType() == RouteStopType.PICKUP) {
+            return SlaStatus.ON_TIME;
+        }
+
         LocalDateTime arrival = stop.getActualArrivalAt() != null ? stop.getActualArrivalAt() : now;
 
         // 1. Manual Window Check (Priority)

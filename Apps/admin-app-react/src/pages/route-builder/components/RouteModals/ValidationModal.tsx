@@ -29,16 +29,18 @@ export function ValidationModal() {
     stopWindows,
   } = rb;
 
-  const rows = selectedRouteStops.map((stop) => {
-    const delivery = waitingMap.get(stop.deliveryId);
-    return {
-      id: stop.id,
-      deliveryId: stop.deliveryId,
-      clientName: delivery?.clientName,
-      start: stopWindows[stop.id]?.startTime ?? '',
-      end: stopWindows[stop.id]?.endTime ?? '',
-    };
-  });
+  const rows = selectedRouteStops
+    .filter((stop) => stop.stopType !== 'PICKUP')
+    .map((stop) => {
+      const delivery = waitingMap.get(stop.deliveryId);
+      return {
+        id: stop.id,
+        deliveryId: stop.deliveryId,
+        clientName: delivery?.clientName,
+        start: stopWindows[stop.id]?.startTime ?? '',
+        end: stopWindows[stop.id]?.endTime ?? '',
+      };
+    });
 
   const isProcessing = validatingRouteId === confirmValidateRouteId || savingWindows;
 

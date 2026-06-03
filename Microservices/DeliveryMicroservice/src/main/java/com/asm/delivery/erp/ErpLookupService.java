@@ -150,9 +150,11 @@ public class ErpLookupService {
             }
         }
 
-        // Keep erpOrderId = the sale-order reference (cancel/failure sync act on the sale order);
-        // the BL number is tracked separately and drives delivery/partial sync (per-picking).
-        String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : preview.getErpOrderId();
+        // erpOrderId stores the BL/picking reference (e.g. WH/OUT/00131) for display.
+        // erpExternalRef stores the sale-order reference (e.g. S00110) for ERP sync.
+        // Sync services (cancellation, failure) need the sale order ref; the BL number
+        // is passed separately as pickingRef to the adapter.
+        String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : null;
 
         Order order = Order.builder()
                 .source(OrderSource.ODOO)
@@ -174,8 +176,8 @@ public class ErpLookupService {
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
-                .erpOrderId(saleRef)
-                .erpExternalRef(preview.getExternalRef())
+                .erpOrderId(preview.getErpOrderId())           // WH/OUT/00131 — BL ref for display
+                .erpExternalRef(saleRef)                       // S00110 — sale ref for sync
                 .blNumber(blNumber)
                 .warehouseCode(warehouseCode)
                 .sourceDepotId(sourceDepotId)

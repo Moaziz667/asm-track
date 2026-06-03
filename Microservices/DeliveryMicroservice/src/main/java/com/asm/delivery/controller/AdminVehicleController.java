@@ -70,12 +70,20 @@ public class AdminVehicleController {
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete vehicle")
+    @Operation(summary = "Retire vehicle (soft-delete)")
     public ResponseEntity<Void> delete(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
         vehicleService.delete(id, principal);
         return ResponseEntity.noContent().build();
+    }
+
+    @PatchMapping("/{id}/reactivate")
+    @Operation(summary = "Reactivate a retired vehicle")
+    public ResponseEntity<VehicleResponse> reactivate(
+            @PathVariable UUID id,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(vehicleService.reactivate(id, principal));
     }
 
     @PatchMapping("/{id}/status")

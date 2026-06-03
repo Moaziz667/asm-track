@@ -35,6 +35,8 @@ public class RouteExecutionService {
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.service.VehicleInspectionService inspectionService;
     private final RouteReportService routeReportService;
+    private final RouteWebSocketService routeWebSocketService;
+    private final DepotRepository depotRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     @Transactional
@@ -102,11 +104,16 @@ public class RouteExecutionService {
                        "action", "Demarrage de la tournee"));
         routeRepository.save(route);
 
-        // Auto-pickup all ASSIGNED deliveries so driver doesn't need per-stop pickup action
+        // Auto-pickup only HOME-depot deliveries (loaded at the origin depot). Deliveries sourced
+        // from another depot stay SCHEDULED until the driver confirms that depot's PICKUP stop.
+        UUID homeDepotId = route.getDepotId();
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
         for (RouteStop stop : stops) {
+            if (stop.getStopType() == RouteStopType.PICKUP || stop.getDeliveryId() == null) continue;
             deliveryRepository.findById(stop.getDeliveryId()).ifPresent(delivery -> {
-                if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+                boolean homeSourced = delivery.getSourceDepotId() == null
+                        || (homeDepotId != null && homeDepotId.equals(delivery.getSourceDepotId()));
+                if (delivery.getStatus() == DeliveryStatus.SCHEDULED && homeSourced) {
                     delivery.setStatus(DeliveryStatus.PICKED_UP);
                     delivery.setPickedUpAt(now);
                     delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
@@ -116,6 +123,12 @@ public class RouteExecutionService {
                 }
             });
         }
+
+        int deliveryStops = (int) stops.stream()
+                .filter(s -> s.getStopType() == RouteStopType.DELIVERY && !isRemovedStatus(s.getStatus()))
+                .count();
+        routeWebSocketService.notifyRouteStarted(route.getId(), route.getName(), driverId,
+                driverName, deliveryStops, now);
 
         return toResponse(route);
     }
@@ -153,6 +166,74 @@ public class RouteExecutionService {
             route.setStartedAt(LocalDateTime.now());
             routeRepository.save(route);
         }
+
+        return toResponse(route);
+    }
+
+    /**
+     * Confirm a multi-depot PICKUP stop: loads (advances to PICKED_UP) every still-scheduled
+     * delivery on the route sourced from this stop's depot, then marks the pickup stop completed.
+     * Idempotent: a pickup stop already completed just returns the current route.
+     */
+    @Transactional
+    public RouteResponse confirmPickup(UUID routeId, UUID stopId, UUID driverId, UserPrincipal principal) {
+        Route route = getRoute(routeId);
+        ensureDriverOwnsRoute(route, driverId);
+        if (route.getStatus() != RouteStatus.IN_PROGRESS && route.getStatus() != RouteStatus.VALIDATED) {
+            throw AppException.badRequest("Route is not active");
+        }
+
+        RouteStop pickupStop = routeStopRepository.findByRouteIdAndId(routeId, stopId)
+                .orElseThrow(() -> AppException.notFound("Route stop not found"));
+        if (pickupStop.getStopType() != RouteStopType.PICKUP) {
+            throw AppException.badRequest("Stop is not a pickup stop");
+        }
+        if (isTerminalStopStatus(pickupStop.getStatus())) {
+            return toResponse(route); // idempotent
+        }
+
+        LocalDateTime now = LocalDateTime.now();
+        if (route.getStatus() == RouteStatus.VALIDATED) {
+            route.setStatus(RouteStatus.IN_PROGRESS);
+            route.setStartedAt(now);
+            routeRepository.save(route);
+        }
+
+        UUID depotId = pickupStop.getSourceDepotId();
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+        int loaded = 0;
+        for (RouteStop s : stops) {
+            if (s.getStopType() == RouteStopType.PICKUP || s.getDeliveryId() == null) continue;
+            Delivery delivery = deliveryRepository.findById(s.getDeliveryId()).orElse(null);
+            if (delivery == null || !Objects.equals(delivery.getSourceDepotId(), depotId)) continue;
+            if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
+                delivery.setStatus(DeliveryStatus.PICKED_UP);
+                delivery.setPickedUpAt(now);
+                delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
+                deliveryRepository.save(delivery);
+                appendHistory(delivery, DeliveryStatus.PICKED_UP, driverId.toString(), Role.DRIVER,
+                        "DEPOT_PICKUP_CONFIRMED", Map.of("driverId", driverId.toString(),
+                                "depotId", depotId != null ? depotId.toString() : ""));
+                syncStopFromDelivery(delivery.getId(), delivery.getStatus(), now, "Picked up at depot");
+                loaded++;
+            }
+        }
+
+        pickupStop.setStatus(RouteStopStatus.COMPLETED);
+        pickupStop.setCompletedAt(now);
+        routeStopRepository.save(pickupStop);
+
+        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String depotName = depotId != null
+                ? depotRepository.findById(depotId).map(Depot::getName).orElse(null)
+                : null;
+        auditLogService.logAction(principal, "CONFIRM_PICKUP", "ROUTE", routeId.toString(),
+                java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),
+                        "depot", depotName != null ? depotName : (pickupStop.getSourceDepotId() != null ? pickupStop.getSourceDepotId().toString() : ""),
+                        "colis", loaded, "action", "Chargement confirme au depot"));
+
+        routeWebSocketService.notifyPickupConfirmed(route.getId(), route.getName(), driverId,
+                driverName, depotName, loaded, now);
 
         return toResponse(route);
     }

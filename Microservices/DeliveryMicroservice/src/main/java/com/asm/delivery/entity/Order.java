@@ -129,6 +129,15 @@ public class Order {
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;
 
+    /** Admin-set new scheduled date on replan; overrides the stale ERP date for SLA. Null until replanned. */
+    @Column(name = "rescheduled_at")
+    private LocalDateTime rescheduledAt;
+
+    /** The commitment SLAs measure against: the replan date if set, else the ERP scheduled date. */
+    public LocalDateTime effectiveScheduledAt() {
+        return rescheduledAt != null ? rescheduledAt : scheduledAt;
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false, length = 10)
     @Builder.Default

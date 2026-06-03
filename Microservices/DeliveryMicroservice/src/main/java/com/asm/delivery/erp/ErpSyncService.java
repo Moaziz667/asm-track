@@ -83,14 +83,19 @@ public class ErpSyncService {
 
     /**
      * Resolves the ERP order ID for sync purposes.
+     * erpExternalRef holds the sale-order reference (e.g. S00110) needed for
+     * cancellation and stock-update sync; erpOrderId holds the BL/picking ref
+     * (e.g. WH/OUT/00131) used for display.
      * Backorder orders have erpOrderId=null (DB unique constraint) so we walk up
      * to the parent order to get the original Odoo sale order reference.
      */
     private String resolveErpOrderId(Order order) {
+        // Sale-order ref first — the adapter needs it for cancel/update operations
+        if (order.getErpExternalRef() != null) return order.getErpExternalRef();
         if (order.getErpOrderId() != null) return order.getErpOrderId();
         if (order.getParentOrderId() != null) {
             return orderRepo.findById(order.getParentOrderId())
-                    .map(Order::getErpOrderId)
+                    .map(o -> o.getErpExternalRef() != null ? o.getErpExternalRef() : o.getErpOrderId())
                     .orElse(null);
         }
         return null;

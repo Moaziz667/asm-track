@@ -81,6 +81,8 @@ const EVENT_MAP: Record<string, EventConfig> = {
   // Transfer events
   'STOPS_TRANSFERRED_OUT': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
   'STOPS_TRANSFERRED_IN':  { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
+  'ROUTE_STARTED':         { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
+  'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
   'erp.sync_failed':       { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
   'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import' },
 };
@@ -199,6 +201,8 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       limit: String(raw.slaParams?.limit ?? ''),
       etaAt: raw.etaAt ?? '',
       stopCount: String(raw.stopCount ?? ''),
+      depotName: raw.depotName ?? '',
+      parcelCount: String(raw.parcelCount ?? ''),
       routeDurationMinutes: String(raw.routeDurationMinutes ?? ''),
       routeDistanceKm: String(raw.routeDistanceKm ?? ''),
       slaMessage: raw.slaMessage ?? '',

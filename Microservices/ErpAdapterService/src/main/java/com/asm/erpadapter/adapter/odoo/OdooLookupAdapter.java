@@ -172,16 +172,20 @@ public class OdooLookupAdapter implements ErpLookupPort {
         if (picking == null) return null;
 
         Integer pickingId = asInt(picking.get("id"));
+        
+        Integer typeId = asRelId(picking.get("picking_type_id"));
         Map<Integer, Warehouse> warehouses = resolveWarehouses(List.of(picking));
-        Warehouse wh = warehouses.get(asRelId(picking.get("picking_type_id")));
+        Warehouse wh = typeId != null ? warehouses.get(typeId) : null;
 
+        Integer partnerId = asRelId(picking.get("partner_id"));
         Map<Integer, Map<String, Object>> partners = fetchPartnersByIds(relIds(List.of(picking), "partner_id"));
-        Map<String, Object> partner = partners.get(asRelId(picking.get("partner_id")));
+        Map<String, Object> partner = partnerId != null ? partners.get(partnerId) : null;
 
+        Integer saleId = asRelId(picking.get("sale_id"));
         Map<Integer, Map<String, Object>> saleOrders = fetchSaleOrdersByIds(relIds(List.of(picking), "sale_id"));
-        Map<String, Object> sale = saleOrders.get(asRelId(picking.get("sale_id")));
+        Map<String, Object> sale = saleId != null ? saleOrders.get(saleId) : null;
 
-        List<ErpOrderItemDTO> items = pickingId != null ? fetchItemsFromPicking(pickingId) : List.of();
+        List<ErpOrderItemDTO> items = pickingId != null ? fetchItemsFromPicking(pickingId, saleId) : List.of();
         int totalQty = items.stream().map(i -> i.getQuantity() != null ? i.getQuantity() : 0).reduce(0, Integer::sum);
         BigDecimal totalWeight = items.stream()
                 .map(i -> {
@@ -261,6 +265,17 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
         log.info("getWarehouses count={} durationMs={}", result.size(), System.currentTimeMillis() - start);
         return result;
+    }
+
+    // ── Picking ref by id (backorder linking) ─────────────────────────────────────
+
+    @Override
+    public String getPickingRef(String pickingId) {
+        Integer id = asInt(pickingId);
+        if (id == null) return null;
+        List<Map<String, Object>> rows = rpc.searchReadStrict("stock.picking",
+                List.of(List.of("id", "=", id)), List.of("id", "name"), 1, "id desc");
+        return rows.isEmpty() ? null : asString(rows.get(0).get("name"));
     }
 
     // ═══════════════════════════════════════════════════════════════════════════
@@ -344,28 +359,43 @@ public class OdooLookupAdapter implements ErpLookupPort {
     }
 
     /** Line items actually shipped on this delivery note (the picking's stock moves). */
-    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId) {
+    private List<ErpOrderItemDTO> fetchItemsFromPicking(int pickingId, Integer saleId) {
         List<Map<String, Object>> moves = rpc.searchReadStrict("stock.move",
                 List.of(List.of("picking_id", "=", pickingId)),
-                List.of("id", "product_id", "name", "product_uom_qty"), 0, "id asc");
+                List.of("id", "product_id", "product_uom_qty"), 0, "id asc");
         if (moves.isEmpty()) return List.of();
 
         Set<Integer> productIds = moves.stream()
                 .map(m -> asRelId(m.get("product_id"))).filter(Objects::nonNull).collect(Collectors.toSet());
         ProductDetails pd = fetchProductDetails(productIds);
 
+        Map<Integer, BigDecimal> pricesByProduct = new HashMap<>();
+        if (saleId != null) {
+            List<Map<String, Object>> saleLines = rpc.searchReadStrict("sale.order.line",
+                    List.of(List.of("order_id", "=", saleId)),
+                    List.of("product_id", "price_unit"), 100, "id asc");
+            for (Map<String, Object> sl : saleLines) {
+                Integer pid = asRelId(sl.get("product_id"));
+                BigDecimal price = asBigDecimal(sl.get("price_unit"));
+                if (pid != null && price != null) {
+                    pricesByProduct.put(pid, price);
+                }
+            }
+        }
+
         return moves.stream().map(m -> {
             Integer productId = asRelId(m.get("product_id"));
-            String name = firstNonBlank(asRelName(m.get("product_id")), asString(m.get("name")), "ERP Item");
+            String name = firstNonBlank(asRelName(m.get("product_id")), "ERP Item");
             int qty = (int) Math.round(asDouble(m.get("product_uom_qty")) != null ? asDouble(m.get("product_uom_qty")) : 1d);
             BigDecimal unitWeight = productId != null ? pd.weights.getOrDefault(productId, BigDecimal.ZERO) : BigDecimal.ZERO;
             String sku  = productId != null ? pd.skus.get(productId)  : null;
             String type = productId != null ? pd.types.get(productId) : null;
+            BigDecimal unitPrice = productId != null ? pricesByProduct.get(productId) : null;
             return ErpOrderItemDTO.builder()
                     .name(name)
                     .sku(sku)
                     .quantity(qty > 0 ? qty : 1)
-                    .unitPrice(null) // delivery moves carry no price; order total comes from the sale order
+                    .unitPrice(unitPrice)
                     .unitWeightKg(unitWeight)
                     .productType(type)
                     .build();

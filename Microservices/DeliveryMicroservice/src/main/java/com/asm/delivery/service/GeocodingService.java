@@ -40,6 +40,10 @@ public class GeocodingService {
     private static final String NOMINATIM_URL =
             "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&countrycodes=tn&accept-language=fr";
 
+    /** Same as NOMINATIM_URL but without country restriction — used for depot/warehouse geocoding. */
+    private static final String NOMINATIM_URL_GLOBAL =
+            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&accept-language=fr";
+
     private static final String NOMINATIM_REVERSE_URL =
             "https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&accept-language=fr";
 
@@ -108,6 +112,57 @@ public class GeocodingService {
 
         } catch (Exception ex) {
             log.warn("Nominatim geocoding failed for query '{}': {}", addressQuery, ex.getMessage());
+            return GeocodeSuggestionResponse.builder().found(false).build();
+        }
+    }
+
+    /**
+     * Geocodes an address without country restriction (global).
+     * Used for depot/warehouse sync where addresses may not be in Tunisia.
+     * Always returns a response — if geocoding fails or finds nothing, found=false.
+     */
+    public GeocodeSuggestionResponse geocodeGlobal(String addressQuery) {
+        if (addressQuery == null || addressQuery.isBlank()) {
+            return GeocodeSuggestionResponse.builder().found(false).build();
+        }
+
+        try {
+            HttpHeaders headers = new HttpHeaders();
+            headers.set("User-Agent", "ASM-Delivery-App/1.0");
+            HttpEntity<Void> entity = new HttpEntity<>(headers);
+
+            ResponseEntity<Map<String, Object>[]> response = restTemplate.exchange(
+                    NOMINATIM_URL_GLOBAL,
+                    HttpMethod.GET,
+                    entity,
+                    (Class<Map<String, Object>[]>) (Class<?>) Map[].class,
+                    Map.of("q", addressQuery)
+            );
+
+            Map<String, Object>[] results = response.getBody();
+            if (results == null || results.length == 0) {
+                log.debug("Nominatim global: no results for query '{}'", addressQuery);
+                return GeocodeSuggestionResponse.builder().found(false).build();
+            }
+
+            Map<String, Object> first = results[0];
+            double lat = Double.parseDouble((String) first.get("lat"));
+            double lng = Double.parseDouble((String) first.get("lon"));
+            String displayName = (String) first.get("display_name");
+
+            boolean outsideBbox = lat < TN_LAT_MIN || lat > TN_LAT_MAX
+                    || lng < TN_LNG_MIN || lng > TN_LNG_MAX;
+
+            return GeocodeSuggestionResponse.builder()
+                    .found(true)
+                    .lat(lat)
+                    .lng(lng)
+                    .displayName(displayName)
+                    .outsideTunisiaBbox(outsideBbox)
+                    .build();
+
+        } catch (Exception ex) {
+            log.warn("Nominatim global geocoding failed for query '{}': {}", addressQuery, ex.getMessage());
             return GeocodeSuggestionResponse.builder().found(false).build();
         }
     }

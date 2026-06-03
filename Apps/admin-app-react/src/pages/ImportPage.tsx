@@ -95,6 +95,14 @@ function ImportErpPageContent() {
         || String(row.existingBackorderId ?? '').toLowerCase().includes(q)
       );
     }
+
+    // Sort by scheduled date (oldest first) to help admin prioritize overdue imports
+    result.sort((a, b) => {
+      const dateA = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
+      const dateB = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
+      return dateA - dateB;
+    });
+
     return result;
   }, [rows, query, activeTab]);
 
@@ -114,7 +122,7 @@ function ImportErpPageContent() {
     setPreviewOpen(true);
     setPreviewLoading(true);
     try {
-      const res = await api.get(`/api/admin/erp/pending-orders/${encodeURIComponent(erpOrderId)}`);
+      const res = await api.get('/api/admin/erp/pending-orders/preview', { params: { erpOrderId } });
       setPreview(res.data);
     } catch (err) {
       showErrorToast(err, 'errorDataLoadFailed');
@@ -165,7 +173,7 @@ function ImportErpPageContent() {
   const doImport = useCallback(async (erpOrderId: string) => {
     try {
       setImportingId(erpOrderId);
-      await api.post(`/api/admin/erp/import-order/${encodeURIComponent(erpOrderId)}`);
+      await api.post('/api/admin/erp/import-order', null, { params: { erpOrderId } });
       showSuccessToast('successImportSingle');
       setConfirmForId(null);
       setPreviewOpen(false);
@@ -292,6 +300,7 @@ function ImportErpPageContent() {
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerCustomer}</th>
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerDestination}</th>
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerAmount}</th>
+                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">Date Planifiée</th>
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerStatus}</th>
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerActions}</th>
                 </tr>
@@ -300,14 +309,14 @@ function ImportErpPageContent() {
                 {loading && !refreshing ? (
                   Array.from({ length: 15 }).map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)] animate-pulse">
-                      <td colSpan={8} className="py-4 px-3">
+                      <td colSpan={9} className="py-4 px-3">
                         <div className="h-3 rounded-full w-3/4 mx-auto" style={{ background: 'var(--hover-bg)' }} />
                       </td>
                     </tr>
                   ))
                 ) : paginatedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={8}>
+                    <td colSpan={9}>
                       <div className="flex flex-col items-center gap-2 py-20">
                         <IconPackage size={32} strokeWidth={1.5} className="text-[var(--border)]" />
                         <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.emptyState}</p>
@@ -340,10 +349,22 @@ function ImportErpPageContent() {
                           )}
                         </td>
                         <td className="px-3 py-3">
-                          <div>
-                            <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">{row.erpOrderId}</p>
+                          <div className="flex flex-col gap-0.5">
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
+                                {row.blNumber || row.erpOrderId}
+                              </p>
+                              {row.warehouseCode && (
+                                <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
+                                  {row.warehouseCode}
+                                </span>
+                              )}
+                            </div>
+                            {row.blNumber && row.erpOrderId && (
+                              <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
+                            )}
                             {row.externalRef && (
-                              <p className="text-[11px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
+                              <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
                             )}
                           </div>
                         </td>
@@ -366,11 +387,41 @@ function ImportErpPageContent() {
                           <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
                         </td>
                         <td className="px-3 py-3">
-                          <div className="flex flex-col gap-1">
-                            <div className="flex items-center gap-1">
-                              <IconCalendarClock size={12} className="text-[var(--text-muted)]" />
-                              <p className="text-[10px] font-semibold text-[var(--text-primary)]">{formatDate(row.scheduledAt)}</p>
+                          <div className="flex flex-col gap-1.5">
+                            <div className="flex items-center gap-1.5">
+                              <IconCalendarClock size={13} className="text-[var(--text-muted)]" />
+                              <span className="text-[11px] font-bold text-[var(--text-primary)] tracking-tight">
+                                {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
+                              </span>
                             </div>
+                            {(() => {
+                              if (!row.scheduledAt || isImported) return null;
+                              const targetDate = new Date(row.scheduledAt);
+                              const now = new Date();
+                              const diffMs = targetDate.getTime() - now.getTime();
+                              const diffMins = Math.round(diffMs / 60000);
+                              
+                              if (diffMins < 0) {
+                                return (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-block w-fit">
+                                    En retard ({Math.abs(Math.round(diffMins / 60))}h)
+                                  </span>
+                                );
+                              }
+                              const isToday = targetDate.toDateString() === now.toDateString();
+                              if (isToday) {
+                                return (
+                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-block w-fit">
+                                    Planifié Aujourd'hui
+                                  </span>
+                                );
+                              }
+                              return null;
+                            })()}
+                          </div>
+                        </td>
+                        <td className="px-3 py-3">
+                          <div className="flex flex-col gap-1">
                             {isImported ? (
                               <span style={{
                                 display: 'inline-flex',

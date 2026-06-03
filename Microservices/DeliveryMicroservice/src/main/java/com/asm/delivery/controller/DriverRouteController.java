@@ -61,6 +61,16 @@ public class DriverRouteController {
         return ResponseEntity.ok(routeExecutionService.arrive(id, stopId, UUID.fromString(principal.getUserId()), principal));
     }
 
+    @PostMapping("/{id}/stops/{stopId}/confirm-pickup")
+    @IdempotentOperation
+    @Operation(summary = "Confirm a depot pickup stop (loads all that depot's deliveries)")
+    public ResponseEntity<RouteResponse> confirmPickup(
+            @PathVariable UUID id,
+            @PathVariable UUID stopId,
+            @AuthenticationPrincipal UserPrincipal principal) {
+        return ResponseEntity.ok(routeExecutionService.confirmPickup(id, stopId, UUID.fromString(principal.getUserId()), principal));
+    }
+
     @GetMapping(value = "/{id}/pdf", produces = "application/pdf")
     @Operation(summary = "Download route manifest PDF")
     public ResponseEntity<byte[]> getPdf(@PathVariable UUID id, @AuthenticationPrincipal UserPrincipal principal) {

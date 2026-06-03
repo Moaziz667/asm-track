@@ -120,3 +120,21 @@ export function useDeleteVehicle() {
     }
   });
 }
+
+export function useReactivateVehicle() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.patch<VehicleItem>(`/api/admin/vehicles/${id}/reactivate`);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successVehicleReactivated');
+      queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorVehicleReactivateFailed');
+    }
+  });
+}

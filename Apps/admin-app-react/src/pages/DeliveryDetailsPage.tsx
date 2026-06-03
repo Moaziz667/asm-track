@@ -6,7 +6,7 @@ import {
   IconRefresh, IconPackage, IconUser, IconRoute,
   IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
   IconPhoto, IconAlertTriangle, IconWeight, IconCurrencyDollar,
-  IconCalendar,
+  IconCalendar, IconFileText, IconBuildingWarehouse,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
 import { formatMoney } from '@/lib/utils';
@@ -291,6 +291,43 @@ export default function DeliveryDetailPage() {
                 </Section>
               </div>
             </div>
+
+            {/* Engagement / Fulfillment — promised date, BL, source depot */}
+            <Section title={t.deliveryPage.sectionFulfillment} icon={<IconBuildingWarehouse size={12} />}>
+              <div className="flex flex-col">
+                <InfoRow
+                  label={t.deliveryPage.scheduledLabel}
+                  value={(delivery as any).scheduledAt
+                    ? new Date((delivery as any).scheduledAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+                      + ((delivery as any).rescheduledAt ? ` · ${t.deliveryPage.rescheduledBadge}` : '')
+                    : '—'}
+                />
+                <InfoRow label={t.deliveryPage.blNumberLabel} value={(delivery as any).blNumber} mono />
+                <InfoRow
+                  label={t.deliveryPage.sourceDepotLabel}
+                  value={(delivery as any).sourceDepotName ?? (delivery as any).warehouseCode}
+                />
+              </div>
+              {(delivery as any).blNumber && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      const res = await api.get(`/api/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
+                      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
+                      window.open(url, '_blank');
+                      setTimeout(() => URL.revokeObjectURL(url), 60000);
+                    } catch {
+                      showErrorToast(null);
+                    }
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-[4px]"
+                  style={{ background: 'var(--brand)', color: '#fff' }}
+                >
+                  <IconFileText size={13} /> {t.deliveryPage.viewBL}
+                </button>
+              )}
+            </Section>
 
             {/* Driver + Route */}
             {(delivery.driverId || delivery.routeId) && (

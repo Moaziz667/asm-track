@@ -62,6 +62,8 @@ public class ExceptionResolutionService {
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
     private final com.asm.delivery.service.HandoffService handoffService;
+    private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
+    private final com.asm.delivery.service.SlaMonitoringService slaMonitoringService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private ExceptionResolutionService self;
 
@@ -281,7 +283,17 @@ public class ExceptionResolutionService {
                 delivery.setCancelledBy(null);
                 // failedAt and failureCode are kept for historical reporting
 
+                // New commitment: SLAs must measure against this date, not the stale ERP one.
+                if (request.getScheduledAt() != null && delivery.getOrder() != null) {
+                        delivery.getOrder().setRescheduledAt(request.getScheduledAt());
+                        orderRepo.save(delivery.getOrder());
+                }
+
                 deliveryRepo.save(delivery);
+
+                // New lifecycle: free the SLA alert keys so the replanned delivery can re-alert
+                // against its new scheduled date (the dedup set is otherwise never cleared).
+                slaMonitoringService.clearDeliveryAlerts(delivery.getId());
 
                 ActorInfo actor = resolveActor(principal);
                 String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";
@@ -423,6 +435,12 @@ public class ExceptionResolutionService {
 		// without needing the sale order reference (which would violate the erp_order_id unique constraint).
 		Integer odooBackorderPickingId = order.getOdooBackorderId();
 
+		// Resolve the backorder picking's BL number (name) so the remainder serves its own
+		// delivery note. Best-effort, defensive (returns null on any ERP failure).
+		String backorderBlNumber = odooBackorderPickingId != null
+				? erpAdapterClient.getPickingRef(String.valueOf(odooBackorderPickingId), null)
+				: null;
+
 		List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
 		int newTotalQuantity = 0;
 		BigDecimal newTotalWeightKg = BigDecimal.ZERO;
@@ -470,6 +488,13 @@ public class ExceptionResolutionService {
 				.erpOrderId(null) // must stay null — erp_order_id is unique per company; parent's ID is resolved at sync time via parentOrderId
 				.parentOrderId(order.getId())
 				.odooBackorderId(odooBackorderPickingId)
+				// Multi-depot: the remainder ships from the same warehouse/depot as the parent,
+				// so inherit them — otherwise the backorder is "unmapped" and blocked from routing.
+				.warehouseCode(order.getWarehouseCode())
+				.sourceDepotId(order.getSourceDepotId())
+				// Link the backorder to its own Odoo picking (its BL number) so the remainder
+				// can serve its delivery note. Best-effort: null when the ERP can't resolve it.
+				.blNumber(backorderBlNumber)
 				.erpClientId(order.getErpClientId())
 				.erpExternalRef(buildBackorderRef(order.resolveRef()))
 				.originName(order.getOriginName())
@@ -508,7 +533,7 @@ public class ExceptionResolutionService {
 
 		Delivery newDelivery = Delivery.builder()
 				.order(backorder)
-
+				.sourceDepotId(order.getSourceDepotId())
 				.status(DeliveryStatus.UNSCHEDULED)
 				.createdAt(LocalDateTime.now())
 				.build();

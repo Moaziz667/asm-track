@@ -127,6 +127,12 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Routing provider", example = "OSRM")
     private String routeProvider;
 
+    @Schema(description = "Effective scheduled date/time (replan date if rescheduled, else ERP date)")
+    private LocalDateTime scheduledAt;
+
+    @Schema(description = "Replan date set by admin; non-null when the delivery was rescheduled")
+    private LocalDateTime rescheduledAt;
+
     @Schema(description = "Delivery creation timestamp")
     private LocalDateTime createdAt;
 

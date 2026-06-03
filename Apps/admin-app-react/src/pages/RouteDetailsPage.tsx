@@ -33,6 +33,7 @@ import {
   IconAlertCircle,
   IconArrowLeft,
   IconBan,
+  IconBuildingWarehouse,
   IconChevronDown,
   IconClock,
   IconFileText,
@@ -77,6 +78,7 @@ type StopOrder = {
 type RouteStop = {
   id: string;
   deliveryId: string;
+  stopType?: 'PICKUP' | 'DELIVERY';
   stopOrder: number;
   status: string;
   arrivedAt?: string;
@@ -88,6 +90,11 @@ type RouteStop = {
   dropoffLat?: number;
   dropoffLng?: number;
   dropoffPinned?: boolean;
+  sourceDepotId?: string;
+  sourceDepotName?: string;
+  sourceDepotLat?: number;
+  sourceDepotLng?: number;
+  parcelCount?: number;
   routeGeometry?: string;
   routeDistanceKm?: number;
   routeDurationMinutes?: number;
@@ -756,6 +763,80 @@ export default function RouteDetailsPage() {
               const canRemove = route.status === 'DRAFT' && REMOVABLE_STOP_STATUSES.has(displayStatus);
               const canCancelStop = isActiveRoute && (displayStatus === 'PENDING' || displayStatus === 'SCHEDULED' || displayStatus === 'ARRIVED' || displayStatus === 'PICKED_UP');
               const canEditWindow = route.status === 'VALIDATED' && (displayStatus === 'PENDING' || displayStatus === 'SCHEDULED');
+
+              const isPickup = stop.stopType === 'PICKUP';
+
+              if (isPickup) {
+                const pickupLabel = stop.parcelCount
+                  ? (t.routeDetailPage?.pickupLoadCount || '{count} colis à charger').replace('{count}', String(stop.parcelCount))
+                  : (t.routeDetailPage?.pickupTitle || 'Chargement — Dépôt {depot}').replace('{depot}', stop.sourceDepotName || '');
+                return (
+                  <div
+                    key={stop.id}
+                    ref={(el) => { if (el) stopRefs.current[stop.id] = el; }}
+                    className="border border-cyan-600/30 rounded-lg bg-[var(--surface-2)] mb-2 cursor-pointer hover:bg-[var(--surface-hover)]"
+                    onClick={() => toggleStop(stop.id)}
+                  >
+                    <div className="p-3 flex items-center justify-between">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-1">
+                          <div className="w-6 h-6 rounded flex items-center justify-center text-xs font-bold text-white" style={{ background: '#0891B2' }}>
+                            {stop.stopOrder}
+                          </div>
+                          <IconBuildingWarehouse size={16} className="text-cyan-600 shrink-0" />
+                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stop.sourceDepotName || t.routeDetailPage?.pickupLabel || 'Dépôt'}</p>
+                          <StatusBadge status={displayStatus} size="sm" />
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
+                          <IconMapPin size={12} />
+                          <p className="truncate">{pickupLabel}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2 ml-2">
+                        {stop.routeEtaAt && (
+                          <p className="text-xs font-mono text-cyan-600 font-semibold">
+                            {stop.routeEtaAt.slice(11, 16)}
+                          </p>
+                        )}
+                        <IconChevronDown size={16} className={`transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+                      </div>
+                    </div>
+                    {isExpanded && (
+                      <div className={stopTabsStyles.expandedContainer}>
+                        <div className={stopTabsStyles.tabContent}>
+                          <div className="space-y-2 text-xs">
+                            {stop.completedAt ? (
+                              <div className="flex items-center gap-2 text-green-600 font-medium">
+                                <IconClock size={14} />
+                                {(t.routeDetailPage?.pickupCompleted || 'Chargement confirmé') + ' · ' + stop.completedAt.slice(11, 16)}
+                              </div>
+                            ) : stop.routeEtaAt ? (
+                              <div className="flex items-center gap-2 text-[var(--text-muted)]">
+                                <IconClock size={14} />
+                                {(t.routeDetailPage?.pickupArrival || 'Arrivée prévue') + ' · ' + stop.routeEtaAt.slice(11, 16)}
+                              </div>
+                            ) : null}
+                            {stop.routeDistanceKm != null && (
+                              <p className="text-[var(--text-muted)]">{stop.routeDistanceKm.toFixed(1)} km · {stop.routeDurationMinutes} min</p>
+                            )}
+                            {stop.sourceDepotLat && stop.sourceDepotLng && (
+                              <a
+                                href={`https://www.google.com/maps?q=${stop.sourceDepotLat},${stop.sourceDepotLng}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-cyan-600 underline"
+                                onClick={(e) => e.stopPropagation()}
+                              >
+                                {(t.routeDetailPage?.labelDepot || 'Dépôt') + ' · ' + stop.sourceDepotName}
+                              </a>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
 
               return (
                 <div

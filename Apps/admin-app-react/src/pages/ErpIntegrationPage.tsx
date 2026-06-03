@@ -159,7 +159,7 @@ export default function ErpIntegrationPage() {
                         setErpSettings({
                           ...erpSettings,
                           activeErpProvider: newProv,
-                          erpConfiguration: newProv !== 'NONE' ? (erpSettings.erpConfiguration || { url: '', db: '', uid: '', password: '', apiKey: '' }) : null
+                          erpConfiguration: newProv !== 'NONE' ? (erpSettings.erpConfiguration || { url: '', db: '', uid: '', password: '', login: '', reportId: 'stock.report_deliveryslip', apiKey: '' }) : null
                         });
                       }}
                       disabled={!canManage}
@@ -194,6 +194,17 @@ export default function ErpIntegrationPage() {
                         />
                       </div>
                       <div>
+                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">Login Odoo</label>
+                        <input
+                          type="text"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+                          value={erpSettings.erpConfiguration.login || ''}
+                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, login: e.target.value}})}
+                          disabled={!canManage}
+                        />
+                      </div>
+                      <div>
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUid}</label>
                         <input
                           type="number"
@@ -204,7 +215,7 @@ export default function ErpIntegrationPage() {
                           disabled={!canManage}
                         />
                       </div>
-                      <div className="md:col-span-2">
+                      <div>
                         <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpPassword}</label>
                         <input
                           type="password"
@@ -213,6 +224,18 @@ export default function ErpIntegrationPage() {
                           placeholder="********"
                           value={erpSettings.erpConfiguration.password || ''}
                           onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, password: e.target.value}})}
+                          disabled={!canManage}
+                        />
+                      </div>
+                      <div className="md:col-span-2">
+                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">Report ID (Slip)</label>
+                        <input
+                          type="text"
+                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+                          placeholder="stock.report_deliveryslip"
+                          value={erpSettings.erpConfiguration.reportId || ''}
+                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, reportId: e.target.value}})}
                           disabled={!canManage}
                         />
                       </div>

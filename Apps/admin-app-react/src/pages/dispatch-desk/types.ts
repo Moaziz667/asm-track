@@ -20,6 +20,7 @@ export type OpsException = {
   returnToOrigin?: boolean;
   createdAt?: string;
   updatedAt?: string;
+  scheduledAt?: string;
   dropoffLat?: number;
   dropoffLng?: number;
 };

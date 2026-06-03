@@ -1247,6 +1247,7 @@ public class RoutePlanningService {
                 (double) (completed + failed + partial) / totalActiveStops * 100.0;
 
         List<String> deliveryIds = activeStops.stream()
+                .filter(s -> s.getDeliveryId() != null)
                 .map(s -> s.getDeliveryId().toString())
                 .toList();
 
@@ -1405,6 +1406,19 @@ public class RoutePlanningService {
                              (delivery != null ? delivery.getSourceDepotId() : null);
         com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotRepository.findById(sourceDepotId).orElse(null) : null;
 
+        // Parcel count for PICKUP stops: count DELIVERY stops whose source depot matches
+        int parcelCount = 0;
+        if (stop.getStopType() == RouteStopType.PICKUP && stop.getSourceDepotId() != null) {
+            for (RouteStop rs : activeStops) {
+                if (rs.getStopType() == RouteStopType.DELIVERY && rs.getDeliveryId() != null) {
+                    Delivery d = deliveryMap.get(rs.getDeliveryId());
+                    if (d != null && stop.getSourceDepotId().equals(d.getSourceDepotId())) {
+                        parcelCount++;
+                    }
+                }
+            }
+        }
+
         return RouteStopFullResponse.builder()
                 .id(stop.getId())
                 .deliveryId(stop.getDeliveryId())
@@ -1413,6 +1427,7 @@ public class RoutePlanningService {
                 .sourceDepotName(sourceDepot != null ? sourceDepot.getName() : null)
                 .sourceDepotLat(sourceDepot != null ? sourceDepot.getLatitude() : null)
                 .sourceDepotLng(sourceDepot != null ? sourceDepot.getLongitude() : null)
+                .parcelCount(parcelCount > 0 ? parcelCount : null)
                 .stopOrder(stop.getStopOrder())
                 .status(resolveStopStatus(stop, delivery))
                 .arrivedAt(stop.getArrivedAt())
@@ -1476,8 +1491,8 @@ public class RoutePlanningService {
                         .createdAt(orderInfo.getCreatedAt())
                         .updatedAt(orderInfo.getUpdatedAt())
                         .build() : null)
-                .proofOfDelivery(fetchDeliveryPod(delivery.getId()))
-                .statusHistory(
+                .proofOfDelivery(delivery != null ? fetchDeliveryPod(delivery.getId()) : null)
+                .statusHistory(delivery == null ? java.util.List.of() :
                         deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
                                 .stream()
                                 .map(h -> {
@@ -1657,6 +1672,7 @@ public class RoutePlanningService {
                         .stopType(RouteStopType.PICKUP)
                         .sourceDepotId(depotId)
                         .deliveryId(null)
+                        .stopOrder(0)
                         .status(RouteStopStatus.PENDING)
                         .build();
                 routeStopRepository.save(newPickup);

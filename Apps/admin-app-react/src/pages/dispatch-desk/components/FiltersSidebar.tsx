@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { IconSearch, IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
-import { STATUS_DOT, STATUS_TIP } from '../constants';
+import { STATUS_DOT, getDriverStatusTip } from '../constants';
 
 export function FiltersSidebar() {
   const {
@@ -201,7 +201,7 @@ export function FiltersSidebar() {
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[d.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
                       <span className="text-[12px] font-[500] truncate flex-1" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
                       <span className="text-[10px] font-[500]" style={{ color: 'var(--text-muted)' }}>
-                        {STATUS_TIP[d.onlineStatus ?? 'OFFLINE']}
+                        {getDriverStatusTip(d.onlineStatus, t)}
                       </span>
                     </div>
                   ))}

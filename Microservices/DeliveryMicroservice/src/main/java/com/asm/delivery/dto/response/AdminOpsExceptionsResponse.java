@@ -46,6 +46,7 @@ public class AdminOpsExceptionsResponse {
         private String comment;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private LocalDateTime scheduledAt;
         private java.math.BigDecimal dropoffLat;
         private java.math.BigDecimal dropoffLng;
     }

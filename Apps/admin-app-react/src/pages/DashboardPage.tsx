@@ -12,7 +12,7 @@ import {
 import {
   IconPackage, IconChartBar, IconUser, IconRoute, IconRefresh, IconArrowUpRight, 
   IconAlertTriangle, IconCheck, IconTruck, IconMapPin, IconShield,
-  IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban
+  IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 
@@ -102,6 +102,26 @@ export default function DashboardPage() {
   };
 
   const today = stats?.today;
+  const overdueCount = useMemo(() => {
+    if (!ops?.lanes) return 0;
+    const now = new Date();
+    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+    let count = 0;
+    
+    ops.lanes.forEach(lane => {
+      if (lane.items) {
+        lane.items.forEach((item: any) => {
+          const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+          const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
+          if (isPending && scheduledDate && scheduledDate < todayStr) {
+            count++;
+          }
+        });
+      }
+    });
+    return count;
+  }, [ops]);
+
   const exceptionsCount = (ops?.sla?.totalBreaches ?? 0) + (ctxAlerts?.length ?? 0);
   const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
 
@@ -229,6 +249,7 @@ export default function DashboardPage() {
                     <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Référence</th>
                     <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Client</th>
                     <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Chauffeur</th>
+                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Planifié</th>
                     <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Tournée</th>
                     <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Statut</th>
                   </tr>
@@ -270,6 +291,29 @@ export default function DashboardPage() {
                             ) : (
                               <span className="text-[var(--text-soft)] italic">Non assigné</span>
                             )}
+                          </td>
+                          <td className="p-3 text-[var(--text-secondary)]">
+                            {(() => {
+                              if (!item.scheduledAt) {
+                                return <span className="text-[11px] text-[var(--text-soft)] italic">Non planifié</span>;
+                              }
+                              const scheduledDate = item.scheduledAt.split('T')[0];
+                              const now = new Date();
+                              const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                              const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+                              
+                              let colorClass = 'text-[var(--text-soft)]';
+                              if (isPending) {
+                                if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] font-bold';
+                                else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] font-bold';
+                              }
+                              return (
+                                <span className={cn("text-[11px] font-medium flex items-center gap-1", colorClass)}>
+                                  <IconClock size={11} stroke={2.5} />
+                                  {new Date(item.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
+                                </span>
+                              );
+                            })()}
                           </td>
                           <td className="p-3 text-[var(--text-secondary)]">
                             {item.routeName || item.routeRef ? (
@@ -390,13 +434,22 @@ export default function DashboardPage() {
                     {today?.inTransit ?? 0}
                   </span>
                 </div>
-                <div className="flex items-center justify-between text-xs">
+                <div className="flex items-center justify-between text-xs border-b border-[var(--border)]/40 pb-2">
                   <span className="text-[var(--text-muted)] font-medium">{t.dashboardPage.statsExceptions || 'Exceptions'}</span>
                   <span
                     className="font-mono font-bold"
                     style={{ color: exceptionsCount > 0 ? '#C7372F' : 'var(--text-muted)' }}
                   >
                     {exceptionsCount}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs pt-1">
+                  <span className="text-[var(--text-muted)] font-medium">Retard (Planifié)</span>
+                  <span
+                    className="font-mono font-bold"
+                    style={{ color: overdueCount > 0 ? '#C7372F' : 'var(--text-muted)' }}
+                  >
+                    {overdueCount}
                   </span>
                 </div>
               </div>
@@ -571,10 +624,10 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
         <span className="font-mono text-[10px] font-bold tracking-tight" style={{ color }}>
           {d.orderRef || d.deliveryId?.slice(0, 8)}
         </span>
-        {d.createdAt && (
-          <span className="flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-soft)]">
-            <IconClock size={10} stroke={2.5} />
-            <span>{formatCardDate(d.createdAt)}</span>
+        {d.scheduledAt && (
+          <span className="flex items-center gap-1 text-[9.5px] font-bold text-[var(--text-soft)]">
+            <IconCalendar size={10} stroke={2.5} />
+            <span>{formatCardDate(d.scheduledAt)}</span>
           </span>
         )}
       </div>
@@ -586,11 +639,38 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
 
       {/* Location / City Details */}
       {d.city && (
-        <div className="text-[10.5px] text-[var(--text-soft)] font-semibold mb-3 flex items-center gap-1">
+        <div className="text-[10.5px] text-[var(--text-soft)] font-semibold mb-2.5 flex items-center gap-1">
           <IconMapPin size={11} stroke={2.5} className="text-primary shrink-0" />
           <span className="truncate">{d.city}</span>
         </div>
       )}
+
+      {/* SLA Status Indicator */}
+      {(() => {
+        if (!d.scheduledAt || !['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)) return null;
+        const scheduledDate = d.scheduledAt.split('T')[0];
+        const now = new Date();
+        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        
+        if (scheduledDate < todayStr) {
+          return (
+            <div className="mb-2">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+                <IconClock size={11} stroke={2.5} /> En retard (Planifié)
+              </span>
+            </div>
+          );
+        } else if (scheduledDate === todayStr) {
+          return (
+            <div className="mb-2">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+                <IconClock size={11} stroke={2.5} /> Planifié Auj.
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Metadata Chips */}
       <div className="flex flex-wrap gap-1.5 pt-0.5">
@@ -647,15 +727,15 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
             {d.orderRef || 'LOT'}
           </span>
         </div>
-        {d.createdAt && (
-          <span className="flex items-center gap-1 text-[9.5px] font-medium text-[var(--text-soft)]">
-            <IconClock size={10} stroke={2.5} />
-            <span>{formatCardDate(d.createdAt)}</span>
+        {d.scheduledAt && (
+          <span className="flex items-center gap-1 text-[9.5px] font-bold text-[var(--text-soft)]">
+            <IconCalendar size={10} stroke={2.5} />
+            <span>{formatCardDate(d.scheduledAt)}</span>
           </span>
         )}
       </div>
 
-      <div className="flex flex-col gap-1 mb-3 min-w-0">
+      <div className="flex flex-col gap-1 mb-2.5 min-w-0">
         {deliveries.slice(0, 2).map((x: any, i: number) => (
           <p key={i} className="text-[13px] font-bold text-[var(--text-primary)] leading-snug truncate">
             {x.clientName}
@@ -667,6 +747,33 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
           </p>
         )}
       </div>
+
+      {/* SLA Status Indicator */}
+      {(() => {
+        if (!d.scheduledAt || !['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)) return null;
+        const scheduledDate = d.scheduledAt.split('T')[0];
+        const now = new Date();
+        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+        
+        if (scheduledDate < todayStr) {
+          return (
+            <div className="mb-2">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+                <IconClock size={11} stroke={2.5} /> En retard (Planifié)
+              </span>
+            </div>
+          );
+        } else if (scheduledDate === todayStr) {
+          return (
+            <div className="mb-2">
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+                <IconClock size={11} stroke={2.5} /> Planifié Auj.
+              </span>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       <div className="flex items-center gap-2.5">
         <div className="flex-1 h-1 bg-[var(--border)]/65 rounded-full overflow-hidden">

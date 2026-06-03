@@ -177,6 +177,26 @@ public class VehicleService {
     }
 
     @Transactional
+    public VehicleResponse reactivate(UUID id, UserPrincipal principal) {
+        requireAdminOrSuperAdmin(principal);
+        Vehicle vehicle = getVehicle(id);
+
+        if (Boolean.TRUE.equals(vehicle.getActive())) {
+            throw AppException.badRequest("Vehicle is already active");
+        }
+
+        vehicle.setActive(true);
+        vehicle.setVehicleStatus(VehicleStatus.AVAILABLE);
+
+        Vehicle saved = vehicleRepository.save(vehicle);
+
+        auditLogService.logAction(principal, "REACTIVATE_VEHICLE", "VEHICLE", saved.getId().toString(),
+                java.util.Map.of("vehicule", saved.getName(), "plaque", saved.getPlate(), "action", "Reactivation de vehicule"));
+
+        return toResponse(saved, getBusyVehicleIds().contains(saved.getId()));
+    }
+
+    @Transactional
     public VehicleResponse updateStatus(UUID id, UserPrincipal principal, VehicleStatusRequest request) {
         requireAdminOrSuperAdmin(principal);
         Vehicle vehicle = getVehicle(id);

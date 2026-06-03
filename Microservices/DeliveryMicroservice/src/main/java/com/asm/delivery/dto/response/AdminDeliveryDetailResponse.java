@@ -137,6 +137,24 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Backorder id in ERP if generated")
     private Integer odooBackorderId;
 
+    @Schema(description = "Effective scheduled date/time (replan date if rescheduled, else ERP date)")
+    private LocalDateTime scheduledAt;
+
+    @Schema(description = "Replan date set by admin; non-null when the delivery was rescheduled")
+    private LocalDateTime rescheduledAt;
+
+    @Schema(description = "Official ERP delivery-note (bon de livraison) number")
+    private String blNumber;
+
+    @Schema(description = "ERP source-warehouse code from the delivery note")
+    private String warehouseCode;
+
+    @Schema(description = "Resolved source depot id (where goods are loaded)")
+    private java.util.UUID sourceDepotId;
+
+    @Schema(description = "Resolved source depot name")
+    private String sourceDepotName;
+
     private LocalDateTime createdAt;
     private LocalDateTime assignedAt;
     private LocalDateTime pickedUpAt;

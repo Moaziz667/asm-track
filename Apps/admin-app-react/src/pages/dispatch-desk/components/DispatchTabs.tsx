@@ -121,10 +121,10 @@ export function DispatchTabs() {
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 h-10 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
               <span className="text-[12px] font-[500]" style={{ color: 'var(--text-primary)' }}>
-                {selectedIds.size} sélectionnée{selectedIds.size > 1 ? 's' : ''}
+                {t.dispatchDeskPage.batchCount.replace('{count}', String(selectedIds.size)).replace('{plural}', selectedIds.size > 1 ? 's' : '')}
               </span>
               {batchType === 'mixed' ? (
-                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>Sélection mixte — choisissez un seul type</span>
+                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
               ) : (
                 batchType !== 'none' && (
                   <button
@@ -135,7 +135,7 @@ export function DispatchTabs() {
                     disabled={isReadOnly}
                   >
                     {batchType === 'assign' ? <IconAssign size={13} /> : <IconReassign size={13} />}
-                    {batchType === 'assign' ? `Assigner (${selectedIds.size})` : `Réassigner (${selectedIds.size})`}
+                    {batchType === 'assign' ? t.dispatchDeskPage.batchAssign.replace('{count}', String(selectedIds.size)) : t.dispatchDeskPage.batchReassign.replace('{count}', String(selectedIds.size))}
                   </button>
                 )
               )}
@@ -145,7 +145,7 @@ export function DispatchTabs() {
                 className="text-[11px] h-6 px-2 rounded-[var(--radius)] transition-colors hover:bg-[var(--hover-bg)]"
                 style={{ color: 'var(--text-muted)' }}
               >
-                Annuler
+                {t.dispatchDeskPage.batchCancel}
               </button>
             </div>
           )}

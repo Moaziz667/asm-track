@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipTrigger, TooltipProvider } from '@/comp
 import StatusBadge from '@/components/StatusBadge';
 import type { Driver } from '@/types';
 import type { OpsException, ActionKind } from './types';
-import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, STATUS_TIP } from './constants';
+import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip } from './constants';
 import { formatMotif, formatElapsed, formatComment, formatSuggestion, formatShortDate, needsClientContact, needsDriverContact, needsReturnToDepot } from './formatters';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
@@ -120,6 +120,11 @@ export function ActionRow({
               {row.orderRef ?? row.deliveryId.slice(0, 8)}
             </Link>
             <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>{formatElapsed(row.updatedAt ?? row.createdAt)}</p>
+            {row.scheduledAt && (
+              <p className="text-[9px] font-bold mt-1" style={{ color: 'var(--brand)' }}>
+                {t.dispatchDeskPage.scheduledDateLabel}: {formatShortDate(row.scheduledAt)}
+              </p>
+            )}
           </td>
 
           {/* Status */}
@@ -143,7 +148,7 @@ export function ActionRow({
                     <span className="text-[11px] font-semibold truncate" style={{ maxWidth: 110, color: 'var(--text-primary)' }}>{row.driverName}</span>
                   </div>
                 </TooltipTrigger>
-                <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
+                <TooltipContent>{getDriverStatusTip(driver?.onlineStatus, t)}</TooltipContent>
               </Tooltip>
             ) : (
               <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'transparent' }}>
@@ -262,6 +267,12 @@ export function ActionRow({
                         <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.updatedAt)}</p>
                       </div>
                     )}
+                    {row.scheduledAt && (
+                      <div>
+                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.scheduledDateLabel}</p>
+                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.scheduledAt)}</p>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -287,7 +298,7 @@ export function ActionRow({
                       {driverPhone && (
                         <p className="text-[11px] mt-0.5 font-semibold" style={{ color: '#C4881A' }}>{driverPhone}</p>
                       )}
-                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</p>
+                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{getDriverStatusTip(driver?.onlineStatus, t)}</p>
                     </div>
                   )}
                 </div>

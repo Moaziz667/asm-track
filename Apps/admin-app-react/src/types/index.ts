@@ -48,6 +48,17 @@ export interface Delivery {
   timeSlotStartTime?: string;
   timeSlotEndTime?: string;
   requestedDeliveryDate?: string;
+  /** Effective scheduled date (replan date if rescheduled, else ERP date). */
+  scheduledAt?: string;
+  /** Replan date; non-null when the delivery was rescheduled (drives the "Reprogrammé" badge). */
+  rescheduledAt?: string;
+  /** Official ERP delivery-note (bon de livraison) number. */
+  blNumber?: string;
+  /** ERP source-warehouse code. */
+  warehouseCode?: string;
+  /** Resolved source depot (where goods are loaded). */
+  sourceDepotId?: string;
+  sourceDepotName?: string;
   status: DeliveryStatus;
   driverName?: string;
   driverId?: string;

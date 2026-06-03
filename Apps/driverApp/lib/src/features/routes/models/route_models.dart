@@ -100,6 +100,11 @@ class DriverRouteStop {
     this.orderRef,
     this.etaAt,
     this.slaDeadline,
+    this.stopType = 'DELIVERY',
+    this.sourceDepotId,
+    this.sourceDepotName,
+    this.sourceDepotLat,
+    this.sourceDepotLng,
   });
 
   factory DriverRouteStop.fromJson(Map<String, dynamic> json) {
@@ -119,6 +124,11 @@ class DriverRouteStop {
       orderRef: json['orderRef'] as String?,
       etaAt: json['etaAt'] as String?,
       slaDeadline: json['slaDeadline'] as String?,
+      stopType: (json['stopType'] as String?) ?? 'DELIVERY',
+      sourceDepotId: json['sourceDepotId'] as String?,
+      sourceDepotName: json['sourceDepotName'] as String?,
+      sourceDepotLat: (json['sourceDepotLat'] as num?)?.toDouble(),
+      sourceDepotLng: (json['sourceDepotLng'] as num?)?.toDouble(),
     );
   }
 
@@ -137,6 +147,15 @@ class DriverRouteStop {
   final String? orderRef;
   final String? etaAt;
   final String? slaDeadline;
+
+  // Multi-depot (slice 6)
+  final String stopType;
+  final String? sourceDepotId;
+  final String? sourceDepotName;
+  final double? sourceDepotLat;
+  final double? sourceDepotLng;
+
+  bool get isPickup => stopType == 'PICKUP';
 
   bool get hasPinned => lat != null && lng != null;
 
@@ -231,6 +250,24 @@ class DriverRoute {
     if (date == null) return false;
     final now = DateTime.now();
     return date!.year == now.year && date!.month == now.month && date!.day == now.day;
+  }
+
+  // ── Multi-depot helpers (slice 6) ──────────────────────────────────────────
+
+  /// Delivery stops (non-pickup) loaded from the given source depot.
+  List<DriverRouteStop> deliveriesForDepot(String? depotId) => stops
+      .where((s) => !s.isPickup && s.sourceDepotId != null && s.sourceDepotId == depotId)
+      .toList();
+
+  /// Number of parcels (delivery stops) a pickup stop loads.
+  int pickupParcelCount(DriverRouteStop pickup) => deliveriesForDepot(pickup.sourceDepotId).length;
+
+  /// True when the depot pickup for a delivery stop has been confirmed (or none is required —
+  /// i.e. a home-depot delivery with no matching PICKUP stop on the route).
+  bool isDepotPicked(DriverRouteStop deliveryStop) {
+    final pickup = stops.where((s) => s.isPickup && s.sourceDepotId == deliveryStop.sourceDepotId).toList();
+    if (pickup.isEmpty) return true; // home depot — loaded at start
+    return pickup.every((p) => p.status == DriverRouteStopStatus.completed);
   }
 
   static List<LatLng> decodePolyline(String encoded) {

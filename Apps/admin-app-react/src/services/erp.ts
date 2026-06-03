@@ -9,6 +9,6 @@ export async function getPendingOrders(limit = 100): Promise<ErpPendingOrderSumm
 }
 
 export async function importPendingOrder(erpOrderId: string): Promise<ImportedOrderResponse> {
-  const { data } = await api.post<ImportedOrderResponse>(`/admin/erp/import-order/${erpOrderId}`)
+  const { data } = await api.post<ImportedOrderResponse>('/admin/erp/import-order', null, { params: { erpOrderId } })
   return data
 }

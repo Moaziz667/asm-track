@@ -7,7 +7,7 @@ import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
 import type { Delivery } from '@/types';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
-import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, STATUS_TIP, RIBBON, SEVERITY_CHIP } from '../constants';
+import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, RIBBON, SEVERITY_CHIP } from '../constants';
 import { formatMotif, formatElapsed, formatShortDate } from '../formatters';
 import { rowId } from '../utils';
 import type { OpsException } from '../types';
@@ -24,53 +24,25 @@ function MetaLine({ d, t }: { d: Delivery; t: any }) {
     ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
     : null;
 
+  const scheduled = d.scheduledAt 
+    ? new Date(d.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + new Date(d.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })
+    : null;
+
   return (
     <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
-      <span className="inline-flex items-center gap-1" title={formatShortDate(d.createdAt)}>
-        <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated} {created}
-      </span>
+      {scheduled ? (
+        <span className="inline-flex items-center gap-1 font-bold text-[var(--text-soft)]" title={d.scheduledAt}>
+          <IconCalendar size={11} stroke={2.5} /> {t.dispatchDeskPage.filterStatusScheduled}: {scheduled}
+        </span>
+      ) : (
+        <span className="inline-flex items-center gap-1" title={formatShortDate(d.createdAt)}>
+          <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated} {created}
+        </span>
+      )}
       {slot && <span className="inline-flex items-center gap-1"><IconCalendar size={11} stroke={2.5} /> {slot}</span>}
       {amount && <span className="font-[500]" style={{ color: 'var(--text-secondary)' }}>{amount}</span>}
     </div>
   );
-}
-
-function getSlaPill(d: Delivery, t: any) {
-  if (!['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(d.status)) return null;
-  if (!d.timeSlotEndTime) return null;
-
-  try {
-    const [h, m] = d.timeSlotEndTime.split(':').map(Number);
-    const deadline = new Date();
-    deadline.setHours(h, m, 0, 0);
-
-    const targetDate = d.requestedDeliveryDate ? new Date(d.requestedDeliveryDate) : new Date();
-    deadline.setFullYear(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate());
-
-    const now = new Date();
-    const eta = d.routeEtaAt ? new Date(d.routeEtaAt) : null;
-
-    const compareTime = eta || now;
-    const diffMs = deadline.getTime() - compareTime.getTime();
-    const diffMins = Math.round(diffMs / 60000);
-
-    if (diffMins < 0) {
-      return (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] flex items-center gap-1">
-          <span>⏰ En retard de {Math.abs(diffMins)} min</span>
-        </span>
-      );
-    } else if (diffMins <= 45) {
-      return (
-        <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] flex items-center gap-1 animate-pulse">
-          <span>⏳ Limite SLA {diffMins} min</span>
-        </span>
-      );
-    }
-  } catch (e) {
-    return null;
-  }
-  return null;
 }
 
 export function DeliveryCards() {
@@ -221,15 +193,35 @@ export function DeliveryCards() {
                                 <span className="text-[12.5px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
                               </div>
                             </TooltipTrigger>
-                            <TooltipContent>{STATUS_TIP[driver?.onlineStatus ?? 'OFFLINE']}</TooltipContent>
+                            <TooltipContent>{getDriverStatusTip(driver?.onlineStatus, t)}</TooltipContent>
                           </Tooltip>
                         ) : (
                           <span className="text-[11.5px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
                             {t.dispatchDeskPage.unassignedLabel}
                           </span>
                         )}
-                        {getSlaPill(d, t)}
                       </div>
+
+                      {/* Colored scheduled date */}
+                      {d.scheduledAt && (() => {
+                        const scheduledDate = d.scheduledAt!.split('T')[0];
+                        const now = new Date();
+                        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                        const isPending = ['SCHEDULED','PICKED_UP','IN_TRANSIT','UNSCHEDULED'].includes(d.status);
+                        let color = 'var(--text-soft)';
+                        if (isPending) {
+                          if (scheduledDate < todayStr) color = '#EF4444';
+                          else if (scheduledDate === todayStr) color = '#F59E0B';
+                          else color = '#3B82F6';
+                        }
+                        const formatted = new Date(d.scheduledAt!).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + new Date(d.scheduledAt!).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
+                        return (
+                          <div className="flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color }}>
+                            <IconCalendar size={11} stroke={2.5} />
+                            <span>{t.dispatchDeskPage.filterStatusScheduled}: {formatted}</span>
+                          </div>
+                        );
+                      })()}
 
                       {/* Articles list under status badge */}
                       {d.items && d.items.length > 0 && (

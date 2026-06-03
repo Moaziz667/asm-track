@@ -13,4 +13,5 @@ class NoopLookupAdapter implements ErpLookupPort {
     @Override public ErpPendingOrderPreviewDTO getPendingOrderPreview(String id) { return null; }
     @Override public byte[] getDeliveryNotePdf(String blNumber) { return null; }
     @Override public List<ErpWarehouseDTO> getWarehouses() { return List.of(); }
+    @Override public String getPickingRef(String pickingId) { return null; }
 }

@@ -49,4 +49,10 @@ public class DuxLookupAdapter implements ErpLookupPort {
         log.warn("DUX getWarehouses not yet implemented");
         return List.of();
     }
+
+    @Override
+    public String getPickingRef(String pickingId) {
+        log.warn("DUX getPickingRef not yet implemented");
+        return null;
+    }
 }

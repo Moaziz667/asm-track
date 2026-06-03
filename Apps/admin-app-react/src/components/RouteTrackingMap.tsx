@@ -10,12 +10,16 @@ import voitureFourgon from '../../icons/voiture-fourgon.png';
 type RouteStop = {
   id: string;
   deliveryId: string;
+  stopType?: 'PICKUP' | 'DELIVERY';
   stopOrder: number;
   status: string;
   deliveryAddress?: string;
   deliveryCity?: string;
   dropoffLat?: number;
   dropoffLng?: number;
+  sourceDepotLat?: number;
+  sourceDepotLng?: number;
+  sourceDepotName?: string;
   routeGeometry?: string;
   clientName?: string;
   order?: { clientName?: string; erpOrderId?: string };
@@ -104,6 +108,25 @@ function createDepotIcon() {
   });
 }
 
+/** Cyan depot icon for secondary depots (PICKUP stops). */
+function createPickupDepotIcon() {
+  return L.divIcon({
+    className: '',
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -22],
+    html: `<div style="width:42px;height:42px;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.45));">
+  <svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="21" cy="21" r="21" fill="#0891B2"/>
+    <circle cx="21" cy="21" r="19" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.4"/>
+    <polygon points="21,10 10,19 32,19" fill="white" fill-opacity="0.95"/>
+    <rect x="12" y="19" width="18" height="11" fill="white" fill-opacity="0.9" rx="1"/>
+    <rect x="18" y="23" width="6" height="7" fill="#0891B2" rx="1"/>
+  </svg>
+</div>`,
+  });
+}
+
 function makePinDrop() {
   return L.divIcon({
     className: '',
@@ -157,8 +180,15 @@ function FitBounds({ stops, depot }: { stops: RouteStop[]; depot?: { lat: number
   const map = useMap();
   useEffect(() => {
     const pts: [number, number][] = stops
-      .filter((s) => s.dropoffLat != null && s.dropoffLng != null)
-      .map((s) => [s.dropoffLat!, s.dropoffLng!]);
+      .filter((s) => {
+        if (s.dropoffLat != null && s.dropoffLng != null) return true;
+        if (s.stopType === 'PICKUP' && s.sourceDepotLat != null && s.sourceDepotLng != null) return true;
+        return false;
+      })
+      .map((s) => {
+        if (s.dropoffLat != null && s.dropoffLng != null) return [s.dropoffLat!, s.dropoffLng!] as [number, number];
+        return [s.sourceDepotLat!, s.sourceDepotLng!] as [number, number];
+      });
     if (depot?.lat != null) pts.push([depot.lat, depot.lng]);
     if (pts.length < 2) return;
     try {
@@ -197,7 +227,13 @@ function RouteTrackingMapInner({
       : pinnedStops.length > 0 ? [pinnedStops[0].dropoffLat!, pinnedStops[0].dropoffLng!]
       : [36.8065, 10.1815]);
 
-  const routeGeometryPaths: [number, number][][] = pinnedStops
+  const routeGeometryPaths: [number, number][][] = stops
+    .filter((s) => {
+      if (s.dropoffLat != null && s.dropoffLng != null) return true;
+      if (s.stopType === 'PICKUP' && s.sourceDepotLat != null && s.sourceDepotLng != null) return true;
+      return false;
+    })
+    .sort((a, b) => a.stopOrder - b.stopOrder)
     .map((stop) => {
       if (!stop.routeGeometry) return [] as [number, number][];
       try {
@@ -217,7 +253,17 @@ function RouteTrackingMapInner({
   const fallbackPath: [number, number][] = [];
   if (routeGeometryPaths.length === 0) {
     if (driver?.lat != null && driver?.lng != null) fallbackPath.push([driver.lat, driver.lng]);
-    pinnedStops.forEach((s) => fallbackPath.push([s.dropoffLat!, s.dropoffLng!]));
+    stops
+      .filter((s) => {
+        if (s.dropoffLat != null && s.dropoffLng != null) return true;
+        if (s.stopType === 'PICKUP' && s.sourceDepotLat != null && s.sourceDepotLng != null) return true;
+        return false;
+      })
+      .sort((a, b) => a.stopOrder - b.stopOrder)
+      .forEach((s) => {
+        if (s.dropoffLat != null && s.dropoffLng != null) fallbackPath.push([s.dropoffLat!, s.dropoffLng!]);
+        else if (s.sourceDepotLat != null && s.sourceDepotLng != null) fallbackPath.push([s.sourceDepotLat!, s.sourceDepotLng!]);
+      });
   }
 
   const h = typeof height === 'number' ? `${height}px` : height;
@@ -233,7 +279,7 @@ function RouteTrackingMapInner({
 
         <FlyToMarker target={flyTarget} />
         <MapBehavior center={center} zoom={zoom} />
-        <FitBounds stops={pinnedStops} depot={depot} />
+        <FitBounds stops={stops} depot={depot} />
         {onPick && <MapClickHandler onPick={onPick} />}
 
         {/* Pinning-mode draggable marker */}
@@ -265,6 +311,35 @@ function RouteTrackingMapInner({
             </Popup>
           </Marker>
         )}
+
+        {/* PICKUP stops — cyan depot markers for secondary depots */}
+        {stops
+          .filter((s) => s.stopType === 'PICKUP' && s.sourceDepotLat != null && s.sourceDepotLng != null)
+          .map((stop) => (
+            <Marker
+              key={stop.id}
+              position={[stop.sourceDepotLat!, stop.sourceDepotLng!]}
+              icon={createPickupDepotIcon()}
+              eventHandlers={{
+                click() {
+                  setFlyTarget([stop.sourceDepotLat!, stop.sourceDepotLng!]);
+                  onStopClick?.(stop.id);
+                },
+              }}
+            >
+              <Popup>
+                <div style={{ minWidth: 180 }}>
+                  <div style={{ fontWeight: 800, fontSize: 13, color: '#0891B2' }}>
+                    #{stop.stopOrder} · {stop.sourceDepotName || 'Chargement'}
+                  </div>
+                  <div style={{ fontSize: 11, color: '#374151', marginTop: 4, borderTop: '1px solid #F4F4F5', paddingTop: 4 }}>
+                    Point de chargement
+                  </div>
+                  <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>{stop.status}</div>
+                </div>
+              </Popup>
+            </Marker>
+          ))}
 
         {/* Route geometry */}
         {routeGeometryPaths.map((path, i) => (

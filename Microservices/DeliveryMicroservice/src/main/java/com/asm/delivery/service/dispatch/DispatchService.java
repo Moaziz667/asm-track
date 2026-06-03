@@ -57,6 +57,7 @@ public class DispatchService {
     private final RouteRepository routeRepository;
     private final RouteStopRepository routeStopRepository;
     private final ZoneRepository zoneRepository;
+    private final com.asm.delivery.repository.DepotRepository depotRepository;
     private final GeocodingService geocodingService;
     private final VehicleRepository vehicleRepository;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
@@ -436,14 +437,18 @@ public class DispatchService {
         if (driverId != null) {
             predicates.add(cb.equal(root.get("driverId"), driverId));
         }
-        if (date != null) {
-            LocalDateTime start = date.atStartOfDay();
-            LocalDateTime end = start.plusDays(1);
-            predicates.add(cb.between(root.get("createdAt"), start, end));
-        }
-        // source, zoneId, unpinned all require a join on order
-        if (source != null || zoneId != null || Boolean.TRUE.equals(unpinned)) {
+        // Date filter on Planifié (effective scheduledAt = rescheduledAt ?? scheduledAt)
+        boolean needsOrderJoin = date != null || source != null || zoneId != null || Boolean.TRUE.equals(unpinned);
+        if (needsOrderJoin) {
             Join<Delivery, Order> orderJoin = root.join("order", JoinType.INNER);
+            if (date != null) {
+                LocalDateTime start = date.atStartOfDay();
+                LocalDateTime end = start.plusDays(1);
+                predicates.add(cb.or(
+                    cb.between(orderJoin.get("scheduledAt"), start, end),
+                    cb.between(orderJoin.get("rescheduledAt"), start, end)
+                ));
+            }
             if (source != null) {
                 predicates.add(cb.equal(orderJoin.get("source"), source));
             }
@@ -531,6 +536,8 @@ public class DispatchService {
                 .routeEtaAt(d.getRouteEtaAt())
                 .routeGeometry(d.getRouteGeometry())
                 .routeProvider(d.getRouteProvider())
+                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
+                .rescheduledAt(order != null ? order.getRescheduledAt() : null)
                 .createdAt(d.getCreatedAt())
                 .assignedAt(d.getAssignedAt())
                 .inTransitAt(d.getInTransitAt())
@@ -576,6 +583,11 @@ public class DispatchService {
                 ? zoneRepository.findById(order.getZoneId()).orElse(null)
                 : null;
 
+        UUID detailSrcDepotId = order != null ? order.getSourceDepotId() : null;
+        String detailSourceDepotName = detailSrcDepotId != null
+                ? depotRepository.findById(detailSrcDepotId).map(Depot::getName).orElse(null)
+                : null;
+
         return AdminDeliveryDetailResponse.builder()
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
@@ -616,6 +628,12 @@ public class DispatchService {
                 .currency(order != null ? order.getCurrency() : null)
                 .odooSyncStatus(order != null ? order.getOdooSyncStatus() : null)
                 .odooBackorderId(order != null ? order.getOdooBackorderId() : null)
+                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
+                .rescheduledAt(order != null ? order.getRescheduledAt() : null)
+                .blNumber(order != null ? order.getBlNumber() : null)
+                .warehouseCode(order != null ? order.getWarehouseCode() : null)
+                .sourceDepotId(order != null ? order.getSourceDepotId() : null)
+                .sourceDepotName(detailSourceDepotName)
                 .createdAt(d.getCreatedAt())
                 .assignedAt(d.getAssignedAt())
                 .pickedUpAt(d.getPickedUpAt())

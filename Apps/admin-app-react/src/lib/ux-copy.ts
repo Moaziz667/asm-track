@@ -684,6 +684,9 @@ export const FR_COPY = {
     buttonRefresh: 'Actualiser',
     // Active drivers section
     activeDriversLabel: 'En service',
+    driverOnline: 'En service',
+    driverOnBreak: 'En pause',
+    driverOffline: 'Hors ligne',
     // KPI strip
     kpiCritical: 'Critiques',
     kpiUnassigned: 'Non assignés',
@@ -695,6 +698,12 @@ export const FR_COPY = {
     tabFailed: 'Échouées',
     tabMissingGps: 'GPS manquant',
     tabHandoff: 'Passations',
+    // Batch action bar
+    batchCount: '{count} sélectionnée{plural}',
+    batchMixedWarning: 'Sélection mixte — choisissez un seul type',
+    batchAssign: 'Assigner ({count})',
+    batchReassign: 'Réassigner ({count})',
+    batchCancel: 'Annuler',
     kpiUpdated: 'Mis à jour',
     cardCreated: 'Créé depuis',
     handoffEmpty: 'Aucune passation en cours',
@@ -764,6 +773,7 @@ export const FR_COPY = {
     noComment: 'Aucun commentaire',
     reprogrammationLabel: 'Reprogrammation',
     byLabel: 'par',
+    scheduledDateLabel: 'Date prévue',
     // Motif labels (formatMotif)
     motifSlaUnscheduled: 'Commande non planifiée',
     motifSlaScheduled: 'Bloqué au dépôt',
@@ -785,6 +795,8 @@ export const FR_COPY = {
     motifDelivered: 'Livré',
     motifPartiallyDelivered: 'Livré partiellement',
     motifUnknown: 'Incident inconnu',
+    motifSlaUnscheduledLate: 'Retard (Non Planifié)',
+    motifSlaUnscheduledToday: 'Planifié Aujourd\'hui',
     // Time elapsed (formatElapsed)
     timeJustNow: 'à l\'instant',
     timeMinutes: '{diff} min',
@@ -805,11 +817,14 @@ export const FR_COPY = {
     commentFailed: 'Échec de livraison · il y a {time}',
     commentCancelled: 'Annulée il y a {time}',
     commentDefault: 'Signalé il y a {time}',
+    commentSlaUnscheduledLate: 'En retard · {time}',
+    commentSlaUnscheduledToday: 'Planifié pour aujourd\'hui',
     // Suggestions (formatSuggestion)
     suggestionSlaUnscheduled: '→ À planifier dans une tournée',
     suggestionScheduledMonitoring: '→ Surveiller — aucune action immédiate',
     suggestionWrongAddress: '→ Corriger l\'adresse dans la fiche commande',
     suggestionOther: '→ Vérifier le commentaire chauffeur',
+    suggestionSlaUnscheduledLate: '→ Assigner une tournée d\'urgence',
     // ReplanModal
     replanModalTitleReplan: 'Remettre en attente de planification',
     replanModalTitleReassign: 'Réassigner la livraison',
@@ -818,6 +833,8 @@ export const FR_COPY = {
     replanModalLabelClient: 'Client',
     replanModalWhatWillHappen: 'Que va-t-il se passer ?',
     replanModalDescription: 'Cette livraison sera retirée de la tournée actuelle{routeName} et remise en liste d\'attente. Un planificateur devra ensuite la réaffecter à une nouvelle tournée.',
+    replanModalScheduledLabel: 'Nouvelle date planifiée',
+    replanModalScheduledHint: 'Remplace la date ERP périmée — le SLA d\'affectation se base sur cette date.',
     replanModalNoteLabel: 'Note (obligatoire)',
     replanModalNoteHint: 'Expliquez brièvement pourquoi vous effectuez cette action',
     replanModalNotePlaceholder: 'Ex : Client absent, adresse incorrecte, chauffeur indisponible…',
@@ -841,6 +858,7 @@ export const FR_COPY = {
     routeValidated: 'Validée',
     routeDraft: 'Brouillon',
     noRouteAssigned: 'Aucune tournée assignée',
+    pageTitleFallback: 'Dispatch',
   },
 
   // ── ReassignDrawer ───────────────────────────────────────────────────────
@@ -948,6 +966,13 @@ export const FR_COPY = {
     labelUpdatedAt: 'Mise à jour',
     // Section: Driver & Route
     sectionDriverRoute: 'Chauffeur & Tournée',
+    sectionFulfillment: 'Engagement & BL',
+    scheduledLabel: 'Date promise',
+    blNumberLabel: 'N° bon de livraison',
+    sourceDepotLabel: 'Dépôt source',
+    viewBL: 'Voir le bon de livraison',
+    rescheduledBadge: 'Reprogrammé',
+    rescheduledTooltip: 'Date reprogrammée par le dispatcher (remplace la date ERP)',
     labelDriver: 'Chauffeur',
     labelRoute: 'Tournée',
     seeRoute: 'Voir la tournée',
@@ -998,6 +1023,11 @@ export const FR_COPY = {
     labelTimeWindow: 'Fenêtre horaire',
     labelInstructions: 'Instructions',
     labelNotes: 'Note',
+    pickupLabel: 'Dépôt',
+    pickupTitle: 'Chargement — Dépôt {depot}',
+    pickupLoadCount: '{count} colis à charger',
+    pickupArrival: 'Arrivée prévue',
+    pickupCompleted: 'Chargement confirmé',
     labelDepot: 'Dépôt',
     labelDeparture: 'Départ',
     noDepot: 'Aucun dépôt',
@@ -1107,7 +1137,7 @@ export const FR_COPY = {
     pillDone: 'Déjà importées',
 
     // Table headers
-    headerReference: 'Référence ERP',
+    headerReference: 'Bon de Livraison / Réf ERP',
     headerCustomer: 'Client',
     headerDestination: 'Destination',
     headerAmount: 'Montant',
@@ -1228,6 +1258,9 @@ export const FR_COPY = {
 
     // Orders table
     emptyOrdersState: 'Aucune commande à importer',
+    quickViewAll: 'Toutes',
+    quickViewToday: 'Aujourd\'hui',
+    quickViewThisWeek: 'Cette semaine',
 
     // ValidationModal & Modals general
     finalReviewSubtitle: 'Revue finale',
@@ -1549,6 +1582,7 @@ export const FR_COPY = {
     statusEngaged: 'En Engagement',
     statusAvailable: 'Disponible',
     statusOutOfService: 'Hors-Service',
+    statusRetired: 'Retiré',
     // Sidebar
     newVehicleButton: 'Ajout Ressource',
     searchPlaceholder: 'Recherche Technique...',
@@ -1589,10 +1623,15 @@ export const FR_COPY = {
     statusLabel: 'Statut',
     operationalStatus: 'Opérationnel',
     // Delete modal
-    deleteTitle: 'Destruction de l\'actif',
-    deleteDescription: 'Voulez-vous vraiment retirer définitivement le véhicule {vehicleName} de la flotte ?',
-    deleteButton: 'Confirmer Retrait',
+    deleteTitle: 'Retirer le véhicule',
+    deleteDescription: 'Voulez-vous vraiment retirer le véhicule {vehicleName} de la flotte ? Il pourra être réactivé ultérieurement.',
+    deleteButton: 'Confirmer le Retrait',
     deleteCancel: 'Abandonner',
+    // Retire/Reactivate
+    retireTitle: 'Retirer le véhicule',
+    retireDescription: 'Voulez-vous vraiment retirer le véhicule {vehicleName} de la flotte ? Il pourra être réactivé ultérieurement.',
+    retireButton: 'Retirer',
+    reactivateButton: 'Réactiver',
   },
 
   // ── Depots Page ────────────────────────────────────────────────────────
@@ -1813,8 +1852,8 @@ export const FR_COPY = {
     primaryColor: 'Couleur primaire',
     slaagreement: 'Service Level Agreement (SLA)',
     slaDesc: 'Seuils temporels pour le calcul de conformité opérationnelle.',
-    waitingTime: 'Temps d\'Attente (Waiting)',
-    waitingTimeDesc: 'Du moment où la commande est créée jusqu\'à l\'affectation au chauffeur',
+    waitingTime: 'Délai d\'affectation (avant date planifiée)',
+    waitingTimeDesc: 'Délai max avant la date planifiée (Odoo) pour affecter la commande à un chauffeur. Alerte si non affectée à temps.',
     assignmentDelay: 'Délai de Démarrage (Assign)',
     assignmentDelayDesc: 'Du démarrage prévu ou réel de la tournée jusqu\'au retrait effectif du colis',
     transitDelay: 'Délai de Départ (Pickup)',
@@ -1842,7 +1881,7 @@ export const FR_COPY = {
     setNewThreshold: 'Définir un Nouveau Seuil',
     slaBreachWarning: 'Toute livraison dépassant ce délai sera signalée comme rupture SLA',
     recommendation: '💡 Recommandation',
-    waitingRec: 'Plage typique: 10-30 minutes. Temps de la création de la commande à l\'affectation du chauffeur.',
+    waitingRec: 'Plage typique: 60-180 minutes avant la date planifiée. La commande doit être affectée à un chauffeur avant ce seuil.',
     assignmentRec: 'Plage typique: 10-30 minutes. Du démarrage de la tournée à la récupération en entrepôt. Tenant compte de la préparation du véhicule et de la préparation des colis.',
     pickupRec: 'Plage typique: 5-15 minutes. De la récupération au départ réel. Permet le chargement et les vérifications du véhicule.',
     // Integration
@@ -1890,6 +1929,9 @@ export const FR_COPY = {
     quickViewInTransit: 'En transit',
     quickViewCompleted: 'Livrées',
     quickViewFailed: 'Échouées',
+    quickViewOverdue: 'En retard',
+    quickViewToday: 'Aujourd\'hui',
+    quickViewFuture: 'À venir',
 
     // Table display
     displayLabel: 'Affichage :',
@@ -1903,12 +1945,14 @@ export const FR_COPY = {
     driverHeader: 'Chauffeur',
     zoneHeader: 'Zone',
     statusHeader: 'Statut',
+    scheduledHeader: 'Planifié',
     actionsHeader: 'Actions',
 
     // Table content
     unknownDriver: 'Adresse inconnue',
     notAssigned: 'Non assigné',
     outOfZone: 'Zone non définie',
+    unscheduled: 'Non planifié',
 
     // Pagination
     pageLabel: 'Page',
@@ -2108,10 +2152,12 @@ export const FR_COPY = {
     // Vehicle CRUD
     successVehicleCreated: 'Véhicule créé avec succès',
     successVehicleUpdated: 'Véhicule mis à jour avec succès',
-    successVehicleDeleted: 'Véhicule supprimé avec succès',
+    successVehicleDeleted: 'Véhicule retiré avec succès',
+    successVehicleReactivated: 'Véhicule réactivé avec succès',
     errorVehicleCreateFailed: 'Impossible de créer le véhicule',
     errorVehicleUpdateFailed: 'Impossible de mettre à jour le véhicule',
-    errorVehicleDeleteFailed: 'Impossible de supprimer le véhicule',
+    errorVehicleDeleteFailed: 'Impossible de retirer le véhicule',
+    errorVehicleReactivateFailed: 'Impossible de réactiver le véhicule',
     errorVehiclesLoadFailed: 'Impossible de charger les véhicules',
     errorVehiclePlateRequired: 'Matricule du véhicule requis',
 
@@ -2256,6 +2302,24 @@ export const FR_COPY = {
         if (win) parts.push(win);
         if (p.driverName) parts.push(p.driverName);
         return parts.join(' · ');
+      },
+    },
+    'ROUTE_STARTED': {
+      title: 'Tournée démarrée',
+      message: (p: any) => {
+        const n = Number(p.stopCount);
+        const parts = [`${p.driverName || 'Le livreur'} a démarré «${p.routeName || 'la tournée'}»`];
+        if (Number.isFinite(n) && n > 0) parts.push(stopsFr(n));
+        return parts.join(' · ');
+      },
+    },
+    'PICKUP_CONFIRMED': {
+      title: 'Chargement confirmé',
+      message: (p: any) => {
+        const n = Number(p.parcelCount);
+        const colis = Number.isFinite(n) && n > 0 ? `${n} colis` : 'colis';
+        const depot = p.depotName ? ` au dépôt ${p.depotName}` : '';
+        return `${p.driverName || 'Le livreur'} a chargé ${colis}${depot} · «${p.routeName || 'tournée'}»`;
       },
     },
     'route.schedule_changed': {

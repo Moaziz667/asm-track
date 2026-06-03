@@ -390,8 +390,8 @@ export default function SettingsPage() {
                           <button
                             type="button"
                             onClick={() => {
-                              setEditingSla({ key: 'ops.sla.waiting-limit-minutes', label: t.settingsPage.waitingTime, value: slaSettings['ops.sla.waiting-limit-minutes'] || '0' });
-                              setNewSlaValue(slaSettings['ops.sla.waiting-limit-minutes'] || '0');
+                              setEditingSla({ key: 'ops.sla.assign-leadtime-minutes', label: t.settingsPage.waitingTime, value: slaSettings['ops.sla.assign-leadtime-minutes'] || '0' });
+                              setNewSlaValue(slaSettings['ops.sla.assign-leadtime-minutes'] || '0');
                               setSlaEditOpen(true);
                             }}
                             className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
@@ -402,7 +402,7 @@ export default function SettingsPage() {
                       </div>
                       <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.waitingTimeDesc}</p>
                       <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.waiting-limit-minutes'] || '0'}</p>
+                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.assign-leadtime-minutes'] || '120'}</p>
                         <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
                       </div>
                     </div>
@@ -644,7 +644,7 @@ export default function SettingsPage() {
           <div className="rounded-lg p-4" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
             <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.whatMeasure}</p>
             <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">
-              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingTimeDesc}
+              {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingTimeDesc}
               {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentDelayDesc}
               {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.transitDelayDesc}
             </p>
@@ -683,7 +683,7 @@ export default function SettingsPage() {
           <div className="rounded-lg p-4" style={{ background: 'var(--app-bg)', border: '1px dashed var(--border)' }}>
             <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.recommendation}</p>
             <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingRec}
+              {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingRec}
               {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentRec}
               {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.pickupRec}
             </p>

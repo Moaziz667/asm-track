@@ -212,13 +212,14 @@ public class ErpAdapterClient {
      * Preview a pending order from the ERP.
      */
     public Map<String, Object> getPendingOrderPreview(String erpOrderId, String erpProvider) {
-        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/pending-orders/" + erpOrderId)
+        java.net.URI uri = org.springframework.web.util.UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/pending-orders/preview")
+                .queryParam("erpOrderId", erpOrderId)
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
-                .toUriString();
+                .build().toUri();
 
         try {
             ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    url, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
+                    uri, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
                     new ParameterizedTypeReference<>() {});
             return response.getBody();
         } catch (Exception e) {
@@ -241,6 +242,13 @@ public class ErpAdapterClient {
                     url, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
                     byte[].class);
             return response.getBody();
+        } catch (org.springframework.web.client.HttpClientErrorException.NotFound e) {
+            log.error("Adapter getDeliveryNotePdf: BL not found in Odoo: {}", blNumber);
+            return null;
+        } catch (org.springframework.web.client.HttpClientErrorException e) {
+            log.error("Adapter getDeliveryNotePdf failed for blNumber={}: HTTP {} - {}", 
+                    blNumber, e.getStatusCode(), e.getResponseBodyAsString());
+            return null;
         } catch (Exception e) {
             log.error("Adapter getDeliveryNotePdf failed for blNumber={}", blNumber, e);
             return null;
@@ -256,6 +264,27 @@ public class ErpAdapterClient {
                 .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
                 .toUriString();
         return getListResult(url);
+    }
+
+    /**
+     * Resolve a picking's reference/name (e.g. "WH/OUT/00007") from its ERP id.
+     * Used to link a backorder delivery to its Odoo picking. Returns null on any failure.
+     */
+    public String getPickingRef(String pickingId, String erpProvider) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/picking-ref")
+                .queryParam("pickingId", pickingId)
+                .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
+                .toUriString();
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
+                    new ParameterizedTypeReference<>() {});
+            Map<String, Object> body = response.getBody();
+            return body != null && body.get("ref") != null ? String.valueOf(body.get("ref")) : null;
+        } catch (Exception e) {
+            log.warn("Adapter getPickingRef failed for pickingId={}: {}", pickingId, e.getMessage());
+            return null;
+        }
     }
 
     // ── Internal ────────────────────────────────────────────────────────────────

@@ -169,6 +169,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         icon = Icons.playlist_add_rounded;
         color = const Color(0xFF2563EB);
         break;
+      case 'pickup.overdue':
+        message = DriverCopy.get('ws_pickup_overdue', locale)
+            .replaceAll('{client}', event.clientName ?? '')
+            .replaceAll('{count}', event.reason ?? '')
+            .replaceAll('  ', ' ')
+            .trim();
+        icon = Icons.warehouse_outlined;
+        color = const Color(0xFFDC2626);
+        break;
       default:
         return;
     }

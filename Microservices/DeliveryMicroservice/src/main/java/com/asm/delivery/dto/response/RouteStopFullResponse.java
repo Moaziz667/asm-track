@@ -118,4 +118,6 @@ public class RouteStopFullResponse {
     private String clientName;
     @Schema(description = "Inlined order reference (ERP/Odoo) for simple display")
     private String orderRef;
+    @Schema(description = "Number of deliveries loaded at this depot (for PICKUP stops)")
+    private Integer parcelCount;
 }
