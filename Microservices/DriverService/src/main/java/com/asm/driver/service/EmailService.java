@@ -33,7 +33,6 @@ public class EmailService {
             log.info("Invite email sent to {}", toEmail);
         } catch (Exception e) {
             log.error("Failed to send invite email to {}: {}", toEmail, e.getMessage());
-            throw new RuntimeException("Email sending failed: " + e.getMessage());
         }
     }
 

@@ -15,6 +15,7 @@ import {
   IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { useNavigate as useRouter } from 'react-router-dom';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
@@ -57,11 +58,14 @@ const DISPATCH_STATUSES: DeliveryStatus[] = [
 
 export default function DashboardPage() {
   const t = useT();
+  const navigate = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [ops, setOps] = useState<AdminOpsOverview | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'all'>('all');
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [activeRoutesCount, setActiveRoutesCount] = useState(0);
   // useNotificationsState — reads count only, does NOT re-render on action context updates
   const { notifications: ctxAlerts } = useNotificationsState();
   const { locale } = useLocaleStore();
@@ -74,12 +78,16 @@ export default function DashboardPage() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const [sR, oR] = await Promise.all([
+      const [sR, oR, driversRes, routesRes] = await Promise.all([
         api.get('/api/admin/deliveries/stats', { params: { period } }),
         api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
+        api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
+        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
       ]);
       setStats(sR.data);
       setOps(oR.data ?? null);
+      setDrivers(driversRes.data ?? []);
+      setActiveRoutesCount(Array.isArray(routesRes.data) ? routesRes.data.length : 0);
     } catch {
       if (!silent) showErrorToast(null, t.dashboardPage.syncError);
     } finally {
@@ -140,6 +148,18 @@ export default function DashboardPage() {
       return acc;
     }, {} as Record<DeliveryStatus, { count: number; items: any[] }>);
   }, [ops]);
+
+  const needsAttention = useMemo(() => {
+    if (!ops?.exceptions) return [];
+    return ops.exceptions.slice(0, 8);
+  }, [ops]);
+
+  const driverGroups = useMemo(() => {
+    const online = drivers.filter(d => d.onlineStatus === 'ONLINE');
+    const onBreak = drivers.filter(d => d.onlineStatus === 'ON_BREAK');
+    const offline = drivers.filter(d => d.onlineStatus === 'OFFLINE' || !d.onlineStatus);
+    return { online, onBreak, offline };
+  }, [drivers]);
 
   return (
     <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] select-none animate-fadeIn">
@@ -225,237 +245,261 @@ export default function DashboardPage() {
       {/* ── MAIN VIEW CONTENT SWITCHER ── */}
       {viewMode === 'office' ? (
         /* ── OFFICE DESK LAYOUT ── */
-        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 animate-fadeIn">
-          
-          {/* LEFT COLUMN: structured classic operational table (2/3 width) */}
-          <div className="lg:col-span-2 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-2xs overflow-hidden">
-            
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between bg-[var(--app-bg)]/25">
-              <span className="text-[11.5px] font-bold tracking-tight text-[var(--text-muted)]">
-                {locale === 'ar' ? 'العمليات النشطة الأخيرة' : 'Suivi des Opérations Récentes'}
-              </span>
-              <button
-                onClick={() => window.open('/deliveries', '_blank')}
-                className="text-[11px] font-bold text-primary hover:underline flex items-center gap-1 cursor-pointer"
-              >
-                Voir tout <IconArrowUpRight size={12} />
-              </button>
+        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex flex-col gap-6 flex-1 animate-fadeIn">
+
+          {/* Metric Strip */}
+          <div className="flex items-stretch bg-[var(--surface)] border border-[var(--border)] rounded-[8px] overflow-hidden">
+            <div className="flex-1 px-5 py-4">
+              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiSlaRate}</div>
+              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums" style={{ color: slaPercent >= 90 ? 'var(--success)' : slaPercent >= 70 ? 'var(--warning)' : 'var(--danger)' }}>{slaPercent}%</div>
             </div>
-
-            <div className="flex-1 overflow-y-auto overflow-x-auto max-h-[350px]" style={{ scrollbarWidth: 'thin' }}>
-              <table className="w-full text-left border-collapse font-sans text-xs">
-                <thead>
-                  <tr className="border-b border-[var(--border)] bg-[var(--surface)] sticky top-0 z-10 shadow-3xs">
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Référence</th>
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Client</th>
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Chauffeur</th>
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Planifié</th>
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Tournée</th>
-                    <th className="p-3 font-semibold text-[var(--text-muted)] bg-[var(--surface)]">Statut</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[var(--border)]">
-                  {activeDeliveries.length === 0 ? (
-                    <tr>
-                      <td colSpan={5} className="p-12 text-center text-muted-foreground opacity-60">
-                        <IconAlertTriangle className="mx-auto mb-2 opacity-50" size={24} />
-                        Aucune opération active à afficher.
-                      </td>
-                    </tr>
-                  ) : (
-                    activeDeliveries.map((item: any, idx: number) => {
-                      const st = item.status as DeliveryStatus;
-                      const config = STATUS_ROW_COLOR_MAP[st] || { text: 'var(--text-muted)', bg: 'var(--hover-bg)', border: 'var(--border)' };
-                      const label = t.statusLabels[st] || st;
-
-                      return (
-                        <tr 
-                          key={idx} 
-                          onClick={() => window.open(`/deliveries/${item.deliveryId}`, '_blank')}
-                          className="hover:bg-[var(--hover-bg)]/40 transition-colors duration-100 cursor-pointer"
-                        >
-                          <td className="p-3 font-mono font-semibold text-primary truncate max-w-[120px]">
-                            {item.orderRef}
-                          </td>
-                          <td className="p-3 font-semibold text-[var(--text-primary)] max-w-[160px] truncate">
-                            {item.clientName || 'Client inconnu'}
-                          </td>
-                          <td className="p-3 text-[var(--text-secondary)] font-medium">
-                            {item.driverName ? (
-                              <span className="flex items-center gap-1.5">
-                                <span className="w-4 h-4 rounded-full bg-[var(--hover-bg)] flex items-center justify-center text-[9px] shrink-0 font-semibold">
-                                  {item.driverName.substring(0, 2).toUpperCase()}
-                                </span>
-                                <span className="truncate max-w-[100px]">{item.driverName}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[var(--text-soft)] italic">Non assigné</span>
-                            )}
-                          </td>
-                          <td className="p-3 text-[var(--text-secondary)]">
-                            {(() => {
-                              if (!item.scheduledAt) {
-                                return <span className="text-[11px] text-[var(--text-soft)] italic">Non planifié</span>;
-                              }
-                              const scheduledDate = item.scheduledAt.split('T')[0];
-                              const now = new Date();
-                              const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                              const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-                              
-                              let colorClass = 'text-[var(--text-soft)]';
-                              if (isPending) {
-                                if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] font-bold';
-                                else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] font-bold';
-                              }
-                              return (
-                                <span className={cn("text-[11px] font-medium flex items-center gap-1", colorClass)}>
-                                  <IconClock size={11} stroke={2.5} />
-                                  {new Date(item.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}
-                                </span>
-                              );
-                            })()}
-                          </td>
-                          <td className="p-3 text-[var(--text-secondary)]">
-                            {item.routeName || item.routeRef ? (
-                              <span className="flex items-center gap-1 font-medium truncate max-w-[110px]">
-                                <IconRoute size={12} className="text-[var(--text-soft)] shrink-0" />
-                                <span>{item.routeName || item.routeRef}</span>
-                              </span>
-                            ) : (
-                              <span className="text-[var(--text-soft)] italic">-</span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <span 
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold border"
-                              style={{
-                                color: config.text,
-                                backgroundColor: config.bg,
-                                borderColor: config.border
-                              }}
-                            >
-                              {label}
-                            </span>
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+            <div className="w-px bg-[var(--border)]" />
+            <div className="flex-1 px-5 py-4">
+              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiDelivered}</div>
+              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{today?.delivered ?? 0}<span className="text-[14px] font-normal text-[var(--text-soft)] ml-1">{t.dashboardPage.kpiDeliveredOf} {today?.total ?? 0}</span></div>
+            </div>
+            <div className="w-px bg-[var(--border)]" />
+            <div className="flex-1 px-5 py-4">
+              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiActiveRoutes}</div>
+              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{activeRoutesCount}</div>
+            </div>
+            <div className="w-px bg-[var(--border)]" />
+            <div className="flex-1 px-5 py-4">
+              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiDriversOnline}</div>
+              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--success)]">{driverGroups.online.length}<span className="text-[14px] font-normal text-[var(--text-soft)] ml-1">/ {drivers.length}</span></div>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: structured classic charts & analytical panels (1/3 width) */}
-          <div className="flex flex-col gap-6">
-            
-            {/* Driver Performance Bar Chart Card */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-2xs p-4 text-left flex flex-col h-[260px]">
-              <span className="text-[11.5px] font-bold tracking-tight text-[var(--text-muted)] mb-4 block">
-                {t.dashboardPage.driverPerformanceTitle || 'Rendement par Chauffeur'}
-              </span>
-              <div className="flex-1 min-h-0">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={stats?.byDriver ?? []} barGap={5} barCategoryGap="42%">
-                    <CartesianGrid strokeDasharray="2 3" vertical={false} stroke="var(--border)" />
-                    <XAxis
-                      dataKey="driverName"
-                      tick={{ fontSize: 9, fill: 'var(--text-soft)', fontWeight: 600 }}
-                      axisLine={false}
-                      tickLine={false}
-                      dy={6}
-                      tickFormatter={capitalize}
-                    />
-                    <YAxis
-                      tick={{ fontSize: 9, fill: 'var(--text-soft)' }}
-                      axisLine={false}
-                      tickLine={false}
-                      width={18}
-                    />
-                    <Tooltip
-                      contentStyle={{
-                        background: 'var(--surface)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '4px',
-                        padding: '6px 10px',
-                        fontSize: 10,
-                        color: 'var(--text-primary)',
-                        boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                      }}
-                      cursor={{ fill: 'var(--hover-bg)' }}
-                    />
-                    <Bar name="Total" dataKey="total" fill="var(--border-strong)" barSize={12} radius={[2, 2, 0, 0]} />
-                    <Bar name="Livrées" dataKey="delivered" fill="var(--text-primary)" barSize={12} radius={[2, 2, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+          {/* Today's Progress Bar */}
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+            <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-4">
+              {t.dashboardPage.todayProgress}
+            </span>
+            {(() => {
+              const progressTotal = (today?.total ?? 0) || 1;
+              const segments = [
+                { key: 'delivered', count: today?.delivered ?? 0, color: STATUS_COLOR_MAP.DELIVERED, label: t.dashboardPage.progressDelivered },
+                { key: 'inTransit', count: today?.inTransit ?? 0, color: STATUS_COLOR_MAP.IN_TRANSIT, label: t.dashboardPage.progressInTransit },
+                { key: 'failed', count: today?.failed ?? 0, color: STATUS_COLOR_MAP.FAILED, label: t.dashboardPage.progressFailed },
+                { key: 'pending', count: (today?.waiting ?? 0) + (today?.unscheduled ?? 0) + (today?.scheduled ?? 0), color: STATUS_COLOR_MAP.UNSCHEDULED, label: t.dashboardPage.progressPending },
+              ];
+              return (
+                <>
+                  <div className="w-full h-3 rounded-full overflow-hidden flex bg-[var(--hover-bg)]">
+                    {segments.map(seg =>
+                      seg.count > 0 ? (
+                        <div
+                          key={seg.key}
+                          className="h-full transition-all duration-500"
+                          style={{ width: `${(seg.count / progressTotal) * 100}%`, backgroundColor: seg.color }}
+                        />
+                      ) : null
+                    )}
+                  </div>
+                  <div className="flex flex-wrap gap-4 mt-2.5">
+                    {segments.map(seg => (
+                      <div key={seg.key} className="flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
+                        <span className="text-[10.5px] font-semibold text-[var(--text-soft)]">
+                          {seg.label} <span className="font-mono font-bold">{seg.count}</span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+
+          {/* Two-column layout: Needs Attention + Right Column */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+
+            {/* Left: Needs Attention Feed */}
+            <div className="lg:col-span-2 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-[16px] overflow-hidden min-h-0">
+              <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+                <span className="text-[13px] font-semibold text-[var(--text-primary)]">
+                  {t.dashboardPage.needsAttention}
+                </span>
+                {needsAttention.length > 0 && (
+                  <button
+                    onClick={() => navigate('/dispatch-desk?tab=action')}
+                    className="text-[11px] font-medium text-[#0972d3] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                  >
+                    {t.dashboardPage.needsAttentionViewAll} <IconArrowUpRight size={11} />
+                  </button>
+                )}
+              </div>
+              <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', maxHeight: 420 }}>
+                {needsAttention.length === 0 ? (
+                  <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-50">
+                    <IconCheck size={28} stroke={1.5} className="text-[#4CAF82]" />
+                    <span className="text-[12px] font-medium text-[var(--text-soft)]">
+                      {t.dashboardPage.needsAttentionEmpty}
+                    </span>
+                  </div>
+                ) : (
+                  <table className="w-full text-left border-collapse">
+                    <thead>
+                      <tr className="border-b border-[var(--border)] bg-[var(--app-bg)]/40">
+                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Sévérité</th>
+                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Référence</th>
+                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Client</th>
+                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Message</th>
+                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide text-right">Heure</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)]/50">
+                      {needsAttention.map((exc: any, idx: number) => {
+                        const severity = exc.severity || 'INFO';
+                        const chipColor = severity === 'CRITICAL' ? '#C7372F' : severity === 'WARNING' ? '#D4772C' : '#8A8F98';
+                        const chipBg = severity === 'CRITICAL' ? 'rgba(199,55,47,0.08)' : severity === 'WARNING' ? 'rgba(212,119,44,0.08)' : 'rgba(138,143,152,0.06)';
+                        return (
+                          <tr
+                            key={idx}
+                            onClick={() => {
+                              const tab = exc.type === 'FAILED' ? 'failed' : 'action';
+                              const search = exc.orderRef ? `&search=${encodeURIComponent(exc.orderRef)}` : '';
+                              navigate(`/dispatch-desk?tab=${tab}${search}`);
+                            }}
+                            className="hover:bg-[var(--hover-bg)]/60 transition-colors cursor-pointer"
+                          >
+                            <td className="px-4 py-2.5">
+                              <span
+                                className="text-[9px] font-bold px-2 py-0.5 rounded-[4px] tracking-wide"
+                                style={{ backgroundColor: chipBg, color: chipColor }}
+                              >
+                                {severity}
+                              </span>
+                            </td>
+                            <td className="px-4 py-2.5 font-mono text-[11px] font-semibold text-[var(--text-primary)]">
+                              {exc.orderRef || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-[11px] font-medium text-[var(--text-secondary)] truncate max-w-[120px]">
+                              {exc.clientName || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-[11px] text-[var(--text-muted)] truncate max-w-[200px]">
+                              {exc.message || exc.reason || '—'}
+                            </td>
+                            <td className="px-4 py-2.5 text-[10px] font-mono text-[var(--text-soft)] text-right">
+                              {exc.createdAt ? new Date(exc.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                )}
               </div>
             </div>
 
-            {/* Service Quality Card (SLA Scorecard) */}
-            <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-2xs p-5 text-left flex flex-col gap-4">
-              <span className="text-[11.5px] font-bold tracking-tight text-[var(--text-muted)]">
-                {t.dashboardPage.serviceQualityTitle || 'Contrôle Qualité de Service'}
-              </span>
+            {/* Right Column */}
+            <div className="flex flex-col gap-5">
 
-              <div className="flex items-baseline gap-2">
-                <span
-                  className="font-mono text-3xl font-bold leading-none tabular-nums"
-                  style={{ color: slaPercent >= 90 ? '#2D8A5E' : slaPercent >= 70 ? '#D4772C' : '#C7372F' }}
-                >
-                  {slaPercent}%
+              {/* Driver Availability Grid */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+                <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
+                  {t.dashboardPage.driverAvailability}
                 </span>
-                <span className="text-[10.5px] font-semibold text-[var(--text-soft)] tracking-tight">
-                  {t.dashboardPage.slaRateLabel || 'taux SLA'}
-                </span>
+                <div className="flex flex-col gap-2.5">
+                  {[
+                    { group: driverGroups.online, label: t.dashboardPage.driverOnline, dotColor: '#4CAF82' },
+                    { group: driverGroups.onBreak, label: t.dashboardPage.driverOnBreak, dotColor: '#D4772C' },
+                    { group: driverGroups.offline, label: t.dashboardPage.driverOffline, dotColor: '#8A8F98' },
+                  ].map(({ group, label, dotColor }) => (
+                    <div key={label} className="flex items-start gap-2">
+                      <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: dotColor }} />
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-[10.5px] font-bold text-[var(--text-secondary)]">
+                          {label} <span className="font-mono text-[var(--text-muted)]">({group.length})</span>
+                        </span>
+                        {group.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {group.slice(0, 6).map((d: any, i: number) => (
+                              <span key={i} className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] truncate max-w-[80px]">
+                                {d.name || d.driverName || '?'}
+                              </span>
+                            ))}
+                            {group.length > 6 && (
+                              <span className="text-[9px] font-bold text-[var(--text-soft)] px-1 py-0.5">
+                                +{group.length - 6}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
 
-              {/* Micro Progress Bar */}
-              <div className="w-full h-1.5 bg-[var(--hover-bg)] rounded-full overflow-hidden border border-[var(--border)]">
-                <div
-                  className="h-full rounded-full transition-all duration-700"
-                  style={{
-                    width: `${slaPercent}%`,
-                    backgroundColor: slaPercent >= 90 ? '#4CAF82' : slaPercent >= 70 ? '#D4772C' : '#C7372F',
-                  }}
-                />
-              </div>
-
-              {/* Scorecard Detailed Breakdown */}
-              <div className="flex flex-col gap-2.5 pt-1">
-                <div className="flex items-center justify-between text-xs border-b border-[var(--border)]/40 pb-2">
-                  <span className="text-[var(--text-muted)] font-medium">{t.dashboardPage.statsCompleted || 'Complétées'}</span>
-                  <span className="font-mono font-bold text-[var(--text-primary)]">
-                    {today?.delivered ?? 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs border-b border-[var(--border)]/40 pb-2">
-                  <span className="text-[var(--text-muted)] font-medium">{t.dashboardPage.statsInProgress || 'En cours'}</span>
-                  <span className="font-mono font-bold text-[var(--text-primary)]">
-                    {today?.inTransit ?? 0}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs border-b border-[var(--border)]/40 pb-2">
-                  <span className="text-[var(--text-muted)] font-medium">{t.dashboardPage.statsExceptions || 'Exceptions'}</span>
-                  <span
-                    className="font-mono font-bold"
-                    style={{ color: exceptionsCount > 0 ? '#C7372F' : 'var(--text-muted)' }}
-                  >
-                    {exceptionsCount}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-xs pt-1">
-                  <span className="text-[var(--text-muted)] font-medium">Retard (Planifié)</span>
-                  <span
-                    className="font-mono font-bold"
-                    style={{ color: overdueCount > 0 ? '#C7372F' : 'var(--text-muted)' }}
-                  >
-                    {overdueCount}
-                  </span>
+              {/* Quick Action Buttons */}
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+                <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
+                  {t.dashboardPage.quickActions}
+                </span>
+                <div className="grid grid-cols-2 gap-2.5">
+                  {[
+                    { label: t.dashboardPage.actionGoToDispatch, path: '/dispatch-desk', Icon: IconLayoutKanban },
+                    { label: t.dashboardPage.actionGoToPlanner, path: '/route-builder', Icon: IconRoute },
+                    { label: t.dashboardPage.actionGoToRoutes, path: '/routes-table', Icon: IconMapPin },
+                    { label: t.dashboardPage.actionGoToDeliveries, path: '/deliveries', Icon: IconPackage },
+                  ].map(({ label, path, Icon }) => (
+                    <button
+                      key={path}
+                      type="button"
+                      onClick={() => navigate(path)}
+                      className="flex items-center gap-2.5 px-3.5 py-3 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
+                    >
+                      <Icon size={16} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
+                      <span className="text-[11.5px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
             </div>
+          </div>
 
+          {/* Driver Performance Bar Chart */}
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5 text-left flex flex-col h-[280px]">
+            <span className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 block">
+              {t.dashboardPage.driverPerformanceTitle || 'Rendement par Chauffeur'}
+            </span>
+            <div className="flex-1 min-h-0">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={stats?.byDriver ?? []} barGap={5} barCategoryGap="42%">
+                  <CartesianGrid strokeDasharray="2 3" vertical={false} stroke="var(--border)" />
+                  <XAxis
+                    dataKey="driverName"
+                    tick={{ fontSize: 9, fill: 'var(--text-soft)', fontWeight: 600 }}
+                    axisLine={false}
+                    tickLine={false}
+                    dy={6}
+                    tickFormatter={capitalize}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 9, fill: 'var(--text-soft)' }}
+                    axisLine={false}
+                    tickLine={false}
+                    width={18}
+                  />
+                  <Tooltip
+                    contentStyle={{
+                      background: 'var(--surface)',
+                      border: '1px solid var(--border)',
+                      borderRadius: '4px',
+                      padding: '6px 10px',
+                      fontSize: 10,
+                      color: 'var(--text-primary)',
+                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
+                    }}
+                    cursor={{ fill: 'var(--hover-bg)' }}
+                  />
+                  <Bar name="Total" dataKey="total" fill="var(--border-strong)" barSize={12} radius={[2, 2, 0, 0]} />
+                  <Bar name="Livrées" dataKey="delivered" fill="var(--text-primary)" barSize={12} radius={[2, 2, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
 
         </div>
@@ -548,38 +592,15 @@ export default function DashboardPage() {
   );
 }
 
-// ── KPI scorecards card component ──
-interface KpiCardProps {
-  title: string;
-  value: string | number;
-  subtitle: string;
-  Icon: React.ComponentType<{ size?: number; className?: string; style?: React.CSSProperties }>;
-  color: string;
-}
-
-export function KpiCard({ title, value, subtitle, Icon, color }: KpiCardProps) {
-  const isCssVar = color.startsWith('var(');
-  const iconBg = isCssVar ? 'var(--hover-bg)' : `${color}12`;
-  
+export function KpiCard({ title, value, subtitle, Icon, color, trend }: { title: string; value: string | number; subtitle: string; Icon: any; color: string; trend?: string }) {
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-2xs p-4 flex items-center justify-between text-left">
-      <div className="flex flex-col min-w-0">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
-          {title}
-        </span>
-        <span className="font-mono text-2xl font-bold mt-1 text-[var(--text-primary)] leading-tight tabular-nums">
-          {value}
-        </span>
-        <span className="text-[10.5px] font-semibold text-[var(--text-soft)] mt-1.5 truncate">
-          {subtitle}
-        </span>
+    <div className="bg-white border border-[#e0e0e0] rounded-[8px] p-4 hover:border-[#0972d3]/30 transition-colors">
+      <div className="flex items-start justify-between mb-3">
+        <span className="text-[12px] font-medium text-[#545b64]">{title}</span>
+        <Icon size={16} strokeWidth={1.5} className="text-[#545b64]" />
       </div>
-      <div 
-        className="w-9 h-9 rounded-md flex items-center justify-center shrink-0 shadow-3xs"
-        style={{ backgroundColor: iconBg, color }}
-      >
-        <Icon size={18} />
-      </div>
+      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{value}</div>
+      <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{subtitle}</div>
     </div>
   );
 }
@@ -779,7 +800,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
         <div className="flex-1 h-1 bg-[var(--border)]/65 rounded-full overflow-hidden">
           <div
              className="h-full transition-all duration-500 rounded-full"
-             style={{ width: `${progress}%`, backgroundColor: color }}
+              style={{ width: `${progress}%`, backgroundColor: color }}
           />
         </div>
         <span className="text-[10px] font-bold font-mono tabular-nums shrink-0" style={{ color }}>
@@ -800,27 +821,5 @@ function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; mu
       {icon}
       <span className="truncate max-w-[105px]">{label}</span>
     </span>
-  );
-}
-
-// Helper icons
-function IconClock({ size = 12, className = '', style = {}, stroke = 2 } = {}) {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth={stroke}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      className={className}
-      style={style}
-    >
-      <circle cx="12" cy="12" r="10" />
-      <polyline points="12 6 12 12 16 14" />
-    </svg>
   );
 }

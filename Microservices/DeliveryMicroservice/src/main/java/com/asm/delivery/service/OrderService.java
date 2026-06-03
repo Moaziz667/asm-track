@@ -38,6 +38,7 @@ public class OrderService {
     private final OutboxProcessor    outboxProcessor;
     private final ErpLookupService   erpLookupService;
     private final AuditLogService    auditLogService;
+    private final OrderGeocodingService orderGeocodingService;
     private final com.asm.delivery.repository.RouteStopRepository routeStopRepository;
     private final com.asm.delivery.repository.RouteRepository routeRepository;
     private final com.asm.delivery.service.route.RoutePlanningService routePlanningService;
@@ -58,6 +59,18 @@ public class OrderService {
     private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.PARTIALLY_DELIVERED);
 
     // ── Client REST entry point ───────────────────────────────────────────────
+
+    /** Trigger async geocoding once the create transaction has committed (so the row is visible). */
+    private void scheduleGeocode(UUID orderId) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() { orderGeocodingService.enrichOrderAsync(orderId); }
+                });
+        } else {
+            orderGeocodingService.enrichOrderAsync(orderId);
+        }
+    }
 
     @Transactional
     public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone) {
@@ -115,6 +128,10 @@ public class OrderService {
         Delivery delivery = createDeliveryTask(order, "SYSTEM", "DELIVERY_CREATED", Map.of());
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
+
+        // Auto-geocode + zone-detect the dropoff (same enrichment as ERP-imported orders).
+        // Runs after commit so the order row is visible to the async worker.
+        scheduleGeocode(order.getId());
 
         return toOrderResponse(order, delivery);
     }

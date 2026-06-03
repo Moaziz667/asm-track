@@ -123,3 +123,5 @@ Apps/asm-super-admin/dist/
 *.bbl
 *.run.xml
 test.tex
+# Local DB seed dumps (transfer to VPS via scp, never commit)
+Microservices/db-seed/

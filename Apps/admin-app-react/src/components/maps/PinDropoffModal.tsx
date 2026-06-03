@@ -83,6 +83,8 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
     if (typeof geocodeMutation.data.lat === 'number') setLat(geocodeMutation.data.lat)
     if (typeof geocodeMutation.data.lng === 'number') setLng(geocodeMutation.data.lng)
     if (geocodeMutation.data.displayName) setAddress(geocodeMutation.data.displayName)
+    if (geocodeMutation.data.city) setCity(geocodeMutation.data.city)
+    if (geocodeMutation.data.postalCode) setPostalCode(geocodeMutation.data.postalCode)
   }, [geocodeMutation.data])
 
   useEffect(() => {

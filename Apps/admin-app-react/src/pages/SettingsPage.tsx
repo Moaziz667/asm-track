@@ -139,6 +139,24 @@ export default function SettingsPage() {
     }
   };
 
+  const handleSyncCompanyFromErp = async () => {
+    setCompanySaving(true);
+    try {
+      const res = await api.post('/api/admin/companies/me/sync-erp');
+      if (res.data) setCompany({
+        name: res.data.name,
+        supportEmail: res.data.supportEmail,
+        address: res.data.address,
+        primaryColor: res.data.primaryColor
+      });
+      showSuccessToast('successCompanySynced');
+    } catch (err) {
+      showErrorToast(err, 'errorCompanySyncFailed');
+    } finally {
+      setCompanySaving(false);
+    }
+  };
+
   useEffect(() => {
     const r = getCurrentRole();
     setRole(r);
@@ -350,7 +368,17 @@ export default function SettingsPage() {
                       </div>
 
                       {canManage && (
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-between items-center pt-2 gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={handleSyncCompanyFromErp}
+                            disabled={companySaving}
+                            className="rounded-md"
+                            title={t.settingsPage.syncFromErpHint}
+                          >
+                            {t.settingsPage.syncFromErp || 'Synchroniser depuis l\'ERP'}
+                          </Button>
                           <Button
                             size="sm"
                             onClick={handleSaveCompany}

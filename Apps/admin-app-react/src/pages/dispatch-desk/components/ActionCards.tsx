@@ -168,7 +168,7 @@ export function ActionCards() {
                         const scheduledDate = d.scheduledAt!.split('T')[0];
                         const now = new Date();
                         const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                        const isPending = ['SCHEDULED','PICKED_UP','IN_TRANSIT'].includes(d!.status);
+                        const isPending = ['SCHEDULED','PICKED_UP','IN_TRANSIT','UNSCHEDULED'].includes(d!.status);
                         let color = 'var(--text-soft)';
                         if (isPending) {
                           if (scheduledDate < todayStr) color = '#EF4444';

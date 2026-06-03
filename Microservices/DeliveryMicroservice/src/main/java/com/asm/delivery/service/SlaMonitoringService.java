@@ -120,6 +120,7 @@ public class SlaMonitoringService {
         // driver may still be loading OTHER depots — so the "departure" clock must not run while
         // the route still has pending PICKUP stops, and it starts at the LAST loading completion.
         java.util.Map<UUID, PickupPhase> pickupPhaseByRoute = new java.util.HashMap<>();
+        java.util.Map<UUID, Integer> departureStopByRoute = new java.util.HashMap<>();
         deliveryRepository.findByStatus(com.asm.delivery.entity.DeliveryStatus.PICKED_UP).forEach(d -> {
             java.time.LocalDateTime baseline = d.getPickedUpAt();
             if (baseline == null) baseline = d.getAssignedAt();
@@ -132,6 +133,17 @@ public class SlaMonitoringService {
                 if (phase.hasPickups()) {
                     if (phase.stillLoading()) return;                    // still loading other depots — no departure alert
                     if (phase.lastPickupAt() != null) baseline = phase.lastPickupAt();  // clock starts when loading completed
+                }
+
+                // Departure SLA applies ONLY to the first delivery after the depot the driver just
+                // loaded. When a pickup is confirmed, every delivery from that depot flips to
+                // PICKED_UP at once — but the others are queued behind the first one and must not
+                // trip the departure clock while the driver is correctly serving the first stop.
+                Integer firstAfterDepot = departureStopByRoute.computeIfAbsent(
+                        routeId, this::departureCriticalStopOrder);
+                Integer thisOrder = stopOpt.get().getStopOrder();
+                if (firstAfterDepot == null || thisOrder == null || !firstAfterDepot.equals(thisOrder)) {
+                    return;
                 }
             }
 
@@ -213,6 +225,37 @@ public class SlaMonitoringService {
                         && s.getStatus() != com.asm.delivery.entity.RouteStopStatus.REMOVED_CANCELLED)
                 .reduce((first, second) -> second)
                 .orElse(null);
+    }
+
+    /**
+     * The stopOrder of the "first stop after the depot": the lowest-order active DELIVERY stop that
+     * comes after the last COMPLETED pickup (or the first delivery overall if no pickup completed yet).
+     * Computed structurally (independent of delivery status) so it stays fixed on that one stop — once
+     * it is served, no deeper delivery inherits the departure clock. Returns null if none.
+     */
+    private Integer departureCriticalStopOrder(UUID routeId) {
+        java.util.List<com.asm.delivery.entity.RouteStop> stops =
+                routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
+
+        int lastCompletedPickupOrder = Integer.MIN_VALUE;
+        for (com.asm.delivery.entity.RouteStop s : stops) {
+            if (s.getStopType() == com.asm.delivery.entity.RouteStopType.PICKUP
+                    && s.getStatus() == com.asm.delivery.entity.RouteStopStatus.COMPLETED
+                    && s.getStopOrder() != null) {
+                lastCompletedPickupOrder = Math.max(lastCompletedPickupOrder, s.getStopOrder());
+            }
+        }
+
+        Integer best = null;
+        for (com.asm.delivery.entity.RouteStop s : stops) {
+            if (s.getStopType() != com.asm.delivery.entity.RouteStopType.DELIVERY) continue;
+            if (s.getStatus() == com.asm.delivery.entity.RouteStopStatus.REMOVED_REPLANNED
+                    || s.getStatus() == com.asm.delivery.entity.RouteStopStatus.REMOVED_CANCELLED) continue;
+            Integer order = s.getStopOrder();
+            if (order == null || order <= lastCompletedPickupOrder) continue; // before/at the depot
+            if (best == null || order < best) best = order;
+        }
+        return best;
     }
 
     private PickupPhase analyzePickups(UUID routeId) {

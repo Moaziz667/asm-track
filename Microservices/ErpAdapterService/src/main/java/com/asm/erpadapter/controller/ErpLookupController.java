@@ -105,6 +105,19 @@ public class ErpLookupController {
         }
     }
 
+    @GetMapping("/company")
+    @Operation(summary = "Get the tenant's own selling company (Odoo res.company)")
+    public ResponseEntity<com.asm.erpadapter.dto.ErpCompanyDTO> getCompany(
+            @RequestParam(defaultValue = "odoo") String erpProvider) {
+        try {
+            com.asm.erpadapter.dto.ErpCompanyDTO company = resolve(erpProvider).getCompany();
+            if (company == null) return ResponseEntity.noContent().build();
+            return ResponseEntity.ok(company);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.noContent().build();
+        }
+    }
+
     @GetMapping(value = "/delivery-note-pdf", produces = org.springframework.http.MediaType.APPLICATION_PDF_VALUE)
     public ResponseEntity<byte[]> deliveryNotePdf(
             @RequestParam(defaultValue="odoo") String erpProvider,

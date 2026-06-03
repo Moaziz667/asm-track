@@ -234,6 +234,7 @@ public class HandoffService {
         h.setReason(reason);
         h.setToken(null);
         handoffRepo.save(h);
+        revertCustodyToSender(h);
         clearStopPointer(h);
         auditLogService.logAction(actor, "HANDOFF_CANCELLED", "DELIVERY", h.getDeliveryId().toString(),
                 Map.of("handoffId", h.getId().toString(), "reason", reason != null ? reason : ""));
@@ -249,7 +250,10 @@ public class HandoffService {
         if (h == null || h.getState().isTerminal()) return;
         expireInternal(h, reason);
         handoffRepo.save(h);
+        revertCustodyToSender(h);
         clearStopPointer(h);
+        log.warn("HANDOFF_EXPIRED handoffId={} deliveryId={} reason={} — custody reverted to sender {}",
+                h.getId(), h.getDeliveryId(), reason, h.getFromDriverId());
         eventPublisher.publishHandoffCancelled(h, loadOrder(h));
     }
 
@@ -361,6 +365,26 @@ public class HandoffService {
         stop.setHandoffConfirmedAt(null);
         stop.setActiveHandoffId(handoff.getId());
         routeStopRepository.save(stop);
+    }
+
+    /**
+     * When a handoff is cancelled or expires <b>without</b> being confirmed, the transfer
+     * never physically happened — the sending driver still holds the parcel. Return
+     * responsibility to them so the unconfirmed receiver can never deliver a parcel they
+     * never received (the stop's {@code requiresHandoff} flag is about to be cleared).
+     * Dispatch is alerted via the cancelled event and re-plans the stop as needed.
+     */
+    private void revertCustodyToSender(Handoff h) {
+        if (h.getFromDriverId() == null) return;
+        deliveryRepo.findByIdWithOrder(h.getDeliveryId()).ifPresent(delivery -> {
+            // Only revert if it didn't already reach a physical/terminal state under the receiver.
+            if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+                delivery.setDriverId(h.getFromDriverId());
+                delivery.setStatus(DeliveryStatus.PICKED_UP);
+                if (delivery.getPickedUpAt() == null) delivery.setPickedUpAt(LocalDateTime.now());
+                deliveryRepo.save(delivery);
+            }
+        });
     }
 
     private void clearStopPointer(Handoff h) {

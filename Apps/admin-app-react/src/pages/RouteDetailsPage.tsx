@@ -230,11 +230,11 @@ function cleanNote(note?: string, copy?: any): string | undefined {
   if (s.startsWith('ADMIN_ACTION:')) {
     const r = s.match(/ - (.*?) \|/)?.[1]?.trim();
     const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
-    let msg: string = resolvedCopy.routeDetailPage?.dispatchActionRecorded || 'Action de dispatch enregistrée.';
-    if (s.includes('REPLAN')) msg = resolvedCopy.routeDetailPage?.deliveryReplanned || 'Livraison remise en file de planification.';
-    else if (s.includes('REASSIGN')) msg = resolvedCopy.routeDetailPage?.deliveryReassigned || 'Livraison réaffectée à un autre chauffeur.';
-    const reasonLabel = resolvedCopy.routeDetailPage?.reason || 'Motif';
-    return r ? `${msg} ${reasonLabel}: ${r}` : msg;
+    let msg: string = resolvedCopy.routeBuilderPage?.dispatchActionRecorded || resolvedCopy.routeDetailPage?.dispatchActionRecorded || 'Action de dispatch enregistrée.';
+    if (s.includes('REPLAN')) msg = resolvedCopy.routeBuilderPage?.deliveryReplanned || resolvedCopy.routeDetailPage?.deliveryReplanned || 'Livraison remise en file de planification.';
+    else if (s.includes('REASSIGN')) msg = resolvedCopy.routeBuilderPage?.deliveryReassigned || resolvedCopy.routeDetailPage?.deliveryReassigned || 'Livraison réaffectée à un autre chauffeur.';
+    const reasonLabel = resolvedCopy.routeBuilderPage?.reasonLabel || resolvedCopy.routeDetailPage?.reason || 'Motif';
+    return r ? `${msg} ${reasonLabel} ${r}` : msg;
   }
   return s;
 }
@@ -612,9 +612,9 @@ export default function RouteDetailsPage() {
       <div className="h-full flex items-center justify-center bg-[var(--app-bg)]">
         <div className="flex flex-col items-center gap-4 text-center">
           <IconAlertCircle size={32} className="text-[var(--text-muted)]" />
-          <p className="text-sm font-semibold text-[var(--text-muted)]">{t.routeDetailPage?.routeNotFound || 'Tournée introuvable.'}</p>
+          <p className="text-sm font-semibold text-[var(--text-muted)]">{t.routeBuilderPage.routeNotFound}</p>
           <Button onClick={() => navigate('/routes-table')} variant="outline" size="sm">
-            {t.routeDetailPage?.backToRoutes || 'Retour aux tournées'}
+            {t.routeBuilderPage.backToRoutes}
           </Button>
         </div>
       </div>
@@ -662,7 +662,7 @@ export default function RouteDetailsPage() {
       />
 
       <div className="lg:hidden flex shrink-0 border-b border-[var(--border-color)] bg-[var(--surface)]">
-        {([['map', t.routeDetailPage?.tabMap || 'Carte'], ['stops', t.routeDetailPage?.tabStops || 'Arrêts']] as const).map(([tab, label]) => (
+        {([['map', t.routeBuilderPage.tabMap], ['stops', t.routeBuilderPage.tabStops]] as const).map(([tab, label]) => (
           <button
             key={tab}
             onClick={() => setMobilePanel(tab)}
@@ -698,26 +698,26 @@ export default function RouteDetailsPage() {
 
           <div className="shrink-0 border-t border-[var(--border-color)] overflow-y-auto max-h-[180px] bg-[var(--surface)] space-y-4 p-3">
             <div className="border-b border-[var(--border-color)] pb-3">
-              <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase">{t.routeDetailPage?.labelDepot || 'Dépôt'}</p>
+              <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase">{t.routeBuilderPage.depotLabel}</p>
               {route.depot ? (
-                <div className="space-y-1">
-                  <p className="text-xs font-semibold text-[var(--text-primary)]">{route.depot.name ?? '—'}</p>
+                <div className="space-y-1 cursor-pointer" onClick={() => navigate('/depots')}>
+                  <p className="text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors">{route.depot.name ?? '—'}</p>
                   <p className="text-xs text-[var(--text-muted)]">{route.depot.address ?? route.depot.city ?? '—'}</p>
-                  {route.departureTime && <p className="text-xs text-[var(--text-muted)] font-mono">{t.routeDetailPage?.labelDeparture || 'Départ'} {fmtLong(route.departureTime)}</p>}
+                  {route.departureTime && <p className="text-xs text-[var(--text-muted)] font-mono">{t.routeBuilderPage.departureLabel} {fmtLong(route.departureTime)}</p>}
                 </div>
               ) : (
-                <p className="text-xs text-[var(--text-muted)]">{t.routeDetailPage?.noDepot || 'Aucun dépôt'}</p>
+                <p className="text-xs text-[var(--text-muted)]">{t.routeBuilderPage.noDepot}</p>
               )}
             </div>
 
             <div>
-              <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase">{t.routeDetailPage?.labelLifecycle || 'Cycle de vie'}</p>
+              <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase">{t.routeBuilderPage.lifecycleTitle}</p>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 {[
-                  [t.routeDetailPage?.statusCreated || 'Créée', fmtLong(route.createdAt)],
-                  [t.routeDetailPage?.statusValidated || 'Validée', fmtLong(route.validatedAt)],
-                  [t.routeDetailPage?.statusStarted || 'Démarrée', fmtLong(route.startedAt)],
-                  [t.routeDetailPage?.statusClosed || 'Clôturée', fmtLong(route.closedAt)],
+                  [t.routeBuilderPage.statusCreated, fmtLong(route.createdAt)],
+                  [t.routeBuilderPage.statusValidated, fmtLong(route.validatedAt)],
+                  [t.routeBuilderPage.statusStarted, fmtLong(route.startedAt)],
+                  [t.routeBuilderPage.statusClosed, fmtLong(route.closedAt)],
                 ].map(([l, v]) => (
                   <div key={l}>
                     <p className="text-[var(--text-muted)]">{l}:</p>
@@ -732,7 +732,7 @@ export default function RouteDetailsPage() {
         <div className={`flex-1 flex flex-col overflow-hidden bg-[var(--surface)] min-w-0 ${mobilePanel === 'stops' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="px-4 h-11 flex items-center justify-between border-b border-[var(--border-color)] shrink-0">
             <div className="flex items-center gap-2">
-              <p className="text-xs font-semibold text-[var(--text-primary)]">{t.routeDetailPage?.labelStopsSequence || 'Séquence des arrêts'}</p>
+              <p className="text-xs font-semibold text-[var(--text-primary)]">{t.routeBuilderPage.stopSequence}</p>
               <Badge variant="secondary" className="text-[10px] font-mono">{orderedStops.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
@@ -784,7 +784,7 @@ export default function RouteDetailsPage() {
                             {stop.stopOrder}
                           </div>
                           <IconBuildingWarehouse size={16} className="text-cyan-600 shrink-0" />
-                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stop.sourceDepotName || t.routeDetailPage?.pickupLabel || 'Dépôt'}</p>
+                          <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stop.sourceDepotName || t.routeBuilderPage.depotLabel}</p>
                           <StatusBadge status={displayStatus} size="sm" />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
@@ -808,12 +808,12 @@ export default function RouteDetailsPage() {
                             {stop.completedAt ? (
                               <div className="flex items-center gap-2 text-green-600 font-medium">
                                 <IconClock size={14} />
-                                {(t.routeDetailPage?.pickupCompleted || 'Chargement confirmé') + ' · ' + stop.completedAt.slice(11, 16)}
+                                {t.routeBuilderPage.loadingConfirm + ' · ' + stop.completedAt.slice(11, 16)}
                               </div>
                             ) : stop.routeEtaAt ? (
                               <div className="flex items-center gap-2 text-[var(--text-muted)]">
                                 <IconClock size={14} />
-                                {(t.routeDetailPage?.pickupArrival || 'Arrivée prévue') + ' · ' + stop.routeEtaAt.slice(11, 16)}
+                                {t.routeBuilderPage.etaLabel + ' · ' + stop.routeEtaAt.slice(11, 16)}
                               </div>
                             ) : null}
                             {stop.routeDistanceKm != null && (
@@ -827,7 +827,7 @@ export default function RouteDetailsPage() {
                                 className="text-cyan-600 underline"
                                 onClick={(e) => e.stopPropagation()}
                               >
-                                {(t.routeDetailPage?.labelDepot || 'Dépôt') + ' · ' + stop.sourceDepotName}
+                                {t.routeBuilderPage.depotLabel + ' · ' + stop.sourceDepotName}
                               </a>
                             )}
                           </div>
@@ -875,9 +875,9 @@ export default function RouteDetailsPage() {
                             onClick={(e) => { e.stopPropagation(); setActiveTab(prev => ({ ...prev, [stop.id]: tab })); }}
                             className={`${stopTabsStyles.tab} ${(activeTab[stop.id] ?? 'details') === tab ? stopTabsStyles.active : ''}`}
                           >
-                            {tab === 'details' && (t.routeDetailPage?.tabDetails || 'Détails')}
-                            {tab === 'timeline' && (t.routeDetailPage?.tabHistory || 'Historique')}
-                            {tab === 'pod' && (t.routeDetailPage?.tabProof || 'Preuve')}
+                            {tab === 'details' && (t.routeBuilderPage.tabDetails)}
+                            {tab === 'timeline' && (t.routeBuilderPage.tabHistory)}
+                            {tab === 'pod' && (t.routeBuilderPage.tabProof)}
                           </button>
                         ))}
                       </div>
@@ -908,8 +908,8 @@ export default function RouteDetailsPage() {
 
                             {/* Info Grid */}
                             <div className={stopTabsStyles.infoGrid}>
-                              {orderReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeDetailPage?.labelOrder || 'Commande'}:</span><span className={stopTabsStyles.value}>{orderReference}</span></div>}
-                              {erpReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeDetailPage?.labelErpRef || 'Réf. ERP'}:</span><span className={stopTabsStyles.value}>{erpReference}</span></div>}
+                              {orderReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeBuilderPage.labelOrder}:</span><span className={stopTabsStyles.value}>{orderReference}</span></div>}
+                              {erpReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeBuilderPage.labelErpRef}:</span><span className={stopTabsStyles.value}>{erpReference}</span></div>}
                               {stop.order?.clientPhone && (
                                 <div className={`${stopTabsStyles.infoRow} ${stopTabsStyles.soft}`}>
                                   <IconPhone size={12} style={{ flexShrink: 0 }} />
@@ -917,43 +917,43 @@ export default function RouteDetailsPage() {
                                 </div>
                               )}
                               <div className={`${stopTabsStyles.infoRow} ${stopTabsStyles.strong}`}>
-                                <span className={stopTabsStyles.label}>{t.routeDetailPage?.labelWeight || 'Poids'}:</span>
-                                <span className={stopTabsStyles.value}>{weight.toFixed(2)} {t.routeDetailPage?.unitKg || 'kg'}</span>
-                                {stop.order?.totalQuantity && <span style={{ marginLeft: 8 }}>| {t.routeDetailPage?.labelQty || 'Qté'}: {stop.order.totalQuantity}</span>}
+                                <span className={stopTabsStyles.label}>{t.routeBuilderPage.labelWeight}:</span>
+                                <span className={stopTabsStyles.value}>{weight.toFixed(2)} {t.routeBuilderPage.labelUnitKg}</span>
+                                {stop.order?.totalQuantity && <span style={{ marginLeft: 8 }}>| {t.routeBuilderPage.labelQty}: {stop.order.totalQuantity}</span>}
                               </div>
-                              {stop.order?.source && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeDetailPage?.labelSource || 'Source'}:</span><span>{stop.order.source}</span></div>}
+                              {stop.order?.source && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeBuilderPage.labelSource}:</span><span>{stop.order.source}</span></div>}
                               {(stop.routeDistanceKm != null || stop.routeDurationMinutes != null) && (
                                 <div className={stopTabsStyles.infoRow}>
                                   {stop.routeDistanceKm != null && `${Number(stop.routeDistanceKm).toFixed(1)} km`}
                                   {stop.routeDistanceKm && stop.routeDurationMinutes && ` · `}
-                                  {stop.routeDurationMinutes != null && `${stop.routeDurationMinutes} ${t.routeDetailPage?.unitMin || 'min'}`}
+                                  {stop.routeDurationMinutes != null && `${stop.routeDurationMinutes} ${t.routeBuilderPage.labelMin}`}
                                 </div>
                               )}
                               {(stop.startTimeWindow || stop.endTimeWindow) && (
                                 <div className={stopTabsStyles.infoRow}>
-                                  <span className={stopTabsStyles.label}>{t.routeDetailPage?.labelTimeWindow || 'Fenêtre horaire'}:</span>
+                                  <span className={stopTabsStyles.label}>{t.routeBuilderPage.labelWindow}:</span>
                                   <span className={stopTabsStyles.value}>{fmtTimeWindow(stop.startTimeWindow)} - {fmtTimeWindow(stop.endTimeWindow)}</span>
                                 </div>
                               )}
-                              {stop.order?.deliveryInstructions && <div className={stopTabsStyles.box}><strong>{t.routeDetailPage?.labelInstructions || 'Instructions'}:</strong> {stop.order.deliveryInstructions}</div>}
-                              {stop.notes && <div className={stopTabsStyles.box}><strong>{t.routeDetailPage?.labelNotes || 'Note'}:</strong> {stop.notes}</div>}
+                              {stop.order?.deliveryInstructions && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelInstructions}:</strong> {stop.order.deliveryInstructions}</div>}
+                              {stop.notes && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelNote}:</strong> {stop.notes}</div>}
                             </div>
 
                             {/* Items Table */}
                             {orderItems && orderItems.length > 0 && (
                               <div>
                                 <div style={{ fontSize: 11, fontWeight: 700, marginTop: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-strong)', opacity: 0.85 }}>
-                                  {t.routeDetailPage?.labelArticles || 'Articles'} ({orderItems.length})
+                                  {t.routeBuilderPage.sectionArticles} ({orderItems.length})
                                 </div>
                                 <div className={stopTabsStyles.itemsTableWrapper}>
                                   <table>
                                     <thead>
                                       <tr>
-                                        <th>{t.routeDetailPage?.tableArticle || 'Article'}</th>
-                                        <th>{t.routeDetailPage?.tableOrdered || 'Commandé'}</th>
-                                        <th>{t.routeDetailPage?.tableDelivered || 'Livré'}</th>
-                                        <th>{t.routeDetailPage?.tableStatus || 'Statut'}</th>
-                                        <th>{t.routeDetailPage?.tableUnitPrice || 'Prix unit.'}</th>
+                                        <th>{t.routeBuilderPage.labelArticle}</th>
+                                        <th>{t.routeBuilderPage.labelOrdered}</th>
+                                        <th>{t.routeBuilderPage.labelDelivered}</th>
+                                        <th>{t.routeBuilderPage.labelStatus}</th>
+                                        <th>{t.routeBuilderPage.labelUnitPrice}</th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -994,7 +994,7 @@ export default function RouteDetailsPage() {
                                     </tbody>
                                     <tfoot>
                                       <tr>
-                                        <td colSpan={4}>{t.routeDetailPage?.labelTotal || 'Total'}</td>
+                                        <td colSpan={4}>{t.routeBuilderPage.labelTotal}</td>
                                         <td>{formatMoney(amount, stop.order?.currency ?? currency)}</td>
                                       </tr>
                                     </tfoot>
@@ -1009,7 +1009,7 @@ export default function RouteDetailsPage() {
                                 onClick={(e) => { e.stopPropagation(); void createBackorder(stop.deliveryId); }}
                                 disabled={creatingBackorderFor === stop.deliveryId}
                               >
-                                {creatingBackorderFor === stop.deliveryId ? (t.routeDetailPage?.loading || 'En cours...') : (t.routeDetailPage?.createBackorder || 'Créer backorder')}
+                                {creatingBackorderFor === stop.deliveryId ? t.routeBuilderPage.loadingState : t.routeBuilderPage.createBackorder}
                               </button>
                             )}
                           </div>
@@ -1020,16 +1020,19 @@ export default function RouteDetailsPage() {
                             {timeline.length === 0 ? (
                               <div className={stopTabsStyles.emptyState}>
                                 <IconAlertCircle size={12} />
-                                <span>{t.empty.history || 'Aucun événement enregistré'}</span>
+                                <span>{t.routeBuilderPage.noEvents}</span>
                               </div>
                             ) : (
                               <div className={stopTabsStyles.timelineContainer}>
                                 {timeline.map((ev, idx) => {
-                                  const dotColor = STATUS_COLORS[ev.status] ?? '#94a3b8';
+                                  const isLast = idx === timeline.length - 1;
+                                  const dotColor = isLast ? (STATUS_COLORS[ev.status] ?? 'var(--border)') : 'var(--border)';
                                   return (
                                     <div key={`${ev.timestamp}-${idx}`} className={stopTabsStyles.timelineItem}>
-                                      <div className={stopTabsStyles.dotContainer}>
-                                        <div className={stopTabsStyles.dot} style={{ background: dotColor }} />
+                                      <div className={stopTabsStyles.dotContainer} style={{ width: 22, flexShrink: 0 }}>
+                                        <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, background: isLast ? dotColor : 'transparent', border: `2px solid ${dotColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                          {isLast && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />}
+                                        </div>
                                       </div>
                                       <div className={stopTabsStyles.content}>
                                         <div className={stopTabsStyles.header}>
@@ -1038,12 +1041,12 @@ export default function RouteDetailsPage() {
                                           </span>
                                           <span className={stopTabsStyles.timestamp}>{fmt(ev.timestamp)}</span>
                                         </div>
-                                        {ev.actor && <div className={stopTabsStyles.actor}>{t.routeDetailPage?.by || 'par'} {t.actors[ev.actor] ?? ev.actor}</div>}
+                                        {ev.actor && <div className={stopTabsStyles.actor}>{t.routeBuilderPage.byLabel} {ev.actor === route?.driver?.id ? (route.driver?.name ?? ev.actor) : (t.actors[ev.actor] ?? ev.actor)}</div>}
                                         {cleanNote(ev.note, t) && (
                                           <div className={stopTabsStyles.note} dangerouslySetInnerHTML={{ __html: cleanNote(ev.note, t) ?? '' }} />
                                         )}
                                         {(ev.eventParams as any)?.reason && (
-                                          <div className={stopTabsStyles.note}>Raison: <em>{(ev.eventParams as any).reason}</em></div>
+                                          <div className={stopTabsStyles.note}>{t.routeBuilderPage.reasonLabel} <em>{(ev.eventParams as any).reason}</em></div>
                                         )}
                                       </div>
                                     </div>
@@ -1059,7 +1062,7 @@ export default function RouteDetailsPage() {
                             {!pod ? (
                               <div className={stopTabsStyles.emptyState}>
                                 <IconAlertCircle size={12} />
-                                <span>{t.routeDetailPage?.noPodAvailable || 'Preuve de livraison indisponible'}</span>
+                                <span>{t.routeBuilderPage.noProof}</span>
                               </div>
                             ) : (
                               <div className={stopTabsStyles.podContainer}>
@@ -1078,19 +1081,19 @@ export default function RouteDetailsPage() {
                                     {mediaSrc(pod.signatureUrl, pod.signatureBase64) && (
                                       <div
                                         className={stopTabsStyles.podCard}
-                                        onClick={(e) => { e.stopPropagation(); setViewerTitle(t.routeDetailPage?.signedBL || 'BL Signé'); setViewerImage(mediaSrc(pod.signatureUrl, pod.signatureBase64) ?? null); }}
+                                        onClick={(e) => { e.stopPropagation(); setViewerTitle(t.routeBuilderPage.signedBL); setViewerImage(mediaSrc(pod.signatureUrl, pod.signatureBase64) ?? null); }}
                                       >
-                                        <div className={stopTabsStyles.label}>{t.routeDetailPage?.signedBL || 'BL Signé'}</div>
-                                        <img src={mediaSrc(pod.signatureUrl, pod.signatureBase64) ?? ''} alt="BL Signé" />
+                                        <div className={stopTabsStyles.label}>{t.routeBuilderPage.signedBL}</div>
+                                        <img src={mediaSrc(pod.signatureUrl, pod.signatureBase64) ?? ''} alt={t.routeBuilderPage.signedBL} />
                                       </div>
                                     )}
                                     {mediaSrc(pod.photoUrl, pod.photoBase64) && (
                                       <div
                                         className={stopTabsStyles.podCard}
-                                        onClick={(e) => { e.stopPropagation(); setViewerTitle(t.routeDetailPage?.photoPod || 'Photo POD'); setViewerImage(mediaSrc(pod.photoUrl, pod.photoBase64) ?? null); }}
+                                        onClick={(e) => { e.stopPropagation(); setViewerTitle(t.routeBuilderPage.photoLabel); setViewerImage(mediaSrc(pod.photoUrl, pod.photoBase64) ?? null); }}
                                       >
-                                        <div className={stopTabsStyles.label}>{t.routeDetailPage?.photo || 'Photo'}</div>
-                                        <img src={mediaSrc(pod.photoUrl, pod.photoBase64) ?? ''} alt="Photo POD" />
+                                        <div className={stopTabsStyles.label}>{t.routeBuilderPage.photoLabel}</div>
+                                        <img src={mediaSrc(pod.photoUrl, pod.photoBase64) ?? ''} alt={t.routeBuilderPage.photoLabel} />
                                       </div>
                                     )}
                                   </div>
@@ -1100,7 +1103,7 @@ export default function RouteDetailsPage() {
                                   <div className={stopTabsStyles.actions}>
                                     <button onClick={(e) => { e.stopPropagation(); void downloadBL(delivery, pod); }}>
                                       <IconFileText size={11} />
-                                      {t.routeDetailPage?.deliveryNote || 'Bon de livraison'}
+                                      {t.routeBuilderPage.deliveryNote}
                                     </button>
                                   </div>
                                 )}
@@ -1122,11 +1125,11 @@ export default function RouteDetailsPage() {
                               variant="outline"
                               onClick={(e) => { e.stopPropagation(); openEditWindow(stop, client); }}
                             >
-                              <IconPencil size={14} className="mr-1" /> {t.routeDetailPage?.buttonTimeWindow || 'Fenêtre'}
+                              <IconPencil size={14} className="mr-1" /> {t.routeBuilderPage.windowLabel}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            {t.routeDetailPage?.tooltipEditWindow || 'Modifier la fenêtre horaire de livraison pour cet arrêt.'}
+                            {t.routeBuilderPage.editWindow}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -1136,7 +1139,7 @@ export default function RouteDetailsPage() {
                           variant="destructive"
                           onClick={(e) => { e.stopPropagation(); setRemoveStopTarget({ stopId: stop.id, client }); }}
                         >
-                          <IconX size={14} className="mr-1" /> {t.routeDetailPage?.buttonRemove || 'Retirer'}
+                          <IconX size={14} className="mr-1" /> {t.routeBuilderPage.removeStop}
                         </Button>
                       )}
                       {canCancelStop && (
@@ -1147,11 +1150,11 @@ export default function RouteDetailsPage() {
                               variant="destructive"
                               onClick={(e) => { e.stopPropagation(); setCancelStopTarget({ stopId: stop.id, client, isPickedUp: stop.status === 'PICKED_UP' }); setCancelStopReason(''); }}
                             >
-                              <IconBan size={14} className="mr-1" /> {t.routeDetailPage?.buttonRemoveRoute || 'Retirer de la tournée'}
+                              <IconBan size={14} className="mr-1" /> {t.routeBuilderPage.removeFromRoute}
                             </Button>
                           </TooltipTrigger>
                           <TooltipContent side="top">
-                            {t.routeDetailPage?.tooltipRemoveStop || 'Retirer ce stop de la route — la livraison retournera au pool non planifié pour redéploiement. Le chauffeur sera notifié immédiatement.'}
+                            {t.routeBuilderPage.removeStopTitle}
                           </TooltipContent>
                         </Tooltip>
                       )}
@@ -1170,16 +1173,16 @@ export default function RouteDetailsPage() {
 
       <ConfirmModal
         open={cancelStopTarget !== null}
-        title={t.routeDetailPage?.modalRemoveStopTitle || 'Retirer ce stop de la route?'}
-        description={`${t.routeDetailPage?.tooltipRemoveStop || 'La livraison retournera au pool non planifié'}\n\nClient: ${cancelStopTarget?.client}`}
+        title={t.routeBuilderPage.removeStopTitle}
+        description={t.routeBuilderPage.removeStopTitle + '\n\nClient: ' + cancelStopTarget?.client}
         variant="danger"
-        reasonLabel={t.routeDetailPage?.reason || 'Raison'}
-        reasonPlaceholder={t.routeDetailPage?.reasonPlaceholder || 'Expliquez pourquoi vous retirez ce stop...'}
+        reasonLabel={t.routeBuilderPage.reasonRequired}
+        reasonPlaceholder={t.routeBuilderPage.reasonPlaceholder}
         reason={cancelStopReason}
         onReasonChange={setCancelStopReason}
         reasonRequired={true}
-        confirmLabel={t.routeDetailPage?.modalRemove || 'Retirer'}
-        cancelLabel={t.routeDetailPage?.modalClose || 'Fermer'}
+        confirmLabel={t.routeBuilderPage.removeStop}
+        cancelLabel={t.routeBuilderPage.closeLabel}
         loading={cancellingStop}
         onConfirm={() => void handleCancelStop()}
         onCancel={() => { setCancelStopTarget(null); setCancelStopReason(''); }}
@@ -1187,16 +1190,16 @@ export default function RouteDetailsPage() {
 
       <ConfirmModal
         open={removeStopTarget !== null}
-        title={t.routeDetailPage?.modalRemoveStopTitle || 'Retirer ce stop'}
-        description={`${t.routeDetailPage?.modalRemoveStopDesc || 'Retirer'} "${removeStopTarget?.client}"`}
+        title={t.routeBuilderPage.removeStopTitle}
+        description={t.routeBuilderPage.removeStop + ' "' + (removeStopTarget?.client ?? '') + '"'}
         variant="danger"
-        reasonLabel={t.routeDetailPage?.reason || 'Raison'}
-        reasonPlaceholder={t.routeDetailPage?.reasonPlaceholder || 'Expliquez pourquoi vous retirez ce stop...'}
+        reasonLabel={t.routeBuilderPage.reasonRequired}
+        reasonPlaceholder={t.routeBuilderPage.reasonPlaceholder}
         reason={removeStopReason}
         onReasonChange={setRemoveStopReason}
         reasonRequired={true}
-        confirmLabel={t.routeDetailPage?.modalRemove || 'Retirer'}
-        cancelLabel={t.routeDetailPage?.modalCancel || 'Annuler'}
+        confirmLabel={t.routeBuilderPage.removeStop}
+        cancelLabel={t.routeBuilderPage.cancelLabel}
         loading={removingStop}
         onConfirm={() => void handleRemoveStop()}
         onCancel={() => { setRemoveStopTarget(null); setRemoveStopReason(''); }}
@@ -1205,12 +1208,12 @@ export default function RouteDetailsPage() {
       <Dialog open={editWindowTarget !== null} onOpenChange={(open) => !open && setEditWindowTarget(null)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>{t.routeDetailPage?.labelTimeWindow || 'Fenêtre horaire'} — {editWindowTarget?.client}</DialogTitle>
+            <DialogTitle>{t.routeBuilderPage.labelWindow} — {editWindowTarget?.client}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
               <div>
-                <label className="text-xs font-semibold">{t.routeDetailPage?.labelStart || 'Début'}</label>
+                <label className="text-xs font-semibold">{t.routeBuilderPage.startLabel}</label>
                 <Input
                   type="time"
                   value={editWindowStart}
@@ -1219,7 +1222,7 @@ export default function RouteDetailsPage() {
                 />
               </div>
               <div>
-                <label className="text-xs font-semibold">{t.routeDetailPage?.labelEnd || 'Fin'}</label>
+                <label className="text-xs font-semibold">{t.routeBuilderPage.endLabel}</label>
                 <Input
                   type="time"
                   value={editWindowEnd}
@@ -1231,19 +1234,19 @@ export default function RouteDetailsPage() {
 
             {editErrStartGtEnd && (
               <div className="text-xs text-rose-600 bg-rose-50 dark:bg-rose-950/30 dark:text-rose-400 p-2.5 rounded border border-rose-200 dark:border-rose-900/50">
-                {t.apiMessages?.errorWindowInvalid || 'Fenêtre horaire invalide'}
+                {t.routeBuilderPage.invalidWindow}
               </div>
             )}
 
             {editOverlaps.length > 0 && (
               <div className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400 p-2.5 rounded border border-amber-200 dark:border-amber-900/50">
-                {t.routeDetailPage?.overlapWarning || "⚠️ Ce créneau chevauche d'autres arrêts sur la tournée."}
+                {t.routeBuilderPage.windowOverlap}
               </div>
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setEditWindowTarget(null)}>{t.routeDetailPage?.modalCancel || 'Annuler'}</Button>
-            <Button onClick={() => void handleSaveWindow()} disabled={editErrStartGtEnd || savingWindow}>{t.routeDetailPage?.modalSave || 'Enregistrer'}</Button>
+            <Button variant="outline" onClick={() => setEditWindowTarget(null)}>{t.routeBuilderPage.cancelLabel}</Button>
+            <Button onClick={() => void handleSaveWindow()} disabled={editErrStartGtEnd || savingWindow}>{t.routeBuilderPage.saveLabel}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

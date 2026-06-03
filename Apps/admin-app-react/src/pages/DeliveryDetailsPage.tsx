@@ -180,7 +180,7 @@ export default function DeliveryDetailPage() {
 
                 {/* Client name */}
                 <h1 className="font-semibold text-[28px] leading-[1.2] text-[var(--text-primary)] tracking-[-0.01em]">
-                  {delivery.clientName ?? 'Client inconnu'}
+                  {delivery.clientName ?? t.deliveryPage.unknownClient}
                 </h1>
 
                 {/* Meta line */}
@@ -210,7 +210,7 @@ export default function DeliveryDetailPage() {
                 type="button"
                 className="w-7 h-7 flex items-center justify-center rounded-[4px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
                 onClick={() => fetchAll(true)}
-                title="Actualiser"
+                title={t.deliveryPage.refresh}
                 disabled={refreshing}
               >
                 <IconRefresh size={13} className={refreshing ? 'animate-spin' : ''} />
@@ -236,7 +236,7 @@ export default function DeliveryDetailPage() {
               )}
               {delivery.routeId && (
                 <Link to={`/routes/${delivery.routeId}`} style={{ textDecoration: 'none' }}>
-                  <StatChip icon={<IconRoute size={11} />} label={delivery.routeName ?? 'Voir la tournée'} />
+                  <StatChip icon={<IconRoute size={11} />} label={delivery.routeName ?? t.deliveryPage.seeRoute} />
                 </Link>
               )}
             </div>
@@ -264,12 +264,12 @@ export default function DeliveryDetailPage() {
               <div>
                 <Section title={t.deliveryPage.sectionClient} icon={<IconUser size={12} />}>
                   <div className="flex flex-col">
-                    <InfoRow label="Nom"           value={delivery.clientName} />
-                    <InfoRow label="Téléphone"     value={delivery.clientPhone} />
-                    <InfoRow label="Adresse"       value={delivery.dropoffAddress} />
-                    <InfoRow label="Ville"         value={delivery.dropoffCity} />
-                    <InfoRow label="Code postal"   value={delivery.dropoffPostalCode} />
-                    <InfoRow label="Zone"          value={(delivery as any).zoneName} />
+                    <InfoRow label={t.deliveryPage.labelName}      value={delivery.clientName} />
+                    <InfoRow label={t.deliveryPage.labelPhone}    value={delivery.clientPhone} />
+                    <InfoRow label={t.deliveryPage.labelAddress}  value={delivery.dropoffAddress} />
+                    <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
+                    <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
+                    <InfoRow label={t.deliveryPage.labelZone}     value={(delivery as any).zoneName} />
                   </div>
                 </Section>
               </div>
@@ -277,16 +277,16 @@ export default function DeliveryDetailPage() {
               <div>
                 <Section title={t.deliveryPage.sectionOrder} icon={<IconPackage size={12} />}>
                   <div className="flex flex-col">
-                    <InfoRow label="Référence"    value={delivery.orderRef} mono />
-                    <InfoRow label="ID interne"   value={delivery.id} mono />
-                    <InfoRow label="Poids total"  value={(delivery as any).totalWeightKg ? `${(delivery as any).totalWeightKg} kg` : null} />
-                    <InfoRow label="Montant"      value={(delivery as any).totalAmount ? formatMoney((delivery as any).totalAmount, (delivery as any).currency) : null} />
-                    <InfoRow label="Source"       value={t.sources[(delivery as any).source] ?? (delivery as any).source} />
+                    <InfoRow label={t.deliveryPage.labelReference}   value={delivery.orderRef} mono />
+                    <InfoRow label={t.deliveryPage.labelInternalId}  value={delivery.id} mono />
+                    <InfoRow label={t.deliveryPage.labelTotalWeight} value={(delivery as any).totalWeightKg ? `${(delivery as any).totalWeightKg} kg` : null} />
+                    <InfoRow label={t.deliveryPage.labelAmount}     value={(delivery as any).totalAmount ? formatMoney((delivery as any).totalAmount, (delivery as any).currency) : null} />
+                    <InfoRow label={t.deliveryPage.labelSource}     value={t.sources[(delivery as any).source] ?? (delivery as any).source} />
                     {(delivery as any).odooSyncStatus && (delivery as any).odooSyncStatus !== 'SYNCED' && (
-                      <InfoRow label="Sync ERP" value={t.syncStatus[(delivery as any).odooSyncStatus] ?? (delivery as any).odooSyncStatus} />
+                      <InfoRow label={t.deliveryPage.labelSyncErp} value={t.syncStatus[(delivery as any).odooSyncStatus] ?? (delivery as any).odooSyncStatus} />
                     )}
-                    <InfoRow label="Créée le"     value={delivery.createdAt ? new Date(delivery.createdAt).toLocaleString('fr-FR') : null} />
-                    <InfoRow label="Mise à jour"  value={delivery.updatedAt ? new Date(delivery.updatedAt).toLocaleString('fr-FR') : null} />
+                    <InfoRow label={t.deliveryPage.labelCreatedAt}  value={delivery.createdAt ? new Date(delivery.createdAt).toLocaleString('fr-FR') : null} />
+                    <InfoRow label={t.deliveryPage.labelUpdatedAt}  value={delivery.updatedAt ? new Date(delivery.updatedAt).toLocaleString('fr-FR') : null} />
                   </div>
                 </Section>
               </div>
@@ -337,7 +337,7 @@ export default function DeliveryDetailPage() {
                     <div className="flex items-start gap-3">
                       <IconTruck size={14} style={{ color: 'var(--text-muted)', marginTop: 2, opacity: 0.6, flexShrink: 0 }} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">Chauffeur</span>
+                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelDriver}</span>
                         <div className="flex items-center gap-2">
                           {assignedDriverStatus && (() => {
                             const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
@@ -362,7 +362,7 @@ export default function DeliveryDetailPage() {
                     <div className="flex items-start gap-3">
                       <IconRoute size={14} style={{ color: 'var(--text-muted)', marginTop: 2, opacity: 0.6, flexShrink: 0 }} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">Tournée</span>
+                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelRoute}</span>
                         <Link to={`/routes/${delivery.routeId}`} style={{ textDecoration: 'none' }}>
                           <span className="text-[12px] font-semibold text-[var(--brand)] hover:underline cursor-pointer">
                             {delivery.routeName ?? delivery.routeId.slice(0, 8).toUpperCase()}
@@ -377,12 +377,12 @@ export default function DeliveryDetailPage() {
 
             {/* Items table */}
             {items.length > 0 && (
-              <Section title={`Articles · ${items.length} ligne${items.length > 1 ? 's' : ''}`} icon={<IconPackage size={12} />}>
+              <Section title={t.deliveryPage.itemsCount.replace('{count}', String(items.length)).replace('{plural}', items.length > 1 ? 's' : '')} icon={<IconPackage size={12} />}>
                 <div className="overflow-x-auto">
                   <table style={{ width: '100%', minWidth: 500, borderCollapse: 'collapse' }}>
                     <thead>
                       <tr style={{ borderBottom: '1px solid var(--border)', background: 'transparent' }}>
-                        {['Désignation', 'SKU', 'Qté', 'Qté livrée', 'P.U.', 'Total'].map(h => (
+                        {[t.deliveryPage.tableDesignation, t.deliveryPage.tableSku, t.deliveryPage.tableQty, t.deliveryPage.tableQtyDone, t.deliveryPage.tableUnitPrice, t.deliveryPage.tableTotal].map(h => (
                           <th key={h} style={{
                             padding: '10px 12px', textAlign: 'left', fontSize: 10,
                             fontWeight: 500, color: 'var(--text-muted)', border: 'none',
@@ -427,24 +427,23 @@ export default function DeliveryDetailPage() {
             {/* Timeline */}
             <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
               {history.length === 0 ? (
-                <span className="text-[12px] text-[var(--text-muted)]">Aucun historique disponible.</span>
+                <span className="text-[12px] text-[var(--text-muted)]">{t.deliveryPage.noHistory}</span>
               ) : (
                 <div className="flex flex-col gap-0">
                   {history.map((evt, idx) => {
-                    const isFirst = idx === 0;
                     const isLast  = idx === history.length - 1;
                     const ts = evt.changedAt ?? evt.timestamp;
-                    const dotColor = isFirst ? (STATUS_DOT_COLOR[evt.status] ?? 'var(--brand)') : 'var(--border)';
+                    const dotColor = isLast ? (STATUS_DOT_COLOR[evt.status] ?? 'var(--brand)') : 'var(--border)';
                     return (
                       <div key={idx} style={{ display: 'flex', gap: 14 }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
                           <div style={{
                             width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                            background: isFirst ? dotColor : 'var(--app-bg)',
+                            background: isLast ? dotColor : 'var(--app-bg)',
                             border: `2px solid ${dotColor}`,
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                           }}>
-                            {isFirst && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
+                            {isLast && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
                           </div>
                           {!isLast && (
                             <div style={{ width: 1, flex: 1, minHeight: 16, background: 'var(--border)', margin: '2px 0' }} />
@@ -454,19 +453,19 @@ export default function DeliveryDetailPage() {
                           <div className="flex items-center gap-2 mb-0.5">
                             <StatusBadge status={evt.status} size="sm" />
                             <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                              {ts ? new Date(ts).toLocaleString('fr-FR') : '—'}
+                              {ts ? new Date(ts).toLocaleString() : '—'}
                             </span>
                           </div>
                           {(evt.changedBy ?? evt.actor) && (
                             <span className="text-[10px] text-[var(--text-muted)]">
-                              par {t.actors[evt.changedBy ?? evt.actor ?? ''] ?? (evt.changedBy ?? evt.actor)}
+                              {t.deliveryPage.byLabel} {t.actors[evt.changedBy ?? evt.actor ?? ''] ?? (evt.changedBy ?? evt.actor)}
                             </span>
                           )}
                           {evt.note && (
                             <p className="text-[11px] text-[var(--text-primary)] mt-0.5">{evt.note}</p>
                           )}
                           {(evt.eventParams as any)?.reason && (
-                            <p className="text-[11px] text-[var(--text-primary)] mt-0.5 italic">Raison: {(evt.eventParams as any).reason}</p>
+                            <p className="text-[11px] text-[var(--text-primary)] mt-0.5 italic">{t.deliveryPage.reasonLabel} {(evt.eventParams as any).reason}</p>
                           )}
                         </div>
                       </div>
@@ -480,54 +479,54 @@ export default function DeliveryDetailPage() {
             <Section title={t.deliveryPage.sectionProof} icon={<IconCheck size={12} />}>
               {!pod ? (
                 <div className="flex items-center gap-4">
-                  <ProofPlaceholder icon={<IconPhoto size={20} />} label="Pas de photo" />
-                  <ProofPlaceholder icon={<IconCheck size={20} />} label="Pas de BL signé" />
+                  <ProofPlaceholder icon={<IconPhoto size={20} />} label={t.deliveryPage.noPhoto} />
+                  <ProofPlaceholder icon={<IconCheck size={20} />} label={t.deliveryPage.noBL} />
                 </div>
               ) : (
                 <div className="flex flex-wrap items-start gap-6">
                   {(pod.photoUrl || pod.photoBase64) ? (
                     <div
                       className="overflow-hidden border border-[var(--border)] rounded-[4px] bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
-                      onClick={() => { setViewerTitle('Photo de livraison'); setViewerImage(pod.photoUrl ?? `data:image/jpeg;base64,${pod.photoBase64}`); }}
+                      onClick={() => { setViewerTitle(t.deliveryPage.proofPhoto); setViewerImage(pod.photoUrl ?? `data:image/jpeg;base64,${pod.photoBase64}`); }}
                     >
                       <img
                         src={pod.photoUrl ?? `data:image/jpeg;base64,${pod.photoBase64}`}
-                        alt="Photo livraison"
+                        alt={t.deliveryPage.proofPhoto}
                         style={{ width: 160, height: 120, objectFit: 'contain', display: 'block' }}
                       />
                     </div>
                   ) : (
-                    <ProofPlaceholder icon={<IconPhoto size={20} />} label="Pas de photo" />
+                    <ProofPlaceholder icon={<IconPhoto size={20} />} label={t.deliveryPage.noPhoto} />
                   )}
                   {(pod.signatureUrl || pod.signatureBase64) ? (
                     <div
                       className="overflow-hidden border border-[var(--border)] rounded-[4px] bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
-                      onClick={() => { setViewerTitle('BL Signé'); setViewerImage(pod.signatureUrl ?? `data:image/png;base64,${pod.signatureBase64}`); }}
+                      onClick={() => { setViewerTitle(t.deliveryPage.proofSignedBL); setViewerImage(pod.signatureUrl ?? `data:image/png;base64,${pod.signatureBase64}`); }}
                     >
                       <img
                         src={pod.signatureUrl ?? `data:image/png;base64,${pod.signatureBase64}`}
-                        alt="BL Signé"
+                        alt={t.deliveryPage.proofSignedBL}
                         style={{ width: 160, height: 120, objectFit: 'contain', display: 'block', padding: 8 }}
                       />
                     </div>
                   ) : (
-                    <ProofPlaceholder icon={<IconCheck size={20} />} label="Pas de BL signé" />
+                    <ProofPlaceholder icon={<IconCheck size={20} />} label={t.deliveryPage.noBL} />
                   )}
                   {pod.comment && (
                     <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
                       <div>
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">Commentaire</span>
+                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.commentLabel}</span>
                         <p className="text-[11px] text-[var(--text-primary)] mt-1">{pod.comment}</p>
                       </div>
                       {(pod.collectedAt ?? pod.timestamp) && (
                         <div>
-                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">Collectée le</span>
+                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.collectedAtLabel}</span>
                           <p className="text-[11px] text-[var(--text-primary)] mt-1">{new Date(pod.collectedAt ?? pod.timestamp!).toLocaleString('fr-FR')}</p>
                         </div>
                       )}
                       {(pod.lat ?? pod.latitude) != null && (
                         <div>
-                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">Coordonnées</span>
+                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.coordinatesLabel}</span>
                           <p className="text-[11px] font-mono text-[var(--text-primary)] mt-1">{(pod.lat ?? pod.latitude)?.toFixed(5)}, {(pod.lng ?? pod.longitude)?.toFixed(5)}</p>
                         </div>
                       )}
@@ -546,7 +545,7 @@ export default function DeliveryDetailPage() {
         opened={!!viewerImage}
         onClose={() => setViewerImage(null)}
         title={viewerTitle}
-        subtitle="Preuve de livraison"
+        subtitle={t.deliveryPage.sectionProof}
         size="xl"
         zIndex={10000}
       >

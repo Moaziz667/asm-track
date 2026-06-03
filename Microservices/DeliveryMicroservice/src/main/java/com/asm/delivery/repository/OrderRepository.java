@@ -63,6 +63,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     @Query("SELECT o.blNumber FROM Order o WHERE o.blNumber IS NOT NULL")
     Set<String> findAllBlNumbers();
 
+    /** Orders that never got auto-located — used to re-run geocoding on demand. */
+    @Query("SELECT o.id FROM Order o WHERE o.dropoffLat IS NULL OR o.dropoffLng IS NULL")
+    List<UUID> findIdsMissingCoordinates();
+
 
 }
 

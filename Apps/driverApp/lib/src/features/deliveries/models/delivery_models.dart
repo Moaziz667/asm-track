@@ -319,3 +319,12 @@ class PodPayload {
   }
 }
 
+/// A freshly generated one-time handoff code plus its server-authoritative expiry,
+/// so the sender's sheet can show a live countdown and lock the code at expiry.
+class HandoffTokenInfo {
+  const HandoffTokenInfo({required this.token, this.expiresAt});
+
+  final String token;
+  final DateTime? expiresAt;
+}
+

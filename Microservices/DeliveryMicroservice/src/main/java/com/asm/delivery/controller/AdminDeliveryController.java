@@ -55,6 +55,15 @@ public class AdminDeliveryController {
     private final GeocodingService geocodingService;
     private final BonLivraisonPdfService bonLivraisonPdfService;
     private final com.asm.delivery.service.OrderService orderService;
+    private final com.asm.delivery.service.OrderGeocodingService orderGeocodingService;
+
+    @PostMapping("/re-geocode-missing")
+    @Operation(summary = "Re-run auto-geocoding for all unlocated orders",
+            description = "Queues every order with no coordinates for geocoding (full address, then city fallback). Returns how many were queued.")
+    public ResponseEntity<java.util.Map<String, Integer>> reGeocodeMissing() {
+        int queued = orderGeocodingService.reEnrichMissing();
+        return ResponseEntity.ok(java.util.Map.of("queued", queued));
+    }
 
     @GetMapping
     @Operation(

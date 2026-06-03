@@ -36,6 +36,14 @@ public class CompanyController {
         return ResponseEntity.ok(updated);
     }
 
+    @PostMapping("/me/sync-erp")
+    @Operation(summary = "Auto-fill company info from the connected ERP (Odoo res.company)")
+    public ResponseEntity<Company> syncFromErp() {
+        Company current = getOrInitCompany().orElseThrow();
+        Company updated = service.syncFromErp(current.getId());
+        return ResponseEntity.ok(updated);
+    }
+
     @PostMapping("/me/logo")
     @Operation(summary = "Upload the company logo (multipart/form-data)")
     public ResponseEntity<Company> uploadLogo(@RequestParam("file") MultipartFile file) {

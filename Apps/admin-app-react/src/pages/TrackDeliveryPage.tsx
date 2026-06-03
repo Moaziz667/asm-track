@@ -5,6 +5,7 @@ import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Skeleton } from '@mantine/core';
 import { IconPhone, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
+import { useT } from '@/lib/LocaleContext';
 
 const TrackingMap = dynamic(() => import('./TrackingMap'));
 
@@ -19,22 +20,27 @@ interface TrackingData {
   totalAmount?: number; isCod?: boolean; items?: OrderItem[]
 }
 
-const STATUS: Record<string, { label: string; sub: string; color: string }> = {
-  UNSCHEDULED: { label: 'En attente',        sub: 'Votre commande est en file d\'attente',   color: '#64748b' },
-  SCHEDULED:   { label: 'Planifiée',         sub: 'Votre livraison a été planifiée',         color: '#3b82f6' },
-  PICKED_UP:   { label: 'Prise en charge',   sub: 'Le livreur a récupéré votre colis',       color: 'var(--brand)' },
-  IN_TRANSIT:  { label: 'En route',          sub: 'Votre livreur est en chemin',             color: 'var(--brand)' },
-  DELIVERED:   { label: 'Livrée',            sub: 'Votre commande a été livrée avec succès', color: '#16a34a' },
-  FAILED:      { label: 'Tentative échouée', sub: 'Une nouvelle tentative sera planifiée',   color: '#ef4444' },
-  CANCELLED:   { label: 'Annulée',           sub: 'Cette livraison a été annulée',           color: '#ef4444' },
+const STEPS = ['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
+
+function getStatusConfig(t: any): Record<string, { label: string; sub: string; color: string }> {
+  return {
+    UNSCHEDULED: { label: t.trackingPage.statusEnAttente, sub: t.trackingPage.statusSubEnAttente, color: '#64748b' },
+    SCHEDULED:   { label: t.trackingPage.statusPlanifiee, sub: t.trackingPage.statusSubPlanifiee, color: '#3b82f6' },
+    PICKED_UP:   { label: t.trackingPage.statusPriseEnCharge, sub: t.trackingPage.statusSubPriseEnCharge, color: 'var(--brand)' },
+    IN_TRANSIT:  { label: t.trackingPage.statusEnRoute, sub: t.trackingPage.statusSubEnRoute, color: 'var(--brand)' },
+    DELIVERED:   { label: t.trackingPage.statusLivree, sub: t.trackingPage.statusSubLivree, color: '#16a34a' },
+    FAILED:      { label: t.trackingPage.statusTentativeEchouee, sub: t.trackingPage.statusSubTentativeEchouee, color: '#ef4444' },
+    CANCELLED:   { label: t.trackingPage.statusAnnulee, sub: t.trackingPage.statusSubAnnulee, color: '#ef4444' },
+  };
 }
 
-const STEPS = ['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
-const STEP_LABELS = ['Planifiée', 'Récupérée', 'En route', 'Livrée'];
+function getStepLabels(t: any): string[] {
+  return [t.trackingPage.stepPlanifiee, t.trackingPage.stepRecuperee, t.trackingPage.stepEnRoute, t.trackingPage.stepLivree];
+}
 
 function fmtTime(iso?: string | null) {
   if (!iso) return null;
-  try { const d = new Date(iso); return isNaN(d.getTime()) ? null : d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }); }
+  try { const d = new Date(iso); return isNaN(d.getTime()) ? null : d.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' }); }
   catch { return null; }
 }
 
@@ -51,6 +57,7 @@ export default function TrackingPage() {
   const [loading, setLoading]   = useState(true);
   const [expanded, setExpanded] = useState(false);
   const stompRef                = useRef<Client | null>(null);
+  const t = useT();
 
   const fetchData = async () => {
     try {
@@ -97,14 +104,14 @@ export default function TrackingPage() {
 
   if (error || !data) return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
-      <p style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>Livraison introuvable</p>
+      <p style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.trackingPage.notFoundTitle}</p>
       <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, textAlign: 'center', maxWidth: 260 }}>
-        Vérifiez votre code de suivi ou contactez l'expéditeur.
+        {t.trackingPage.notFoundSub}
       </p>
     </div>
   );
 
-  const st      = STATUS[data.status] ?? STATUS.UNSCHEDULED;
+  const st      = getStatusConfig(t)[data.status] ?? getStatusConfig(t).UNSCHEDULED;
   const stepIdx = STEPS.indexOf(data.status);
   const eta     = fmtTime(data.etaAt);
   const hasItems = data.items && data.items.length > 0;
@@ -136,8 +143,8 @@ export default function TrackingPage() {
           : <div style={{ height: 30, width: 30, borderRadius: 6, background: '#f1f5f9', flexShrink: 0 }} />
         }
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{data.companyName ?? 'ASM Track'}</div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>Suivi de commande</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', lineHeight: 1 }}>{data.companyName ?? t.trackingPage.appTitle}</div>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2 }}>{t.trackingPage.pageTitle}</div>
         </div>
         {data.erpOrderId && (
           <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', fontFamily: 'monospace', background: '#f8fafc', padding: '4px 8px', borderRadius: 6, border: '1px solid #e2e8f0' }}>
@@ -205,7 +212,7 @@ export default function TrackingPage() {
                         {i < STEPS.length - 1 && <div style={{ flex: 1, height: 2, background: stepIdx > i ? st.color : '#e2e8f0', transition: 'background 0.3s' }} />}
                       </div>
                       <div style={{ fontSize: 9, fontWeight: 600, color: done ? '#475569' : '#cbd5e1', marginTop: 5, textAlign: 'center', letterSpacing: '0.02em' }}>
-                        {STEP_LABELS[i]}
+                        {getStepLabels(t)[i]}
                       </div>
                     </div>
                   );
@@ -230,7 +237,7 @@ export default function TrackingPage() {
                   {data.driverName?.[0] ?? '?'}
                 </div>
                 <div>
-                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>Livreur</div>
+                  <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600 }}>{t.trackingPage.labelDriver}</div>
                   <div style={{ fontSize: 15, fontWeight: 700, color: '#0f172a' }}>{data.driverName}</div>
                 </div>
               </div>
@@ -242,7 +249,7 @@ export default function TrackingPage() {
                   fontSize: 13, fontWeight: 700, textDecoration: 'none', flexShrink: 0,
                 }}>
                   <IconPhone size={14} stroke={2.5} />
-                  Appeler
+                  {t.trackingPage.labelCall}
                 </a>
               )}
             </div>
@@ -252,11 +259,11 @@ export default function TrackingPage() {
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
-                Contenu de la commande
+                {t.trackingPage.sectionContents}
               </div>
               {data.isCod && (
                 <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', background: '#f1f5f9', borderRadius: 6, padding: '2px 8px' }}>
-                  Paiement à la livraison
+                  {t.trackingPage.labelCod}
                 </div>
               )}
             </div>
@@ -276,7 +283,7 @@ export default function TrackingPage() {
                     {item.unitPrice != null && (
                       <span style={{ fontSize: 13, fontWeight: 700, color: '#0f172a', fontFamily: 'monospace', whiteSpace: 'nowrap', flexShrink: 0 }}>
                         {fmtAmount(item.unitPrice * item.quantity)}
-                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400 }}> TND</span>
+                        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 400 }}> {t.trackingPage.currencyTnd}</span>
                       </span>
                     )}
                   </div>
@@ -284,23 +291,23 @@ export default function TrackingPage() {
 
                 {data.totalAmount != null && (
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 10, borderTop: '1px solid #f1f5f9', marginTop: 4 }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>Total</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8' }}>{t.trackingPage.labelTotal}</span>
                     <span style={{ fontSize: 17, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
                       {fmtAmount(data.totalAmount)}
-                      <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}> TND</span>
+                      <span style={{ fontSize: 11, fontWeight: 500, color: '#94a3b8' }}> {t.trackingPage.currencyTnd}</span>
                     </span>
                   </div>
                 )}
               </div>
             ) : (
-              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>Détails des articles non disponibles.</p>
+              <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>{t.trackingPage.noItems}</p>
             )}
           </div>
 
           {/* Address */}
           <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9' }}>
             <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8', marginBottom: 8 }}>
-              Adresse de livraison
+              {t.trackingPage.sectionAddress}
             </div>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#0f172a' }}>{data.clientName}</div>
             {data.dropoffAddress && <div style={{ fontSize: 12, color: '#64748b', marginTop: 3, lineHeight: 1.5 }}>{data.dropoffAddress}</div>}
@@ -311,7 +318,7 @@ export default function TrackingPage() {
           {(data.startWindow || data.endWindow) && (
             <div style={{ padding: '16px 20px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
-                Créneau de livraison
+                {t.trackingPage.sectionSlot}
               </div>
               <div style={{ fontSize: 15, fontWeight: 800, color: '#0f172a', fontFamily: 'monospace' }}>
                 {data.startWindow ?? '—'} – {data.endWindow ?? '—'}
@@ -320,7 +327,7 @@ export default function TrackingPage() {
           )}
 
           <div style={{ padding: '16px 20px', textAlign: 'center' }}>
-            <span style={{ fontSize: 11, color: '#cbd5e1' }}>Suivi en temps réel · {data.companyName ?? 'ASM Track'}</span>
+            <span style={{ fontSize: 11, color: '#cbd5e1' }}>{t.trackingPage.liveTracking}{data.companyName ?? t.trackingPage.appTitle}</span>
           </div>
         </div>
       </div>

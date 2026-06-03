@@ -1,7 +1,9 @@
 {
   "permissions": {
     "allow": [
-      "Bash(adb devices *)"
+      "Bash(adb devices *)",
+      "Bash(cd \"/c/Users/M S I/OneDrive/Documents/PFE/Microservices\" && grep -rn \"8080\\\\|clients.json\\\\|ports:\\\\|80:\\\\|gateway\\\\|discovery\" docker-compose*.yml 2>/dev/null | head -40; echo \"=== compose files ===\"; ls docker-compose*.yml 2>/dev/null)",
+      "Read(//c/Users/M S I/OneDrive/Documents/PFE/Microservices/**)"
     ]
   }
 }

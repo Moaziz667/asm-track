@@ -9,9 +9,9 @@ public class GeocodeSuggestionResponse {
     private Double lat;
     private Double lng;
     private String displayName;
-    /** City extracted from reverse geocode address (null for forward geocode). */
+    /** City extracted from the geocoder address details (forward + reverse); null if unavailable. */
     private String city;
-    /** Postal code extracted from reverse geocode address (null for forward geocode). */
+    /** Postal code extracted from the geocoder address details (forward + reverse); null if unavailable. */
     private String postalCode;
     private boolean found;
     private boolean outsideTunisiaBbox;

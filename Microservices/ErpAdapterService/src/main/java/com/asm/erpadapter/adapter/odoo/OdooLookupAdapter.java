@@ -267,6 +267,27 @@ public class OdooLookupAdapter implements ErpLookupPort {
         return result;
     }
 
+    // ── Company (tenant's own selling entity) ─────────────────────────────────────
+
+    @Override
+    public ErpCompanyDTO getCompany() {
+        List<Map<String, Object>> rows = rpc.searchReadStrict("res.company",
+                List.of(),
+                List.of("id", "name", "street", "street2", "city", "zip", "phone", "email", "vat", "website"),
+                1, "id asc");
+        if (rows.isEmpty()) return null;
+        Map<String, Object> c = rows.get(0);
+        return ErpCompanyDTO.builder()
+                .name(asString(c.get("name")))
+                .address(buildAddress(c))
+                .city(asString(c.get("city")))
+                .phone(asString(c.get("phone")))
+                .email(asString(c.get("email")))
+                .vat(asString(c.get("vat")))
+                .website(asString(c.get("website")))
+                .build();
+    }
+
     // ── Picking ref by id (backorder linking) ─────────────────────────────────────
 
     @Override

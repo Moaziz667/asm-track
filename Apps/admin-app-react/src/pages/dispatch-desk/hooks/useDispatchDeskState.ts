@@ -246,6 +246,10 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     if (!globalContext || initialSyncRef.current) return;
     initialSyncRef.current = true;
+    const tabParam = searchParams?.get('tab');
+    if (tabParam === 'action' || tabParam === 'failed' || tabParam === 'gps' || tabParam === 'handoff' || tabParam === 'assign') {
+      setDispatchTab(tabParam);
+    }
     const q = searchParams?.get('search') || searchParams?.get('deliveryId');
     if (q) { setSearch(q); applyFilters({ search: q }); }
     else { setSearch(globalFilters.search); setZoneFilter(globalFilters.zone); setDriverId(globalFilters.driver); }

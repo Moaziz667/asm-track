@@ -158,7 +158,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             onPressed: () async {
                               final storage = ref.read(tokenStorageProvider);
                               await storage.saveApiBaseUrl('');
-                              ref.read(appConfigProvider.notifier).state = const AppConfig(apiBaseUrl: '');
+                              final current = ref.read(appConfigProvider);
+                              ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: '', discoveryUrl: current.discoveryUrl);
                               if (context.mounted) {
                                 Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
                               }

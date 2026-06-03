@@ -46,6 +46,10 @@ public class Driver {
     @Column(length = 255)
     private String email;
 
+    @Column(name = "active", nullable = false)
+    @Builder.Default
+    private Boolean active = true;
+
     @Column(length = 500)
     private String fcmToken;
 

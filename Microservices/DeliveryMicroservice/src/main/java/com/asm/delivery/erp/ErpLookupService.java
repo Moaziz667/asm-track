@@ -49,6 +49,7 @@ public class ErpLookupService {
     private final EventPublisher eventPublisher;
     private final ObjectMapper objectMapper;
     private final com.asm.delivery.repository.DepotRepository depotRepository;
+    private final com.asm.delivery.service.OrderGeocodingService orderGeocodingService;
 
     // Cache to match original logic signature layout, though simplified here.
     private final ConcurrentHashMap<String, CacheEntry<List<ErpClientDTO>>> clientCache = new ConcurrentHashMap<>();
@@ -219,7 +220,23 @@ public class ErpLookupService {
         eventPublisher.publishDeliveryCreated(order, delivery);
         pendingOrderCache.clear();
 
+        // Auto-geocode + auto-zone after the import commits (async, throttled). Best-effort:
+        // failure leaves the order unpinned for the dispatcher to fix manually.
+        scheduleGeocode(order.getId());
+
         return toOrderResponse(order, delivery);
+    }
+
+    /** Trigger async geocoding once the import transaction has committed (so the row is visible). */
+    private void scheduleGeocode(UUID orderId) {
+        if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
+            org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+                new org.springframework.transaction.support.TransactionSynchronization() {
+                    @Override public void afterCommit() { orderGeocodingService.enrichOrderAsync(orderId); }
+                });
+        } else {
+            orderGeocodingService.enrichOrderAsync(orderId);
+        }
     }
 
 

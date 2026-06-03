@@ -50,6 +50,22 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.BAD_REQUEST.value(), message, "VALIDATION_FAILED", errors));
     }
 
+    /**
+     * Concurrent writes to the same aggregate (e.g. two drivers confirming the same
+     * handoff at once, or a sweep cancelling while a driver confirms). The optimistic
+     * {@code @Version} guard lost the race — surface a clean 409 so the client retries
+     * rather than seeing a 500.
+     */
+    @ExceptionHandler(org.springframework.orm.ObjectOptimisticLockingFailureException.class)
+    public ResponseEntity<ErrorResponse> handleOptimisticLock(
+            org.springframework.orm.ObjectOptimisticLockingFailureException ex) {
+        log.warn("Optimistic lock conflict: {}", ex.getMessage());
+        return ResponseEntity.status(HttpStatus.CONFLICT)
+                .body(new ErrorResponse(HttpStatus.CONFLICT.value(),
+                        "This action was just updated elsewhere. Please refresh and try again.",
+                        "CONCURRENT_UPDATE", Map.of()));
+    }
+
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)

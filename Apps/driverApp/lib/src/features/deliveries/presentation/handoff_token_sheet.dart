@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
@@ -5,6 +7,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
 import '../../../theme/widgets.dart';
+import '../models/delivery_models.dart';
 
 class HandoffTokenSheet extends ConsumerStatefulWidget {
   const HandoffTokenSheet({super.key, required this.deliveryId});
@@ -15,9 +18,12 @@ class HandoffTokenSheet extends ConsumerStatefulWidget {
 }
 
 class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
-  String? _token;
+  HandoffTokenInfo? _info;
   String? _error;
   bool _isLoading = true;
+
+  Timer? _ticker;
+  Duration _remaining = Duration.zero;
 
   @override
   void initState() {
@@ -25,19 +31,60 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
     _fetchToken();
   }
 
+  @override
+  void dispose() {
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  bool get _expired => _info != null && _remaining <= Duration.zero;
+
   Future<void> _fetchToken() async {
+    _ticker?.cancel();
     setState(() {
       _isLoading = true;
       _error = null;
+      _info = null;
     });
     try {
-      final token = await ref.read(deliveryRepositoryProvider).getHandoffToken(widget.deliveryId);
-      if (mounted) setState(() => _token = token);
+      final info = await ref.read(deliveryRepositoryProvider).getHandoffToken(widget.deliveryId);
+      if (!mounted) return;
+      setState(() => _info = info);
+      _startCountdown();
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = _friendlyError(e));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _startCountdown() {
+    final expiry = _info?.expiresAt;
+    if (expiry == null) return;
+    void update() {
+      final left = expiry.difference(DateTime.now());
+      setState(() => _remaining = left.isNegative ? Duration.zero : left);
+      if (left.isNegative) _ticker?.cancel();
+    }
+
+    update();
+    _ticker = Timer.periodic(const Duration(seconds: 1), (_) => update());
+  }
+
+  /// Maps backend / transport failures to a driver-friendly message —
+  /// never surfaces a raw exception string.
+  String _friendlyError(Object e) {
+    final s = e.toString().toLowerCase();
+    if (s.contains('403') || s.contains('forbidden') || s.contains('not authorized')) {
+      return 'Vous n\'êtes pas autorisé à générer un jeton pour ce colis.';
+    }
+    if (s.contains('not found') || s.contains('404') || s.contains('not awaiting')) {
+      return 'Aucun transfert en attente pour ce colis. Actualisez puis réessayez.';
+    }
+    if (s.contains('socket') || s.contains('timeout') || s.contains('connection') || s.contains('network')) {
+      return 'Connexion impossible. Vérifiez votre réseau et réessayez.';
+    }
+    return 'Impossible de générer le jeton. Veuillez réessayer.';
   }
 
   @override
@@ -75,13 +122,13 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 32),
-          
+
           if (_isLoading)
             const SizedBox(height: 200, child: LoadingState(message: 'Génération du jeton sécurisé…'))
           else if (_error != null)
             _buildError()
-          else if (_token != null)
-            _buildQr(_token!)
+          else if (_info != null)
+            _buildQr(_info!)
           else
             const SizedBox(height: 200),
 
@@ -98,53 +145,105 @@ class _HandoffTokenSheetState extends ConsumerState<HandoffTokenSheet> {
     );
   }
 
-  Widget _buildQr(String token) {
+  Widget _buildQr(HandoffTokenInfo info) {
+    final cs = Theme.of(context).colorScheme;
+    final expired = _expired;
+    return Column(
+      children: [
+        // QR — dimmed + overlaid with a lock once expired so a stale code can't be scanned.
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            AnimatedOpacity(
+              opacity: expired ? 0.25 : 1,
+              duration: const Duration(milliseconds: 200),
+              child: Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: QrImageView(
+                  data: '${widget.deliveryId}|${info.token}',
+                  version: QrVersions.auto,
+                  size: 200.0,
+                  gapless: false,
+                ),
+              ),
+            ),
+            if (expired)
+              Icon(LucideIcons.lock, color: cs.error, size: 44),
+          ],
+        ),
+        const SizedBox(height: 24),
+
+        if (!expired) ...[
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+            decoration: BoxDecoration(
+              color: cs.surfaceContainerLow,
+              borderRadius: BorderRadius.circular(4),
+              border: Border.all(color: cs.primary, width: 1),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  'Jeton : ',
+                  style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: cs.onSurfaceVariant),
+                ),
+                Text(
+                  info.token,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22, fontWeight: FontWeight.w900, color: cs.primary),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _buildCountdown(),
+        ] else
+          _buildExpired(),
+      ],
+    );
+  }
+
+  Widget _buildCountdown() {
+    final cs = Theme.of(context).colorScheme;
+    // Warn (amber) under a minute left.
+    final bool urgent = _remaining.inSeconds <= 60 && _info?.expiresAt != null;
+    final Color color = urgent ? const Color(0xFFD97706) : cs.onSurfaceVariant;
+    final m = _remaining.inMinutes;
+    final s = _remaining.inSeconds % 60;
+    final label = _info?.expiresAt == null
+        ? 'Expire dans 5 minutes'
+        : 'Expire dans ${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Icon(LucideIcons.clock, size: 14, color: color),
+        const SizedBox(width: 6),
+        Text(label, style: TextStyle(color: color, fontSize: 12, fontWeight: urgent ? FontWeight.w700 : FontWeight.w400)),
+      ],
+    );
+  }
+
+  Widget _buildExpired() {
     final cs = Theme.of(context).colorScheme;
     return Column(
       children: [
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(4), // Sharp corners
-          ),
-          child: QrImageView(
-            data: '${widget.deliveryId}|$token',
-            version: QrVersions.auto,
-            size: 200.0,
-            gapless: false,
-          ),
-        ),
-        const SizedBox(height: 24),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-          decoration: BoxDecoration(
-            color: cs.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: cs.primary, width: 1),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Jeton : ',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(fontSize: 12, fontWeight: FontWeight.w700, color: cs.onSurfaceVariant),
-              ),
-              Text(
-                token,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontSize: 22, fontWeight: FontWeight.w900, color: cs.primary),
-              ),
-            ],
-          ),
+        Text(
+          'Ce code a expiré.',
+          style: TextStyle(color: cs.error, fontSize: 13, fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 12),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.clock, size: 14, color: cs.onSurfaceVariant),
-            const SizedBox(width: 6),
-            Text('Expire dans 5 minutes', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 12)),
-          ],
+        SizedBox(
+          width: double.infinity,
+          height: 40,
+          child: FilledButton.icon(
+            onPressed: _fetchToken,
+            icon: const Icon(LucideIcons.refreshCw, size: 16),
+            label: const Text('Générer un nouveau code'),
+          ),
         ),
       ],
     );

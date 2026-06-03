@@ -287,6 +287,25 @@ public class ErpAdapterClient {
         }
     }
 
+    /**
+     * Fetch the tenant's own selling company from the ERP (Odoo res.company).
+     * Returns a map with: name, address, city, phone, email, vat, website. Null on failure.
+     */
+    public Map<String, Object> getCompany(String erpProvider) {
+        String url = UriComponentsBuilder.fromHttpUrl(adapterBaseUrl + "/api/erp/lookup/company")
+                .queryParam("erpProvider", erpProvider != null ? erpProvider : defaultProvider)
+                .toUriString();
+        try {
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    url, HttpMethod.GET, new HttpEntity<>(buildHeaders()),
+                    new ParameterizedTypeReference<>() {});
+            return response.getBody();
+        } catch (Exception e) {
+            log.warn("Adapter getCompany failed: {}", e.getMessage());
+            return null;
+        }
+    }
+
     // ── Internal ────────────────────────────────────────────────────────────────
 
     /**

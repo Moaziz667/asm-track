@@ -38,11 +38,11 @@ public class GeocodingService {
         private static final Pattern GOVERNORATE_IN_DISPLAY = Pattern.compile("(?:Gouvernorat|Governorate)\\s+([^,]+)", Pattern.CASE_INSENSITIVE);
 
     private static final String NOMINATIM_URL =
-            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&countrycodes=tn&accept-language=fr";
+            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&addressdetails=1&countrycodes=tn&accept-language=fr";
 
     /** Same as NOMINATIM_URL but without country restriction — used for depot/warehouse geocoding. */
     private static final String NOMINATIM_URL_GLOBAL =
-            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&accept-language=fr";
+            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit=1&addressdetails=1&accept-language=fr";
 
     private static final String NOMINATIM_REVERSE_URL =
             "https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&accept-language=fr";
@@ -57,8 +57,8 @@ public class GeocodingService {
 
     public GeocodingService() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
-        factory.setConnectTimeout(2000);
-        factory.setReadTimeout(2000);
+        factory.setConnectTimeout(3000);
+        factory.setReadTimeout(6000);
         this.restTemplate = new RestTemplate(factory);
     }
 
@@ -94,6 +94,8 @@ public class GeocodingService {
             double lat = Double.parseDouble((String) first.get("lat"));
             double lng = Double.parseDouble((String) first.get("lon"));
             String displayName = (String) first.get("display_name");
+            String city = extractCity(first, displayName);
+            String postalCode = extractPostalCode(first);
 
             boolean outsideBbox = lat < TN_LAT_MIN || lat > TN_LAT_MAX
                     || lng < TN_LNG_MIN || lng > TN_LNG_MAX;
@@ -107,6 +109,8 @@ public class GeocodingService {
                     .lat(lat)
                     .lng(lng)
                     .displayName(displayName)
+                    .city(city)
+                    .postalCode(postalCode)
                     .outsideTunisiaBbox(outsideBbox)
                     .build();
 
@@ -149,6 +153,8 @@ public class GeocodingService {
             double lat = Double.parseDouble((String) first.get("lat"));
             double lng = Double.parseDouble((String) first.get("lon"));
             String displayName = (String) first.get("display_name");
+            String city = extractCity(first, displayName);
+            String postalCode = extractPostalCode(first);
 
             boolean outsideBbox = lat < TN_LAT_MIN || lat > TN_LAT_MAX
                     || lng < TN_LNG_MIN || lng > TN_LNG_MAX;
@@ -158,6 +164,8 @@ public class GeocodingService {
                     .lat(lat)
                     .lng(lng)
                     .displayName(displayName)
+                    .city(city)
+                    .postalCode(postalCode)
                     .outsideTunisiaBbox(outsideBbox)
                     .build();
 
@@ -196,14 +204,8 @@ public class GeocodingService {
             String displayName = (String) body.getOrDefault("display_name", "");
 
             // Extract city and postal code from address sub-object
-            String city = null;
-            String postalCode = null;
-            Object addressObj = body.get("address");
-            if (addressObj instanceof Map<?, ?> addr) {
-                city = extractPreferredTunisianCity((Map<?, ?>) addr, displayName);
-                Object pc = addr.get("postcode");
-                if (pc instanceof String s && !s.isBlank()) postalCode = s;
-            }
+            String city = extractCity(body, displayName);
+            String postalCode = extractPostalCode(body);
 
             boolean outsideBbox = lat < TN_LAT_MIN || lat > TN_LAT_MAX
                     || lng < TN_LNG_MIN || lng > TN_LNG_MAX;
@@ -222,6 +224,28 @@ public class GeocodingService {
             log.warn("Nominatim reverse geocoding failed for ({}, {}): {}", lat, lng, ex.getMessage());
             return GeocodeSuggestionResponse.builder().found(false).lat(lat).lng(lng).build();
         }
+    }
+
+    /**
+     * Extracts the operational city from a Nominatim result's {@code address} sub-object
+     * (present when {@code addressdetails=1}). Shared by forward + reverse geocoding.
+     */
+    private String extractCity(Map<String, Object> result, String displayName) {
+        Object addressObj = result.get("address");
+        if (addressObj instanceof Map<?, ?> addr) {
+            return extractPreferredTunisianCity(addr, displayName);
+        }
+        return null;
+    }
+
+    /** Extracts the postal code from a Nominatim result's {@code address} sub-object. */
+    private String extractPostalCode(Map<String, Object> result) {
+        Object addressObj = result.get("address");
+        if (addressObj instanceof Map<?, ?> addr) {
+            Object pc = addr.get("postcode");
+            if (pc instanceof String s && !s.isBlank()) return s.trim();
+        }
+        return null;
     }
 
     private String cleanTunisianAdminName(String name) {

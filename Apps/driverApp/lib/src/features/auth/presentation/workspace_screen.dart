@@ -48,7 +48,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
       try {
         final storage = ref.read(tokenStorageProvider);
         await storage.saveApiBaseUrl(code);
-        ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: code);
+        final current = ref.read(appConfigProvider);
+        ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: code, discoveryUrl: current.discoveryUrl);
         if (mounted) {
           Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
         }
@@ -64,7 +65,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
     final lookupCode = code.toUpperCase();
     try {
       final dio = Dio();
-      final response = await dio.get('http://localhost:8080/clients.json');
+      final config = ref.read(appConfigProvider);
+      final response = await dio.get(config.discoveryUrl);
       final Map<String, dynamic> clients = response.data is String 
           ? jsonDecode(response.data) 
           : response.data;
@@ -80,7 +82,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
 
       final storage = ref.read(tokenStorageProvider);
       await storage.saveApiBaseUrl(url);
-      ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: url);
+      final current = ref.read(appConfigProvider);
+      ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: url, discoveryUrl: current.discoveryUrl);
 
       if (mounted) {
         Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
@@ -90,7 +93,8 @@ class _WorkspaceScreenState extends ConsumerState<WorkspaceScreen> {
         final url = lookupCode.toLowerCase();
         final storage = ref.read(tokenStorageProvider);
         await storage.saveApiBaseUrl(url);
-        ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: url);
+        final current = ref.read(appConfigProvider);
+        ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: url, discoveryUrl: current.discoveryUrl);
         if (mounted) {
           Navigator.of(context).pushReplacementNamed(LoginScreen.routeName);
         }

@@ -150,6 +150,19 @@ routing:
     min-minutes: ${ROUTING_TRANSIT_SLA_MIN_MINUTES:15}
     max-minutes: ${ROUTING_TRANSIT_SLA_MAX_MINUTES:240}
 
+handoff:
+  token:
+    # One-time custody code: short-lived + brute-force capped.
+    ttl-minutes: ${HANDOFF_TOKEN_TTL_MINUTES:5}
+    max-attempts: ${HANDOFF_TOKEN_MAX_ATTEMPTS:5}
+  sla:
+    check-interval-ms: ${HANDOFF_SLA_CHECK_INTERVAL_MS:30000}
+    # Push a one-time overdue alert to dispatch + both drivers after this long unconfirmed.
+    pending-minutes: ${HANDOFF_SLA_PENDING_MINUTES:15}
+    # Auto-expire a stuck handoff and return the parcel to dispatch resolution.
+    # 0 disables auto-cancel; default 60min so parcels never sit in limbo indefinitely.
+    auto-cancel-minutes: ${HANDOFF_SLA_AUTO_CANCEL_MINUTES:60}
+
 springdoc:
   # PROD: disable Swagger UI entirely — exposes all endpoints publicly
   # Set springdoc.swagger-ui.enabled=false and springdoc.api-docs.enabled=false

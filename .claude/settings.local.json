@@ -141,7 +141,11 @@
       "Bash(MSYS_NO_PATHCONV=1 docker compose build erp-adapter delivery-service)",
       "Bash(MSYS_NO_PATHCONV=1 docker compose build delivery-service)",
       "Bash(MSYS_NO_PATHCONV=1 docker compose up -d --build delivery-service)",
-      "Bash(MSYS_NO_PATHCONV=1 docker compose up -d --build erp-adapter)"
+      "Bash(MSYS_NO_PATHCONV=1 docker compose up -d --build erp-adapter)",
+      "Bash(grep -nB1 \"public OrderResponse importPendingOrder\\\\|public.*importPendingOrder\" erp/ErpLookupService.java)",
+      "Bash(MSYS_NO_PATHCONV=1 docker compose up -d --build erp-adapter delivery-service)",
+      "Bash(grep -n \"mobile_scanner\\\\|qr_flutter\" \"/c/Users/M S I/OneDrive/Documents/PFE/Apps/driverApp/pubspec.yaml\")",
+      "Read(//c/Users/M S I/OneDrive/Documents/PFE/Apps/driverApp/**)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

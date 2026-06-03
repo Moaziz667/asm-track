@@ -28,6 +28,7 @@ public class CompanyService {
     private final CompanyRepository repo;
     private final MinioStorageService minioStorageService;
     private final RestTemplate restTemplate;
+    private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
 
     @Value("${app.backend.url:http://app-backend:8080}")
     private String appBackendUrl;
@@ -68,6 +69,45 @@ public class CompanyService {
         if (patch.getSupportEmail() != null) existing.setSupportEmail(patch.getSupportEmail());
         if (patch.getActive() != null) existing.setActive(patch.getActive());
         return repo.save(existing);
+    }
+
+    /**
+     * Pull the tenant's company info from the connected ERP (Odoo res.company) and overwrite the
+     * editable text fields (name, address, support email). Branding (logo, primary color) is kept
+     * as-is — those aren't sourced from the ERP. Throws if the ERP returns nothing.
+     */
+    @Transactional
+    public Company syncFromErp(UUID id) {
+        Company existing = repo.findById(id)
+                .orElseThrow(() -> AppException.notFound("Company not found: " + id));
+
+        java.util.Map<String, Object> erp = erpAdapterClient.getCompany(null);
+        if (erp == null || erp.isEmpty()) {
+            throw AppException.badRequest("L'ERP n'a retourné aucune information d'entreprise. Vérifiez la configuration ERP.");
+        }
+
+        String name = str(erp.get("name"));
+        String address = composeAddress(str(erp.get("address")), str(erp.get("city")));
+        String email = str(erp.get("email"));
+
+        if (name != null) existing.setName(name);
+        if (address != null) existing.setAddress(address);
+        if (email != null) existing.setSupportEmail(email);
+
+        return repo.save(existing);
+    }
+
+    private static String str(Object v) {
+        if (v == null) return null;
+        String s = String.valueOf(v).trim();
+        return s.isEmpty() || "false".equalsIgnoreCase(s) ? null : s;
+    }
+
+    private static String composeAddress(String address, String city) {
+        if (address == null && city == null) return null;
+        if (address == null) return city;
+        if (city == null || address.toLowerCase().contains(city.toLowerCase())) return address;
+        return address + ", " + city;
     }
 
     @Transactional

@@ -5,6 +5,7 @@ import com.asm.erpadapter.dto.ErpPendingOrderPreviewDTO;
 import com.asm.erpadapter.dto.ErpPendingOrderSummaryDTO;
 import com.asm.erpadapter.dto.ErpProductDTO;
 import com.asm.erpadapter.dto.ErpWarehouseDTO;
+import com.asm.erpadapter.dto.ErpCompanyDTO;
 import java.util.List;
 
 public interface ErpLookupPort {
@@ -19,4 +20,7 @@ public interface ErpLookupPort {
 
     /** Resolve a picking's reference/name (e.g. "WH/OUT/00007") from its ERP id — used to link backorders. */
     String getPickingRef(String pickingId);
+
+    /** The tenant's own selling company (Odoo {@code res.company}) — name, address, contact, VAT. */
+    ErpCompanyDTO getCompany();
 }
