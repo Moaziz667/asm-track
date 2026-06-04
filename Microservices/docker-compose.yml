@@ -365,6 +365,9 @@ services:
       CLIENT_ID: erp-adapter
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
+      ERP_DB_PATH: /data/erp_adapter_db
+    volumes:
+      - erp-adapter-data:/data
     healthcheck:
       test: ["CMD-SHELL", "wget -qO /dev/null http://localhost:8088/actuator/health || exit 1"]
       interval: 10s
@@ -462,6 +465,7 @@ volumes:
   keycloak-pgdata:
   minio_data:
   osrm-data:
+  erp-adapter-data:
 
 networks:
   asm-network:

@@ -37,6 +37,9 @@ public class OdooJsonRpcClient {
     private final SettingsClient settingsClient;
     private final RestTemplate restTemplate;
 
+    @org.springframework.beans.factory.annotation.Value("${allowed.erp.domains:}")
+    private String allowedDomains;
+
     @org.springframework.beans.factory.annotation.Autowired
     public OdooJsonRpcClient(
             SettingsClient settingsClient,
@@ -49,6 +52,34 @@ public class OdooJsonRpcClient {
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
         this.restTemplate = new RestTemplate(factory);
+    }
+
+    private void validateUrl(String url) {
+        if (url == null || url.isBlank()) return;
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String host = uri.getHost();
+            if (host == null) throw new SecurityException("SSRF Guard: Invalid host in URL");
+            String scheme = uri.getScheme();
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                throw new SecurityException("SSRF Guard: Forbidden URL scheme: " + scheme);
+            }
+            if (allowedDomains != null && !allowedDomains.isBlank()) {
+                java.util.List<String> allowed = java.util.Arrays.stream(allowedDomains.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+                if (!allowed.isEmpty()) {
+                    boolean match = allowed.stream().anyMatch(d -> host.equalsIgnoreCase(d) || host.endsWith("." + d));
+                    if (!match) {
+                        throw new SecurityException("SSRF Guard: Host '" + host + "' is not whitelisted for ERP integration");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("SSRF Guard block: URL '{}' failed validation: {}", url, e.getMessage());
+            throw new SecurityException("SSRF Guard block: " + e.getMessage(), e);
+        }
     }
     
     private String getSettingStr(String key) {
@@ -87,6 +118,7 @@ public class OdooJsonRpcClient {
                 log.warn("Odoo RPC abort - ERP URL is not configured in Settings!");
                 return null;
             }
+            validateUrl(url);
             return restTemplate.postForObject(url, body, Map.class);
         } catch (Exception e) {
             // Swallow transport errors — callers check for null and treat as failure.

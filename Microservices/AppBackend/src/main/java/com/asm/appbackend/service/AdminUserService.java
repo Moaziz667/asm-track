@@ -55,6 +55,7 @@ public class AdminUserService {
         // Provision in Keycloak (Resilient: caught exceptions will not roll back database)
         try {
             keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password());
+            eventPublisher.publishEvent(new KeycloakUserRollbackEvent(this, req.email()));
         } catch (Exception e) {
             log.warn("Keycloak is down/failed to provision user (email={}) during creation. Sync scheduler will reconcile: {}", req.email(), e.getMessage());
         }

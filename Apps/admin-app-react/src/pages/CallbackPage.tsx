@@ -17,7 +17,7 @@ export default function CallbackPage() {
       <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
         <h2 style={{ color: 'red' }}>Authentication Error</h2>
         <pre style={{ background: '#f5f5f5', padding: 16, borderRadius: 8, maxWidth: 600, overflow: 'auto' }}>
-          {errorMsg || auth.error?.message}
+          {auth.error?.message || 'Unknown error occurred'}
         </pre>
         <button onClick={() => navigate('/login')} style={{ marginTop: 16, padding: '8px 16px', background: 'var(--brand)', borderRadius: 4, border: 'none', cursor: 'pointer' }}>
           Go back to Login

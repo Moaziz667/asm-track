@@ -60,12 +60,14 @@ public class SecurityConfig {
                         withIssuer,
                         jwt -> {
                             java.util.List<String> aud = jwt.getAudience();
-                            if (aud != null && (aud.contains("driver-app") || aud.contains("admin-web"))) {
-                                return org.springframework.security.oauth2.core.OAuth2TokenResult.success();
+                            if (aud != null && (aud.contains("driver-app") || aud.contains("admin-web")
+                                    || aud.contains("erp-adapter") || aud.contains("delivery-service")
+                                    || aud.contains("driver-service"))) {
+                                return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
                             }
-                            return org.springframework.security.oauth2.core.OAuth2TokenResult.failure(
+                            return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
                                     new org.springframework.security.oauth2.core.OAuth2Error(
-                                            "invalid_token", "Required audience ('driver-app' or 'admin-web') is missing", null));
+                                            "invalid_token", "Required audience is missing", null));
                         }
                 );
 

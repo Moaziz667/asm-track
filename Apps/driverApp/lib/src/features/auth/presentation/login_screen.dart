@@ -81,11 +81,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
                     Text('Authentification', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
                     Text(
@@ -113,13 +111,26 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         children: [
                           TextButton(
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(SetupAccountScreen.routeName);
+                            },
+                            child: Text(
+                              "Configurer mon compte",
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          TextButton(
                             onPressed: () async {
                               final storage = ref.read(tokenStorageProvider);
                               await storage.saveApiBaseUrl('');
                               final current = ref.read(appConfigProvider);
                               ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: '', discoveryUrl: current.discoveryUrl);
                               if (context.mounted) {
-                                Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
+                                  Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
                               }
                             },
                             child: Text(
@@ -132,7 +143,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-              ),
             ),
           ),
         ],

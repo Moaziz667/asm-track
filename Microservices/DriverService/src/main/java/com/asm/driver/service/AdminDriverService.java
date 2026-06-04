@@ -130,9 +130,21 @@ public class AdminDriverService {
         // Provision in Keycloak (Resilient: Keycloak failures will not roll back local DB write)
         try {
             keycloakAdminClient.createDriver(driver.getId().toString(), trimmedEmail, phone);
+            eventPublisher.publishEvent(new KeycloakDriverRollbackEvent(this, driver.getId().toString()));
         } catch (Exception e) {
             log.warn("Failed to provision driver (id={}) in Keycloak during invitation. Background sync scheduler will reconcile: {}", driver.getId(), e.getMessage());
         }
+
+        // Generate invite token
+        UUID token = UUID.randomUUID();
+        inviteTokenRepo.save(DriverInviteToken.builder()
+                .driverId(driver.getId())
+                .token(token)
+                .expiresAt(LocalDateTime.now().plusHours(inviteTtlHours))
+                .build());
+
+        // Send invite email via Resend
+        emailService.sendDriverInvite(trimmedEmail, name, token.toString());
 
         auditLogService.log(
                 "DRIVER_INVITED",
@@ -161,6 +173,8 @@ public class AdminDriverService {
 
         // Update password in Keycloak
         keycloakAdminClient.resetPassword(driver.getId().toString(), newPassword);
+        // Explicitly enable user immediately in Keycloak to prevent sync lockout delay
+        keycloakAdminClient.enableDriver(driver.getId().toString());
 
         driver.setAccountStatus(DriverAccountStatus.ACTIVE);
         driver.setIsRegistered(true);

@@ -201,6 +201,8 @@ export default function SettingsPage() {
     } finally {
       setSubmitting(false);
     }
+  };
+
   const handleEditUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingUser) return;

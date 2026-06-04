@@ -2,6 +2,7 @@ class AuthTokens {
   const AuthTokens({
     required this.accessToken,
     required this.refreshToken,
+    this.idToken,
     this.expiresAt,
     this.tokenType = 'Bearer',
   });
@@ -12,6 +13,7 @@ class AuthTokens {
     return AuthTokens(
       accessToken: (json['accessToken'] ?? json['token']) as String? ?? '',
       refreshToken: (json['refreshToken'] as String?) ?? currentRefreshToken ?? '',
+      idToken: json['idToken'] as String?,
       tokenType: json['tokenType'] as String? ?? 'Bearer',
       expiresAt: expiry,
     );
@@ -19,6 +21,7 @@ class AuthTokens {
 
   final String accessToken;
   final String refreshToken;
+  final String? idToken;
   final String tokenType;
   final DateTime? expiresAt;
 
@@ -26,6 +29,7 @@ class AuthTokens {
     return {
       'accessToken': accessToken,
       'refreshToken': refreshToken,
+      'idToken': idToken,
       'tokenType': tokenType,
       'expiresAt': expiresAt?.toIso8601String(),
     };
@@ -34,12 +38,14 @@ class AuthTokens {
   AuthTokens copyWith({
     String? accessToken,
     String? refreshToken,
+    String? idToken,
     String? tokenType,
     DateTime? expiresAt,
   }) {
     return AuthTokens(
       accessToken: accessToken ?? this.accessToken,
       refreshToken: refreshToken ?? this.refreshToken,
+      idToken: idToken ?? this.idToken,
       tokenType: tokenType ?? this.tokenType,
       expiresAt: expiresAt ?? this.expiresAt,
     );

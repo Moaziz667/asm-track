@@ -9,6 +9,14 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+  datasource:
+    url: jdbc:h2:file:${ERP_DB_PATH:/data/erp_adapter_db};DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: sa
+  jpa:
+    hibernate:
+      ddl-auto: update
 
 # ── Odoo Connection ──────────────────────────────────────────────────────────
 odoo:

@@ -34,6 +34,7 @@ public class OutboxProcessor {
     private final DeliveryRepository deliveryRepo;
     private final TransportPort transportPort;
     private final EventPublisher eventPublisher;
+    private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final RestTemplate alertRestTemplate = new RestTemplate();
 
     @Value("${outbox.alert.webhook-url:}")
@@ -41,13 +42,15 @@ public class OutboxProcessor {
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
-                           TransportPort transportPort, EventPublisher eventPublisher) {
+                           TransportPort transportPort, EventPublisher eventPublisher,
+                           com.asm.delivery.repository.OrderRepository orderRepo) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
         this.deliveryRepo = deliveryRepo;
         this.transportPort = transportPort;
         this.eventPublisher = eventPublisher;
+        this.orderRepo = orderRepo;
     }
 
     @Scheduled(fixedDelay = 20000)
@@ -108,6 +111,30 @@ public class OutboxProcessor {
                 event.setStatus("FAILED");
                 log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
                         eventId, event.getEventType(), newRetryCount, error);
+                
+                // Update Order status in DB to record permanent sync failure
+                try {
+                    Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+                    UUID orderId = null;
+                    if (payload.get("orderId") != null) {
+                        orderId = UUID.fromString((String) payload.get("orderId"));
+                    } else if (payload.get("deliveryId") != null) {
+                        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+                        orderId = deliveryRepo.findByIdWithOrder(deliveryId)
+                                .map(d -> d.getOrder() != null ? d.getOrder().getId() : null)
+                                .orElse(null);
+                    }
+                    if (orderId != null) {
+                        orderRepo.findById(orderId).ifPresent(order -> {
+                            order.setOdooSyncStatus("SYNC_FAILED");
+                            orderRepo.save(order);
+                            log.info("Successfully marked order ID={} as SYNC_FAILED after outbox exhaustion", orderId);
+                        });
+                    }
+                } catch (Exception ex) {
+                    log.error("Failed to mark order sync status as SYNC_FAILED for eventId={}: {}", eventId, ex.getMessage());
+                }
+
                 sendDeadLetterAlert(eventId, event.getEventType(), error);
                 notifyErpSyncFailed(event);
             }

@@ -29,6 +29,37 @@ public class SettingsController {
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
 
+    @org.springframework.beans.factory.annotation.Value("${allowed.erp.domains:}")
+    private String allowedDomains;
+
+    private void validateUrl(String url) {
+        if (url == null || url.isBlank()) return;
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            String host = uri.getHost();
+            if (host == null) throw new SecurityException("SSRF Guard: Invalid host in URL");
+            String scheme = uri.getScheme();
+            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+                throw new SecurityException("SSRF Guard: Forbidden URL scheme: " + scheme);
+            }
+            if (allowedDomains != null && !allowedDomains.isBlank()) {
+                java.util.List<String> allowed = java.util.Arrays.stream(allowedDomains.split(","))
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .toList();
+                if (!allowed.isEmpty()) {
+                    boolean match = allowed.stream().anyMatch(d -> host.equalsIgnoreCase(d) || host.endsWith("." + d));
+                    if (!match) {
+                        throw new SecurityException("SSRF Guard: Host '" + host + "' is not whitelisted for ERP integration");
+                    }
+                }
+            }
+        } catch (Exception e) {
+            log.error("SSRF Guard block: URL '{}' failed validation: {}", url, e.getMessage());
+            throw new SecurityException("SSRF Guard block: " + e.getMessage(), e);
+        }
+    }
+
     /**
      * Used by the React Admin Dashboard to fetch the current settings.
      * Passwords and sensitive keys are masked before returning.
@@ -133,6 +164,7 @@ public class SettingsController {
             }
 
             String url = String.valueOf(config.get("url"));
+            validateUrl(url);
             String db = String.valueOf(config.get("db"));
             Object rawUid = config.get("uid");
             int uid = rawUid instanceof Number ? ((Number) rawUid).intValue() : Integer.parseInt(String.valueOf(rawUid));
