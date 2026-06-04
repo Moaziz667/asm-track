@@ -120,11 +120,6 @@ public class Order {
     @Builder.Default
     private String currency = "TND";
 
-    // true when Odoo payment_term_id == "Immediate Payment" — driver must collect cash at door
-    @Column(name = "is_cod", nullable = false)
-    @Builder.Default
-    private Boolean isCod = false;
-
     // ── Planning ──────────────────────────────────────────────────────────────
     @Column(name = "scheduled_at")
     private LocalDateTime scheduledAt;

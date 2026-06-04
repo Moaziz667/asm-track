@@ -252,15 +252,6 @@ public class DriverDeliveryService {
             }
         }
 
-        // Auto-calculate COD amount from actually delivered items × unit price.
-        // Stored as a pre-filled suggestion; driver still confirms YES/NO via recordCodCollection.
-        if (Boolean.TRUE.equals(delivery.getOrder() != null ? delivery.getOrder().getIsCod() : false)) {
-            BigDecimal autoAmount = computeDeliveredCodAmount(delivery.getOrder(), isPartial);
-            if (autoAmount != null && autoAmount.compareTo(BigDecimal.ZERO) > 0) {
-                delivery.setCodAmountCollected(autoAmount);
-            }
-        }
-
         DeliveryStatus finalStatus = isPartial ? DeliveryStatus.PARTIALLY_DELIVERED : DeliveryStatus.DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
@@ -405,27 +396,6 @@ public class DriverDeliveryService {
                 item.setOutcome("REFUSED");
             }
         });
-    }
-
-    /**
-     * Calculates the COD amount to collect based on actually delivered items.
-     * For a full delivery, returns order.totalAmount directly (Odoo is source of truth).
-     * For a partial delivery, sums quantityDone × unitPrice for DELIVERED items only.
-     */
-    private BigDecimal computeDeliveredCodAmount(Order order, boolean isPartial) {
-        if (order == null) return null;
-        if (!isPartial) return order.getTotalAmount();
-        if (order.getItems() == null || order.getItems().isEmpty()) return order.getTotalAmount();
-
-        return order.getItems().stream()
-                .filter(item -> item != null
-                        && item.getQuantityDone() != null
-                        && item.getQuantityDone() > 0
-                        && item.getUnitPrice() != null
-                        && !"REFUSED".equals(item.getOutcome())
-                        && !"DAMAGED".equals(item.getOutcome()))
-                .map(item -> item.getUnitPrice().multiply(BigDecimal.valueOf(item.getQuantityDone())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
@@ -832,23 +802,6 @@ public class DriverDeliveryService {
                 .build());
     }
 
-    @Transactional
-    public DriverDeliveryResponse recordCodCollection(UUID deliveryId, UUID driverId,
-                                                      com.asm.delivery.dto.request.CodCollectionRequest req) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
-        if (!driverId.equals(delivery.getDriverId())) {
-            throw AppException.forbidden("Not your delivery");
-        }
-        if (delivery.getOrder() == null || !Boolean.TRUE.equals(delivery.getOrder().getIsCod())) {
-            throw AppException.badRequest("This delivery is not a COD order");
-        }
-        delivery.setCodCollected(req.getCodCollected());
-        delivery.setCodAmountCollected(Boolean.TRUE.equals(req.getCodCollected()) ? req.getCodAmountCollected() : null);
-        delivery = deliveryRepo.save(delivery);
-        return toDriverDeliveryResponse(delivery);
-    }
-
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {
         // Look up handoff info from the active route stop
         RouteStop activeStop = routeStopRepository.findActiveByDeliveryId(delivery.getId()).orElse(null);
@@ -871,9 +824,6 @@ public class DriverDeliveryService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .currency(order != null ? order.getCurrency() : null)
-                .isCod(order != null && Boolean.TRUE.equals(order.getIsCod()))
-                .codCollected(delivery.getCodCollected())
-                .codAmountCollected(delivery.getCodAmountCollected())
                 .items(order != null ? order.getItems() : null)
                 .totalQuantity(order != null ? order.getTotalQuantity() : null)
                 .priority(order != null ? order.getPriority().name() : null)

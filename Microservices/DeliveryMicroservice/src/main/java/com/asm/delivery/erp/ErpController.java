@@ -162,7 +162,6 @@ public class ErpController {
             **What happens on import:**
             - Creates an `Order` record with all client and product data
             - Creates a `Delivery` record with status `UNSCHEDULED`
-            - Sets `isCod = true` if Odoo payment term is "Immediate Payment"
             - Publishes a `delivery.created` WebSocket event
             - The order is then visible in the Deliveries board, ready to be assigned
 

@@ -423,20 +423,8 @@ services:
     networks:
       - asm-network
 
-  # Admin dashboard (Vite SPA). Serves static assets on :8090 and reverse-proxies
-  # /api and /ws to the gateway over the internal network (same-origin, no CORS).
-  admin-web:
-    build:
-      context: ../Apps/admin-app-react
-      dockerfile: Dockerfile
-    container_name: admin-web
-    ports:
-      - "8090:80"
-    depends_on:
-      - api-gateway
-    restart: unless-stopped
-    networks:
-      - asm-network
+  # admin-web removed — served by PM2 on port 3000 with system nginx on 8090.
+  # See scripts/nginx-vps.conf and scripts/vps-setup.sh.
 
 
 volumes:

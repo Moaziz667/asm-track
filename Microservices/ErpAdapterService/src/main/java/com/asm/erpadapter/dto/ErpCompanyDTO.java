@@ -22,4 +22,6 @@ public class ErpCompanyDTO {
     private String email;
     private String vat;
     private String website;
+    /** Base64-encoded company logo image as returned by Odoo res.company.logo (raw, no data-URI prefix). */
+    private String logo;
 }

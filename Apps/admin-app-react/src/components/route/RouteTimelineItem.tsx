@@ -23,8 +23,6 @@ interface RouteTimelineItemProps {
   amount: number;
   currency: string;
   timeWindow?: { start?: string; end?: string };
-  isCod?: boolean;
-  codCollected?: boolean | null;
   isExpanded: boolean;
   onToggle: () => void;
   onEditWindow?: () => void;
@@ -149,18 +147,6 @@ export function RouteTimelineItem({
                 })}{' '}
                 {currency}
               </div>
-              {isCod && (
-                <div
-                  className={cn(
-                    styles.codBadge,
-                    codCollected === true && styles.collected,
-                    codCollected === false && styles.failed,
-                    codCollected === null && styles.pending
-                  )}
-                >
-                  COD {codCollected === true ? '✓' : codCollected === false ? '✗' : ''}
-                </div>
-              )}
             </div>
 
             {canEdit && (

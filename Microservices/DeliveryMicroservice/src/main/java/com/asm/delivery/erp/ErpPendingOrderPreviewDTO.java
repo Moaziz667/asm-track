@@ -52,13 +52,7 @@ public class ErpPendingOrderPreviewDTO {
     @Schema(description = "Order priority", example = "NORMAL", allowableValues = {"NORMAL", "HIGH", "URGENT"})
     private String priority;
 
-    @Schema(
-        description = """
-            Odoo payment term name. If this equals 'Immediate Payment' (or French equivalent),
-            isCod is set to true on import — the driver must collect cash at delivery.
-            """,
-        example = "Immediate Payment"
-    )
+    @Schema(description = "Odoo payment term name", example = "Immediate Payment")
     private String paymentTermName;
 
     @Schema(description = "Date the order was confirmed in ERP", example = "2026-05-13T09:00:00")

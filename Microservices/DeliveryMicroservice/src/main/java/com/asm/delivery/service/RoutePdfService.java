@@ -20,7 +20,6 @@ import org.springframework.stereotype.Service;
 
 import java.awt.Color;
 import java.io.ByteArrayOutputStream;
-import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.List;
@@ -34,8 +33,8 @@ public class RoutePdfService extends BasePdfService {
     private final DeliveryRepository     deliveryRepository;
     private final VehicleRepository      vehicleRepository;
     private final TransportPort          transportPort;
-
     private final MinioStorageService    minioStorageService;
+    private final CompanyBrandingResolver brandingResolver;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
 
@@ -54,24 +53,16 @@ public class RoutePdfService extends BasePdfService {
         DriverDTO driver  = route.getDriverId()  != null ? transportPort.getDriver(route.getDriverId().toString())      : null;
         Vehicle   vehicle = route.getVehicleId() != null ? vehicleRepository.findById(route.getVehicleId()).orElse(null) : null;
 
-        long       totalStops = stops.size();
-        BigDecimal totalCod   = stops.stream()
-                .map(s -> deliveriesById.get(s.getDeliveryId()))
-                .filter(d -> d != null && d.getOrder() != null
-                        && Boolean.TRUE.equals(d.getOrder().getIsCod())
-                        && d.getOrder().getTotalAmount() != null)
-                .map(d -> d.getOrder().getTotalAmount())
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        long totalStops = stops.size();
 
         String subtitle = (route.getDate() != null ? route.getDate().format(DATE_FR) : "-")
-                + "  ·  " + totalStops + " arrêts"
-                + (totalCod.compareTo(BigDecimal.ZERO) > 0 ? "  ·  COD: " + totalCod.toPlainString() + " TND" : "");
+                + "  ·  " + totalStops + " arrêts";
 
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document doc = newA4Document();
             PdfWriter pdfWriter = PdfWriter.getInstance(doc, out);
 
-            ReportPageEvent event = pageEvent("BORDEREAU DE TOURNÉE", subtitle);
+            ReportPageEvent event = brandingResolver.resolve("BORDEREAU DE TOURNÉE", subtitle);
             pdfWriter.setPageEvent(event);
             Color brand = event.getPrimaryColor();
 
@@ -116,28 +107,10 @@ public class RoutePdfService extends BasePdfService {
 
             doc.add(infoRow);
 
-            // COD total highlight if applicable
-            if (totalCod.compareTo(BigDecimal.ZERO) > 0) {
-                doc.add(sectionLabel("TOTAL COD À ENCAISSER", brand));
-                PdfPTable codRow = new PdfPTable(1);
-                codRow.setWidthPercentage(40);
-                codRow.setHorizontalAlignment(Element.ALIGN_LEFT);
-                codRow.setSpacingAfter(8f);
-                PdfPCell codCell = new PdfPCell(
-                        new Phrase(totalCod.toPlainString() + " TND", colored(14, brand)));
-                codCell.setPaddingTop(6f); codCell.setPaddingBottom(6f);
-                codCell.setPaddingLeft(10f);
-                codCell.setBorderColor(brand);
-                codCell.setBorderWidth(1.5f);
-                codCell.setBackgroundColor(tint(brand));
-                codRow.addCell(codCell);
-                doc.add(codRow);
-            }
-
             // ── Stops table ───────────────────────────────────────────────────
             doc.add(sectionLabel("ARRÊTS", brand));
 
-            PdfPTable table = new PdfPTable(new float[]{0.4f, 2.0f, 1.0f, 2.3f, 1.1f, 0.9f, 1.0f});
+            PdfPTable table = new PdfPTable(new float[]{0.4f, 2.0f, 1.0f, 2.3f, 1.1f, 1.0f});
             table.setWidthPercentage(100);
             table.setHeaderRows(1);
 
@@ -146,7 +119,6 @@ public class RoutePdfService extends BasePdfService {
             table.addCell(hdrCell("Ville", brand));
             table.addCell(hdrCell("Adresse", brand));
             table.addCell(hdrCell("Créneau", brand));
-            table.addCell(hdrCellR("COD (TND)", brand));
             table.addCell(hdrCell("Statut", brand));
 
             boolean alt = false;
@@ -155,17 +127,12 @@ public class RoutePdfService extends BasePdfService {
                 String client  = d != null && d.getOrder() != null ? safe(d.getOrder().getClientName())     : "-";
                 String city    = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffCity())    : "-";
                 String address = d != null && d.getOrder() != null ? safe(d.getOrder().getDropoffAddress()) : "-";
-                String cod     = d != null && d.getOrder() != null
-                               && Boolean.TRUE.equals(d.getOrder().getIsCod())
-                               && d.getOrder().getTotalAmount() != null
-                               ? d.getOrder().getTotalAmount().toPlainString() : "-";
 
                 table.addCell(cellAlt(String.valueOf(stop.getStopOrder()), alt));
                 table.addCell(cellAlt(client,  alt));
                 table.addCell(cellAlt(city,    alt));
                 table.addCell(cellAlt(address, alt));
                 table.addCell(cellAlt(buildWindow(stop), alt));
-                table.addCell(cellRAlt(cod,    alt));
                 table.addCell(cellAlt(statusLabel(stop), alt));
                 alt = !alt;
             }

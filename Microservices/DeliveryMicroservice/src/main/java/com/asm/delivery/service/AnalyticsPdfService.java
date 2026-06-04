@@ -44,6 +44,7 @@ public class AnalyticsPdfService extends BasePdfService {
     private final ZoneRepository      zoneRepository;
     private final TransportPort       transportPort;
     private final MinioStorageService minioStorageService;
+    private final CompanyBrandingResolver brandingResolver;
 
     public byte[] generate(String period, LocalDate from, LocalDate to) {
         LocalDateTime now   = LocalDateTime.now();
@@ -103,7 +104,7 @@ public class AnalyticsPdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            ReportPageEvent event = pageEvent("RAPPORT D'ACTIVITÉ", periodLabel);
+            ReportPageEvent event = brandingResolver.resolve("RAPPORT D'ACTIVITÉ", periodLabel);
             writer.setPageEvent(event);
             Color brand = event.getPrimaryColor();
             doc.open();
@@ -280,7 +281,6 @@ public class AnalyticsPdfService extends BasePdfService {
             case "CLIENT_ABSENT"       -> "Client absent";
             case "ADDRESS_NOT_FOUND"   -> "Adresse introuvable";
             case "REFUSED_DELIVERY"    -> "Refus de livraison";
-            case "COD_NOT_AVAILABLE"   -> "Montant COD indisponible";
             case "DAMAGED_PACKAGE"     -> "Colis endommagé";
             case "WRONG_ADDRESS"       -> "Adresse incorrecte";
             default                    -> code;

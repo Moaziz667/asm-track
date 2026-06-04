@@ -34,7 +34,6 @@ public class DeliveryEventPayload {
     // Financial & Items
     private BigDecimal totalAmount;
     private String currency;
-    private Boolean isCod;
     private List<OrderItem> items;
     
     // Route tracking

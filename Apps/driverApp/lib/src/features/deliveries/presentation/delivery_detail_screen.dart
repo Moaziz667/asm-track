@@ -13,159 +13,7 @@ import '../models/delivery_models.dart';
 import 'handoff_token_sheet.dart';
 import 'handoff_scanner_screen.dart';
 
-// ─── COD Collection Card ──────────────────────────────────────────────────────
-class _CodCollectionCard extends ConsumerStatefulWidget {
-  const _CodCollectionCard({required this.delivery, required this.onDone});
-  final DriverDelivery delivery;
-  final VoidCallback onDone;
 
-  @override
-  ConsumerState<_CodCollectionCard> createState() => _CodCollectionCardState();
-}
-
-class _CodCollectionCardState extends ConsumerState<_CodCollectionCard> {
-  bool _submitting = false;
-  final _amountCtrl = TextEditingController();
-
-  @override
-  void initState() {
-    super.initState();
-    if (widget.delivery.totalAmount != null) {
-      _amountCtrl.text = widget.delivery.totalAmount!.toStringAsFixed(3);
-    }
-  }
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit(bool collected) async {
-    if (_submitting) return;
-    setState(() => _submitting = true);
-    try {
-      double? amount;
-      if (collected) {
-        amount = double.tryParse(_amountCtrl.text.replaceAll(',', '.'));
-      }
-
-      await ref.read(deliveryRepositoryProvider).recordCod(
-        widget.delivery.id,
-        collected: collected,
-        amountCollected: amount,
-      );
-      widget.onDone();
-    } catch (e) {
-      if (e == 'OFFLINE_QUEUED') {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
-          );
-        }
-        widget.onDone();
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
-          );
-        }
-      }
-    } finally {
-      if (mounted) setState(() => _submitting = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1200),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFFFF8C00).withValues(alpha: 0.5), width: 1.5),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFFF8C00).withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: const Icon(Icons.payments_outlined, color: Color(0xFFFF8C00), size: 18),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Encaissement COD requis',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: Theme.of(context).colorScheme.onSurface,
-                        )),
-                    Text('Confirmez la collecte du paiement en espèces',
-                        style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurfaceVariant)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _amountCtrl,
-            keyboardType: const TextInputType.numberWithOptions(decimal: true),
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
-              color: Theme.of(context).colorScheme.onSurface,
-            ),
-            decoration: InputDecoration(
-              labelText: 'Montant encaissé (TND)',
-              suffixText: 'TND',
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _submitting ? null : () => _submit(false),
-                  icon: Icon(Icons.close, size: 16, color: Theme.of(context).colorScheme.error),
-                  label: Text('Non encaissé', style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                  style: OutlinedButton.styleFrom(
-                    side: BorderSide(color: Theme.of(context).colorScheme.error),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _submitting ? null : () => _submit(true),
-                  icon: _submitting
-                      ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
-                      : const Icon(Icons.check, size: 16, color: Colors.black),
-                  label: Text(_submitting ? 'En cours…' : 'Encaissé',
-                      style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w700)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFFFF8C00),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class DeliveryDetailArgs {
   const DeliveryDetailArgs({required this.deliveryId});
@@ -241,10 +89,6 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
               const SizedBox(height: 16),
               if (delivery.instructions != null && delivery.instructions!.isNotEmpty) ...[
                 _InstructionsCard(text: delivery.instructions!),
-                const SizedBox(height: 16),
-              ],
-              if (delivery.needsCodConfirmation) ...[
-                _CodCollectionCard(delivery: delivery, onDone: _refresh),
                 const SizedBox(height: 16),
               ],
               if (delivery.items.isNotEmpty) ...[
@@ -458,10 +302,6 @@ class _HeroCard extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    if (delivery.isCod) ...[
-                      _CodBadge(delivery.codCollected),
-                      const SizedBox(width: 8),
-                    ],
                     if (delivery.orderRef != null)
                       Text(
                         delivery.orderRef!,
@@ -971,40 +811,6 @@ class _ActionPanel extends StatelessWidget {
 
     if (buttons.isEmpty) return const SizedBox.shrink();
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: buttons);
-  }
-}
-
-// ─── COD Badge ────────────────────────────────────────────────────────────────
-class _CodBadge extends StatelessWidget {
-  const _CodBadge(this.codCollected);
-  final bool? codCollected;
-
-  @override
-  Widget build(BuildContext context) {
-    final cs = Theme.of(context).colorScheme;
-    final Color color;
-    final String label;
-    if (codCollected == true) {
-      color = cs.tertiary; label = 'COD ✓';
-    } else if (codCollected == false) {
-      color = cs.error; label = 'COD ✗';
-    } else {
-      color = const Color(0xFFFF8C00); label = 'COD';
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
-      ),
-      child: Text(label,
-          style: Theme.of(context).textTheme.labelSmall?.copyWith(
-            fontSize: 10,
-            fontWeight: FontWeight.w800,
-            color: color,
-          )),
-    );
   }
 }
 

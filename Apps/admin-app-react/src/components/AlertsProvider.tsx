@@ -211,7 +211,6 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       dropoffAddress: raw.dropoffAddress ?? '',
       totalAmount: raw.totalAmount != null ? String(raw.totalAmount) : '',
       currency: raw.currency ?? '',
-      isCod: raw.isCod ? 'true' : '',
       plannedStartTime: typeof raw.plannedStartTime === 'string' ? raw.plannedStartTime : '',
       plannedEndTime: typeof raw.plannedEndTime === 'string' ? raw.plannedEndTime : '',
       transitSlaMinutes: String(raw.transitSlaMinutes ?? ''),

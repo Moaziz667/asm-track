@@ -71,7 +71,6 @@ type StopOrder = {
   erpExternalRef?: string;
   deliveryInstructions?: string;
   currency?: string;
-  isCod?: boolean;
   items?: DeliveryItem[];
 };
 
@@ -109,8 +108,6 @@ type RouteStop = {
   order?: StopOrder;
   delivery?: any;
   clientName?: string;
-  codCollected?: boolean | null;
-  codAmountCollected?: number | null;
   removedAt?: string;
   removedReason?: string;
 };

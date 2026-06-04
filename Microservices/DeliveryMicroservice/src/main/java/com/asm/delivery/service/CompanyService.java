@@ -72,9 +72,9 @@ public class CompanyService {
     }
 
     /**
-     * Pull the tenant's company info from the connected ERP (Odoo res.company) and overwrite the
-     * editable text fields (name, address, support email). Branding (logo, primary color) is kept
-     * as-is — those aren't sourced from the ERP. Throws if the ERP returns nothing.
+     * Pull the tenant's company info from the connected ERP (Odoo res.company) and overwrite
+     * name, address, support email, and logo. Primary color is kept as-is (not in ERP).
+     * Throws if the ERP returns nothing.
      */
     @Transactional
     public Company syncFromErp(UUID id) {
@@ -86,13 +86,28 @@ public class CompanyService {
             throw AppException.badRequest("L'ERP n'a retourné aucune information d'entreprise. Vérifiez la configuration ERP.");
         }
 
-        String name = str(erp.get("name"));
+        String name    = str(erp.get("name"));
         String address = composeAddress(str(erp.get("address")), str(erp.get("city")));
-        String email = str(erp.get("email"));
+        String email   = str(erp.get("email"));
 
-        if (name != null) existing.setName(name);
+        if (name    != null) existing.setName(name);
         if (address != null) existing.setAddress(address);
-        if (email != null) existing.setSupportEmail(email);
+        if (email   != null) existing.setSupportEmail(email);
+
+        String logoBase64 = str(erp.get("logo"));
+        if (logoBase64 != null) {
+            try {
+                byte[] imageBytes = java.util.Base64.getDecoder().decode(logoBase64);
+                if (imageBytes.length > 0 && imageBytes.length <= 2 * 1024 * 1024) {
+                    String logoUrl = minioStorageService.uploadCompanyLogo(existing.getId(), imageBytes);
+                    existing.setLogoUrl(logoUrl);
+                } else {
+                    log.warn("ERP logo skipped: size {} bytes exceeds 2 MB limit", imageBytes.length);
+                }
+            } catch (Exception e) {
+                log.warn("Could not sync company logo from ERP: {}", e.getMessage());
+            }
+        }
 
         return repo.save(existing);
     }

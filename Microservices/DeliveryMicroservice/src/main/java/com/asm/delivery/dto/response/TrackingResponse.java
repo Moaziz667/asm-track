@@ -30,7 +30,6 @@ public class TrackingResponse {
     private String companyName;
     private String companyLogoUrl;
     private Double totalAmount;
-    private Boolean isCod;
     private List<OrderItemDto> items;
 
     @Data

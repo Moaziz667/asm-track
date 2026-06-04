@@ -2339,8 +2339,7 @@ export const FR_COPY = {
         const base = p.orderId
           ? `Commande ${p.orderId} créée${p.clientName ? ` · ${p.clientName}` : ''}`
           : `Nouvelle commande${p.clientName ? ` · ${p.clientName}` : ''}`;
-        const cod = p.isCod ? ` · 💰 ${fmtMoneyFr(p.totalAmount, p.currency)}` : '';
-        return `${base}${cod}`;
+        return base;
       },
     },
     'delivery.scheduled': {
@@ -2349,7 +2348,6 @@ export const FR_COPY = {
         const parts = [`${p.clientName || 'Client'} — planifiée`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
-        if (p.isCod) parts.push(`💰 ${fmtMoneyFr(p.totalAmount, p.currency)}`);
         return `${refTag(p)}${parts.join(' · ')}`;
       },
     },

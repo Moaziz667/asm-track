@@ -273,10 +273,11 @@ public class OdooLookupAdapter implements ErpLookupPort {
     public ErpCompanyDTO getCompany() {
         List<Map<String, Object>> rows = rpc.searchReadStrict("res.company",
                 List.of(),
-                List.of("id", "name", "street", "street2", "city", "zip", "phone", "email", "vat", "website"),
+                List.of("id", "name", "street", "street2", "city", "zip", "phone", "email", "vat", "website", "logo"),
                 1, "id asc");
         if (rows.isEmpty()) return null;
         Map<String, Object> c = rows.get(0);
+        String logoRaw = asString(c.get("logo"));
         return ErpCompanyDTO.builder()
                 .name(asString(c.get("name")))
                 .address(buildAddress(c))
@@ -285,6 +286,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .email(asString(c.get("email")))
                 .vat(asString(c.get("vat")))
                 .website(asString(c.get("website")))
+                .logo(logoRaw != null && !logoRaw.isBlank() ? logoRaw : null)
                 .build();
     }
 

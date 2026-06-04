@@ -92,7 +92,6 @@ public class PublicTrackingService {
                 .companyName(data.companyName())
                 .companyLogoUrl(data.companyLogoUrl())
                 .totalAmount(order != null && order.getTotalAmount() != null ? order.getTotalAmount().doubleValue() : null)
-                .isCod(order != null ? order.getIsCod() : null)
                 .items(itemDtos)
                 .build();
     }

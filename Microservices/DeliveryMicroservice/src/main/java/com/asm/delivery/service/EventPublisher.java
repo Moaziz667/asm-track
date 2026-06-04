@@ -88,7 +88,6 @@ public class EventPublisher {
             .dropoffLng(order != null ? order.getDropoffLng() : null)
             .totalAmount(order != null ? order.getTotalAmount() : null)
             .currency(order != null ? order.getCurrency() : null)
-            .isCod(order != null ? order.getIsCod() : null)
             .items(order != null ? order.getItems() : null)
             .etaAt(delivery.getRouteEtaAt() != null ? delivery.getRouteEtaAt().toString() : null)
             .routeDistanceKm(delivery.getRouteDistanceKm())

@@ -261,7 +261,7 @@ public class AdminDeliveryController {
         description = """
             Generates and returns the delivery note (bon de livraison) as a PDF.
             Includes: company logo, client info, delivery address, product list with quantities and prices,
-            driver and barcode. If isCod=true, a highlighted "MONTANT À ENCAISSER" box is shown.
+            driver and barcode.
             """
     )
     @ApiResponse(responseCode = "200", description = "PDF file (application/pdf)")

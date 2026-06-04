@@ -116,6 +116,16 @@ public class MinioStorageService {
         return baseUrl + "/" + minioConfig.getBucket() + "/" + objectPath;
     }
 
+    public String uploadCompanyLogo(java.util.UUID companyId, byte[] imageBytes) {
+        if (imageBytes == null || imageBytes.length == 0) return null;
+        String ext = (imageBytes.length >= 4
+                && imageBytes[0] == (byte) 0x89 && imageBytes[1] == 0x50
+                && imageBytes[2] == 0x4E && imageBytes[3] == 0x47) ? "png" : "jpg";
+        String contentType = "png".equals(ext) ? "image/png" : "image/jpeg";
+        String path = "logos/company-" + companyId + "." + ext;
+        return uploadFile(imageBytes, contentType, path);
+    }
+
     public byte[] getBytes(String url) {
         String objectPath = extractObjectPath(url);
         if (objectPath == null) return null;

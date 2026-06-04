@@ -33,12 +33,9 @@ public class DriverDeliveryResponse {
     private BigDecimal    dropoffLng;
     private String        deliveryInstructions;
 
-    // financial / COD info
+    // financial info
     private BigDecimal    totalAmount;
     private String        currency;
-    private Boolean       isCod;              // true = driver must collect cash
-    private Boolean       codCollected;       // null=not yet, true=collected, false=not collected
-    private BigDecimal    codAmountCollected;
 
     // items
     private List<OrderItem> items;

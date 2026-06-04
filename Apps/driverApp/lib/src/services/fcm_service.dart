@@ -36,25 +36,6 @@ String _orderRef(Map<String, dynamic> d) {
   return id.length >= 8 ? id.substring(0, 8) : id;
 }
 
-/// "45 000 TND" — grouped thousands, trailing zeros trimmed. Null when absent.
-String? _fmtMoney(dynamic amount, dynamic currency) {
-  if (amount == null) return null;
-  final n = amount is num ? amount : num.tryParse(amount.toString());
-  if (n == null) return null;
-  final whole = n == n.roundToDouble();
-  final raw = whole ? n.toStringAsFixed(0) : n.toStringAsFixed(2);
-  final parts = raw.split('.');
-  final intPart = parts[0].replaceFirst('-', '');
-  final buf = StringBuffer(n < 0 ? '-' : '');
-  for (var i = 0; i < intPart.length; i++) {
-    if (i > 0 && (intPart.length - i) % 3 == 0) buf.write(' ');
-    buf.write(intPart[i]);
-  }
-  final grouped = parts.length > 1 ? '${buf.toString()},${parts[1]}' : buf.toString();
-  final cur = (currency?.toString().trim().isNotEmpty ?? false) ? currency.toString().trim() : 'TND';
-  return '$grouped $cur';
-}
-
 /// "HH:mm" from an ISO datetime; null when unparseable.
 String? _fmtTime(dynamic iso) {
   if (iso == null) return null;
@@ -91,8 +72,6 @@ Map<String, String> _buildNotification(
   final address = (d['dropoffAddress'] ?? '').toString().trim();
   final routeName = (d['routeName'] ?? '').toString().trim();
   final reason = (d['reason'] ?? '').toString().trim();
-  final isCod = d['isCod'] == true;
-  final money = _fmtMoney(d['totalAmount'], d['currency']);
   final eta = _fmtTime(d['etaAt']);
   final startClock = _fmtClock(d['plannedStartTime']);
   final endClock = _fmtClock(d['plannedEndTime']);
@@ -130,12 +109,6 @@ Map<String, String> _buildNotification(
                   en: 'A new delivery to pick up.',
                   ar: 'شحنة جديدة للاستلام.'),
           address.isNotEmpty ? '📍 $address' : null,
-          (isCod && money != null)
-              ? _pick(locale,
-                  fr: '💰 Paiement à la livraison : $money',
-                  en: '💰 Cash on delivery: $money',
-                  ar: '💰 الدفع عند الاستلام: $money')
-              : null,
           eta != null
               ? _pick(locale, fr: '🕒 ETA $eta', en: '🕒 ETA $eta', ar: '🕒 الوصول المتوقع $eta')
               : null,

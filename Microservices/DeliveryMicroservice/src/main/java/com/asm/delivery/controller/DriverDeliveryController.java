@@ -1,7 +1,6 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.CancelDeliveryRequest;
-import com.asm.delivery.dto.request.CodCollectionRequest;
 import com.asm.delivery.dto.request.FailDeliveryRequest;
 import com.asm.delivery.dto.request.LocationUpdateRequest;
 import com.asm.delivery.dto.request.ReportRequest;
@@ -182,16 +181,6 @@ public class DriverDeliveryController {
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(deliveryService.confirmHandoff(id, UUID.fromString(principal.getUserId()),
                 req.getToken(), req.getLat(), req.getLng(), req.getNotes(), principal));
-    }
-
-    @PatchMapping("/{id}/cod")
-    @Operation(summary = "Record COD cash collection for a delivery",
-               description = "DRIVER only. Call after completing a COD delivery. Sets whether cash was collected and the actual amount.")
-    public ResponseEntity<DriverDeliveryResponse> recordCod(
-            @PathVariable UUID id,
-            @Valid @RequestBody CodCollectionRequest req,
-            @AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(deliveryService.recordCodCollection(id, UUID.fromString(principal.getUserId()), req));
     }
 
     @GetMapping("/{id}/bon-livraison")

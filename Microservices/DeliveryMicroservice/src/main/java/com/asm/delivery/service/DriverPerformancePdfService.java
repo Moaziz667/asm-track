@@ -42,11 +42,11 @@ import javax.imageio.ImageIO;
 public class DriverPerformancePdfService extends BasePdfService {
 
     private final DeliveryRepository  deliveryRepository;
-
     private final RouteStopRepository routeStopRepository;
     private final DelayCalculationService delayCalculationService;
     private final TransportPort       transportPort;
     private final MinioStorageService minioStorageService;
+    private final CompanyBrandingResolver brandingResolver;
 
     private static final DateTimeFormatter SHORT_DATE = DateTimeFormatter.ofPattern("dd/MM");
 
@@ -117,7 +117,7 @@ public class DriverPerformancePdfService extends BasePdfService {
         try (ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Document  doc    = newA4Document();
             PdfWriter writer = PdfWriter.getInstance(doc, out);
-            ReportPageEvent event = pageEvent("PERFORMANCE CHAUFFEUR", safe(driver.getName()));
+            ReportPageEvent event = brandingResolver.resolve("PERFORMANCE CHAUFFEUR", safe(driver.getName()));
             writer.setPageEvent(event);
             Color brand = event.getPrimaryColor();
             doc.open();

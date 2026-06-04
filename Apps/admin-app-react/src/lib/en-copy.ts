@@ -2289,8 +2289,7 @@ export const EN_COPY = {
         const base = p.orderId
           ? `Order ${p.orderId} created${p.clientName ? ` · ${p.clientName}` : ''}`
           : `New order${p.clientName ? ` · ${p.clientName}` : ''}`;
-        const cod = p.isCod ? ` · 💰 ${_en_money(p.totalAmount, p.currency)}` : '';
-        return `${base}${cod}`;
+        return base;
       },
     },
     'delivery.scheduled': {
@@ -2299,7 +2298,6 @@ export const EN_COPY = {
         const parts = [`${p.clientName || 'Client'} — scheduled`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
-        if (p.isCod) parts.push(`💰 ${_en_money(p.totalAmount, p.currency)}`);
         return `${_en_ref(p)}${parts.join(' · ')}`;
       },
     },

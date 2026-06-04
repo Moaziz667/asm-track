@@ -1,3 +1,6 @@
+# CI/CD — pipeline ignored until GitLab Runner is fully configured on VPS
+.gitlab-ci.yml
+
 # Dependencies
 # External package repo — has its own git repo
 Microservices/asm-canonical-model/
@@ -44,17 +47,17 @@ Thumbs.db
 data/
 postgres-data/
 mongo-data/
-
+.gitlab-ci.yml
 # NestJS
 .nest/
 
 # Vue / Vite
 *.local
-
+/scripts
 # Coverage
 coverage/
 .nyc_output/
-
+PROJECT_CONTEXT.md
 # Package lock files (optional - remove if you want to keep them)
 # package-lock.json
 # yarn.lock

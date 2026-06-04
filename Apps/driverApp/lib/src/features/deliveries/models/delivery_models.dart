@@ -150,9 +150,6 @@ class DriverDelivery {
     this.instructions,
     this.totalAmount,
     this.currency,
-    this.isCod = false,
-    this.codCollected,
-    this.codAmountCollected,
     this.items = const [],
     this.priority,
     this.scheduledAt,
@@ -196,9 +193,6 @@ class DriverDelivery {
       instructions: json['deliveryInstructions'] as String?,
       totalAmount: (json['totalAmount'] as num?)?.toDouble(),
       currency: json['currency'] as String?,
-      isCod: json['isCod'] as bool? ?? false,
-      codCollected: json['codCollected'] as bool?,
-      codAmountCollected: (json['codAmountCollected'] as num?)?.toDouble(),
       items: (json['items'] as List<dynamic>? ?? [])
           .map((item) => OrderItemModel.fromJson(item as Map<String, dynamic>))
           .toList(),
@@ -231,9 +225,6 @@ class DriverDelivery {
   final String? instructions;
   final double? totalAmount;
   final String? currency;
-  final bool isCod;
-  final bool? codCollected;
-  final double? codAmountCollected;
   final List<OrderItemModel> items;
   final String? priority;
   final DateTime? scheduledAt;
@@ -252,7 +243,6 @@ class DriverDelivery {
   final Map<String, DateTime?> timestamps;
 
   bool get isTerminal => status == DeliveryStatus.delivered || status == DeliveryStatus.failed || status == DeliveryStatus.cancelled;
-  bool get needsCodConfirmation => isCod && status == DeliveryStatus.delivered && codCollected == null;
 }
 
 class PartialDeliveryItem {

@@ -86,7 +86,8 @@ export default function DashboardPage() {
       ]);
       setStats(sR.data);
       setOps(oR.data ?? null);
-      setDrivers(driversRes.data ?? []);
+      const driversData = driversRes.data;
+      setDrivers(Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? []));
       setActiveRoutesCount(Array.isArray(routesRes.data) ? routesRes.data.length : 0);
     } catch {
       if (!silent) showErrorToast(null, t.dashboardPage.syncError);

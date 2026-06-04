@@ -17,7 +17,7 @@ interface TrackingData {
   depotLat?: number; depotLng?: number; depotName?: string
   startWindow?: string; endWindow?: string; etaAt?: string
   routeGeometry?: string; companyName?: string; companyLogoUrl?: string
-  totalAmount?: number; isCod?: boolean; items?: OrderItem[]
+  totalAmount?: number; items?: OrderItem[]
 }
 
 const STEPS = ['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
@@ -261,11 +261,6 @@ export default function TrackingPage() {
               <div style={{ fontSize: 11, fontWeight: 700, color: '#94a3b8' }}>
                 {t.trackingPage.sectionContents}
               </div>
-              {data.isCod && (
-                <div style={{ fontSize: 10, fontWeight: 700, color: '#475569', background: '#f1f5f9', borderRadius: 6, padding: '2px 8px' }}>
-                  {t.trackingPage.labelCod}
-                </div>
-              )}
             </div>
 
             {hasItems ? (

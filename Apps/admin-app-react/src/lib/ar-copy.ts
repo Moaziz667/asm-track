@@ -2297,8 +2297,7 @@ export const AR_COPY = {
         const base = p.orderId
           ? `تم إنشاء الطلب ${p.orderId}${p.clientName ? ` · ${p.clientName}` : ''}`
           : `طلب جديد${p.clientName ? ` · ${p.clientName}` : ''}`;
-        const cod = p.isCod ? ` · 💰 ${_ar_money(p.totalAmount, p.currency)}` : '';
-        return `${base}${cod}`;
+        return base;
       },
     },
     'delivery.scheduled': {
@@ -2307,7 +2306,6 @@ export const AR_COPY = {
         const parts = [`${p.clientName || 'العميل'} — تمت الجدولة`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
-        if (p.isCod) parts.push(`💰 ${_ar_money(p.totalAmount, p.currency)}`);
         return `${_ar_ref(p)}${parts.join(' · ')}`;
       },
     },

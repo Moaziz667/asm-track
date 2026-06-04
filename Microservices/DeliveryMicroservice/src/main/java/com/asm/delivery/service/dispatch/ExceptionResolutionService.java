@@ -516,7 +516,6 @@ public class ExceptionResolutionService {
 						.filter(i -> i.getUnitPrice() != null && i.getQuantity() != null)
 						.map(i -> i.getUnitPrice().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
 						.reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
-				.isCod(order.getIsCod())
 				.currency(order.getCurrency())
 				.priority(order.getPriority())
 				.status(OrderStatus.PENDING)

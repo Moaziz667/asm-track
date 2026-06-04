@@ -61,7 +61,6 @@ public class SwaggerConfig {
 
                             **Route management:** Create → Add stops → Optimize → Validate → Driver starts
 
-                            **COD:** Set on import if Odoo payment term is "Immediate Payment". Driver collects cash and confirms via `/api/driver/deliveries/{id}/cod`.
                             """)
                         .version("1.0.0"))
                 .addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME_NAME))

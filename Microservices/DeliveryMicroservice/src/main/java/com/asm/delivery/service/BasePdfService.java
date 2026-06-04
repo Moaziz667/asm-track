@@ -15,7 +15,7 @@ import java.util.UUID;
 public abstract class BasePdfService {
 
     // ── Neutral palette ───────────────────────────────────────────────────────
-    protected static final Color FALLBACK_BRAND  = new Color(30,  80, 160);   // used when no company color
+    public static final Color FALLBACK_BRAND  = new Color(30,  80, 160);   // used when no company color
     protected static final Color ROW_ALT         = new Color(249, 250, 251);
     protected static final Color BORDER_GRAY     = new Color(220, 220, 220);
     protected static final Color TEXT_MUTED      = new Color(107, 114, 128);
@@ -56,7 +56,7 @@ public abstract class BasePdfService {
     }
 
     // ── Color utilities ───────────────────────────────────────────────────────
-    protected static Color parseHex(String hex) {
+    public static Color parseHex(String hex) {
         try {
             if (hex == null || hex.isBlank()) return FALLBACK_BRAND;
             String h = hex.startsWith("#") ? hex.substring(1) : hex;
@@ -225,11 +225,6 @@ public abstract class BasePdfService {
             outer.addElement(p);
         }
         return outer;
-    }
-
-    // ── Company resolution ────────────────────────────────────────────────────
-    protected static ReportPageEvent pageEvent(String docType, String subtitle) {
-        return new ReportPageEvent(docType, subtitle, "ASM Track", null, FALLBACK_BRAND);
     }
 
     // ── String safety ─────────────────────────────────────────────────────────
