@@ -14,6 +14,7 @@ public interface DriverRepository extends JpaRepository<Driver, UUID> {
     Optional<Driver> findByPhone(String phone);
     Optional<Driver> findByEmail(String email);
     boolean existsByPhone(String phone);
+    boolean existsByEmail(String email);
     List<Driver> findByAccountStatus(DriverAccountStatus accountStatus);
     List<Driver> findByAccountStatusAndOnlineStatus(DriverAccountStatus accountStatus, DriverOnlineStatus onlineStatus);
     List<Driver> findByOnlineStatusNotAndLastLocationAtBefore(DriverOnlineStatus status, LocalDateTime threshold);

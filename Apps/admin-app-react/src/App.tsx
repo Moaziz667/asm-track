@@ -7,6 +7,7 @@ import { PublicLayout } from './layouts/PublicLayout';
 
 // Public Pages
 import LoginPage from './pages/LoginPage';
+import CallbackPage from './pages/CallbackPage';
 import TrackDeliveryPage from './pages/TrackDeliveryPage';
 
 // Protected Pages
@@ -69,6 +70,7 @@ const router = createBrowserRouter([
     element: <PublicRoute><PublicProvidersLayout /></PublicRoute>,
     children: [
       { path: "/login", element: <LoginPage /> },
+      { path: "/callback", element: <CallbackPage /> },
     ]
   },
   {

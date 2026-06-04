@@ -4,6 +4,13 @@ server:
 spring:
   application:
     name: driver-service
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_ISSUER_URI:http://keycloak:8080/realms/asm}
+
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5437/driver_db}
     username: ${DB_USER:driver}
@@ -23,8 +30,7 @@ invite:
 
 auth:
   server:
-    url: ${AUTH_SERVER_URL:http://auth-server:8089}
-    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+    url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
   client:
     id: ${CLIENT_ID:driver-service}
-    secret: ${CLIENT_SECRET:7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}
+    secret: ${CLIENT_SECRET:changeme}

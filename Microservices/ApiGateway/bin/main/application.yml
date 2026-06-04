@@ -181,9 +181,12 @@ spring:
           predicates:
             - Path=/api/public/**
 
-auth:
-  server:
-    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_ISSUER_URI:http://keycloak:8080/realms/asm}
 
 logging:
   level:

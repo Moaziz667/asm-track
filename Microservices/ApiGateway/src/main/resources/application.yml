@@ -4,10 +4,19 @@ server:
 spring:
   application:
     name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
   cloud:
     gateway:
       default-filters:
         - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+        - RemoveRequestHeader=X-User-Role
+        - RemoveRequestHeader=X-User-Id
+        - RemoveRequestHeader=X-App-User-Id
+        - RemoveRequestHeader=X-Dominant-Role
       routes:
         - id: app-backend-client-auth
           uri: ${APP_BACKEND_URL:http://localhost:8080}
@@ -181,9 +190,7 @@ spring:
           predicates:
             - Path=/api/public/**
 
-auth:
-  server:
-    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+
 
 logging:
   level:

@@ -151,7 +151,10 @@
       "Bash(Remove-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DeliveryMicroservice\\\\src\\\\main\\\\java\\\\com\\\\asm\\\\delivery\\\\dto\\\\request\\\\CodCollectionRequest.java\" -ErrorAction SilentlyContinue)",
       "Bash(Write-Output \"done\")",
       "Bash(awk '!/\\\\.isCod\\\\\\(order\\\\.getIsCod\\\\\\(\\\\\\)\\\\\\)/' \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service/dispatch/ExceptionResolutionService.java\")",
-      "Bash(mv /tmp/erfix.java \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service/dispatch/ExceptionResolutionService.java\")"
+      "Bash(mv /tmp/erfix.java \"c:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/service/dispatch/ExceptionResolutionService.java\")",
+      "Bash(Remove-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\AppBackend\\\\src\\\\main\\\\java\\\\com\\\\asm\\\\appbackend\\\\security\\\\JwtAuthFilter.java\" -Force)",
+      "Bash(Remove-Item \"c:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\AppBackend\\\\src\\\\main\\\\java\\\\com\\\\asm\\\\appbackend\\\\security\\\\JwtService.java\" -Force)",
+      "Bash(Write-Output \"Deleted\")"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

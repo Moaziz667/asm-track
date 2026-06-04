@@ -68,29 +68,33 @@ public class AdminUserController {
         return cachedServiceToken;
     }
 
-    @PostMapping
-    public ResponseEntity<AdminUserResponse> createUser(
-            @AuthenticationPrincipal UserPrincipal principal,
-            @Valid @RequestBody CreateAdminUserRequest req) {
-        AdminUserResponse response = adminUserService.createUser(req);
+    private void pushAuditLog(String action, String resourceId, String details) {
         try {
             var auth = org.springframework.security.core.context.SecurityContextHolder
                     .getContext().getAuthentication();
             String actorName = (auth != null && auth.getName() != null) ? auth.getName() : "Admin";
             String auditUrl = UriComponentsBuilder
                     .fromHttpUrl(deliveryServiceUrl + "/internal/audit")
-                    .queryParam("action", "CREATE_ADMIN_USER")
+                    .queryParam("action", action)
                     .queryParam("actorName", actorName)
                     .queryParam("actorRole", "ADMIN")
-                    .queryParam("resourceId", response.id())
-                    .queryParam("details", "Created " + req.role() + " account: " + req.name() + " (" + req.email() + ")")
+                    .queryParam("resourceId", resourceId)
+                    .queryParam("details", details)
                     .toUriString();
             var headers = new HttpHeaders();
             headers.setBearerAuth(getServiceToken());
             restTemplate.postForEntity(auditUrl, new HttpEntity<>(null, headers), Void.class);
         } catch (Exception e) {
-            log.warn("Failed to push audit for user creation: {}", e.getMessage());
+            log.warn("Failed to push audit for {}: {}", action, e.getMessage());
         }
+    }
+
+    @PostMapping
+    public ResponseEntity<AdminUserResponse> createUser(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @Valid @RequestBody CreateAdminUserRequest req) {
+        AdminUserResponse response = adminUserService.createUser(req);
+        pushAuditLog("CREATE_ADMIN_USER", response.id(), "Created " + req.role() + " account: " + req.name() + " (" + req.email() + ")");
         return ResponseEntity.ok(response);
     }
 
@@ -106,6 +110,35 @@ public class AdminUserController {
             @RequestBody Map<String, Boolean> body) {
         Boolean active = body.get("active");
         if (active == null) return ResponseEntity.badRequest().build();
-        return ResponseEntity.ok(adminUserService.setActive(id, active));
+        AdminUserResponse res = adminUserService.setActive(id, active);
+        pushAuditLog("TOGGLE_ADMIN_USER_STATUS", res.id(), "Set status of " + res.email() + " to " + (active ? "ACTIVE" : "INACTIVE"));
+        return ResponseEntity.ok(res);
+    }
+
+    public record UpdateAdminUserRequest(String name, String email, String role) {}
+
+    @PutMapping("/{id}")
+    public ResponseEntity<AdminUserResponse> updateUser(
+            @PathVariable UUID id,
+            @RequestBody UpdateAdminUserRequest req) {
+        AdminUserResponse res = adminUserService.updateUser(id, req.name(), req.email(), req.role());
+        pushAuditLog("UPDATE_ADMIN_USER", res.id(), "Updated account properties: " + res.name() + " (" + res.email() + "), role: " + res.role());
+        return ResponseEntity.ok(res);
+    }
+
+    @PostMapping("/{id}/reset-password-email")
+    public ResponseEntity<Map<String, String>> resetPasswordEmail(
+            @PathVariable UUID id) {
+        adminUserService.resetPasswordEmail(id);
+        pushAuditLog("RESET_ADMIN_USER_PASSWORD", id.toString(), "Triggered Keycloak password reset email");
+        return ResponseEntity.ok(Map.of("message", "Password reset email triggered successfully"));
+    }
+
+    @PostMapping("/{id}/logout")
+    public ResponseEntity<Map<String, String>> forceLogout(
+            @PathVariable UUID id) {
+        adminUserService.forceLogout(id);
+        pushAuditLog("FORCE_LOGOUT_ADMIN_USER", id.toString(), "Forced session invalidation (logout) in Keycloak");
+        return ResponseEntity.ok(Map.of("message", "User force logged out successfully"));
     }
 }

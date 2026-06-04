@@ -153,7 +153,7 @@ public class CompanyService {
         params.add("client_secret", clientSecret);
         HttpHeaders h = new HttpHeaders();
         h.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
-        var resp = restTemplate.exchange(authServerUrl + "/oauth2/token",
+        var resp = restTemplate.exchange(authServerUrl + "/protocol/openid-connect/token",
                 HttpMethod.POST, new HttpEntity<>(params, h), java.util.Map.class);
         var body = (java.util.Map<String, Object>) resp.getBody();
         cachedServiceToken = (String) body.get("access_token");

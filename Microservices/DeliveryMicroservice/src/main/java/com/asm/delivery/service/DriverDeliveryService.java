@@ -142,7 +142,7 @@ public class DriverDeliveryService {
         delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_ACCEPT", "DELIVERY", deliveryId.toString(),
                 Map.of("driver", driverName, "client", clientName, "action", "DRIVER_ACCEPT"));
@@ -162,7 +162,7 @@ public class DriverDeliveryService {
         delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
         delivery = deliveryRepo.save(delivery);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_PICKUP", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Ramassage du colis"));
@@ -199,7 +199,7 @@ public class DriverDeliveryService {
         // If we don't have tracking locally, we'll just publish without coordinates.
 
         String transitNote = "Driver started transit";
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_TRANSIT", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "action", "Debut du transit"));
@@ -272,7 +272,7 @@ public class DriverDeliveryService {
         }
         outboxProcessor.enqueue("ERP_SYNC_STOCK", outboxPayload);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
@@ -523,7 +523,7 @@ public class DriverDeliveryService {
         delivery.setFailureCode(failureCode);
         delivery = deliveryRepo.save(delivery);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_FAIL", "DELIVERY", delivery.getId().toString(),
             Map.of("driver", driverName, "client", clientName, "code", String.valueOf(failureCode),
@@ -576,7 +576,7 @@ public class DriverDeliveryService {
         cancelPayload.put("stat", "cancelled");
         outboxProcessor.enqueue("INCREMENT_DRIVER_STAT", cancelPayload);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
         auditLogService.logAction(principal, "DRIVER_CANCEL", "DELIVERY", delivery.getId().toString(),
                 Map.of("chauffeur", driverName, "client", clientName, "motif", StringUtils.hasText(reason) ? reason : "aucun",
@@ -605,7 +605,7 @@ public class DriverDeliveryService {
                 .description(description)
                 .build());
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         auditLogService.logAction(principal, "DRIVER_REPORT", "DELIVERY", deliveryId.toString(),
                 Map.of("chauffeur", driverName, "type", String.valueOf(reportType), "details", description != null ? description : "",
                        "action", "Signalement soumis"));
@@ -635,7 +635,7 @@ public class DriverDeliveryService {
         reportRepo.save(report);
 
         String targetId = req.getDeliveryId() != null ? req.getDeliveryId().toString() : "GENERAL";
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         
         auditLogService.logAction(principal, "REPORT_INCIDENT", "INCIDENT", targetId,
                 java.util.Map.of(

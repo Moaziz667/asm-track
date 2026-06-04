@@ -73,7 +73,7 @@ public class ErpAdapterClient {
         HttpHeaders h = new HttpHeaders();
         h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
         ResponseEntity<Map> resp = new RestTemplate().exchange(
-                authServerUrl + "/oauth2/token", HttpMethod.POST,
+                authServerUrl + "/protocol/openid-connect/token", HttpMethod.POST,
                 new HttpEntity<>(params, h), Map.class);
         Map<String, Object> body = resp.getBody();
         cachedToken    = (String) body.get("access_token");

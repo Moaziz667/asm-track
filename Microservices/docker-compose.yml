@@ -10,6 +10,7 @@ services:
     volumes:
       - osrm-data:/data
     restart: "no"
+    profiles: ["init"]
     networks:
       - asm-network
 
@@ -28,6 +29,7 @@ services:
       osrm-download:
         condition: service_completed_successfully
     restart: "no"
+    profiles: ["init"]
     networks:
       - asm-network
 
@@ -39,9 +41,6 @@ services:
       - "5000:5000"
     volumes:
       - osrm-data:/data
-    depends_on:
-      osrm-prepare:
-        condition: service_completed_successfully
     restart: unless-stopped
     networks:
       - asm-network
@@ -74,12 +73,79 @@ services:
         max-size: "10m"
         max-file: "3"
 
+  #  KEYCLOAK IAM
+  postgres-keycloak:
+    image: postgres:16-alpine
+    container_name: postgres-keycloak
+    environment:
+      POSTGRES_USER: keycloak
+      POSTGRES_PASSWORD: ${KC_DB_PASS}
+      POSTGRES_DB: keycloak_db
+    volumes:
+      - keycloak-pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - asm-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U keycloak -d keycloak_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0.7
+    container_name: keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres-keycloak:5432/keycloak_db
+      KC_DB_USERNAME: keycloak
+      KC_DB_PASSWORD: ${KC_DB_PASS}
+      KC_HOSTNAME_STRICT: "false"
+      KC_HTTP_ENABLED: "true"
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
+      # Client secrets injected for realm JSON interpolation
+      CLIENT_SECRET_APP: ${CLIENT_SECRET_APP}
+      CLIENT_SECRET_DELIVERY: ${CLIENT_SECRET_DELIVERY}
+      CLIENT_SECRET_DRIVER: ${CLIENT_SECRET_DRIVER}
+      CLIENT_SECRET_ERP: ${CLIENT_SECRET_ERP}
+      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
+      RESEND_API_KEY: ${RESEND_API_KEY}
+    volumes:
+      - ./keycloak:/opt/keycloak/data/import:ro
+      - ./keycloak/themes:/opt/keycloak/themes
+    ports:
+      - "8089:8080"
+    depends_on:
+      postgres-keycloak:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - asm-network
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
   #  POSTGRES DATABASES
   postgres-app:
     image: postgres:16-alpine
     container_name: postgres-app
     ports:
-      - "5435:5432"
+      - "127.0.0.1:5435:5432"
     environment:
       POSTGRES_USER: app_user
       POSTGRES_PASSWORD: ${APP_DB_PASS}
@@ -104,7 +170,7 @@ services:
     image: postgres:16-alpine
     container_name: postgres-delivery
     ports:
-      - "5434:5432"
+      - "127.0.0.1:5434:5432"
     environment:
       POSTGRES_USER: delivery
       POSTGRES_PASSWORD: ${DELIVERY_DB_PASS}
@@ -129,7 +195,7 @@ services:
     image: postgres:16-alpine
     container_name: postgres-driver
     ports:
-      - "5437:5432"
+      - "127.0.0.1:5437:5432"
     environment:
       POSTGRES_USER: driver
       POSTGRES_PASSWORD: ${DRIVER_DB_PASS}
@@ -184,8 +250,8 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres-app:5432/app_db
       SPRING_DATASOURCE_USERNAME: app_user
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
-      AUTH_SERVER_URL: http://auth-server:8089
-      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -196,6 +262,8 @@ services:
       AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY}
     depends_on:
       postgres-app:
+        condition: service_healthy
+      keycloak:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8080"]
@@ -227,8 +295,8 @@ services:
       DB_NAME: delivery_db
       DB_USER: delivery
       DB_PASS: ${DELIVERY_DB_PASS}
-      AUTH_SERVER_URL: http://auth-server:8089
-      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
       TRUST_GATEWAY_HEADERS: ${TRUST_GATEWAY_HEADERS:-false}
       GATEWAY_SECRET: ${GATEWAY_SECRET}
       CLIENT_ID: delivery-service
@@ -270,7 +338,7 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
-      auth-server:
+      keycloak:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -292,8 +360,8 @@ services:
     environment:
       TZ: Africa/Tunis
       SERVER_PORT: 8088
-      AUTH_SERVER_URL: http://auth-server:8089
-      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
       CLIENT_ID: erp-adapter
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -324,11 +392,12 @@ services:
       DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
       DB_USER: driver
       DB_PASS: ${DRIVER_DB_PASS}
-      AUTH_SERVER_URL: http://auth-server:8089
-      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
+      AUTH_SERVER_URL: http://keycloak:8080/realms/asm
       CLIENT_ID: driver-service
       CLIENT_SECRET: ${CLIENT_SECRET_DRIVER}
       RESEND_API_KEY: ${RESEND_API_KEY}
+      DELIVERY_SERVICE_URL: http://delivery-service:8082
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
@@ -337,56 +406,14 @@ services:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+      keycloak:
+        condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8086"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
-    restart: unless-stopped
-    networks:
-      - asm-network
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
-  #  AUTH SERVER (OAuth2 — RSA-signed JWT issuer)
-  auth-server:
-    build:
-      context: ./AuthServer
-      dockerfile: Dockerfile
-    container_name: auth-server
-    # ports:
-    #   - "8089:8089" # Commented out for VPS security. Access via API Gateway instead.
-    environment:
-      TZ: Africa/Tunis
-      APP_DB_URL: jdbc:postgresql://postgres-app:5432/app_db
-      APP_DB_USER: app_user
-      APP_DB_PASS: ${APP_DB_PASS}
-      DRIVER_DB_URL: jdbc:postgresql://postgres-driver:5432/driver_db
-      DRIVER_DB_USER: driver
-      DRIVER_DB_PASS: ${DRIVER_DB_PASS}
-      AUTH_RSA_SEED: ${AUTH_RSA_SEED}
-      AUTH_ACCESS_EXPIRY: "3600"
-      AUTH_REFRESH_EXPIRY: "604800"
-      CLIENT_SECRET_DELIVERY: ${CLIENT_SECRET_DELIVERY}
-      CLIENT_SECRET_DRIVER: ${CLIENT_SECRET_DRIVER}
-      CLIENT_SECRET_ERP: ${CLIENT_SECRET_ERP}
-      CLIENT_SECRET_APP: ${CLIENT_SECRET_APP}
-      CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
-    depends_on:
-      postgres-app:
-        condition: service_healthy
-      postgres-driver:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "nc -z localhost 8089"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 15s
     restart: unless-stopped
     networks:
       - asm-network
@@ -408,7 +435,7 @@ services:
       APP_BACKEND_URL: http://app-backend:8080
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       DRIVER_SERVICE_URL: http://driver-service:8086
-      AUTH_SERVER_JWKS_URI: http://auth-server:8089/oauth2/jwks
+      KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
     depends_on:
       app-backend:
@@ -417,7 +444,7 @@ services:
         condition: service_healthy
       driver-service:
         condition: service_healthy
-      auth-server:
+      keycloak:
         condition: service_healthy
     restart: unless-stopped
     networks:
@@ -432,6 +459,7 @@ volumes:
   app-pgdata:
   delivery-pgdata:
   driver-pgdata:
+  keycloak-pgdata:
   minio_data:
   osrm-data:
 

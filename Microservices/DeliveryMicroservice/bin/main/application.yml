@@ -25,6 +25,10 @@ spring:
     user:
       name: disabled
       password: disabled
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_ISSUER_URI:http://keycloak:8080/realms/asm}
 
   datasource:
     # PROD: set DB_HOST to your PostgreSQL server hostname/IP
@@ -62,11 +66,10 @@ websocket:
 
 auth:
   server:
-    url: ${AUTH_SERVER_URL:http://auth-server:8089}
-    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+    url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
   client:
     id: ${CLIENT_ID:delivery-service}
-    secret: ${CLIENT_SECRET:y7eQdSIGGdYkVmSqYWnwkLL5md3Kc3dHpKUUEKBZHrs=}
+    secret: ${CLIENT_SECRET:changeme}
 
 app:
   origin:

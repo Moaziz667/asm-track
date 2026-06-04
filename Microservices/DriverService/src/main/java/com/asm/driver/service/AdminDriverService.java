@@ -23,10 +23,12 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import org.springframework.security.crypto.password.PasswordEncoder;
+import com.asm.driver.client.KeycloakAdminClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.context.ApplicationEventPublisher;
+import com.asm.driver.security.KeycloakDriverRollbackEvent;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -38,6 +40,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@lombok.extern.slf4j.Slf4j
 public class AdminDriverService {
 
     private final DriverRepository driverRepo;
@@ -45,9 +48,10 @@ public class AdminDriverService {
     private final DriverInviteTokenRepository inviteTokenRepo;
     private final DriverAuditLogRepository auditLogRepo;
     private final DriverAuditLogService auditLogService;
-    private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final DeliveryServiceWebClient deliveryClient;
+    private final KeycloakAdminClient keycloakAdminClient;
+    private final ApplicationEventPublisher eventPublisher;
 
     @Value("${invite.ttl-hours:48}")
     private long inviteTtlHours;
@@ -103,31 +107,39 @@ public class AdminDriverService {
         if (driverRepo.existsByPhone(phone)) {
             throw AppException.conflict("Phone already registered");
         }
+        if (email == null || email.isBlank()) {
+            throw AppException.badRequest("Email is required");
+        }
+        String trimmedEmail = email.trim();
+        if (!trimmedEmail.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+            throw AppException.badRequest("Invalid email format");
+        }
+        if (driverRepo.existsByEmail(trimmedEmail)) {
+            throw AppException.conflict("Email already registered");
+        }
+
         Driver driver = Driver.builder()
                 .name(name)
                 .phone(phone)
-                .email(email)
-                .passwordHash(passwordEncoder.encode(UUID.randomUUID().toString()))
+                .email(trimmedEmail)
                 .accountStatus(DriverAccountStatus.PENDING_SETUP)
+                .isRegistered(false)
                 .build();
         driver = driverRepo.save(driver);
 
-        UUID token = UUID.randomUUID();
-        LocalDateTime expiresAt = LocalDateTime.now().plusHours(inviteTtlHours);
-        inviteTokenRepo.save(DriverInviteToken.builder()
-                .driverId(driver.getId())
-                .token(token)
-                .expiresAt(expiresAt)
-                .build());
-
-        emailService.sendDriverInvite(email, name, token.toString());
+        // Provision in Keycloak (Resilient: Keycloak failures will not roll back local DB write)
+        try {
+            keycloakAdminClient.createDriver(driver.getId().toString(), trimmedEmail, phone);
+        } catch (Exception e) {
+            log.warn("Failed to provision driver (id={}) in Keycloak during invitation. Background sync scheduler will reconcile: {}", driver.getId(), e.getMessage());
+        }
 
         auditLogService.log(
                 "DRIVER_INVITED",
                 driver.getId(),
                 actorName(actor), actorRole(actor),
-                String.format("{\"phone\":\"%s\",\"email\":\"%s\",\"expiresAt\":\"%s\"}",
-                        phone, email, expiresAt));
+                String.format("{\"phone\":\"%s\",\"email\":\"%s\"}",
+                        phone, trimmedEmail));
 
         return toResponse(driver);
     }
@@ -147,8 +159,11 @@ public class AdminDriverService {
         Driver driver = driverRepo.findById(invite.getDriverId())
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
-        driver.setPasswordHash(passwordEncoder.encode(newPassword));
+        // Update password in Keycloak
+        keycloakAdminClient.resetPassword(driver.getId().toString(), newPassword);
+
         driver.setAccountStatus(DriverAccountStatus.ACTIVE);
+        driver.setIsRegistered(true);
         driverRepo.save(driver);
 
         invite.setUsed(true);
@@ -216,27 +231,35 @@ public class AdminDriverService {
         );
     }
 
-    /** Admin-triggered resend: looks up driver by id then delegates. */
+    /** Admin-triggered resend: looks up driver by id then delegates to Keycloak. */
     @Transactional
     public Map<String, Object> adminResendInvite(UUID id, UserPrincipal actor) {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
-        Map<String, Object> result = resendActivationCode(driver.getPhone());
+        
+        if (driver.getAccountStatus() == DriverAccountStatus.ACTIVE) {
+            throw AppException.badRequest("DRIVER_ALREADY_ACTIVATED");
+        }
 
+        // Resend invitation email via Resend email service
+        resendActivationCode(driver.getPhone());
+        
         auditLogService.log(
                 "DRIVER_INVITE_RESENT_BY_ADMIN",
                 driver.getId(),
                 actorName(actor), actorRole(actor),
-                String.format("{\"phone\":\"%s\",\"status\":\"%s\",\"expiresAt\":\"%s\"}",
-                        driver.getPhone(), result.get("status"), result.get("expiresAt")));
+                String.format("{\"phone\":\"%s\",\"status\":\"RESENT_VIA_RESEND\"}",
+                        driver.getPhone()));
 
-        return result;
+        return Map.of(
+                "status", "RESENT"
+        );
     }
 
     // ── Update profile ──────────────────────────────────────────────────────
 
     @Transactional
-    public AdminDriverResponse update(UUID id, String name, String phone, UserPrincipal actor) {
+    public AdminDriverResponse update(UUID id, String name, String phone, String email, UserPrincipal actor) {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
@@ -247,6 +270,7 @@ public class AdminDriverService {
 
         String oldName = driver.getName();
         String oldPhone = driver.getPhone();
+        String oldEmail = driver.getEmail();
         if (name != null && !name.isBlank()) driver.setName(name.trim());
         if (phone != null && !phone.isBlank()) {
             if (!phone.equals(driver.getPhone()) && driverRepo.existsByPhone(phone)) {
@@ -254,38 +278,56 @@ public class AdminDriverService {
             }
             driver.setPhone(phone.trim());
         }
+        if (email != null && !email.isBlank() && !email.equalsIgnoreCase(driver.getEmail())) {
+            String trimmedEmail = email.trim();
+            if (!trimmedEmail.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
+                throw AppException.badRequest("Invalid email format");
+            }
+            if (driverRepo.existsByEmail(trimmedEmail)) {
+                throw AppException.conflict("Email already in use");
+            }
+            driver.setEmail(trimmedEmail);
+            keycloakAdminClient.updateDriverEmail(driver.getId().toString(), trimmedEmail);
+        }
         Driver saved = driverRepo.save(driver);
 
         auditLogService.log(
                 "DRIVER_UPDATED",
                 saved.getId(),
                 actorName(actor), actorRole(actor),
-                String.format("{\"oldName\":\"%s\",\"newName\":\"%s\",\"oldPhone\":\"%s\",\"newPhone\":\"%s\"}",
-                        oldName, saved.getName(), oldPhone, saved.getPhone()));
+                String.format("{\"oldName\":\"%s\",\"newName\":\"%s\",\"oldPhone\":\"%s\",\"newPhone\":\"%s\",\"oldEmail\":\"%s\",\"newEmail\":\"%s\"}",
+                        oldName, saved.getName(), oldPhone, saved.getPhone(), oldEmail, saved.getEmail()));
 
         return toResponse(saved);
     }
 
-    // ── Activate / Suspend ──────────────────────────────────────────────────
-
     @Transactional
-    public AdminDriverResponse setActive(UUID id, boolean active, String reason, UserPrincipal actor) {
+    public AdminDriverResponse setActive(UUID id, boolean isRegistered, String reason, UserPrincipal actor) {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
         if (driver.getAccountStatus() == DriverAccountStatus.PENDING_SETUP) {
             throw AppException.badRequest("Cannot toggle status of a driver with pending setup");
         }
         DriverAccountStatus previous = driver.getAccountStatus();
-        DriverAccountStatus next = active ? DriverAccountStatus.ACTIVE : DriverAccountStatus.SUSPENDED;
+        DriverAccountStatus next = isRegistered ? DriverAccountStatus.ACTIVE : DriverAccountStatus.SUSPENDED;
         driver.setAccountStatus(next);
-        if (active) {
-            driver.setSuspendedReason(null);
-        } else {
-            driver.setSuspendedReason(reason);
+        driver.setIsRegistered(isRegistered);
+        
+        try {
+            if (isRegistered) {
+                driver.setSuspendedReason(null);
+                keycloakAdminClient.enableDriver(driver.getId().toString());
+            } else {
+                driver.setSuspendedReason(reason);
+                keycloakAdminClient.disableDriver(driver.getId().toString());
+            }
+        } catch (Exception e) {
+            log.warn("Failed to update driver status in Keycloak for driver ID={}. Reconciliation scheduler will retry: {}", driver.getId(), e.getMessage());
         }
+        
         Driver saved = driverRepo.save(driver);
 
-        String action = active ? "DRIVER_ACTIVATED" : "DRIVER_SUSPENDED";
+        String action = isRegistered ? "DRIVER_ACTIVATED" : "DRIVER_SUSPENDED";
         auditLogService.log(
                 action,
                 saved.getId(),
@@ -302,20 +344,27 @@ public class AdminDriverService {
     public void cancelInvite(UUID id, String reason, UserPrincipal actor) {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
+
         if (driver.getAccountStatus() != DriverAccountStatus.PENDING_SETUP) {
-            throw AppException.badRequest(
-                    "Only pending invites can be cancelled — use Suspend for active drivers");
+            throw AppException.badRequest("Only pending invites can be cancelled");
         }
 
-        inviteTokenRepo.deleteByDriverId(driver.getId());
+        // Delete from Keycloak first
+        keycloakAdminClient.deleteDriver(driver.getId().toString());
+
+        inviteTokenRepo.findByDriverId(id).forEach(t -> {
+            t.setUsed(true);
+            inviteTokenRepo.save(t);
+        });
+
         driverRepo.delete(driver);
 
         auditLogService.log(
                 "DRIVER_INVITE_CANCELLED",
                 id,
                 actorName(actor), actorRole(actor),
-                String.format("{\"name\":\"%s\",\"phone\":\"%s\",\"reason\":\"%s\"}",
-                        driver.getName(), driver.getPhone(), reason != null ? reason : ""));
+                String.format("{\"phone\":\"%s\",\"reason\":\"%s\"}", 
+                        driver.getPhone(), reason != null ? reason : ""));
     }
 
     // ── Import ──────────────────────────────────────────────────────────────
@@ -338,7 +387,6 @@ public class AdminDriverService {
                 if (driverRepo.existsByPhone(phone)) { skipped++; continue; }
                 Driver driver = Driver.builder()
                         .name(name).phone(phone)
-                        .passwordHash(passwordEncoder.encode(pass))
                         .accountStatus(DriverAccountStatus.ACTIVE).build();
                 Driver saved = driverRepo.save(driver);
                 created.add(toResponse(saved));
@@ -355,22 +403,6 @@ public class AdminDriverService {
                         file.getOriginalFilename(), created.size(), skipped));
 
         return created;
-    }
-
-    // ── Reset password ──────────────────────────────────────────────────────
-
-    @Transactional
-    public void resetPassword(UUID id, String newPassword, UserPrincipal actor) {
-        Driver driver = driverRepo.findById(id)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        driver.setPasswordHash(passwordEncoder.encode(newPassword));
-        driverRepo.save(driver);
-
-        auditLogService.log(
-                "DRIVER_PASSWORD_RESET",
-                driver.getId(),
-                actorName(actor), actorRole(actor),
-                "{\"by\":\"admin\"}");
     }
 
     // ── Mapping helpers ─────────────────────────────────────────────────────
@@ -405,7 +437,7 @@ public class AdminDriverService {
                 .id(d.getId().toString())
                 .name(d.getName())
                 .phone(d.getPhone())
-                .active(d.getAccountStatus() == DriverAccountStatus.ACTIVE)
+                .isRegistered(d.getIsRegistered())
                 .accountStatus(d.getAccountStatus() != null ? d.getAccountStatus().name() : "PENDING_SETUP")
                 .currentLat(d.getCurrentLat())
                 .currentLng(d.getCurrentLng())
@@ -431,5 +463,20 @@ public class AdminDriverService {
 
     private String actorRole(UserPrincipal p) {
         return p != null && p.getRole() != null ? p.getRole() : "SYSTEM";
+    }
+
+    @Transactional
+    public void forceLogout(UUID id, UserPrincipal actor) {
+        Driver driver = driverRepo.findById(id)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+
+        keycloakAdminClient.forceLogout(driver.getId().toString());
+
+        auditLogService.log(
+                "DRIVER_FORCE_LOGOUT",
+                driver.getId(),
+                actorName(actor), actorRole(actor),
+                String.format("{\"phone\":\"%s\",\"email\":\"%s\"}",
+                        driver.getPhone(), driver.getEmail()));
     }
 }

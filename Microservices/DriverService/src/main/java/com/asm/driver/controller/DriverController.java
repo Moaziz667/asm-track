@@ -41,12 +41,7 @@ public class DriverController {
         return ResponseEntity.ok(Map.of("message", "Profile updated"));
     }
 
-    @PutMapping("/password")
-    public ResponseEntity<Map<String, String>> updatePassword(@AuthenticationPrincipal UserPrincipal user,
-                                                              @Valid @RequestBody PasswordUpdateRequest req) {
-        driverService.updatePassword(UUID.fromString(user.getUserId()), req.getCurrentPassword(), req.getNewPassword());
-        return ResponseEntity.ok(Map.of("message", "Password updated"));
-    }
+
 
     @PostMapping("/location")
     public ResponseEntity<Map<String, String>> updateLocation(@AuthenticationPrincipal UserPrincipal user,

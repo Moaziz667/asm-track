@@ -18,12 +18,6 @@ export const api = axios.create({ baseURL, withCredentials: true });
 // On 401: silently attempt one token refresh, then retry the original request.
 // Only redirect to /login if the refresh itself fails.
 let isRefreshing = false;
-let refreshQueue: Array<(ok: boolean) => void> = [];
-
-function flushQueue(ok: boolean) {
-  refreshQueue.forEach((resolve) => resolve(ok));
-  refreshQueue = [];
-}
 
 api.interceptors.request.use((config) => {
   const method = config.method?.toUpperCase() ?? '';
@@ -36,48 +30,32 @@ api.interceptors.request.use((config) => {
     }
     config.headers['X-Idempotency-Key'] = `${Math.abs(hash).toString(16)}-${Date.now()}`;
   }
+
+  // Inject Keycloak JWT token
+  const token = safeStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config;
-
-    // Don't retry the refresh call itself to avoid infinite loops
+    // On 401 Unauthorized, Keycloak token has expired or is invalid.
+    // Redirect to login to start a new OIDC flow.
     if (
       error?.response?.status === 401 &&
-      !original._retry &&
       typeof window !== 'undefined' &&
-      !original.url?.includes('/api/auth/admin/refresh') &&
-      !original.url?.includes('/api/auth/admin/login')
+      !window.location.pathname.includes('/login')
     ) {
-      if (isRefreshing) {
-        // Queue callers while a refresh is already in flight
-        return new Promise((resolve, reject) => {
-          refreshQueue.push((ok) => {
-            if (ok) resolve(api(original));
-            else reject(error);
-          });
-        });
-      }
-
-      original._retry = true;
-      isRefreshing = true;
-
-      try {
-        await api.post('/api/auth/admin/refresh');
-        flushQueue(true);
-        return api(original); // retry original request with new cookie
-      } catch {
-        flushQueue(false);
-        safeStorage.removeItem('admin_role');
-        safeStorage.removeItem('admin_name');
-        safeStorage.removeItem('admin_user');
-        window.location.href = '/login';
-      } finally {
-        isRefreshing = false;
-      }
+      safeStorage.removeItem('access_token');
+      safeStorage.removeItem('admin_role');
+      safeStorage.removeItem('role');
+      safeStorage.removeItem('admin_name');
+      safeStorage.removeItem('admin_user');
+      window.location.href = '/login';
     }
 
     return Promise.reject(error);

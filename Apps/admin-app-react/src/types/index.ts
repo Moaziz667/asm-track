@@ -92,7 +92,7 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
-  active?: boolean;
+  isRegistered?: boolean;
   accountStatus?: DriverAccountStatus;
   activeDeliveryId?: string;
   activeRouteId?: string;
@@ -255,6 +255,7 @@ export interface AdminUser {
   name: string;
   email: string;
   role: string;
+  active: boolean;
   createdAt: string;
 }
 

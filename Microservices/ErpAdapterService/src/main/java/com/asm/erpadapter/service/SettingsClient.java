@@ -77,7 +77,7 @@ public class SettingsClient {
     }
 
     private String fetchServiceToken() {
-        String url = authServerUrl + "/oauth2/token";
+        String url = authServerUrl + "/protocol/openid-connect/token";
         
         HttpHeaders headers = new HttpHeaders();
         headers.add("Content-Type", "application/x-www-form-urlencoded");

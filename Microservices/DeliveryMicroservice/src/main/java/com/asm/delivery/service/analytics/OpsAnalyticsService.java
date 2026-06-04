@@ -896,8 +896,8 @@ public class OpsAnalyticsService {
                         return new ActorInfo("SYSTEM", Role.SYSTEM);
                 }
 
-                String actorName = StringUtils.hasText(principal.getName())
-                                ? principal.getName().trim()
+                String actorName = StringUtils.hasText(principal.getDisplayName())
+                                ? principal.getDisplayName().trim()
                                 : (StringUtils.hasText(principal.getUserId()) ? principal.getUserId().trim() : "SYSTEM");
 
                 Role role;

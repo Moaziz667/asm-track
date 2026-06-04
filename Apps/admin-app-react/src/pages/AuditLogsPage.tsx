@@ -67,6 +67,12 @@ const getActionStyle = (action: string, locale: string, copy?: any) => {
     DRIVER_PASSWORD_RESET:       { labelKey: 'actionDriverPasswordReset',  color: '#A855F7' },
     DRIVER_BULK_IMPORTED:        { labelKey: 'actionDriverBulkImported',   color: '#0891B2' },
     DRIVER_AUTO_OFFLINED:        { labelKey: 'actionDriverSuspended',      color: '#9CA3AF' },
+    DRIVER_FORCE_LOGOUT:         { labelKey: 'actionDriverForceLogout',    color: '#EF4444' },
+    CREATE_ADMIN_USER:           { labelKey: 'actionCreateAdminUser',      color: '#10B981' },
+    TOGGLE_ADMIN_USER_STATUS:    { labelKey: 'actionToggleAdminUserStatus', color: '#F59E0B' },
+    UPDATE_ADMIN_USER:           { labelKey: 'actionUpdateAdminUser',      color: '#3B82F6' },
+    RESET_ADMIN_USER_PASSWORD:   { labelKey: 'actionResetAdminUserPassword',color: '#A855F7' },
+    FORCE_LOGOUT_ADMIN_USER:     { labelKey: 'actionForceLogoutAdminUser',  color: '#EF4444' },
   };
 
   const resolvedCopy = copy || getCopy(locale as any);

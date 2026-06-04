@@ -1,10 +1,10 @@
 package com.asm.driver.config;
 
-import com.asm.driver.security.InternalAuthFilter;
-import com.asm.driver.security.JwtAuthFilter;
-import lombok.RequiredArgsConstructor;
+import com.asm.driver.security.JwtAuthConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -12,34 +12,65 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @EnableWebSecurity
-@RequiredArgsConstructor
+@EnableMethodSecurity
 public class SecurityConfig {
-
-    private final JwtAuthFilter jwtAuthFilter;
-    private final InternalAuthFilter internalAuthFilter;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http.csrf(AbstractHttpConfigurer::disable)
+        http
+            .csrf(AbstractHttpConfigurer::disable)
             .cors(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/api/auth/driver/**").permitAll()
-                .requestMatchers("/internal/**").permitAll() // filter checks header
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/internal/**").hasRole("SERVICE")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
                 .anyRequest().authenticated()
             )
-            .addFilterBefore(internalAuthFilter, UsernamePasswordAuthenticationFilter.class)
-            .addFilterAfter(jwtAuthFilter, InternalAuthFilter.class);
+            .oauth2ResourceServer(rs -> rs
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))
+            );
 
         return http.build();
+    }
+
+    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
+    private String jwkSetUri;
+
+    @org.springframework.beans.factory.annotation.Value("${auth.server.url:http://keycloak:8080/realms/asm}")
+    private String issuerUri;
+
+    @Bean
+    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder =
+                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withIssuer =
+                org.springframework.security.oauth2.jwt.JwtValidators.createDefaultWithIssuer(issuerUri);
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withAudience =
+                new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                        withIssuer,
+                        jwt -> {
+                            java.util.List<String> aud = jwt.getAudience();
+                            if (aud != null && (aud.contains("driver-app") || aud.contains("admin-web"))) {
+                                return org.springframework.security.oauth2.core.OAuth2TokenResult.success();
+                            }
+                            return org.springframework.security.oauth2.core.OAuth2TokenResult.failure(
+                                    new org.springframework.security.oauth2.core.OAuth2Error(
+                                            "invalid_token", "Required audience ('driver-app' or 'admin-web') is missing", null));
+                        }
+                );
+
+        jwtDecoder.setJwtValidator(withAudience);
+        return jwtDecoder;
     }
 
     @Bean
@@ -49,8 +80,7 @@ public class SecurityConfig {
 
     @Bean
     public RestTemplate restTemplate() {
-        org.springframework.http.client.SimpleClientHttpRequestFactory factory = 
-                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(2000);
         factory.setReadTimeout(3000);
         return new RestTemplate(factory);

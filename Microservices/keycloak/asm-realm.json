@@ -1,0 +1,435 @@
+{
+  "realm": "asm",
+  "enabled": true,
+  "displayName": "ASM Track",
+  "displayNameHtml": "<b>ASM Track</b>",
+  "registrationAllowed": false,
+  "registrationEmailAsUsername": false,
+  "rememberMe": false,
+  "verifyEmail": false,
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "editUsernameAllowed": false,
+  "bruteForceProtected": true,
+  "failureFactor": 5,
+  "waitIncrementSeconds": 60,
+  "maxFailureWaitSeconds": 900,
+  "minimumQuickLoginWaitSeconds": 60,
+  "quickLoginCheckMilliSeconds": 1000,
+  "maxDeltaTimeSeconds": 43200,
+  "accessTokenLifespan": 3600,
+  "accessTokenLifespanForImplicitFlow": 900,
+  "ssoSessionIdleTimeout": 1800,
+  "ssoSessionMaxLifespan": 36000,
+  "offlineSessionIdleTimeout": 2592000,
+  "offlineSessionMaxLifespan": 5184000,
+  "accessCodeLifespan": 60,
+  "accessCodeLifespanUserAction": 300,
+  "accessCodeLifespanLogin": 1800,
+  "actionTokenGeneratedByAdminLifespan": 43200,
+  "actionTokenGeneratedByUserLifespan": 300,
+  "oauth2DeviceCodeLifespan": 600,
+  "oauth2DevicePollingInterval": 5,
+  "revokeRefreshToken": true,
+  "refreshTokenMaxReuse": 0,
+  "sslRequired": "external",
+  "roles": {
+    "realm": [
+      {
+        "name": "ADMIN",
+        "description": "Platform administrator",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "DISPATCHER",
+        "description": "Logistics dispatcher",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "MANAGER",
+        "description": "Read-only manager",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "DRIVER",
+        "description": "Delivery driver",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "CLIENT",
+        "description": "End-client placing orders",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "SERVICE",
+        "description": "Internal service account",
+        "composite": false,
+        "clientRole": false
+      }
+    ]
+  },
+  "defaultRoles": [],
+  "clients": [
+    {
+      "clientId": "admin-web",
+      "name": "Admin Web Application",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [
+        "http://localhost:5173/*",
+        "http://localhost/*"
+      ],
+      "webOrigins": [
+        "http://localhost:5173",
+        "http://localhost"
+      ],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "app_user_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "app_user_id",
+            "claim.name": "app_user_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "driver-app",
+      "name": "Driver Mobile Application",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "authorizationServicesEnabled": false,
+      "redirectUris": [
+        "asm://callback",
+        "com.asm.driverapp://login-callback"
+      ],
+      "webOrigins": [],
+      "attributes": {
+        "pkce.code.challenge.method": "S256"
+      },
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true,
+      "protocolMappers": [
+        {
+          "name": "app_user_id",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "app_user_id",
+            "claim.name": "app_user_id",
+            "jsonType.label": "String",
+            "id.token.claim": "true",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        },
+        {
+          "name": "phone",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-usermodel-attribute-mapper",
+          "consentRequired": false,
+          "config": {
+            "user.attribute": "phone",
+            "claim.name": "phone",
+            "jsonType.label": "String",
+            "id.token.claim": "false",
+            "access.token.claim": "true",
+            "userinfo.token.claim": "true"
+          }
+        }
+      ]
+    },
+    {
+      "clientId": "app-backend",
+      "name": "AppBackend Service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "${CLIENT_SECRET_APP}",
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "delivery-service",
+      "name": "Delivery Microservice",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "${CLIENT_SECRET_DELIVERY}",
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "driver-service",
+      "name": "Driver Service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "${CLIENT_SECRET_DRIVER}",
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "erp-adapter",
+      "name": "ERP Adapter Service",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "${CLIENT_SECRET_ERP}",
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    },
+    {
+      "clientId": "api-gateway",
+      "name": "API Gateway",
+      "enabled": true,
+      "publicClient": false,
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "authorizationServicesEnabled": false,
+      "secret": "${CLIENT_SECRET_GW}",
+      "protocol": "openid-connect",
+      "fullScopeAllowed": true
+    }
+  ],
+  "smtpServer": {
+    "host": "smtp.resend.com",
+    "port": "587",
+    "from": "onboarding@resend.dev",
+    "fromDisplayName": "ASM Track",
+    "auth": "true",
+    "ssl": "false",
+    "starttls": "true",
+    "user": "resend",
+    "password": "${RESEND_API_KEY}"
+  },
+  "loginTheme": "aws",
+  "accountTheme": "",
+  "adminTheme": "",
+  "emailTheme": "",
+  "eventsEnabled": false,
+  "adminEventsEnabled": false,
+  "adminEventsDetailsEnabled": false,
+  "internationalizationEnabled": false,
+  "supportedLocales": [
+    "en"
+  ],
+  "defaultLocale": "en",
+  "users": [
+    {
+      "username": "admin@asm.com",
+      "email": "admin@asm.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin"
+        }
+      ],
+      "realmRoles": [
+        "ADMIN"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "11111111-1111-1111-1111-111111111111"
+        ],
+        "role": [
+          "ADMIN"
+        ]
+      }
+    },
+    {
+      "username": "dispatcher@asm.com",
+      "email": "dispatcher@asm.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "dispatcher"
+        }
+      ],
+      "realmRoles": [
+        "DISPATCHER"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "22222222-2222-2222-2222-222222222222"
+        ],
+        "role": [
+          "DISPATCHER"
+        ]
+      }
+    },
+    {
+      "username": "33333333-3333-3333-3333-333333333333",
+      "email": "driver1@asm.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "driver123"
+        }
+      ],
+      "realmRoles": [
+        "DRIVER"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "33333333-3333-3333-3333-333333333333"
+        ],
+        "role": [
+          "DRIVER"
+        ]
+      }
+    },
+    {
+      "username": "44444444-4444-4444-4444-444444444444",
+      "email": "driver2@asm.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "driver123"
+        }
+      ],
+      "realmRoles": [
+        "DRIVER"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "44444444-4444-4444-4444-444444444444"
+        ],
+        "role": [
+          "DRIVER"
+        ]
+      }
+    },
+    {
+      "username": "55555555-5555-5555-5555-555555555555",
+      "email": "driver3@asm.com",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "driver123"
+        }
+      ],
+      "realmRoles": [
+        "DRIVER"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "55555555-5555-5555-5555-555555555555"
+        ],
+        "role": [
+          "DRIVER"
+        ]
+      }
+    },
+    {
+      "username": "service-account-app-backend",
+      "enabled": true,
+      "serviceAccountClientId": "app-backend",
+      "realmRoles": [
+        "SERVICE"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "view-realm"
+        ]
+      }
+    },
+    {
+      "username": "service-account-delivery-service",
+      "enabled": true,
+      "serviceAccountClientId": "delivery-service",
+      "realmRoles": [
+        "SERVICE"
+      ]
+    },
+    {
+      "username": "service-account-driver-service",
+      "enabled": true,
+      "serviceAccountClientId": "driver-service",
+      "realmRoles": [
+        "SERVICE"
+      ],
+      "clientRoles": {
+        "realm-management": [
+          "manage-users",
+          "view-users",
+          "view-realm"
+        ]
+      }
+    },
+    {
+      "username": "service-account-erp-adapter",
+      "enabled": true,
+      "serviceAccountClientId": "erp-adapter",
+      "realmRoles": [
+        "SERVICE"
+      ]
+    },
+    {
+      "username": "service-account-api-gateway",
+      "enabled": true,
+      "serviceAccountClientId": "api-gateway",
+      "realmRoles": [
+        "SERVICE"
+      ]
+    }
+  ]
+}

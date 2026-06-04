@@ -98,7 +98,7 @@ public class RouteExecutionService {
         route.setStatus(RouteStatus.IN_PROGRESS);
         LocalDateTime now = LocalDateTime.now();
         route.setStartedAt(now);
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         auditLogService.logAction(principal, "START_ROUTE", "ROUTE", routeId.toString(),
                 java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),
                        "action", "Demarrage de la tournee"));
@@ -156,7 +156,7 @@ public class RouteExecutionService {
         stop.setArrivedAt(LocalDateTime.now());
         stop.setActualArrivalAt(stop.getArrivedAt());
         routeStopRepository.save(stop);
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         auditLogService.logAction(principal, "ARRIVE_STOP", "ROUTE", routeId.toString(),
                 java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),
                        "stop", stop.getStopOrder(), "action", "Arrivee au point d'arret"));
@@ -223,7 +223,7 @@ public class RouteExecutionService {
         pickupStop.setCompletedAt(now);
         routeStopRepository.save(pickupStop);
 
-        String driverName = (principal != null && principal.getName() != null) ? principal.getName() : driverId.toString().substring(0, 8);
+        String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String depotName = depotId != null
                 ? depotRepository.findById(depotId).map(Depot::getName).orElse(null)
                 : null;

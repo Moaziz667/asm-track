@@ -5,6 +5,12 @@ spring:
   application:
     name: app-backend-service
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:app_backend_db}
     username: ${DB_USER:app_backend}
@@ -29,11 +35,10 @@ app:
 
 auth:
   server:
-    url: ${AUTH_SERVER_URL:http://auth-server:8089}
-    jwks-uri: ${AUTH_SERVER_JWKS_URI:http://auth-server:8089/oauth2/jwks}
+    url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
   client:
     id: ${CLIENT_ID:app-backend}
-    secret: ${CLIENT_SECRET:IJz0vvMLEKLsZmahqEepTjoCRcutWyGm4IEL4iE5IY4=}
+    secret: ${CLIENT_SECRET:changeme}
 
 odoo:
   url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}

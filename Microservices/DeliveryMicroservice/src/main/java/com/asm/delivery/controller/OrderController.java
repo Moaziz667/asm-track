@@ -34,7 +34,7 @@ public class OrderController {
             @AuthenticationPrincipal UserPrincipal principal) {
         // Legacy endpoint kept temporarily for backward compatibility.
         // Strategic direction: confirmed orders should be imported from ERP.
-        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getName(), principal.getPhone());
+        OrderResponse response = orderService.createFromApp(req, principal.getUserId(), principal.getDisplayName(), principal.getPhone());
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 

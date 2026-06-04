@@ -122,7 +122,7 @@ public class InternalTransportAdapter implements TransportPort {
         h.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
         ResponseEntity<Map> resp = restTemplate.exchange(
-                authServerUrl + "/oauth2/token",
+                authServerUrl + "/protocol/openid-connect/token",
                 HttpMethod.POST,
                 new HttpEntity<>(params, h),
                 Map.class);

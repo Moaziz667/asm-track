@@ -15,7 +15,6 @@ import com.asm.driver.repository.DriverStatsRepository;
 import com.asm.driver.service.DriverAuditLogService;
 import com.asm.driver.service.DriverEventPublisher;
 import lombok.RequiredArgsConstructor;
-import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,7 +29,6 @@ public class DriverService {
     private final DriverRepository driverRepo;
     private final DriverStatsRepository statsRepo;
     private final DriverHistoryRepository historyRepo;
-    private final PasswordEncoder passwordEncoder;
     private final DriverEventPublisher eventPublisher;
     private final DriverAuditLogService auditLogService;
 
@@ -45,18 +43,7 @@ public class DriverService {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
         driver.setName(name);
-        driverRepo.save(driver);
-    }
-
-    @Transactional
-    public void updatePassword(UUID driverId, String currentPwd, String newPwd) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        if (!passwordEncoder.matches(currentPwd, driver.getPasswordHash())) {
-            throw AppException.badRequest("Invalid current password");
-        }
-        driver.setPasswordHash(passwordEncoder.encode(newPwd));
-        driverRepo.save(driver);
+        driver = driverRepo.save(driver);
     }
 
     @Transactional
