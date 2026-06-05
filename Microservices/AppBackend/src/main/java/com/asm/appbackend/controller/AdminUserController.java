@@ -1,21 +1,16 @@
 package com.asm.appbackend.controller;
 
-import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.dto.admin.AdminUserResponse;
 import com.asm.appbackend.dto.admin.CreateAdminUserRequest;
+import com.asm.appbackend.messaging.AuditEventPublisher;
 import com.asm.appbackend.security.UserPrincipal;
 import com.asm.appbackend.service.AdminUserService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.List;
 import java.util.Map;
@@ -28,31 +23,17 @@ import java.util.UUID;
 public class AdminUserController {
 
     private final AdminUserService adminUserService;
-    private final KeycloakAdminClient keycloakAdminClient;
-    private final RestTemplate restTemplate;
+    private final AuditEventPublisher auditEventPublisher;
 
-    @Value("${delivery.service.url:http://delivery-service:8082}")
-    private String deliveryServiceUrl;
-
+    /**
+     * Emit an admin-user audit event over RabbitMQ (non-blocking, loss-tolerant). The actor is
+     * resolved from the SecurityContext so the persisted audit row names the real dispatcher.
+     */
     private void pushAuditLog(String action, String resourceId, String details) {
-        try {
-            var auth = org.springframework.security.core.context.SecurityContextHolder
-                    .getContext().getAuthentication();
-            String actorId = (auth != null && auth.getName() != null) ? auth.getName() : "Admin";
-            String auditUrl = UriComponentsBuilder
-                    .fromHttpUrl(deliveryServiceUrl + "/internal/audit")
-                    .queryParam("action", action)
-                    .queryParam("actorName", actorId)
-                    .queryParam("actorRole", "ADMIN")
-                    .queryParam("resourceId", resourceId)
-                    .queryParam("details", details)
-                    .toUriString();
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(keycloakAdminClient.getServiceToken());
-            restTemplate.postForEntity(auditUrl, new HttpEntity<>(null, headers), Void.class);
-        } catch (Exception e) {
-            log.warn("Failed to push audit for {}: {}", action, e.getMessage());
-        }
+        var auth = org.springframework.security.core.context.SecurityContextHolder
+                .getContext().getAuthentication();
+        String actorId = (auth != null && auth.getName() != null) ? auth.getName() : "Admin";
+        auditEventPublisher.publishAdminUserAudit(action, actorId, "ADMIN", resourceId, details);
     }
 
     @PostMapping

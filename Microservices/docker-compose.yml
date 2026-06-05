@@ -263,10 +263,15 @@ services:
       ODOO_UID: ${ODOO_UID}
       ODOO_PASSWORD: ${ODOO_PASSWORD}
       AES_ENCRYPTION_KEY: ${AES_ENCRYPTION_KEY}
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
     depends_on:
       postgres-app:
         condition: service_healthy
       keycloak:
+        condition: service_healthy
+      rabbitmq:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8080"]

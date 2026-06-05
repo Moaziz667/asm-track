@@ -21,6 +21,13 @@ public class RabbitMQConfig {
     public static final String DLX_EXCHANGE            = "driver.events.dlx";
     public static final String DLQ_DRIVER_STATUS       = "driver.status.changed.dlq";
 
+    // ── Audit events (AppBackend → Delivery) ──────────────────────────────────
+    public static final String AUDIT_EXCHANGE     = "audit.exchange";
+    public static final String AUDIT_ROUTING_KEY  = "audit.log";
+    public static final String AUDIT_QUEUE        = "audit.log.queue";
+    public static final String AUDIT_DLX_EXCHANGE = "audit.exchange.dlx";
+    public static final String AUDIT_DLQ          = "audit.log.dlq";
+
     @Bean
     public TopicExchange driverEventsExchange() {
         return new TopicExchange(DRIVER_EVENTS_EXCHANGE, true, false);
@@ -57,6 +64,43 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(driverStatusQueue)
                 .to(driverEventsExchange)
                 .with(DRIVER_STATUS_ROUTING);
+    }
+
+    // ── Audit topology ────────────────────────────────────────────────────────
+
+    @Bean
+    public TopicExchange auditExchange() {
+        return new TopicExchange(AUDIT_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange auditDeadLetterExchange() {
+        return new DirectExchange(AUDIT_DLX_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public Queue auditDeadLetterQueue() {
+        return QueueBuilder.durable(AUDIT_DLQ).build();
+    }
+
+    @Bean
+    public Binding auditDeadLetterBinding() {
+        return BindingBuilder.bind(auditDeadLetterQueue())
+                .to(auditDeadLetterExchange())
+                .with(AUDIT_DLQ);
+    }
+
+    @Bean
+    public Queue auditQueue() {
+        return QueueBuilder.durable(AUDIT_QUEUE)
+                .withArgument("x-dead-letter-exchange", AUDIT_DLX_EXCHANGE)
+                .withArgument("x-dead-letter-routing-key", AUDIT_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding auditBinding(Queue auditQueue, TopicExchange auditExchange) {
+        return BindingBuilder.bind(auditQueue).to(auditExchange).with(AUDIT_ROUTING_KEY);
     }
 
     @Bean
