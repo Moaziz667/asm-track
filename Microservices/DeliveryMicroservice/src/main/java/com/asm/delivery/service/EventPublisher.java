@@ -2,6 +2,7 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Handoff;
+import com.asm.delivery.entity.Notification;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStop;
@@ -41,6 +42,9 @@ public class EventPublisher {
 
     @Autowired
     private com.asm.delivery.repository.RouteStopRepository routeStopRepository;
+
+    @Autowired
+    private NotificationService notificationService;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -330,6 +334,15 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.warn("EVENT sla.breach deliveryId={} motif={} severity={}", delivery.getId(), motif, severity);
             sendDelivery("sla.breach", p);
+            String sevNorm = "critical".equalsIgnoreCase(severity) ? "critical" : "warning";
+            notificationService.record(Notification.builder()
+                    .eventType("sla.breach").severity(sevNorm)
+                    .title("SLA breach")
+                    .message(p.getSlaMessage())
+                    .orderRef(p.getErpOrderId()).deliveryId(p.getDeliveryId())
+                    .routeId(p.getRouteId()).driverName(p.getDriverName()).clientName(p.getClientName())
+                    .payload(new HashMap<String, Object>(p.getSlaParams() != null ? p.getSlaParams() : Map.of()))
+                    .build());
         });
     }
 
@@ -507,6 +520,14 @@ public class EventPublisher {
                     .motif(operation)
                     .build();
             sendErp("erp.sync_failed", p);
+            notificationService.record(Notification.builder()
+                    .eventType("erp.sync_failed").severity("critical")
+                    .title("ERP sync failed")
+                    .message((client != null ? client + " — " : "") + "Order " + (erpId != null ? erpId : dId)
+                            + " could not sync to the ERP (" + (operation != null ? operation : "SYNC") + ")")
+                    .orderRef(erpId).deliveryId(dId).clientName(client)
+                    .payload(new HashMap<>(Map.of("operation", operation != null ? operation : "SYNC")))
+                    .build());
         });
     }
 
@@ -532,6 +553,15 @@ public class EventPublisher {
                     .data(p)
                     .build();
             ws.convertAndSend("/topic/admin.deliveries", envelope);
+            notificationService.record(Notification.builder()
+                    .eventType("delivery.backorder_created").severity("info")
+                    .title("Backorder created")
+                    .message((client != null ? client + " — " : "") + "Remaining items for "
+                            + (orderRef != null ? orderRef : "order") + " — schedule re-delivery"
+                            + (backorderBlNumber != null ? " (" + backorderBlNumber + ")" : ""))
+                    .orderRef(orderRef).deliveryId(boId).clientName(client)
+                    .payload(new HashMap<>(Map.of("blNumber", backorderBlNumber != null ? backorderBlNumber : "")))
+                    .build());
         });
     }
 
