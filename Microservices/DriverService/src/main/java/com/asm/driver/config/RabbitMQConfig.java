@@ -19,9 +19,51 @@ public class RabbitMQConfig {
     public static final String DLX_EXCHANGE           = "driver.events.dlx";
     public static final String DLQ_DRIVER_STATUS      = "driver.status.changed.dlq";
 
+    // ── Commands from Delivery -> Driver (e.g. live location) ─────────────────
+    public static final String DRIVER_COMMANDS_EXCHANGE = "driver.commands";
+    public static final String DRIVER_LOCATION_ROUTING  = "driver.location.update";
+    public static final String DRIVER_LOCATION_QUEUE    = "driver.location.update.queue";
+    public static final String DRIVER_COMMANDS_DLX      = "driver.commands.dlx";
+    public static final String DRIVER_LOCATION_DLQ      = "driver.location.update.dlq";
+
     @Bean
     public TopicExchange driverEventsExchange() {
         return new TopicExchange(DRIVER_EVENTS_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public TopicExchange driverCommandsExchange() {
+        return new TopicExchange(DRIVER_COMMANDS_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange driverCommandsDlx() {
+        return new DirectExchange(DRIVER_COMMANDS_DLX, true, false);
+    }
+
+    @Bean
+    public Queue driverLocationDlq() {
+        return QueueBuilder.durable(DRIVER_LOCATION_DLQ).build();
+    }
+
+    @Bean
+    public Binding driverLocationDlqBinding() {
+        return BindingBuilder.bind(driverLocationDlq())
+                .to(driverCommandsDlx())
+                .with(DRIVER_LOCATION_DLQ);
+    }
+
+    @Bean
+    public Queue driverLocationQueue() {
+        return QueueBuilder.durable(DRIVER_LOCATION_QUEUE)
+                .withArgument("x-dead-letter-exchange", DRIVER_COMMANDS_DLX)
+                .withArgument("x-dead-letter-routing-key", DRIVER_LOCATION_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding driverLocationBinding(Queue driverLocationQueue, TopicExchange driverCommandsExchange) {
+        return BindingBuilder.bind(driverLocationQueue).to(driverCommandsExchange).with(DRIVER_LOCATION_ROUTING);
     }
 
     @Bean

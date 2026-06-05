@@ -29,12 +29,6 @@ public class MockTransportAdapter implements TransportPort {
     }
 
     @Override
-    public boolean updateLocation(String driverId, double lat, double lng) {
-        log.info("[Mock] updateLocation driverId={} lat={} lng={}", driverId, lat, lng);
-        return true;
-    }
-
-    @Override
     public boolean incrementStat(String driverId, String field) {
         log.info("[Mock] incrementStat driverId={} field={}", driverId, field);
         return true;

@@ -21,6 +21,10 @@ public class RabbitMQConfig {
     public static final String DLX_EXCHANGE            = "driver.events.dlx";
     public static final String DLQ_DRIVER_STATUS       = "driver.status.changed.dlq";
 
+    // ── Commands to Driver (Delivery → Driver, e.g. live location) ────────────
+    public static final String DRIVER_COMMANDS_EXCHANGE = "driver.commands";
+    public static final String DRIVER_LOCATION_ROUTING  = "driver.location.update";
+
     // ── Audit events (AppBackend → Delivery) ──────────────────────────────────
     public static final String AUDIT_EXCHANGE     = "audit.exchange";
     public static final String AUDIT_ROUTING_KEY  = "audit.log";
@@ -64,6 +68,12 @@ public class RabbitMQConfig {
         return BindingBuilder.bind(driverStatusQueue)
                 .to(driverEventsExchange)
                 .with(DRIVER_STATUS_ROUTING);
+    }
+
+    /** Exchange for Delivery → Driver commands (queue/bindings owned by DriverService). */
+    @Bean
+    public TopicExchange driverCommandsExchange() {
+        return new TopicExchange(DRIVER_COMMANDS_EXCHANGE, true, false);
     }
 
     // ── Audit topology ────────────────────────────────────────────────────────

@@ -43,17 +43,6 @@ public class InternalTransportAdapter implements TransportPort {
     }
 
     @Override
-    public boolean updateLocation(String driverId, double lat, double lng) {
-        try {
-            driverInternalClient.updateLocation(driverId, Map.of("lat", lat, "lng", lng));
-            return true;
-        } catch (Exception e) {
-            log.warn("Driver Service updateLocation({}) failed: {}", driverId, e.getMessage());
-            return false;
-        }
-    }
-
-    @Override
     public boolean incrementStat(String driverId, String field) {
         try {
             driverInternalClient.incrementStat(driverId, Map.of("field", field));

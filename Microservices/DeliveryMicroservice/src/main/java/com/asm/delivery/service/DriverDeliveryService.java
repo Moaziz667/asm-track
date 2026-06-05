@@ -11,8 +11,7 @@ import com.asm.delivery.repository.*;
 import com.asm.delivery.storage.MinioStorageService;
 import java.time.LocalDate;
 import com.asm.delivery.storage.StorageException;
-import com.asm.delivery.transport.TransportPort;
-import com.asm.delivery.transport.DriverDTO;
+import com.asm.delivery.messaging.DriverCommandPublisher;
 import org.springframework.dao.DataIntegrityViolationException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +39,7 @@ public class DriverDeliveryService {
     private final DeliveryReportRepository        reportRepo;
     private final EventPublisher                  eventPublisher;
     private final ProofOfDeliveryRepository       podRepo;
-    private final TransportPort                   transportPort;
+    private final DriverCommandPublisher          driverCommandPublisher;
     private final MinioStorageService             minioStorageService;
     private final com.asm.delivery.service.route.RouteExecutionService routeExecutionService;
     private final DelayCalculationService         delayCalculationService;
@@ -699,8 +698,9 @@ public class DriverDeliveryService {
             eventPublisher.publishDriverLocation(driverId, lat, lng);
             eventPublisher.publishPublicDriverLocation(delivery.getId(), lat, lng);
         }
-        // Direct synchronous call — location is best-effort, no outbox retry needed
-        transportPort.updateLocation(driverId.toString(), lat.doubleValue(), lng.doubleValue());
+        // Best-effort, high-frequency: publish to the broker (fire-and-forget) instead of a
+        // synchronous HTTP PUT, so DeliveryService is not coupled to DriverService uptime.
+        driverCommandPublisher.publishLocationUpdate(driverId, lat, lng);
     }
 
     // ── Workflow service integration ──────────────────────────────────────────
