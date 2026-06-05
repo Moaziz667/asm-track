@@ -18,9 +18,18 @@ public class Delivery {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "order_id", nullable = false, unique = true)
+    // A sale order has many shipments (original + backorders), so this is ManyToOne.
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "order_id", nullable = false)
     private Order order;
+
+    /** Odoo delivery-note (picking) number this shipment fulfils, e.g. "WH/OUT/00012". */
+    @Column(name = "bl_number", length = 100)
+    private String blNumber;
+
+    /** Odoo backorder picking id this shipment must validate (set on backorder shipments). */
+    @Column(name = "odoo_backorder_id")
+    private Integer odooBackorderId;
 
     @Column(name = "driver_id")
     private UUID driverId;
