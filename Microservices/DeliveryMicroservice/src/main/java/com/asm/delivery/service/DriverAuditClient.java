@@ -7,12 +7,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
@@ -32,7 +28,7 @@ import java.util.Map;
 @Slf4j
 public class DriverAuditClient {
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient = RestClient.create();
     private final ObjectMapper objectMapper;
 
     @Value("${driver.service.url}")
@@ -54,19 +50,20 @@ public class DriverAuditClient {
         if (from != null) url.append("&from=").append(from);
         if (to != null)   url.append("&to=").append(to);
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("Accept", "application/json");
         String bearer = currentBearer();
-        if (bearer != null) headers.setBearerAuth(bearer);
 
         try {
-            ResponseEntity<String> response = restTemplate.exchange(
-                    url.toString(), HttpMethod.GET, new HttpEntity<>(headers), String.class);
-            if (!response.getStatusCode().is2xxSuccessful() || response.getBody() == null) {
+            String responseBody = restClient.get()
+                    .uri(url.toString())
+                    .header("Accept", "application/json")
+                    .headers(h -> { if (bearer != null) h.setBearerAuth(bearer); })
+                    .retrieve()
+                    .body(String.class);
+            if (responseBody == null) {
                 return Collections.emptyList();
             }
             Map<String, Object> body = objectMapper.readValue(
-                    response.getBody(), new TypeReference<Map<String, Object>>() {});
+                    responseBody, new TypeReference<Map<String, Object>>() {});
             Object content = body.get("content");
             if (!(content instanceof List<?> list)) {
                 return Collections.emptyList();

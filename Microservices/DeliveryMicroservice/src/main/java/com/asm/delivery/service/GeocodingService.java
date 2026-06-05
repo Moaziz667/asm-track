@@ -2,13 +2,9 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.util.List;
 import java.util.Map;
@@ -53,13 +49,13 @@ public class GeocodingService {
     private static final double TN_LNG_MIN = 7.5;
     private static final double TN_LNG_MAX = 11.6;
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
     public GeocodingService() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
         factory.setReadTimeout(6000);
-        this.restTemplate = new RestTemplate(factory);
+        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
     /**
@@ -72,19 +68,12 @@ public class GeocodingService {
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_URL, Map.of("q", addressQuery))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
 
-            ResponseEntity<Map<String, Object>[]> response = restTemplate.exchange(
-                    NOMINATIM_URL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>[]>) (Class<?>) Map[].class,
-                    Map.of("q", addressQuery)
-            );
-
-            Map<String, Object>[] results = response.getBody();
             if (results == null || results.length == 0) {
                 log.debug("Nominatim: no results for query '{}'", addressQuery);
                 return GeocodeSuggestionResponse.builder().found(false).build();
@@ -131,19 +120,12 @@ public class GeocodingService {
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_URL_GLOBAL, Map.of("q", addressQuery))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
 
-            ResponseEntity<Map<String, Object>[]> response = restTemplate.exchange(
-                    NOMINATIM_URL_GLOBAL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>[]>) (Class<?>) Map[].class,
-                    Map.of("q", addressQuery)
-            );
-
-            Map<String, Object>[] results = response.getBody();
             if (results == null || results.length == 0) {
                 log.debug("Nominatim global: no results for query '{}'", addressQuery);
                 return GeocodeSuggestionResponse.builder().found(false).build();
@@ -183,19 +165,12 @@ public class GeocodingService {
     @SuppressWarnings("unchecked")
     public GeocodeSuggestionResponse reverseGeocode(double lat, double lng) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object> body = restClient.get()
+                    .uri(NOMINATIM_REVERSE_URL, Map.of("lat", lat, "lon", lng))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>>) (Class<?>) Map.class);
 
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    NOMINATIM_REVERSE_URL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>>) (Class<?>) Map.class,
-                    Map.of("lat", lat, "lon", lng)
-            );
-
-            Map<String, Object> body = response.getBody();
             if (body == null || body.get("error") != null) {
                 log.debug("Nominatim reverse: no result for ({}, {})", lat, lng);
                 return GeocodeSuggestionResponse.builder().found(false).lat(lat).lng(lng).build();

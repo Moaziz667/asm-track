@@ -3,9 +3,10 @@ package com.asm.erpadapter.adapter.odoo;
 import com.asm.erpadapter.exception.ErpAdapterException;
 import com.asm.erpadapter.service.SettingsClient;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
@@ -35,7 +36,7 @@ import java.util.Map;
 public class OdooJsonRpcClient {
 
     private final SettingsClient settingsClient;
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
     @org.springframework.beans.factory.annotation.Value("${allowed.erp.domains:}")
     private String allowedDomains;
@@ -51,7 +52,7 @@ public class OdooJsonRpcClient {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(connectMs);
         factory.setReadTimeout(readMs);
-        this.restTemplate = new RestTemplate(factory);
+        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
     private void validateUrl(String url) {
@@ -119,7 +120,11 @@ public class OdooJsonRpcClient {
                 return null;
             }
             validateUrl(url);
-            return restTemplate.postForObject(url, body, Map.class);
+            return restClient.post().uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
         } catch (Exception e) {
             // Swallow transport errors — callers check for null and treat as failure.
             List<?> args = (List<?>) params.get("args");

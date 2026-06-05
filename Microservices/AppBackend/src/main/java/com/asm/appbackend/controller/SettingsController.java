@@ -13,7 +13,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
-import org.springframework.web.client.RestTemplate;
 
 import java.util.HashMap;
 import java.util.List;
@@ -180,8 +179,12 @@ public class SettingsController {
             body.put("method", "call");
             body.put("params", params);
 
-            RestTemplate restTemplate = new RestTemplate();
-            Map response = restTemplate.postForObject(url, body, Map.class);
+            Map response = org.springframework.web.client.RestClient.create()
+                    .post().uri(url)
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
             
             if (response != null && response.containsKey("result")) {
                 return ResponseEntity.ok(Map.of("status", "success"));

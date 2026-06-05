@@ -4,12 +4,11 @@ import com.asm.erpadapter.service.SettingsClient;
 import com.asm.erpadapter.exception.ErpAdapterException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.net.URI;
 import java.util.List;
@@ -22,7 +21,7 @@ public class OdooReportClient {
 
     private final SettingsClient settingsClient;
     private final OdooJsonRpcClient rpc;
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestClient restClient = RestClient.create();
 
     private Map<String, Object> getConf() {
         var settings = settingsClient.getSettings();
@@ -73,7 +72,12 @@ public class OdooReportClient {
         );
 
         try {
-            ResponseEntity<Map> response = restTemplate.postForEntity(authUrl, body, Map.class);
+            ResponseEntity<Map> response = restClient.post()
+                    .uri(authUrl)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toEntity(Map.class);
             List<String> cookies = response.getHeaders().get(HttpHeaders.SET_COOKIE);
             if (cookies != null) {
                 for (String cookie : cookies) {
@@ -126,15 +130,13 @@ public class OdooReportClient {
         String baseUrl = getBaseUrl(urlStr);
         String reportUrl = baseUrl + "/report/pdf/" + reportName + "/" + pickingId;
 
-        HttpHeaders headers = new HttpHeaders();
-        headers.add(HttpHeaders.COOKIE, cookie);
-        headers.add(HttpHeaders.ACCEPT, "application/pdf");
-
-        HttpEntity<Void> request = new HttpEntity<>(headers);
-
         try {
-            ResponseEntity<byte[]> response = restTemplate.exchange(reportUrl, HttpMethod.GET, request, byte[].class);
-            byte[] pdfBytes = response.getBody();
+            byte[] pdfBytes = restClient.get()
+                    .uri(reportUrl)
+                    .header(HttpHeaders.COOKIE, cookie)
+                    .accept(MediaType.APPLICATION_PDF)
+                    .retrieve()
+                    .body(byte[].class);
             if (pdfBytes == null || pdfBytes.length < 4) {
                 throw ErpAdapterException.internal("Réponse PDF vide ou invalide");
             }
