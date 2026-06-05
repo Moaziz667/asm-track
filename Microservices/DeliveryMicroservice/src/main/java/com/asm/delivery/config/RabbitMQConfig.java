@@ -174,6 +174,12 @@ public class RabbitMQConfig {
      * is logged instead of silently lost. Requires {@code spring.rabbitmq.publisher-confirm-type=correlated}
      * and {@code publisher-returns=true} (set in application.yml).
      */
+    /** Explicit RabbitAdmin so it is injectable (DLQ inspection/replay) and declares the topology. */
+    @Bean
+    public org.springframework.amqp.rabbit.core.RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        return new org.springframework.amqp.rabbit.core.RabbitAdmin(connectionFactory);
+    }
+
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory, MessageConverter messageConverter) {
         RabbitTemplate template = new RabbitTemplate(connectionFactory);
