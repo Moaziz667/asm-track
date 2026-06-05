@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
 
@@ -6,12 +5,8 @@ export default function CallbackPage() {
   const auth = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (auth.isAuthenticated) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [auth.isAuthenticated, navigate]);
-
+  // On success, PublicRoute redirects authenticated users to /dashboard.
+  // This page only renders while the code exchange is in flight, or on error.
   if (auth.error) {
     return (
       <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>

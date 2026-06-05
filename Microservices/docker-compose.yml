@@ -119,7 +119,9 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
-      - ./keycloak/themes:/opt/keycloak/themes
+      # Keycloakify outputs the theme as a JAR. Deploy it as a provider so every
+      # `npm run build-keycloak-theme` is picked up on the next Keycloak restart.
+      - ../Apps/admin-app-react/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/asm-theme.jar:ro
     ports:
       - "8089:8080"
     depends_on:
@@ -252,6 +254,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      AUTH_ISSUER_URL: http://localhost:8089/realms/asm
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -397,6 +400,7 @@ services:
       DB_PASS: ${DRIVER_DB_PASS}
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       AUTH_SERVER_URL: http://keycloak:8080/realms/asm
+      AUTH_ISSUER_URL: http://localhost:8089/realms/asm
       CLIENT_ID: driver-service
       CLIENT_SECRET: ${CLIENT_SECRET_DRIVER}
       RESEND_API_KEY: ${RESEND_API_KEY}

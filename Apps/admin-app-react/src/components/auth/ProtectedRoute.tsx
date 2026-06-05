@@ -1,22 +1,31 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
-import { safeStorage } from '@/lib/storage';
+import { useAuth } from 'react-oidc-context';
 
 interface ProtectedRouteProps {
   children: ReactNode;
 }
 
-export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
-  const location = useLocation();
-  const token = safeStorage.getItem('access_token');
-  // Additionally, you can check user data here.
-  const hasUser = safeStorage.getItem('admin_user') || safeStorage.getItem('admin_name') || safeStorage.getItem('role');
+function AuthLoading() {
+  return (
+    <div style={{ height: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg className="animate-spin" style={{ color: 'var(--brand)' }} width="32" height="32" viewBox="0 0 24 24" fill="none">
+        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25" />
+        <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+    </div>
+  );
+}
 
-  if (!token && !hasUser) {
-    // Redirect them to the /login page, but save the current location they were
-    // trying to go to when they were redirected. This allows us to send them
-    // along to that page after they login, which is a nicer user experience
-    // than dropping them off on the home page.
+export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
+  const auth = useAuth();
+  const location = useLocation();
+
+  // Wait for the OIDC session to restore before deciding — prevents a redirect
+  // race that bounces authenticated users back to /login on refresh.
+  if (auth.isLoading) return <AuthLoading />;
+
+  if (!auth.isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
@@ -24,10 +33,11 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
 };
 
 export const PublicRoute = ({ children }: ProtectedRouteProps) => {
-  const token = safeStorage.getItem('access_token');
-  const hasUser = safeStorage.getItem('admin_user') || safeStorage.getItem('admin_name') || safeStorage.getItem('role');
+  const auth = useAuth();
 
-  if (token || hasUser) {
+  if (auth.isLoading) return <AuthLoading />;
+
+  if (auth.isAuthenticated) {
     return <Navigate to="/dashboard" replace />;
   }
 

@@ -55,6 +55,14 @@ api.interceptors.response.use(
       safeStorage.removeItem('role');
       safeStorage.removeItem('admin_name');
       safeStorage.removeItem('admin_user');
+      // Also clear the OIDC session so route guards don't treat the user as
+      // authenticated and bounce them straight back (401 redirect loop).
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith('oidc.')) localStorage.removeItem(key);
+        }
+      } catch { /* private mode — safeStorage fallback, nothing to purge */ }
       window.location.href = '/login';
     }
 

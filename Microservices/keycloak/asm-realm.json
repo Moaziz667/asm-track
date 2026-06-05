@@ -95,7 +95,8 @@
         "http://localhost"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "post.logout.redirect.uris": "+"
       },
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
@@ -249,7 +250,7 @@
     "user": "resend",
     "password": "${RESEND_API_KEY}"
   },
-  "loginTheme": "aws",
+  "loginTheme": "asm",
   "accountTheme": "",
   "adminTheme": "",
   "emailTheme": "",

@@ -60,7 +60,7 @@ public class SecurityConfig {
     @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
     private String jwkSetUri;
 
-    @org.springframework.beans.factory.annotation.Value("${auth.server.url:http://keycloak:8080/realms/asm}")
+    @org.springframework.beans.factory.annotation.Value("${auth.issuer.url:${auth.server.url:http://keycloak:8080/realms/asm}}")
     private String issuerUri;
 
     @Bean
@@ -76,13 +76,20 @@ public class SecurityConfig {
                         withIssuer,
                         jwt -> {
                             java.util.List<String> aud = jwt.getAudience();
-                            if (aud != null && (aud.contains("admin-web") || aud.contains("erp-adapter")
-                                    || aud.contains("delivery-service") || aud.contains("driver-service"))) {
+                            String azp = jwt.getClaimAsString("azp");
+                            
+                            boolean hasValidAud = aud != null && (aud.contains("admin-web") || aud.contains("erp-adapter")
+                                    || aud.contains("delivery-service") || aud.contains("driver-service"));
+                                    
+                            boolean hasValidAzp = azp != null && (azp.equals("admin-web") || azp.equals("erp-adapter")
+                                    || azp.equals("delivery-service") || azp.equals("driver-service"));
+
+                            if (hasValidAud || hasValidAzp) {
                                 return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
                             }
                             return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
                                     new org.springframework.security.oauth2.core.OAuth2Error(
-                                            "invalid_token", "Required audience is missing", null));
+                                            "invalid_token", "Required audience or azp is missing", null));
                         }
                 );
 

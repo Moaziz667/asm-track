@@ -37,6 +37,8 @@ invite:
 auth:
   server:
     url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
+  issuer:
+    url: ${AUTH_ISSUER_URL:${auth.server.url}}
   client:
     id: ${CLIENT_ID:driver-service}
     secret: ${CLIENT_SECRET:changeme}

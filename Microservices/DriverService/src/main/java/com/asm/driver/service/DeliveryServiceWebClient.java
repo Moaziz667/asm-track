@@ -30,7 +30,7 @@ public class DeliveryServiceWebClient {
     @Value("${auth.client.id:driver-service}")
     private String clientId;
 
-    @Value("${auth.client.secret:7gc13nP8d87F3MzGZxT5qV8qtjqnkPTpKEQwdhjCkAk=}")
+    @Value("${auth.client.secret}")
     private String clientSecret;
 
     private String cachedToken;

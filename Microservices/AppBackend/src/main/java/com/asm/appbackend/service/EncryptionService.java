@@ -60,24 +60,15 @@ public class EncryptionService {
         if (strToDecrypt == null || strToDecrypt.isBlank()) return null;
         try {
             byte[] decoded = Base64.getDecoder().decode(strToDecrypt);
-            if (decoded.length >= GCM_IV_LENGTH) {
-                try {
-                    byte[] iv = new byte[GCM_IV_LENGTH];
-                    System.arraycopy(decoded, 0, iv, 0, GCM_IV_LENGTH);
-                    byte[] ciphertext = new byte[decoded.length - GCM_IV_LENGTH];
-                    System.arraycopy(decoded, GCM_IV_LENGTH, ciphertext, 0, ciphertext.length);
-                    Cipher cipher = Cipher.getInstance(GCM_ALGORITHM);
-                    javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(GCM_TAG_LENGTH, iv);
-                    cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
-                    return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
-                } catch (Exception gcmEx) {
-                    log.debug("GCM decryption failed, trying ECB fallback...", gcmEx);
-                }
+            if (decoded.length <= GCM_IV_LENGTH) {
+                throw new IllegalArgumentException("Ciphertext too short");
             }
-            // ECB Fallback
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey);
-            return new String(cipher.doFinal(decoded), StandardCharsets.UTF_8);
+            byte[] iv = Arrays.copyOfRange(decoded, 0, GCM_IV_LENGTH);
+            byte[] ciphertext = Arrays.copyOfRange(decoded, GCM_IV_LENGTH, decoded.length);
+            Cipher cipher = Cipher.getInstance(GCM_ALGORITHM);
+            javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
+            return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("Error while decrypting: {}", e.getMessage());
             throw new RuntimeException("Decryption failed");

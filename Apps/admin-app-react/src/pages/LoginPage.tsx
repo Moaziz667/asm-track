@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { IconAlertCircle, IconSun, IconMoon } from '@tabler/icons-react';
 import { useT, useLocaleContext } from '@/lib/LocaleContext';
@@ -12,15 +12,34 @@ export default function LoginPage() {
   const auth = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const triggered = useRef(false);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
+  const startLogin = () => {
     setLoading(true);
     auth.signinRedirect().catch((err) => {
       setError(err.message);
       setLoading(false);
+      triggered.current = false;
     });
   };
+
+  // Keycloak is the first page: redirect straight there on load. The branded
+  // card below only shows briefly (or as an error/retry fallback).
+  useEffect(() => {
+    if (triggered.current) return;
+    if (auth.isLoading || auth.activeNavigator) return;
+    if (auth.isAuthenticated || auth.error) return;
+    triggered.current = true;
+    startLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isLoading, auth.activeNavigator, auth.isAuthenticated, auth.error]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    startLogin();
+  };
+
+  const displayError = error || auth.error?.message || '';
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
 
@@ -123,7 +142,7 @@ export default function LoginPage() {
           </p>
 
           {/* Error area */}
-          {error && (
+          {displayError && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -136,7 +155,7 @@ export default function LoginPage() {
               flexDirection: isRTL ? 'row-reverse' : 'row'
             }}>
               <IconAlertCircle size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)' }}>{error}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)' }}>{displayError}</span>
             </div>
           )}
 

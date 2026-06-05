@@ -171,17 +171,22 @@ public class AdminDriverService {
         Driver driver = driverRepo.findById(invite.getDriverId())
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
-        // Update password in Keycloak
-        keycloakAdminClient.resetPassword(driver.getId().toString(), newPassword);
-        // Explicitly enable user immediately in Keycloak to prevent sync lockout delay
-        keycloakAdminClient.enableDriver(driver.getId().toString());
-
+        // Commit DB state first — Keycloak is external and can't participate in the transaction
         driver.setAccountStatus(DriverAccountStatus.ACTIVE);
         driver.setIsRegistered(true);
         driverRepo.save(driver);
 
         invite.setUsed(true);
         inviteTokenRepo.save(invite);
+
+        // Keycloak update after DB commit — if this fails the scheduler reconciles
+        try {
+            keycloakAdminClient.resetPassword(driver.getId().toString(), newPassword);
+            keycloakAdminClient.enableDriver(driver.getId().toString());
+        } catch (Exception e) {
+            log.warn("Keycloak update failed during driver setup (id={}). Reconciliation will retry: {}",
+                    driver.getId(), e.getMessage());
+        }
 
         return toResponse(driver);
     }
@@ -383,7 +388,7 @@ public class AdminDriverService {
 
     // ── Import ──────────────────────────────────────────────────────────────
 
-    @Transactional
+    // CSV format: name,phone,email  (header row is skipped)
     public List<AdminDriverResponse> importCsv(MultipartFile file, UserPrincipal actor) {
         List<AdminDriverResponse> created = new ArrayList<>();
         int skipped = 0;
@@ -396,14 +401,17 @@ public class AdminDriverService {
                 if (cols.length < 3) { skipped++; continue; }
                 String name  = cols[0].trim();
                 String phone = cols[1].trim();
-                String pass  = cols[2].trim();
-                if (name.isBlank() || phone.isBlank() || pass.isBlank()) { skipped++; continue; }
-                if (driverRepo.existsByPhone(phone)) { skipped++; continue; }
-                Driver driver = Driver.builder()
-                        .name(name).phone(phone)
-                        .accountStatus(DriverAccountStatus.ACTIVE).build();
-                Driver saved = driverRepo.save(driver);
-                created.add(toResponse(saved));
+                String email = cols[2].trim();
+                if (name.isBlank() || phone.isBlank() || email.isBlank()) { skipped++; continue; }
+                if (driverRepo.existsByPhone(phone) || driverRepo.existsByEmail(email)) { skipped++; continue; }
+                try {
+                    // Reuse the full invite flow: creates driver + Keycloak account + sends email
+                    AdminDriverResponse resp = invite(name, phone, email, actor);
+                    created.add(resp);
+                } catch (Exception e) {
+                    log.warn("CSV import: skipping row (name={}, phone={}): {}", name, phone, e.getMessage());
+                    skipped++;
+                }
             }
         } catch (Exception e) {
             throw AppException.badRequest("CSV parsing failed: " + e.getMessage());

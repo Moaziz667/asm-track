@@ -204,7 +204,7 @@ public class SettingsController {
     public ResponseEntity<SystemSettingsDto> getInternalErpSettings() {
         SystemSettings settings = repository.findById("SINGLETON").orElse(null);
         if (settings == null) {
-            return ResponseEntity.notFound().build();
+            return ResponseEntity.ok(new SystemSettingsDto("NONE", null));
         }
 
         Map<String, Object> configMap = null;

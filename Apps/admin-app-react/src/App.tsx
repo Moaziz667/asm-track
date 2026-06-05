@@ -50,19 +50,11 @@ const LazyLoad = ({ children }: { children: React.ReactNode }) => (
 );
 
 const AppShellLayout = () => {
-  return (
-    <Providers>
-      <AppShell><Outlet /></AppShell>
-    </Providers>
-  );
+  return <AppShell><Outlet /></AppShell>;
 };
 
 const PublicProvidersLayout = () => {
-  return (
-    <Providers>
-      <PublicLayout />
-    </Providers>
-  );
+  return <PublicLayout />;
 };
 
 const router = createBrowserRouter([
@@ -115,7 +107,9 @@ const router = createBrowserRouter([
 function App() {
   return (
     <ErrorBoundary>
-      <RouterProvider router={router} />
+      <Providers>
+        <RouterProvider router={router} />
+      </Providers>
     </ErrorBoundary>
   );
 }
