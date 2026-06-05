@@ -32,6 +32,10 @@ dependencies {
     // Service-to-service: declarative HTTP clients + OAuth2 client_credentials token management
     implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
     implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+    // Observability + resilience
+    implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'io.micrometer:micrometer-registry-prometheus'
+    implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-resilience4j'
 
     // Spring Boot Starters
     implementation ('org.springframework.boot:spring-boot-starter-web') {

@@ -35,6 +35,7 @@ public class SecurityConfig {
                     "/v3/api-docs"
                 ).permitAll()
                 .requestMatchers("/ws/**").permitAll()
+                .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/api/orders/**").hasRole("CLIENT")
                 .requestMatchers("/api/driver/deliveries/**").hasRole("DRIVER")
                 .requestMatchers("/api/driver/profile/**").hasRole("DRIVER")

@@ -5,6 +5,11 @@ spring:
   application:
     name: driver-service
 
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
   # Host/credentials are supplied via SPRING_RABBITMQ_* env vars (see docker-compose).
   rabbitmq:
     publisher-confirm-type: correlated
@@ -68,3 +73,14 @@ auth:
   client:
     id: ${CLIENT_ID:driver-service}
     secret: ${CLIENT_SECRET}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized

@@ -5,6 +5,11 @@ spring:
   application:
     name: app-backend-service
 
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
   security:
     oauth2:
       resourceserver:
@@ -76,4 +81,15 @@ springdoc:
 delivery:
   service:
     url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
 

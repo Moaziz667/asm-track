@@ -13,6 +13,11 @@ spring:
   application:
     name: delivery-service
 
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
   rabbitmq:
     host: ${RABBITMQ_HOST:localhost}
     port: 5672
@@ -199,3 +204,14 @@ springdoc:
   api-docs:
     path: /v3/api-docs
   default-produces-media-type: application/json
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized

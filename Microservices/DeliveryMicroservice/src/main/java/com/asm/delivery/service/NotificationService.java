@@ -46,6 +46,7 @@ public class NotificationService {
 
         Specification<Notification> spec = (root, query, cb) -> {
             List<Predicate> p = new ArrayList<>();
+            p.add(cb.isFalse(root.get("acknowledged")));
             if (severity != null && !severity.isBlank()) {
                 p.add(cb.equal(cb.lower(root.get("severity")), severity.toLowerCase().trim()));
             }
