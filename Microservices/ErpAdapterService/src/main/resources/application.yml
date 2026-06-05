@@ -20,6 +20,20 @@ spring:
         provider:
           asm-keycloak:
             token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
+  # Host/credentials supplied via SPRING_RABBITMQ_* env vars (see docker-compose).
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 3000ms
+          max-attempts: 5
+          multiplier: 2.0
+          max-interval: 60000ms
   datasource:
     url: jdbc:h2:file:${ERP_DB_PATH:/data/erp_adapter_db};DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
     driver-class-name: org.h2.Driver

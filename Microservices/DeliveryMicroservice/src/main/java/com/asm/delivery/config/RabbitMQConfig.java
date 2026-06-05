@@ -25,6 +25,15 @@ public class RabbitMQConfig {
     public static final String DRIVER_COMMANDS_EXCHANGE = "driver.commands";
     public static final String DRIVER_LOCATION_ROUTING  = "driver.location.update";
 
+    // ── ERP sync (Delivery → ErpAdapter command; ErpAdapter → Delivery result) ─
+    public static final String ERP_SYNC_EXCHANGE        = "erp.sync.exchange";
+    public static final String ERP_SYNC_ROUTING         = "erp.sync.command";
+    public static final String ERP_SYNC_RESULT_EXCHANGE = "erp.sync.result.exchange";
+    public static final String ERP_SYNC_RESULT_ROUTING  = "erp.sync.result";
+    public static final String ERP_SYNC_RESULT_QUEUE    = "erp.sync.result.queue";
+    public static final String ERP_SYNC_RESULT_DLX      = "erp.sync.result.dlx";
+    public static final String ERP_SYNC_RESULT_DLQ      = "erp.sync.result.dlq";
+
     // ── Audit events (AppBackend → Delivery) ──────────────────────────────────
     public static final String AUDIT_EXCHANGE     = "audit.exchange";
     public static final String AUDIT_ROUTING_KEY  = "audit.log";
@@ -74,6 +83,47 @@ public class RabbitMQConfig {
     @Bean
     public TopicExchange driverCommandsExchange() {
         return new TopicExchange(DRIVER_COMMANDS_EXCHANGE, true, false);
+    }
+
+    // ── ERP sync command exchange (publish) + result queue (consume) ──────────
+
+    /** Command exchange — Delivery publishes; the queue/binding are owned by ErpAdapter. */
+    @Bean
+    public TopicExchange erpSyncExchange() {
+        return new TopicExchange(ERP_SYNC_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public TopicExchange erpSyncResultExchange() {
+        return new TopicExchange(ERP_SYNC_RESULT_EXCHANGE, true, false);
+    }
+
+    @Bean
+    public DirectExchange erpSyncResultDlx() {
+        return new DirectExchange(ERP_SYNC_RESULT_DLX, true, false);
+    }
+
+    @Bean
+    public Queue erpSyncResultDlq() {
+        return QueueBuilder.durable(ERP_SYNC_RESULT_DLQ).build();
+    }
+
+    @Bean
+    public Binding erpSyncResultDlqBinding() {
+        return BindingBuilder.bind(erpSyncResultDlq()).to(erpSyncResultDlx()).with(ERP_SYNC_RESULT_DLQ);
+    }
+
+    @Bean
+    public Queue erpSyncResultQueue() {
+        return QueueBuilder.durable(ERP_SYNC_RESULT_QUEUE)
+                .withArgument("x-dead-letter-exchange", ERP_SYNC_RESULT_DLX)
+                .withArgument("x-dead-letter-routing-key", ERP_SYNC_RESULT_DLQ)
+                .build();
+    }
+
+    @Bean
+    public Binding erpSyncResultBinding(Queue erpSyncResultQueue, TopicExchange erpSyncResultExchange) {
+        return BindingBuilder.bind(erpSyncResultQueue).to(erpSyncResultExchange).with(ERP_SYNC_RESULT_ROUTING);
     }
 
     // ── Audit topology ────────────────────────────────────────────────────────

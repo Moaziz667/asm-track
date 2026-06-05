@@ -1,0 +1,85 @@
+package com.asm.delivery.messaging;
+
+import com.asm.delivery.config.RabbitMQConfig;
+import com.asm.delivery.dto.request.PartialDeliveryItem;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitTemplate;
+import org.springframework.stereotype.Component;
+
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Publishes ERP-sync commands (mapped from delivery outcomes) to {@code erp.sync.exchange}.
+ * The Outbox guarantees the publish happens once; ErpAdapter applies it to Odoo (idempotent on
+ * {@code txId}) and replies with a result event consumed by {@code ErpSyncResultConsumer}.
+ * {@code orderId} is carried for result correlation.
+ */
+@Component
+@RequiredArgsConstructor
+@Slf4j
+public class ErpSyncCommandPublisher {
+
+    private final RabbitTemplate rabbitTemplate;
+
+    public void publishStockFull(String orderId, String erpOrderId, Integer backorderPickingId,
+                                 String pickingRef, String txId) {
+        Map<String, Object> cmd = base("STOCK_FULL", orderId, erpOrderId, pickingRef, txId);
+        if (backorderPickingId != null) cmd.put("backorderPickingId", backorderPickingId);
+        send(cmd);
+    }
+
+    public void publishStockPartial(String orderId, String erpOrderId, List<PartialDeliveryItem> items,
+                                    String pickingRef, String txId) {
+        Map<String, Object> cmd = base("STOCK_PARTIAL", orderId, erpOrderId, pickingRef, txId);
+        cmd.put("partialItems", mapItems(items));
+        send(cmd);
+    }
+
+    public void publishFailure(String orderId, String erpOrderId, String failureCode, String comment,
+                               String pickingRef, String txId) {
+        Map<String, Object> cmd = base("FAILURE", orderId, erpOrderId, pickingRef, txId);
+        cmd.put("failureCode", failureCode);
+        cmd.put("comment", comment);
+        send(cmd);
+    }
+
+    public void publishCancellation(String orderId, String erpOrderId, String pickingRef, String txId) {
+        send(base("CANCELLATION", orderId, erpOrderId, pickingRef, txId));
+    }
+
+    private Map<String, Object> base(String op, String orderId, String erpOrderId, String pickingRef, String txId) {
+        Map<String, Object> cmd = new HashMap<>();
+        cmd.put("op", op);
+        cmd.put("txId", txId);
+        cmd.put("orderId", orderId);
+        cmd.put("erpOrderId", erpOrderId);
+        if (pickingRef != null) cmd.put("pickingRef", pickingRef);
+        return cmd;
+    }
+
+    private List<Map<String, Object>> mapItems(List<PartialDeliveryItem> items) {
+        List<Map<String, Object>> out = new ArrayList<>();
+        if (items == null) return out;
+        for (PartialDeliveryItem item : items) {
+            Map<String, Object> m = new HashMap<>();
+            m.put("referenceKey", item.referenceKey());
+            m.put("quantityDone", item.getQuantityDone());
+            if (item.getName() != null)             m.put("itemName", item.getName());
+            if (item.getOutcome() != null)          m.put("outcome", item.effectiveOutcome());
+            if (item.getReason() != null)           m.put("reason", item.getReason());
+            if (item.getComment() != null)          m.put("comment", item.getComment());
+            out.add(m);
+        }
+        return out;
+    }
+
+    private void send(Map<String, Object> cmd) {
+        // Allowed to throw: the Outbox treats a publish failure as retryable so the command is never lost.
+        rabbitTemplate.convertAndSend(RabbitMQConfig.ERP_SYNC_EXCHANGE, RabbitMQConfig.ERP_SYNC_ROUTING, cmd);
+        log.info("Published ERP sync command op={} orderId={} txId={}", cmd.get("op"), cmd.get("orderId"), cmd.get("txId"));
+    }
+}

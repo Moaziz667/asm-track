@@ -374,6 +374,12 @@ services:
       CLIENT_SECRET: ${CLIENT_SECRET_ERP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       ERP_DB_PATH: /data/erp_adapter_db
+      SPRING_RABBITMQ_HOST: rabbitmq
+      SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
+      SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
     volumes:
       - erp-adapter-data:/data
     healthcheck:

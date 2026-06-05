@@ -9,15 +9,11 @@ import com.asm.delivery.repository.OutboxRepository;
 import com.asm.delivery.transport.TransportPort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -35,10 +31,6 @@ public class OutboxProcessor {
     private final TransportPort transportPort;
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
-    private final RestTemplate alertRestTemplate = new RestTemplate();
-
-    @Value("${outbox.alert.webhook-url:}")
-    private String alertWebhookUrl;
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
@@ -136,7 +128,6 @@ public class OutboxProcessor {
                     log.error("Failed to mark order sync status as SYNC_FAILED for eventId={}: {}", eventId, ex.getMessage());
                 }
 
-                sendDeadLetterAlert(eventId, event.getEventType(), error);
                 notifyErpSyncFailed(event);
             }
             outboxRepo.save(event);
@@ -248,22 +239,6 @@ public class OutboxProcessor {
         String code = (String) payload.get("failureCode");
         String comment = (String) payload.get("comment");
         erpSyncService.syncFailure(delivery.getOrder(), code, comment, txId);
-    }
-
-    private void sendDeadLetterAlert(UUID eventId, String eventType, String error) {
-        if (alertWebhookUrl == null || alertWebhookUrl.isBlank()) return;
-        try {
-            String text = String.format(
-                    ":red_circle: *ASM Track — Outbox Dead Letter*\n" +
-                    "• eventId: `%s`\n• eventType: `%s`\n• error: `%s`",
-                    eventId, eventType, error != null ? error : "unknown");
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            alertRestTemplate.exchange(alertWebhookUrl, HttpMethod.POST,
-                    new HttpEntity<>(Map.of("text", text), headers), String.class);
-        } catch (Exception ex) {
-            log.warn("Failed to send dead-letter alert for eventId={}: {}", eventId, ex.getMessage());
-        }
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

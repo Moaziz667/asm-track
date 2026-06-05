@@ -37,6 +37,8 @@ dependencies {
 	// Service-to-service: declarative HTTP clients + OAuth2 client_credentials token management
 	implementation 'org.springframework.cloud:spring-cloud-starter-openfeign'
 	implementation 'org.springframework.boot:spring-boot-starter-oauth2-client'
+	// Async messaging (ERP sync commands in, results out)
+	implementation 'org.springframework.boot:spring-boot-starter-amqp'
 
 	implementation 'org.springframework.boot:spring-boot-starter-web'
 	implementation 'org.springframework.boot:spring-boot-starter-security'
