@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 import { lazy as dynamic } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { Skeleton } from '@mantine/core';
+import { Skeleton } from '@/components/ui/skeleton';
 import { IconPhone, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
 
@@ -92,12 +92,12 @@ export default function TrackingPage() {
 
   if (loading) return (
     <div style={{ position: 'fixed', inset: 0, background: '#fff' }}>
-      <Skeleton height="45%" radius={0} />
+      <Skeleton className="h-[45%] w-full rounded-none" />
       <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Skeleton height={72} radius={12} />
-        <Skeleton height={48} radius={12} />
-        <Skeleton height={120} radius={12} />
-        <Skeleton height={64} radius={12} />
+        <Skeleton className="h-[72px] w-full rounded-xl" />
+        <Skeleton className="h-12 w-full rounded-xl" />
+        <Skeleton className="h-[120px] w-full rounded-xl" />
+        <Skeleton className="h-16 w-full rounded-xl" />
       </div>
     </div>
   );

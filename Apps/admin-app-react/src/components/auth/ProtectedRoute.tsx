@@ -1,6 +1,8 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
+import { AdminRole, getCurrentRole } from '@/lib/auth';
+import { Forbidden } from '@/pages/Forbidden';
 
 interface ProtectedRouteProps {
   children: ReactNode;
@@ -29,6 +31,18 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps) => {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }
 
+  return <>{children}</>;
+};
+
+/**
+ * Declarative role gate. Renders a proper 403 page when the current role is not
+ * permitted, instead of silently bouncing to the dashboard. Sits inside
+ * ProtectedRoute, so the user is already authenticated here.
+ */
+export const RoleRoute = ({ allow, children }: { allow: AdminRole[]; children: ReactNode }) => {
+  const role = getCurrentRole();
+  if (role === 'UNKNOWN') return <AuthLoading />;
+  if (!allow.includes(role)) return <Forbidden requiredRoles={allow} />;
   return <>{children}</>;
 };
 

@@ -8,6 +8,7 @@ import { ModalRenderer } from '@/lib/modal-manager/ModalRenderer';
 import { LocaleProvider } from '@/lib/LocaleContext';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { oidcConfig, syncSession } from '@/lib/oidcConfig';
+import { registerTokenRefresher, registerLogoutHandler } from '@/lib/api';
 
 type ProvidersProps = {
   children: ReactNode;
@@ -24,6 +25,22 @@ function AuthSync() {
       syncSession(auth.user);
     }
   }, [auth.isAuthenticated, auth.user]);
+
+  // Let the axios layer drive a silent renew on 401 (single-flight) and retry,
+  // instead of hard-redirecting on the first expired token.
+  useEffect(() => {
+    registerTokenRefresher(async () => {
+      const user = await auth.signinSilent();
+      syncSession(user);
+      return user;
+    });
+    registerLogoutHandler(() => { void auth.removeUser(); });
+    return () => {
+      registerTokenRefresher(null);
+      registerLogoutHandler(null);
+    };
+  }, [auth]);
+
   return null;
 }
 

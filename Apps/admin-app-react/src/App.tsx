@@ -2,37 +2,44 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-rou
 import { lazy, Suspense } from 'react';
 import Providers from './Providers';
 import AppShell from '@/components/AppShell';
-import { ProtectedRoute, PublicRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute, PublicRoute, RoleRoute } from './components/auth/ProtectedRoute';
 import { PublicLayout } from './layouts/PublicLayout';
+import type { AdminRole } from '@/lib/auth';
 
 // Public Pages
 import LoginPage from './pages/LoginPage';
 import CallbackPage from './pages/CallbackPage';
 import TrackDeliveryPage from './pages/TrackDeliveryPage';
 
-// Protected Pages
+// Protected Pages (light, loaded eagerly)
 import DashboardPage from './pages/DashboardPage';
 import DeliveriesPage from './pages/DeliveriesPage';
-import DeliveryDetailsPage from './pages/DeliveryDetailsPage';
-import RoutesTablePage from './pages/RoutesTablePage';
-import DriversPage from './pages/DriversPage';
-import VehiclesPage from './pages/VehiclesPage';
-import DepotsPage from './pages/DepotsPage';
-import CompaniesPage from './pages/CompaniesPage';
-import OperationsPage from './pages/OperationsPage';
-import PerformancePage from './pages/PerformancePage';
-import SettingsPage from './pages/SettingsPage';
-import ErpIntegrationPage from './pages/ErpIntegrationPage';
-import AuditLogsPage from './pages/AuditLogsPage';
-import ImportPage from './pages/ImportPage';
 import NotificationsPage from './pages/NotificationsPage';
 import ErrorBoundary from './components/ErrorBoundary';
+import NotFound from './pages/NotFound';
 
-// Lazy Loaded Heavy Pages
+// Lazy-loaded pages (heavy deps: maps, charts, xlsx, drag-and-drop, editors)
+const DeliveryDetailsPage = lazy(() => import('./pages/DeliveryDetailsPage'));
+const RoutesTablePage = lazy(() => import('./pages/RoutesTablePage'));
+const DriversPage = lazy(() => import('./pages/DriversPage'));
+const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
+const DepotsPage = lazy(() => import('./pages/DepotsPage'));
+const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
+const OperationsPage = lazy(() => import('./pages/OperationsPage'));
+const PerformancePage = lazy(() => import('./pages/PerformancePage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const ErpIntegrationPage = lazy(() => import('./pages/ErpIntegrationPage'));
+const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
+const ImportPage = lazy(() => import('./pages/ImportPage'));
 const DispatchDeskPage = lazy(() => import('./pages/dispatch-desk/DispatchDeskPage'));
 const RouteBuilderPage = lazy(() => import('./pages/route-builder/RouteBuilderPage'));
 const RouteDetailsPage = lazy(() => import('./pages/RouteDetailsPage'));
 const ZonesPage = lazy(() => import('./pages/ZonesPage'));
+
+// ── Role groups (mirrors lib/auth capability predicates) ─────────────────────
+const ALL: AdminRole[] = ['ADMIN', 'DISPATCHER', 'MANAGER'];
+const DISPATCH: AdminRole[] = ['ADMIN', 'DISPATCHER'];
+const ADMIN_ONLY: AdminRole[] = ['ADMIN'];
 
 const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   <Suspense
@@ -47,6 +54,13 @@ const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   >
     {children}
   </Suspense>
+);
+
+/** Compose role gating + lazy Suspense for a protected page element. */
+const guard = (allow: AdminRole[], element: React.ReactNode) => (
+  <RoleRoute allow={allow}>
+    <LazyLoad>{element}</LazyLoad>
+  </RoleRoute>
 );
 
 const AppShellLayout = () => {
@@ -80,28 +94,29 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: "/", element: <Navigate to="/dashboard" replace /> },
-      { path: "/dashboard", element: <DashboardPage /> },
-      { path: "/deliveries", element: <DeliveriesPage /> },
-      { path: "/deliveries/:id", element: <DeliveryDetailsPage /> },
-      { path: "/dispatch-desk", element: <LazyLoad><DispatchDeskPage /></LazyLoad> },
-      { path: "/routes-table", element: <RoutesTablePage /> },
-      { path: "/route-builder", element: <LazyLoad><RouteBuilderPage /></LazyLoad> },
-      { path: "/routes/:id", element: <LazyLoad><RouteDetailsPage /></LazyLoad> },
-      { path: "/drivers", element: <DriversPage /> },
-      { path: "/vehicles", element: <VehiclesPage /> },
-      { path: "/depots", element: <DepotsPage /> },
-      { path: "/companies", element: <CompaniesPage /> },
-      { path: "/operations", element: <OperationsPage /> },
-      { path: "/performance", element: <PerformancePage /> },
-      { path: "/settings", element: <SettingsPage /> },
-      { path: "/settings/erp", element: <ErpIntegrationPage /> },
-      { path: "/audit-logs", element: <AuditLogsPage /> },
-      { path: "/import", element: <ImportPage /> },
-      { path: "/notifications", element: <NotificationsPage /> },
-      { path: "/zones", element: <LazyLoad><ZonesPage /></LazyLoad> },
+      { path: "/dashboard", element: guard(ALL, <DashboardPage />) },
+      { path: "/deliveries", element: guard(DISPATCH, <DeliveriesPage />) },
+      { path: "/deliveries/:id", element: guard(DISPATCH, <DeliveryDetailsPage />) },
+      { path: "/dispatch-desk", element: guard(DISPATCH, <DispatchDeskPage />) },
+      { path: "/routes-table", element: guard(DISPATCH, <RoutesTablePage />) },
+      { path: "/route-builder", element: guard(DISPATCH, <RouteBuilderPage />) },
+      { path: "/routes/:id", element: guard(DISPATCH, <RouteDetailsPage />) },
+      { path: "/drivers", element: guard(DISPATCH, <DriversPage />) },
+      { path: "/vehicles", element: guard(DISPATCH, <VehiclesPage />) },
+      { path: "/depots", element: guard(DISPATCH, <DepotsPage />) },
+      { path: "/companies", element: guard(ADMIN_ONLY, <CompaniesPage />) },
+      { path: "/operations", element: guard(ALL, <OperationsPage />) },
+      { path: "/performance", element: guard(ALL, <PerformancePage />) },
+      { path: "/settings", element: guard(ADMIN_ONLY, <SettingsPage />) },
+      { path: "/settings/erp", element: guard(ADMIN_ONLY, <ErpIntegrationPage />) },
+      { path: "/audit-logs", element: guard(ADMIN_ONLY, <AuditLogsPage />) },
+      { path: "/import", element: guard(DISPATCH, <ImportPage />) },
+      { path: "/notifications", element: guard(ALL, <NotificationsPage />) },
+      { path: "/zones", element: guard(DISPATCH, <ZonesPage />) },
+      { path: "*", element: <NotFound /> },
     ]
   },
-  { path: "*", element: <Navigate to="/dashboard" replace /> }
+  { path: "*", element: <NotFound /> }
 ]);
 
 function App() {

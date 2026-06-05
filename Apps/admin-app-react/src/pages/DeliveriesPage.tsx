@@ -104,6 +104,7 @@ function DeliveriesPageContent() {
   const initialSyncRef = useRef(false);
   const locale = useLocaleStore(state => state.locale);
   const t = useT();
+  const dateTag = locale === 'fr' ? 'fr-FR' : locale === 'ar' ? 'ar' : 'en-US';
   const getStatusLabel = (status: string) => t.statusLabels[status as DeliveryStatus] || status;
 
   useEffect(() => { const r = getCurrentRole(); if (r !== 'UNKNOWN' && !canDispatch(r)) { router('/dashboard', { replace: true }); } }, [router]);
@@ -729,9 +730,9 @@ function DeliveriesPageContent() {
                               return (
                                 <div className="inline-flex items-center gap-1">
                                   <span className={cn("text-[11px] font-bold", colorClass.split(' ')[0])}>
-                                    {new Date(item.scheduledAt).toLocaleDateString('fr-FR')}
+                                    {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
                                     <span className="mr-0.5">,</span>
-                                    {new Date(item.scheduledAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+                                    {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
                                   </span>
                                   {item.rescheduledAt && (
                                     <span
