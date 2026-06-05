@@ -213,7 +213,7 @@ public class OrderService {
             throw AppException.forbidden("Not your order");
         }
 
-        Delivery delivery = deliveryRepo.findByOrderId(order.getId())
+        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
                 .orElse(null);
 
         if (delivery != null) {
@@ -256,7 +256,7 @@ public class OrderService {
 
         String adminId = principal != null ? principal.getUserId() : "SYSTEM";
 
-        Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
+        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
 
         if (delivery != null) {
             DeliveryStatus ds = delivery.getStatus();
@@ -320,7 +320,7 @@ public class OrderService {
             throw AppException.forbidden("Not your order");
         }
 
-        Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
+        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
         if (delivery == null) {
             return new CancellableResponse(order.getStatus() == OrderStatus.PENDING, null);
         }
@@ -409,7 +409,7 @@ public class OrderService {
     }
 
     private OrderResponse toOrderResponseWithDelivery(Order order) {
-        Delivery delivery = deliveryRepo.findByOrderId(order.getId()).orElse(null);
+        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
         return toOrderResponse(order, delivery);
     }
 

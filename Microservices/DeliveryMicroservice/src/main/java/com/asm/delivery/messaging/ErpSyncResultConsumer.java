@@ -2,9 +2,9 @@ package com.asm.delivery.messaging;
 
 import com.asm.delivery.config.RabbitMQConfig;
 import com.asm.delivery.entity.Order;
-import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.service.EventPublisher;
+import com.asm.delivery.service.dispatch.ExceptionResolutionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -15,10 +15,10 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Closes the async ERP-sync loop: consumes {@code erp.sync.result} events from ErpAdapter and applies
- * the outcome to the order — SYNCED (storing the backorder picking id) or SYNC_FAILED. On failure it
- * raises the admin {@code erp.sync_failed} notification so the dashboard reflects it (no order stuck
- * on "Syncing…"). Idempotent: re-applying the same outcome is harmless.
+ * Closes the async ERP-sync loop: consumes {@code erp.sync.result} events and applies the outcome to
+ * the order — SYNCED, or SYNC_FAILED (+ admin notification so nothing stays stuck on "Syncing…").
+ * On a successful PARTIAL delivery that produced a backorder picking, it auto-creates the backorder
+ * as a new shipment under the same order (no cloned order) and notifies admins. Idempotent.
  */
 @Component
 @RequiredArgsConstructor
@@ -26,8 +26,8 @@ import java.util.UUID;
 public class ErpSyncResultConsumer {
 
     private final OrderRepository orderRepo;
-    private final DeliveryRepository deliveryRepo;
     private final EventPublisher eventPublisher;
+    private final ExceptionResolutionService exceptionResolutionService;
 
     @RabbitListener(queues = RabbitMQConfig.ERP_SYNC_RESULT_QUEUE)
     @Transactional
@@ -38,6 +38,7 @@ public class ErpSyncResultConsumer {
             return;
         }
         UUID orderId = UUID.fromString(orderIdStr);
+        UUID deliveryId = result.get("deliveryId") != null ? UUID.fromString(str(result.get("deliveryId"))) : null;
         String op = str(result.get("op"));
         boolean success = Boolean.TRUE.equals(result.get("success"));
 
@@ -48,23 +49,30 @@ public class ErpSyncResultConsumer {
         }
 
         if (success) {
-            Integer backorderId = asInt(result.get("backorderPickingId"));
-            if (backorderId != null) order.setOdooBackorderId(backorderId);
             order.setOdooSyncStatus("SYNCED");
             order.setSyncRetryCount(0);
             order.setNextSyncRetryAt(null);
             orderRepo.save(order);
-            log.info("ERP sync SYNCED — orderId={} op={} backorderPickingId={}", orderId, op, backorderId);
+            log.info("ERP sync SYNCED — orderId={} op={}", orderId, op);
+
+            // A partial delivery that left a remainder → Odoo created a backorder picking.
+            // Auto-create the backorder shipment (new delivery under the same order) + notify.
+            Integer backorderPickingId = asInt(result.get("backorderPickingId"));
+            if ("STOCK_PARTIAL".equals(op) && backorderPickingId != null) {
+                try {
+                    exceptionResolutionService.createBackorderShipment(
+                            orderId, backorderPickingId, str(result.get("backorderBlNumber")), deliveryId);
+                } catch (Exception e) {
+                    log.error("Failed to auto-create backorder shipment for orderId={} backorderPickingId={}: {}",
+                            orderId, backorderPickingId, e.getMessage(), e);
+                }
+            }
         } else {
             order.setOdooSyncStatus("SYNC_FAILED");
             orderRepo.save(order);
             log.error("ERP sync SYNC_FAILED — orderId={} op={} reason={}", orderId, op, result.get("errorReason"));
             try {
-                deliveryRepo.findByOrderIdWithOrder(orderId).ifPresent(delivery -> {
-                    if (delivery.getOrder() != null) {
-                        eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), erpOperationCode(op));
-                    }
-                });
+                eventPublisher.publishErpSyncFailed(order, deliveryId, erpOperationCode(op));
             } catch (Exception e) {
                 log.warn("Could not publish erp.sync_failed notification for orderId={}: {}", orderId, e.getMessage());
             }

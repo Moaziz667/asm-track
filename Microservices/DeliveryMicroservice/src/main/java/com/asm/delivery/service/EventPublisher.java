@@ -510,6 +510,31 @@ public class EventPublisher {
         });
     }
 
+    /**
+     * A backorder shipment was created automatically (remaining items from a partial delivery).
+     * Surfaces on the admin dashboard so a dispatcher can schedule the re-delivery.
+     */
+    public void publishBackorderCreated(Order order, UUID backorderDeliveryId, String backorderBlNumber) {
+        if (order == null) return;
+        final String orderRef = order.resolveRef();
+        final String client = order.getClientName();
+        final String boId = backorderDeliveryId != null ? backorderDeliveryId.toString() : null;
+        executeAfterCommitAsync(() -> {
+            log.info("EVENT delivery.backorder_created orderRef={} backorderDeliveryId={} bl={}", orderRef, boId, backorderBlNumber);
+            Map<String, Object> p = new HashMap<>();
+            p.put("orderRef", orderRef);
+            p.put("clientName", client);
+            p.put("backorderDeliveryId", boId);
+            p.put("blNumber", backorderBlNumber);
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                    .source("/delivery-service")
+                    .type("delivery.backorder_created")
+                    .data(p)
+                    .build();
+            ws.convertAndSend("/topic/admin.deliveries", envelope);
+        });
+    }
+
     // ── Route events ──────────────────────────────────────────────────────────
 
     public void publishRouteValidated(Route route) {

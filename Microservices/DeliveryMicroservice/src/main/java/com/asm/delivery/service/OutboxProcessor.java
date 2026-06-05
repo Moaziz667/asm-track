@@ -148,7 +148,7 @@ public class OutboxProcessor {
             if (payload.get("deliveryId") != null) {
                 delivery = deliveryRepo.findByIdWithOrder(UUID.fromString((String) payload.get("deliveryId"))).orElse(null);
             } else if (payload.get("orderId") != null) {
-                delivery = deliveryRepo.findByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).orElse(null);
+                delivery = deliveryRepo.findAllByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).stream().findFirst().orElse(null);
             }
             if (delivery != null && delivery.getOrder() != null) {
                 eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), erpOperationCode(type));
@@ -195,7 +195,7 @@ public class OutboxProcessor {
         UUID orderId = UUID.fromString((String) payload.get("orderId"));
         // MUST use join-fetch variant: Order fields (erpOrderId, etc.) are accessed
         // by ErpSyncService outside a Hibernate session → LazyInitializationException otherwise.
-        Delivery delivery = deliveryRepo.findByOrderIdWithOrder(orderId).orElse(null);
+        Delivery delivery = deliveryRepo.findAllByOrderIdWithOrder(orderId).stream().findFirst().orElse(null);
         if (delivery == null || delivery.getOrder() == null) {
             log.warn("ERP_SYNC_CANCELLATION: no delivery/order found for orderId={}, skipping", orderId);
             return;
