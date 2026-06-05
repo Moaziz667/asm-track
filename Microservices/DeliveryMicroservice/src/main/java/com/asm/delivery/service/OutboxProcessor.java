@@ -125,10 +125,11 @@ public class OutboxProcessor {
                                 .orElse(null);
                     }
                     if (orderId != null) {
-                        orderRepo.findById(orderId).ifPresent(order -> {
+                        final UUID resolvedOrderId = orderId;
+                        orderRepo.findById(resolvedOrderId).ifPresent(order -> {
                             order.setOdooSyncStatus("SYNC_FAILED");
                             orderRepo.save(order);
-                            log.info("Successfully marked order ID={} as SYNC_FAILED after outbox exhaustion", orderId);
+                            log.info("Successfully marked order ID={} as SYNC_FAILED after outbox exhaustion", resolvedOrderId);
                         });
                     }
                 } catch (Exception ex) {

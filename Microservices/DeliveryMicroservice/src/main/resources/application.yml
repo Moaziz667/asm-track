@@ -18,6 +18,18 @@ spring:
     port: 5672
     username: ${RABBITMQ_USERNAME:guest}
     password: ${RABBITMQ_PASSWORD:guest}
+    publisher-confirm-type: correlated
+    publisher-returns: true
+    listener:
+      simple:
+        acknowledge-mode: auto
+        default-requeue-rejected: false
+        retry:
+          enabled: true
+          initial-interval: 2000ms
+          max-attempts: 5
+          multiplier: 2.0
+          max-interval: 30000ms
     stomp:
       port: 61613
 
@@ -29,6 +41,17 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+      # Service-to-service auth: client_credentials registration used by Feign clients.
+      client:
+        registration:
+          asm-svc:
+            provider: asm-keycloak
+            authorization-grant-type: client_credentials
+            client-id: ${CLIENT_ID:delivery-service}
+            client-secret: ${CLIENT_SECRET}
+        provider:
+          asm-keycloak:
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
 
   datasource:
     # PROD: set DB_HOST to your PostgreSQL server hostname/IP
@@ -69,7 +92,7 @@ auth:
     url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
   client:
     id: ${CLIENT_ID:delivery-service}
-    secret: ${CLIENT_SECRET:changeme}
+    secret: ${CLIENT_SECRET}
 
 app:
   origin:

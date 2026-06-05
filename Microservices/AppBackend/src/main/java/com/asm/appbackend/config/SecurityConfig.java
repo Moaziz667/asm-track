@@ -32,6 +32,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/v3/api-docs"
                         ).permitAll()
+                        .requestMatchers("/internal/**").hasRole("SERVICE")
                         .requestMatchers("/api/profile/**").hasRole("CLIENT")
                         .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")

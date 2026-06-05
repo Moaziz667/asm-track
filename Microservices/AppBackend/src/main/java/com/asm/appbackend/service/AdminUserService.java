@@ -8,16 +8,12 @@ import com.asm.appbackend.repository.AdminUserRepository;
 import com.asm.appbackend.security.KeycloakUserRollbackEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -26,15 +22,8 @@ import java.util.UUID;
 public class AdminUserService {
 
     private final AdminUserRepository adminUserRepo;
-    private final RestTemplate restTemplate;
     private final KeycloakAdminClient keycloakAdminClient;
     private final ApplicationEventPublisher eventPublisher;
-
-    @Value("${auth.client.id}")
-    private String clientId;
-
-    @Value("${auth.client.secret}")
-    private String clientSecret;
 
     // ── User management (unchanged) ───────────────────────────────────────────
 

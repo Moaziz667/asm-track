@@ -10,6 +10,17 @@ spring:
       resourceserver:
         jwt:
           jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+      # Service-to-service auth: client_credentials registration used by Feign clients.
+      client:
+        registration:
+          asm-svc:
+            provider: asm-keycloak
+            authorization-grant-type: client_credentials
+            client-id: ${CLIENT_ID:app-backend}
+            client-secret: ${CLIENT_SECRET}
+        provider:
+          asm-keycloak:
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
 
   datasource:
     url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:app_backend_db}
@@ -40,7 +51,7 @@ auth:
     url: ${AUTH_ISSUER_URL:${auth.server.url}}
   client:
     id: ${CLIENT_ID:app-backend}
-    secret: ${CLIENT_SECRET:changeme}
+    secret: ${CLIENT_SECRET}
 
 odoo:
   url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}
