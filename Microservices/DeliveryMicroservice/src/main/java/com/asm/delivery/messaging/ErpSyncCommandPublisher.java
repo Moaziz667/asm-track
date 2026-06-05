@@ -25,36 +25,37 @@ public class ErpSyncCommandPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void publishStockFull(String orderId, String erpOrderId, Integer backorderPickingId,
+    public void publishStockFull(String deliveryId, String orderId, String erpOrderId, Integer backorderPickingId,
                                  String pickingRef, String txId) {
-        Map<String, Object> cmd = base("STOCK_FULL", orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base("STOCK_FULL", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (backorderPickingId != null) cmd.put("backorderPickingId", backorderPickingId);
         send(cmd);
     }
 
-    public void publishStockPartial(String orderId, String erpOrderId, List<PartialDeliveryItem> items,
+    public void publishStockPartial(String deliveryId, String orderId, String erpOrderId, List<PartialDeliveryItem> items,
                                     String pickingRef, String txId) {
-        Map<String, Object> cmd = base("STOCK_PARTIAL", orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base("STOCK_PARTIAL", deliveryId, orderId, erpOrderId, pickingRef, txId);
         cmd.put("partialItems", mapItems(items));
         send(cmd);
     }
 
-    public void publishFailure(String orderId, String erpOrderId, String failureCode, String comment,
+    public void publishFailure(String deliveryId, String orderId, String erpOrderId, String failureCode, String comment,
                                String pickingRef, String txId) {
-        Map<String, Object> cmd = base("FAILURE", orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base("FAILURE", deliveryId, orderId, erpOrderId, pickingRef, txId);
         cmd.put("failureCode", failureCode);
         cmd.put("comment", comment);
         send(cmd);
     }
 
-    public void publishCancellation(String orderId, String erpOrderId, String pickingRef, String txId) {
-        send(base("CANCELLATION", orderId, erpOrderId, pickingRef, txId));
+    public void publishCancellation(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
+        send(base("CANCELLATION", deliveryId, orderId, erpOrderId, pickingRef, txId));
     }
 
-    private Map<String, Object> base(String op, String orderId, String erpOrderId, String pickingRef, String txId) {
+    private Map<String, Object> base(String op, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
         Map<String, Object> cmd = new HashMap<>();
         cmd.put("op", op);
         cmd.put("txId", txId);
+        cmd.put("deliveryId", deliveryId);
         cmd.put("orderId", orderId);
         cmd.put("erpOrderId", erpOrderId);
         if (pickingRef != null) cmd.put("pickingRef", pickingRef);

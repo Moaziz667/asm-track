@@ -11,7 +11,7 @@ class NoopSyncAdapter implements ErpSyncPort {
     @Override public boolean syncOrderCancellation(String id, String txId, String pickingRef) { return true; }
     @Override public boolean syncFullDelivery(String id, Integer b, String txId, String pickingRef) { return true; }
     @Override public ErpPartialDeliveryResultDTO syncPartialDelivery(String id, List<ErpPartialItemDTO> i, String txId, String pickingRef) {
-        return new ErpPartialDeliveryResultDTO(true, null, null);
+        return ErpPartialDeliveryResultDTO.builder().success(true).build();
     }
     @Override public boolean syncFailure(String id, String code, String comment, String txId, String pickingRef) { return true; }
 }

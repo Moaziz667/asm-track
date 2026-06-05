@@ -1,6 +1,7 @@
 package com.asm.delivery.erp;
 
 import com.asm.delivery.dto.request.PartialDeliveryItem;
+import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.messaging.ErpSyncCommandPublisher;
 import com.asm.delivery.repository.OrderRepository;
@@ -11,9 +12,10 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 
 /**
- * Maps a delivery outcome to an ERP-sync command and hands it to the broker. The actual Odoo work
- * happens asynchronously in ErpAdapter; the order's sync status (SYNCED / SYNC_FAILED, backorder id)
- * is set later by {@code ErpSyncResultConsumer} when the result event arrives — not here.
+ * Maps a delivery (shipment) outcome to an ERP-sync command and hands it to the broker. Each
+ * delivery is one Odoo picking, so the picking identity (BL number + backorder picking id) is read
+ * from the {@link Delivery}, falling back to the order for legacy rows. The actual Odoo work happens
+ * asynchronously in ErpAdapter; the sync status is set later by {@code ErpSyncResultConsumer}.
  *
  * <p>Invoked from the transactional Outbox, which guarantees the publish happens exactly once.
  */
@@ -25,37 +27,56 @@ public class ErpSyncService {
     private final ErpSyncCommandPublisher commandPublisher;
     private final OrderRepository orderRepo;
 
-    public void syncOrderCancellation(Order order, String transactionId) {
+    public void syncOrderCancellation(Delivery delivery, String transactionId) {
+        Order order = delivery.getOrder();
         if (order.getErpOrderId() == null) return;
         commandPublisher.publishCancellation(
-                order.getId().toString(), order.getErpOrderId(), order.getBlNumber(), transactionId);
+                delivery.getId().toString(), order.getId().toString(),
+                order.getErpOrderId(), pickingRef(delivery), transactionId);
     }
 
-    public void syncStockUpdate(Order order, String transactionId) {
+    public void syncStockUpdate(Delivery delivery, String transactionId) {
+        Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
         commandPublisher.publishStockFull(
-                order.getId().toString(), erpOrderId, order.getOdooBackorderId(), order.getBlNumber(), transactionId);
+                delivery.getId().toString(), order.getId().toString(), erpOrderId,
+                backorderPickingId(delivery), pickingRef(delivery), transactionId);
     }
 
-    public void syncPartialStockUpdate(Order order, List<PartialDeliveryItem> partialItems, String transactionId) {
+    public void syncPartialStockUpdate(Delivery delivery, List<PartialDeliveryItem> partialItems, String transactionId) {
+        Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
         commandPublisher.publishStockPartial(
-                order.getId().toString(), erpOrderId, partialItems, order.getBlNumber(), transactionId);
+                delivery.getId().toString(), order.getId().toString(), erpOrderId,
+                partialItems, pickingRef(delivery), transactionId);
     }
 
-    public void syncFailure(Order order, String failureCode, String comment, String transactionId) {
+    public void syncFailure(Delivery delivery, String failureCode, String comment, String transactionId) {
+        Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
         commandPublisher.publishFailure(
-                order.getId().toString(), erpOrderId, failureCode, comment, order.getBlNumber(), transactionId);
+                delivery.getId().toString(), order.getId().toString(), erpOrderId,
+                failureCode, comment, pickingRef(delivery), transactionId);
+    }
+
+    /** Picking (BL) number for this shipment — from the delivery, falling back to the order (legacy). */
+    private String pickingRef(Delivery delivery) {
+        if (delivery.getBlNumber() != null) return delivery.getBlNumber();
+        return delivery.getOrder() != null ? delivery.getOrder().getBlNumber() : null;
+    }
+
+    private Integer backorderPickingId(Delivery delivery) {
+        if (delivery.getOdooBackorderId() != null) return delivery.getOdooBackorderId();
+        return delivery.getOrder() != null ? delivery.getOrder().getOdooBackorderId() : null;
     }
 
     /**
-     * Resolves the ERP order reference for sync. erpExternalRef holds the sale-order reference
-     * (e.g. S00110) the adapter needs for cancel/update; backorder orders have erpOrderId=null
-     * (DB unique constraint), so we walk up to the parent order.
+     * Resolves the ERP sale-order reference. erpExternalRef holds the sale-order reference
+     * (e.g. S00110) the adapter needs; in the shipment model the backorder is a sibling delivery on
+     * the SAME order, so the parent walk is only kept for legacy cloned-order rows.
      */
     private String resolveErpOrderId(Order order) {
         if (order.getErpExternalRef() != null) return order.getErpExternalRef();

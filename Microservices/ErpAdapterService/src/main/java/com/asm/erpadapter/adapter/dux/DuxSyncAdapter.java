@@ -31,7 +31,7 @@ public class DuxSyncAdapter implements ErpSyncPort {
     @Override
     public ErpPartialDeliveryResultDTO syncPartialDelivery(String erpOrderId, List<ErpPartialItemDTO> items, String transactionId, String pickingRef) {
         log.warn("DUX syncPartialDelivery not yet implemented for order {} (TX: {})", erpOrderId, transactionId);
-        return new ErpPartialDeliveryResultDTO(false, null, null);
+        return ErpPartialDeliveryResultDTO.builder().success(false).build();
     }
 
     @Override

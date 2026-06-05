@@ -22,15 +22,17 @@ public class ErpSyncResultPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void publishResult(String txId, String orderId, String op, boolean success,
-                              Integer pickingId, Integer backorderPickingId, String errorReason) {
+    public void publishResult(String txId, String deliveryId, String orderId, String op, boolean success,
+                              Integer pickingId, Integer backorderPickingId, String backorderBlNumber, String errorReason) {
         Map<String, Object> result = new HashMap<>();
         result.put("txId", txId);
+        result.put("deliveryId", deliveryId);
         result.put("orderId", orderId);
         result.put("op", op);
         result.put("success", success);
         if (pickingId != null) result.put("pickingId", pickingId);
         if (backorderPickingId != null) result.put("backorderPickingId", backorderPickingId);
+        if (backorderBlNumber != null) result.put("backorderBlNumber", backorderBlNumber);
         if (errorReason != null) result.put("errorReason", errorReason);
         result.put("timestamp", Instant.now().toString());
         try {

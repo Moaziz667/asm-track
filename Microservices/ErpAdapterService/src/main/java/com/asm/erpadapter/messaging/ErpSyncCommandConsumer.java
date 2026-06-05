@@ -37,6 +37,7 @@ public class ErpSyncCommandConsumer {
     public void onCommand(Map<String, Object> cmd) {
         String op         = str(cmd.get("op"));
         String txId       = str(cmd.get("txId"));
+        String deliveryId = str(cmd.get("deliveryId"));
         String orderId    = str(cmd.get("orderId"));
         String provider   = cmd.get("erpProvider") != null ? str(cmd.get("erpProvider")) : "odoo";
         String erpOrderId = str(cmd.get("erpOrderId"));
@@ -52,7 +53,7 @@ public class ErpSyncCommandConsumer {
             case "STOCK_FULL" -> {
                 boolean ok = sync.syncFullDelivery(erpOrderId, asInt(cmd.get("backorderPickingId")), txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncFullDelivery returned false for erpOrderId=" + erpOrderId);
-                resultPublisher.publishResult(txId, orderId, op, true, null, null, null);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
             case "STOCK_PARTIAL" -> {
                 List<ErpPartialItemDTO> items = parseItems(cmd.get("partialItems"));
@@ -60,17 +61,18 @@ public class ErpSyncCommandConsumer {
                 if (res == null || !res.isSuccess()) {
                     throw new IllegalStateException("syncPartialDelivery returned false for erpOrderId=" + erpOrderId);
                 }
-                resultPublisher.publishResult(txId, orderId, op, true, res.getPickingId(), res.getBackorderPickingId(), null);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true,
+                        res.getPickingId(), res.getBackorderPickingId(), res.getBackorderBlNumber(), null);
             }
             case "FAILURE" -> {
                 boolean ok = sync.syncFailure(erpOrderId, str(cmd.get("failureCode")), str(cmd.get("comment")), txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncFailure returned false for erpOrderId=" + erpOrderId);
-                resultPublisher.publishResult(txId, orderId, op, true, null, null, null);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
             case "CANCELLATION" -> {
                 boolean ok = sync.syncOrderCancellation(erpOrderId, txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncOrderCancellation returned false for erpOrderId=" + erpOrderId);
-                resultPublisher.publishResult(txId, orderId, op, true, null, null, null);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
             default -> log.warn("ErpSyncCommandConsumer: unknown op={}, dropping", op);
         }
@@ -81,8 +83,8 @@ public class ErpSyncCommandConsumer {
     public void onCommandDeadLetter(Map<String, Object> cmd) {
         log.error("ERP sync command dead-lettered after retries — op={} erpOrderId={} txId={}",
                 cmd.get("op"), cmd.get("erpOrderId"), cmd.get("txId"));
-        resultPublisher.publishResult(str(cmd.get("txId")), str(cmd.get("orderId")), str(cmd.get("op")),
-                false, null, null, "ERP sync failed after retries");
+        resultPublisher.publishResult(str(cmd.get("txId")), str(cmd.get("deliveryId")), str(cmd.get("orderId")),
+                str(cmd.get("op")), false, null, null, null, "ERP sync failed after retries");
     }
 
     private List<ErpPartialItemDTO> parseItems(Object raw) {

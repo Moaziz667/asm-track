@@ -200,7 +200,7 @@ public class OutboxProcessor {
             log.warn("ERP_SYNC_CANCELLATION: no delivery/order found for orderId={}, skipping", orderId);
             return;
         }
-        erpSyncService.syncOrderCancellation(delivery.getOrder(), txId);
+        erpSyncService.syncOrderCancellation(delivery, txId);
     }
 
     private void processErpSync(Map<String, Object> payload, String txId) throws Exception {
@@ -223,9 +223,9 @@ public class OutboxProcessor {
         if (Boolean.TRUE.equals(isPartial)) {
             List<PartialDeliveryItem> items = objectMapper.convertValue(
                 payload.get("partialItems"), new TypeReference<List<PartialDeliveryItem>>() {});
-            erpSyncService.syncPartialStockUpdate(delivery.getOrder(), items, txId);
+            erpSyncService.syncPartialStockUpdate(delivery, items, txId);
         } else {
-            erpSyncService.syncStockUpdate(delivery.getOrder(), txId);
+            erpSyncService.syncStockUpdate(delivery, txId);
         }
     }
 
@@ -238,7 +238,7 @@ public class OutboxProcessor {
 
         String code = (String) payload.get("failureCode");
         String comment = (String) payload.get("comment");
-        erpSyncService.syncFailure(delivery.getOrder(), code, comment, txId);
+        erpSyncService.syncFailure(delivery, code, comment, txId);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
