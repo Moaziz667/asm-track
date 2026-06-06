@@ -6,6 +6,7 @@ import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -42,6 +43,9 @@ public class GeocodingService {
 
     private static final String NOMINATIM_REVERSE_URL =
             "https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&accept-language=fr";
+
+    private static final String NOMINATIM_SEARCH_URL =
+            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit={limit}&addressdetails=1&countrycodes=tn&accept-language=fr";
 
     // Tunisia bounding box
     private static final double TN_LAT_MIN = 30.2;
@@ -106,6 +110,49 @@ public class GeocodingService {
         } catch (Exception ex) {
             log.warn("Nominatim geocoding failed for query '{}': {}", addressQuery, ex.getMessage());
             return GeocodeSuggestionResponse.builder().found(false).build();
+        }
+    }
+
+    /**
+     * Free-text address autocomplete (Tunisia). Server-side proxy so the browser never
+     * calls the public Nominatim endpoint directly (usage-policy + caching + no CORS).
+     * Returns up to {@code limit} suggestions; empty list on failure.
+     */
+    @SuppressWarnings("unchecked")
+    public List<GeocodeSuggestionResponse> searchAddresses(String query, int limit) {
+        if (query == null || query.isBlank()) return List.of();
+        int capped = Math.min(Math.max(limit, 1), 8);
+        try {
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_SEARCH_URL, Map.of("q", query, "limit", capped))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
+
+            if (results == null || results.length == 0) return List.of();
+
+            List<GeocodeSuggestionResponse> out = new ArrayList<>();
+            for (Map<String, Object> r : results) {
+                try {
+                    double lat = Double.parseDouble((String) r.get("lat"));
+                    double lng = Double.parseDouble((String) r.get("lon"));
+                    String displayName = (String) r.get("display_name");
+                    out.add(GeocodeSuggestionResponse.builder()
+                            .found(true)
+                            .lat(lat)
+                            .lng(lng)
+                            .displayName(displayName)
+                            .city(extractCity(r, displayName))
+                            .postalCode(extractPostalCode(r))
+                            .build());
+                } catch (Exception ignore) {
+                    // skip malformed row
+                }
+            }
+            return out;
+        } catch (Exception ex) {
+            log.warn("Nominatim search failed for '{}': {}", query, ex.getMessage());
+            return List.of();
         }
     }
 
