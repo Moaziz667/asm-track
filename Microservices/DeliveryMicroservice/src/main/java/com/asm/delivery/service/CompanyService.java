@@ -6,13 +6,8 @@ import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.storage.MinioStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -27,23 +22,7 @@ public class CompanyService {
 
     private final CompanyRepository repo;
     private final MinioStorageService minioStorageService;
-    private final RestTemplate restTemplate;
     private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
-
-    @Value("${app.backend.url:http://app-backend:8080}")
-    private String appBackendUrl;
-
-    @Value("${auth.server.url}")
-    private String authServerUrl;
-
-    @Value("${auth.client.id}")
-    private String clientId;
-
-    @Value("${auth.client.secret}")
-    private String clientSecret;
-
-    private String  cachedServiceToken;
-    private java.time.Instant serviceTokenExpiresAt = java.time.Instant.MIN;
 
     public Optional<Company> findById(UUID id) {
         return repo.findById(id);
@@ -123,43 +102,6 @@ public class CompanyService {
         if (address == null) return city;
         if (city == null || address.toLowerCase().contains(city.toLowerCase())) return address;
         return address + ", " + city;
-    }
-
-    @Transactional
-    public void deactivate(UUID id) {
-        Company company = repo.findById(id)
-                .orElseThrow(() -> AppException.notFound("Company not found: " + id));
-        company.setActive(false);
-        repo.save(company);
-        try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.setBearerAuth(getServiceToken());
-            restTemplate.exchange(
-                    appBackendUrl + "/internal/admin-users/deactivate-by-company/" + id,
-                    HttpMethod.POST, new HttpEntity<>(headers), Void.class);
-        } catch (Exception e) {
-            log.warn("Could not deactivate admin users for company {}: {}", id, e.getMessage());
-        }
-    }
-
-    @Transactional
-    @SuppressWarnings("unchecked")
-    private synchronized String getServiceToken() {
-        if (cachedServiceToken != null && java.time.Instant.now().isBefore(serviceTokenExpiresAt))
-            return cachedServiceToken;
-        org.springframework.util.MultiValueMap<String, String> params = new org.springframework.util.LinkedMultiValueMap<>();
-        params.add("grant_type", "client_credentials");
-        params.add("client_id", clientId);
-        params.add("client_secret", clientSecret);
-        HttpHeaders h = new HttpHeaders();
-        h.setContentType(org.springframework.http.MediaType.APPLICATION_FORM_URLENCODED);
-        var resp = restTemplate.exchange(authServerUrl + "/oauth2/token",
-                HttpMethod.POST, new HttpEntity<>(params, h), java.util.Map.class);
-        var body = (java.util.Map<String, Object>) resp.getBody();
-        cachedServiceToken = (String) body.get("access_token");
-        int expiresIn = ((Number) body.get("expires_in")).intValue();
-        serviceTokenExpiresAt = java.time.Instant.now().plusSeconds(expiresIn - 30);
-        return cachedServiceToken;
     }
 
     @Transactional

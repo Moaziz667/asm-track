@@ -13,6 +13,7 @@ import {
   useToggleDriverStatus,
   useCancelDriverInvite,
   useResendDriverInvite,
+  useForceLogoutDriver,
   useImportDrivers,
 } from '@/hooks/useDrivers';
 
@@ -98,6 +99,12 @@ const SVGSend = ({ size = 13, className = "" }: { size?: number; className?: str
 const SVGX = ({ size = 13, className = "" }: { size?: number; className?: string }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
     <path d="M18 6 6 18M6 6l12 12" />
+  </svg>
+);
+
+const SVGLogout = ({ size = 13, className = "" }: { size?: number; className?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />
   </svg>
 );
 
@@ -207,6 +214,7 @@ function DriversPageContent() {
   const toggleStatusMutation = useToggleDriverStatus();
   const cancelInviteMutation = useCancelDriverInvite();
   const resendInviteMutation = useResendDriverInvite();
+  const forceLogoutDriverMutation = useForceLogoutDriver();
   const importDriversMutation = useImportDrivers();
 
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -299,7 +307,7 @@ function DriversPageContent() {
 
   const openEdit = (drv: Driver) => {
     setEditingDriver(drv);
-    setForm({ id: drv.id, name: drv.name, phone: drv.phone, email: '' });
+    setForm({ id: drv.id, name: drv.name, phone: drv.phone, email: drv.email || '' });
     setCrudOpen(true);
   };
 
@@ -307,7 +315,7 @@ function DriversPageContent() {
     if (!form.name.trim() || !form.phone.trim()) {
       return showErrorToast(null, 'errorDriverNameRequired');
     }
-    if (!editingDriver && !form.email.trim()) {
+    if (!form.email.trim()) {
       return showErrorToast(null, 'errorDriverEmailRequired');
     }
     
@@ -315,7 +323,7 @@ function DriversPageContent() {
       if (editingDriver) {
         await updateDriverMutation.mutateAsync({
           id: editingDriver.id,
-          payload: { name: form.name, phone: form.phone }
+          payload: { name: form.name, phone: form.phone, email: form.email }
         });
       } else {
         await createDriverMutation.mutateAsync({
@@ -331,7 +339,7 @@ function DriversPageContent() {
   const toggleActive = async (drv: Driver) => {
     setPendingRowId(drv.id);
     try {
-      await toggleStatusMutation.mutateAsync({ id: drv.id, active: !drv.active });
+      await toggleStatusMutation.mutateAsync({ id: drv.id, isRegistered: !drv.isRegistered });
     } catch {} finally {
       setPendingRowId(null);
     }
@@ -369,7 +377,7 @@ function DriversPageContent() {
     try {
       await toggleStatusMutation.mutateAsync({
         id: confirmSuspend.id,
-        active: false,
+        isRegistered: false,
         reason: suspendReason || undefined,
       });
       setConfirmSuspend(null);
@@ -410,6 +418,15 @@ function DriversPageContent() {
         }, 1000);
       }
     } finally {
+      setPendingRowId(null);
+    }
+  };
+
+  const handleForceLogout = async (id: string) => {
+    setPendingRowId(id);
+    try {
+      await forceLogoutDriverMutation.mutateAsync(id);
+    } catch {} finally {
       setPendingRowId(null);
     }
   };
@@ -731,10 +748,16 @@ function DriversPageContent() {
                                 </>
                               )}
                               {drv.accountStatus === 'ACTIVE' && !readOnly && (
-                                <DropdownMenuItem onClick={() => openSuspend(drv)} className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
-                                  <SVGBan size={13} className="text-red-500" />
-                                  {t.driversPage.suspendDriverButton}
-                                </DropdownMenuItem>
+                                <>
+                                  <DropdownMenuItem onClick={() => openSuspend(drv)} className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                    <SVGBan size={13} className="text-red-500" />
+                                    {t.driversPage.suspendDriverButton}
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleForceLogout(drv.id)} className="text-[11px] font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                    <SVGLogout size={13} className="text-amber-500" />
+                                    {t.driversPage.forceLogoutButton}
+                                  </DropdownMenuItem>
+                                </>
                               )}
                               {drv.accountStatus === 'SUSPENDED' && !readOnly && (
                                 <DropdownMenuItem onClick={() => toggleActive(drv)} className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
@@ -1063,18 +1086,16 @@ function DriversPageContent() {
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
             className="font-mono text-slate-800 dark:text-white"
           />
-          {!editingDriver && (
-            <FieldInput
-              label={t.driversPage.emailLabel}
-              placeholder={t.driversPage.emailPlaceholder}
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-              hint={t.driversPage.invitationEmailHelp}
-              className="text-slate-800 dark:text-white"
-            />
-          )}
+          <FieldInput
+            label={t.driversPage.emailLabel}
+            placeholder={t.driversPage.emailPlaceholder}
+            type="email"
+            required
+            value={form.email}
+            onChange={(e) => setForm({ ...form, email: e.target.value })}
+            hint={t.driversPage.invitationEmailHelp}
+            className="text-slate-800 dark:text-white"
+          />
         </div>
       </AppModal>
 

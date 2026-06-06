@@ -10,11 +10,12 @@ import {
   IconSettings, IconPlus, IconLock,
   IconMail, IconUser, IconCheck, IconClock, IconX, IconShield,
   IconCpu, IconRouter, IconShieldCheck, IconChevronRight, IconCommand,
-  IconFingerprint, IconEye, IconEyeOff
+  IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
 // ── Types & Constants ────────────────────────────────────────────────────────
 
@@ -87,6 +88,13 @@ export default function SettingsPage() {
   const [formRole, setFormRole] = useState('ADMIN');
   const [submitting, setSubmitting] = useState(false);
   const [showAdminPass, setShowAdminPass] = useState(false);
+
+  // Edit User Modal state
+  const [editOpen, setEditOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState('');
+  const [editRole, setEditRole] = useState('ADMIN');
 
   // Company branding
   const [company, setCompany] = useState<{ name: string; supportEmail?: string; address?: string; primaryColor?: string } | null>(null);
@@ -192,6 +200,57 @@ export default function SettingsPage() {
       showErrorToast(err, 'errorSaveFailed');
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleEditUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingUser) return;
+    setSubmitting(true);
+    try {
+      await api.put(`/api/admin/users/${editingUser.id}`, {
+        name: editName,
+        email: editEmail,
+        role: editRole,
+      });
+      showSuccessToast('successUserUpdated');
+      setEditOpen(false);
+      setEditingUser(null);
+      fetchAdminUsers();
+    } catch (err: any) {
+      showErrorToast(err, 'errorUserUpdateFailed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleToggleStatus = async (user: AdminUser) => {
+    try {
+      await api.patch(`/api/admin/users/${user.id}/status`, {
+        active: !user.active,
+      });
+      showSuccessToast('successUserUpdated');
+      fetchAdminUsers();
+    } catch (err: any) {
+      showErrorToast(err, 'errorUserUpdateFailed');
+    }
+  };
+
+  const handleResetPassword = async (user: AdminUser) => {
+    try {
+      await api.post(`/api/admin/users/${user.id}/reset-password-email`);
+      showSuccessToast('successUserPasswordResetEmail');
+    } catch (err: any) {
+      showErrorToast(err, 'errorUserPasswordResetEmailFailed');
+    }
+  };
+
+  const handleForceLogout = async (user: AdminUser) => {
+    try {
+      await api.post(`/api/admin/users/${user.id}/logout`);
+      showSuccessToast('successUserForceLogout');
+    } catch (err: any) {
+      showErrorToast(err, 'errorUserForceLogoutFailed');
     }
   };
 
@@ -521,7 +580,9 @@ export default function SettingsPage() {
                         <tr>
                           <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.actor}</th>
                           <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.authorization}</th>
+                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.statusLabel}</th>
                           <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.creationDate}</th>
+                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-right">{t.settingsPage.actionsLabel}</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -550,7 +611,93 @@ export default function SettingsPage() {
                               </span>
                             </td>
                             <td className="py-3 px-4">
+                              <span
+                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5"
+                                style={{
+                                  color: u.active ? '#2D8A5E' : '#A52B24',
+                                  background: u.active ? 'rgba(76,175,130,0.09)' : 'rgba(199,55,47,0.09)',
+                                }}
+                              >
+                                <span
+                                  className="inline-block w-1 h-1 rounded-full"
+                                  style={{
+                                    background: u.active ? '#4CAF82' : '#C7372F'
+                                  }}
+                                />
+                                {u.active ? (t.driversPage.statusActive || 'Active') : (t.driversPage.statusInactive || 'Inactive')}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4">
                               <p className="text-[11px] text-[var(--text-muted)]">{u.createdAt ? formatDate(u.createdAt) : '--/--/--'}</p>
+                            </td>
+                            <td className="py-2 px-4 text-right">
+                              {canManage && (
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <button
+                                      type="button"
+                                      className="w-7 h-7 inline-flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--text-primary)] transition-all shrink-0"
+                                    >
+                                      <IconDotsVertical size={14} />
+                                    </button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-sm p-1">
+                                    <DropdownMenuItem
+                                      onClick={() => {
+                                        setEditingUser(u);
+                                        setEditName(u.name);
+                                        setEditEmail(u.email);
+                                        setEditRole(u.role);
+                                        setEditOpen(true);
+                                      }}
+                                      className="text-[11px] font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                    >
+                                      <IconPencil size={13} className="text-[var(--text-muted)]" />
+                                      {t.driversPage.modifyButton || 'Edit'}
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
+                                      onClick={() => handleToggleStatus(u)}
+                                      className={cn(
+                                        "text-[11px] font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5",
+                                        u.active
+                                          ? "text-red-600 hover:text-red-800 hover:bg-red-50/50"
+                                          : "text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50"
+                                      )}
+                                    >
+                                      {u.active ? (
+                                        <>
+                                          <IconBan size={13} className="text-red-500" />
+                                          {t.driversPage.suspendDriverButton || 'Suspend'}
+                                        </>
+                                      ) : (
+                                        <>
+                                          <IconCheck size={13} className="text-emerald-500" />
+                                          {t.driversPage.activateTooltip || 'Activate'}
+                                        </>
+                                      )}
+                                    </DropdownMenuItem>
+
+                                    <DropdownMenuItem
+                                      onClick={() => handleResetPassword(u)}
+                                      className="text-[11px] font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                    >
+                                      <IconLock size={13} className="text-amber-500" />
+                                      {t.settingsPage.resetPassword}
+                                    </DropdownMenuItem>
+
+                                    {u.active && (
+                                      <DropdownMenuItem
+                                        onClick={() => handleForceLogout(u)}
+                                        className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                      >
+                                        <IconLogout size={13} className="text-red-500" />
+                                        {t.driversPage.forceLogoutButton || 'Force Logout'}
+                                      </DropdownMenuItem>
+                                    )}
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              )}
                             </td>
                           </tr>
                         ))}
@@ -639,6 +786,70 @@ export default function SettingsPage() {
               style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
               value={formRole}
               onChange={e => setFormRole(e.currentTarget.value)}
+              disabled={submitting}
+            >
+              <option value="ADMIN">Admin</option>
+              <option value="DISPATCHER">Dispatcher</option>
+              <option value="MANAGER">Manager</option>
+            </select>
+          </div>
+        </form>
+      </AppModal>
+
+      {/* ── Edit User Modal ────────────────────────────────────── */}
+      <AppModal
+        open={editOpen && canManage}
+        onClose={() => setEditOpen(false)}
+        title={t.settingsPage.modifyUserTitle || 'Edit User'}
+        size="sm"
+        footer={
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" onClick={() => setEditOpen(false)} disabled={submitting}>
+              {t.settingsPage.cancelButton}
+            </Button>
+            <Button size="sm" form="edit-user-form" type="submit" disabled={submitting}>
+              {submitting && (
+                <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                </svg>
+              )}
+              {t.settingsPage.updateAccess || 'Update Access'}
+            </Button>
+          </div>
+        }
+      >
+        <form id="edit-user-form" onSubmit={handleEditUser} className="flex flex-col gap-4">
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.fullName}</label>
+            <input
+              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
+              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+              placeholder={t.settingsPage.fullNameExample}
+              value={editName}
+              onChange={e => setEditName(e.currentTarget.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.loginEmail}</label>
+            <input
+              type="email"
+              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
+              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+              placeholder={t.settingsPage.loginEmailExample}
+              value={editEmail}
+              onChange={e => setEditEmail(e.currentTarget.value)}
+              required
+            />
+          </div>
+          <div>
+            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.profilePrivileges}</label>
+            <select
+              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
+              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+              value={editRole}
+              onChange={e => setEditRole(e.currentTarget.value)}
               disabled={submitting}
             >
               <option value="ADMIN">Admin</option>

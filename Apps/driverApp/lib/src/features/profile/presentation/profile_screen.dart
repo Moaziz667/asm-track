@@ -9,7 +9,7 @@ import '../../../services/locale_provider.dart';
 import '../../../services/location_service.dart';
 import '../../../theme/widgets.dart';
 
-import 'change_password_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   const ProfileScreen({super.key});
@@ -292,9 +292,17 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const ChangePasswordScreen()),
-                  ),
+                  onPressed: () async {
+                    try {
+                      final client = ref.read(apiClientProvider);
+                      final uri = Uri.parse(client.dio.options.baseUrl);
+                      final issuerUrl = '${uri.scheme}://${uri.host}:8080/realms/asm';
+                      final passwordUrl = Uri.parse('$issuerUrl/account/password');
+                      if (await canLaunchUrl(passwordUrl)) {
+                        await launchUrl(passwordUrl, mode: LaunchMode.externalApplication);
+                      }
+                    } catch (_) {}
+                  },
                   icon: const Icon(LucideIcons.lock),
                   label: Text(DriverCopy.get('change_password', locale)),
                 ),

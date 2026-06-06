@@ -29,9 +29,11 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.*;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExceptionResolutionService {
 
     private static final List<DeliveryStatus> REASSIGN_ALLOWED_STATUSES = List.of(
@@ -414,145 +416,72 @@ public class ExceptionResolutionService {
         }
     }
 
+	/**
+	 * Manual entry point. In the shipment model the backorder is created automatically when a
+	 * partial delivery syncs to the ERP (ErpSyncResultConsumer -> createBackorderShipment). This
+	 * returns that auto-created backorder shipment for the order, or fails clearly if none is pending.
+	 */
 	public AdminDeliveryDetailResponse createBackorderDelivery(UUID deliveryId) {
-		// 1. Transactional Persistence
-		UUID newDeliveryId = self.doCreateBackorder(deliveryId);
+		Delivery source = deliveryRepo.findByIdWithOrder(deliveryId)
+				.orElseThrow(() -> AppException.notFound("Delivery not found"));
+		Order order = source.getOrder();
+		if (order == null) throw AppException.badRequest("No order attached to this delivery");
 
-		// 2. Non-Transactional detail fetch (includes external HTTP call)
-		return dispatchService.getDeliveryDetail(newDeliveryId);
+		UUID backorderId = deliveryRepo.findAllByOrderIdWithOrder(order.getId()).stream()
+				.filter(d -> d.getOdooBackorderId() != null && !d.getId().equals(deliveryId))
+				.map(Delivery::getId)
+				.findFirst()
+				.orElseThrow(() -> AppException.badRequest(
+						"No backorder pending. A backorder is created automatically once the partial delivery syncs to the ERP."));
+		return dispatchService.getDeliveryDetail(backorderId);
+	}
+
+	/**
+	 * Creates the backorder as a NEW shipment (delivery) under the SAME order — no cloned order,
+	 * no erp_order_id workaround. The picking identity lives on the delivery. Idempotent on the
+	 * Odoo backorder picking id. Called automatically from the ERP partial-sync result.
+	 */
+	public UUID createBackorderShipment(UUID orderId, Integer backorderPickingId, String backorderBlNumber, UUID sourceDeliveryId) {
+		return self.doCreateBackorderShipment(orderId, backorderPickingId, backorderBlNumber, sourceDeliveryId);
 	}
 
 	@Transactional
-	public UUID doCreateBackorder(UUID deliveryId) {
-		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-				.orElseThrow(() -> AppException.notFound("Delivery not found"));
-
-		Order order = delivery.getOrder();
-		if (order == null) throw AppException.badRequest("No order attached to this delivery");
-
-		// Capture the Odoo backorder picking ID before we clear it from the original order.
-		// The new backorder order needs it so ERP sync can target the correct Odoo picking directly,
-		// without needing the sale order reference (which would violate the erp_order_id unique constraint).
-		Integer odooBackorderPickingId = order.getOdooBackorderId();
-
-		// Resolve the backorder picking's BL number (name) so the remainder serves its own
-		// delivery note. Best-effort, defensive (returns null on any ERP failure).
-		String backorderBlNumber = odooBackorderPickingId != null
-				? erpAdapterClient.getPickingRef(String.valueOf(odooBackorderPickingId), null)
-				: null;
-
-		List<com.asm.delivery.entity.OrderItem> remainingItems = new ArrayList<>();
-		int newTotalQuantity = 0;
-		BigDecimal newTotalWeightKg = BigDecimal.ZERO;
-
-		if (order.getItems() != null) {
-			for (com.asm.delivery.entity.OrderItem item : order.getItems()) {
-				// Service products have no stock moves — they don't need physical re-delivery.
-				// Their qty_delivered is tracked directly in Odoo; exclude them from the backorder.
-				if ("service".equals(item.getProductType())) continue;
-
-				int planned = item.getQuantity() != null ? item.getQuantity() : 0;
-				int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
-				int remaining = Math.max(planned - done, 0);
-
-				if (remaining > 0) {
-					com.asm.delivery.entity.OrderItem clonedItem = new com.asm.delivery.entity.OrderItem();
-					clonedItem.setSku(item.getSku());
-					clonedItem.setName(item.getName());
-					clonedItem.setQuantity(remaining);
-					clonedItem.setQuantityDone(0);
-					clonedItem.setUnitWeightKg(item.getUnitWeightKg());
-					clonedItem.setUnitPrice(item.getUnitPrice());
-					clonedItem.setProductType(item.getProductType());
-					remainingItems.add(clonedItem);
-					newTotalQuantity += remaining;
-
-					BigDecimal unitWeight = item.getUnitWeightKg() != null ? item.getUnitWeightKg() : BigDecimal.ZERO;
-					newTotalWeightKg = newTotalWeightKg.add(unitWeight.multiply(BigDecimal.valueOf(remaining)));
-				}
+	public UUID doCreateBackorderShipment(UUID orderId, Integer backorderPickingId, String backorderBlNumber, UUID sourceDeliveryId) {
+		// Idempotency: the same Odoo backorder picking must map to a single shipment (retries/redeliveries).
+		if (backorderPickingId != null) {
+			Delivery existing = deliveryRepo.findByOdooBackorderId(backorderPickingId).orElse(null);
+			if (existing != null) {
+				log.info("Backorder shipment already exists for odooBackorderId={} (deliveryId={}), skipping create",
+						backorderPickingId, existing.getId());
+				return existing.getId();
 			}
 		}
+		Order order = orderRepo.findById(orderId)
+				.orElseThrow(() -> AppException.notFound("Order not found: " + orderId));
 
-		if (remainingItems.isEmpty()) {
-			throw AppException.badRequest("No remaining items to backorder");
-		}
-
-		Order backorder = Order.builder()
-				.source(order.getSource())
-				.schemaVersion(order.getSchemaVersion())
-
-				.clientId(order.getClientId())
-				.clientName(order.getClientName())
-				.clientPhone(order.getClientPhone())
-				.clientEmail(order.getClientEmail())
-				.erpOrderId(null) // must stay null — erp_order_id is unique per company; parent's ID is resolved at sync time via parentOrderId
-				.parentOrderId(order.getId())
-				.odooBackorderId(odooBackorderPickingId)
-				// Multi-depot: the remainder ships from the same warehouse/depot as the parent,
-				// so inherit them — otherwise the backorder is "unmapped" and blocked from routing.
-				.warehouseCode(order.getWarehouseCode())
-				.sourceDepotId(order.getSourceDepotId())
-				// Link the backorder to its own Odoo picking (its BL number) so the remainder
-				// can serve its delivery note. Best-effort: null when the ERP can't resolve it.
+		// The remainder ships from the same depot; items stay on the order (remaining = ordered − delivered).
+		Delivery backorder = Delivery.builder()
+				.order(order)
 				.blNumber(backorderBlNumber)
-				.erpClientId(order.getErpClientId())
-				.erpExternalRef(buildBackorderRef(order.resolveRef()))
-				.originName(order.getOriginName())
-				.originAddress(order.getOriginAddress())
-				.originCity(order.getOriginCity())
-				.originPostalCode(order.getOriginPostalCode())
-				.originCountryCode(order.getOriginCountryCode())
-				.originContactName(order.getOriginContactName())
-				.originContactPhone(order.getOriginContactPhone())
-				.originContactEmail(order.getOriginContactEmail())
-				.dropoffAddress(order.getDropoffAddress())
-				.dropoffCity(order.getDropoffCity())
-				.dropoffPostalCode(order.getDropoffPostalCode())
-				.dropoffCountryCode(order.getDropoffCountryCode())
-				.dropoffLat(order.getDropoffLat())
-				.dropoffLng(order.getDropoffLng())
-				.deliveryInstructions(order.getDeliveryInstructions())
-				.totalAmount(remainingItems.stream()
-						.filter(i -> i.getUnitPrice() != null && i.getQuantity() != null)
-						.map(i -> i.getUnitPrice().multiply(java.math.BigDecimal.valueOf(i.getQuantity())))
-						.reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add))
-				.currency(order.getCurrency())
-				.priority(order.getPriority())
-				.status(OrderStatus.PENDING)
-				.items(remainingItems)
-				.totalQuantity(newTotalQuantity)
-				.totalWeightKg(newTotalWeightKg)
-				.odooSyncStatus(null)
-				.build();
-				
-		backorder = orderRepo.save(backorder);
-
-		order.setOdooBackorderId(null);
-		orderRepo.save(order);
-
-		Delivery newDelivery = Delivery.builder()
-				.order(backorder)
+				.odooBackorderId(backorderPickingId)
 				.sourceDepotId(order.getSourceDepotId())
 				.status(DeliveryStatus.UNSCHEDULED)
 				.createdAt(LocalDateTime.now())
 				.build();
-		deliveryRepo.save(newDelivery);
+		backorder = deliveryRepo.save(backorder);
 
-		appendHistory(newDelivery,
+		appendHistory(backorder,
 				DeliveryStatus.UNSCHEDULED,
 				"SYSTEM",
 				Role.SYSTEM,
 				"BACKORDER_CREATED",
-				Map.of("parentDeliveryId", delivery.getId().toString()));
+				Map.of("sourceDeliveryId", sourceDeliveryId != null ? sourceDeliveryId.toString() : "",
+						"blNumber", backorderBlNumber != null ? backorderBlNumber : ""));
 
-		appendHistory(delivery,
-				delivery.getStatus(),
-				"SYSTEM",
-				Role.SYSTEM,
-				"BACKORDER_SPAWNED",
-				Map.of("childDeliveryId", newDelivery.getId().toString()));
-
-		return newDelivery.getId(); 
+		eventPublisher.publishBackorderCreated(order, backorder.getId(), backorderBlNumber);
+		log.info("Backorder shipment created — orderId={} backorderDeliveryId={} odooBackorderId={} bl={}",
+				orderId, backorder.getId(), backorderPickingId, backorderBlNumber);
+		return backorder.getId();
 	}
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()
@@ -624,8 +553,8 @@ public class ExceptionResolutionService {
                         return new ActorInfo("SYSTEM", Role.SYSTEM);
                 }
 
-                String actorName = StringUtils.hasText(principal.getName())
-                                ? principal.getName().trim()
+                String actorName = StringUtils.hasText(principal.getDisplayName())
+                                ? principal.getDisplayName().trim()
                                 : (StringUtils.hasText(principal.getUserId()) ? principal.getUserId().trim() : "SYSTEM");
 
                 Role role;

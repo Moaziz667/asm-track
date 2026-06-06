@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { useState, useEffect, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { safeStorage } from '@/lib/storage';
+import { useAuth } from 'react-oidc-context';
 
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
@@ -122,6 +123,7 @@ function Breadcrumb({ t }: { t: any }) {
 
 export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: () => void }) {
   const t = useT();
+  const auth = useAuth();
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
   const [user, setUser] = useState<AdminUser | null>(null);
   const [isClient, setIsClient] = useState(false);
@@ -162,16 +164,13 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
     : t.topNav.user;
 
   const handleLogout = async () => {
-    try {
-      const { api } = await import('@/lib/api');
-      await api.post('/api/auth/admin/logout');
-    } catch {}
-    safeStorage.removeItem('admin_jwt');
-    safeStorage.removeItem('admin_name');
-    safeStorage.removeItem('admin_role');
-    safeStorage.removeItem('admin_user');
     safeStorage.removeItem('admin-operational-filters');
-    window.location.href = '/login';
+    try {
+      await auth.removeUser();
+      await auth.signoutRedirect();
+    } catch {
+      window.location.href = '/';
+    }
   };
 
   return (
@@ -246,7 +245,14 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
               </span>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem className="gap-2 text-xs font-semibold cursor-pointer">
+            <DropdownMenuItem 
+              className="gap-2 text-xs font-semibold cursor-pointer"
+              onClick={() => {
+                if (auth.settings.authority) {
+                  window.open(`${auth.settings.authority}/account/`, '_blank');
+                }
+              }}
+            >
               <IconUserCircle size={14} /> {t.topNav.myAccount}
             </DropdownMenuItem>
             <DropdownMenuItem

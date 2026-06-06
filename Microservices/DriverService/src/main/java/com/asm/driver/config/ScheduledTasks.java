@@ -29,31 +29,30 @@ public class ScheduledTasks {
     @Transactional
     public void autoOfflineStaleDrivers() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
+
+        // Load before update so we can audit and publish events per driver
         List<Driver> stale = driverRepo.findByOnlineStatusNotAndLastLocationAtBefore(
                 DriverOnlineStatus.OFFLINE, threshold);
 
+        if (stale.isEmpty()) return;
+
+        // Single bulk UPDATE instead of N individual saves
+        int updated = driverRepo.bulkOfflineStaleDrivers(
+                DriverOnlineStatus.OFFLINE, LocalDateTime.now(), threshold);
+
         for (Driver driver : stale) {
             DriverOnlineStatus previous = driver.getOnlineStatus();
-            driver.setOnlineStatus(DriverOnlineStatus.OFFLINE);
-            driverRepo.save(driver);
-
             eventPublisher.publishStatusChanged(
-                    driver.getId(),
-                    previous, DriverOnlineStatus.OFFLINE,
-                    driver.getName());
-
+                    driver.getId(), previous, DriverOnlineStatus.OFFLINE, driver.getName());
             auditLogService.log(
                     "DRIVER_AUTO_OFFLINED",
                     driver.getId(),
-                    "SYSTEM",
-                    "SYSTEM",
+                    "SYSTEM", "SYSTEM",
                     String.format("{\"previousStatus\":\"%s\",\"lastLocationAt\":\"%s\"}",
                             previous, driver.getLastLocationAt()));
         }
 
-        if (!stale.isEmpty()) {
-            log.info("Auto-offlined {} stale driver(s)", stale.size());
-        }
+        log.info("Auto-offlined {} stale driver(s)", updated);
     }
 
     @Scheduled(fixedDelay = 3_600_000)

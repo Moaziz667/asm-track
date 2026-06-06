@@ -25,8 +25,6 @@ public class AdminUser {
     @Column(unique = true, nullable = false, length = 100)
     private String email;
 
-    @Column(name = "password_hash", nullable = false, length = 255)
-    private String passwordHash;
 
     @Column(nullable = false, length = 20)
     private String role;

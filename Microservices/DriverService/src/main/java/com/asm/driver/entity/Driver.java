@@ -20,8 +20,6 @@ public class Driver {
     @Column(nullable = false, unique = true, length = 20)
     private String phone;
 
-    @Column(nullable = false)
-    private String passwordHash;
 
     @Column(precision = 10, scale = 7)
     private BigDecimal currentLat;
@@ -46,9 +44,9 @@ public class Driver {
     @Column(length = 255)
     private String email;
 
-    @Column(name = "active", nullable = false)
+    @Column(name = "is_registered", nullable = false)
     @Builder.Default
-    private Boolean active = true;
+    private Boolean isRegistered = true;
 
     @Column(length = 500)
     private String fcmToken;

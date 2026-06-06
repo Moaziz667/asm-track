@@ -36,7 +36,7 @@ public class AuditLogService {
 
         if (principal != null) {
             actorRole = principal.getRole() != null ? principal.getRole() : "UNKNOWN";
-            actorName = principal.getName() != null ? principal.getName() : principal.getUserId();
+            actorName = principal.getDisplayName() != null ? principal.getDisplayName() : principal.getUserId();
         }
 
         String detailsJson;

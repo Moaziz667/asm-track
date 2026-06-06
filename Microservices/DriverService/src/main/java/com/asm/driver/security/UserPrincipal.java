@@ -5,7 +5,12 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class UserPrincipal {
+public class UserPrincipal implements java.security.Principal {
     private String userId;
     private String role;
+
+    @Override
+    public String getName() {
+        return userId;
+    }
 }

@@ -1,40 +1,45 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
-import { useNavigate as useRouter } from 'react-router-dom';
-import { api } from '@/lib/api';
-import { safeStorage } from '@/lib/storage';
-import { showSuccessToast } from '@/lib/toast-service';
-import { IconMail, IconLock, IconEye, IconEyeOff, IconAlertCircle, IconSun, IconMoon } from '@tabler/icons-react';
+import { IconAlertCircle, IconSun, IconMoon } from '@tabler/icons-react';
 import { useT, useLocaleContext } from '@/lib/LocaleContext';
 import LanguageSelector from '@/components/LanguageSelector';
+import { useAuth } from 'react-oidc-context';
+import { safeStorage } from '@/lib/storage';
 
 export default function LoginPage() {
   const t = useT();
   const { locale } = useLocaleContext();
-  const router = useRouter();
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPass, setShowPass] = useState(false);
+  const auth = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [focused, setFocused] = useState<'email' | 'password' | null>(null);
+  const triggered = useRef(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const startLogin = () => {
     setLoading(true);
-    try {
-      const res = await api.post('/api/auth/admin/login', { email, password });
-      safeStorage.setItem('admin_name', res.data.user?.name ?? res.data.name ?? email.split('@')[0]);
-      safeStorage.setItem('admin_role', res.data.user?.role ?? res.data.role ?? 'ADMIN');
-      showSuccessToast('successLogin');
-      router('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message ?? t.loginPage.errorDefault);
-    } finally {
+    auth.signinRedirect().catch((err) => {
+      setError(err.message);
       setLoading(false);
-    }
+      triggered.current = false;
+    });
   };
+
+  // Keycloak is the first page: redirect straight there on load. The branded
+  // card below only shows briefly (or as an error/retry fallback).
+  useEffect(() => {
+    if (triggered.current) return;
+    if (auth.isLoading || auth.activeNavigator) return;
+    if (auth.isAuthenticated || auth.error) return;
+    triggered.current = true;
+    startLogin();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [auth.isLoading, auth.activeNavigator, auth.isAuthenticated, auth.error]);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    startLogin();
+  };
+
+  const displayError = error || auth.error?.message || '';
 
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains('dark'));
 
@@ -137,7 +142,7 @@ export default function LoginPage() {
           </p>
 
           {/* Error area */}
-          {error && (
+          {displayError && (
             <div style={{
               display: 'flex',
               alignItems: 'center',
@@ -150,151 +155,13 @@ export default function LoginPage() {
               flexDirection: isRTL ? 'row-reverse' : 'row'
             }}>
               <IconAlertCircle size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)' }}>{error}</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)' }}>{displayError}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* Email */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                marginBottom: 5
-              }}>
-                {t.loginPage.emailLabel}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  position: 'absolute',
-                  [isRTL ? 'right' : 'left']: 11,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: focused === 'email' ? 'var(--brand)' : 'var(--text-muted)',
-                  transition: 'color 0.15s',
-                  pointerEvents: 'none',
-                  display: 'flex'
-                }}>
-                  <IconMail size={14} />
-                </div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={e => setEmail(e.target.value)}
-                  onFocus={() => setFocused('email')}
-                  onBlur={() => setFocused(null)}
-                  required
-                  placeholder={t.loginPage.emailPh}
-                  autoComplete="email"
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    paddingInlineStart: 34,
-                    paddingInlineEnd: 11,
-                    background: 'var(--app-bg)',
-                    border: `1px solid ${focused === 'email' ? 'var(--brand)' : 'var(--border)'}`,
-                    borderRadius: 'var(--radius)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box'
-                  }}
-                />
-              </div>
-            </div>
+            {/* OIDC Login does not need email/password fields */}
 
-            {/* Password */}
-            <div>
-              <label style={{
-                display: 'block',
-                fontSize: 11,
-                fontWeight: 600,
-                color: 'var(--text-secondary)',
-                marginBottom: 5
-              }}>
-                {t.loginPage.passLabel}
-              </label>
-              <div style={{ position: 'relative' }}>
-                <div style={{
-                  position: 'absolute',
-                  [isRTL ? 'right' : 'left']: 11,
-                  top: '50%',
-                  transform: 'translateY(-50%)',
-                  color: focused === 'password' ? 'var(--brand)' : 'var(--text-muted)',
-                  transition: 'color 0.15s',
-                  pointerEvents: 'none',
-                  display: 'flex'
-                }}>
-                  <IconLock size={14} />
-                </div>
-                <input
-                  type={showPass ? 'text' : 'password'}
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  onFocus={() => setFocused('password')}
-                  onBlur={() => setFocused(null)}
-                  required
-                  placeholder={t.loginPage.passPh}
-                  autoComplete="current-password"
-                  style={{
-                    width: '100%',
-                    height: 38,
-                    paddingInlineStart: 34,
-                    paddingInlineEnd: 38,
-                    background: 'var(--app-bg)',
-                    border: `1px solid ${focused === 'password' ? 'var(--brand)' : 'var(--border)'}`,
-                    borderRadius: 'var(--radius)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--text-primary)',
-                    outline: 'none',
-                    transition: 'border-color 0.15s',
-                    fontFamily: 'inherit',
-                    boxSizing: 'border-box'
-                  }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPass(s => !s)}
-                  style={{
-                    position: 'absolute',
-                    [isRTL ? 'left' : 'right']: 9,
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    color: 'var(--text-muted)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: 4,
-                    display: 'flex'
-                  }}
-                  tabIndex={-1}
-                >
-                  {showPass ? <IconEyeOff size={14} /> : <IconEye size={14} />}
-                </button>
-              </div>
-            </div>
-
-            {/* Forgot password link */}
-            <div style={{ textAlign: isRTL ? 'right' : 'left', marginTop: -2 }}>
-              <a
-                href="#"
-                style={{
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--brand)',
-                  textDecoration: 'none'
-                }}
-                onClick={e => e.preventDefault()}
-              >
-                Forgot password?
-              </a>
-            </div>
 
             {/* Submit */}
             <button

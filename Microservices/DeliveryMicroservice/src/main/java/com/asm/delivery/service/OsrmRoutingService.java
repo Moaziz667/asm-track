@@ -7,7 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -79,8 +79,7 @@ public class OsrmRoutingService {
                     destinationLat.stripTrailingZeros().toPlainString()
             );
 
-            RestTemplate client = buildClient();
-            String raw = client.getForObject(URI.create(requestUrl), String.class);
+            String raw = osrmGet(requestUrl);
             if (raw == null || raw.isBlank()) {
                 return Optional.empty();
             }
@@ -147,7 +146,7 @@ public class OsrmRoutingService {
                     stripTrailingSlash(baseUrl), profile,
                     lng1, lat1, lng2, lat2
             );
-            String raw = buildClient().getForObject(URI.create(url), String.class);
+            String raw = osrmGet(url);
             if (raw == null) return Optional.empty();
 
             JsonNode root = objectMapper.readTree(raw);
@@ -193,7 +192,7 @@ public class OsrmRoutingService {
                     "%s/table/v1/%s/%s?annotations=%s",
                     stripTrailingSlash(baseUrl), profile, coords, annotations
             );
-            String raw = buildClient().getForObject(URI.create(url), String.class);
+            String raw = osrmGet(url);
             if (raw == null) return Optional.empty();
 
             JsonNode root = objectMapper.readTree(raw);
@@ -231,7 +230,7 @@ public class OsrmRoutingService {
                     "%s/route/v1/%s/%s?overview=full&geometries=geojson&steps=false",
                     stripTrailingSlash(baseUrl), profile, coords
             );
-            String raw = buildClient().getForObject(URI.create(url), String.class);
+            String raw = osrmGet(url);
             if (raw == null) return Optional.empty();
 
             JsonNode root = objectMapper.readTree(raw);
@@ -274,7 +273,7 @@ public class OsrmRoutingService {
                     "%s/route/v1/%s/%s?overview=false&geometries=geojson&steps=true",
                     stripTrailingSlash(baseUrl), profile, coords
             );
-            String raw = buildClient().getForObject(URI.create(url), String.class);
+            String raw = osrmGet(url);
             if (raw == null) return List.of();
 
             JsonNode root = objectMapper.readTree(raw);
@@ -329,7 +328,7 @@ public class OsrmRoutingService {
                     "%s/trip/v1/%s/%s?source=first&roundtrip=false&geometries=geojson&overview=full",
                     stripTrailingSlash(baseUrl), profile, coords
             );
-            String raw = buildClient().getForObject(URI.create(url), String.class);
+            String raw = osrmGet(url);
             if (raw == null) return Optional.empty();
 
             JsonNode root = objectMapper.readTree(raw);
@@ -419,11 +418,23 @@ public class OsrmRoutingService {
         return matrix;
     }
 
-    private RestTemplate buildClient() {
-        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
-        requestFactory.setConnectTimeout(connectTimeoutMs);
-        requestFactory.setReadTimeout(readTimeoutMs);
-        return new RestTemplate(requestFactory);
+    private volatile RestClient osrmClient;
+
+    /** Lazily-built, reused OSRM client (timeouts come from @Value fields populated post-construction). */
+    private RestClient osrmClient() {
+        RestClient local = osrmClient;
+        if (local == null) {
+            SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(connectTimeoutMs);
+            requestFactory.setReadTimeout(readTimeoutMs);
+            local = RestClient.builder().requestFactory(requestFactory).build();
+            osrmClient = local;
+        }
+        return local;
+    }
+
+    private String osrmGet(String requestUrl) {
+        return osrmClient().get().uri(URI.create(requestUrl)).retrieve().body(String.class);
     }
 
     private static String stripTrailingSlash(String value) {

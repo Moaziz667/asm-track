@@ -76,9 +76,12 @@ public class DispatchService {
             OrderSource source,
             UUID zoneId,
             Boolean unpinned,
+            String q,
+            Boolean assigned,
+            String bucket,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, pageable);
+        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
@@ -97,13 +100,14 @@ public class DispatchService {
 
     @Transactional(readOnly = true)
     public Page<Delivery> doSearch(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
-                                  UUID zoneId, Boolean unpinned, Pageable pageable) {
+                                  UUID zoneId, Boolean unpinned, String q, Boolean assigned, String bucket,
+                                  Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned);
+        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -114,7 +118,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -422,6 +426,10 @@ public class DispatchService {
     }
     // ── Helpers ──────────────────────────────────────────────────────────────
 
+    private static final List<DeliveryStatus> TERMINAL_STATUSES = List.of(
+            DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
+            DeliveryStatus.FAILED, DeliveryStatus.CANCELLED);
+
     private List<Predicate> buildPredicates(CriteriaBuilder cb,
                                             Root<Delivery> root,
                                             DeliveryStatus status,
@@ -429,7 +437,10 @@ public class DispatchService {
                                             LocalDate date,
                                             OrderSource source,
                                             UUID zoneId,
-                                            Boolean unpinned) {
+                                            Boolean unpinned,
+                                            String q,
+                                            Boolean assigned,
+                                            String bucket) {
         List<Predicate> predicates = new ArrayList<>();
         if (status != null) {
             predicates.add(cb.equal(root.get("status"), status));
@@ -437,8 +448,16 @@ public class DispatchService {
         if (driverId != null) {
             predicates.add(cb.equal(root.get("driverId"), driverId));
         }
+        if (assigned != null) {
+            predicates.add(assigned ? cb.isNotNull(root.get("driverId")) : cb.isNull(root.get("driverId")));
+        }
+
+        String trimmedQ = (q == null) ? null : q.trim();
+        boolean hasQ = trimmedQ != null && !trimmedQ.isEmpty();
+        boolean hasBucket = bucket != null && !bucket.isBlank();
         // Date filter on Planifié (effective scheduledAt = rescheduledAt ?? scheduledAt)
-        boolean needsOrderJoin = date != null || source != null || zoneId != null || Boolean.TRUE.equals(unpinned);
+        boolean needsOrderJoin = date != null || source != null || zoneId != null
+                || Boolean.TRUE.equals(unpinned) || hasQ || hasBucket;
         if (needsOrderJoin) {
             Join<Delivery, Order> orderJoin = root.join("order", JoinType.INNER);
             if (date != null) {
@@ -458,8 +477,64 @@ public class DispatchService {
             if (Boolean.TRUE.equals(unpinned)) {
                 predicates.add(cb.isNull(orderJoin.get("dropoffLat")));
             }
+            if (hasQ) {
+                String pattern = "%" + trimmedQ.toLowerCase() + "%";
+                predicates.add(cb.or(
+                    cb.like(cb.lower(orderJoin.<String>get("clientName")), pattern),
+                    cb.like(cb.lower(orderJoin.<String>get("dropoffCity")), pattern),
+                    cb.like(cb.lower(orderJoin.<String>get("erpOrderId")), pattern),
+                    cb.like(cb.lower(root.<String>get("blNumber")), pattern)
+                ));
+            }
+            if (hasBucket) {
+                LocalDateTime todayStart = LocalDate.now().atStartOfDay();
+                LocalDateTime tomorrowStart = todayStart.plusDays(1);
+                var effSched = cb.coalesce(orderJoin.<LocalDateTime>get("rescheduledAt"),
+                                           orderJoin.<LocalDateTime>get("scheduledAt"));
+                Predicate pending = cb.not(root.get("status").in(TERMINAL_STATUSES));
+                switch (bucket.toUpperCase()) {
+                    case "OVERDUE" -> predicates.add(cb.and(pending, cb.lessThan(effSched, todayStart)));
+                    case "TODAY"   -> predicates.add(cb.and(pending,
+                            cb.greaterThanOrEqualTo(effSched, todayStart), cb.lessThan(effSched, tomorrowStart)));
+                    case "FUTURE"  -> predicates.add(cb.and(pending, cb.greaterThanOrEqualTo(effSched, tomorrowStart)));
+                    case "FAILED"  -> predicates.add(root.get("status").in(
+                            List.of(DeliveryStatus.FAILED, DeliveryStatus.CANCELLED)));
+                    default -> { /* unknown bucket -> ignore */ }
+                }
+            }
         }
         return predicates;
+    }
+
+    /**
+     * Quick-view tallies under the current base filters (driver / date / source / zone / search),
+     * computed across the WHOLE dataset — so the deliveries sidebar is accurate, not per-page.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Long> deliveryCounts(UUID driverId, LocalDate date, OrderSource source,
+                                            UUID zoneId, String q) {
+        Map<String, Long> m = new HashMap<>();
+        m.put("all",          countTally(null, driverId, date, source, zoneId, q, null, null, null));
+        m.put("needsPinning", countTally(null, driverId, date, source, zoneId, q, null, null, Boolean.TRUE));
+        m.put("unassigned",   countTally(null, driverId, date, source, zoneId, q, Boolean.FALSE, null, null));
+        m.put("inTransit",    countTally(DeliveryStatus.IN_TRANSIT, driverId, date, source, zoneId, q, null, null, null));
+        m.put("completed",    countTally(DeliveryStatus.DELIVERED, driverId, date, source, zoneId, q, null, null, null));
+        m.put("failed",       countTally(DeliveryStatus.FAILED, driverId, date, source, zoneId, q, null, null, null)
+                            + countTally(DeliveryStatus.CANCELLED, driverId, date, source, zoneId, q, null, null, null));
+        m.put("overdue",      countTally(null, driverId, date, source, zoneId, q, null, "OVERDUE", null));
+        m.put("today",        countTally(null, driverId, date, source, zoneId, q, null, "TODAY", null));
+        m.put("future",       countTally(null, driverId, date, source, zoneId, q, null, "FUTURE", null));
+        return m;
+    }
+
+    private long countTally(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
+                            UUID zoneId, String q, Boolean assigned, String bucket, Boolean unpinned) {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Long> cq = cb.createQuery(Long.class);
+        Root<Delivery> root = cq.from(Delivery.class);
+        List<Predicate> ps = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
+        cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
+        return entityManager.createQuery(cq).getSingleResult();
     }
 
     /** Bulk-fetch all unique drivers needed for a list of deliveries. */

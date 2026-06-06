@@ -26,7 +26,6 @@ CREATE TABLE IF NOT EXISTS drivers (
   id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name              VARCHAR(100) NOT NULL,
   phone             VARCHAR(20) UNIQUE NOT NULL,
-  password_hash     VARCHAR(255) NOT NULL,
   available         BOOLEAN NOT NULL DEFAULT true,
   current_lat       NUMERIC(10,7),
   current_lng       NUMERIC(10,7),

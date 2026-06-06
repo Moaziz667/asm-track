@@ -18,4 +18,6 @@ public class ErpPartialDeliveryResultDTO {
     private boolean success;
     private Integer pickingId;
     private Integer backorderPickingId;
+    /** Delivery-note (BL) number of the created backorder picking, e.g. "WH/OUT/00013". */
+    private String backorderBlNumber;
 }

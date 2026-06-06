@@ -66,7 +66,7 @@ public class AdminDriverController {
             @RequestBody UpdateDriverRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         requireAdmin(principal);
-        return ResponseEntity.ok(service.update(id, req.name(), req.phone(), principal));
+        return ResponseEntity.ok(service.update(id, req.name(), req.phone(), req.email(), principal));
     }
 
     @PatchMapping("/{id}/status")
@@ -76,7 +76,7 @@ public class AdminDriverController {
             @RequestBody SetStatusRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         requireAdmin(principal);
-        return ResponseEntity.ok(service.setActive(id, req.active(), req.reason(), principal));
+        return ResponseEntity.ok(service.setActive(id, req.isRegistered(), req.reason(), principal));
     }
 
     @DeleteMapping("/{id}")
@@ -100,17 +100,14 @@ public class AdminDriverController {
         return ResponseEntity.ok(service.adminResendInvite(id, principal));
     }
 
-    @PostMapping("/{id}/reset-password")
-    @Operation(summary = "Reset driver password")
-    public ResponseEntity<Map<String, String>> resetPassword(
+    @PostMapping("/{id}/logout")
+    @Operation(summary = "Force logout a driver (session invalidation)")
+    public ResponseEntity<Map<String, String>> forceLogout(
             @PathVariable UUID id,
-            @RequestBody Map<String, String> body,
             @AuthenticationPrincipal UserPrincipal principal) {
         requireAdmin(principal);
-        String newPassword = body.get("password");
-        if (newPassword == null || newPassword.isBlank()) return ResponseEntity.badRequest().build();
-        service.resetPassword(id, newPassword, principal);
-        return ResponseEntity.ok(Map.of("message", "Password reset successfully"));
+        service.forceLogout(id, principal);
+        return ResponseEntity.ok(Map.of("message", "Driver force logged out successfully"));
     }
 
     @PostMapping(value = "/import", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
@@ -185,9 +182,9 @@ public class AdminDriverController {
 
     public record InviteDriverRequest(@NotBlank String name, @NotBlank String phone, @NotBlank String email) {}
 
-    public record UpdateDriverRequest(String name, String phone) {}
+    public record UpdateDriverRequest(String name, String phone, String email) {}
 
-    public record SetStatusRequest(boolean active, String reason) {}
+    public record SetStatusRequest(boolean isRegistered, String reason) {}
 
     public record CancelInviteRequest(String reason) {}
 }

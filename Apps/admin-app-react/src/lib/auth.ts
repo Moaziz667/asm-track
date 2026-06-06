@@ -1,5 +1,8 @@
 import { AdminRole, AdminUser } from '@/types';
+export type { AdminRole } from '@/types';
 import { safeStorage } from '@/lib/storage';
+import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
 
 const ROLL_KEYS = ['token_role', 'admin_role', 'role', 'user_role'];
 const USER_DATA_KEY = 'admin_user';
@@ -85,12 +88,31 @@ export function canViewReadOnly(role: AdminRole): boolean {
  * Redirige vers /dashboard si le role ne satisfait pas le check.
  */
 export function useRoleGuard(checkFn: (role: AdminRole) => boolean): { allowed: boolean; loading: boolean } {
-  if (typeof window === 'undefined') return { allowed: false, loading: true };
+  const navigate = useNavigate();
   const role = getCurrentRole();
-  if (role === 'UNKNOWN') return { allowed: false, loading: true };
-  if (!checkFn(role)) {
-    window.location.href = '/dashboard';
-    return { allowed: false, loading: false };
-  }
-  return { allowed: true, loading: false };
+  const [allowed, setAllowed] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || role === 'UNKNOWN') return false;
+    return checkFn(role);
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window === 'undefined' || role === 'UNKNOWN') return true;
+    return false;
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (role === 'UNKNOWN') {
+      setLoading(true);
+      setAllowed(false);
+      return;
+    }
+    const isAllowed = checkFn(role);
+    setAllowed(isAllowed);
+    setLoading(false);
+    if (!isAllowed) {
+      navigate('/dashboard', { replace: true });
+    }
+  }, [role, checkFn, navigate]);
+
+  return { allowed, loading };
 }

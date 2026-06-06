@@ -33,12 +33,23 @@ public class EncryptionService {
         }
     }
 
+    private static final String GCM_ALGORITHM = "AES/GCM/NoPadding";
+    private static final int GCM_IV_LENGTH = 12;
+    private static final int GCM_TAG_LENGTH = 128;
+
     public String encrypt(String strToEncrypt) {
         if (strToEncrypt == null || strToEncrypt.isBlank()) return null;
         try {
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.ENCRYPT_MODE, secretKey);
-            return Base64.getEncoder().encodeToString(cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8)));
+            byte[] iv = new byte[GCM_IV_LENGTH];
+            new java.security.SecureRandom().nextBytes(iv);
+            Cipher cipher = Cipher.getInstance(GCM_ALGORITHM);
+            javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            cipher.init(Cipher.ENCRYPT_MODE, secretKey, spec);
+            byte[] ciphertext = cipher.doFinal(strToEncrypt.getBytes(StandardCharsets.UTF_8));
+            byte[] combined = new byte[iv.length + ciphertext.length];
+            System.arraycopy(iv, 0, combined, 0, iv.length);
+            System.arraycopy(ciphertext, 0, combined, iv.length, ciphertext.length);
+            return Base64.getEncoder().encodeToString(combined);
         } catch (Exception e) {
             log.error("Error while encrypting: {}", e.getMessage());
             throw new RuntimeException("Encryption failed");
@@ -48,9 +59,16 @@ public class EncryptionService {
     public String decrypt(String strToDecrypt) {
         if (strToDecrypt == null || strToDecrypt.isBlank()) return null;
         try {
-            Cipher cipher = Cipher.getInstance("AES/ECB/PKCS5Padding");
-            cipher.init(Cipher.DECRYPT_MODE, secretKey);
-            return new String(cipher.doFinal(Base64.getDecoder().decode(strToDecrypt)), StandardCharsets.UTF_8);
+            byte[] decoded = Base64.getDecoder().decode(strToDecrypt);
+            if (decoded.length <= GCM_IV_LENGTH) {
+                throw new IllegalArgumentException("Ciphertext too short");
+            }
+            byte[] iv = Arrays.copyOfRange(decoded, 0, GCM_IV_LENGTH);
+            byte[] ciphertext = Arrays.copyOfRange(decoded, GCM_IV_LENGTH, decoded.length);
+            Cipher cipher = Cipher.getInstance(GCM_ALGORITHM);
+            javax.crypto.spec.GCMParameterSpec spec = new javax.crypto.spec.GCMParameterSpec(GCM_TAG_LENGTH, iv);
+            cipher.init(Cipher.DECRYPT_MODE, secretKey, spec);
+            return new String(cipher.doFinal(ciphertext), StandardCharsets.UTF_8);
         } catch (Exception e) {
             log.error("Error while decrypting: {}", e.getMessage());
             throw new RuntimeException("Decryption failed");

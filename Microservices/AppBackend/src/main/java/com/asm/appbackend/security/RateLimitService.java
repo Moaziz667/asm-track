@@ -1,5 +1,6 @@
 package com.asm.appbackend.security;
 
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayDeque;
@@ -14,20 +15,15 @@ import java.util.concurrent.ConcurrentHashMap;
 public class RateLimitService {
 
     private static final int MAX_ATTEMPTS = 5;
-    private static final long WINDOW_MS   = 60_000; // 1 minute
+    private static final long WINDOW_MS   = 60_000;
 
     private final ConcurrentHashMap<String, Deque<Long>> buckets = new ConcurrentHashMap<>();
 
-    /**
-     * Returns true if the request is allowed; false if the rate limit is exceeded.
-     * Records the current attempt regardless.
-     */
     public boolean isAllowed(String key) {
         final long now = System.currentTimeMillis();
 
         buckets.compute(key, (k, deque) -> {
             if (deque == null) deque = new ArrayDeque<>();
-            // evict timestamps older than the window
             while (!deque.isEmpty() && now - deque.peekFirst() > WINDOW_MS) {
                 deque.pollFirst();
             }
@@ -36,5 +32,15 @@ public class RateLimitService {
         });
 
         return buckets.get(key).size() <= MAX_ATTEMPTS;
+    }
+
+    /** Evict keys whose last attempt is older than the window — prevents unbounded growth. */
+    @Scheduled(fixedDelay = 120_000)
+    public void evictStaleKeys() {
+        final long cutoff = System.currentTimeMillis() - WINDOW_MS;
+        buckets.entrySet().removeIf(entry -> {
+            Deque<Long> deque = entry.getValue();
+            return deque.isEmpty() || deque.peekLast() < cutoff;
+        });
     }
 }

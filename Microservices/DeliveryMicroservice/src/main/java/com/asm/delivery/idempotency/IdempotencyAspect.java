@@ -55,16 +55,21 @@ public class IdempotencyAspect {
             Class<?> returnType = signature.getReturnType();
             
             if (ResponseEntity.class.isAssignableFrom(returnType)) {
-                // If it's a ResponseEntity, we return the stored body (which is a JSON string) 
-                // However, the controller expect the actual object.
-                // For simplicity in this microservice, we'll assume the body is the object.
-                // We'll try to deserialize it if we have the type.
                 try {
                     Type genericReturnType = signature.getMethod().getGenericReturnType();
-                    // In a real production app, we'd use the generic type to deserialize.
-                    // For now, returning the cached body string might work if the caller expects a JSON string or if Spring handles it.
-                    // But to be safe, let's just return what's in the cache.
-                    return ResponseEntity.ok(existing.response());
+                    Object cachedResponse = existing.response();
+                    if (cachedResponse == null) {
+                        return ResponseEntity.ok().build();
+                    }
+                    String responseBody = cachedResponse.toString();
+                    if (genericReturnType instanceof java.lang.reflect.ParameterizedType pt) {
+                        Type targetType = pt.getActualTypeArguments()[0];
+                        Object body = objectMapper.readValue(responseBody, objectMapper.constructType(targetType));
+                        return ResponseEntity.ok(body);
+                    } else {
+                        Object body = objectMapper.readTree(responseBody);
+                        return ResponseEntity.ok(body);
+                    }
                 } catch (Exception e) {
                     log.warn("Failed to reconstruct ResponseEntity for idempotency", e);
                 }

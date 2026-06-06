@@ -16,25 +16,14 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _formKey = GlobalKey<FormState>(debugLabel: 'login_form');
-  final _phoneCtrl = TextEditingController();
-  final _passwordCtrl = TextEditingController();
-  bool _obscure = true;
-
   @override
   void dispose() {
-    _phoneCtrl.dispose();
-    _passwordCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _onSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
     try {
-      await ref.read(authControllerProvider.notifier).login(
-            phone: _phoneCtrl.text.trim(),
-            password: _passwordCtrl.text.trim(),
-          );
+      await ref.read(authControllerProvider.notifier).login();
       // Navigation on success is handled centrally by DriverApp's auth listener.
     } catch (_) {
       if (mounted) {
@@ -92,40 +81,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Expanded(
             child: SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(28, 32, 28, 40),
-              child: Form(
-                key: _formKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Identification', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                    Text('Authentification', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _phoneCtrl,
-                      keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        hintText: 'Numero de telephone',
-                        prefixIcon: Icon(LucideIcons.phone, size: 20),
-                      ),
-                      validator: (v) => (v == null || v.isEmpty) ? 'Requis' : null,
-                    ),
-                    const SizedBox(height: 24),
-                    Text('Securite', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                    const SizedBox(height: 12),
-                    TextFormField(
-                      controller: _passwordCtrl,
-                      obscureText: _obscure,
-                      decoration: InputDecoration(
-                        hintText: 'Mot de passe',
-                        prefixIcon: const Icon(LucideIcons.lock, size: 20),
-                        suffixIcon: IconButton(
-                          icon: Icon(
-                            _obscure ? LucideIcons.eye : LucideIcons.eyeOff,
-                            size: 18,
-                          ),
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                        ),
-                      ),
-                      validator: (v) => (v == null || v.length < 6) ? 'Min 6 caracteres' : null,
+                    Text(
+                      'Vous allez être redirigé vers la page de connexion sécurisée pour vous identifier.',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurface),
                     ),
                     const SizedBox(height: 40),
                     SizedBox(
@@ -148,12 +111,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       child: Column(
                         children: [
                           TextButton(
-                            onPressed: () => Navigator.of(context).pushNamed(SetupAccountScreen.routeName),
+                            onPressed: () {
+                              Navigator.of(context).pushNamed(SetupAccountScreen.routeName);
+                            },
                             child: Text(
-                              'Configurer mon compte',
-                              style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.primary),
+                              "Configurer mon compte",
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
                             ),
                           ),
+                          const SizedBox(height: 8),
                           TextButton(
                             onPressed: () async {
                               final storage = ref.read(tokenStorageProvider);
@@ -161,7 +130,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               final current = ref.read(appConfigProvider);
                               ref.read(appConfigProvider.notifier).state = AppConfig(apiBaseUrl: '', discoveryUrl: current.discoveryUrl);
                               if (context.mounted) {
-                                Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
+                                  Navigator.of(context).pushReplacementNamed(WorkspaceScreen.routeName);
                               }
                             },
                             child: Text(
@@ -174,7 +143,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     ),
                   ],
                 ),
-              ),
             ),
           ),
         ],

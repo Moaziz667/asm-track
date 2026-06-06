@@ -97,9 +97,36 @@ public class AdminDeliveryController {
             @Parameter(description = "If true, only return deliveries with no GPS coordinates pinned yet")
             Boolean unpinned,
 
+            @Parameter(description = "Free-text search across client name, city, ERP order id and BL number")
+            @RequestParam(required = false) String q,
+
+            @Parameter(description = "Filter by driver assignment: true = assigned, false = unassigned")
+            @RequestParam(required = false) Boolean assigned,
+
+            @Parameter(description = "Scheduled-date quick view: OVERDUE | TODAY | FUTURE (pending deliveries only)")
+            @RequestParam(required = false) String bucket,
+
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, pageable));
+    }
+
+    @GetMapping("/counts")
+    @Operation(
+        summary = "Quick-view counts for the deliveries table",
+        description = """
+            Returns tallies (all, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future)
+            under the current base filters (driver / date / source / zone / search). Computed across the whole
+            dataset so the sidebar reflects every matching delivery, not just the loaded page.
+            """
+    )
+    public ResponseEntity<java.util.Map<String, Long>> counts(
+            UUID driverId,
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date,
+            OrderSource source,
+            UUID zoneId,
+            @RequestParam(required = false) String q) {
+        return ResponseEntity.ok(dispatchService.deliveryCounts(driverId, date, source, zoneId, q));
     }
 
     @GetMapping("/{id}")
@@ -124,6 +151,15 @@ public class AdminDeliveryController {
         AdminDeliveryDetailResponse delivery = dispatchService.getDeliveryDetail(id);
         String query = buildGeocodeQuery(delivery.getDropoffAddress(), delivery.getDropoffCity());
         return ResponseEntity.ok(geocodingService.geocode(query));
+    }
+
+    @GetMapping("/geocode-search")
+    @Operation(summary = "Free-text address autocomplete",
+            description = "Server-side proxy to Nominatim (Tunisia) so the browser never calls the public geocoder directly. Returns up to {limit} suggestions for an address query.")
+    public ResponseEntity<List<GeocodeSuggestionResponse>> geocodeSearch(
+            @RequestParam String q,
+            @RequestParam(required = false, defaultValue = "5") int limit) {
+        return ResponseEntity.ok(geocodingService.searchAddresses(q, limit));
     }
 
     @GetMapping("/reverse-geocode")

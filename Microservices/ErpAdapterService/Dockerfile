@@ -31,6 +31,10 @@ RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 COPY --from=build /workspace/build/libs/*.jar app.jar
 RUN chown appuser:appgroup app.jar
 
+# H2 file DB lives under /data (mounted as a named volume). Create it owned by the runtime
+# user so a fresh volume inherits writable ownership — otherwise H2 fails with AccessDeniedException.
+RUN mkdir -p /data && chown appuser:appgroup /data
+
 USER appuser
 
 EXPOSE 8088

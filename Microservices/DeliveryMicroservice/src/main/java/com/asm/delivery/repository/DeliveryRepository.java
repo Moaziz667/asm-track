@@ -23,10 +23,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
     List<Delivery> findByStatus(DeliveryStatus status);
 
-    Optional<Delivery> findByOrderId(UUID orderId);
+    /** An order can have many shipments now; callers want the most recent (representative) one. */
+    Optional<Delivery> findFirstByOrderIdOrderByCreatedAtDesc(UUID orderId);
 
-    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.order.id = :orderId")
-    Optional<Delivery> findByOrderIdWithOrder(@Param("orderId") UUID orderId);
+    /** All shipments for an order, newest first, with the order eagerly fetched (safe outside a tx). */
+    @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.order.id = :orderId ORDER BY d.createdAt DESC")
+    List<Delivery> findAllByOrderIdWithOrder(@Param("orderId") UUID orderId);
+
+    /** The backorder shipment created for a given Odoo backorder picking (idempotency guard). */
+    Optional<Delivery> findByOdooBackorderId(Integer odooBackorderId);
 
     /** Returns all deliveries waiting for a driver, joining order for full info. */
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.status = :status ORDER BY d.order.priority DESC, d.createdAt ASC")

@@ -9,15 +9,11 @@ import com.asm.delivery.repository.OutboxRepository;
 import com.asm.delivery.transport.TransportPort;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.*;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -34,20 +30,19 @@ public class OutboxProcessor {
     private final DeliveryRepository deliveryRepo;
     private final TransportPort transportPort;
     private final EventPublisher eventPublisher;
-    private final RestTemplate alertRestTemplate = new RestTemplate();
-
-    @Value("${outbox.alert.webhook-url:}")
-    private String alertWebhookUrl;
+    private final com.asm.delivery.repository.OrderRepository orderRepo;
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
-                           TransportPort transportPort, EventPublisher eventPublisher) {
+                           TransportPort transportPort, EventPublisher eventPublisher,
+                           com.asm.delivery.repository.OrderRepository orderRepo) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
         this.deliveryRepo = deliveryRepo;
         this.transportPort = transportPort;
         this.eventPublisher = eventPublisher;
+        this.orderRepo = orderRepo;
     }
 
     @Scheduled(fixedDelay = 20000)
@@ -108,7 +103,31 @@ public class OutboxProcessor {
                 event.setStatus("FAILED");
                 log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
                         eventId, event.getEventType(), newRetryCount, error);
-                sendDeadLetterAlert(eventId, event.getEventType(), error);
+                
+                // Update Order status in DB to record permanent sync failure
+                try {
+                    Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+                    UUID orderId = null;
+                    if (payload.get("orderId") != null) {
+                        orderId = UUID.fromString((String) payload.get("orderId"));
+                    } else if (payload.get("deliveryId") != null) {
+                        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+                        orderId = deliveryRepo.findByIdWithOrder(deliveryId)
+                                .map(d -> d.getOrder() != null ? d.getOrder().getId() : null)
+                                .orElse(null);
+                    }
+                    if (orderId != null) {
+                        final UUID resolvedOrderId = orderId;
+                        orderRepo.findById(resolvedOrderId).ifPresent(order -> {
+                            order.setOdooSyncStatus("SYNC_FAILED");
+                            orderRepo.save(order);
+                            log.info("Successfully marked order ID={} as SYNC_FAILED after outbox exhaustion", resolvedOrderId);
+                        });
+                    }
+                } catch (Exception ex) {
+                    log.error("Failed to mark order sync status as SYNC_FAILED for eventId={}: {}", eventId, ex.getMessage());
+                }
+
                 notifyErpSyncFailed(event);
             }
             outboxRepo.save(event);
@@ -129,7 +148,7 @@ public class OutboxProcessor {
             if (payload.get("deliveryId") != null) {
                 delivery = deliveryRepo.findByIdWithOrder(UUID.fromString((String) payload.get("deliveryId"))).orElse(null);
             } else if (payload.get("orderId") != null) {
-                delivery = deliveryRepo.findByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).orElse(null);
+                delivery = deliveryRepo.findAllByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).stream().findFirst().orElse(null);
             }
             if (delivery != null && delivery.getOrder() != null) {
                 eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), erpOperationCode(type));
@@ -176,12 +195,12 @@ public class OutboxProcessor {
         UUID orderId = UUID.fromString((String) payload.get("orderId"));
         // MUST use join-fetch variant: Order fields (erpOrderId, etc.) are accessed
         // by ErpSyncService outside a Hibernate session → LazyInitializationException otherwise.
-        Delivery delivery = deliveryRepo.findByOrderIdWithOrder(orderId).orElse(null);
+        Delivery delivery = deliveryRepo.findAllByOrderIdWithOrder(orderId).stream().findFirst().orElse(null);
         if (delivery == null || delivery.getOrder() == null) {
             log.warn("ERP_SYNC_CANCELLATION: no delivery/order found for orderId={}, skipping", orderId);
             return;
         }
-        erpSyncService.syncOrderCancellation(delivery.getOrder(), txId);
+        erpSyncService.syncOrderCancellation(delivery, txId);
     }
 
     private void processErpSync(Map<String, Object> payload, String txId) throws Exception {
@@ -204,9 +223,9 @@ public class OutboxProcessor {
         if (Boolean.TRUE.equals(isPartial)) {
             List<PartialDeliveryItem> items = objectMapper.convertValue(
                 payload.get("partialItems"), new TypeReference<List<PartialDeliveryItem>>() {});
-            erpSyncService.syncPartialStockUpdate(delivery.getOrder(), items, txId);
+            erpSyncService.syncPartialStockUpdate(delivery, items, txId);
         } else {
-            erpSyncService.syncStockUpdate(delivery.getOrder(), txId);
+            erpSyncService.syncStockUpdate(delivery, txId);
         }
     }
 
@@ -219,23 +238,7 @@ public class OutboxProcessor {
 
         String code = (String) payload.get("failureCode");
         String comment = (String) payload.get("comment");
-        erpSyncService.syncFailure(delivery.getOrder(), code, comment, txId);
-    }
-
-    private void sendDeadLetterAlert(UUID eventId, String eventType, String error) {
-        if (alertWebhookUrl == null || alertWebhookUrl.isBlank()) return;
-        try {
-            String text = String.format(
-                    ":red_circle: *ASM Track — Outbox Dead Letter*\n" +
-                    "• eventId: `%s`\n• eventType: `%s`\n• error: `%s`",
-                    eventId, eventType, error != null ? error : "unknown");
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            alertRestTemplate.exchange(alertWebhookUrl, HttpMethod.POST,
-                    new HttpEntity<>(Map.of("text", text), headers), String.class);
-        } catch (Exception ex) {
-            log.warn("Failed to send dead-letter alert for eventId={}: {}", eventId, ex.getMessage());
-        }
+        erpSyncService.syncFailure(delivery, code, comment, txId);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

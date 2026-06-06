@@ -13,7 +13,7 @@ public class AdminDriverResponse {
     private String id;
     private String name;
     private String phone;
-    private boolean active;
+    private boolean isRegistered;
     private String accountStatus;
     private BigDecimal currentLat;
     private BigDecimal currentLng;

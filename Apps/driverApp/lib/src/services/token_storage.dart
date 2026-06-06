@@ -10,6 +10,7 @@ class TokenStorage {
 
   static const _kAccessTokenKey = 'access_token';
   static const _kRefreshTokenKey = 'refresh_token';
+  static const _kIdTokenKey = 'id_token';
   static const _kTokenTypeKey = 'token_type';
   static const _kExpiresAtKey = 'expires_at';
   static const _kApiBaseUrlKey = 'api_base_url';
@@ -23,12 +24,14 @@ class TokenStorage {
     if (access == null || refresh == null) {
       return null;
     }
+    final idToken = await _secureStorage.read(key: _kIdTokenKey);
     final tokenType = await _secureStorage.read(key: _kTokenTypeKey) ?? 'Bearer';
     final expiresIso = await _secureStorage.read(key: _kExpiresAtKey);
     final expiresAt = expiresIso != null ? DateTime.tryParse(expiresIso) : null;
     _cached = AuthTokens(
       accessToken: access,
       refreshToken: refresh,
+      idToken: idToken,
       tokenType: tokenType,
       expiresAt: expiresAt,
     );
@@ -39,6 +42,7 @@ class TokenStorage {
     _cached = tokens;
     await _secureStorage.write(key: _kAccessTokenKey, value: tokens.accessToken);
     await _secureStorage.write(key: _kRefreshTokenKey, value: tokens.refreshToken);
+    await _secureStorage.write(key: _kIdTokenKey, value: tokens.idToken ?? '');
     await _secureStorage.write(key: _kTokenTypeKey, value: tokens.tokenType);
     await _secureStorage.write(key: _kExpiresAtKey, value: tokens.expiresAt?.toIso8601String());
   }
@@ -47,12 +51,14 @@ class TokenStorage {
     _cached = null;
     await _secureStorage.delete(key: _kAccessTokenKey);
     await _secureStorage.delete(key: _kRefreshTokenKey);
+    await _secureStorage.delete(key: _kIdTokenKey);
     await _secureStorage.delete(key: _kTokenTypeKey);
     await _secureStorage.delete(key: _kExpiresAtKey);
   }
 
   Future<String?> readAccessToken() async => (await readTokens())?.accessToken;
   Future<String?> readRefreshToken() async => (await readTokens())?.refreshToken;
+  Future<String?> readIdToken() async => (await readTokens())?.idToken;
 
   Future<String?> readApiBaseUrl() async {
     return await _secureStorage.read(key: _kApiBaseUrlKey);

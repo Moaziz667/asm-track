@@ -47,8 +47,6 @@ export function RouteTimelineItem({
   amount,
   currency,
   timeWindow,
-  isCod,
-  codCollected,
   isExpanded,
   onToggle,
   onEditWindow,

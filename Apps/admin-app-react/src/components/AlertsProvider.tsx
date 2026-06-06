@@ -10,7 +10,7 @@ import { useLocaleStore } from '@/lib/i18n';
 import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
 import { AR_COPY } from '@/lib/ar-copy';
-import { safeStorage } from '@/lib/storage';
+import { api } from '@/lib/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -40,6 +40,7 @@ interface NotificationsContextType {
   markRead: (id: string) => void;
   markAllRead: () => void;
   clearAll: () => void;
+  acknowledge: (id: string) => void;
 }
 
 // ── Event config ──────────────────────────────────────────────────────────────
@@ -87,21 +88,10 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import' },
 };
 
-// ── localStorage ──────────────────────────────────────────────────────────────
-
-const LS_KEY = 'admin_notifications';
-const MAX_STORED = 50;
-
-function loadFromStorage(): Notification[] {
-  try {
-    const raw = typeof window !== 'undefined' ? safeStorage.getItem(LS_KEY) : null;
-    return raw ? (JSON.parse(raw) as Notification[]) : [];
-  } catch { return []; }
-}
-
-function saveToStorage(n: Notification[]) {
-  try { safeStorage.setItem(LS_KEY, JSON.stringify(n.slice(0, MAX_STORED))); } catch {}
-}
+// The server (/api/admin/notifications) is the source of truth — read-state is
+// shared across admins and survives refresh/offline. We keep only an in-memory
+// cap so the live WS feed can't grow unbounded between refetches.
+const MAX_STORED = 200;
 
 // ── Context ───────────────────────────────────────────────────────────────────
 
@@ -113,6 +103,8 @@ interface NotificationsActionsContextType {
   markRead: (id: string) => void;
   markAllRead: () => void;
   clearAll: () => void;
+  acknowledge: (id: string) => void;
+  refresh: () => Promise<void>;
 }
 
 const NotificationsStateContext = createContext<NotificationsStateContextType>({
@@ -124,6 +116,8 @@ const NotificationsActionsContext = createContext<NotificationsActionsContextTyp
   markRead: () => {},
   markAllRead: () => {},
   clearAll: () => {},
+  acknowledge: () => {},
+  refresh: async () => {},
 });
 
 export function useNotificationsState() {
@@ -149,12 +143,46 @@ export function useAlerts() {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
+const mapResponseToNotification = (item: any): Notification => {
+  const cfg = EVENT_MAP[item.event];
+  return {
+    id: item.id,
+    event: item.event,
+    category: cfg ? cfg.category : 'delivery',
+    severity: item.severity as 'critical' | 'warning' | 'info',
+    title: item.title,
+    message: item.message,
+    deliveryId: item.deliveryId || undefined,
+    routeId: item.routeId || undefined,
+    driverId: item.driverId || undefined,
+    driverName: item.driverName || undefined,
+    orderId: item.orderId || undefined,
+    clientName: item.clientName || undefined,
+    routeName: item.routeName || undefined,
+    timestamp: item.timestamp,
+    read: item.read,
+    eventParams: item.eventParams || {},
+  };
+};
+
 export default function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const router = useRouter();
   const stompRef = useRef<Client | null>(null);
 
-  useEffect(() => { setNotifs(loadFromStorage()); }, []);
+  const refresh = useCallback(async () => {
+    try {
+      const res = await api.get('/api/admin/notifications?size=100');
+      if (res.data && Array.isArray(res.data.content)) {
+        setNotifs(res.data.content.map(mapResponseToNotification));
+      }
+    } catch (err) {
+      console.error('[Notifications] Failed to fetch notification history from server:', err);
+      throw err;
+    }
+  }, []);
+
+  useEffect(() => { void refresh(); }, [refresh]);
 
   const addNotification = useCallback((raw: Record<string, any>) => {
     if (import.meta.env.DEV) {
@@ -243,11 +271,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       eventParams: p,
     };
 
-    setNotifs(prev => {
-      const next = [notif, ...prev].slice(0, MAX_STORED);
-      saveToStorage(next);
-      return next;
-    });
+    setNotifs(prev => [notif, ...prev].slice(0, MAX_STORED));
 
     const localized = getLocalizedNotif(notif, activeLocale);
 
@@ -363,14 +387,38 @@ export default function NotificationsProvider({ children }: { children: ReactNod
   }, [addNotification]);
 
   const markRead = useCallback((id: string) => {
-    setNotifs(prev => { const n = prev.map(x => x.id === id ? { ...x, read: true } : x); saveToStorage(n); return n; });
+    setNotifs(prev => prev.map(x => x.id === id ? { ...x, read: true } : x));
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_RE.test(id)) {
+      api.post(`/api/admin/notifications/${id}/read`).catch(err => {
+        console.error(`[Notifications] Failed to mark notification ${id} as read on server:`, err);
+      });
+    }
   }, []);
 
   const markAllRead = useCallback(() => {
-    setNotifs(prev => { const n = prev.map(x => ({ ...x, read: true })); saveToStorage(n); return n; });
+    setNotifs(prev => prev.map(x => ({ ...x, read: true })));
+    api.post('/api/admin/notifications/read-all').catch(err => {
+      console.error('[Notifications] Failed to mark all notifications as read on server:', err);
+    });
   }, []);
 
-  const clearAll = useCallback(() => { setNotifs([]); saveToStorage([]); }, []);
+  const clearAll = useCallback(() => {
+    setNotifs([]);
+    api.post('/api/admin/notifications/read-all').catch(err => {
+      console.error('[Notifications] Failed to clear/read all notifications on server:', err);
+    });
+  }, []);
+
+  const acknowledge = useCallback((id: string) => {
+    setNotifs(prev => prev.filter(x => x.id !== id));
+    const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (UUID_RE.test(id)) {
+      api.post(`/api/admin/notifications/${id}/acknowledge`).catch(err => {
+        console.error(`[Notifications] Failed to acknowledge notification ${id} on server:`, err);
+      });
+    }
+  }, []);
 
   const unreadCount = notifs.filter(n => !n.read).length;
 
@@ -378,7 +426,9 @@ export default function NotificationsProvider({ children }: { children: ReactNod
     markRead,
     markAllRead,
     clearAll,
-  }), [markRead, markAllRead, clearAll]);
+    acknowledge,
+    refresh,
+  }), [markRead, markAllRead, clearAll, acknowledge, refresh]);
 
   const stateValue = useMemo(() => ({
     notifications: notifs,

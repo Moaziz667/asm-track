@@ -5,6 +5,5 @@ import java.util.List;
 public interface TransportPort {
     List<DriverDTO> getAvailableDrivers();
     DriverDTO getDriver(String driverId);
-    boolean updateLocation(String driverId, double lat, double lng);
     boolean incrementStat(String driverId, String field);
 }

@@ -4,5 +4,10 @@ public record UserPrincipal(
         String userId,
         String role,
         String name
-) {
+) implements java.security.Principal {
+
+    @Override
+    public String getName() {
+        return userId;
+    }
 }

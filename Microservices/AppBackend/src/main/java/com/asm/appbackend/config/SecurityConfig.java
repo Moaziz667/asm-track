@@ -1,7 +1,6 @@
 package com.asm.appbackend.config;
 
-import com.asm.appbackend.security.JwtAuthFilter;
-import lombok.RequiredArgsConstructor;
+import com.asm.appbackend.security.JwtAuthConverter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -9,21 +8,14 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.config.http.SessionCreationPolicy;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
-import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.web.client.RestTemplate;
 
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
-@RequiredArgsConstructor
 public class SecurityConfig {
-
-    private final JwtAuthFilter jwtAuthFilter;
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -31,30 +23,31 @@ public class SecurityConfig {
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
                                 "/api/auth/**",
+                                "/actuator/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
                                 "/v3/api-docs/**",
                                 "/v3/api-docs"
                         ).permitAll()
+                        .requestMatchers("/internal/**").hasRole("SERVICE")
                         .requestMatchers("/api/profile/**").hasRole("CLIENT")
-                        // User management restricted to admins
                         .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
                         .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")
-                        // All other admin endpoints available to admin roles
                         .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                         .anyRequest().authenticated()
                 )
-                .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)
+                .oauth2ResourceServer(rs -> rs
+                        .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))
+                )
                 .exceptionHandling(ex -> ex
-                        // Unauthenticated → 401
                         .authenticationEntryPoint((req, res, e) -> {
                             res.setStatus(401);
                             res.setContentType("application/json");
                             res.getWriter().write("{\"status\":401,\"message\":\"Authentication required\"}");
                         })
-                        // Authenticated but wrong role → 403
                         .accessDeniedHandler((req, res, e) -> {
                             res.setStatus(403);
                             res.setContentType("application/json");
@@ -65,19 +58,61 @@ public class SecurityConfig {
         return http.build();
     }
 
+    @org.springframework.beans.factory.annotation.Value("${spring.security.oauth2.resourceserver.jwt.jwk-set-uri}")
+    private String jwkSetUri;
+
+    @org.springframework.beans.factory.annotation.Value("${auth.issuer.url:${auth.server.url:http://keycloak:8080/realms/asm}}")
+    private String issuerUri;
+
+    @Bean
+    public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder =
+                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> issuerValidator = jwt -> {
+            java.net.URL issuer = jwt.getIssuer();
+            if (issuer != null && issuer.toString().endsWith("/realms/asm")) {
+                return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
+            }
+            return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
+                    new org.springframework.security.oauth2.core.OAuth2Error(
+                            "invalid_token", "Invalid issuer: " + issuer, null));
+        };
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withIssuer =
+                new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                        new org.springframework.security.oauth2.jwt.JwtTimestampValidator(),
+                        issuerValidator
+                );
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> withAudience =
+                new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                        withIssuer,
+                        jwt -> {
+                            java.util.List<String> aud = jwt.getAudience();
+                            String azp = jwt.getClaimAsString("azp");
+                            
+                            boolean hasValidAud = aud != null && (aud.contains("admin-web") || aud.contains("erp-adapter")
+                                    || aud.contains("delivery-service") || aud.contains("driver-service"));
+                                    
+                            boolean hasValidAzp = azp != null && (azp.equals("admin-web") || azp.equals("erp-adapter")
+                                    || azp.equals("delivery-service") || azp.equals("driver-service"));
+
+                            if (hasValidAud || hasValidAzp) {
+                                return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
+                            }
+                            return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
+                                    new org.springframework.security.oauth2.core.OAuth2Error(
+                                            "invalid_token", "Required audience or azp is missing", null));
+                        }
+                );
+
+        jwtDecoder.setJwtValidator(withAudience);
+        return jwtDecoder;
+    }
+
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
-    }
-
-    // Prevents Spring Boot from auto-generating a default security password
-    @Bean
-    public UserDetailsService userDetailsService() {
-        return new InMemoryUserDetailsManager();
-    }
-
-    @Bean
-    public RestTemplate restTemplate() {
-        return new RestTemplate();
     }
 }

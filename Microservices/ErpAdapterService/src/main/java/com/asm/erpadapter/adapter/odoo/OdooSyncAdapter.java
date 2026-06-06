@@ -183,8 +183,10 @@ public class OdooSyncAdapter implements ErpSyncPort {
             if ("done".equals(state)) {
                 // Retry path: picking already validated — sync qty lines and return success.
                 syncSaleOrderLineDeliveredQuantities(erpId, items, false);
+                Integer bo = findBackorderPickingId(pickingId);
                 return ErpPartialDeliveryResultDTO.builder()
-                        .success(true).pickingId(pickingId).backorderPickingId(findBackorderPickingId(pickingId)).build();
+                        .success(true).pickingId(pickingId).backorderPickingId(bo)
+                        .backorderBlNumber(readPickingName(bo)).build();
             }
 
             reserveStock(pickingId);
@@ -249,7 +251,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
             Integer backorderPickingId = findBackorderPickingId(pickingId);
             log.info("provider=odoo operation=syncPartialDelivery pickingId={} backorderPickingId={}", pickingId, backorderPickingId);
             return ErpPartialDeliveryResultDTO.builder()
-                    .success(true).pickingId(pickingId).backorderPickingId(backorderPickingId).build();
+                    .success(true).pickingId(pickingId).backorderPickingId(backorderPickingId)
+                    .backorderBlNumber(readPickingName(backorderPickingId)).build();
         } catch (Exception e) {
             log.error("ERP sync exception — provider=odoo operation=syncPartialDelivery erpOrderId={} erpId={} errorClass={} reason={} retryable=true",
                     erpOrderId, erpId, e.getClass().getSimpleName(), e.getMessage(), e);
@@ -601,6 +604,14 @@ public class OdooSyncAdapter implements ErpSyncPort {
         Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "read", List.of(List.of(pickingId), List.of("state"))));
         List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
         return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
+    }
+
+    /** Reads a picking's delivery-note (BL) name by id, e.g. "WH/OUT/00013". Null on any failure. */
+    private String readPickingName(Integer pickingId) {
+        if (pickingId == null) return null;
+        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "read", List.of(List.of(pickingId), List.of("name"))));
+        List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
+        return (result != null && !result.isEmpty()) ? asString(result.get(0).get("name")) : null;
     }
 
     private String readSaleOrderState(Integer erpOrderId) {

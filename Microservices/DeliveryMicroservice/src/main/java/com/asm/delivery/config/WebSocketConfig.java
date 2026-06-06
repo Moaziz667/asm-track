@@ -42,6 +42,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
         registry.setApplicationDestinationPrefixes("/app");
     }
 
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder;
+
+    @Override
+    public void configureClientInboundChannel(org.springframework.messaging.simp.config.ChannelRegistration registration) {
+        registration.interceptors(new com.asm.delivery.security.WebSocketSecurityInterceptor(
+                jwtDecoder, new com.asm.delivery.security.JwtAuthConverter()));
+    }
+
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")

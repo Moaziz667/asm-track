@@ -1,104 +1,56 @@
 package com.asm.erpadapter.config;
 
-import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.JwtException;
-import io.jsonwebtoken.Jwts;
-import jakarta.annotation.PostConstruct;
-import jakarta.servlet.FilterChain;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
-import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.web.client.RestTemplate;
-import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.oauth2.jwt.Jwt;
+import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.web.SecurityFilterChain;
 
-import java.io.IOException;
-import java.math.BigInteger;
-import java.security.KeyFactory;
-import java.security.interfaces.RSAPublicKey;
-import java.security.spec.RSAPublicKeySpec;
-import java.util.Base64;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
-/**
- * Validates incoming calls using JWT Bearer token (client_credentials)
- * issued by auth-server. Replaces X-Internal-Secret header check.
- */
 @Configuration
-@Slf4j
+@EnableWebSecurity
 public class SecurityConfig {
 
-    @Value("${auth.server.jwks-uri}")
-    private String jwksUri;
-
-    private RSAPublicKey publicKey;
-
-    @PostConstruct
-    @SuppressWarnings("unchecked")
-    public void init() {
-        RestTemplate rt = new RestTemplate();
-        for (int attempt = 1; attempt <= 5; attempt++) {
-            try {
-                Map<String, Object> jwks = rt.getForObject(jwksUri, Map.class);
-                List<Map<String, Object>> keys = (List<Map<String, Object>>) jwks.get("keys");
-                Map<String, Object> key = keys.get(0);
-                Base64.Decoder dec = Base64.getUrlDecoder();
-                BigInteger modulus  = new BigInteger(1, dec.decode((String) key.get("n")));
-                BigInteger exponent = new BigInteger(1, dec.decode((String) key.get("e")));
-                this.publicKey = (RSAPublicKey) KeyFactory.getInstance("RSA")
-                        .generatePublic(new RSAPublicKeySpec(modulus, exponent));
-                log.info("ErpAdapter RSA public key loaded from JWKS");
-                return;
-            } catch (Exception e) {
-                log.warn("JWKS fetch attempt {}/5 failed: {} — retrying in 3s", attempt, e.getMessage());
-                try { Thread.sleep(3000); } catch (InterruptedException ignored) { Thread.currentThread().interrupt(); }
-            }
-        }
-        throw new IllegalStateException("ErpAdapter could not fetch RSA public key from " + jwksUri);
+    @Bean
+    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+        http
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                .requestMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
+                .requestMatchers("/api/**").hasRole("SERVICE")
+                .anyRequest().authenticated()
+            )
+            .oauth2ResourceServer(rs -> rs
+                .jwt(jwt -> jwt.jwtAuthenticationConverter(serviceTokenConverter()))
+            );
+        return http.build();
     }
 
-    @Bean
-    public OncePerRequestFilter internalSecretFilter() {
-        return new OncePerRequestFilter() {
-            @Override
-            protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
-                                            FilterChain filterChain) throws ServletException, IOException {
-                String path = request.getRequestURI();
-                if (!path.startsWith("/api/")) {
-                    filterChain.doFilter(request, response);
-                    return;
-                }
+    private JwtAuthenticationConverter serviceTokenConverter() {
+        JwtAuthenticationConverter converter = new JwtAuthenticationConverter();
+        converter.setJwtGrantedAuthoritiesConverter(this::extractAuthorities);
+        return converter;
+    }
 
-                String authHeader = request.getHeader("Authorization");
-                if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Missing service token");
-                    return;
-                }
-
-                try {
-                    Claims claims = Jwts.parser()
-                            .verifyWith(publicKey)
-                            .build()
-                            .parseSignedClaims(authHeader.substring(7))
-                            .getPayload();
-
-                    String role = claims.get("role", String.class);
-                    if (!"SERVICE".equals(role)) {
-                        response.sendError(HttpServletResponse.SC_FORBIDDEN, "Not a service token");
-                        return;
-                    }
-                } catch (JwtException | IllegalArgumentException e) {
-                    log.warn("Invalid service token on ErpAdapter: {}", e.getMessage());
-                    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid service token");
-                    return;
-                }
-
-                filterChain.doFilter(request, response);
-            }
-        };
+    @SuppressWarnings("unchecked")
+    private java.util.Collection<org.springframework.security.core.GrantedAuthority> extractAuthorities(Jwt jwt) {
+        Map<String, Object> realmAccess = jwt.getClaim("realm_access");
+        if (realmAccess == null) return Collections.emptyList();
+        List<String> roles = (List<String>) realmAccess.get("roles");
+        if (roles == null) return Collections.emptyList();
+        return roles.stream()
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
+                .collect(Collectors.toList());
     }
 }

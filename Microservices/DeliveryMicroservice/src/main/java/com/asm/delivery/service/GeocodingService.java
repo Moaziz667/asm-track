@@ -2,14 +2,11 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpMethod;
-import org.springframework.http.ResponseEntity;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.web.client.RestClient;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Locale;
@@ -47,19 +44,22 @@ public class GeocodingService {
     private static final String NOMINATIM_REVERSE_URL =
             "https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json&accept-language=fr";
 
+    private static final String NOMINATIM_SEARCH_URL =
+            "https://nominatim.openstreetmap.org/search?q={q}&format=json&limit={limit}&addressdetails=1&countrycodes=tn&accept-language=fr";
+
     // Tunisia bounding box
     private static final double TN_LAT_MIN = 30.2;
     private static final double TN_LAT_MAX = 37.5;
     private static final double TN_LNG_MIN = 7.5;
     private static final double TN_LNG_MAX = 11.6;
 
-    private final RestTemplate restTemplate;
+    private final RestClient restClient;
 
     public GeocodingService() {
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(3000);
         factory.setReadTimeout(6000);
-        this.restTemplate = new RestTemplate(factory);
+        this.restClient = RestClient.builder().requestFactory(factory).build();
     }
 
     /**
@@ -72,19 +72,12 @@ public class GeocodingService {
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_URL, Map.of("q", addressQuery))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
 
-            ResponseEntity<Map<String, Object>[]> response = restTemplate.exchange(
-                    NOMINATIM_URL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>[]>) (Class<?>) Map[].class,
-                    Map.of("q", addressQuery)
-            );
-
-            Map<String, Object>[] results = response.getBody();
             if (results == null || results.length == 0) {
                 log.debug("Nominatim: no results for query '{}'", addressQuery);
                 return GeocodeSuggestionResponse.builder().found(false).build();
@@ -121,6 +114,49 @@ public class GeocodingService {
     }
 
     /**
+     * Free-text address autocomplete (Tunisia). Server-side proxy so the browser never
+     * calls the public Nominatim endpoint directly (usage-policy + caching + no CORS).
+     * Returns up to {@code limit} suggestions; empty list on failure.
+     */
+    @SuppressWarnings("unchecked")
+    public List<GeocodeSuggestionResponse> searchAddresses(String query, int limit) {
+        if (query == null || query.isBlank()) return List.of();
+        int capped = Math.min(Math.max(limit, 1), 8);
+        try {
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_SEARCH_URL, Map.of("q", query, "limit", capped))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
+
+            if (results == null || results.length == 0) return List.of();
+
+            List<GeocodeSuggestionResponse> out = new ArrayList<>();
+            for (Map<String, Object> r : results) {
+                try {
+                    double lat = Double.parseDouble((String) r.get("lat"));
+                    double lng = Double.parseDouble((String) r.get("lon"));
+                    String displayName = (String) r.get("display_name");
+                    out.add(GeocodeSuggestionResponse.builder()
+                            .found(true)
+                            .lat(lat)
+                            .lng(lng)
+                            .displayName(displayName)
+                            .city(extractCity(r, displayName))
+                            .postalCode(extractPostalCode(r))
+                            .build());
+                } catch (Exception ignore) {
+                    // skip malformed row
+                }
+            }
+            return out;
+        } catch (Exception ex) {
+            log.warn("Nominatim search failed for '{}': {}", query, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    /**
      * Geocodes an address without country restriction (global).
      * Used for depot/warehouse sync where addresses may not be in Tunisia.
      * Always returns a response — if geocoding fails or finds nothing, found=false.
@@ -131,19 +167,12 @@ public class GeocodingService {
         }
 
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object>[] results = restClient.get()
+                    .uri(NOMINATIM_URL_GLOBAL, Map.of("q", addressQuery))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>[]>) (Class<?>) Map[].class);
 
-            ResponseEntity<Map<String, Object>[]> response = restTemplate.exchange(
-                    NOMINATIM_URL_GLOBAL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>[]>) (Class<?>) Map[].class,
-                    Map.of("q", addressQuery)
-            );
-
-            Map<String, Object>[] results = response.getBody();
             if (results == null || results.length == 0) {
                 log.debug("Nominatim global: no results for query '{}'", addressQuery);
                 return GeocodeSuggestionResponse.builder().found(false).build();
@@ -183,19 +212,12 @@ public class GeocodingService {
     @SuppressWarnings("unchecked")
     public GeocodeSuggestionResponse reverseGeocode(double lat, double lng) {
         try {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("User-Agent", "ASM-Delivery-App/1.0");
-            HttpEntity<Void> entity = new HttpEntity<>(headers);
+            Map<String, Object> body = restClient.get()
+                    .uri(NOMINATIM_REVERSE_URL, Map.of("lat", lat, "lon", lng))
+                    .header("User-Agent", "ASM-Delivery-App/1.0")
+                    .retrieve()
+                    .body((Class<Map<String, Object>>) (Class<?>) Map.class);
 
-            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
-                    NOMINATIM_REVERSE_URL,
-                    HttpMethod.GET,
-                    entity,
-                    (Class<Map<String, Object>>) (Class<?>) Map.class,
-                    Map.of("lat", lat, "lon", lng)
-            );
-
-            Map<String, Object> body = response.getBody();
             if (body == null || body.get("error") != null) {
                 log.debug("Nominatim reverse: no result for ({}, {})", lat, lng);
                 return GeocodeSuggestionResponse.builder().found(false).lat(lat).lng(lng).build();

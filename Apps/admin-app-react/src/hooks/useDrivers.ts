@@ -12,7 +12,7 @@ export interface DriverPayload {
 }
 
 interface DriverStatusBody {
-  active: boolean;
+  isRegistered: boolean;
   reason?: string;
 }
 
@@ -72,14 +72,14 @@ export function useToggleDriverStatus() {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: async ({ id, active, reason }: { id: string; active: boolean; reason?: string }) => {
-      const body: DriverStatusBody = { active };
+    mutationFn: async ({ id, isRegistered, reason }: { id: string; isRegistered: boolean; reason?: string }) => {
+      const body: DriverStatusBody = { isRegistered };
       if (reason) body.reason = reason;
       const res = await api.patch<Driver>(`/api/admin/drivers/${id}/status`, body);
       return res.data;
     },
     onSuccess: (_, variables) => {
-      if (variables.active === false) {
+      if (variables.isRegistered === false) {
         showSuccessToast('successDriverDeactivated');
       } else {
         showSuccessToast('successDriverActivated');
@@ -87,7 +87,7 @@ export function useToggleDriverStatus() {
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
     onError: (err: any, variables) => {
-      const isSuspend = variables.active === false;
+      const isSuspend = variables.isRegistered === false;
       showErrorToast(
         err,
         isSuspend ? 'errorDriverSuspendFailed' : 'errorDriverUpdateFailed'
@@ -131,6 +131,24 @@ export function useResendDriverInvite() {
     },
     onError: (err: any) => {
       showErrorToast(err, 'errorDriverInviteResendFailed');
+    },
+  });
+}
+
+export function useForceLogoutDriver() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const res = await api.post<void>(`/api/admin/drivers/${id}/logout`);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDriverForceLogout');
+      queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDriverForceLogoutFailed');
     },
   });
 }

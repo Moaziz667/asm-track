@@ -1,6 +1,7 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+import { keycloakify } from 'keycloakify/vite-plugin'
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -8,7 +9,17 @@ export default defineConfig(({ mode }) => {
   const BACKEND = env.VITE_API_BASE_URL || 'http://localhost:80'
 
   return {
-    plugins: [react()],
+    plugins: [
+      react(),
+      keycloakify({
+        themeName: 'asm',
+        themeVersion: '1.0.0',
+        accountThemeImplementation: 'none',
+        startKeycloakOptions: {
+          port: 8090,
+        },
+      }),
+    ],
     define: { global: 'globalThis' },
     resolve: {
       alias: {
