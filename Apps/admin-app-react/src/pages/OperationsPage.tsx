@@ -7,6 +7,7 @@ import {
   IconChartPie, IconClock, IconTrendingUp, IconInbox,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -128,46 +129,32 @@ export default function OperationsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--app-bg)' }}>
 
-      {/* Top Bar */}
-      <div
-        className="sticky top-0 z-20 min-h-16 h-auto lg:h-16 py-4 lg:py-0 flex items-center shrink-0"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
-      >
-        <div className="px-6 w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <div>
-              <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.operationsPage.subtitle}</span>
-              <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-                {t.operationsPage.title.split(' ').slice(0, -1).join(' ')} <span className="text-[var(--brand)]">{t.operationsPage.title.split(' ').pop()}</span>
-              </h1>
-            </div>
-          </div>
-            <RefreshButton
-              refreshing={refreshing}
-              showText
-              onClick={handleRefresh}
-            />
-        </div>
-      </div>
-
-      {/* Tabs */}
+      {/* Tabs — title bar removed; refresh lives in the tab strip */}
       <Tabs
         value={tab}
         onValueChange={setTab}
         className="flex flex-col flex-1 overflow-hidden"
       >
-        <div className="px-6 border-b border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+        <div className="px-4 shrink-0 flex items-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <TabsList variant="line" className="h-10 bg-transparent">
             <TabsTrigger value="today" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabToday}</TabsTrigger>
             <TabsTrigger value="week" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabWeek}</TabsTrigger>
           </TabsList>
+          <div className="ml-auto">
+            <RefreshButton refreshing={refreshing} onClick={handleRefresh} />
+          </div>
         </div>
 
         {/* ── TAB: Aujourd'hui ── */}
         <TabsContent value="today" className="flex-1 overflow-auto m-0">
-          <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
-
-            {/* KPI Strip */}
+          <div className="p-6 max-w-[1400px] mx-auto">
+          <DraggableWidgetGrid
+            storageKey="operations-today"
+            className="flex flex-col gap-6"
+            items={[
+              {
+                id: 'kpi-strip',
+                children: (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <KPICard
                 label={t.operationsPage.kpiActiveRoutes}
@@ -193,7 +180,12 @@ export default function OperationsPage() {
               />
             </div>
 
-            {/* Bento grid */}
+                ),
+              },
+              {
+                id: 'bento-grid',
+                children: (
+            <>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
               {/* Left column */}
@@ -405,6 +397,11 @@ export default function OperationsPage() {
                 </TableBody>
               </Table>
             </SectionCard>
+            </>
+                ),
+              },
+            ]}
+          />
           </div>
         </TabsContent>
 

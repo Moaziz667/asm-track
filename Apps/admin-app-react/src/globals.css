@@ -144,6 +144,12 @@
   --border:    #ccccd1; /* Hairline */
   --border-strong: #dedee3;
 
+  /* Depth shadows — two-step: inset top highlight + drop bottom */
+  --shadow-xs:         0 1px 2px rgba(0,0,0,0.05);
+  --shadow-sm:         0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
+  --shadow-card:       inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-card-hover: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 8px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
+
   /* Text — slate scale */
   --text-primary:   #161d26; /* Ink */
   --text-secondary: #232b37; /* Ink Body */
@@ -228,6 +234,12 @@
 
   --border:    rgba(255, 255, 255, 0.08);
   --border-strong: rgba(255, 255, 255, 0.16);
+
+  /* Depth shadows — stronger inset highlight visible on dark surfaces */
+  --shadow-xs:         0 1px 2px rgba(0,0,0,0.30);
+  --shadow-sm:         0 1px 4px rgba(0,0,0,0.40), 0 1px 2px rgba(0,0,0,0.25);
+  --shadow-card:       inset 0 1px 0 rgba(255,255,255,0.05), 0 2px 6px rgba(0,0,0,0.30), 0 1px 2px rgba(0,0,0,0.20);
+  --shadow-card-hover: inset 0 1px 0 rgba(255,255,255,0.08), 0 4px 12px rgba(0,0,0,0.40), 0 2px 4px rgba(0,0,0,0.25);
 
   --text-primary:   #f3f3f7;
   --text-secondary: #dedee3;
@@ -475,6 +487,11 @@
 
   .dispatch-card {
     font-family: 'Amazon Ember', 'Inter', system-ui, -apple-system, sans-serif !important;
+    transition: box-shadow 0.12s ease, transform 0.12s ease;
+  }
+  .dispatch-card:hover {
+    box-shadow: var(--shadow-card-hover) !important;
+    transform: translateY(-1px);
   }
 }
 

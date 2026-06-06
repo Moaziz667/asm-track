@@ -35,7 +35,7 @@ export function ActionCards() {
       <div className="flex-1 overflow-auto p-3" style={{ background: 'var(--app-bg)' }}>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-[var(--radius)] border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <div key={i} className="rounded-[var(--radius)] p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}>
               <AppLoader size="sm" />
             </div>
           ))}
@@ -108,11 +108,13 @@ export function ActionCards() {
               return (
                 <article
                   key={row.deliveryId}
-                  className="rounded-[var(--radius)] border flex flex-col dispatch-card"
+                  className="rounded-[var(--radius)] flex flex-col dispatch-card"
                   style={{
-                    borderColor: isChecked ? 'var(--brand)' : 'var(--border)',
                     background: isChecked ? 'var(--brand-soft)' : 'var(--surface)',
                     borderLeft: `3px solid ${sev.accent}`,
+                    boxShadow: isChecked
+                      ? `inset 0 0 0 2px var(--brand), var(--shadow-card)`
+                      : 'var(--shadow-card)',
                   }}
                 >
                   <div className="p-3 flex flex-col gap-2">

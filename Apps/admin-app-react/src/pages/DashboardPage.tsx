@@ -15,6 +15,7 @@ import {
   IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { useNavigate as useRouter } from 'react-router-dom';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
@@ -246,10 +247,16 @@ export default function DashboardPage() {
       {/* ── MAIN VIEW CONTENT SWITCHER ── */}
       {viewMode === 'office' ? (
         /* ── OFFICE DESK LAYOUT ── */
-        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex flex-col gap-6 flex-1 animate-fadeIn">
-
-          {/* Metric Strip */}
-          <div className="flex items-stretch bg-[var(--surface)] border border-[var(--border)] rounded-[8px] overflow-hidden">
+        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
+        <DraggableWidgetGrid
+          storageKey="dashboard"
+          className="flex flex-col gap-6"
+          items={[
+            {
+              id: 'metric-strip',
+              className: '',
+              children: (
+          <div className="flex items-stretch bg-[var(--surface)] rounded-[8px] overflow-hidden" style={{ boxShadow: 'var(--shadow-card)' }}>
             <div className="flex-1 px-5 py-4">
               <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiSlaRate}</div>
               <div className="font-mono text-[24px] font-semibold leading-none tabular-nums" style={{ color: slaPercent >= 90 ? 'var(--success)' : slaPercent >= 70 ? 'var(--warning)' : 'var(--danger)' }}>{slaPercent}%</div>
@@ -271,8 +278,13 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Today's Progress Bar */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+              ),
+            },
+            {
+              id: 'progress-bar',
+              className: '',
+              children: (
+          <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
             <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-4">
               {t.dashboardPage.todayProgress}
             </span>
@@ -312,11 +324,16 @@ export default function DashboardPage() {
             })()}
           </div>
 
-          {/* Two-column layout: Needs Attention + Right Column */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 flex-1 min-h-0">
+              ),
+            },
+            {
+              id: 'two-col-layout',
+              className: '',
+              children: (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
             {/* Left: Needs Attention Feed */}
-            <div className="lg:col-span-2 flex flex-col bg-[var(--surface)] border border-[var(--border)] rounded-[16px] overflow-hidden min-h-0">
+            <div className="lg:col-span-2 flex flex-col bg-[var(--surface)] rounded-[16px] overflow-hidden" style={{ boxShadow: 'var(--shadow-card)', minHeight: 320 }}>
               <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between shrink-0">
                 <span className="text-[13px] font-semibold text-[var(--text-primary)]">
                   {t.dashboardPage.needsAttention}
@@ -397,7 +414,7 @@ export default function DashboardPage() {
             <div className="flex flex-col gap-5">
 
               {/* Driver Availability Grid */}
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+              <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
                 <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
                   {t.dashboardPage.driverAvailability}
                 </span>
@@ -434,7 +451,7 @@ export default function DashboardPage() {
               </div>
 
               {/* Quick Action Buttons */}
-              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5">
+              <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
                 <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
                   {t.dashboardPage.quickActions}
                 </span>
@@ -461,8 +478,13 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Driver Performance Bar Chart */}
-          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[16px] p-5 text-left flex flex-col h-[280px]">
+              ),
+            },
+            {
+              id: 'driver-chart',
+              className: '',
+              children: (
+          <div className="bg-[var(--surface)] rounded-[16px] p-5 text-left flex flex-col h-[280px]" style={{ boxShadow: 'var(--shadow-card)' }}>
             <span className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 block">
               {t.dashboardPage.driverPerformanceTitle || 'Rendement par Chauffeur'}
             </span>
@@ -502,7 +524,10 @@ export default function DashboardPage() {
               </ResponsiveContainer>
             </div>
           </div>
-
+              ),
+            },
+          ]}
+        />
         </div>
       ) : (
         /* ── KANBAN VIEW ── */

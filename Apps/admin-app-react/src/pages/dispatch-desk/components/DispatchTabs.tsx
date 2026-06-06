@@ -33,7 +33,7 @@ export function DispatchTabs() {
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Tab bar */}
-      <div className="flex items-stretch h-10 shrink-0 flex-nowrap" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <div className="flex items-stretch h-10 shrink-0 flex-nowrap" style={{ background: 'var(--surface)', boxShadow: '0 1px 0 var(--border), var(--shadow-xs)' }}>
         {([
           { id: 'assign',  label: t.dispatchDeskPage.tabAssign,     count: tabCounts.assign },
           { id: 'action',  label: t.dispatchDeskPage.tabAction,     count: tabCounts.action },
@@ -52,6 +52,7 @@ export function DispatchTabs() {
               className="flex items-center gap-1.5 px-4 h-full shrink-0 transition-colors"
               style={{
                 borderBottom: `2px solid ${active ? 'var(--text-primary)' : 'transparent'}`,
+                background: active ? 'var(--elevated)' : 'transparent',
                 fontSize: 12,
                 fontWeight: active ? 500 : 400,
                 color: active ? 'var(--text-primary)' : 'var(--text-muted)',

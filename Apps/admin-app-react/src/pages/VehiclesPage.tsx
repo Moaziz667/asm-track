@@ -15,6 +15,12 @@ import type { Driver } from '@/types';
 import { getCurrentRole, isReadOnlyRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { AddButton } from '@/components/ui/AddButton';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -32,6 +38,14 @@ import {
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type VehicleType = 'TRUCK' | 'VAN' | 'CAR' | 'MOTO';
+
+const VEHICLE_COLUMNS: ColumnDef[] = [
+  { id: 'vehicle',  label: 'Véhicule',        pinned: true },
+  { id: 'plate',    label: 'Immatriculation',  pinned: true },
+  { id: 'payload',  label: 'Charge utile' },
+  { id: 'driver',   label: 'Chauffeur' },
+  { id: 'status',   label: 'Statut' },
+];
 
 const VEHICLE_TYPES: VehicleType[] = ['TRUCK', 'VAN', 'CAR', 'MOTO'];
 
@@ -411,200 +425,203 @@ function VehiclesPageContent() {
     }
   };
 
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
-
   const fleetOccupancy = stats.total > 0 ? (stats.busy / stats.total) * 100 : 0;
+
+  const { density, setDensity } = useDensity('vehicles', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('vehicles', VEHICLE_COLUMNS);
+
+  const ROW_H: Record<typeof density, string> = {
+    compact:     'h-9',
+    comfortable: 'h-12',
+    spacious:    'h-16',
+  };
+
+  const vehicleQuickFilters = [
+    { value: 'ALL',     label: t.vehiclesPage.fleetTotal,      count: stats.total },
+    { value: 'ACTIVE',  label: t.vehiclesPage.operational,     count: stats.active },
+    { value: 'BUSY',    label: t.vehiclesPage.statusEngaged,   count: stats.busy },
+    { value: 'RETIRED', label: t.vehiclesPage.statusRetired,   count: stats.retired },
+  ];
 
   return (
     <div
       className="flex flex-col overflow-hidden"
       style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}
     >
-      {/* Mobile Tab Bar */}
-      <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-        {([['filters', t.vehiclesPage.tabFilters], ['list', t.vehiclesPage.tabList]] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            onClick={() => setMobileTab(tab)}
-            className={`flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors ${
-              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PageFilterBar
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder={t.vehiclesPage.searchPlaceholder}
+        onRefresh={fetchData}
+        refreshing={loading}
+        quickFilters={vehicleQuickFilters}
+        activeQuickFilter={statusFilter}
+        onQuickFilterChange={setStatusFilter}
+        extraActions={
+          !readOnly ? (
+            <AddButton label={t.vehiclesPage.newVehicleButton} onClick={() => { resetForm(); setModalOpen(true); }} />
+          ) : undefined
+        }
+      />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* ── Fleet Rail ── */}
-        <div
-          className={`lg:w-[300px] shrink-0 overflow-y-auto flex flex-col ${mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'}`}
-          style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}
-        >
-          {/* Header */}
-          <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.vehiclesPage.pageSubtitle}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.vehiclesPage.pageTitle} <span className="text-[var(--brand)]">{t.vehiclesPage.pageTitleBrand}</span>
-            </h1>
-          </div>
-
-          {/* Actions & Search */}
-          <div className="flex flex-col gap-3 p-5" style={{ borderBottom: '1px solid var(--border)' }}>
-            {!readOnly && (
-              <Button
-                className="w-full font-bold tracking-widest uppercase text-[10px] rounded-md flex items-center justify-center gap-2 text-white dark:text-[#121212]"
-                style={{ background: 'var(--brand)', border: 'none' }}
-                onClick={() => { resetForm(); setModalOpen(true); }}
-              >
-                <IconPlus size={14} />
-                {t.vehiclesPage.newVehicleButton}
-              </Button>
-            )}
-            <FieldInput
-              placeholder={t.vehiclesPage.searchPlaceholder}
-              leftSection={<IconSearch size={14} />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.currentTarget.value)}
-            />
-          </div>
-
-          {/* Filter pills */}
-          <div className="overflow-y-auto flex-1 p-3">
-            <p className="px-3 mb-2 text-[11px] font-semibold text-[var(--text-muted)]">
-              {t.vehiclesPage.operationalStatusLabel}
-            </p>
-            {[
-              { id: 'ALL', label: t.vehiclesPage.fleetTotal, icon: <IconTruck size={14} />, count: stats.total },
-              { id: 'ACTIVE', label: t.vehiclesPage.operational, icon: <IconPoint size={14} className="text-[#2D8A5E]" />, count: stats.active },
-              { id: 'BUSY', label: t.vehiclesPage.statusEngaged, icon: <IconUserCheck size={14} />, count: stats.busy },
-              { id: 'RETIRED', label: t.vehiclesPage.statusRetired, icon: <IconX size={14} className="text-[#A52B24]" />, count: stats.retired },
-            ].map((pill) => (
-              <button
-                key={pill.id}
-                type="button"
-                onClick={() => setStatusFilter(pill.id)}
-                className={cn(
-                  'w-full px-4 py-3 rounded-md transition-all flex items-center justify-between group text-left',
-                  statusFilter === pill.id
-                    ? 'bg-[var(--hover-bg)] border-l-2 border-[var(--brand)]'
-                    : 'hover:bg-[var(--hover-bg)] border-l-2 border-transparent'
-                )}
-              >
-                <div className="flex items-center gap-2">
-                  <span style={{ color: statusFilter === pill.id ? 'var(--brand)' : 'var(--text-muted)' }}>
-                    {pill.icon}
-                  </span>
-                  <span
-                    className="text-[11px] font-semibold"
-                    style={{ color: statusFilter === pill.id ? 'var(--text-primary)' : 'var(--text-muted)' }}
-                  >
-                    {pill.label}
-                  </span>
-                </div>
-                <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--text-muted)' }}>
-                  {pill.count}
-                </span>
-              </button>
-            ))}
-
-            <div className="h-px bg-[var(--border)] my-4" />
-
-            <p className="px-3 mb-4 text-[11px] font-semibold text-[var(--text-muted)]">
-              {t.vehiclesPage.logisticsCapacityLabel}
-            </p>
-
-            <div className="flex flex-col gap-4 px-3">
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-[11px] font-semibold text-[var(--text-muted)]">
-                    {t.vehiclesPage.totalTonnageLabel}
-                  </span>
-                  <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
-                    {(stats.tonnage / 1000).toFixed(1)}T
-                  </span>
-                </div>
-                <ProgressBar value={75} color="#1f2937" />
-              </div>
-              <div>
-                <div className="flex justify-between mb-1.5">
-                  <span className="text-[11px] font-semibold text-[var(--text-muted)]">
-                    {t.vehiclesPage.fleetOccupancyLabel}
-                  </span>
-                  <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>
-                    {Math.round(fleetOccupancy)}%
-                  </span>
-                </div>
-                <ProgressBar value={fleetOccupancy} color="var(--brand)" />
-              </div>
-            </div>
-          </div>
-
-          <div
-            className="p-5 text-center"
-            style={{ borderTop: '1px solid var(--border)', background: 'var(--surface)' }}
-          >
-            <p className="text-[10px] font-semibold" style={{ color: 'var(--text-muted)' }}>
-              Surgical Slab · Vehicle Registry
-            </p>
-          </div>
-        </div>
-
         {/* ── Technical Grid ── */}
-        <div
-          className={`flex flex-col flex-1 overflow-hidden min-w-0 ${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'}`}
-          style={{ background: 'var(--app-bg)' }}
-        >
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
           {/* Toolbar */}
           <div
-            className="flex items-center justify-between px-6 h-16 shrink-0"
-            style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}
+            className="flex items-center justify-between px-4 h-11 shrink-0"
+            style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
           >
             <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
               {t.vehiclesPage.displayedCount.replace('{count}', filtered.length.toString())}
             </p>
-            <button
-              type="button"
-              onClick={() => fetchData()}
-              className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
-            >
-              {loading
-                ? <Spinner size={14} />
-                : <IconRefresh size={16} style={{ color: 'var(--text-primary)' }} />
-              }
-            </button>
+            <DisplaySettingsDropdown
+              columns={orderedColumns}
+              visibleIds={visibleIds}
+              onToggle={toggleColumn}
+              onReorder={moveColumn}
+              onReset={resetColumns}
+              density={density}
+              onDensityChange={setDensity}
+            />
           </div>
 
-          {/* Grid */}
+          {/* Table */}
           <div className="flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex items-center justify-center h-[400px]">
-                <Spinner size={40} />
-              </div>
+              <div className="flex items-center justify-center h-[400px]"><Spinner size={40} /></div>
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center py-[120px] gap-2">
                 <IconTruck size={48} style={{ color: 'var(--border)' }} />
-                <p className="text-[11px] font-semibold text-[var(--text-muted)]">
-                  {t.vehiclesPage.noVehiclesFound}
-                </p>
+                <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.vehiclesPage.noVehiclesFound}</p>
               </div>
             ) : (
-              <div className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {filtered.map((v) => (
-                    <VehicleTechnicalCard
-                      key={v.id}
-                      vehicle={v}
-                      driverName={drivers.find(d => d.id === v.driverId)?.name}
-                      onEdit={openEdit}
-                      onDelete={deleteVehicle}
-                      onReactivate={reactivateVehicle}
-                      readOnly={readOnly}
-                      canEdit={!readOnly}
-                    />
-                  ))}
-                </div>
-              </div>
+              <table className="w-full border-collapse">
+                <thead className="sticky top-0 z-10">
+                  <tr style={{ background: 'var(--app-bg)', boxShadow: '0 1px 0 var(--border)' }}>
+                    {/* Thumbnail always first */}
+                    <th className="px-4 py-2.5" style={{ color: 'var(--text-muted)', width: 56 }} />
+                    {orderedColumns.map(col => visibleIds.has(col.id) && (
+                      <th key={col.id} className="px-4 py-2.5 text-left text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                        {col.label}
+                      </th>
+                    ))}
+                    <th className="px-4 py-2.5" style={{ color: 'var(--text-muted)', width: 80 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((v) => {
+                    const isBusy = v.assigned ?? Boolean(v.driverId);
+                    const isRetired = !v.active;
+                    const statusColor = isRetired ? '#A52B24' : isBusy ? '#4C56B8' : '#2D8A5E';
+                    const statusLabel = isRetired ? t.vehiclesPage.statusRetired : isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable;
+                    const driverName = drivers.find(d => d.id === v.driverId)?.name;
+                    const vTypeLabel: Record<string, string> = {
+                      TRUCK: t.vehiclesPage.vehicleTypeHeavy,
+                      VAN:   t.vehiclesPage.vehicleTypeVan,
+                      CAR:   t.vehiclesPage.vehicleTypeCar,
+                      MOTO:  t.vehiclesPage.vehicleTypeMoto,
+                    };
+                    return (
+                      <tr
+                        key={v.id}
+                        className={cn(ROW_H[density], 'group transition-colors hover:bg-[var(--hover-bg)]', isRetired && 'opacity-60')}
+                        style={{ borderBottom: '1px solid var(--border)' }}
+                      >
+                        {/* Thumbnail always first */}
+                        <td className="px-4">
+                          <div
+                            className="w-9 h-9 rounded-md overflow-hidden flex items-center justify-center shrink-0"
+                            style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}
+                          >
+                            {v.imageUrl
+                              ? <img src={v.imageUrl} alt={v.make} className="w-full h-full object-cover" />
+                              : <IconTruck size={16} style={{ color: 'var(--text-muted)' }} />
+                            }
+                          </div>
+                        </td>
+                        {orderedColumns.map(col => {
+                          if (!visibleIds.has(col.id)) return null;
+                          if (col.id === 'vehicle') return (
+                            <td key="vehicle" className="px-4">
+                              <p className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{v.make} <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{v.model}</span></p>
+                              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>{vTypeLabel[v.type] ?? v.type}{v.manufactureYear ? ` · ${v.manufactureYear}` : ''}</p>
+                            </td>
+                          );
+                          if (col.id === 'plate') return (
+                            <td key="plate" className="px-4">
+                              <span className="font-mono text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{v.plate}</span>
+                            </td>
+                          );
+                          if (col.id === 'payload') return (
+                            <td key="payload" className="px-4">
+                              <span className="text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+                                {v.payloadKg ? `${(v.payloadKg / 1000).toFixed(1)} T` : '—'}
+                              </span>
+                            </td>
+                          );
+                          if (col.id === 'driver') return (
+                            <td key="driver" className="px-4">
+                              <span className="text-[12px]" style={{ color: driverName ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                                {driverName ?? '—'}
+                              </span>
+                            </td>
+                          );
+                          if (col.id === 'status') return (
+                            <td key="status" className="px-4">
+                              <span
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                                style={{ color: statusColor, background: `${statusColor}10`, borderColor: `${statusColor}25` }}
+                              >
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor }} />
+                                {statusLabel}
+                              </span>
+                            </td>
+                          );
+                          return null;
+                        })}
+                        {/* Actions always last */}
+                        <td className="px-4 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            {isRetired ? (
+                              !readOnly && (
+                                <button type="button" onClick={() => reactivateVehicle(v)}
+                                  className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                                  style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }}
+                                  title={t.vehiclesPage.reactivateButton}
+                                >
+                                  <IconPoint size={13} />
+                                </button>
+                              )
+                            ) : (
+                              <>
+                                {!readOnly && (
+                                  <button type="button" onClick={() => openEdit(v)}
+                                    className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                                    style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }}
+                                    title={t.vehiclesPage.editButton}
+                                  >
+                                    <IconPencil size={13} />
+                                  </button>
+                                )}
+                                {!readOnly && (
+                                  <button type="button" onClick={() => deleteVehicle(v)}
+                                    className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] hover:border-red-300 hover:text-red-500 transition-colors"
+                                    style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }}
+                                    title={t.vehiclesPage.retireButton}
+                                  >
+                                    <IconTrash size={13} />
+                                  </button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             )}
           </div>
         </div>
@@ -619,14 +636,14 @@ function VehiclesPageContent() {
         subtitle={editingId ? t.vehiclesPage.editSubtitle : t.vehiclesPage.createSubtitle}
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={resetForm} className="text-[11px] font-semibold rounded-md">
+            <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 px-3 text-[11px] font-bold rounded-md">
               {t.vehiclesPage.cancelButton}
             </Button>
             <Button
               size="sm"
               onClick={saveVehicle}
               disabled={saving}
-              className="text-[11px] font-semibold rounded-md"
+              className="h-7 px-3 text-[11px] font-bold rounded-md"
               style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}
             >
               {saving && <Spinner size={12} className="mr-1.5" />}

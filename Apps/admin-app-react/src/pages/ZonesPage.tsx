@@ -5,6 +5,11 @@ import { lazy as dynamic } from 'react';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT, getCopy } from '@/lib/LocaleContext';
+import { AddButton } from '@/components/ui/AddButton';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+import type { ColumnDef } from '@/hooks/useColumnSettings';
 import {
   IconAlertTriangle, IconMapPin, IconPencil, IconPlus,
   IconRefresh, IconScan, IconTrash, IconX, IconWorld,
@@ -17,6 +22,13 @@ import type { CoordMap } from '@/components/ZoneSelectorMap';
 import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { Button } from '@/components/ui/button';
+
+const ZONE_TABLE_COLUMNS: ColumnDef[] = [
+  { id: 'designation', label: 'Désignation', pinned: true },
+  { id: 'coverage',    label: 'Couverture postale' },
+  { id: 'density',     label: 'Codes' },
+  { id: 'status',      label: 'Statut' },
+];
 import {
   useZones,
   useCreateZone,
@@ -47,6 +59,15 @@ export default function ZonesPage() {
   const locale = useLocaleStore(state => state.locale);
   const role = getCurrentRole();
   const readOnly = isReadOnlyRole(role);
+
+  const { density, setDensity } = useDensity('zones', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('zones', ZONE_TABLE_COLUMNS);
+
+  const ZONE_ROW_H: Record<typeof density, string> = {
+    compact:     'h-9',
+    comfortable: 'h-12',
+    spacious:    'h-16',
+  };
 
   // TanStack Query Hooks
   const { data: zones = [], isLoading: loading, refetch: fetchZones } = useZones();
@@ -192,120 +213,62 @@ export default function ZonesPage() {
     return { total: zones.length, active, codes };
   }, [zones]);
 
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
-
   return (
+    <>
     <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
-      {/* Mobile Tab Bar */}
-      <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-        {([['filters', t.zonesPage.tabZones], ['list', t.zonesPage.tabMap]] as const).map(([tab, label]) => (
+
+      {/* ── Compact Action Bar ── */}
+      <div
+        className="flex items-center gap-3 px-4 h-11 shrink-0"
+        style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
+      >
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            {t.zonesPage.activeSectors}: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{stats.active}/{stats.total}</span>
+          </span>
+          <span className="w-px h-3 bg-[var(--border)]" />
+          <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            {t.zonesPage.postalPoints}: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{stats.codes}</span>
+          </span>
+        </div>
+        <div className="ml-auto flex items-center gap-2">
+          {!readOnly && (
+            <AddButton label={t.zonesPage.newZoneButton} onClick={openCreate} />
+          )}
           <button
-            key={tab}
-            onClick={() => setMobileTab(tab)}
-            className={`flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors ${
-              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]'
-            }`}
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            onClick={() => syncZones()}
+            disabled={syncing}
+            title={t.zonesPage.syncTooltip}
+            style={{ background: 'var(--app-bg)' }}
           >
-            {label}
+            <IconRefresh size={14} style={{ color: 'var(--brand)' }} className={syncing ? 'animate-spin' : ''} />
           </button>
-        ))}
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            onClick={() => fetchZones()}
+            disabled={loading}
+            style={{ background: 'var(--app-bg)' }}
+          >
+            <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
+          </button>
+          <DisplaySettingsDropdown
+            columns={orderedColumns}
+            visibleIds={visibleIds}
+            onToggle={toggleColumn}
+            onReorder={moveColumn}
+            onReset={resetColumns}
+            density={density}
+            onDensityChange={setDensity}
+          />
+        </div>
       </div>
 
-      <div className="flex flex-1 gap-0" style={{ minHeight: 0, overflow: 'hidden' }}>
-        {/* ── Rail Sectoriel ────────────────── */}
-        <div
-          className={`lg:w-[280px] shrink-0 flex flex-col gap-0 ${mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'}`}
-          style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}
-        >
-          <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.zonesPage.pageSubtitle}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.zonesPage.pageTitle} <span className="text-[var(--brand)]">{t.zonesPage.pageTitleBrand}</span>
-            </h1>
-          </div>
-
-          <div className="flex flex-col gap-3 p-5" style={{ borderBottom: '1px solid var(--border)' }}>
-            {!readOnly && (
-              <button
-                onClick={openCreate}
-                className="flex items-center justify-center gap-2 h-9 w-full font-semibold text-[11px] rounded-md transition-colors hover:opacity-90 text-white dark:text-[#121212]"
-                style={{ background: 'var(--brand)', border: 'none' }}
-              >
-                <IconPlus size={14} />
-                {t.zonesPage.newZoneButton}
-              </button>
-            )}
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="w-7 h-9 flex-1 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
-                onClick={() => fetchZones()}
-                disabled={loading}
-              >
-                <IconRefresh size={16} className={loading ? 'animate-spin' : ''} />
-              </button>
-              <button
-                type="button"
-                className="flex-1 h-9 flex items-center justify-center gap-1 rounded-md border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
-                onClick={() => syncZones()}
-                disabled={syncing}
-                title={t.zonesPage.syncTooltip}
-              >
-                <IconRefresh size={16} style={{ color: 'var(--brand)' }} className={syncing ? 'animate-spin' : ''} />
-              </button>
-            </div>
-          </div>
-
-          <div className="overflow-y-auto flex-1 p-3.5">
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2.5">
-                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.meshIndicators}</p>
-                <div className="p-3 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activeSectors}</p>
-                      <p className="text-[16px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{stats.active} / {stats.total}</p>
-                    </div>
-                    <IconWorld size={20} style={{ color: 'var(--brand)' }} strokeWidth={1.5} />
-                  </div>
-                </div>
-                <div className="p-3 rounded-lg" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.postalPoints}</p>
-                      <p className="text-[16px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{stats.codes}</p>
-                    </div>
-                    <IconMapPin size={20} style={{ color: 'var(--brand)' }} strokeWidth={1.5} />
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2.5">
-                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.operationalHelp}</p>
-                <p className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
-                  {t.zonesPage.helpText}
-                </p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* ── Registry Slab ────────────────────────── */}
-        <div
-          className={`flex-1 flex flex-col gap-0 overflow-hidden min-w-0 ${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'}`}
-          style={{ background: 'var(--app-bg)' }}
-        >
-          <div className="flex items-center justify-between px-6 h-16 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <div className="flex items-center gap-2">
-              <IconLayoutDashboard size={14} style={{ color: 'var(--brand)' }} />
-              <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.registryTitle}</p>
-            </div>
-            <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
-              {t.zonesPage.zonesConfigured.replace('{count}', zones.length.toString())}
-            </p>
-          </div>
-
-          <div className="overflow-y-auto flex-1">
+      {/* ── Registry ── */}
+      <div className="flex flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
+        <div className="overflow-y-auto flex-1">
             {loading ? (
               <div className="flex items-center justify-center h-[400px]">
                 <svg className="animate-spin h-8 w-8" fill="none" viewBox="0 0 24 24">
@@ -323,10 +286,11 @@ export default function ZonesPage() {
                 <thead className="sticky top-0 z-10">
                   <tr style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}>
                     <th className="w-2 p-0" style={{ background: 'var(--app-bg)' }}></th>
-                    <th className="text-[11px] font-semibold py-4 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerDesignation}</th>
-                    <th className="text-[11px] font-semibold py-4 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerCoverage}</th>
-                    <th className="text-[11px] font-semibold py-4 text-center px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerDensity}</th>
-                    <th className="text-[11px] font-semibold py-4 text-center px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>{t.zonesPage.headerStatus}</th>
+                    {orderedColumns.map(col => visibleIds.has(col.id) && (
+                      <th key={col.id} className="text-[11px] font-semibold py-3 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>
+                        {col.label}
+                      </th>
+                    ))}
                     <th className="w-24" style={{ background: 'var(--app-bg)' }}></th>
                   </tr>
                 </thead>
@@ -335,45 +299,57 @@ export default function ZonesPage() {
                     const displayed = zone.postalCodes?.slice(0, 10) ?? [];
                     const extra = (zone.postalCodes?.length ?? 0) - 10;
                     return (
-                      <tr key={zone.id} className="group transition-colors hover:bg-[var(--hover-bg)]" style={{ borderBottom: '1px solid var(--border)' }}>
+                      <tr key={zone.id} className={cn('group transition-colors hover:bg-[var(--hover-bg)]', ZONE_ROW_H[density])} style={{ borderBottom: '1px solid var(--border)' }}>
                         <td className="p-0">
                           <div className="w-[3px] h-6 rounded-r-md" style={{ background: zone.color }} />
                         </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ background: zone.color ?? 'var(--text-muted)' }} />
-                            <div>
-                              <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
-                              {zone.description && <p className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1 max-w-[400px]">
-                            {displayed.map((pc) => (
-                              <span key={pc} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                                {pc}
+                        {orderedColumns.map(col => {
+                          if (!visibleIds.has(col.id)) return null;
+                          if (col.id === 'designation') return (
+                            <td key="designation" className="px-4 py-2">
+                              <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full shrink-0" style={{ background: zone.color ?? 'var(--text-muted)' }} />
+                                <div>
+                                  <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
+                                  {zone.description && <p className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
+                                </div>
+                              </div>
+                            </td>
+                          );
+                          if (col.id === 'coverage') return (
+                            <td key="coverage" className="px-4 py-2">
+                              <div className="flex flex-wrap gap-1 max-w-[400px]">
+                                {displayed.map((pc) => (
+                                  <span key={pc} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                    {pc}
+                                  </span>
+                                ))}
+                                {extra > 0 && <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--brand)' }}>{t.zonesPage.extraCodes.replace('{count}', extra.toString())}</span>}
+                              </div>
+                            </td>
+                          );
+                          if (col.id === 'density') return (
+                            <td key="density" className="px-4 py-2 text-center">
+                              <p className="text-[11px] font-extrabold font-mono" style={{ color: 'var(--text-primary)' }}>{zone.postalCodes?.length || 0}</p>
+                            </td>
+                          );
+                          if (col.id === 'status') return (
+                            <td key="status" className="px-4 py-2 text-center">
+                              <span
+                                className="text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
+                                style={{
+                                  color: zone.isActive ? '#2D8A5E' : '#6B7280',
+                                  background: zone.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
+                                  borderColor: zone.isActive ? 'rgba(76,175,130,0.15)' : 'rgba(138,143,152,0.15)',
+                                }}
+                              >
+                                <IconPoint size={10} />
+                                {zone.isActive ? t.zonesPage.statusOperational : t.zonesPage.statusInactive}
                               </span>
-                            ))}
-                            {extra > 0 && <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--brand)' }}>{t.zonesPage.extraCodes.replace('{count}', extra.toString())}</span>}
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <p className="text-[11px] font-extrabold font-mono" style={{ color: 'var(--text-primary)' }}>{zone.postalCodes?.length || 0}</p>
-                        </td>
-                        <td className="px-4 py-3 text-center">
-                          <span
-                            className="text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
-                            style={{
-                              color: zone.isActive ? '#2D8A5E' : '#6B7280',
-                              background: zone.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
-                              borderColor: zone.isActive ? 'rgba(76,175,130,0.15)' : 'rgba(138,143,152,0.15)',
-                            }}
-                          >
-                            <IconPoint size={10} />
-                            {zone.isActive ? t.zonesPage.statusOperational : t.zonesPage.statusInactive}
-                          </span>
-                        </td>
+                            </td>
+                          );
+                          return null;
+                        })}
                         <td className="px-4 py-3">
                           {!readOnly && (
                             <div className="flex gap-1 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
@@ -609,7 +585,7 @@ export default function ZonesPage() {
           </div>
         </div>
       </AppModal>
-    </div>
+    </>
   );
 }
 

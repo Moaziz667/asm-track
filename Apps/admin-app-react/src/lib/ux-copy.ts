@@ -1193,6 +1193,7 @@ export const FR_COPY = {
     statusSynced: 'Synchronisé',
     statusReady: 'Prêt à l\'import',
     tooltipDetails: 'Détails',
+    syncErpButton: 'Synchroniser ERP',
     buttonView: 'Voir',
     buttonConfirm: 'Confirmer',
     buttonImport: 'Importer',
@@ -1690,7 +1691,7 @@ export const FR_COPY = {
     statusOutOfService: 'Hors-Service',
     statusRetired: 'Retiré',
     // Sidebar
-    newVehicleButton: 'Ajout Ressource',
+    newVehicleButton: 'Ajouter un véhicule',
     searchPlaceholder: 'Recherche Technique...',
     operationalStatusLabel: 'État Opérationnel',
     fleetTotal: 'Parc Total',
@@ -1738,6 +1739,7 @@ export const FR_COPY = {
     retireDescription: 'Voulez-vous vraiment retirer le véhicule {vehicleName} de la flotte ? Il pourra être réactivé ultérieurement.',
     retireButton: 'Retirer',
     reactivateButton: 'Réactiver',
+    editButton: 'Modifier',
   },
 
   // ── Depots Page ────────────────────────────────────────────────────────

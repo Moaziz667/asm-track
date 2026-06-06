@@ -7,7 +7,6 @@ import { AppLoader } from '@/components/AppLoader';
 import { Button } from '@/components/ui/button';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppModal } from '@/components/overlays/AppModal';
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { IconReassign, IconReplan } from '@/components/icons/DispatchIcons';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { ReassignDrawer } from '@/components/overlays/ReassignDrawer';
@@ -18,16 +17,115 @@ import type { OpsException } from './types';
 import { formatMotif, formatComment, formatSuggestion } from './formatters';
 import { rowId } from './utils';
 import { DispatchDeskProvider, useDispatchDeskContext } from './hooks/useDispatchDeskState';
-import { FiltersSidebar } from './components/FiltersSidebar';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { KPIStrip } from './components/KPIStrip';
 import { DispatchTabs } from './components/DispatchTabs';
+
+// ── PageFilterBar bridge — reads from dispatch context ───────────────────────
+
+function DispatchPageFilterBar() {
+  const {
+    t,
+    search, setSearch,
+    driverId, setDriverId, drivers,
+    zoneFilter, setZoneFilter, zones,
+    statusFilter, setStatusFilter,
+    period, setPeriod,
+    refreshing, doRefresh,
+    clearFilters,
+  } = useDispatchDeskContext();
+
+  const filterAttributes = [
+    {
+      key: 'status',
+      label: t.dispatchDeskPage.filterStatus,
+      options: [
+        { value: '',                    label: t.dispatchDeskPage.filterStatusAll },
+        { value: 'UNSCHEDULED',         label: t.dispatchDeskPage.filterStatusUnscheduled },
+        { value: 'SCHEDULED',           label: t.dispatchDeskPage.filterStatusScheduled },
+        { value: 'PICKED_UP',           label: t.dispatchDeskPage.filterStatusPickedUp },
+        { value: 'IN_TRANSIT',          label: t.dispatchDeskPage.filterStatusInTransit },
+        { value: 'DELIVERED',           label: t.dispatchDeskPage.filterStatusDelivered },
+        { value: 'PARTIALLY_DELIVERED', label: t.dispatchDeskPage.filterStatusPartial },
+        { value: 'CANCELLED',           label: t.dispatchDeskPage.filterStatusCancelled },
+        { value: 'FAILED',              label: t.dispatchDeskPage.filterStatusFailed },
+      ],
+    },
+    {
+      key: 'driver',
+      label: t.dispatchDeskPage.filterDriver,
+      options: [
+        { value: '', label: t.dispatchDeskPage.filterDriverNoFilter },
+        ...drivers.map(d => ({ value: d.id, label: d.name })),
+      ],
+    },
+    {
+      key: 'zone',
+      label: t.dispatchDeskPage.filterZone,
+      options: [
+        { value: '', label: t.dispatchDeskPage.filterZoneGlobal },
+        ...(zones ?? []).map((z: { name: string }) => ({ value: z.name, label: z.name })),
+      ],
+    },
+    {
+      key: 'period',
+      label: t.dispatchDeskPage.filterPeriod,
+      options: [
+        { value: 'all',   label: t.dispatchDeskPage.periodAll },
+        { value: 'day',   label: t.dispatchDeskPage.periodDay },
+        { value: 'week',  label: t.dispatchDeskPage.periodWeek },
+        { value: 'month', label: t.dispatchDeskPage.periodMonth },
+      ],
+    },
+  ];
+
+  const activeFilters: Record<string, string> = {
+    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(driverId     ? { driver: driverId }      : {}),
+    ...(zoneFilter   ? { zone: zoneFilter }       : {}),
+    ...(period !== 'all' ? { period }             : {}),
+  };
+
+  const handleFilterChange = (key: string, value: string | null) => {
+    if (key === 'status') setStatusFilter(value ?? '');
+    else if (key === 'driver') setDriverId(value ?? '');
+    else if (key === 'zone')   setZoneFilter(value ?? '');
+    else if (key === 'period') setPeriod((value ?? 'all') as Parameters<typeof setPeriod>[0]);
+  };
+
+  const hasAny = Object.keys(activeFilters).length > 0 || !!search;
+
+  return (
+    <PageFilterBar
+      search={search}
+      onSearch={setSearch}
+      searchPlaceholder={t.dispatchDeskPage.filterQuickSearchPlaceholder}
+      attributes={filterAttributes}
+      activeFilters={activeFilters}
+      onFilterChange={handleFilterChange}
+      onRefresh={doRefresh}
+      refreshing={refreshing}
+      extraActions={
+        hasAny ? (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-[12px] font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+          >
+            ✕ Clear
+          </button>
+        ) : undefined
+      }
+    />
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 function DispatchDeskContentInner() {
   const {
     t,
     isReadOnly,
-    mobileTab,
-    setMobileTab,
     drivers,
     drawerTargets,
     setDrawerTargets,
@@ -67,37 +165,10 @@ function DispatchDeskContentInner() {
     <TooltipProvider>
       <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
 
-        {/* Mobile tab switcher */}
-        <div className="lg:hidden flex shrink-0 border-b" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
-          {([['filters', t.dispatchDeskPage.tabFilters], ['list', t.dispatchDeskPage.tabDispatch]] as const).map(([tab, label]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setMobileTab(tab)}
-              className={cn(
-                'flex-1 h-10 text-[12px] font-[500] transition-colors',
-                mobileTab === tab ? 'border-b-2' : ''
-              )}
-              style={{
-                color: mobileTab === tab ? 'var(--brand)' : 'var(--text-muted)',
-                borderColor: mobileTab === tab ? 'var(--brand)' : 'transparent',
-              }}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <DispatchPageFilterBar />
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <FiltersSidebar />
-
-          <div
-            className={cn(
-              'flex-1 flex flex-col min-w-0 overflow-hidden',
-              mobileTab === 'list' ? 'flex' : 'hidden lg:flex'
-            )}
-            style={{ background: 'var(--surface)' }}
-          >
+          <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
             <KPIStrip />
             <DispatchTabs />
           </div>
@@ -252,7 +323,7 @@ function DispatchDeskContentInner() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="flex items-center gap-1.5"
+                        className="h-7 px-3 text-[11px] font-bold rounded-md flex items-center gap-1.5"
                         onClick={() => {
                           setFailedModalRow(null);
                           const exc: OpsException = {
@@ -283,7 +354,7 @@ function DispatchDeskContentInner() {
                     {REASSIGNABLE_STATUSES.includes(r.status) && (
                       <Button
                         size="sm"
-                        className="flex items-center gap-1.5"
+                        className="h-7 px-3 text-[11px] font-bold rounded-md flex items-center gap-1.5"
                         onClick={() => {
                           setFailedModalRow(null);
                           setDrawerTargets([{

@@ -11,6 +11,7 @@ import {
   IconBolt, IconActivity, IconFileAnalytics, IconCheck
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { KpiCard } from './DashboardPage';
@@ -174,65 +175,45 @@ export default function PerformancePage() {
   }, [stats]);
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
-      {/* ── Sticky Header (Perfect layout match with other page registries) ── */}
-      <div
-        className="sticky top-0 z-20 min-h-16 h-auto lg:h-16 py-4 lg:py-0 flex items-center"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
-      >
-        <div className="px-6 w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <div>
-              <p className="text-[11px] font-[600] text-[var(--text-muted)] mb-1">
-                {t.performancePage.pageSubtitle}
-              </p>
-              <p className="text-[18px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                {t.performancePage.pageTitle} <span style={{ color: 'var(--brand)' }}>{t.performancePage.pageTitleBrand}</span>
-              </p>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-[var(--border)]" />
-            <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              {t.performancePage.operationalDashboard}
-            </p>
-          </div>
-
-            <RefreshButton refreshing={loading} onClick={loadData} />
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      {/* ── Period bar (replaces title bar) ── */}
+      <div className="flex items-center gap-3 px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+        <span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
+        <div className="flex items-center gap-1">
+          {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                'px-2.5 py-1 text-[11px] font-[500] transition-colors rounded-md cursor-pointer',
+                period === p
+                  ? 'bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50'
+              )}
+            >
+              {{ day: t.performancePage.periodDay, week: t.performancePage.periodWeek, month: t.performancePage.periodMonth, all: t.performancePage.periodAll }[p]}
+            </button>
+          ))}
         </div>
+        {lastUpdated && (
+          <span className="text-[10px] font-mono ml-auto" style={{ color: 'var(--text-muted)' }}>
+            {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
+          </span>
+        )}
+        <RefreshButton refreshing={loading} onClick={loadData} />
       </div>
 
       {/* ── Scrollable Body Content ── */}
-      <div className="overflow-y-auto" style={{ height: 'calc(100vh - 128px)' }}>
-        <div className="flex flex-col gap-8 max-w-[1400px] mx-auto p-4 md:p-8">
-
-          {/* ── Horizontal Period Selector (Sleek action bar) ── */}
-          <div className="flex items-center justify-between gap-4 flex-wrap border-b border-[var(--border)] pb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.performancePage.periodLabel}</span>
-              <div className="flex items-center gap-1.5">
-                {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={cn(
-                      "px-2.5 py-1 text-[11px] font-[500] transition-colors rounded-md cursor-pointer",
-                      period === p
-                        ? "bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50"
-                    )}
-                  >
-                    {{ day: t.performancePage.periodDay, week: t.performancePage.periodWeek, month: t.performancePage.periodMonth, all: t.performancePage.periodAll }[p]}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {lastUpdated && (
-              <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
-          </div>
-
-          {/* ── Row 1: KPI Tiles ── */}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1400px] mx-auto p-4 md:p-8">
+        <DraggableWidgetGrid
+          storageKey="performance"
+          className="flex flex-col gap-8"
+          items={[
+            {
+              id: 'kpi-tiles',
+              className: '',
+              children: (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
             <KpiCard
               title={t.performancePage.operationalVolume}
@@ -263,13 +244,17 @@ export default function PerformancePage() {
               color="#7c6cb5"
             />
           </div>
-
-          {/* ── Row 2: Charts Grid ── */}
+              ),
+            },
+            {
+              id: 'charts-grid',
+              className: '',
+              children: (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
              {/* Trend Chart Card */}
              <div
-               className="rounded-lg overflow-hidden shadow-sm"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+               className="rounded-lg overflow-hidden"
+               style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
              >
                <div
                  className="px-5 py-3 flex items-center justify-between"
@@ -322,8 +307,8 @@ export default function PerformancePage() {
 
              {/* Fragmentation Temporelle Card */}
              <div
-               className="rounded-lg overflow-hidden shadow-sm flex flex-col justify-between"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+               className="rounded-lg overflow-hidden flex flex-col justify-between"
+               style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
              >
                <div
                  className="px-5 py-3 flex items-center justify-between"
@@ -364,13 +349,17 @@ export default function PerformancePage() {
                </div>
              </div>
           </div>
-
-          {/* ── Row 3: Distribution & Rankings ── */}
+              ),
+            },
+            {
+              id: 'distribution-rankings',
+              className: '',
+              children: (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
              {/* Distribution Zone Card */}
              <div
-               className="rounded-lg overflow-hidden shadow-sm"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+               className="rounded-lg overflow-hidden"
+               style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
              >
                <div
                  className="px-5 py-3 flex items-center justify-between"
@@ -399,8 +388,8 @@ export default function PerformancePage() {
 
              {/* Top Drivers Table (Perfect match with other page tabular registries!) ── */}
              <div
-               className="rounded-lg overflow-hidden shadow-sm lg:col-span-2 flex flex-col"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+               className="rounded-lg overflow-hidden lg:col-span-2 flex flex-col"
+               style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
              >
                <div
                  className="px-5 py-3 flex items-center justify-between"
@@ -505,7 +494,10 @@ export default function PerformancePage() {
                </div>
              </div>
           </div>
-
+              ),
+            },
+          ]}
+        />
         </div>
       </div>
     </div>

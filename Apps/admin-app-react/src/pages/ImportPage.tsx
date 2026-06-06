@@ -20,13 +20,28 @@ import {
   IconCalendarClock,
   IconCheck,
   IconAlertCircle,
-  IconClock
+  IconClock,
+  IconCloudDownload,
 } from '@tabler/icons-react';
 import { cn, formatMoney } from '@/lib/utils';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { AppDrawer } from '@/components/overlays/AppDrawer';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/LocaleContext';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+import type { ColumnDef } from '@/hooks/useColumnSettings';
+
+const IMPORT_COLUMNS: ColumnDef[] = [
+  { id: 'ref',      label: 'Référence',      pinned: true },
+  { id: 'customer', label: 'Client',          pinned: true },
+  { id: 'dest',     label: 'Destination' },
+  { id: 'amount',   label: 'Montant' },
+  { id: 'date',     label: 'Date Planifiée' },
+  { id: 'status',   label: 'Statut' },
+];
 
 const ITEMS_PER_PAGE = 25;
 
@@ -38,6 +53,8 @@ function formatDate(value: string | null | undefined) {
 
 function ImportErpPageContent() {
   const t = useT();
+  const { density, setDensity } = useDensity('import', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('import', IMPORT_COLUMNS);
   usePageBreadcrumb([{ label: t.importPage?.pageTitle ? `${t.importPage.pageTitle} ${t.importPage.pageTitleBrand}` : 'Import ERP' }]);
   const router = useRouter();
 
@@ -192,101 +209,57 @@ function ImportErpPageContent() {
     }
   }, [loadPendingOrders]);
 
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
-
-  const pillDefs = [
-    { id: 'all', label: t.importPage.pillAll, count: stats.total, icon: <IconPackage size={14} />, color: 'var(--text-muted)' },
-    { id: 'ready', label: t.importPage.pillReady, count: stats.importable, icon: <IconDownload size={14} />, color: '#5E6AD2' },
-    { id: 'done', label: t.importPage.pillDone, count: stats.alreadyImported, icon: <IconCheck size={14} />, color: '#4CAF82' },
+  const importQuickFilters = [
+    { value: 'all',   label: t.importPage.pillAll,   count: stats.total },
+    { value: 'ready', label: t.importPage.pillReady, count: stats.importable },
+    { value: 'done',  label: t.importPage.pillDone,  count: stats.alreadyImported },
   ];
 
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
-      {/* Mobile Tab Bar */}
-      <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-        {([['filters', t.importPage.tabFilters], ['list', t.importPage.tabOrders]] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            onClick={() => setMobileTab(tab)}
-            className={`flex-1 h-10 text-[11px] font-semibold transition-colors ${
-              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
+      <PageFilterBar
+        search={query}
+        onSearch={setQuery}
+        searchPlaceholder={t.importPage.searchPlaceholder}
+        onRefresh={() => loadPendingOrders(true, true)}
+        refreshing={refreshing || loading}
+        quickFilters={importQuickFilters}
+        activeQuickFilter={activeTab}
+        onQuickFilterChange={v => setActiveTab(v as 'all' | 'ready' | 'done')}
+      />
 
-      <div className="flex flex-1 gap-0" style={{ minHeight: 0, overflow: 'hidden' }}>
-        {/* ── Rail Gauche ────────────────── */}
-        <div className={`lg:w-[280px] border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col ${mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'}`}>
-          {/* Header */}
-          <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.importPage.pageSubtitle}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.importPage.pageTitle} <span className="text-[var(--brand)]">{t.importPage.pageTitleBrand}</span>
-            </h1>
-          </div>
-
-          {/* Search & Sync */}
-          <div className="flex flex-col gap-3 p-5 border-b border-[var(--border)]">
-            <div className="relative">
-              <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-              <input
-                className="w-full h-9 pl-9 pr-3 text-[11px] rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                placeholder={t.importPage.searchPlaceholder}
-                value={query}
-                onChange={(e) => setQuery(e.currentTarget.value)}
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Main Table (full-width, sidebar removed) ── */}
+        <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+              {filteredRows.length} commande{filteredRows.length !== 1 ? 's' : ''}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => loadPendingOrders(true, true)}
+                disabled={refreshing || loading}
+                className="h-7 px-3 flex items-center gap-1.5 text-[11px] font-bold rounded-md transition-colors hover:opacity-90 disabled:opacity-50 shrink-0 text-white"
+                style={{ background: 'var(--brand)', border: 'none' }}
+              >
+                {refreshing
+                  ? <svg className="animate-spin h-3 w-3" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>
+                  : <IconCloudDownload size={13} strokeWidth={2.5} />}
+                {t.importPage.syncErpButton}
+              </button>
+              <DisplaySettingsDropdown
+                columns={orderedColumns}
+                visibleIds={visibleIds}
+                onToggle={toggleColumn}
+                onReorder={moveColumn}
+                onReset={resetColumns}
+                density={density}
+                onDensityChange={setDensity}
               />
             </div>
-            <button
-              className="w-full h-9 flex items-center justify-center gap-2 font-semibold text-[11px] rounded-[2px] bg-[var(--brand)] text-white hover:opacity-90 transition-opacity"
-              onClick={() => loadPendingOrders(true, true)}
-              disabled={loading || refreshing}
-            >
-              <IconRefresh size={14} className={refreshing ? 'animate-spin' : ''} />
-              {t.importPage.syncButton}
-            </button>
           </div>
-
-          {/* Filter pills */}
-          <div className="overflow-y-auto flex-1">
-            <div className="flex flex-col p-2.5">
-              {pillDefs.map((pill) => (
-                <button
-                  key={pill.id}
-                  onClick={() => setActiveTab(pill.id as any)}
-                  className={cn(
-                    "px-4 py-3 rounded-[2px] transition-all flex items-center justify-between group text-left",
-                    activeTab === pill.id
-                      ? "bg-[var(--app-bg)] border-l-2 border-[var(--brand)]"
-                      : "hover:bg-[var(--hover-bg)] border-l-2 border-transparent"
-                  )}
-                >
-                  <div className="flex items-center gap-3">
-                    <span style={{ color: activeTab === pill.id ? 'var(--brand)' : pill.color }}>{pill.icon}</span>
-                    <span className={cn("text-[11px] font-semibold", activeTab === pill.id ? "text-[var(--text-primary)]" : "text-[var(--text-muted)]")}>
-                      {pill.label}
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold font-mono text-[var(--text-muted)]">{pill.count}</span>
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Footer */}
-          <div className="p-5 border-t border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] italic leading-relaxed">
-              {t.importPage.lastSync}<br />
-              {formatDateTime(new Date().toISOString())}
-            </p>
-          </div>
-        </div>
-
-        {/* ── Main Table ────────────────────────── */}
-        <div className={`flex-1 flex flex-col bg-[var(--surface)] overflow-hidden min-w-0 ${mobileTab === 'list' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="overflow-y-auto flex-1">
             <table className="border-collapse min-w-[1000px] w-full">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--app-bg)' }}>
@@ -296,12 +269,12 @@ function ImportErpPageContent() {
                     <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll}
                       className="w-3.5 h-3.5 cursor-pointer accent-[var(--brand)]" />
                   </th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerReference}</th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerCustomer}</th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerDestination}</th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerAmount}</th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">Date Planifiée</th>
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerStatus}</th>
+                  {visibleIds.has('ref') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerReference}</th>}
+                  {visibleIds.has('customer') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerCustomer}</th>}
+                  {visibleIds.has('dest') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerDestination}</th>}
+                  {visibleIds.has('amount') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerAmount}</th>}
+                  {visibleIds.has('date') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">Date Planifiée</th>}
+                  {visibleIds.has('status') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerStatus}</th>}
                   <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerActions}</th>
                 </tr>
               </thead>
@@ -309,14 +282,14 @@ function ImportErpPageContent() {
                 {loading && !refreshing ? (
                   Array.from({ length: 15 }).map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)] animate-pulse">
-                      <td colSpan={9} className="py-4 px-3">
+                      <td colSpan={visibleIds.size + 3} className="py-4 px-3">
                         <div className="h-3 rounded-full w-3/4 mx-auto" style={{ background: 'var(--hover-bg)' }} />
                       </td>
                     </tr>
                   ))
                 ) : paginatedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={9}>
+                    <td colSpan={visibleIds.size + 3}>
                       <div className="flex flex-col items-center gap-2 py-20">
                         <IconPackage size={32} strokeWidth={1.5} className="text-[var(--border)]" />
                         <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.emptyState}</p>
@@ -348,78 +321,89 @@ function ImportErpPageContent() {
                               className="w-3.5 h-3.5 accent-[var(--brand)] cursor-pointer" />
                           )}
                         </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-col gap-0.5">
-                            <div className="flex items-center gap-1.5">
-                              <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
-                                {row.blNumber || row.erpOrderId}
-                              </p>
-                              {row.warehouseCode && (
-                                <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
-                                  {row.warehouseCode}
-                                </span>
+                        {visibleIds.has('ref') && (
+                          <td className="px-3 py-3">
+                            <div className="flex flex-col gap-0.5">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
+                                  {row.blNumber || row.erpOrderId}
+                                </p>
+                                {row.warehouseCode && (
+                                  <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
+                                    {row.warehouseCode}
+                                  </span>
+                                )}
+                              </div>
+                              {row.blNumber && row.erpOrderId && (
+                                <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
+                              )}
+                              {row.externalRef && (
+                                <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
                               )}
                             </div>
-                            {row.blNumber && row.erpOrderId && (
-                              <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
-                            )}
-                            {row.externalRef && (
-                              <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
-                            )}
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div>
-                            <p className="text-[11px] font-semibold text-[var(--text-primary)]">{row.customerName}</p>
-                            <div className="flex items-center gap-1">
-                              <IconPhone size={10} className="text-[var(--text-muted)]" />
-                              <p className="text-[10px] font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
+                          </td>
+                        )}
+                        {visibleIds.has('customer') && (
+                          <td className="px-3 py-3">
+                            <div>
+                              <p className="text-[11px] font-semibold text-[var(--text-primary)]">{row.customerName}</p>
+                              <div className="flex items-center gap-1">
+                                <IconPhone size={10} className="text-[var(--text-muted)]" />
+                                <p className="text-[10px] font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
+                              </div>
                             </div>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="max-w-[220px]">
-                            <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
-                            <p className="text-[11px] font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
-                          </div>
-                        </td>
-                        <td className="px-3 py-3 text-right">
-                          <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
-                        </td>
-                        <td className="px-3 py-3">
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex items-center gap-1.5">
-                              <IconCalendarClock size={13} className="text-[var(--text-muted)]" />
-                              <span className="text-[11px] font-bold text-[var(--text-primary)] tracking-tight">
-                                {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
-                              </span>
+                          </td>
+                        )}
+                        {visibleIds.has('dest') && (
+                          <td className="px-3 py-3">
+                            <div className="max-w-[220px]">
+                              <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
+                              <p className="text-[11px] font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
                             </div>
-                            {(() => {
-                              if (!row.scheduledAt || isImported) return null;
-                              const targetDate = new Date(row.scheduledAt);
-                              const now = new Date();
-                              const diffMs = targetDate.getTime() - now.getTime();
-                              const diffMins = Math.round(diffMs / 60000);
-                              
-                              if (diffMins < 0) {
-                                return (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-block w-fit">
-                                    En retard ({Math.abs(Math.round(diffMins / 60))}h)
-                                  </span>
-                                );
-                              }
-                              const isToday = targetDate.toDateString() === now.toDateString();
-                              if (isToday) {
-                                return (
-                                  <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-block w-fit">
-                                    Planifié Aujourd'hui
-                                  </span>
-                                );
-                              }
-                              return null;
-                            })()}
-                          </div>
-                        </td>
+                          </td>
+                        )}
+                        {visibleIds.has('amount') && (
+                          <td className="px-3 py-3 text-right">
+                            <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
+                          </td>
+                        )}
+                        {visibleIds.has('date') && (
+                          <td className="px-3 py-3">
+                            <div className="flex flex-col gap-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <IconCalendarClock size={13} className="text-[var(--text-muted)]" />
+                                <span className="text-[11px] font-bold text-[var(--text-primary)] tracking-tight">
+                                  {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
+                                </span>
+                              </div>
+                              {(() => {
+                                if (!row.scheduledAt || isImported) return null;
+                                const targetDate = new Date(row.scheduledAt);
+                                const now = new Date();
+                                const diffMs = targetDate.getTime() - now.getTime();
+                                const diffMins = Math.round(diffMs / 60000);
+
+                                if (diffMins < 0) {
+                                  return (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-block w-fit">
+                                      En retard ({Math.abs(Math.round(diffMins / 60))}h)
+                                    </span>
+                                  );
+                                }
+                                const isToday = targetDate.toDateString() === now.toDateString();
+                                if (isToday) {
+                                  return (
+                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-block w-fit">
+                                      Planifié Aujourd'hui
+                                    </span>
+                                  );
+                                }
+                                return null;
+                              })()}
+                            </div>
+                          </td>
+                        )}
+                        {visibleIds.has('status') && (
                         <td className="px-3 py-3">
                           <div className="flex flex-col gap-1">
                             {isImported ? (
@@ -459,12 +443,13 @@ function ImportErpPageContent() {
                             )}
                           </div>
                         </td>
+                        )}
                         <td className="px-3 py-3">
                           <div className="flex gap-2 justify-end">
                             <button
                               type="button"
                               title={t.importPage.tooltipDetails}
-                              className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                              className="w-7 h-7 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
                               onClick={() => openPreview(row.erpOrderId)}
                             >
                               <IconEye size={14} />
@@ -472,7 +457,7 @@ function ImportErpPageContent() {
                             {isImported ? (
                               <button
                                 type="button"
-                                className="h-7 px-3 text-[11px] font-semibold rounded-[2px] bg-[#4CAF82] hover:opacity-90 text-white transition-opacity border-none"
+                                className="h-7 px-3 text-[11px] font-bold rounded-md bg-[#4CAF82] hover:opacity-90 text-white transition-opacity border-none"
                                 onClick={() => window.open('/deliveries', '_blank')}
                               >
                                 {t.importPage.buttonView}
@@ -481,7 +466,7 @@ function ImportErpPageContent() {
                               <button
                                 type="button"
                                 className={cn(
-                                  "h-7 px-3 text-[11px] font-[500] rounded-[2px] border transition-all",
+                                  "h-7 px-3 text-[11px] font-bold rounded-md border transition-all",
                                   confirmForId === row.erpOrderId
                                     ? "bg-amber-500 hover:bg-amber-600 text-white animate-pulse border-amber-600"
                                     : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
@@ -522,7 +507,7 @@ function ImportErpPageContent() {
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1 h-[30px] px-4 bg-[var(--brand)] hover:opacity-90 text-white font-semibold text-[11px] rounded-[2px] transition-opacity"
+                className="flex items-center gap-1.5 h-7 px-3 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-md transition-opacity"
                 disabled={bulkImporting}
                 onClick={doBulkImport}
               >

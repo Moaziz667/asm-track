@@ -91,8 +91,8 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
           return (
             <article
               key={h.id}
-              className="rounded-[var(--radius)] border overflow-hidden flex flex-col"
-              style={{ borderColor: 'var(--border)', background: 'var(--surface)', borderLeft: `3px solid ${chip.accent}` }}
+              className="rounded-[var(--radius)] overflow-hidden flex flex-col dispatch-card"
+              style={{ background: 'var(--surface)', borderLeft: `3px solid ${chip.accent}`, boxShadow: 'var(--shadow-card)' }}
             >
               <div className="p-3 flex flex-col gap-2.5">
                 {/* Header: ref + state chip */}
