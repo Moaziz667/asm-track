@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useT } from '@/lib/LocaleContext';
 
 interface SkeletonTableRowProps {
   /** Nombre de colonnes simulées (défaut : 6) */
@@ -15,8 +16,9 @@ interface SkeletonTableRowProps {
  * Afficher pendant le chargement initial de la liste.
  */
 export function SkeletonTableRow({ columns = 6, count = 8, rowHeight = 48 }: SkeletonTableRowProps) {
+  const t = useT();
   return (
-    <div aria-busy="true" aria-label="Chargement des données">
+    <div aria-busy="true" aria-label={t.loading.data}>
       {Array.from({ length: count }).map((_, rowIdx) => (
         <div
           key={rowIdx}

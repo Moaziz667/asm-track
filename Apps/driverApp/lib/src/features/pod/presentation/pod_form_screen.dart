@@ -4,22 +4,23 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:phosphor_flutter/phosphor_flutter.dart';
 
 import '../../../app_providers.dart';
+import '../../../services/locale_provider.dart';
 import '../../../services/location_service.dart';
 import '../../deliveries/models/delivery_models.dart';
 
 // ─── Outcome descriptor ───────────────────────────────────────────────────────
 class _OutcomeOption {
-  const _OutcomeOption(this.value, this.label, this.icon, this.colorKey);
+  const _OutcomeOption(this.value, this.icon, this.colorKey);
   final String value;
-  final String label;
   final IconData icon;
   final String colorKey;
 
   Color resolve(ColorScheme cs) {
     switch (colorKey) {
-      case 'success': return cs.tertiary;
+      case 'success': return cs.primary;
       case 'danger':  return cs.error;
       case 'warning': return cs.secondary;
       case 'info':    return cs.tertiary;
@@ -68,36 +69,36 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   late Map<String, TextEditingController> _itemCommentControllers;
 
   static const _outcomes = [
-    _OutcomeOption('DELIVERED', 'Livré',     Icons.check_circle_outline_rounded, 'success'),
-    _OutcomeOption('REFUSED',   'Refusé',    Icons.cancel_outlined,              'danger'),
-    _OutcomeOption('DAMAGED',   'Endommagé', Icons.warning_amber_rounded,        'warning'),
-    _OutcomeOption('MISSING',   'Manquant',  Icons.search_off_rounded,           'info'),
+    _OutcomeOption('DELIVERED', PhosphorIconsRegular.checkCircle, 'success'),
+    _OutcomeOption('REFUSED',   PhosphorIconsRegular.xCircle,     'danger'),
+    _OutcomeOption('DAMAGED',   PhosphorIconsRegular.warning,     'warning'),
+    _OutcomeOption('MISSING',   PhosphorIconsRegular.magnifyingGlassMinus, 'info'),
   ];
 
   static const _reasonsByOutcome = {
     'REFUSED': [
-      ('CLIENT_ABSENT',   'Client absent'),
-      ('CLIENT_REJECTED', 'Refus du client'),
-      ('WRONG_ADDRESS',   'Mauvaise adresse'),
-      ('POSTPONED',       'Reporté'),
-      ('OTHER',           'Autre'),
+      'CLIENT_ABSENT',
+      'CLIENT_REJECTED',
+      'WRONG_ADDRESS',
+      'POSTPONED',
+      'OTHER',
     ],
     'DAMAGED': [
-      ('DAMAGED_IN_TRANSIT', 'Endommagé en transit'),
-      ('DAMAGED_AT_PICKUP',  'Endommagé à la collecte'),
-      ('PACKAGING_BROKEN',   'Emballage défectueux'),
-      ('WRONG_ITEM',         'Mauvais article'),
+      'DAMAGED_IN_TRANSIT',
+      'DAMAGED_AT_PICKUP',
+      'PACKAGING_BROKEN',
+      'WRONG_ITEM',
     ],
     'DELIVERED': [
-      ('OUT_OF_STOCK', 'Rupture de stock'),
-      ('WRONG_ITEM',   'Mauvais article'),
-      ('OTHER',        'Autre'),
+      'OUT_OF_STOCK',
+      'WRONG_ITEM',
+      'OTHER',
     ],
     'MISSING': [
-      ('NOT_LOADED',      'Non chargé en dépôt'),
-      ('LOST_IN_TRANSIT', 'Perdu en transit'),
-      ('WRONG_ITEM',      'Mauvais article'),
-      ('OTHER',           'Autre'),
+      'NOT_LOADED',
+      'LOST_IN_TRANSIT',
+      'WRONG_ITEM',
+      'OTHER',
     ],
   };
 
@@ -116,7 +117,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       _itemCommentControllers[key] = TextEditingController();
     }
   }
-
 
   @override
   void dispose() {
@@ -160,6 +160,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
   bool _openingBl = false;
 
   Future<void> _openBonLivraison() async {
+    final locale = ref.read(localeProvider);
     if (_openingBl) return;
     setState(() => _openingBl = true);
     try {
@@ -170,13 +171,13 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       );
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Impossible d\'ouvrir le PDF. Aucune application PDF installée.')),
+          SnackBar(content: Text(DriverCopy.get('pod_pdf_open_error', locale))),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur lors du téléchargement du bon de livraison.')),
+          SnackBar(content: Text(DriverCopy.get('pod_pdf_download_error', locale))),
         );
       }
     } finally {
@@ -184,15 +185,90 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     }
   }
 
+  String _translateOutcome(String outcome, String locale) {
+    if (locale == 'ar') {
+      switch (outcome) {
+        case 'DELIVERED': return 'تم التوصيل';
+        case 'REFUSED': return 'مرفوض';
+        case 'DAMAGED': return 'تالف';
+        case 'MISSING': return 'مفقود';
+      }
+    } else if (locale == 'en') {
+      switch (outcome) {
+        case 'DELIVERED': return 'Delivered';
+        case 'REFUSED': return 'Refused';
+        case 'DAMAGED': return 'Damaged';
+        case 'MISSING': return 'Missing';
+      }
+    }
+    switch (outcome) {
+      case 'DELIVERED': return 'Livré';
+      case 'REFUSED': return 'Refusé';
+      case 'DAMAGED': return 'Endommagé';
+      case 'MISSING': return 'Manquant';
+    }
+    return outcome;
+  }
+
+  String _translateReason(String reason, String locale) {
+    if (locale == 'ar') {
+      switch (reason) {
+        case 'CLIENT_ABSENT': return 'العميل غائب';
+        case 'CLIENT_REJECTED': return 'رفض العميل';
+        case 'WRONG_ADDRESS': return 'عنوان خاطئ';
+        case 'POSTPONED': return 'مؤجل';
+        case 'OTHER': return 'آخر';
+        case 'DAMAGED_IN_TRANSIT': return 'تالف أثناء النقل';
+        case 'DAMAGED_AT_PICKUP': return 'تالف عند الاستلام';
+        case 'PACKAGING_BROKEN': return 'التعبئة تالفة';
+        case 'WRONG_ITEM': return 'سلعة خاطئة';
+        case 'OUT_OF_STOCK': return 'نفذت الكمية';
+        case 'NOT_LOADED': return 'لم يتم شحنها';
+        case 'LOST_IN_TRANSIT': return 'مفقود أثناء النقل';
+      }
+    } else if (locale == 'en') {
+      switch (reason) {
+        case 'CLIENT_ABSENT': return 'Customer absent';
+        case 'CLIENT_REJECTED': return 'Customer rejected';
+        case 'WRONG_ADDRESS': return 'Wrong address';
+        case 'POSTPONED': return 'Postponed';
+        case 'OTHER': return 'Other';
+        case 'DAMAGED_IN_TRANSIT': return 'Damaged in transit';
+        case 'DAMAGED_AT_PICKUP': return 'Damaged at pickup';
+        case 'PACKAGING_BROKEN': return 'Packaging broken';
+        case 'WRONG_ITEM': return 'Wrong item';
+        case 'OUT_OF_STOCK': return 'Out of stock';
+        case 'NOT_LOADED': return 'Not loaded at depot';
+        case 'LOST_IN_TRANSIT': return 'Lost in transit';
+      }
+    }
+    switch (reason) {
+      case 'CLIENT_ABSENT': return 'Client absent';
+      case 'CLIENT_REJECTED': return 'Refus du client';
+      case 'WRONG_ADDRESS': return 'Mauvaise adresse';
+      case 'POSTPONED': return 'Reporté';
+      case 'OTHER': return 'Autre';
+      case 'DAMAGED_IN_TRANSIT': return 'Endommagé en transit';
+      case 'DAMAGED_AT_PICKUP': return 'Endommagé à la collecte';
+      case 'PACKAGING_BROKEN': return 'Emballage défectueux';
+      case 'WRONG_ITEM': return 'Mauvais article';
+      case 'OUT_OF_STOCK': return 'Rupture de stock';
+      case 'NOT_LOADED': return 'Non chargé en dépôt';
+      case 'LOST_IN_TRANSIT': return 'Perdu en transit';
+    }
+    return reason;
+  }
+
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
     return Scaffold(
       backgroundColor: cs.surface,
       appBar: AppBar(
-        title: const Text('Preuve de livraison'),
+        title: Text(DriverCopy.get('pod_title', locale)),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
+          icon: const Icon(PhosphorIconsRegular.caretLeft, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -209,9 +285,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 border: Border.all(color: cs.tertiary.withValues(alpha: 0.2)),
               ),
               child: Text(
-                '1. Imprimez le bon de livraison et faites-le signer par le client.\n'
-                '2. Photographiez le bon signé.\n'
-                '3. Photographiez la remise du colis.',
+                '${DriverCopy.get('pod_step_1', locale)}\n'
+                '${DriverCopy.get('pod_step_2', locale)}\n'
+                '${DriverCopy.get('pod_step_3', locale)}',
                 style: TextStyle(fontSize: 13, color: cs.tertiary, height: 1.5),
               ),
             ),
@@ -222,40 +298,42 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               onPressed: _openingBl ? null : _openBonLivraison,
               icon: _openingBl
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.picture_as_pdf_outlined),
-              label: Text(_openingBl ? 'Téléchargement…' : 'Voir / Imprimer bon de livraison'),
+                  : const Icon(PhosphorIconsRegular.filePdf),
+              label: Text(_openingBl ? DriverCopy.get('pod_downloading', locale) : DriverCopy.get('pod_view_print_bl', locale)),
             ),
             const SizedBox(height: 20),
 
             // Photo 1: Bon de livraison signé
             _buildPhotoSection(
               context,
-              title: '📄 Bon de livraison signé',
-              subtitle: 'Photographiez le bon signé par le client',
+              title: DriverCopy.get('pod_photo_bl_title', locale),
+              subtitle: DriverCopy.get('pod_photo_bl_sub', locale),
               bytes: _bonLivraisonBytes,
               required: true,
               onPick: (bytes) => setState(() => _bonLivraisonBytes = bytes),
               onClear: () => setState(() => _bonLivraisonBytes = null),
+              locale: locale,
             ),
             const SizedBox(height: 16),
 
             // Photo 2: Package handover
             _buildPhotoSection(
               context,
-              title: '📦 Remise du colis',
-              subtitle: 'Photographiez le colis au moment de la remise',
+              title: DriverCopy.get('pod_photo_pkg_title', locale),
+              subtitle: DriverCopy.get('pod_photo_pkg_sub', locale),
               bytes: _packageBytes,
               required: true,
               onPick: (bytes) => setState(() => _packageBytes = bytes),
               onClear: () => setState(() => _packageBytes = null),
+              locale: locale,
             ),
             const SizedBox(height: 20),
 
-            _buildNotesField(context),
+            _buildNotesField(context, locale),
             const SizedBox(height: 16),
-            _buildLocationToggle(context),
+            _buildLocationToggle(context, locale),
             const SizedBox(height: 16),
-            _buildPartialDeliveryToggle(context),
+            _buildPartialDeliveryToggle(context, locale),
             const SizedBox(height: 24),
 
             if (!_canSubmit)
@@ -263,8 +341,8 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: Text(
                   _missingReasonItem != null
-                      ? 'Raison obligatoire pour : $_missingReasonItem'
-                      : 'Les 2 photos sont obligatoires.',
+                      ? '${DriverCopy.get('pod_reason_mandatory', locale)} $_missingReasonItem'
+                      : DriverCopy.get('pod_photos_mandatory', locale),
                   style: TextStyle(fontSize: 12, color: cs.error.withValues(alpha: 0.8)),
                   textAlign: TextAlign.center,
                 ),
@@ -277,8 +355,8 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 onPressed: (_submitting || !_canSubmit) ? null : _submit,
                 icon: _submitting
                     ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                    : const Icon(Icons.check),
-                label: const Text('Confirmer la livraison'),
+                    : const Icon(PhosphorIconsRegular.check),
+                label: Text(DriverCopy.get('pod_confirm_delivery', locale)),
               ),
             ),
           ],
@@ -295,6 +373,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     required bool required,
     required ValueChanged<Uint8List> onPick,
     required VoidCallback onClear,
+    required String locale,
   }) {
     final cs = Theme.of(context).colorScheme;
     return Card(
@@ -324,8 +403,8 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   Container(
                     width: 22,
                     height: 22,
-                    decoration: BoxDecoration(color: cs.tertiary, shape: BoxShape.circle),
-                    child: const Icon(Icons.check, size: 14, color: Colors.white),
+                    decoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
+                    child: const Icon(PhosphorIconsRegular.check, size: 14, color: Colors.white),
                   ),
               ],
             ),
@@ -337,21 +416,21 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               )
             else
               GestureDetector(
-                onTap: () => _pickPhoto(onPick),
+                onTap: () => _pickPhoto(onPick, locale),
                 child: Container(
                   height: 120,
                   decoration: BoxDecoration(
                     color: cs.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: cs.outlineVariant, style: BorderStyle.solid),
+                    border: Border.all(color: cs.outlineVariant),
                   ),
                   child: Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.camera_alt_outlined, size: 32, color: cs.onSurfaceVariant),
+                        Icon(PhosphorIconsRegular.camera, size: 32, color: cs.onSurfaceVariant),
                         const SizedBox(height: 6),
-                        Text('Appuyer pour photographier', style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
+                        Text(DriverCopy.get('pod_photo_tap_hint', locale), style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
                       ],
                     ),
                   ),
@@ -361,17 +440,17 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
             Row(
               children: [
                 OutlinedButton.icon(
-                  onPressed: () => _pickPhoto(onPick),
-                  icon: const Icon(Icons.camera_alt_outlined, size: 16),
-                  label: Text(bytes == null ? 'Prendre une photo' : 'Reprendre'),
+                  onPressed: () => _pickPhoto(onPick, locale),
+                  icon: const Icon(PhosphorIconsRegular.camera, size: 16),
+                  label: Text(bytes == null ? DriverCopy.get('pod_photo_take', locale) : DriverCopy.get('pod_photo_retake', locale)),
                   style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8)),
                 ),
                 if (bytes != null) ...[
                   const SizedBox(width: 8),
                   TextButton.icon(
                     onPressed: onClear,
-                    icon: const Icon(Icons.delete_outline, size: 16),
-                    label: const Text('Supprimer'),
+                    icon: const Icon(PhosphorIconsRegular.trash, size: 16),
+                    label: Text(DriverCopy.get('pod_photo_delete', locale)),
                     style: TextButton.styleFrom(foregroundColor: cs.error),
                   ),
                 ],
@@ -383,7 +462,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Widget _buildNotesField(BuildContext context) {
+  Widget _buildNotesField(BuildContext context, String locale) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -391,30 +470,30 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
           controller: _notesController,
           minLines: 2,
           maxLines: 5,
-          decoration: const InputDecoration(
-            labelText: 'Commentaires (code porte, nom personne, etc.)',
+          decoration: InputDecoration(
+            labelText: DriverCopy.get('pod_comments_label', locale),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLocationToggle(BuildContext context) {
+  Widget _buildLocationToggle(BuildContext context, String locale) {
     final cs = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
           children: [
-            Icon(Icons.my_location, color: cs.tertiary),
+            Icon(PhosphorIconsRegular.mapPin, color: cs.tertiary),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Joindre la position GPS'),
+                  Text(DriverCopy.get('pod_gps_label', locale)),
                   Text(
-                    'Coordonnées envoyées une seule fois à la soumission.',
+                    DriverCopy.get('pod_gps_sub', locale),
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                   ),
                 ],
@@ -430,7 +509,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Widget _buildPartialDeliveryToggle(BuildContext context) {
+  Widget _buildPartialDeliveryToggle(BuildContext context, String locale) {
     final cs = Theme.of(context).colorScheme;
     return Card(
       child: Padding(
@@ -438,18 +517,17 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // ── Toggle header ──────────────────────────────────────────────
             Row(
               children: [
-                Icon(Icons.warning_amber_rounded, color: cs.secondary),
+                Icon(PhosphorIconsRegular.warning, color: cs.secondary),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text('Livraison partielle'),
+                      Text(DriverCopy.get('pod_partial_label', locale)),
                       Text(
-                        'Activez si certains articles n\'ont pas été livrés.',
+                        DriverCopy.get('pod_partial_sub', locale),
                         style: Theme.of(context).textTheme.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                       ),
                     ],
@@ -461,13 +539,11 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 ),
               ],
             ),
-
-            // ── Per-item outcome section ───────────────────────────────────
             if (_isPartial) ...[
               const Divider(height: 24),
-              Text('Résultat par article :', style: Theme.of(context).textTheme.titleSmall),
+              Text(DriverCopy.get('pod_item_outcome_header', locale), style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: 12),
-              ...widget.args.delivery.items.map((item) => _buildItemOutcomeRow(context, item)),
+              ...widget.args.delivery.items.map((item) => _buildItemOutcomeRow(context, item, locale)),
             ],
           ],
         ),
@@ -475,7 +551,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Widget _buildItemOutcomeRow(BuildContext context, dynamic item) {
+  Widget _buildItemOutcomeRow(BuildContext context, dynamic item, String locale) {
     final cs = Theme.of(context).colorScheme;
     final key         = (item.sku ?? item.name) as String;
     final plannedQty  = item.quantity as int;
@@ -500,8 +576,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-
-          // ── Item header ───────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
             child: Row(
@@ -528,7 +602,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                     ],
                   ),
                 ),
-                // Qty badge
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
@@ -542,17 +615,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                       fontSize: 12, fontWeight: FontWeight.w700, fontFamily: 'monospace',
                       color: isPartialQty ? cs.secondary
                            : outcome != 'DELIVERED' ? cs.error
-                           : cs.tertiary,
+                           : cs.primary,
                     ),
                   ),
                 ),
               ],
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // ── Outcome grid — 2×2 ───────────────────────────────────────
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: GridView.count(
@@ -587,7 +657,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                         Icon(o.icon, size: 15, color: selected ? oColor : cs.onSurfaceVariant),
                         const SizedBox(width: 6),
                         Text(
-                          o.label,
+                          _translateOutcome(o.value, locale),
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -601,8 +671,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               }).toList(),
             ),
           ),
-
-          // ── Quantity stepper (DELIVERED only) ────────────────────────
           if (outcome == 'DELIVERED') ...[
             const SizedBox(height: 12),
             Divider(height: 1, color: cs.outlineVariant),
@@ -610,7 +678,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               child: Row(
                 children: [
-                  Text('Quantité livrée',
+                  Text(DriverCopy.get('pod_delivered_qty', locale),
                       style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
                   const Spacer(),
                   GestureDetector(
@@ -624,7 +692,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(color: currentQty > 0 ? cs.error : cs.outlineVariant),
                       ),
-                      child: Icon(Icons.remove, size: 16,
+                      child: Icon(PhosphorIconsRegular.minus, size: 16,
                           color: currentQty > 0 ? cs.error : cs.onSurfaceVariant),
                     ),
                   ),
@@ -645,27 +713,25 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                     child: Container(
                       width: 32, height: 32,
                       decoration: BoxDecoration(
-                        color: currentQty < plannedQty ? cs.tertiaryContainer : cs.surfaceContainerHighest,
+                        color: currentQty < plannedQty ? cs.primaryContainer : cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: currentQty < plannedQty ? cs.tertiary : cs.outlineVariant),
+                            color: currentQty < plannedQty ? cs.primary : cs.outlineVariant),
                       ),
-                      child: Icon(Icons.add, size: 16,
-                          color: currentQty < plannedQty ? cs.tertiary : cs.onSurfaceVariant),
+                      child: Icon(PhosphorIconsRegular.plus, size: 16,
+                          color: currentQty < plannedQty ? cs.primary : cs.onSurfaceVariant),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-
-          // ── Reason chips (wrapped grid) ───────────────────────────────
           if (needsExtra) ...[
             Divider(height: 1, color: cs.outlineVariant),
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Text(
-                isPartialQty ? 'Motif — livraison partielle *' : 'Motif *',
+                isPartialQty ? DriverCopy.get('pod_reason_partial', locale) : DriverCopy.get('pod_reason_label', locale),
                 style: TextStyle(
                     fontSize: 11, fontWeight: FontWeight.w700,
                     color: cs.onSurfaceVariant),
@@ -678,9 +744,9 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                 runSpacing: 8,
                 children: (_reasonsByOutcome[outcome] ?? _reasonsByOutcome['REFUSED']!)
                     .map((r) {
-                  final selected = reason == r.$1;
+                  final selected = reason == r;
                   return GestureDetector(
-                    onTap: () => setState(() => _itemReasons[key] = r.$1),
+                    onTap: () => setState(() => _itemReasons[key] = r),
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 120),
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
@@ -693,7 +759,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                         ),
                       ),
                       child: Text(
-                        r.$2,
+                        _translateReason(r, locale),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w500,
@@ -706,8 +772,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               ),
             ),
           ],
-
-          // ── Per-item comment ──────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 14),
             child: TextField(
@@ -716,7 +780,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
               maxLines: 3,
               style: const TextStyle(fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'Commentaire sur cet article (optionnel)',
+                hintText: DriverCopy.get('pod_item_comment_hint', locale),
                 hintStyle: TextStyle(fontSize: 13, color: cs.onSurfaceVariant),
                 contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
@@ -728,9 +792,14 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     );
   }
 
-  Future<void> _pickPhoto(ValueChanged<Uint8List> onDone) async {
+  Future<void> _pickPhoto(ValueChanged<Uint8List> onDone, String locale) async {
     try {
-      final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
+      final file = await _picker.pickImage(
+        source: ImageSource.camera,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 70,
+      );
       if (file == null) return;
       final bytes = await file.readAsBytes();
       if (!mounted) return;
@@ -738,12 +807,13 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Impossible d\'accéder à l\'appareil photo.')),
+        SnackBar(content: Text(DriverCopy.get('pod_photo_access_error', locale))),
       );
     }
   }
 
   Future<void> _submit() async {
+    final locale = ref.read(localeProvider);
     if (!_canSubmit) return;
     setState(() => _submitting = true);
     try {
@@ -768,7 +838,6 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
                   orElse: () => widget.args.delivery.items.first)
               .quantity;
           final isPartialQty = outcome == 'DELIVERED' && e.value < plannedQty;
-          // Send reason when: refused, damaged, missing, or delivered with less than planned qty
           final sendReason = _requiresReason.contains(outcome) || isPartialQty;
           return PartialDeliveryItem(
             sku: e.key,
@@ -793,13 +862,13 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
       try {
         await ref.read(deliveryRepositoryProvider).submitPod(widget.args.delivery.id, payload);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('POD transmis avec succ\u00e8s.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(DriverCopy.get('pod_success_message', locale))));
         Navigator.of(context).pop(true);
       } catch (e) {
         if (e == 'OFFLINE_QUEUED') {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hors ligne : POD enregistr\u00e9 pour synchronisation ult\u00e9rieure')),
+            SnackBar(content: Text(DriverCopy.get('delivery_detail_offline_queue', locale))),
           );
           Navigator.of(context).pop(true);
         } else {
@@ -809,7 +878,7 @@ class _PodFormScreenState extends ConsumerState<PodFormScreen> {
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context)
-          .showSnackBar(SnackBar(content: Text('\u00c9chec de soumission du POD : $error')));
+          .showSnackBar(SnackBar(content: Text('${DriverCopy.get('delivery_detail_error_prefix', locale)}: $error')));
     } finally {
       if (mounted) setState(() => _submitting = false);
     }

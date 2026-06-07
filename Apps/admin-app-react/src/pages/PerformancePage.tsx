@@ -11,6 +11,7 @@ import {
   IconBolt, IconActivity, IconFileAnalytics, IconCheck
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { KpiCard } from './DashboardPage';
@@ -174,107 +175,107 @@ export default function PerformancePage() {
   }, [stats]);
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
-      {/* ── Sticky Header (Perfect layout match with other page registries) ── */}
-      <div
-        className="sticky top-0 z-20 min-h-16 h-auto lg:h-16 py-4 lg:py-0 flex items-center"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
-      >
-        <div className="px-6 w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <div>
-              <p className="text-[11px] font-[600] text-[var(--text-muted)] mb-1">
-                {t.performancePage.pageSubtitle}
-              </p>
-              <p className="text-[18px] font-bold" style={{ color: 'var(--text-primary)' }}>
-                {t.performancePage.pageTitle} <span style={{ color: 'var(--brand)' }}>{t.performancePage.pageTitleBrand}</span>
-              </p>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-[var(--border)]" />
-            <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              {t.performancePage.operationalDashboard}
-            </p>
-          </div>
-
-            <RefreshButton refreshing={loading} onClick={loadData} />
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+      {/* ── Period bar (replaces title bar) ── */}
+      <div className="flex items-center gap-3 px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+        <span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
+        <div className="flex items-center gap-1">
+          {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
+            <button
+              key={p}
+              onClick={() => setPeriod(p)}
+              className={cn(
+                'px-2.5 py-1 text-[11px] font-[500] transition-colors rounded-md cursor-pointer',
+                period === p
+                  ? 'bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]'
+                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50'
+              )}
+            >
+              {{ day: t.performancePage.periodDay, week: t.performancePage.periodWeek, month: t.performancePage.periodMonth, all: t.performancePage.periodAll }[p]}
+            </button>
+          ))}
         </div>
+        {lastUpdated && (
+          <span className="text-[10px] font-mono ml-auto" style={{ color: 'var(--text-muted)' }}>
+            {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
+          </span>
+        )}
+        <RefreshButton refreshing={loading} onClick={loadData} />
       </div>
 
       {/* ── Scrollable Body Content ── */}
-      <div className="overflow-y-auto" style={{ height: 'calc(100vh - 128px)' }}>
-        <div className="flex flex-col gap-8 max-w-[1400px] mx-auto p-4 md:p-8">
-
-          {/* ── Horizontal Period Selector (Sleek action bar) ── */}
-          <div className="flex items-center justify-between gap-4 flex-wrap border-b border-[var(--border)] pb-4">
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.performancePage.periodLabel}</span>
-              <div className="flex items-center gap-1.5">
-                {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
-                  <button
-                    key={p}
-                    onClick={() => setPeriod(p)}
-                    className={cn(
-                      "px-2.5 py-1 text-[11px] font-[500] transition-colors rounded-md cursor-pointer",
-                      period === p
-                        ? "bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]"
-                        : "text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50"
-                    )}
-                  >
-                    {{ day: t.performancePage.periodDay, week: t.performancePage.periodWeek, month: t.performancePage.periodMonth, all: t.performancePage.periodAll }[p]}
-                  </button>
-                ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-[1400px] mx-auto p-4 md:p-8">
+        <DraggableWidgetGrid
+          storageKey="performance"
+          items={[
+            {
+              id: 'kpi-operational-volume',
+              defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
+              className: 'h-full flex',
+              children: (
+            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+              <div className="flex items-start justify-between mb-3 shrink-0">
+                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.operationalVolume}</span>
+                <IconBolt size={16} strokeWidth={1.5} className="text-[#545b64]" />
               </div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{stats?.today?.total?.toString() ?? "0"}</div>
+              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
             </div>
-            {lastUpdated && (
-              <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
-              </span>
-            )}
-          </div>
-
-          {/* ── Row 1: KPI Tiles ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            <KpiCard
-              title={t.performancePage.operationalVolume}
-              value={stats?.today?.total?.toString() ?? "0"}
-              subtitle={`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}
-              Icon={IconBolt}
-              color="#5a7fa8"
-            />
-            <KpiCard
-              title={t.performancePage.completionRate}
-              value={`${normRate(stats?.today?.successRate).toFixed(1)}%`}
-              subtitle={t.performancePage.deliveryPerformance}
-              Icon={IconTrendingUp}
-              color="#3b9a7c"
-            />
-            <KpiCard
-              title={t.performancePage.avgDelay}
-              value={fmtMinutes(kpi?.avgDelayMinutes)}
-              subtitle={t.performancePage.basedOnTarget}
-              Icon={IconClock}
-              color="#c87a68"
-            />
-            <KpiCard
-              title={t.performancePage.lifeCycle}
-              value={fmtMinutes(totalCycleMinutes)}
-              subtitle={t.performancePage.assignmentToDestination}
-              Icon={IconActivity}
-              color="#7c6cb5"
-            />
-          </div>
-
-          {/* ── Row 2: Charts Grid ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-             {/* Trend Chart Card */}
-             <div
-               className="rounded-lg overflow-hidden shadow-sm"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
-             >
-               <div
-                 className="px-5 py-3 flex items-center justify-between"
-                 style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}
-               >
+              )
+            },
+            {
+              id: 'kpi-completion-rate',
+              defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
+              className: 'h-full flex',
+              children: (
+            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+              <div className="flex items-start justify-between mb-3 shrink-0">
+                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.completionRate}</span>
+                <IconTrendingUp size={16} strokeWidth={1.5} className="text-[#545b64]" />
+              </div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
+              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
+            </div>
+              )
+            },
+            {
+              id: 'kpi-avg-delay',
+              defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
+              className: 'h-full flex',
+              children: (
+            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+              <div className="flex items-start justify-between mb-3 shrink-0">
+                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.avgDelay}</span>
+                <IconClock size={16} strokeWidth={1.5} className="text-[#545b64]" />
+              </div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
+              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
+            </div>
+              )
+            },
+            {
+              id: 'kpi-life-cycle',
+              defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+              className: 'h-full flex',
+              children: (
+            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+              <div className="flex items-start justify-between mb-3 shrink-0">
+                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.lifeCycle}</span>
+                <IconActivity size={16} strokeWidth={1.5} className="text-[#545b64]" />
+              </div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{fmtMinutes(totalCycleMinutes)}</div>
+              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
+            </div>
+              )
+            },
+            {
+              id: 'trend-chart',
+              defaultLayout: { w: 6, h: 7, x: 0, y: 2, minW: 4, minH: 5 },
+              className: '',
+              children: (
+             <div className="rounded-lg overflow-hidden bg-white border border-[#eaeded] flex flex-col h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
                  <div className="flex items-center gap-2">
                    <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
@@ -319,16 +320,15 @@ export default function PerformancePage() {
                   </ResponsiveContainer>
                </div>
              </div>
-
-             {/* Fragmentation Temporelle Card */}
-             <div
-               className="rounded-lg overflow-hidden shadow-sm flex flex-col justify-between"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
-             >
-               <div
-                 className="px-5 py-3 flex items-center justify-between"
-                 style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}
-               >
+              ),
+            },
+            {
+              id: 'temporal-fragmentation',
+              defaultLayout: { w: 6, h: 7, x: 6, y: 2, minW: 4, minH: 5 },
+              className: '',
+              children: (
+             <div className="rounded-lg overflow-hidden flex flex-col justify-between bg-white border border-[#eaeded] h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
                  <div className="flex items-center gap-2">
                    <IconActivity size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
@@ -363,19 +363,15 @@ export default function PerformancePage() {
                   </div>
                </div>
              </div>
-          </div>
-
-          {/* ── Row 3: Distribution & Rankings ── */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             {/* Distribution Zone Card */}
-             <div
-               className="rounded-lg overflow-hidden shadow-sm"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
-             >
-               <div
-                 className="px-5 py-3 flex items-center justify-between"
-                 style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}
-               >
+              ),
+            },
+            {
+              id: 'distribution-zone',
+              defaultLayout: { w: 4, h: 8, x: 0, y: 9, minW: 3, minH: 5 },
+              className: '',
+              children: (
+             <div className="rounded-lg overflow-hidden bg-white border border-[#eaeded] flex flex-col h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
                  <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
                    {t.performancePage.densityByZone}
                  </span>
@@ -396,16 +392,15 @@ export default function PerformancePage() {
                    ))}
                </div>
              </div>
-
-             {/* Top Drivers Table (Perfect match with other page tabular registries!) ── */}
-             <div
-               className="rounded-lg overflow-hidden shadow-sm lg:col-span-2 flex flex-col"
-               style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
-             >
-               <div
-                 className="px-5 py-3 flex items-center justify-between"
-                 style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}
-               >
+              ),
+            },
+            {
+              id: 'top-drivers',
+              defaultLayout: { w: 8, h: 8, x: 4, y: 9, minW: 5, minH: 5 },
+              className: '',
+              children: (
+             <div className="rounded-lg overflow-hidden lg:col-span-2 flex flex-col bg-white border border-[#eaeded] h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
                  <div className="flex items-center gap-2">
                    <IconUsers size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
@@ -504,8 +499,10 @@ export default function PerformancePage() {
                  </div>
                </div>
              </div>
-          </div>
-
+              ),
+            },
+          ]}
+        />
         </div>
       </div>
     </div>

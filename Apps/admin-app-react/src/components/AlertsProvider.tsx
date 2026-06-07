@@ -78,6 +78,8 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'handoff.overdue':   { category: 'route', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'handoff.cancelled': { category: 'route', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'sla.breach': { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
+  'pickup.overdue': { category: 'route', severity: 'critical', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/dispatch-desk' },
+  'delivery.backorder_created': { category: 'delivery', severity: 'info', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
 
   // Transfer events
   'STOPS_TRANSFERRED_OUT': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
@@ -224,6 +226,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       fromDriverName: raw.fromDriverName ?? '',
       toDriverName: raw.toDriverName ?? '',
       reason: raw.reason ?? '',
+      blNumber: raw.blNumber ?? '',
       motif: raw.motif ?? raw.reason ?? '',
       elapsed: String(raw.slaParams?.elapsed ?? ''),
       limit: String(raw.slaParams?.limit ?? ''),
@@ -454,10 +457,20 @@ export function getLocalizedNotif(n: Notification, locale: string) {
     return { title: n.title, message: n.message };
   }
   const title = cfg.title || n.title;
+  // Fold the top-level Notification columns into the param bag so persisted
+  // notifications (whose eventParams only carry the backend `payload` map)
+  // localize with the same fields the live STOMP path provides. erpOrderId and
+  // orderId are kept as aliases since copy ref-tags read `orderId`.
+  const ep = (n.eventParams || {}) as Record<string, any>;
   const p = {
-    ...(n.eventParams || {}),
-    driverName: n.eventParams?.driverName ?? '',
-    routeName:  n.eventParams?.routeName  ?? n.routeName ?? '',
+    ...ep,
+    clientName: ep.clientName ?? n.clientName ?? '',
+    driverName: ep.driverName ?? n.driverName ?? '',
+    routeName:  ep.routeName  ?? n.routeName ?? '',
+    deliveryId: ep.deliveryId ?? n.deliveryId ?? '',
+    routeId:    ep.routeId ?? n.routeId ?? '',
+    orderId:    ep.orderId ?? ep.erpOrderId ?? n.orderId ?? '',
+    erpOrderId: ep.erpOrderId ?? ep.orderId ?? n.orderId ?? '',
   };
   const message = typeof cfg.message === 'function' ? cfg.message(p) : n.message;
   return { title, message };

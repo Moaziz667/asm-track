@@ -1,6 +1,7 @@
 
 import { useEffect, useMemo, type CSSProperties } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { useT } from '@/lib/LocaleContext';
 import { IconFilter as Filter, IconDeviceFloppy as Save, IconRefresh as RotateCcw } from '@tabler/icons-react';
 import {
   FILTER_PRESET_KEYS,
@@ -19,13 +20,8 @@ const FILTER_KEYS: Array<keyof OperationalFilters> = [
   'search',
 ];
 
-const PRESET_LABELS: Record<(typeof FILTER_PRESET_KEYS)[number], string> = {
-  'morning-dispatch': 'Morning Dispatch',
-  'north-zone': 'North Zone',
-  'at-risk-routes': 'At Risk Routes',
-};
-
 export default function OperationalFilterBar() {
+  const t = useT();
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -96,7 +92,7 @@ export default function OperationalFilterBar() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: 'var(--muted-foreground)', fontSize: 12, fontWeight: 700 }}>
           <Filter size={14} />
-          Global Filters
+          {t.operationalFilterBar.title}
         </div>
 
         <label style={{ fontSize: 12, color: 'var(--muted-foreground)', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
@@ -105,7 +101,7 @@ export default function OperationalFilterBar() {
             checked={globalContext}
             onChange={(e) => setGlobalContext(e.target.checked)}
           />
-          Persist across pages
+          {t.operationalFilterBar.persistLabel}
         </label>
 
         <button
@@ -126,19 +122,19 @@ export default function OperationalFilterBar() {
           }}
         >
           <RotateCcw size={13} />
-          Clear
+          {t.operationalFilterBar.clearButton}
         </button>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, minmax(120px, 1fr))', gap: 8 }}>
         <input type="date" value={filters.dateFrom} onChange={(e) => setFilter('dateFrom', e.target.value)} style={inputStyle} />
         <input type="date" value={filters.dateTo} onChange={(e) => setFilter('dateTo', e.target.value)} style={inputStyle} />
-        <input placeholder="Zone" value={filters.zone} onChange={(e) => setFilter('zone', e.target.value)} style={inputStyle} />
-        <input placeholder="Driver" value={filters.driver} onChange={(e) => setFilter('driver', e.target.value)} style={inputStyle} />
-        <input placeholder="Route" value={filters.route} onChange={(e) => setFilter('route', e.target.value)} style={inputStyle} />
-        <input placeholder="Status" value={filters.status} onChange={(e) => setFilter('status', e.target.value)} style={inputStyle} />
+        <input placeholder={t.operationalFilterBar.zonePlaceholder} value={filters.zone} onChange={(e) => setFilter('zone', e.target.value)} style={inputStyle} />
+        <input placeholder={t.operationalFilterBar.driverPlaceholder} value={filters.driver} onChange={(e) => setFilter('driver', e.target.value)} style={inputStyle} />
+        <input placeholder={t.operationalFilterBar.routePlaceholder} value={filters.route} onChange={(e) => setFilter('route', e.target.value)} style={inputStyle} />
+        <input placeholder={t.operationalFilterBar.statusPlaceholder} value={filters.status} onChange={(e) => setFilter('status', e.target.value)} style={inputStyle} />
         {/* Slot filter removed - not part of OperationalFilters */}
-        <input placeholder="Search id/client/order" value={filters.search} onChange={(e) => setFilter('search', e.target.value)} style={inputStyle} />
+        <input placeholder={t.operationalFilterBar.searchPlaceholder} value={filters.search} onChange={(e) => setFilter('search', e.target.value)} style={inputStyle} />
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
@@ -157,7 +153,7 @@ export default function OperationalFilterBar() {
               cursor: 'pointer',
             }}
           >
-            {PRESET_LABELS[preset]}
+            {preset === 'morning-dispatch' ? t.operationalFilterBar.presetMorning : preset === 'north-zone' ? t.operationalFilterBar.presetNorth : t.operationalFilterBar.presetAtRisk}
           </button>
         ))}
 
@@ -179,7 +175,7 @@ export default function OperationalFilterBar() {
           }}
         >
           <Save size={13} />
-          Save As Morning Dispatch
+          {t.operationalFilterBar.saveAsMorning}
         </button>
 
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginLeft: 'auto' }}>

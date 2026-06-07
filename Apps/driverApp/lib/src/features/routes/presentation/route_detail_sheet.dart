@@ -297,7 +297,6 @@ class _ReadOnlyStopRow extends StatelessWidget {
       case DriverRouteStopStatus.failed:
         dotColor = cs.error; break;
       case DriverRouteStopStatus.pending:
-      default:
         dotColor = cs.onSurfaceVariant; break;
     }
 

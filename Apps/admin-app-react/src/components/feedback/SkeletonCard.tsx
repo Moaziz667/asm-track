@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { useT } from '@/lib/LocaleContext';
 
 interface SkeletonCardProps {
   /** Nombre de lignes de contenu simulées (défaut : 3) */
@@ -15,12 +16,13 @@ interface SkeletonCardProps {
  * Remplace le contenu réel pendant le chargement des données.
  */
 export function SkeletonCard({ rows = 3, height = 88, className = '' }: SkeletonCardProps) {
+  const t = useT();
   return (
     <div
       className={`bg-white rounded-xl border border-slate-200 p-4 animate-pulse ${className}`}
       style={{ minHeight: height }}
       aria-busy="true"
-      aria-label="Chargement en cours"
+      aria-label={t.loading.data}
     >
       {/* Ligne titre */}
       <div className="h-3 bg-slate-200 rounded-full w-2/5 mb-3" />

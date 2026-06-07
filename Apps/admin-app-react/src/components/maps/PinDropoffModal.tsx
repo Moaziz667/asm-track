@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'react-leaflet'
 import type { LatLngExpression, LeafletMouseEvent } from 'leaflet'
+import { useT } from '@/lib/LocaleContext'
 import { geocodeDelivery, getAdminDeliveryDetail, pinDropoff, reverseGeocode } from '../../services/deliveryAdmin'
 
 type Props = {
@@ -32,6 +33,7 @@ function FlyToMarker({ position }: { position: LatLngExpression | null }) {
 }
 
 export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
+  const t = useT();
   const isOpen = Boolean(deliveryId)
 
   const detailQuery = useQuery({
@@ -105,13 +107,13 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
       <div className="w-full max-w-3xl rounded-lg border border-[var(--border-default)] bg-[var(--bg-surface)] p-4 shadow-[var(--shadow-md)]">
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold">Pin and Geocode Delivery</h3>
+          <h3 className="text-base font-semibold">{t.pinDropoffModal.title}</h3>
           <button type="button" onClick={onClose} className="rounded-md border border-[var(--border-default)] px-3 py-1 text-sm">
-            Close
+            {t.pinDropoffModal.closeButton}
           </button>
         </div>
 
-        {detailQuery.isLoading && <p className="mb-3 text-sm text-[var(--text-secondary)]">Loading delivery details...</p>}
+        {detailQuery.isLoading && <p className="mb-3 text-sm text-[var(--text-secondary)]">{t.pinDropoffModal.loadingDetails}</p>}
 
         <div className="grid gap-4 lg:grid-cols-[58%_42%]">
           <div className="h-[320px] overflow-hidden rounded-md border border-[var(--border-default)]">
@@ -140,20 +142,20 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
               onClick={() => geocodeMutation.mutate()}
               className="h-9 rounded-md border border-[var(--border-default)] px-3 text-sm hover:bg-[var(--bg-surface-alt)]"
             >
-              Auto Geocode
+              {t.pinDropoffModal.autoGeocode}
             </button>
 
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={lat}
                 onChange={(e) => setLat(e.target.value === '' ? '' : Number(e.target.value))}
-                placeholder="Latitude"
+                placeholder={t.pinDropoffModal.latitude}
                 className="h-9 rounded-md border border-[var(--border-default)] px-3 text-sm"
               />
               <input
                 value={lng}
                 onChange={(e) => setLng(e.target.value === '' ? '' : Number(e.target.value))}
-                placeholder="Longitude"
+                placeholder={t.pinDropoffModal.longitude}
                 className="h-9 rounded-md border border-[var(--border-default)] px-3 text-sm"
               />
             </div>
@@ -161,26 +163,26 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
             <input
               value={address}
               onChange={(e) => setAddress(e.target.value)}
-              placeholder="Address"
+              placeholder={t.pinDropoffModal.address}
               className="h-9 w-full rounded-md border border-[var(--border-default)] px-3 text-sm"
             />
             <div className="grid grid-cols-2 gap-2">
               <input
                 value={city}
                 onChange={(e) => setCity(e.target.value)}
-                placeholder="City"
+                placeholder={t.pinDropoffModal.city}
                 className="h-9 rounded-md border border-[var(--border-default)] px-3 text-sm"
               />
               <input
                 value={postalCode}
                 onChange={(e) => setPostalCode(e.target.value)}
-                placeholder="Postal code"
+                placeholder={t.pinDropoffModal.postalCode}
                 className="h-9 rounded-md border border-[var(--border-default)] px-3 text-sm"
               />
             </div>
 
             <p className="text-xs text-[var(--text-secondary)]">
-              Zone will be auto-assigned by postal code, with city fallback, when you save this pin.
+              {t.pinDropoffModal.zoneHint}
             </p>
 
             <button
@@ -199,7 +201,7 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
               }}
               className="h-9 rounded-md bg-[var(--action)] px-4 text-sm font-medium text-white hover:bg-[var(--action-hover)] disabled:opacity-60"
             >
-              {pinMutation.isPending ? 'Saving pin...' : 'Save Pin'}
+              {pinMutation.isPending ? t.pinDropoffModal.saving : t.pinDropoffModal.savePin}
             </button>
           </div>
         </div>

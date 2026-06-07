@@ -3,12 +3,12 @@ import { Link } from 'react-router-dom';
 import { useLocation } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import {
-  IconLayoutDashboard, IconCommand, IconRadar2,
+  IconLayoutDashboard, IconCommand, IconCalendarEvent,
   IconPackage, IconUpload, IconRoute, IconMapPlus,
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2,
   IconChartLine, IconFileText, IconSettings, IconDatabase,
   IconChevronsLeft, IconChevronsRight,
-  IconChevronDown, IconChevronRight
+  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat
 } from '@tabler/icons-react';
 import {
   canManageSettings, getCurrentRole, canImportErp,
@@ -42,10 +42,10 @@ type NavGroupDef = {
 const GROUP_DEFS: NavGroupDef[] = [
   {
     groupKey: 'operations',
-    Icon: IconRadar2,
+    Icon: IconCalendarEvent,
     items: [
       { labelKey: 'dashboard',  href: '/dashboard',     Icon: IconLayoutDashboard },
-      { labelKey: 'overview',   href: '/operations',    Icon: IconRadar2,           roleCheck: canViewReadOnly },
+      { labelKey: 'overview',   href: '/overview',    Icon: IconCalendarEvent,           roleCheck: canViewReadOnly },
       { labelKey: 'dispatch',   href: '/dispatch-desk', Icon: IconCommand,          roleCheck: canDispatch },
     ],
   },
@@ -54,6 +54,7 @@ const GROUP_DEFS: NavGroupDef[] = [
     Icon: IconPackage,
     items: [
       { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          roleCheck: canDispatch },
+      { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    roleCheck: canDispatch },
       { labelKey: 'import',     href: '/import',        Icon: IconUpload,           roleCheck: canImportErp },
     ],
   },
@@ -81,6 +82,7 @@ const GROUP_DEFS: NavGroupDef[] = [
     items: [
       { labelKey: 'performance', href: '/performance',  Icon: IconChartLine },
       { labelKey: 'audit',       href: '/audit-logs',   Icon: IconFileText,         roleCheck: canDispatch },
+      { labelKey: 'systemHealth', href: '/system-health', Icon: IconHeartbeat,      roleCheck: canManageSettings },
     ],
   },
 ];
@@ -172,44 +174,36 @@ export function AppSidebar() {
   );
 
   const getBadgeFor = (labelKey: string) => {
+    const sb = t.sidebar.badges;
     if (labelKey === 'dispatch' && telemetry && telemetry.opsExceptions > 0) {
+      const n = telemetry.opsExceptions;
       const text = activeLocale === 'ar'
-        ? (telemetry.opsExceptions === 1 ? 'إجراء مطلوب' : `${telemetry.opsExceptions} إجراءات مطلوبة`)
+        ? (n === 1 ? sb.arDispatchOne : `${n} ${sb.arDispatchMany}`)
         : activeLocale === 'fr'
-        ? (telemetry.opsExceptions === 1 ? '1 action requise' : `${telemetry.opsExceptions} actions requises`)
-        : (telemetry.opsExceptions === 1 ? '1 action required' : `${telemetry.opsExceptions} actions required`);
+        ? (n === 1 ? `1 ${sb.dispatchActionRequired}` : `${n} ${sb.dispatchActionsRequired}`)
+        : (n === 1 ? `1 ${sb.dispatchActionRequired}` : `${n} ${sb.dispatchActionsRequired}`);
         
-      return { 
-        text, 
-        rawCount: telemetry.opsExceptions, 
-        type: 'alert' as const 
-      };
+      return { text, rawCount: n, type: 'alert' as const };
     }
     if (labelKey === 'import' && telemetry && telemetry.erpPending > 0) {
+      const n = telemetry.erpPending;
       const text = activeLocale === 'ar'
-        ? (telemetry.erpPending === 1 ? 'استيراد واحد' : `${telemetry.erpPending} استيراد`)
+        ? (n === 1 ? sb.arImportOne : `${n} ${sb.arImportMany}`)
         : activeLocale === 'fr'
-        ? (telemetry.erpPending === 1 ? '1 import' : `${telemetry.erpPending} imports`)
-        : (telemetry.erpPending === 1 ? '1 import' : `${telemetry.erpPending} imports`);
+        ? (n === 1 ? `1 ${sb.importOne}` : `${n} ${sb.imports}`)
+        : (n === 1 ? `1 ${sb.importOne}` : `${n} ${sb.imports}`);
 
-      return { 
-        text, 
-        rawCount: telemetry.erpPending, 
-        type: 'neutral' as const 
-      };
+      return { text, rawCount: n, type: 'neutral' as const };
     }
     if (labelKey === 'routes' && telemetry && telemetry.activeRoutes > 0) {
+      const n = telemetry.activeRoutes;
       const text = activeLocale === 'ar'
-        ? (telemetry.activeRoutes === 1 ? 'مسار نشط' : `${telemetry.activeRoutes} مسارات نشطة`)
+        ? (n === 1 ? sb.arRouteActive : `${n} ${sb.arRouteActiveMany}`)
         : activeLocale === 'fr'
-        ? (telemetry.activeRoutes === 1 ? '1 active' : `${telemetry.activeRoutes} actives`)
-        : (telemetry.activeRoutes === 1 ? '1 active' : `${telemetry.activeRoutes} active`);
+        ? (n === 1 ? `1 ${sb.routeActive}` : `${n} ${sb.routesActive}`)
+        : (n === 1 ? `1 ${sb.routeActive}` : `${n} ${sb.routesActive}`);
 
-      return { 
-        text, 
-        rawCount: telemetry.activeRoutes, 
-        type: 'info' as const 
-      };
+      return { text, rawCount: n, type: 'info' as const };
     }
     return null;
   };

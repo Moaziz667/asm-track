@@ -328,10 +328,6 @@ export const EN_COPY = {
       title: 'Create Route',
       subtitle: 'Map planning and route optimization',
     },
-    companies: {
-      title: 'Companies',
-      subtitle: 'Tenant management and ERP configurations',
-    },
   },
 
   // ── Status Labels ──────────────────────────────────
@@ -357,6 +353,11 @@ export const EN_COPY = {
     REMOVED_REPLANNED: 'Replanned',
     REMOVED_CANCELLED: 'Cancelled (Removed)',
     FAILED_ATTEMPT: 'Failed Attempt',
+    REQUESTED: 'Requested',
+    APPROVED: 'Approved',
+    RECEIVED: 'Received',
+    RESTOCKED: 'Restocked',
+    REJECTED: 'Rejected',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -1162,6 +1163,7 @@ export const EN_COPY = {
     statusSynced: 'Synced',
     statusReady: 'Ready for import',
     tooltipDetails: 'Details',
+    syncErpButton: 'Sync ERP',
     buttonView: 'View',
     buttonConfirm: 'Confirm',
     buttonImport: 'Import',
@@ -1236,6 +1238,7 @@ export const EN_COPY = {
     noRoutesForDate: 'No routes for this date',
     lockRoute: 'Lock route',
     unlockRoute: 'Unlock route',
+    routeLockedBadge: 'Locked',
     selectForBatchOptimize: 'Select for batch optimization',
     selectAll: 'Select all',
     deselectAll: 'Deselect all',
@@ -1653,7 +1656,7 @@ export const EN_COPY = {
     statusOutOfService: 'Out of Service',
     statusRetired: 'Retired',
     // Sidebar
-    newVehicleButton: 'Add Resource',
+    newVehicleButton: 'Add vehicle',
     searchPlaceholder: 'Technical Search...',
     operationalStatusLabel: 'Operational Status',
     fleetTotal: 'Total Fleet',
@@ -1701,6 +1704,7 @@ export const EN_COPY = {
     retireDescription: 'Are you sure you want to retire the vehicle {vehicleName} from the fleet? It can be reactivated later.',
     retireButton: 'Retire',
     reactivateButton: 'Reactivate',
+    editButton: 'Edit',
   },
 
   // ── Depots Page ────────────────────────────────────────────────────────
@@ -2174,14 +2178,10 @@ export const EN_COPY = {
     errorImportFailed: 'Import failed',
 
     // Company CRUD
-    successCompanyCreated: 'Company created successfully',
     successCompanyUpdated: 'Company updated successfully',
-    successCompanyDeactivated: 'Company deactivated successfully',
-    errorCompanyCreateFailed: 'Failed to create company',
     errorCompanyUpdateFailed: 'Failed to update company',
-    errorCompanyDeactivateFailed: 'Failed to deactivate company',
-    errorCompaniesLoadFailed: 'Failed to load companies',
-    errorCompanyNameRequired: 'Company name is required',
+    successCompanySynced: 'Information synced from the ERP',
+    errorCompanySyncFailed: 'Failed to sync from the ERP',
 
     // Depot CRUD
     successDepotCreated: 'Depot created successfully',
@@ -2289,8 +2289,15 @@ export const EN_COPY = {
       audit: 'Audit',
       settings: 'Settings',
       erpIntegration: 'ERP Integration',
-      companies: 'Companies',
-    }
+    },
+    badges: {
+      dispatchActionRequired: 'action required',
+      dispatchActionsRequired: 'actions required',
+      importActionRequired: 'import pending',
+      importActionsRequired: 'imports pending',
+      routeTelemetryActionRequired: 'action required',
+      routeTelemetryActionsRequired: 'actions required',
+    },
   },
 
   // ── notifications ────────────────────────────────────────────────────────
@@ -2470,6 +2477,14 @@ export const EN_COPY = {
       title: 'ERP Orders Ready',
       message: (p: any) => `${p.count || 'New'} ERP order${Number(p.count) > 1 ? 's' : ''} awaiting import — review required`,
     },
+    'pickup.overdue': {
+      title: 'Pickup Overdue',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — pickup overdue${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'delivery.backorder_created': {
+      title: 'Backorder Created',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — backorder created${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
   },
   landingPage: {
     metaTitle: "ASM Track — Logistics Orchestration",
@@ -2582,6 +2597,18 @@ export const EN_COPY = {
     statusSubEnRoute: 'Your driver is on the way',
     statusLivree: 'Delivered',
     statusSubLivree: 'Your order has been delivered successfully',
+    statusPartielle: 'Partially delivered',
+    statusSubPartielle: 'Part of your order has been delivered',
+    labelFailureReason: 'Reason',
+    labelReturn: 'Return',
+    returnStatusLabels: {
+      REQUESTED: 'Return requested',
+      APPROVED: 'Return approved',
+      RECEIVED: 'Return received',
+      RESTOCKED: 'Return processed',
+      REJECTED: 'Return rejected',
+      CANCELLED: 'Return cancelled',
+    } as Record<string, string>,
     statusTentativeEchouee: 'Attempt failed',
     statusSubTentativeEchouee: 'A new attempt will be scheduled',
     statusAnnulee: 'Cancelled',
@@ -2605,4 +2632,153 @@ export const EN_COPY = {
     sectionSlot: 'Delivery slot',
     liveTracking: 'Live tracking · ',
   },
+
+  // ── Command Surface (palette) ─────────────────────────────────────────────
+  commandSurface: {
+    placeholder: 'Search for an action or page... (⌘K)',
+    noResults: 'No results found',
+    goToDashboard: 'Go to Dashboard',
+    goToDispatch: 'Go to Dispatch Desk',
+    goToDeliveries: 'Go to Delivery Tracking',
+    goToRouteBuilder: 'Go to Route Planning',
+    goToSettings: 'Go to System Settings',
+    importFromOdoo: 'Import orders from Odoo',
+    checkExceptions: 'Check exceptions (failures/returns)',
+    categoryNavigation: 'Navigation',
+    categoryOperations: 'Operations',
+  },
+
+  // ── Display Settings ──────────────────────────────────────────────────────
+  displaySettings: {
+    title: 'Display settings',
+    compactView: 'Compact view',
+    compactViewDesc: 'Reduce spacing for a more condensed layout',
+    showThumbnails: 'Show thumbnails',
+    showThumbnailsDesc: 'Display order item images in the delivery list',
+    expandGroups: 'Expand groups',
+    expandGroupsDesc: 'Always expand section groups by default',
+    mapLayer: 'Map layer',
+    mapLayerDesc: 'Select the default map layer style',
+    mapLayerStreet: 'Street',
+    mapLayerSatellite: 'Satellite',
+    mapLayerDark: 'Dark',
+    confirmButton: 'Apply settings',
+  },
+
+  // ── Failure Reasons Settings ──────────────────────────────────────────────
+  failureReasonsSettings: {
+    title: 'Failure Reasons',
+    subtitle: 'Configure failure reasons used during delivery tracking.',
+    addButton: 'Add a reason',
+    editTitle: 'Edit reason',
+    createTitle: 'New reason',
+    savingButton: 'Saving...',
+    saveButton: 'Save',
+    active: 'Active',
+    inactive: 'Inactive',
+    fieldCode: 'Code',
+    fieldCodePlaceholder: 'Auto-generated if empty',
+    fieldLabel: 'Label',
+    fieldLabelPlaceholder: 'e.g. Customer refused',
+    fieldCategory: 'Category',
+    fieldSortOrder: 'Sort order',
+    fieldActive: 'Active',
+    deactivateConfirm: 'Deactivate this reason?',
+    reactivateConfirm: 'Reactivate this reason?',
+    toastLoadFailed: 'Failed to load failure reasons',
+    toastUpdated: 'Reason updated',
+    toastCreated: 'Reason created',
+    toastSaveFailed: 'Failed to save reason',
+    toastDeactivated: 'Reason deactivated',
+    toastDeactivateFailed: 'Failed to deactivate reason',
+    toastReactivated: 'Reason reactivated',
+    toastReactivateFailed: 'Failed to reactivate reason',
+  },
+
+  // ── Companies Page ────────────────────────────────────────────────────────
+  // ── Route Filter Bar ──────────────────────────────────────────────────────
+  routeFilterBar: {
+    title: 'Filters',
+    placeholderStatus: 'Filter by status',
+    placeholderCity: 'City',
+    citiesPlaceholder: 'All cities',
+    clearButton: 'Clear filters',
+  },
+
+  // ── Operational Filter Bar ───────────────────────────────────────────────
+  operationalFilterBar: {
+    title: 'Filters',
+    searchPlaceholder: 'Search orders, clients, references...',
+    statusFilter: 'Filter by status',
+    zoneFilter: 'Zone',
+    deliveryTypeFilter: 'Type',
+    filterPresets: 'Presets',
+    presetToday: 'Today',
+    presetWeek: 'This week',
+    presetPending: 'Pending',
+    presetFailed: 'Failed',
+    showArchived: 'Show archived',
+    persistenceInfo: 'Filters are saved per user.',
+    clearButton: 'Clear all',
+  },
+
+  // ── newDeliveryPanel ──────────────────────────────────────────────────
+  newDeliveryPanel: {
+    searchClient: 'Search Client',
+    searchClientPlaceholder: 'Search for a client...',
+    systemClients: 'System Clients',
+    deliveryInstructions: 'Delivery Instructions',
+    instructionsPlaceholder: 'e.g. 2nd floor, ring twice...',
+    productLabel: 'Product',
+    productPlaceholder: 'Search for a product...',
+    noProductFound: 'No product found — enter manually',
+    quantityLabel: 'Qty',
+    priceLabel: 'Price',
+    skuLabel: 'SKU',
+    skuPlaceholder: 'SKU',
+    stockAvailable: 'Stock available: {stock} units',
+    stockWarning: 'Quantity exceeds available stock',
+    outOfStock: 'Out of stock',
+    inStock: 'in stock',
+    stepClient: 'Client',
+    stepAddress: 'Address',
+    stepArticles: 'Items',
+    stepPayment: 'Payment',
+    stepSummary: 'Summary',
+    noClientFound: 'No client found',
+    newClient: '+ New client',
+    skuNotAvailable: 'SKU N/A',
+    erpBadge: 'ERP',
+    phoneNotAvailable: 'N/A',
+  },
+
+  // ── pinDropoffModal ──────────────────────────────────────────────────
+  pinDropoffModal: {
+    title: 'Pin and geocode delivery',
+    closeButton: 'Close',
+    loadingDetails: 'Loading delivery details...',
+    autoGeocode: 'Auto geocode',
+    latitude: 'Latitude',
+    longitude: 'Longitude',
+    address: 'Address',
+    city: 'City',
+    postalCode: 'Postal code',
+    zoneHint: 'The zone will be automatically assigned by postal code, with fallback to city, on save.',
+    saving: 'Saving...',
+    savePin: 'Save position',
+  },
+
+  // ── deliveryRow ──────────────────────────────────────────────────────
+  deliveryRow: {
+    pinPosition: 'Pin position (P)',
+    createBackorder: 'Create backorder',
+    cancelOrder: 'Cancel order (C)',
+  },
+
+  // ── erpIntegrationPage ─────────────────────────────────────────────
+  erpIntegrationPage: {
+    reportIdPlaceholder: 'stock.report_deliveryslip',
+    apiUrlPlaceholder: 'e.g. https://api.dux.com/v1',
+  },
+
 } as const;

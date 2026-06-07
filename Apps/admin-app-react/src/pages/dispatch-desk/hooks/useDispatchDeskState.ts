@@ -8,7 +8,7 @@ import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/auth';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { useT } from '@/lib/LocaleContext';
 
-import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction } from '../types';
+import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction, QueueRow } from '../types';
 import type { ReassignTarget } from '@/components/overlays/ReassignDrawer';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif, formatComment } from '../formatters';
@@ -58,6 +58,9 @@ export interface DispatchDeskContextProps {
   setFiltersOpen: React.Dispatch<React.SetStateAction<boolean>>;
   expandedActionId: string | null;
   setExpandedActionId: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedQueueId: string | null;
+  setSelectedQueueId: React.Dispatch<React.SetStateAction<string | null>>;
+  selectedQueueRow: QueueRow | null;
   failedModalRow: Delivery | null;
   setFailedModalRow: React.Dispatch<React.SetStateAction<Delivery | null>>;
   
@@ -100,10 +103,10 @@ export interface DispatchDeskContextProps {
   deliveryMap: Map<string, Delivery>;
   actionRows: OpsException[];
   deliveryRows: Delivery[];
+  queueRows: QueueRow[];
   routeOptions: { value: string; label: string }[];
-  tabCounts: { assign: number; action: number; failed: number; gps: number };
-  kpis: { critical: number; unassigned: number; inTransit: number; failed: number };
-  
+  tabCounts: { queue: number; assign: number; action: number; failed: number; gps: number };
+
   // Action triggers
   doRefresh: () => void;
   fetchExceptions: (silent?: boolean) => Promise<void>;
@@ -148,10 +151,11 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [routeFilter, setRouteFilter] = useState('');
 
   // ── UI state ──────────────────────────────────────────────────────────────
-  const [dispatchTab, setDispatchTab]   = useState<DispatchTab>('assign');
+  const [dispatchTab, setDispatchTab]   = useState<DispatchTab>('queue');
   const [mobileTab, setMobileTab]       = useState<'filters' | 'list'>('list');
   const [filtersOpen, setFiltersOpen]   = useState(true);
   const [expandedActionId, setExpandedActionId] = useState<string | null>(null);
+  const [selectedQueueId, setSelectedQueueId] = useState<string | null>(null);
   const [failedModalRow, setFailedModalRow]     = useState<Delivery | null>(null);
 
   // ── Loading ───────────────────────────────────────────────────────────────
@@ -247,8 +251,11 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     if (!globalContext || initialSyncRef.current) return;
     initialSyncRef.current = true;
     const tabParam = searchParams?.get('tab');
-    if (tabParam === 'action' || tabParam === 'failed' || tabParam === 'gps' || tabParam === 'handoff' || tabParam === 'assign') {
+    if (tabParam === 'queue' || tabParam === 'failed' || tabParam === 'gps' || tabParam === 'handoff') {
       setDispatchTab(tabParam);
+    } else if (tabParam === 'action' || tabParam === 'assign') {
+      // Legacy deep links — both tabs were merged into the unified Queue.
+      setDispatchTab('queue');
     }
     const q = searchParams?.get('search') || searchParams?.get('deliveryId');
     if (q) { setSearch(q); applyFilters({ search: q }); }
@@ -308,36 +315,69 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     });
   }, [allDeliveries, matchSearch, driverId, zoneFilter, dispatchTab, alertMap]);
 
+  // Unified Queue: every delivery that needs attention — either it's awaiting
+  // assignment (ASSIGNABLE_STATUSES) or it carries an active ops alert — merged
+  // and deduped so the same order never renders twice (the root cause of the
+  // Assign/Action tab overlap).
+  const queueRows = useMemo((): QueueRow[] => {
+    const byId = new Map<string, QueueRow>();
+
+    allDeliveries.forEach(d => {
+      const id = rowId(d);
+      if (!matchSearch(d.clientName, d.orderRef, d.erpOrderId, id)) return;
+      if (driverId && d.driverId !== driverId) return;
+      if (zoneFilter && d.zoneName !== zoneFilter && d.dropoffCity !== zoneFilter) return;
+      if (!(ASSIGNABLE_STATUSES as string[]).includes(d.status)) return;
+      byId.set(id, { id, delivery: d, alert: alertMap.get(id), routeId: d.routeId, routeName: d.routeName });
+    });
+
+    rows.forEach(r => {
+      if (byId.has(r.deliveryId)) return;
+      const d = deliveryMap.get(r.deliveryId);
+      if (!d) return;
+      if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return;
+      if (driverId && r.driverId !== driverId) return;
+      if (zoneFilter && r.zoneName !== zoneFilter && r.city !== zoneFilter) return;
+      byId.set(r.deliveryId, { id: r.deliveryId, delivery: d, alert: r, routeId: r.routeId ?? d.routeId, routeName: r.routeName ?? d.routeName });
+    });
+
+    return sortByRoute(Array.from(byId.values()), q =>
+      q.alert ? (q.alert.severity === 'CRITICAL' ? 0 : q.alert.severity === 'WARNING' ? 1 : 2) : 3
+    );
+  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, driverId, zoneFilter]);
+
+  const selectedQueueRow = useMemo(
+    () => queueRows.find(q => q.id === selectedQueueId) ?? null,
+    [queueRows, selectedQueueId]
+  );
+
   const tabCounts = useMemo(() => ({
+    queue:  queueRows.length,
     assign: allDeliveries.filter(d => (ASSIGNABLE_STATUSES as string[]).includes(d.status)).length,
     action: rows.length,
     failed: allDeliveries.filter(d => d.status === 'FAILED' || d.status === 'CANCELLED').length,
     gps:    allDeliveries.filter(d => !d.dropoffLat || !d.dropoffLng).length,
-  }), [allDeliveries, rows]);
-
-  const kpis = useMemo(() => ({
-    critical:   rows.filter(r => r.severity === 'CRITICAL').length,
-    unassigned: allDeliveries.filter(d => d.status === 'UNSCHEDULED' && !d.driverId).length,
-    inTransit:  allDeliveries.filter(d => d.status === 'IN_TRANSIT').length,
-    failed:     allDeliveries.filter(d => d.status === 'FAILED' || d.status === 'CANCELLED').length,
-  }), [rows, allDeliveries]);
+  }), [allDeliveries, rows, queueRows]);
 
   const allFilteredIds = useMemo(() => {
-    return dispatchTab === 'action'
-      ? actionRows.map(r => r.deliveryId)
-      : deliveryRows.map(d => rowId(d));
-  }, [dispatchTab, actionRows, deliveryRows]);
+    if (dispatchTab === 'queue')  return queueRows.map(q => q.id);
+    if (dispatchTab === 'action') return actionRows.map(r => r.deliveryId);
+    return deliveryRows.map(d => rowId(d));
+  }, [dispatchTab, queueRows, actionRows, deliveryRows]);
 
   const allSelected  = allFilteredIds.length > 0 && allFilteredIds.every(id => selectedIds.has(id));
   const someSelected = allFilteredIds.some(id => selectedIds.has(id));
 
   const selectedTargets = useMemo((): ReassignTarget[] => {
+    if (dispatchTab === 'queue')
+      return queueRows.filter(q => selectedIds.has(q.id))
+        .map(q => ({ deliveryId: q.id, orderRef: q.delivery.orderRef, clientName: q.delivery.clientName, city: q.delivery.dropoffCity, status: q.delivery.status, driverName: q.delivery.driverName, routeId: q.routeId, routeName: q.routeName }));
     if (dispatchTab === 'action')
       return actionRows.filter(r => selectedIds.has(r.deliveryId))
         .map(r => ({ deliveryId: r.deliveryId, orderRef: r.orderRef, clientName: r.clientName, city: r.city, status: r.status, driverName: r.driverName, routeId: r.routeId, routeName: r.routeName }));
     return deliveryRows.filter(d => selectedIds.has(rowId(d)))
       .map(d => ({ deliveryId: rowId(d), orderRef: d.orderRef, clientName: d.clientName, city: d.dropoffCity, status: d.status, driverName: d.driverName, routeId: d.routeId, routeName: d.routeName }));
-  }, [dispatchTab, actionRows, deliveryRows, selectedIds]);
+  }, [dispatchTab, queueRows, actionRows, deliveryRows, selectedIds]);
 
   const batchType: 'assign' | 'reassign' | 'mixed' | 'none' = useMemo(() => {
     if (selectedTargets.length === 0) return 'none';
@@ -521,6 +561,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setFiltersOpen,
     expandedActionId,
     setExpandedActionId,
+    selectedQueueId,
+    setSelectedQueueId,
+    selectedQueueRow,
     failedModalRow,
     setFailedModalRow,
     runningAction,
@@ -555,9 +598,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     deliveryMap,
     actionRows,
     deliveryRows,
+    queueRows,
     routeOptions,
     tabCounts,
-    kpis,
     doRefresh,
     fetchExceptions,
     fetchAllDeliveries,
@@ -591,6 +634,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     mobileTab,
     filtersOpen,
     expandedActionId,
+    selectedQueueId,
+    selectedQueueRow,
     failedModalRow,
     runningAction,
     pendingAction,
@@ -614,9 +659,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     deliveryMap,
     actionRows,
     deliveryRows,
+    queueRows,
     routeOptions,
     tabCounts,
-    kpis,
     doRefresh,
     fetchExceptions,
     fetchAllDeliveries,

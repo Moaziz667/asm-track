@@ -253,6 +253,23 @@ public class EventPublisher {
             ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("pickup.overdue").data(p).build());
             sendFcmFatPayload(route.getDriverId() != null ? route.getDriverId().toString() : null, "PICKUP_OVERDUE", p);
+            // Persist so admins still see overdue depot pickups in the bell/history after a reload.
+            String driverName = getDriverName(route.getDriverId());
+            Map<String, Object> persisted = new HashMap<>();
+            persisted.put("routeName", route.getName() != null ? route.getName() : "");
+            persisted.put("clientName", depotName != null ? depotName : "");
+            persisted.put("driverName", driverName != null ? driverName : "");
+            persisted.put("reason", parcelCount + " colis");
+            notificationService.record(Notification.builder()
+                    .eventType("pickup.overdue").severity("critical")
+                    .title("Pickup overdue")
+                    .message((depotName != null ? depotName + " — " : "") + "pickup overdue ("
+                            + parcelCount + " colis)")
+                    .routeId(route.getId().toString())
+                    .driverId(route.getDriverId() != null ? route.getDriverId().toString() : null)
+                    .driverName(driverName).clientName(depotName)
+                    .payload(persisted)
+                    .build());
         });
     }
 
@@ -542,10 +559,12 @@ public class EventPublisher {
         final String boId = backorderDeliveryId != null ? backorderDeliveryId.toString() : null;
         executeAfterCommitAsync(() -> {
             log.info("EVENT delivery.backorder_created orderRef={} backorderDeliveryId={} bl={}", orderRef, boId, backorderBlNumber);
+            // Canonical CloudEvent keys (deliveryId / erpOrderId / clientName) — same
+            // convention every other delivery event uses, so the UI localizes + navigates uniformly.
             Map<String, Object> p = new HashMap<>();
-            p.put("orderRef", orderRef);
+            p.put("deliveryId", boId);
+            p.put("erpOrderId", orderRef);
             p.put("clientName", client);
-            p.put("backorderDeliveryId", boId);
             p.put("blNumber", backorderBlNumber);
             CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
                     .source("/delivery-service")
@@ -553,6 +572,11 @@ public class EventPublisher {
                     .data(p)
                     .build();
             ws.convertAndSend("/topic/admin.deliveries", envelope);
+            // Persist the same params so the bell/history re-localizes identically after a reload.
+            Map<String, Object> persisted = new HashMap<>();
+            persisted.put("erpOrderId", orderRef != null ? orderRef : "");
+            persisted.put("clientName", client != null ? client : "");
+            persisted.put("blNumber", backorderBlNumber != null ? backorderBlNumber : "");
             notificationService.record(Notification.builder()
                     .eventType("delivery.backorder_created").severity("info")
                     .title("Backorder created")
@@ -560,7 +584,7 @@ public class EventPublisher {
                             + (orderRef != null ? orderRef : "order") + " — schedule re-delivery"
                             + (backorderBlNumber != null ? " (" + backorderBlNumber + ")" : ""))
                     .orderRef(orderRef).deliveryId(boId).clientName(client)
-                    .payload(new HashMap<>(Map.of("blNumber", backorderBlNumber != null ? backorderBlNumber : "")))
+                    .payload(persisted)
                     .build());
         });
     }

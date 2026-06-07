@@ -51,6 +51,21 @@ public class ErpSyncCommandPublisher {
         send(base("CANCELLATION", deliveryId, orderId, erpOrderId, pickingRef, txId));
     }
 
+    public void publishPod(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+                           Map<String, Object> pod) {
+        Map<String, Object> cmd = base("POD", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        if (pod != null) pod.forEach((k, v) -> { if (v != null) cmd.put(k, v); });
+        send(cmd);
+    }
+
+    public void publishReturn(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+                              String reason, List<Map<String, Object>> items) {
+        Map<String, Object> cmd = base("RETURN", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        if (reason != null) cmd.put("reason", reason);
+        cmd.put("returnItems", items != null ? items : new ArrayList<>());
+        send(cmd);
+    }
+
     private Map<String, Object> base(String op, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
         Map<String, Object> cmd = new HashMap<>();
         cmd.put("op", op);

@@ -111,6 +111,17 @@ public class AdminDeliveryController {
         return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, pageable));
     }
 
+    @GetMapping("/calendar")
+    @Operation(
+        summary = "Deliveries scheduled within a date range (calendar/overview month view)",
+        description = "Returns deliveries whose effective scheduled date (rescheduled ∨ scheduled ∨ created) falls within [from, to]."
+    )
+    public ResponseEntity<java.util.List<AdminDeliverySummaryResponse>> calendar(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) java.time.LocalDate to) {
+        return ResponseEntity.ok(dispatchService.calendar(from, to));
+    }
+
     @GetMapping("/counts")
     @Operation(
         summary = "Quick-view counts for the deliveries table",

@@ -1,10 +1,10 @@
 
 
 import { lazy as dynamic } from 'react';
-import { useDepots, useSyncDepotsFromErp } from '@/hooks/useDepots';
+import { useDepots, useSyncDepotsFromErp, useGeolocateDepot } from '@/hooks/useDepots';
 import { useT } from '@/lib/LocaleContext';
 import {
-  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload,
+  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload, IconMapPin,
 } from '@tabler/icons-react';
 import { isReadOnlyRole, getCurrentRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -34,57 +34,46 @@ export default function DepotsPage() {
 
   const { data: depots = [], isLoading: loading, refetch: fetchDepots } = useDepots();
   const syncMutation = useSyncDepotsFromErp();
+  const geolocateMutation = useGeolocateDepot();
 
-  const mappableDepots = depots.filter(d => d.latitude != null && d.longitude != null);
+  const mappableDepots = depots.filter(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
 
   return (
-    <div style={{ minHeight: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
+    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
 
-      {/* ── Header ── */}
+      {/* ── Compact Action Bar ── */}
       <div
-        className="sticky top-0 z-20 min-h-16 h-auto lg:h-16 py-4 lg:py-0 flex items-center"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
+        className="flex items-center gap-3 px-4 h-11 shrink-0"
+        style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
       >
-        <div className="px-6 w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <div>
-              <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.depotsPage.pageSubtitle}</span>
-              <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-                {t.depotsPage.pageTitle} <span className="text-[var(--brand)]">{t.depotsPage.pageTitleBrand}</span>
-              </h1>
-            </div>
-            <div className="hidden sm:block w-px h-6 bg-[var(--border)]" />
-            <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
-              {t.depotsPage.depotsCount.replace('{count}', depots.length.toString())}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-start">
-            {!readOnly && (
-              <Button
-                className="font-bold text-[11px] rounded-md"
-                style={{ background: 'var(--brand)', color: 'white', border: 'none' }}
-                onClick={() => syncMutation.mutate()}
-                disabled={syncMutation.isPending}
-              >
-                {syncMutation.isPending ? <Spinner size={14} /> : <IconCloudDownload size={14} />}
-                {t.depotsPage.syncButton}
-              </Button>
-            )}
-            <button
-              type="button"
-              onClick={() => fetchDepots()}
-              className="w-9 h-9 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
-              style={{ background: 'var(--app-bg)' }}
+        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+          {t.depotsPage.depotsCount.replace('{count}', depots.length.toString())}
+        </span>
+        <div className="ml-auto flex items-center gap-2">
+          {!readOnly && (
+            <Button
+              className="h-7 px-3 text-[11px] font-bold rounded-md"
+              style={{ background: 'var(--brand)', color: 'white', border: 'none' }}
+              onClick={() => syncMutation.mutate()}
+              disabled={syncMutation.isPending}
             >
-              {loading ? <Spinner size={18} /> : <IconRefresh size={18} style={{ color: 'var(--text-muted)' }} />}
-            </button>
-          </div>
+              {syncMutation.isPending ? <Spinner size={13} /> : <IconCloudDownload size={13} />}
+              {t.depotsPage.syncButton}
+            </Button>
+          )}
+          <button
+            type="button"
+            onClick={() => fetchDepots()}
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            style={{ background: 'var(--app-bg)' }}
+          >
+            {loading ? <Spinner size={14} /> : <IconRefresh size={14} />}
+          </button>
         </div>
       </div>
 
       {/* ── Body ── */}
-      <div className="overflow-y-auto" style={{ height: 'calc(100vh - 128px)' }}>
+      <div className="overflow-y-auto flex-1">
         <div className="flex flex-col gap-8 max-w-[1400px] mx-auto p-4 md:p-8">
 
           {/* ── ERP read-only note ── */}
@@ -98,8 +87,8 @@ export default function DepotsPage() {
 
           {/* ── Overview Map ── */}
           <div
-            className="rounded-lg overflow-hidden shadow-sm"
-            style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+            className="rounded-lg overflow-hidden"
+            style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
           >
             <div
               className="px-5 py-3 flex items-center justify-between"
@@ -155,8 +144,8 @@ export default function DepotsPage() {
               </div>
             ) : (
               <div
-                className="rounded-lg overflow-hidden shadow-sm"
-                style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
+                className="rounded-lg overflow-hidden"
+                style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}
               >
                 <div className="overflow-x-auto">
                   <div className="min-w-[800px] lg:min-w-0">
@@ -210,18 +199,32 @@ export default function DepotsPage() {
                         </p>
 
                         {/* Coordinates */}
-                        <div className="flex justify-center">
-                          {depot.latitude != null && depot.longitude != null ? (
+                        <div className="flex justify-center items-center gap-2">
+                          {depot.latitude != null && depot.longitude != null && !isNaN(Number(depot.latitude)) && !isNaN(Number(depot.longitude)) ? (
                             <span
                               className="text-[11px] font-bold font-mono px-2 py-1 rounded-md inline-block"
                               style={{ color: 'var(--text-primary)', background: 'var(--app-bg)' }}
                             >
-                              {depot.latitude.toFixed(5)}, {depot.longitude.toFixed(5)}
+                              {Number(depot.latitude).toFixed(5)}, {Number(depot.longitude).toFixed(5)}
                             </span>
                           ) : (
                             <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>
                               {t.depotsPage.coordsMissing}
                             </span>
+                          )}
+                          {!readOnly && depot.address && (
+                            <button
+                              type="button"
+                              title="Géolocaliser"
+                              disabled={geolocateMutation.isPending}
+                              onClick={() => geolocateMutation.mutate(depot.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
+                              style={{ background: 'var(--app-bg)' }}
+                            >
+                              {geolocateMutation.isPending && geolocateMutation.variables === depot.id
+                                ? <Spinner size={11} />
+                                : <IconMapPin size={11} style={{ color: 'var(--brand)' }} />}
+                            </button>
                           )}
                         </div>
 

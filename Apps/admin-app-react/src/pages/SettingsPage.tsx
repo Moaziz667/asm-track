@@ -16,10 +16,11 @@ import { cn } from '@/lib/utils';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import FailureReasonsSettings from './settings/FailureReasonsSettings';
 
 // ── Types & Constants ────────────────────────────────────────────────────────
 
-type SettingSection = 'GENERAL' | 'SLA' | 'IAM';
+type SettingSection = 'GENERAL' | 'SLA' | 'FAILURE_REASONS' | 'IAM';
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -260,6 +261,7 @@ export default function SettingsPage() {
   const navSections = [
     { id: 'GENERAL', label: t.settingsPage.generalConfig, icon: IconCommand },
     { id: 'SLA', label: t.settingsPage.slaParameters, icon: IconClock },
+    { id: 'FAILURE_REASONS', label: t.settingsPage.failureReasons || "Motifs d'échec", icon: IconBan },
     { id: 'IAM', label: t.settingsPage.identitiesAccess, icon: IconShieldCheck },
   ];
 
@@ -283,13 +285,6 @@ export default function SettingsPage() {
       <div className="flex flex-1 gap-0" style={{ minHeight: 0, overflow: 'hidden' }}>
         {/* ── Navigation Rail ────────────────── */}
         <div className={`lg:w-[240px] border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col ${mobileTab === 'nav' ? 'flex w-full' : 'hidden lg:flex'}`}>
-          <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.settingsPage.platformNexus}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.settingsPage.pageTitle} <span className="text-[var(--brand)]">{t.settingsPage.pageTitleBrand}</span>
-            </h1>
-          </div>
-
           <div className="flex flex-col gap-1 p-3 flex-1">
             {navSections.map(s => (
               <button
@@ -327,24 +322,17 @@ export default function SettingsPage() {
 
         {/* ── Main Config Slab ────────────────────────── */}
         <div className={`flex-1 flex flex-col overflow-hidden min-w-0 ${mobileTab === 'content' ? 'flex' : 'hidden lg:flex'}`} style={{ background: 'var(--app-bg)' }}>
-          <div className="flex items-center justify-between px-6 h-16 sticky top-0 z-10 border-b border-[var(--border)] shrink-0 bg-[var(--surface)]">
-            <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.settingsPage.systemAdmin}</p>
-            {!canManage && (
-              <span
-                className="text-[11px] font-semibold px-2 py-0.5 rounded-md border inline-flex items-center gap-1"
-                style={{
-                  color: '#B05A18',
-                  background: 'rgba(212,119,44,0.09)',
-                  borderColor: 'rgba(212,119,44,0.15)'
-                }}
-              >
-                <IconLock size={12} />
+          {/* Compact access bar (title removed) */}
+          {!canManage && (
+            <div className="flex items-center px-4 h-9 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+              <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: '#B05A18', background: 'rgba(212,119,44,0.09)', borderColor: 'rgba(212,119,44,0.15)', border: '1px solid', borderRadius: 4, padding: '1px 8px' }}>
+                <IconLock size={11} />
                 {t.settingsPage.readOnlyMode}
               </span>
-            )}
-          </div>
+            </div>
+          )}
 
-          <div className="overflow-y-auto flex-1 p-8">
+          <div className="overflow-y-auto flex-1 p-6">
             <div className="max-w-[1000px] mx-auto flex flex-col gap-10">
 
               {/* SECTION: GENERAL */}
@@ -559,6 +547,11 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* SECTION: FAILURE REASONS */}
+              {section === 'FAILURE_REASONS' && (
+                <FailureReasonsSettings canManage={canManage} />
               )}
 
               {/* SECTION: IAM */}

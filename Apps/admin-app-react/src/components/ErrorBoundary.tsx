@@ -1,6 +1,7 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconShieldCheck, IconX } from '@tabler/icons-react';
+import { getCopy } from '@/lib/LocaleContext';
 
 interface Props {
   children?: ReactNode;
@@ -38,16 +39,17 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
+      const t = getCopy();
       return (
         <div className="flex flex-col items-center justify-center p-10 min-h-[400px] text-center bg-[var(--surface)] border border-[var(--border)] rounded-[2px] animate-fade-in max-w-[600px] mx-auto my-10">
           <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-50 text-red-600 mb-4 shadow-sm border border-red-100">
             <IconX size={24} />
           </div>
           <h2 className="text-[14px] font-bold text-[var(--text-primary)] uppercase tracking-tight mb-2">
-            Rupture de Flux Composant (Crash)
+            {t.errorBoundary?.title}
           </h2>
           <p className="text-[11px] text-[var(--text-muted)] max-w-sm mb-6 leading-relaxed">
-            Une exception inattendue s'est produite lors du rendu de ce bloc opérationnel. La sécurité de l'orchestration reste active.
+            {t.errorBoundary?.description}
           </p>
           {this.state.error && (
             <div className="w-full text-left p-4 mb-6 rounded-[2px] border border-[var(--border)] bg-[var(--app-bg)] max-h-[150px] overflow-auto">
@@ -58,7 +60,7 @@ export class ErrorBoundary extends Component<Props, State> {
           )}
           <div className="flex gap-2">
             <Button size="sm" onClick={this.handleReset} className="rounded-[2px]">
-              Réinitialiser le Flux
+              {t.errorBoundary?.resetButton}
             </Button>
           </div>
         </div>

@@ -181,6 +181,12 @@ public class OutboxProcessor {
             case "ERP_SYNC_CANCELLATION":
                 processErpCancellation(payload, transactionId);
                 break;
+            case "ERP_SYNC_POD":
+                processErpPod(payload, transactionId);
+                break;
+            case "ERP_SYNC_RETURN":
+                processErpReturn(payload, transactionId);
+                break;
             case "INCREMENT_DRIVER_STAT":
                 String driverId = (String) payload.get("driverId");
                 String stat = (String) payload.get("stat");
@@ -227,6 +233,32 @@ public class OutboxProcessor {
         } else {
             erpSyncService.syncStockUpdate(delivery, txId);
         }
+    }
+
+    private void processErpPod(Map<String, Object> payload, String txId) throws Exception {
+        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
+        if (delivery.getOrder() == null) return;
+
+        // Forward the POD fields (metadata + base64 photos) carried in the outbox payload.
+        Map<String, Object> pod = new java.util.HashMap<>();
+        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng", "blPhotoBase64", "packagePhotoBase64")) {
+            if (payload.get(k) != null) pod.put(k, payload.get(k));
+        }
+        erpSyncService.syncProofOfDelivery(delivery, pod, txId);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void processErpReturn(Map<String, Object> payload, String txId) throws Exception {
+        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
+        if (delivery.getOrder() == null) return;
+
+        List<Map<String, Object>> items = (List<Map<String, Object>>) payload.getOrDefault("items", List.of());
+        String reason = (String) payload.get("reason");
+        erpSyncService.syncReturn(delivery, items, reason, txId);
     }
 
     private void processErpFailure(Map<String, Object> payload, String txId) throws Exception {

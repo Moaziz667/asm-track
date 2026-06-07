@@ -17,6 +17,8 @@ import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { AddButton } from '@/components/ui/AddButton';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import StatusBadge from '@/components/StatusBadge';
 
@@ -62,12 +64,12 @@ type EnrichedRoute = RouteItem & {
 
 const DONE_STATUSES = new Set(['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED', 'FAILED_ATTEMPT', 'COMPLETED', 'PARTIAL']);
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; ribbon: string }> = {
-  DRAFT:       { label: 'Brouillon', color: 'gray',    ribbon: '#A1A1AA' },
-  VALIDATED:   { label: 'Planifié',  color: 'blue',    ribbon: '#2563EB' },
-  IN_PROGRESS: { label: 'En route',  color: 'orange',  ribbon: 'var(--brand)' },
-  CLOSED:      { label: 'Livré',     color: 'teal',    ribbon: '#10B981' },
-  CANCELLED:   { label: 'Annulé',    color: 'red',     ribbon: '#EF4444' },
+const STATUS_STYLE: Record<string, { color: string; ribbon: string }> = {
+  DRAFT:       { color: 'gray',   ribbon: '#A1A1AA' },
+  VALIDATED:   { color: 'blue',   ribbon: '#2563EB' },
+  IN_PROGRESS: { color: 'orange', ribbon: 'var(--brand)' },
+  CLOSED:      { color: 'teal',   ribbon: '#10B981' },
+  CANCELLED:   { color: 'red',    ribbon: '#EF4444' },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -134,7 +136,7 @@ function RouteRow({
   const total    = route.stops.length;
   const done     = route.completedStops;
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
-  const config   = STATUS_CONFIG[route.status] || { label: route.status, color: 'gray', ribbon: '#A1A1AA' };
+  const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
   const canClose = route.status === 'IN_PROGRESS';
 
   return (
@@ -425,201 +427,61 @@ function RoutesTablePageContent() {
     [routes]
   );
 
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
+  // ── PageFilterBar config ───────────────────────────────────────────────────
+  const routeFilterAttributes = [
+    { key: 'status', label: t.routesTablePage.filterStatusLabel, options: [
+      { value: 'ALL',         label: t.routesTablePage.filterAllRoutes },
+      { value: 'IN_PROGRESS', label: t.routesTablePage.filterInProgress },
+      { value: 'VALIDATED',   label: t.routesTablePage.filterReady },
+      { value: 'CLOSED',      label: t.routesTablePage.filterClosed },
+    ]},
+    { key: 'date', label: t.routesTablePage.filterPeriodLabel, options: [
+      { value: 'TODAY',     label: t.routesTablePage.filterToday },
+      { value: 'YESTERDAY', label: t.routesTablePage.filterYesterday },
+      { value: 'WEEK',      label: t.routesTablePage.filterWeek },
+    ]},
+    { key: 'driver', label: t.routesTablePage.filterDriverLabel, options: drivers.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'vehicle', label: t.routesTablePage.filterVehicleLabel, options: vehicles.map(v => ({ value: v.id, label: `${v.name} (${v.plate})` })) },
+    { key: 'depot', label: t.routesTablePage.filterDepotLabel, options: depots.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'zone', label: t.routesTablePage.filterZoneLabel, options: zoneOptions },
+  ];
+  const routeActiveFilters: Record<string, string> = {
+    ...(statusFilter !== 'ALL' && { status: statusFilter }),
+    ...(dateFilter   !== 'ALL' && { date: dateFilter }),
+    ...(driverFilter  && { driver: driverFilter }),
+    ...(vehicleFilter && { vehicle: vehicleFilter }),
+    ...(depotFilter   && { depot: depotFilter }),
+    ...(zoneFilter    && { zone: zoneFilter }),
+  };
+  const handleRouteFilterChange = (key: string, value: string | null) => {
+    if (key === 'status')  setStatusFilter(value ?? 'ALL');
+    if (key === 'date')    setDateFilter(value ?? 'ALL');
+    if (key === 'driver')  setDriverFilter(value ?? '');
+    if (key === 'vehicle') setVehicleFilter(value ?? '');
+    if (key === 'depot')   setDepotFilter(value ?? '');
+    if (key === 'zone')    setZoneFilter(value ?? '');
+  };
 
   return (
     <TooltipProvider>
       <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
-        {/* Mobile Tab Bar */}
-        <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-          {([['filters', t.routesTablePage.tabFilters], ['list', t.routesTablePage.tabList]] as const).map(([tab, label]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setMobileTab(tab)}
-              className={cn(
-                'flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors',
-                mobileTab === tab
-                  ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]'
-                  : 'text-[var(--text-muted)]'
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <PageFilterBar
+          search={clientFilter}
+          onSearch={setClientFilter}
+          searchPlaceholder={t.routesTablePage.searchPlaceholder}
+          attributes={routeFilterAttributes}
+          activeFilters={routeActiveFilters}
+          onFilterChange={handleRouteFilterChange}
+          onRefresh={fetchData}
+          refreshing={loading}
+          extraActions={
+            <AddButton label={t.routesTablePage.newRouteButton} onClick={() => router('/route-builder')} />
+          }
+        />
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          {/* ── Rail Utilitaire Gauche ────────────────── */}
-          <div className={cn(
-            'lg:w-[280px] lg:border-r border-[var(--border)] bg-[var(--surface)] shrink-0 overflow-y-auto flex flex-col',
-            mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'
-          )}>
-            {/* Header */}
-            <div className="p-5 border-b border-[var(--border)]">
-              <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.routesTablePage.pageSubtitle}</span>
-              <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-                {t.routesTablePage.pageTitle} <span className="text-[var(--brand)]">{t.routesTablePage.pageTitleBrand}</span>
-              </h1>
-            </div>
-
-            {/* New Route + Search */}
-            <div className="flex flex-col gap-3 p-5 border-b border-[var(--border)]">
-              <button
-                type="button"
-                className="w-full h-9 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-[2px] flex items-center justify-center gap-2 transition-opacity"
-                onClick={() => router('/route-builder')}
-              >
-                <IconPlus size={14} />
-                {t.routesTablePage.newRouteButton}
-              </button>
-              <FieldInput
-                placeholder={t.routesTablePage.searchPlaceholder}
-                leftSection={<IconSearch size={14} className="text-[var(--text-muted)]" />}
-                value={clientFilter}
-                onChange={(e) => setClientFilter(e.target.value)}
-                className="h-9 text-[11px]"
-              />
-            </div>
-
-            {/* Status pills + Advanced Filters */}
-            <div className="flex-1 overflow-y-auto">
-              <div className="flex flex-col gap-0 p-2.5">
-                <p className="px-3 mb-2 text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.filterStatusLabel}</p>
-                {[
-                  { id: 'ALL',         label: t.routesTablePage.filterAllRoutes,    icon: <IconRoute size={14} />,   count: routes.length },
-                  { id: 'IN_PROGRESS', label: t.routesTablePage.filterInProgress,   icon: <IconClock size={14} />,   count: stats.active },
-                  { id: 'VALIDATED',   label: t.routesTablePage.filterReady,        icon: <IconPackage size={14} />, count: stats.validated },
-                  { id: 'CLOSED',      label: t.routesTablePage.filterClosed,       icon: <IconLock size={14} />,    count: routes.filter(r => r.status === 'CLOSED').length },
-                ].map((pill) => (
-                  <button
-                    type="button"
-                    key={pill.id}
-                    onClick={() => setStatusFilter(pill.id)}
-                    className={cn(
-                      "px-4 py-3 rounded-[2px] transition-all flex items-center justify-between group",
-                      statusFilter === pill.id
-                        ? "bg-[var(--surface)] border-l-2 border-[var(--brand)]"
-                        : "hover:bg-[var(--surface)] border-l-2 border-transparent"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: statusFilter === pill.id ? 'var(--brand)' : 'var(--text-soft)' }}>{pill.icon}</span>
-                      <span className={cn(
-                        "text-[11px] font-[600]",
-                        statusFilter === pill.id ? "text-[var(--text-primary)]" : "text-[var(--text-soft)]"
-                      )}>{pill.label}</span>
-                    </div>
-                    <span className="text-[10px] font-[800] font-mono text-[var(--text-muted)]">{pill.count}</span>
-                  </button>
-                ))}
-
-                {/* Divider */}
-                <div className="h-px bg-[var(--border)] my-3.5" />
-
-                <p className="px-3 mb-2 text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.advancedFiltersLabel}</p>
-
-                <div className="flex flex-col gap-2 px-2.5">
-                  {/* Période */}
-                  <div>
-                    <p className="text-[8px] font-[800] uppercase text-[var(--text-soft)] mb-1 ml-1">{t.routesTablePage.filterPeriodLabel}</p>
-                    <FieldSelect
-                      placeholder={t.routesTablePage.filterAllDates}
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.currentTarget.value || 'ALL')}
-                      options={[
-                        { value: 'ALL',       label: t.routesTablePage.filterAllDates },
-                        { value: 'TODAY',     label: t.routesTablePage.filterToday },
-                        { value: 'YESTERDAY', label: t.routesTablePage.filterYesterday },
-                        { value: 'WEEK',      label: t.routesTablePage.filterWeek },
-                      ]}
-                      className="h-8 text-[10px]"
-                    />
-                  </div>
-
-                  {/* Chauffeur */}
-                  <div>
-                    <p className="text-[8px] font-[800] uppercase text-[var(--text-soft)] mb-1 ml-1">{t.routesTablePage.filterDriverLabel}</p>
-                    <FieldSelect
-                      placeholder={t.routesTablePage.filterAllDrivers}
-                      value={driverFilter}
-                      onChange={(e) => setDriverFilter(e.currentTarget.value)}
-                      options={[{ value: '', label: t.routesTablePage.filterAllDrivers }, ...drivers.map(d => ({ value: d.id, label: d.name }))]}
-                      className="h-8 text-[10px]"
-                    />
-                  </div>
-
-                  {/* Véhicule */}
-                  <div>
-                    <p className="text-[8px] font-[800] uppercase text-[var(--text-soft)] mb-1 ml-1">{t.routesTablePage.filterVehicleLabel}</p>
-                    <FieldSelect
-                      placeholder={t.routesTablePage.filterAllVehicles}
-                      value={vehicleFilter}
-                      onChange={(e) => setVehicleFilter(e.currentTarget.value)}
-                      options={[{ value: '', label: t.routesTablePage.filterAllVehicles }, ...vehicles.map(v => ({ value: v.id, label: `${v.name} (${v.plate})` }))]}
-                      className="h-8 text-[10px]"
-                    />
-                  </div>
-
-                  {/* Dépôt */}
-                  <div>
-                    <p className="text-[8px] font-[800] uppercase text-[var(--text-soft)] mb-1 ml-1">{t.routesTablePage.filterDepotLabel}</p>
-                    <FieldSelect
-                      placeholder={t.routesTablePage.filterAllDepots}
-                      value={depotFilter}
-                      onChange={(e) => setDepotFilter(e.currentTarget.value)}
-                      options={[{ value: '', label: t.routesTablePage.filterAllDepots }, ...depots.map(d => ({ value: d.id, label: d.name }))]}
-                      className="h-8 text-[10px]"
-                    />
-                  </div>
-
-                  {/* Zone */}
-                  <div>
-                    <p className="text-[8px] font-[800] uppercase text-[var(--text-soft)] mb-1 ml-1">{t.routesTablePage.filterZoneLabel}</p>
-                    <FieldSelect
-                      placeholder={t.routesTablePage.filterAllZones}
-                      value={zoneFilter}
-                      onChange={(e) => setZoneFilter(e.currentTarget.value)}
-                      options={[{ value: '', label: t.routesTablePage.filterAllZones }, ...zoneOptions]}
-                      className="h-8 text-[10px]"
-                    />
-                  </div>
-
-                  {hasAdvancedFilters && (
-                    <button
-                      type="button"
-                      className="mt-1 h-7 text-[11px] font-bold text-red-500 hover:bg-red-50 rounded transition-colors"
-                      onClick={() => {
-                        setDateFilter('ALL'); setDriverFilter('');
-                        setVehicleFilter(''); setDepotFilter('');
-                        setZoneFilter(''); setClientFilter('');
-                      }}
-                    >
-                      {t.routesTablePage.clearFiltersButton}
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Refresh footer */}
-            <div className="p-5 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
-              <button
-                type="button"
-                className="w-full font-bold text-[11px] text-[var(--text-soft)] flex items-center justify-center gap-2 h-8 rounded hover:bg-[var(--hover-bg)] transition-colors"
-                onClick={() => fetchData()}
-              >
-                <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
-                {t.routesTablePage.refreshButton}
-              </button>
-            </div>
-          </div>
-
-          {/* ── Main Slab Registro ────────────────────────── */}
-          <div className={cn(
-            'flex flex-col flex-1 bg-[var(--surface)] overflow-hidden min-w-0',
-            mobileTab === 'list' ? 'flex' : 'hidden lg:flex'
-          )}>
+          {/* ── Main Slab Registro (full-width, sidebar removed) ── */}
+          <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               <div className="min-w-[1000px] lg:min-w-0">
                 {/* Table header */}

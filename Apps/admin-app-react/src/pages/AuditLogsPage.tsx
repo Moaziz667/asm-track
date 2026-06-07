@@ -322,29 +322,19 @@ export default function AuditLogsPage() {
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
 
-      {/* Header */}
-      <div className="flex items-center justify-between px-6 h-14 border-b border-[var(--border)] sticky top-0 z-20" style={{ background: 'var(--surface)' }}>
-        <div>
-          <p className="text-[10px] font-[500] text-[var(--text-muted)]">{t.auditLogsPage.pageSubtitle}</p>
-          <h1 className="text-[16px] font-[600] text-[var(--text-primary)]">
-            {t.auditLogsPage.pageTitle} <span className="text-[var(--brand)]">{t.auditLogsPage.pageTitleBrand}</span>
-          </h1>
-        </div>
-        <div className="flex items-center gap-4">
-          <p className="text-[11px] font-[600] text-[var(--text-muted)]">{totalElements} {t.auditLogsPage.eventsRecorded}</p>
+      {/* Filter bar (title removed) */}
+      <div className="px-4 py-2.5 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+        <div className="flex items-center gap-3 mb-2">
+          <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{totalElements} {t.auditLogsPage.eventsRecorded}</span>
           <button
             type="button"
             onClick={() => fetchLogs(page)}
             disabled={loading}
-            className="w-8 h-8 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
+            className="ml-auto w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
           >
-            <IconRefresh size={14} />
+            <IconRefresh size={13} />
           </button>
         </div>
-      </div>
-
-      {/* Filters */}
-      <div className="px-6 py-3 border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
           <div>
             <label className={labelCls}>{t.auditLogsPage.actionLabel}</label>

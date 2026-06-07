@@ -33,11 +33,11 @@ export function RouteFilterBar({
   const hasActiveFilters = Object.values(filters).some(v => Boolean(v));
 
   const statusFilters = [
-    { key: 'all', label: 'Toutes', count: counts.total, statusValue: '' },
-    { key: 'draft', label: 'Brouillon', count: counts.draft, statusValue: 'DRAFT' },
-    { key: 'validated', label: 'Validée', count: counts.validated, statusValue: 'VALIDATED' },
-    { key: 'inProgress', label: 'En cours', count: counts.inProgress, statusValue: 'IN_PROGRESS' },
-    { key: 'closed', label: 'Terminée', count: counts.closed, statusValue: 'CLOSED' },
+    { key: 'all', label: t.routeFilterBar.statusAll, count: counts.total, statusValue: '' },
+    { key: 'draft', label: t.routeFilterBar.statusDraft, count: counts.draft, statusValue: 'DRAFT' },
+    { key: 'validated', label: t.routeFilterBar.statusValidated, count: counts.validated, statusValue: 'VALIDATED' },
+    { key: 'inProgress', label: t.routeFilterBar.statusInProgress, count: counts.inProgress, statusValue: 'IN_PROGRESS' },
+    { key: 'closed', label: t.routeFilterBar.statusClosed, count: counts.closed, statusValue: 'CLOSED' },
   ];
 
   return (
@@ -83,7 +83,7 @@ export function RouteFilterBar({
         {/* City Filter */}
         <input
           type="text"
-          placeholder="Ville..."
+          placeholder={t.routeFilterBar.cityPlaceholder}
           value={filters.city || ''}
           onChange={(e) => onFilterChange('city', e.target.value)}
           className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800/20"
@@ -111,7 +111,7 @@ export function RouteFilterBar({
             onClick={onClearFilters}
             className="h-9 px-3 flex items-center gap-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:border-slate-300 transition-colors"
           >
-            <X size={12} /> Effacer
+            <X size={12} /> {t.routeFilterBar.clearButton}
           </button>
         )}
       </div>

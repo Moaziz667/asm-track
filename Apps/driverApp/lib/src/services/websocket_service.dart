@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:stomp_dart_client/stomp.dart';
 import 'package:stomp_dart_client/stomp_config.dart';
 
+import 'token_storage.dart';
+
 class RouteWsEvent {
   const RouteWsEvent({
     required this.event,
@@ -45,42 +47,82 @@ class RouteWsEvent {
 
 class WebSocketService {
   StompClient? _client;
+  String? _wsBaseUrl;
+  String? _driverId;
+  void Function(RouteWsEvent event)? _onEvent;
+  TokenStorage? _tokenStorage;
+  bool _isConnecting = false;
 
   void connect({
     required String wsBaseUrl,
-    required String token,
     required String driverId,
+    required TokenStorage tokenStorage,
     required void Function(RouteWsEvent event) onEvent,
   }) {
-    _client = StompClient(
-      config: StompConfig.SockJS(
-        url: '$wsBaseUrl/ws',
-        onConnect: (frame) {
-          _client?.subscribe(
-            destination: '/topic/driver.$driverId',
-            callback: (frame) {
-              final body = frame.body;
-              if (body == null || body.isEmpty) return;
-              try {
-                final map = jsonDecode(body) as Map<String, dynamic>;
-                final data = map.containsKey('data') ? map['data'] as Map<String, dynamic> : map;
-                data['event'] = map['type'] ?? data['event'];
-                onEvent(RouteWsEvent.fromJson(data));
-              } catch (_) {}
-            },
-          );
-        },
-        stompConnectHeaders: {'Authorization': 'Bearer $token'},
-        webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
-        onStompError: (frame) {
-          // Errors are non-fatal — polling fallback handles missed events
-        },
-        onDisconnect: (_) {},
-        onWebSocketError: (_) {},
-        reconnectDelay: const Duration(seconds: 10),
-      ),
-    );
-    _client?.activate();
+    _wsBaseUrl = wsBaseUrl;
+    _driverId = driverId;
+    _tokenStorage = tokenStorage;
+    _onEvent = onEvent;
+
+    _establishConnection();
+  }
+
+  Future<void> _establishConnection() async {
+    if (_isConnecting || _client != null) return;
+    _isConnecting = true;
+    try {
+      final token = await _tokenStorage?.readAccessToken();
+      if (token == null || token.isEmpty) {
+        _isConnecting = false;
+        return;
+      }
+
+      _client = StompClient(
+        config: StompConfig.SockJS(
+          url: '$_wsBaseUrl/ws',
+          onConnect: (frame) {
+            _client?.subscribe(
+              destination: '/topic/driver.$_driverId',
+              callback: (frame) {
+                final body = frame.body;
+                if (body == null || body.isEmpty) return;
+                try {
+                  final map = jsonDecode(body) as Map<String, dynamic>;
+                  final data = map.containsKey('data') ? map['data'] as Map<String, dynamic> : map;
+                  data['event'] = map['type'] ?? data['event'];
+                  _onEvent?.call(RouteWsEvent.fromJson(data));
+                } catch (_) {}
+              },
+            );
+          },
+          stompConnectHeaders: {'Authorization': 'Bearer $token'},
+          webSocketConnectHeaders: {'Authorization': 'Bearer $token'},
+          onStompError: (frame) {
+            _handleReconnectError();
+          },
+          onDisconnect: (_) {},
+          onWebSocketError: (error) {
+            _handleReconnectError();
+          },
+          reconnectDelay: const Duration(seconds: 10),
+        ),
+      );
+      _client?.activate();
+    } catch (_) {
+      // Connection initialization failed, will retry on next check
+    } finally {
+      _isConnecting = false;
+    }
+  }
+
+  void _handleReconnectError() async {
+    // If the socket connection fails (e.g. 401 Unauthorized because JWT expired),
+    // we deactivate the client, pull a fresh token, and re-establish a handshake.
+    if (_client != null) {
+      disconnect();
+      await Future.delayed(const Duration(seconds: 5));
+      _establishConnection();
+    }
   }
 
   void disconnect() {

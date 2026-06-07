@@ -24,7 +24,7 @@ export function SectionCard({
   return (
     <div className={cn('card', className)}>
       {(title || actions) && (
-        <div className="flex items-start justify-between gap-3 px-4 py-3 border-b border-[var(--border)]">
+        <div className="flex items-start justify-between gap-3 pl-10 pr-4 py-3 border-b border-[var(--border)]">
           <div>
             {title && (
               <h3 className="section-title">{title}</h3>

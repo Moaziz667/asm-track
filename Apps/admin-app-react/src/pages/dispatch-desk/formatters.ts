@@ -1,8 +1,8 @@
 import type { OpsException } from './types';
-import { getCopy } from '@/lib/LocaleContext';
+import { getCopy, type CopyDict } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 
-export function formatMotif(motif?: string, copy?: any): string {
+export function formatMotif(motif?: string, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (motif ?? '').toUpperCase().trim();
   if (key === 'SLA_UNSCHEDULED_LATE') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduledLate;
@@ -30,7 +30,7 @@ export function formatMotif(motif?: string, copy?: any): string {
   return motif ?? resolvedCopy.dispatchDeskPage.motifUnknown;
 }
 
-export function formatElapsed(dateString?: string, copy?: any): string {
+export function formatElapsed(dateString?: string, copy?: CopyDict): string {
   if (!dateString) return '—';
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 60000);
@@ -41,7 +41,7 @@ export function formatElapsed(dateString?: string, copy?: any): string {
   return resolvedCopy.dispatchDeskPage.timeDays.replace('{d}', String(Math.floor(h / 24)));
 }
 
-export function formatComment(row: OpsException, copy?: any): string {
+export function formatComment(row: OpsException, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const comment = row.comment ?? '';
   const key = (row.motif ?? '').toUpperCase().trim();
@@ -65,7 +65,7 @@ export function formatComment(row: OpsException, copy?: any): string {
   return comment || resolvedCopy.dispatchDeskPage.commentDefault.replace('{time}', t);
 }
 
-export function formatSuggestion(row: OpsException, copy?: any): string {
+export function formatSuggestion(row: OpsException, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (row.motif ?? '').toUpperCase().trim();
   if (key === 'SLA_UNSCHEDULED_LATE' || key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduledLate;
@@ -74,6 +74,30 @@ export function formatSuggestion(row: OpsException, copy?: any): string {
   if (key === 'WRONG_ADDRESS')         return resolvedCopy.dispatchDeskPage.suggestionWrongAddress;
   if (key === 'OTHER')                 return resolvedCopy.dispatchDeskPage.suggestionOther;
   return '';
+}
+
+/** One flowing sentence describing the situation + what to do — the "system talks to you" narration in the Queue detail panel. */
+export function formatNarrative(row: OpsException, copy?: CopyDict): string {
+  const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
+  const c = resolvedCopy.dispatchDeskPage;
+  const key = (row.motif ?? '').toUpperCase().trim();
+  const t = formatElapsed(row.createdAt, resolvedCopy);
+  if (key === 'SLA_UNSCHEDULED_LATE')  return c.narrativeUnscheduledLate.replace('{time}', t);
+  if (key === 'SLA_UNSCHEDULED_TODAY') return c.narrativeUnscheduledToday;
+  if (key === 'SLA_UNSCHEDULED')       return c.narrativeUnscheduled.replace('{time}', t);
+  if (key.includes('SLA_SCHEDULED'))   return c.narrativeScheduled.replace('{time}', t);
+  if (key.includes('SLA_PICKUP'))      return c.narrativePickup.replace('{time}', t);
+  if (key.includes('SLA_IN_TRANSIT'))  return c.narrativeInTransit.replace('{time}', t);
+  if (key === 'SCHEDULED_MONITORING')  return c.narrativeScheduledMonitoring;
+  if (key === 'CLIENT_ABSENT')         return c.narrativeClientAbsent.replace('{time}', t);
+  if (key === 'REFUSED')               return c.narrativeRefused.replace('{time}', t);
+  if (key === 'WRONG_ADDRESS')         return c.narrativeWrongAddress;
+  if (key === 'DAMAGED')               return c.narrativeDamaged;
+  if (key.includes('PARTIAL'))         return c.narrativePartial;
+  if (key === 'FAILED' || key.includes('FAILED')) return c.narrativeFailed.replace('{time}', t);
+  if (key.includes('CANCELLED'))       return c.narrativeCancelled;
+  if (key === 'OTHER')                 return row.comment || c.narrativeOther.replace('{time}', t);
+  return c.narrativeDefault.replace('{time}', t);
 }
 
 export function needsClientContact(motif?: string): boolean {

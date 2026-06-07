@@ -74,6 +74,28 @@ public class ErpSyncCommandConsumer {
                 if (!ok) throw new IllegalStateException("syncOrderCancellation returned false for erpOrderId=" + erpOrderId);
                 resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
+            case "POD" -> {
+                com.asm.erpadapter.dto.ErpPodDTO pod = com.asm.erpadapter.dto.ErpPodDTO.builder()
+                        .recipientName(str(cmd.get("recipientName")))
+                        .comment(str(cmd.get("comment")))
+                        .deliveredAt(str(cmd.get("deliveredAt")))
+                        .lat(asDouble(cmd.get("lat")))
+                        .lng(asDouble(cmd.get("lng")))
+                        .blPhotoBase64(str(cmd.get("blPhotoBase64")))
+                        .packagePhotoBase64(str(cmd.get("packagePhotoBase64")))
+                        .build();
+                boolean ok = sync.syncProofOfDelivery(erpOrderId, pod, txId, pickingRef);
+                if (!ok) throw new IllegalStateException("syncProofOfDelivery returned false for erpOrderId=" + erpOrderId);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+            }
+            case "RETURN" -> {
+                List<com.asm.erpadapter.dto.ErpReturnItemDTO> returnItems =
+                        objectMapper.convertValue(cmd.getOrDefault("returnItems", List.of()),
+                                new TypeReference<List<com.asm.erpadapter.dto.ErpReturnItemDTO>>() {});
+                boolean ok = sync.syncReturn(erpOrderId, returnItems, str(cmd.get("reason")), txId, pickingRef);
+                if (!ok) throw new IllegalStateException("syncReturn returned false for erpOrderId=" + erpOrderId);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+            }
             default -> log.warn("ErpSyncCommandConsumer: unknown op={}, dropping", op);
         }
     }
@@ -100,5 +122,11 @@ public class ErpSyncCommandConsumer {
         if (v == null) return null;
         if (v instanceof Number n) return n.intValue();
         try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return null; }
+    }
+
+    private static Double asDouble(Object v) {
+        if (v == null) return null;
+        if (v instanceof Number n) return n.doubleValue();
+        try { return Double.parseDouble(String.valueOf(v)); } catch (Exception e) { return null; }
     }
 }

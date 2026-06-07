@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { useT } from '@/lib/LocaleContext';
 import { IconPlus as Plus, IconX as X, IconChevronLeft as ChevronLeft, IconChevronRight as ChevronRight, IconSearch as Search, IconCheck as Check, IconUser as User, IconBuilding as Building2 } from '@tabler/icons-react';
 import { AppLoader } from './AppLoader';
 import type { ErpClientDTO, ErpProductDTO } from '@/types/erp';
@@ -43,7 +44,7 @@ interface NewDeliveryPanelProps {
   prefillClient?: { clientId: string; clientName: string; clientPhone: string } | null;
 }
 
-const STEPS = ['Client', 'Adresse', 'Articles', 'Paiement', 'Recapitulatif'];
+const STEP_KEYS = ['stepClient', 'stepAddress', 'stepArticles', 'stepPayment', 'stepSummary'] as const;
 
 function useDebouncedValue<T>(value: T, delay = 400): T {
   const [debounced, setDebounced] = useState(value);
@@ -142,6 +143,7 @@ const createEmptyItem = (): OrderItem => ({
 });
 
 export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClient }: NewDeliveryPanelProps) {
+  const t = useT();
   const [step, setStep] = useState(prefillClient ? 2 : 1);
   const [submitting, setSubmitting] = useState(false);
 
@@ -409,7 +411,7 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
           {/* Step 1: Client */}
           {step === 1 && (
             <div>
-              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>Rechercher un client</label>
+              <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>{t.newDeliveryPanel.searchClient}</label>
               <div ref={clientDropdownRef} style={{ position: 'relative', marginBottom: 12 }}>
                 <Search size={14} color="#9ca3af" style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)' }} />
                 <input
@@ -419,7 +421,7 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
                     setShowClientDropdown(true);
                   }}
                   onFocus={() => setShowClientDropdown(true)}
-                  placeholder="Rechercher un client..."
+                  placeholder={t.newDeliveryPanel.searchClientPlaceholder}
                   style={{ width: '100%', padding: '9px 10px 9px 32px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, outline: 'none' }}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
                 />
@@ -439,7 +441,7 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
                       <>
                         {systemClients.length > 0 && (
                           <>
-                            <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1px solid #f3f4f6' }}>Clients systeme</div>
+                            <div style={{ padding: '8px 12px', fontSize: 11, fontWeight: 700, color: '#6b7280', borderBottom: '1px solid #f3f4f6' }}>{t.newDeliveryPanel.systemClients}</div>
                             {systemClients.map((c) => (
                               <div
                                 key={`sys-${c.id}`}
@@ -594,12 +596,12 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
                 </div>
               </div>
               <div>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>Instructions de livraison</label>
+                <label style={{ fontSize: 12, fontWeight: 500, color: '#374151', marginBottom: 4, display: 'block' }}>{t.newDeliveryPanel.deliveryInstructions}</label>
                 <textarea
                   value={instructions}
                   onChange={(e) => setInstructions(e.target.value)}
                   rows={2}
-                  placeholder="Ex: 2eme etage, sonner 2 fois..."
+                  placeholder={t.newDeliveryPanel.instructionsPlaceholder}
                   style={{ width: '100%', padding: '9px 12px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 13, outline: 'none', resize: 'vertical' }}
                   onFocus={(e) => (e.target.style.borderColor = '#16a34a')}
                   onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
@@ -615,14 +617,14 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
                 <div key={idx} style={{ marginBottom: 10, padding: '10px 0', borderBottom: '1px solid #f3f4f6' }}>
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
                     <div style={{ flex: 1, position: 'relative' }}>
-                      {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>Produit *</label>}
+                      {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>{t.newDeliveryPanel.productLabel} *</label>}
                       <input
                         ref={(el) => {
                           itemInputRefs.current[idx] = el;
                         }}
                         value={item.productSearch}
                         onChange={(e) => searchProducts(idx, e.target.value)}
-                        placeholder="Rechercher un produit..."
+                        placeholder={t.newDeliveryPanel.productPlaceholder}
                         style={{ width: '100%', padding: '7px 10px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, outline: 'none' }}
                         onFocus={(e) => (e.target.style.borderColor = '#16a34a')}
                         onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
@@ -651,9 +653,9 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
                               </div>
                               <div style={{ marginTop: 4 }}>
                                 {stock > 0 ? (
-                                  <span style={{ fontSize: 10, color: '#166534', background: '#dcfce7', borderRadius: 9999, padding: '2px 8px' }}>{stock} en stock</span>
+                                  <span style={{ fontSize: 10, color: '#166534', background: '#dcfce7', borderRadius: 9999, padding: '2px 8px' }}>{stock} {t.newDeliveryPanel.inStock}</span>
                                 ) : (
-                                  <span style={{ fontSize: 10, color: '#991b1b', background: '#fee2e2', borderRadius: 9999, padding: '2px 8px' }}>Rupture de stock</span>
+                                  <span style={{ fontSize: 10, color: '#991b1b', background: '#fee2e2', borderRadius: 9999, padding: '2px 8px' }}>{t.newDeliveryPanel.outOfStock}</span>
                                 )}
                               </div>
                             </div>
@@ -665,7 +667,7 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
 
                       {item.productSearch.trim().length >= 2 && !item.productLoading && item.productResults.length === 0 && (
                         <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, border: '1px solid #e5e7eb', borderRadius: 6, background: '#fff', padding: '8px 10px', fontSize: 11, color: '#6b7280', zIndex: 50 }}>
-                          Aucun produit trouve — saisir manuellement
+                          {t.newDeliveryPanel.noProductFound}
                         </div>
                       )}
                     </div>
@@ -674,23 +676,23 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
 
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end', marginTop: 8 }}>
                     <div style={{ width: 60 }}>
-                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>Qte</label>}
+                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>{t.newDeliveryPanel.quantityLabel}</label>}
                     <input type="number" min={1} value={item.quantity} onChange={(e) => updateItem(idx, 'quantity', Math.max(1, Number(e.target.value)))}
                       style={{ width: '100%', padding: '7px 6px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, outline: 'none', textAlign: 'center' }}
                       onFocus={(e) => (e.target.style.borderColor = '#16a34a')}
                       onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')} />
                   </div>
                   <div style={{ width: 90 }}>
-                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>Prix</label>}
+                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>{t.newDeliveryPanel.priceLabel}</label>}
                     <input type="number" step={0.001} min={0} value={item.unitPrice} onChange={(e) => updateItem(idx, 'unitPrice', Number(e.target.value))}
                       style={{ width: '100%', padding: '7px 6px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, outline: 'none', ...mono }}
                       onFocus={(e) => (e.target.style.borderColor = '#16a34a')}
                       onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')} />
                   </div>
                   <div style={{ width: 70 }}>
-                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>SKU</label>}
+                    {idx === 0 && <label style={{ fontSize: 11, color: '#6b7280', marginBottom: 2, display: 'block' }}>{t.newDeliveryPanel.skuLabel}</label>}
                     <input value={item.sku ?? ''} onChange={(e) => updateItem(idx, 'sku', e.target.value || null)}
-                      placeholder="SKU"
+                      placeholder={t.newDeliveryPanel.skuPlaceholder}
                       style={{ width: '100%', padding: '7px 6px', border: '1px solid #e5e7eb', borderRadius: 6, fontSize: 12, outline: 'none' }}
                       onFocus={(e) => (e.target.style.borderColor = '#16a34a')}
                       onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')} />
@@ -708,12 +710,12 @@ export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClie
 
                   {item.selectedProductName && (
                     <div style={{ marginTop: 6, fontSize: 11, color: '#6b7280' }}>
-                      Stock disponible: {item.stock ?? 0} unites
+                      {t.newDeliveryPanel.stockAvailable.replace('{stock}', String(item.stock ?? 0))}
                     </div>
                   )}
                   {item.stock !== null && item.quantity > item.stock && (
                     <div style={{ marginTop: 4, fontSize: 11, color: '#92400e', background: '#fef3c7', borderRadius: 6, padding: '4px 8px', display: 'inline-block' }}>
-                      Quantite superieure au stock disponible
+                      {t.newDeliveryPanel.stockWarning}
                     </div>
                   )}
                   <div style={{ marginTop: 4, fontSize: 11, color: '#6b7280' }}>

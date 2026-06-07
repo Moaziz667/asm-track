@@ -2,6 +2,7 @@
 import React from 'react';
 import { IconRefresh } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/LocaleContext';
 
 export interface RefreshButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   refreshing: boolean;
@@ -10,6 +11,7 @@ export interface RefreshButtonProps extends React.ButtonHTMLAttributes<HTMLButto
 
 export const RefreshButton = React.forwardRef<HTMLButtonElement, RefreshButtonProps>(
   ({ refreshing, showText = false, className, onClick, ...props }, ref) => {
+    const t = useT();
     return (
       <button
         ref={ref}
@@ -23,7 +25,7 @@ export const RefreshButton = React.forwardRef<HTMLButtonElement, RefreshButtonPr
             : "w-8 h-8",
           className
         )}
-        aria-label="Rafraîchir"
+        aria-label={t.actions.refresh}
         {...props}
       >
         <IconRefresh 
@@ -33,7 +35,7 @@ export const RefreshButton = React.forwardRef<HTMLButtonElement, RefreshButtonPr
             refreshing && "animate-spin"
           )} 
         />
-        {showText && <span>Actualiser</span>}
+        {showText && <span>{t.actions.refresh}</span>}
       </button>
     );
   }

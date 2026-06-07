@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { AppModal } from '@/components/overlays/AppModal';
+import { useT } from '@/lib/LocaleContext';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 const fmtDate = (iso?: string | null) => iso ? new Date(iso).toLocaleDateString('fr-FR') : '—';
@@ -392,7 +393,7 @@ function StopsTable({ report }: { report: RouteReport }) {
                   </TableCell>
                   <TableCell>
                     {s.hasPod
-                      ? <span title="Preuve disponible"><IconCheck size={16} color="#16A34A" /></span>
+                      ? <span title={t.deliveryPage.sectionProof}><IconCheck size={16} color="#16A34A" /></span>
                       : <IconX size={16} color="#9CA3AF" />}
                   </TableCell>
                 </TableRow>

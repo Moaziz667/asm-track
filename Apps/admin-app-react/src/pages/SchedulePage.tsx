@@ -7,6 +7,7 @@ import {
   IconChartPie, IconClock, IconTrendingUp, IconInbox,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +52,7 @@ const DOT: Record<string, string> = {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function OperationsPage() {
+export default function SchedulePage() {
   const t = useT();
   const router = useRouter();
   const isReadOnly = isReadOnlyRole(getCurrentRole());
@@ -128,78 +129,78 @@ export default function OperationsPage() {
   return (
     <div className="flex flex-col h-full overflow-hidden" style={{ background: 'var(--app-bg)' }}>
 
-      {/* Top Bar */}
-      <div
-        className="sticky top-0 z-20 min-h-16 h-auto lg:h-16 py-4 lg:py-0 flex items-center shrink-0"
-        style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}
-      >
-        <div className="px-6 w-full flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4">
-          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 sm:gap-8">
-            <div>
-              <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.operationsPage.subtitle}</span>
-              <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-                {t.operationsPage.title.split(' ').slice(0, -1).join(' ')} <span className="text-[var(--brand)]">{t.operationsPage.title.split(' ').pop()}</span>
-              </h1>
-            </div>
-          </div>
-            <RefreshButton
-              refreshing={refreshing}
-              showText
-              onClick={handleRefresh}
-            />
-        </div>
-      </div>
-
-      {/* Tabs */}
+      {/* Tabs — title bar removed; refresh lives in the tab strip */}
       <Tabs
         value={tab}
         onValueChange={setTab}
         className="flex flex-col flex-1 overflow-hidden"
       >
-        <div className="px-6 border-b border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+        <div className="px-4 shrink-0 flex items-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <TabsList variant="line" className="h-10 bg-transparent">
             <TabsTrigger value="today" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabToday}</TabsTrigger>
             <TabsTrigger value="week" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabWeek}</TabsTrigger>
           </TabsList>
+          <div className="ml-auto">
+            <RefreshButton refreshing={refreshing} onClick={handleRefresh} />
+          </div>
         </div>
 
         {/* ── TAB: Aujourd'hui ── */}
         <TabsContent value="today" className="flex-1 overflow-auto m-0">
-          <div className="p-6 max-w-[1400px] mx-auto flex flex-col gap-6">
-
-            {/* KPI Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KPICard
-                label={t.operationsPage.kpiActiveRoutes}
-                value={todayRoutes.filter(r => r.status === 'IN_PROGRESS' || r.status === 'VALIDATED').length}
-                icon={<IconRoute size={16} />}
-              />
-              <KPICard
-                label={t.operationsPage.kpiFieldDrivers}
-                value={new Set(todayRoutes.filter(r => r.status === 'IN_PROGRESS').map(r => r.driverId)).size}
-                icon={<IconUsers size={16} />}
-              />
-              <KPICard
-                label={t.operationsPage.kpiCompletedStops}
-                value={todayStats.successCount}
-                icon={<IconCheck size={16} />}
-                tone="success"
-              />
-              <KPICard
-                label={t.operationsPage.kpiFailures}
-                value={todayStats.failCount}
-                icon={<IconAlertTriangle size={16} />}
-                tone={todayStats.failCount > 0 ? 'danger' : 'default'}
-              />
-            </div>
-
-            {/* Bento grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-              {/* Left column */}
-              <div className="flex flex-col gap-5">
-
-                {/* À Démarrer */}
+          <div className="p-6 max-w-[1400px] mx-auto">
+          <DraggableWidgetGrid
+            storageKey="operations-today-v3"
+            items={[
+              {
+                id: 'kpi-active-routes',
+                defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiActiveRoutes}
+                    value={todayRoutes.filter(r => r.status === 'IN_PROGRESS' || r.status === 'VALIDATED').length}
+                    icon={<IconRoute size={16} />}
+                  />
+                ),
+              },
+              {
+                id: 'kpi-field-drivers',
+                defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiFieldDrivers}
+                    value={new Set(todayRoutes.filter(r => r.status === 'IN_PROGRESS').map(r => r.driverId)).size}
+                    icon={<IconUsers size={16} />}
+                  />
+                ),
+              },
+              {
+                id: 'kpi-completed-stops',
+                defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiCompletedStops}
+                    value={todayStats.successCount}
+                    icon={<IconCheck size={16} />}
+                    tone="success"
+                  />
+                ),
+              },
+              {
+                id: 'kpi-failures',
+                defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiFailures}
+                    value={todayStats.failCount}
+                    icon={<IconAlertTriangle size={16} />}
+                    tone={todayStats.failCount > 0 ? 'danger' : 'default'}
+                  />
+                ),
+              },
+              {
+                id: 'section-start',
+                defaultLayout: { w: 4, h: 6, x: 0, y: 2, minW: 3, minH: 4 },
+                children: (
                 <SectionCard
                   title={
                     <div className="flex items-center gap-2">
@@ -237,8 +238,12 @@ export default function OperationsPage() {
                     </div>
                   )}
                 </SectionCard>
-
-                {/* Points de Vigilance */}
+                ),
+              },
+              {
+                id: 'section-watchpoints',
+                defaultLayout: { w: 4, h: 6, x: 4, y: 2, minW: 3, minH: 4 },
+                children: (
                 <SectionCard
                   title={
                     <div className="flex items-center gap-2">
@@ -285,9 +290,12 @@ export default function OperationsPage() {
                     </div>
                   )}
                 </SectionCard>
-              </div>
-
-              {/* Right: Performance donut */}
+                ),
+              },
+              {
+                id: 'section-performance',
+                defaultLayout: { w: 4, h: 6, x: 8, y: 2, minW: 3, minH: 4 },
+                children: (
               <SectionCard
                 title={
                   <div className="flex items-center gap-2">
@@ -326,9 +334,12 @@ export default function OperationsPage() {
                   </div>
                 </div>
               </SectionCard>
-            </div>
-
-            {/* All Routes Table */}
+                ),
+              },
+              {
+                id: 'routes-table',
+                defaultLayout: { w: 12, h: 8, x: 0, y: 8, minW: 6, minH: 4 },
+                children: (
             <SectionCard
               title={t.operationsPage.tableTodayRoutes}
               actions={
@@ -405,6 +416,10 @@ export default function OperationsPage() {
                 </TableBody>
               </Table>
             </SectionCard>
+                ),
+              },
+            ]}
+          />
           </div>
         </TabsContent>
 

@@ -1,6 +1,7 @@
 package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.DepotResponse;
+import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DepotRepository;
@@ -20,6 +21,7 @@ import java.util.UUID;
 public class DepotService {
 
     private final DepotRepository depotRepository;
+    private final GeocodingService geocodingService;
 
     @Transactional(readOnly = true)
     public List<DepotResponse> list() {
@@ -43,6 +45,21 @@ public class DepotService {
     public Depot getDepot(UUID id) {
         return depotRepository.findById(id)
                 .orElseThrow(() -> AppException.notFound("Depot not found"));
+    }
+
+    @Transactional
+    public DepotResponse geolocate(UUID id) {
+        Depot depot = getDepot(id);
+        if (depot.getAddress() == null || depot.getAddress().isBlank()) {
+            throw AppException.badRequest("Depot has no address to geocode");
+        }
+        GeocodeSuggestionResponse geo = geocodingService.geocodeGlobal(depot.getAddress());
+        if (geo == null || !geo.isFound()) {
+            throw AppException.badRequest("Address could not be geocoded");
+        }
+        depot.setLatitude(geo.getLat());
+        depot.setLongitude(geo.getLng());
+        return toResponse(depotRepository.save(depot));
     }
 
     private DepotResponse toResponse(Depot depot) {

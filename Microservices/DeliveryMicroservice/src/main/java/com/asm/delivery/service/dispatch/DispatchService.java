@@ -98,6 +98,20 @@ public class DispatchService {
         return new PageImpl<>(content, pageable, deliveryPage.getTotalElements());
     }
 
+    /** Deliveries scheduled within [from, to] for the calendar/overview month view. */
+    @Transactional(readOnly = true)
+    public List<AdminDeliverySummaryResponse> calendar(LocalDate from, LocalDate to) {
+        List<Delivery> deliveries = deliveryRepo.findScheduledBetween(from.atStartOfDay(), to.atTime(23, 59, 59));
+        Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
+        Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+        return deliveries.stream()
+                .map(d -> {
+                    DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                })
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public Page<Delivery> doSearch(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
                                   UUID zoneId, Boolean unpinned, String q, Boolean assigned, String bucket,

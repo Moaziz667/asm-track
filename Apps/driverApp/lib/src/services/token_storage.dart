@@ -1,3 +1,7 @@
+import 'dart:convert';
+import 'dart:math';
+import 'dart:typed_data';
+
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/auth_tokens.dart';
@@ -14,6 +18,7 @@ class TokenStorage {
   static const _kTokenTypeKey = 'token_type';
   static const _kExpiresAtKey = 'expires_at';
   static const _kApiBaseUrlKey = 'api_base_url';
+  static const _kDbEncryptionKey = 'db_encryption_key';
 
   Future<AuthTokens?> readTokens() async {
     if (_cached != null) {
@@ -67,4 +72,16 @@ class TokenStorage {
   Future<void> saveApiBaseUrl(String url) async {
     await _secureStorage.write(key: _kApiBaseUrlKey, value: url);
   }
+
+  Future<List<int>> getOrCreateDbKey() async {
+    final base64Key = await _secureStorage.read(key: _kDbEncryptionKey);
+    if (base64Key != null && base64Key.isNotEmpty) {
+      return base64Decode(base64Key);
+    }
+    final random = Random.secure();
+    final freshKey = Uint8List.fromList(List<int>.generate(64, (_) => random.nextInt(256)));
+    await _secureStorage.write(key: _kDbEncryptionKey, value: base64Encode(freshKey));
+    return freshKey;
+  }
 }
+

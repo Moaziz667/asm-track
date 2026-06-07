@@ -1,4 +1,4 @@
-import type { DeliveryStatus } from '@/types';
+import type { DeliveryStatus, Delivery } from '@/types';
 
 export type OpsException = {
   deliveryId: string;
@@ -36,7 +36,18 @@ export type OpsExceptionResponse = {
 
 export type Period     = 'day' | 'week' | 'month' | 'custom' | 'all';
 export type ActionKind = 'reassign' | 'replan';
-export type DispatchTab = 'assign' | 'action' | 'failed' | 'gps' | 'handoff';
+export type DispatchTab = 'queue' | 'assign' | 'action' | 'failed' | 'gps' | 'handoff';
+
+// Unified Queue row — a delivery awaiting attention, optionally carrying its active alert.
+// Lets the split-view list+detail render both "needs assignment" and "needs action" rows
+// with a single component instead of two parallel card grids (DeliveryCards/ActionCards).
+export type QueueRow = {
+  id: string;
+  delivery: Delivery;
+  alert?: OpsException;
+  routeId?: string;
+  routeName?: string;
+};
 
 export type PendingAction = { kind: ActionKind; row: OpsException };
 

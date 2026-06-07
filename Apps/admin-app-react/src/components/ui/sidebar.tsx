@@ -42,13 +42,15 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function SidebarInset({ children, className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
+export function SidebarInset({ children, className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
   const { open } = useSidebar();
   return (
     <main
-      className={`relative flex w-full flex-1 flex-col bg-background transition-[padding] duration-200 ease-linear ${
-        open ? 'ps-[212px]' : 'ps-[48px]'
-      } ${className}`}
+      className={`relative flex w-full flex-1 flex-col bg-background transition-[padding] duration-200 ease-linear ${className}`}
+      style={{
+        paddingInlineStart: open ? '212px' : '48px',
+        ...style,
+      }}
       {...props}
     >
       {children}

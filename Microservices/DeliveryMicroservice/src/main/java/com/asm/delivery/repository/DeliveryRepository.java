@@ -90,4 +90,66 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             ORDER BY d.updatedAt DESC
             """)
     List<Delivery> searchByQuery(@Param("q") String q, Pageable pageable);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Reporting aggregates — pushed down to SQL instead of findAll()+stream.
+    //  Reference date is COALESCE(completed_at, created_at) so a delivery is
+    //  counted on the day it was completed, falling back to its creation day.
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Query("""
+            SELECT COUNT(d) FROM Delivery d
+            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+            """)
+    long countInRange(@Param("start") java.time.LocalDateTime start,
+                      @Param("end") java.time.LocalDateTime end);
+
+    /** [zoneId(UUID), count(Long)] for deliveries in range that carry a zone. */
+    @Query("""
+            SELECT d.order.zoneId, COUNT(d) FROM Delivery d
+            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+              AND d.order.zoneId IS NOT NULL
+            GROUP BY d.order.zoneId
+            """)
+    List<Object[]> countByZoneInRange(@Param("start") java.time.LocalDateTime start,
+                                      @Param("end") java.time.LocalDateTime end);
+
+    /**
+     * Per-day series [day(java.sql.Date), total(Long), delivered(Long), failed(Long)].
+     * Uses Postgres FILTER aggregates so the whole trend is one round-trip.
+     */
+    @Query(value = """
+            SELECT CAST(COALESCE(d.completed_at, d.created_at) AS date) AS day,
+                   COUNT(*) AS total,
+                   COUNT(*) FILTER (WHERE d.status IN ('DELIVERED','PARTIALLY_DELIVERED')) AS delivered,
+                   COUNT(*) FILTER (WHERE d.status = 'FAILED') AS failed
+            FROM deliveries d
+            WHERE COALESCE(d.completed_at, d.created_at) BETWEEN :start AND :end
+            GROUP BY day
+            ORDER BY day
+            """, nativeQuery = true)
+    List<Object[]> dailySeries(@Param("start") java.time.LocalDateTime start,
+                               @Param("end") java.time.LocalDateTime end);
+
+    /** Completed/partial deliveries in range — small slice for SLA measurement. */
+    @Query("""
+            SELECT d FROM Delivery d
+            WHERE d.status IN :statuses
+              AND COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+            """)
+    List<Delivery> findCompletedInRange(@Param("statuses") List<DeliveryStatus> statuses,
+                                        @Param("start") java.time.LocalDateTime start,
+                                        @Param("end") java.time.LocalDateTime end);
+
+    /**
+     * Deliveries whose effective scheduled date (rescheduled ∨ scheduled ∨ created)
+     * falls within [start, end] — used by the calendar/overview month view.
+     */
+    @Query("""
+            SELECT d FROM Delivery d JOIN FETCH d.order o
+            WHERE COALESCE(o.rescheduledAt, o.scheduledAt, d.createdAt) BETWEEN :start AND :end
+            ORDER BY COALESCE(o.rescheduledAt, o.scheduledAt, d.createdAt) ASC
+            """)
+    List<Delivery> findScheduledBetween(@Param("start") java.time.LocalDateTime start,
+                                        @Param("end") java.time.LocalDateTime end);
 }

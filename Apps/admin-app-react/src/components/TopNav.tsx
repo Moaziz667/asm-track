@@ -9,7 +9,7 @@ import { useAuth } from 'react-oidc-context';
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
   IconSun, IconMoon, IconLayoutDashboard, IconCommand,
-  IconRadar2, IconPackage, IconUpload, IconRoute, IconGitBranch,
+  IconCalendarEvent, IconPackage, IconUpload, IconRoute, IconGitBranch,
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2, IconChartLine,
   IconFileText, IconSettings, IconAlertTriangle, IconBell, IconChartBar,
 } from '@tabler/icons-react';
@@ -34,7 +34,7 @@ type PageEntry = { label: string; icon: ReactNode; href: string };
 
 const PAGE_MAP: Record<string, PageEntry> = {
   dashboard:       { label: 'Tableau de bord',     icon: <IconLayoutDashboard size={13} />, href: '/dashboard' },
-  operations:      { label: "Vue d'ensemble",       icon: <IconRadar2 size={13} />,         href: '/operations' },
+  operations:      { label: "Planning",       icon: <IconCalendarEvent size={13} />,         href: '/schedule' },
   'dispatch-desk': { label: 'Dispatch',             icon: <IconCommand size={13} />,        href: '/dispatch-desk' },
   deliveries:      { label: 'Suivi des livraisons', icon: <IconPackage size={13} />,        href: '/deliveries' },
   import:          { label: 'Importation',          icon: <IconUpload size={13} />,         href: '/import' },

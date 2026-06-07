@@ -13,6 +13,11 @@ import { STATUS_COLORS } from '@/components/StatusBadge';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AppLoader } from '@/components/AppLoader';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -53,6 +58,17 @@ import {
 } from '@/hooks/useDeliveries';
 import { useFleetDrivers } from '@/hooks/useVehicles';
 
+
+const DELIVERY_COLUMNS: ColumnDef[] = [
+  { id: 'ref',       label: 'Référence',  pinned: true },
+  { id: 'client',    label: 'Client / Adresse', pinned: true },
+  { id: 'scheduled', label: 'Programmée' },
+  { id: 'status',    label: 'Statut' },
+  { id: 'driver',    label: 'Chauffeur' },
+  { id: 'zone',      label: 'Zone' },
+];
+
+const DELIVERY_ROW_H = { compact: 'h-10', comfortable: 'h-14', spacious: 'h-20' } as const;
 
 function cleanTunisianAdminName(name: string | null | undefined): string {
   if (!name) return '';
@@ -106,6 +122,8 @@ function DeliveriesPageContent() {
   const t = useT();
   const dateTag = locale === 'fr' ? 'fr-FR' : locale === 'ar' ? 'ar' : 'en-US';
   const getStatusLabel = (status: string) => t.statusLabels[status as DeliveryStatus] || status;
+  const { density, setDensity } = useDensity('deliveries', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('deliveries', DELIVERY_COLUMNS);
 
   useEffect(() => { const r = getCurrentRole(); if (r !== 'UNKNOWN' && !canDispatch(r)) { router('/dashboard', { replace: true }); } }, [router]);
   const { filters: globalFilters, applyFilters, clearFilters, globalContext } = useGlobalFilters();
@@ -431,179 +449,60 @@ function DeliveriesPageContent() {
   };
 
 
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
-  const [filtersOpen, setFiltersOpen] = useState(true);
+  // ── PageFilterBar config ───────────────────────────────────────────────────
+  const filterAttributes = [
+    { key: 'status', label: t.deliveriesPage.statusHeader, options: DELIVERY_STATUSES.map(s => ({ value: s.value, label: getStatusLabel(s.value) })) },
+    { key: 'driver', label: t.deliveriesPage.driverHeader, options: drivers.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'zone',   label: t.deliveriesPage.zoneHeader,   options: zones.map(z => ({ value: z.id, label: z.name })) },
+    { key: 'date',   label: t.deliveriesPage.dateLabel,    type: 'date' as const },
+  ];
+  const activeFiltersState: Record<string, string> = {
+    ...(status   && { status }),
+    ...(driverId && { driver: driverId }),
+    ...(zoneId   && { zone: zoneId }),
+    ...(date     && { date }),
+  };
+  const handleDeliveryFilterChange = (key: string, value: string | null) => {
+    setPage(0);
+    if (key === 'status') setStatus(value ?? '');
+    if (key === 'driver') setDriverId(value ?? '');
+    if (key === 'zone')   setZoneId(value ?? '');
+    if (key === 'date')   { setDate(value ?? ''); setQuickView('all'); }
+  };
+  const quickFilterList = [
+    { value: 'all',         label: t.deliveriesPage.totalFlow,           count: quickCounts.all },
+    { value: 'overdue',     label: t.deliveriesPage.quickViewOverdue,     count: quickCounts.overdue },
+    { value: 'today',       label: t.deliveriesPage.quickViewToday,       count: quickCounts.today },
+    { value: 'future',      label: t.deliveriesPage.quickViewFuture,      count: quickCounts.future },
+    { value: 'needsPinning',label: t.deliveriesPage.quickViewNeedsPinning,count: quickCounts.needsPinning },
+    { value: 'unassigned',  label: t.deliveriesPage.quickViewUnassigned,  count: quickCounts.unassigned },
+    { value: 'inTransit',   label: t.deliveriesPage.quickViewInTransit,   count: quickCounts.inTransit },
+    { value: 'completed',   label: t.deliveriesPage.quickViewCompleted,   count: quickCounts.completed },
+    { value: 'failed',      label: t.deliveriesPage.quickViewFailed,      count: quickCounts.failed },
+  ];
 
   return (
     <TooltipProvider>
       <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
-        {/* Mobile Tab Bar */}
-        <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-          {([['filters', t.deliveriesPage.filterLabel], ['list', t.deliveriesPage.tabList]] as const).map(([tab, label]) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setMobileTab(tab)}
-              className={cn(
-                'flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors',
-                mobileTab === tab
-                  ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]'
-                  : 'text-[var(--text-muted)]',
-              )}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <PageFilterBar
+          search={query}
+          onSearch={v => { setQuery(v); setPage(0); }}
+          searchPlaceholder={t.deliveriesPage.searchPlaceholder}
+          attributes={filterAttributes}
+          activeFilters={activeFiltersState}
+          onFilterChange={handleDeliveryFilterChange}
+          onRefresh={() => fetchDeliveries()}
+          refreshing={loading}
+          quickFilters={quickFilterList}
+          activeQuickFilter={quickView}
+          onQuickFilterChange={v => { setQuickView(v as QuickView); setPage(0); }}
+        />
 
-        <div className="flex flex-1 lg:flex-row min-h-0 overflow-hidden">
-          {/* ── Left Utility Rail ────────────────────────────────────── */}
-          <div className={cn(
-            'lg:border-r border-[var(--border)] bg-[var(--surface)] shrink-0 overflow-y-auto scrollbar-hide flex flex-col gap-0 transition-all duration-200',
-            filtersOpen ? 'w-full lg:w-[280px]' : 'w-full lg:w-[48px]',
-            mobileTab === 'filters' ? 'flex' : 'hidden lg:flex',
-          )}>
-            {/* Header Section */}
-            <div className="p-4 border-b border-[var(--border)] flex items-center justify-between gap-2 shrink-0">
-              {filtersOpen && (
-                <div className="min-w-0">
-                  <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.deliveriesPage.pageSubtitle}</span>
-                  <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-                    {t.deliveriesPage.pageTitle} <span className="text-[var(--brand)]">{t.deliveriesPage.pageTitleBrand}</span>
-                  </h1>
-                </div>
-              )}
-              <button
-                type="button"
-                onClick={() => setFiltersOpen(o => !o)}
-                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
-                title={filtersOpen ? t.deliveriesPage.hideFilters : t.deliveriesPage.showFilters}
-              >
-                {filtersOpen ? <IconChevronLeft size={13} /> : <IconChevronRight size={13} />}
-              </button>
-            </div>
-
-            {filtersOpen && <div className="flex flex-col overflow-hidden">
-            {/* Core Parameters */}
-            <div className="flex flex-col gap-3 p-5 border-b border-[var(--border)]">
-              <FieldInput
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.searchPlaceholder}</span>}
-                placeholder={t.deliveriesPage.searchPlaceholder}
-                leftSection={<IconSearch size={14} className="text-[var(--brand)]" />}
-                value={query}
-                onChange={(e) => setQuery(e.currentTarget.value)}
-                className="h-9 text-[12px]"
-              />
-
-              <FieldSelect
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.statusHeader}</span>}
-                placeholder={t.deliveriesPage.filterByStatus}
-                value={status}
-                onChange={(e) => { setPage(0); setStatus(e.currentTarget.value); }}
-                options={[{ value: '', label: t.deliveriesPage.filterByStatus }, ...DELIVERY_STATUSES.map(s => ({ value: s.value, label: getStatusLabel(s.value) }))]}
-                className="h-9 text-[12px]"
-              />
-
-              <FieldSelect
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</span>}
-                placeholder={t.deliveriesPage.filterByDriver}
-                value={driverId}
-                onChange={(e) => { setPage(0); setDriverId(e.currentTarget.value); }}
-                options={[{ value: '', label: t.deliveriesPage.filterByDriver }, ...drivers.map(d => ({ value: d.id, label: d.name }))]}
-                className="h-9 text-[12px]"
-              />
-
-              <FieldSelect
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.zoneHeader}</span>}
-                placeholder={t.deliveriesPage.filterByZone}
-                value={zoneId}
-                onChange={(e) => { setPage(0); setZoneId(e.currentTarget.value); }}
-                options={[{ value: '', label: t.deliveriesPage.filterByZone }, ...zones.map(z => ({ value: z.id, label: z.name }))]}
-                className="h-9 text-[12px]"
-              />
-
-              <FieldInput
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.dateLabel}</span>}
-                type="date"
-                value={date}
-                onChange={(e) => { setPage(0); setDate(e.currentTarget.value); setQuickView('all'); }}
-                className="h-9 text-[12px]"
-              />
-
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  className="flex-1 h-9 rounded-[2px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] font-[500] text-[12px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
-                  onClick={() => fetchDeliveries()}
-                  disabled={loading}
-                >
-                  {loading ? <Spinner className="h-3 w-3" /> : null}
-                  {t.deliveriesPage.refreshButton}
-                </button>
-                <button
-                  type="button"
-                  className="w-9 h-9 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--brand)] transition-colors"
-                  onClick={() => { setQuery(''); setStatus(''); setDriverId(''); setDate(''); setZoneId(''); setQuickView('all'); setPage(0); clearFilters(); }}
-                >
-                  <IconFilter size={16} />
-                </button>
-              </div>
-            </div>
-
-            {/* Quick Views / Operational Segments */}
-            <div className="p-5">
-              <p className="text-[11px] font-[500] text-[var(--text-muted)] mb-4">{t.deliveriesPage.qualificationLabel}</p>
-              <div className="flex flex-col gap-1">
-                {[
-                  { id: 'all', label: t.deliveriesPage.totalFlow, count: quickCounts.all, color: 'var(--text-primary)', icon: <IconScan size={14} /> },
-                  { id: 'overdue', label: t.deliveriesPage.quickViewOverdue, count: quickCounts.overdue, color: '#EF4444', icon: <IconClock size={14} /> },
-                  { id: 'today', label: t.deliveriesPage.quickViewToday, count: quickCounts.today, color: '#F59E0B', icon: <IconClock size={14} /> },
-                  { id: 'future', label: t.deliveriesPage.quickViewFuture, count: quickCounts.future, color: '#3B82F6', icon: <IconClock size={14} /> },
-                  { id: 'needsPinning', label: t.deliveriesPage.quickViewNeedsPinning, count: quickCounts.needsPinning, color: '#EF4444', icon: <IconMapPin size={14} /> },
-                  { id: 'unassigned', label: t.deliveriesPage.quickViewUnassigned, count: quickCounts.unassigned, color: '#F59E0B', icon: <IconRoute size={14} /> },
-                  { id: 'inTransit', label: t.deliveriesPage.quickViewInTransit, count: quickCounts.inTransit, color: '#3B82F6', icon: <IconTruck size={14} /> },
-                  { id: 'completed', label: t.deliveriesPage.quickViewCompleted, count: quickCounts.completed, color: '#10B981', icon: <IconCheck size={14} /> },
-                  { id: 'failed', label: t.deliveriesPage.quickViewFailed, count: quickCounts.failed, color: '#64748B', icon: <IconAlertCircle size={14} /> },
-                ].map((capsule) => (
-                  <button
-                    type="button"
-                    key={capsule.id}
-                    onClick={() => { setQuickView(capsule.id as QuickView); if (['overdue','today','future'].includes(capsule.id)) setDate(''); setPage(0); }}
-                    className={cn(
-                      "px-3 py-2.5 rounded-[2px] transition-all flex items-center justify-between group",
-                      quickView === capsule.id
-                        ? "bg-[var(--brand-soft)] border-l-2 border-[var(--brand)]"
-                        : "hover:bg-[var(--hover-bg)] border-l-2 border-transparent"
-                    )}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span style={{ color: quickView === capsule.id ? 'var(--brand)' : 'var(--text-soft)' }}>
-                        {capsule.icon}
-                      </span>
-                      <span className={cn(
-                        "text-[11px] font-[600]",
-                        quickView === capsule.id ? "text-[var(--brand)]" : "text-[var(--text-primary)]"
-                      )}>
-                        {capsule.label}
-                      </span>
-                    </div>
-                    <span className={cn(
-                      "text-[10px] font-[700] font-mono",
-                      quickView === capsule.id ? "text-[var(--brand)]" : "text-[var(--text-muted)]"
-                    )}>
-                      {capsule.count}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            </div>}
-          </div>
-
-          {/* ── Main Data Slab ────────────────────────────────────────── */}
-          <div className={cn('flex flex-col flex-1 bg-[var(--surface)] min-w-0 overflow-hidden', mobileTab === 'list' ? 'flex' : 'hidden lg:flex')}>
+        <div className="flex flex-1 min-h-0 overflow-hidden">
+          {/* ── Main Data Slab ── */}
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
             {/* Internal Toolbar */}
-            <div className="flex items-center justify-between px-6 h-16 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
+            <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center gap-8">
                 <span className="text-[13px] font-[600] text-[var(--text-primary)]">
                   {t.deliveriesPage.displayLabel} <span className="font-mono text-[var(--brand)]">{quickView.toUpperCase()}</span>
@@ -613,47 +512,74 @@ function DeliveriesPageContent() {
                 </span>
               </div>
 
-              <FieldSelect
-                value={String(size)}
-                onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
-                options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
-                className="h-8 text-[11px] font-[700] w-[100px]"
-              />
+              <div className="flex items-center gap-2">
+                <FieldSelect
+                  value={String(size)}
+                  onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
+                  options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
+                  className="h-7 text-[11px] font-[700] w-[100px]"
+                />
+                <DisplaySettingsDropdown
+                  columns={orderedColumns}
+                  visibleIds={visibleIds}
+                  onToggle={toggleColumn}
+                  onReorder={moveColumn}
+                  onReset={resetColumns}
+                  density={density}
+                  onDensityChange={setDensity}
+                />
+              </div>
             </div>
 
             {/* Full-Bleed Table */}
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               <div className="min-w-[1000px] lg:min-w-0">
                 <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-20 bg-[var(--surface)] border-b border-[var(--border)]">
+                  <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                     <tr>
                       <th className="w-2 px-0"></th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
-                        <button onClick={() => setSortAsc(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
-                          {t.deliveriesPage.refHeader}
-                          <span className="text-[9px]">{sortAsc ? '▲' : '▼'}</span>
-                        </button>
-                      </th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
-                        <button onClick={() => setGroupByClient(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
-                          {t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}
-                          <span className="text-[9px]">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
-                        </button>
-                      </th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.scheduledHeader}</th>
-                      <th className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
-                        <button onClick={() => setGroupByStatus(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
-                          {t.deliveriesPage.statusHeader}
-                          <span className="text-[9px]">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
-                        </button>
-                      </th>
-                      <th className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</th>
-                      <th className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">
-                        <button onClick={() => setGroupByZone(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
-                          {t.deliveriesPage.zoneHeader}
-                          <span className="text-[9px]">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
-                        </button>
-                      </th>
+                      {orderedColumns.map(col => {
+                        if (!visibleIds.has(col.id)) return null;
+                        if (col.id === 'ref') return (
+                          <th key="ref" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                            <button onClick={() => setSortAsc(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                              {t.deliveriesPage.refHeader}
+                              <span className="text-[9px]">{sortAsc ? '▲' : '▼'}</span>
+                            </button>
+                          </th>
+                        );
+                        if (col.id === 'client') return (
+                          <th key="client" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                            <button onClick={() => setGroupByClient(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                              {t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}
+                              <span className="text-[9px]">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                            </button>
+                          </th>
+                        );
+                        if (col.id === 'scheduled') return (
+                          <th key="scheduled" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.scheduledHeader}</th>
+                        );
+                        if (col.id === 'status') return (
+                          <th key="status" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                            <button onClick={() => setGroupByStatus(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                              {t.deliveriesPage.statusHeader}
+                              <span className="text-[9px]">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                            </button>
+                          </th>
+                        );
+                        if (col.id === 'driver') return (
+                          <th key="driver" className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</th>
+                        );
+                        if (col.id === 'zone') return (
+                          <th key="zone" className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">
+                            <button onClick={() => setGroupByZone(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                              {t.deliveriesPage.zoneHeader}
+                              <span className="text-[9px]">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                            </button>
+                          </th>
+                        );
+                        return null;
+                      })}
                       <th className="h-10 px-6 text-right text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
                     </tr>
                   </thead>
@@ -661,12 +587,12 @@ function DeliveriesPageContent() {
                     {loading ? (
                       Array.from({ length: 15 }).map((_, i) => (
                         <tr key={i}>
-                          <td colSpan={7} className="px-6 py-6 text-center"><AppLoader size="sm" /></td>
+                          <td colSpan={visibleIds.size + 2} className="px-6 py-6 text-center"><AppLoader size="sm" /></td>
                         </tr>
                       ))
                     ) : filteredRows.length === 0 ? (
                       <tr>
-                        <td colSpan={7}>
+                        <td colSpan={visibleIds.size + 2}>
                           <EmptyState icon={<IconScan size={32} />} message={t.empty.deliveries} />
                         </td>
                       </tr>
@@ -674,7 +600,7 @@ function DeliveriesPageContent() {
                       filteredRows.map((item: DeliveryRow) => (
                         <tr
                           key={item.rowId}
-                          className="hover:bg-[var(--hover-bg)] transition-all group cursor-pointer h-14"
+                          className={cn('hover:bg-[var(--hover-bg)] transition-all group cursor-pointer', DELIVERY_ROW_H[density])}
                           onClick={() => router(`/deliveries/${item.rowId}`)}
                         >
                           {/* Status Vertical Ribbon */}
@@ -685,101 +611,110 @@ function DeliveriesPageContent() {
                              />
                           </td>
 
-                          <td className="px-6">
-                            <div className="flex flex-col gap-0">
-                              <Link to={`/deliveries/${item.rowId ?? item.id}`} onClick={(e) => e.stopPropagation()} style={{ textDecoration: 'none' }}>
-                                <span className="text-[11px] font-[700] font-mono tabular-nums hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--brand)', cursor: 'pointer' }}>
-                                  {resolveOrderRef(item)}
-                                </span>
-                              </Link>
-                              <span className="text-[11px] font-[600] text-[var(--text-muted)] uppercase font-mono tracking-tighter opacity-70">
-                                #{shortId(item.rowId)}
-                              </span>
-                            </div>
-                          </td>
-
-                          <td className="px-6">
-                            <div className="flex flex-col gap-0.5 max-w-[400px]">
-                              <span className="text-[11px] font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
-                                {item.clientName || t.deliveriesPage.unknownDriver}
-                              </span>
-                              <div className="flex items-center gap-1 flex-nowrap">
-                                <IconMapPin size={10} className="text-[var(--text-muted)]" />
-                                <span className="text-[10px] font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
-                              </div>
-                            </div>
-                          </td>
-
-                          <td className="px-6">
-                            {(() => {
-                              if (!item.scheduledAt) {
-                                return <span className="text-[11px] text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
-                              }
-                              const scheduledDate = item.scheduledAt.split('T')[0];
-                              const now = new Date();
-                              const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-                              const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-                              
-                              let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
-                              if (isPending) {
-                                if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
-                                else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
-                                else colorClass = 'text-[#3B82F6] bg-blue-50 border-blue-200';
-                              }
-
-                              return (
-                                <div className="inline-flex items-center gap-1">
-                                  <span className={cn("text-[11px] font-bold", colorClass.split(' ')[0])}>
-                                    {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
-                                    <span className="mr-0.5">,</span>
-                                    {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
-                                  </span>
-                                  {item.rescheduledAt && (
-                                    <span
-                                      title={t.deliveryPage.rescheduledTooltip}
-                                      className="text-[9px] font-bold px-1 py-0.5 rounded-[2px]"
-                                      style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
-                                    >
-                                      {t.deliveryPage.rescheduledBadge}
+                          {orderedColumns.map(col => {
+                            if (!visibleIds.has(col.id)) return null;
+                            if (col.id === 'ref') return (
+                              <td key="ref" className="px-6">
+                                <div className="flex flex-col gap-0">
+                                  <Link to={`/deliveries/${item.rowId ?? item.id}`} onClick={(e) => e.stopPropagation()} style={{ textDecoration: 'none' }}>
+                                    <span className="text-[11px] font-[700] font-mono tabular-nums hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--brand)', cursor: 'pointer' }}>
+                                      {resolveOrderRef(item)}
                                     </span>
+                                  </Link>
+                                  <span className="text-[11px] font-[600] text-[var(--text-muted)] uppercase font-mono tracking-tighter opacity-70">
+                                    #{shortId(item.rowId)}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                            if (col.id === 'client') return (
+                              <td key="client" className="px-6">
+                                <div className="flex flex-col gap-0.5 max-w-[400px]">
+                                  <span className="text-[11px] font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
+                                    {item.clientName || t.deliveriesPage.unknownDriver}
+                                  </span>
+                                  <div className="flex items-center gap-1 flex-nowrap">
+                                    <IconMapPin size={10} className="text-[var(--text-muted)]" />
+                                    <span className="text-[10px] font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                            if (col.id === 'scheduled') return (
+                              <td key="scheduled" className="px-6">
+                                {(() => {
+                                  if (!item.scheduledAt) {
+                                    return <span className="text-[11px] text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
+                                  }
+                                  const scheduledDate = item.scheduledAt.split('T')[0];
+                                  const now = new Date();
+                                  const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
+                                  const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+                                  let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
+                                  if (isPending) {
+                                    if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
+                                    else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
+                                    else colorClass = 'text-[#3B82F6] bg-blue-50 border-blue-200';
+                                  }
+                                  return (
+                                    <div className="inline-flex items-center gap-1">
+                                      <span className={cn('text-[11px] font-bold', colorClass.split(' ')[0])}>
+                                        {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
+                                        <span className="mr-0.5">,</span>
+                                        {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                      {item.rescheduledAt && (
+                                        <span
+                                          title={t.deliveryPage.rescheduledTooltip}
+                                          className="text-[9px] font-bold px-1 py-0.5 rounded-[2px]"
+                                          style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
+                                        >
+                                          {t.deliveryPage.rescheduledBadge}
+                                        </span>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </td>
+                            );
+                            if (col.id === 'status') return (
+                              <td key="status" className="px-6">
+                                <StatusBadge status={item.status} size="sm" />
+                              </td>
+                            );
+                            if (col.id === 'driver') return (
+                              <td key="driver" className="px-6">
+                                <div className="flex items-center gap-1.5 justify-center">
+                                  {item.driverName ? (
+                                    <>
+                                      <div className="size-5 rounded-[1px] bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
+                                        {item.driverName.charAt(0)}
+                                      </div>
+                                      <span className="text-[11px] font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
+                                    </>
+                                  ) : (
+                                    <span className="text-[11px] font-[400] text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
                                   )}
                                 </div>
-                              );
-                            })()}
-                          </td>
-
-                          <td className="px-6">
-                            <StatusBadge status={item.status} size="sm" />
-                          </td>
-
-                          <td className="px-6">
-                            <div className="flex items-center gap-1.5 justify-center">
-                              {item.driverName ? (
-                                <>
-                                  <div className="size-5 rounded-[1px] bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
-                                    {item.driverName.charAt(0)}
-                                  </div>
-                                  <span className="text-[11px] font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
-                                </>
-                              ) : (
-                                <span className="text-[11px] font-[400] text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
-                              )}
-                            </div>
-                          </td>
-
-                          <td className="px-6">
-                            <div className="flex justify-center">
-                              <span
-                                className="text-[11px] font-[500] px-2 py-0.5 rounded-full"
-                                style={{
-                                  color: item.zoneColor || 'var(--text-muted)',
-                                  backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
-                                }}
-                              >
-                                {item.zoneName || t.deliveriesPage.outOfZone}
-                              </span>
-                            </div>
-                          </td>
+                              </td>
+                            );
+                            if (col.id === 'zone') return (
+                              <td key="zone" className="px-6">
+                                <div className="flex justify-center">
+                                  <span
+                                    className="text-[11px] font-[500] px-2 py-0.5 rounded-full"
+                                    style={{
+                                      color: item.zoneColor || 'var(--text-muted)',
+                                      backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
+                                    }}
+                                  >
+                                    {item.zoneName || t.deliveriesPage.outOfZone}
+                                  </span>
+                                </div>
+                              </td>
+                            );
+                            return null;
+                          })}
 
                           <td className="px-6">
                             <div className="flex items-center gap-1.5 justify-end flex-wrap">

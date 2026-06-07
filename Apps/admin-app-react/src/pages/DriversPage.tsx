@@ -111,6 +111,12 @@ const SVGLogout = ({ size = 13, className = "" }: { size?: number; className?: s
 // Shadcn UI Components
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { AddButton } from '@/components/ui/AddButton';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings } from '@/hooks/useColumnSettings';
+import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import { FieldInput } from '@/components/ui/field';
@@ -137,6 +143,13 @@ interface DriverStatusBadgeProps {
   status: string;
   size?: 'sm' | 'md';
 }
+
+const DRIVER_COLUMNS: ColumnDef[] = [
+  { id: 'driver',   label: 'Chauffeur',  pinned: true },
+  { id: 'contact',  label: 'Contact' },
+  { id: 'activity', label: 'Activité' },
+  { id: 'status',   label: 'Statut' },
+];
 
 const DRIVER_STATUS_COLORS: Record<string, { dot: string; bg: string; text: string; ribbon: string }> = {
   ACTIVE:        { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E', ribbon: '#4CAF82' },
@@ -205,6 +218,11 @@ function DriversPageContent() {
   usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Chauffeurs' }]);
   const role = getCurrentRole();
   const readOnly = isReadOnlyRole(role);
+
+  const { density, setDensity } = useDensity('drivers', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('drivers', DRIVER_COLUMNS);
+
+  const DRIVER_ROW_H: Record<typeof density, number> = { compact: 40, comfortable: 52, spacious: 64 };
   const [activeTab, setActiveTab] = useState<'info' | 'mission' | 'activity'>('info');
 
   // TanStack Query Hooks
@@ -239,8 +257,6 @@ function DriversPageContent() {
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [operationalFilter, setOperationalFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'busy' | 'available'>('all');
-  const [mobileTab, setMobileTab] = useState<'filters' | 'list'>('list');
-
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -444,173 +460,92 @@ function DriversPageContent() {
 
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
-      {/* Mobile Tab Bar */}
-      <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-        {([['filters', t.routesTablePage?.tabFilters || 'Filtres'], ['list', t.routesTablePage?.tabList || 'Liste']] as const).map(([tab, label]) => (
-          <button
-            key={tab}
-            type="button"
-            onClick={() => setMobileTab(tab)}
-            className={cn(
-              'flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors',
-              mobileTab === tab
-                ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]'
-                : 'text-[var(--text-soft)]'
-            )}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      <div className="flex flex-1 min-h-0 overflow-hidden">
-        {/* ── Left Sidebar (Utility Rail) ────────────────────────────────── */}
-        <div className={cn(
-          'lg:w-[280px] lg:border-e border-[var(--border)] bg-[var(--surface)] shrink-0 overflow-y-auto flex flex-col',
-          mobileTab === 'filters' ? 'flex w-full' : 'hidden lg:flex'
-        )}>
-          {/* Header */}
-          <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.driversPage.pageSubtitle}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.driversPage.pageTitle} <span className="text-[var(--brand)]">{t.driversPage.pageTitleBrand}</span>
-            </h1>
-          </div>
-
-          {/* Action buttons + search */}
-          <div className="flex flex-col gap-3 p-5 border-b border-[var(--border)]">
-            {!readOnly && (
-              <>
-                <button
-                  type="button"
-                  className="w-full h-9 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-full flex items-center justify-center gap-2 transition-opacity"
-                  onClick={openCreate}
-                >
-                  <SVGPlus size={14} />
-                  {t.driversPage.newDriverButton}
-                </button>
-                <input
-                  ref={csvInputRef}
-                  type="file"
-                  accept=".csv"
-                  className="hidden"
-                  onChange={(e) => importCsv(e.target.files?.[0] ?? null)}
-                />
-                <button
-                  type="button"
-                  className="w-full h-9 border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] font-bold text-[11px] rounded-full flex items-center justify-center gap-2 transition-colors"
-                  onClick={() => csvInputRef.current?.click()}
-                >
-                  <SVGUpload size={14} />
-                  {t.driversPage.importCsvButton}
-                </button>
-              </>
-            )}
-            <FieldInput
-              placeholder={t.driversPage.searchPlaceholder}
-              leftSection={<SVGSearch size={14} className="text-[var(--text-muted)]" />}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-9 text-[11px]"
-            />
-          </div>
-
-          {/* Status Navigation Pills */}
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex flex-col gap-0 p-2.5">
-              <p className="px-3 mb-2 text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage?.filterStatusLabel || 'Statut'}</p>
-              {[
-                { id: 'all', label: t.driversPage.allFleet || 'Toute la flotte', icon: <SVGUser size={14} />, count: stats.totalDrivers },
-                { id: 'active', label: t.driversPage.statusActive || 'Actif', icon: <SVGActivity size={14} />, count: stats.totalDrivers - stats.pendingDrivers - stats.suspendedDrivers },
-                { id: 'suspended', label: t.driversPage.statusSuspended || 'Suspendu', icon: <SVGBan size={14} />, count: stats.suspendedDrivers },
-                { id: 'pending', label: t.driversPage.statusPending || 'Invitation', icon: <SVGLock size={14} />, count: stats.pendingDrivers },
-              ].map((pill) => (
-                <button
-                  type="button"
-                  key={pill.id}
-                  onClick={() => setOperationalFilter(pill.id as any)}
-                  className={cn(
-                    "px-4 py-3 rounded-[2px] transition-all flex items-center justify-between group text-start",
-                    operationalFilter === pill.id
-                      ? "bg-[var(--surface)] border-s-2 border-[var(--brand)] ps-[14px]"
-                      : "hover:bg-[var(--surface)] border-s-2 border-transparent"
-                  )}
-                >
-                  <div className="flex items-center gap-2">
-                    <span style={{ color: operationalFilter === pill.id ? 'var(--brand)' : 'var(--text-soft)' }}>{pill.icon}</span>
-                    <span className={cn(
-                      "text-[11px] font-[600]",
-                      operationalFilter === pill.id ? "text-[var(--text-primary)]" : "text-[var(--text-soft)]"
-                    )}>{pill.label}</span>
-                  </div>
-                  <span className="text-[10px] font-[800] font-mono text-[var(--text-muted)]">{pill.count}</span>
-                </button>
-              ))}
-
-              {/* Divider */}
-              <div className="h-px bg-[var(--border)] my-3.5" />
-
-              <p className="px-3 mb-2 text-[11px] font-[600] text-[var(--text-muted)]">{t.driversPage.tabFilters || 'Activité'}</p>
-              
-              <div className="flex flex-col gap-1 px-2.5">
-                {[
-                  { id: 'all', label: t.driversPage.allFleet || 'Tous' },
-                  { id: 'busy', label: t.driversPage.busy || 'En mission' },
-                  { id: 'available', label: t.driversPage.available || 'Disponible' }
-                ].map((item) => (
-                  <button
-                    type="button"
-                    key={item.id}
-                    onClick={() => setActivityFilter(item.id as any)}
-                    className={cn(
-                      "w-full h-8 text-start px-3 text-[11px] font-semibold rounded-[2px] transition-colors flex items-center justify-between",
-                      activityFilter === item.id 
-                        ? "bg-[var(--hover-bg)] text-[var(--text-primary)] font-bold" 
-                        : "text-[var(--text-soft)] hover:bg-[var(--hover-bg)]"
-                    )}
-                  >
-                    <span>{item.label}</span>
-                    {item.id === 'busy' && (
-                      <span className="text-[10px] font-bold text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded font-mono">{stats.busyDrivers}</span>
-                    )}
-                    {item.id === 'available' && (
-                      <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded font-mono">{stats.availableDrivers}</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          {/* Refresh footer */}
-          <div className="p-5 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
-            <button
-              type="button"
-              className="w-full font-bold text-[11px] text-[var(--text-soft)] flex items-center justify-center gap-2 h-8 rounded hover:bg-[var(--hover-bg)] transition-colors"
-              onClick={() => fetchDrivers()}
-            >
-              <SVGRefresh size={14} className={loading ? 'animate-spin' : ''} />
-              {t.driversPage.refreshButton || 'Actualiser'}
+      <PageFilterBar
+        search={searchTerm}
+        onSearch={setSearchTerm}
+        searchPlaceholder={t.driversPage.searchPlaceholder}
+        attributes={[
+          { key: 'status', label: t.routesTablePage?.filterStatusLabel || 'Statut', options: [
+            { value: 'all',       label: t.driversPage.allFleet || 'Tous' },
+            { value: 'active',    label: t.driversPage.statusActive || 'Actif' },
+            { value: 'suspended', label: t.driversPage.statusSuspended || 'Suspendu' },
+            { value: 'pending',   label: t.driversPage.statusPending || 'Invitation' },
+          ]},
+          { key: 'activity', label: t.driversPage.tabFilters || 'Activité', options: [
+            { value: 'all',       label: t.driversPage.allFleet || 'Tous' },
+            { value: 'busy',      label: t.driversPage.busy || 'En mission' },
+            { value: 'available', label: t.driversPage.available || 'Disponible' },
+          ]},
+        ]}
+        activeFilters={{
+          ...(operationalFilter !== 'all' && { status: operationalFilter }),
+          ...(activityFilter !== 'all' && { activity: activityFilter }),
+        }}
+        onFilterChange={(key, val) => {
+          if (key === 'status')   setOperationalFilter((val ?? 'all') as any);
+          if (key === 'activity') setActivityFilter((val ?? 'all') as any);
+        }}
+        onRefresh={fetchDrivers}
+        refreshing={loading}
+        extraActions={!readOnly ? (
+          <div className="flex items-center gap-1.5">
+            <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => importCsv(e.target.files?.[0] ?? null)} />
+            <AddButton label={t.driversPage.newDriverButton} onClick={openCreate} />
+            <button type="button" className="h-7 px-2.5 flex items-center gap-1.5 text-[11px] font-[500] rounded-md border transition-colors hover:bg-[var(--hover-bg)] shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }} onClick={() => csvInputRef.current?.click()}>
+              <SVGUpload size={13} /> {t.driversPage.importCsvButton}
             </button>
           </div>
-        </div>
+        ) : undefined}
+      />
 
-        {/* ── Right Slab Registro (Main Table) ─────────────────────────────── */}
-        <div className={cn(
-          'flex flex-col flex-1 bg-[var(--surface)] overflow-hidden min-w-0',
-          mobileTab === 'list' ? 'flex' : 'hidden lg:flex'
-        )}>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Right Slab (full-width, sidebar removed) ── */}
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+            <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+              {filtered.length} chauffeur{filtered.length !== 1 ? 's' : ''}
+            </span>
+            <DisplaySettingsDropdown
+              columns={orderedColumns}
+              visibleIds={visibleIds}
+              onToggle={toggleColumn}
+              onReorder={moveColumn}
+              onReset={resetColumns}
+              density={density}
+              onDensityChange={setDensity}
+            />
+          </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
             <div className="min-w-[1000px] lg:min-w-0">
               {/* Header Grid Row */}
-              <div className="sticky top-0 bg-[var(--surface)] z-10 grid grid-cols-[8px_220px_130px_1fr_120px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
-                <div className="w-[8px]" />
-                <span className="text-[11px] font-[600] text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
-                <span className="text-[11px] font-[600] text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderContact}</span>
-                <span className="text-[11px] font-[600] text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderActivity}</span>
-                <span className="text-[11px] font-[600] text-[var(--text-muted)] text-start">{t.driversPage.statusActive || 'Statut'}</span>
-                <span className="text-[11px] font-[600] text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
-              </div>
+              {(() => {
+                const gridCols = [
+                  '8px',
+                  '220px',
+                  ...(orderedColumns.filter(c => !c.pinned && visibleIds.has(c.id)).map(c =>
+                    c.id === 'contact' ? '130px' : c.id === 'activity' ? '1fr' : c.id === 'status' ? '120px' : 'auto'
+                  )),
+                  '90px',
+                ].join(' ');
+                return (
+                  <div
+                    className="sticky top-0 z-10 grid gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]"
+                    style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                  >
+                    <div className="w-[8px]" />
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
+                    {orderedColumns.filter(c => !c.pinned).map(col => !visibleIds.has(col.id) ? null : (
+                      <span key={col.id} className="text-[11px] font-semibold text-[var(--text-muted)] text-start">
+                        {col.id === 'contact' ? t.driversPage.tableHeaderContact
+                         : col.id === 'activity' ? t.driversPage.tableHeaderActivity
+                         : t.driversPage.statusActive || 'Statut'}
+                      </span>
+                    ))}
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
+                  </div>
+                );
+              })()}
 
               {/* Data Rows */}
               {loading ? (
@@ -629,27 +564,35 @@ function DriversPageContent() {
                     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98'
                   };
 
+                  const gridCols = [
+                    '8px', '220px',
+                    ...(orderedColumns.filter(c => !c.pinned && visibleIds.has(c.id)).map(c =>
+                      c.id === 'contact' ? '130px' : c.id === 'activity' ? '1fr' : c.id === 'status' ? '120px' : 'auto'
+                    )),
+                    '90px',
+                  ].join(' ');
                   return (
-                    <div key={drv.id} className="border-b border-[var(--border)]">
+                    <div key={drv.id} className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
                       <div
-                        className="grid grid-cols-[8px_220px_130px_1fr_120px_90px] gap-4 items-center h-[52px] cursor-pointer group hover:bg-[var(--hover-bg)] transition-colors"
+                        className="grid gap-4 items-center cursor-pointer group hover:bg-[var(--hover-bg)] transition-colors"
+                        style={{ gridTemplateColumns: gridCols, height: DRIVER_ROW_H[density] }}
                         onClick={() => { setSelectedId(drv.id); setDetailsOpen(true); }}
                       >
-                        {/* Ribbon indicator reflecting the status exact color */}
+                        {/* Ribbon */}
                         <div className="w-[3px] h-4 rounded-r-[1px] rtl:rounded-l-[1px] rtl:rounded-r-none" style={{ backgroundColor: statusConfig.ribbon }} />
 
-                        {/* Driver info (Avatar & Name/Email) */}
+                        {/* Driver info — always shown (pinned) */}
                         <div className="flex items-center gap-3 overflow-hidden text-start">
                           <div className="relative shrink-0 select-none">
                             <div className="h-8 w-8 rounded-full border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center font-mono text-[10px] font-bold text-[var(--brand)]">
                               {drv.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                             </div>
                             {drv.accountStatus === 'ACTIVE' && (
-                              <span 
+                              <span
                                 className={cn(
                                   "absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
                                   drv.onlineStatus === 'ONLINE' ? "bg-emerald-500" : "bg-slate-400"
-                                )} 
+                                )}
                               />
                             )}
                           </div>
@@ -661,42 +604,48 @@ function DriversPageContent() {
                           </div>
                         </div>
 
-                        {/* Phone details */}
-                        <div className="flex items-center gap-1.5 text-start">
-                          <SVGPhone size={10} className="text-[var(--text-muted)]" />
-                          <span className="text-[11px] font-[600] text-[var(--text-soft)] font-mono tracking-wide">{drv.phone}</span>
-                        </div>
-
-                        {/* Mission status */}
-                        <div className="flex items-center gap-1.5 flex-nowrap text-start">
-                          {drv.activeDeliveryId ? (
-                            <div className="flex items-center gap-1.5">
-                              <StatusBadge status="IN_TRANSIT" size="sm" label={t.driversPage.activeDelivery} />
-                              <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                                {drv.activeDeliveryId.slice(0, 8).toUpperCase()}
-                              </span>
+                        {/* Optional columns in user-defined order */}
+                        {orderedColumns.filter(c => !c.pinned).map(col => {
+                          if (!visibleIds.has(col.id)) return null;
+                          if (col.id === 'contact') return (
+                            <div key="contact" className="flex items-center gap-1.5 text-start">
+                              <SVGPhone size={10} className="text-[var(--text-muted)]" />
+                              <span className="text-[11px] font-[600] text-[var(--text-soft)] font-mono tracking-wide">{drv.phone}</span>
                             </div>
-                          ) : drv.activeRouteId ? (
-                            <div className="flex items-center gap-1.5">
-                              <StatusBadge status="IN_PROGRESS" size="sm" label={t.driversPage.onRoute} />
-                              <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                                {drv.activeRouteId.slice(0, 8).toUpperCase()}
-                              </span>
+                          );
+                          if (col.id === 'activity') return (
+                            <div key="activity" className="flex items-center gap-1.5 flex-nowrap text-start">
+                              {drv.activeDeliveryId ? (
+                                <div className="flex items-center gap-1.5">
+                                  <StatusBadge status="IN_TRANSIT" size="sm" label={t.driversPage.activeDelivery} />
+                                  <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                                    {drv.activeDeliveryId.slice(0, 8).toUpperCase()}
+                                  </span>
+                                </div>
+                              ) : drv.activeRouteId ? (
+                                <div className="flex items-center gap-1.5">
+                                  <StatusBadge status="IN_PROGRESS" size="sm" label={t.driversPage.onRoute} />
+                                  <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                                    {drv.activeRouteId.slice(0, 8).toUpperCase()}
+                                  </span>
+                                </div>
+                              ) : (
+                                <StatusBadge status="CLOSED" size="sm" label={t.driversPage.free} />
+                              )}
                             </div>
-                          ) : (
-                            <StatusBadge status="CLOSED" size="sm" label={t.driversPage.free} />
-                          )}
-                        </div>
-
-                        {/* Custom Badge & Online Status */}
-                        <div className="text-start flex flex-col gap-0.5 items-start justify-center">
-                          <DriverStatusBadge status={drv.accountStatus ?? 'PENDING_SETUP'} size="sm" />
-                          {drv.accountStatus === 'ACTIVE' && (
-                            <span className="text-[8px] font-bold text-[var(--text-muted)] tracking-wider">
-                              {drv.onlineStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
-                            </span>
-                          )}
-                        </div>
+                          );
+                          if (col.id === 'status') return (
+                            <div key="status" className="text-start flex flex-col gap-0.5 items-start justify-center">
+                              <DriverStatusBadge status={drv.accountStatus ?? 'PENDING_SETUP'} size="sm" />
+                              {drv.accountStatus === 'ACTIVE' && (
+                                <span className="text-[8px] font-bold text-[var(--text-muted)] tracking-wider">
+                                  {drv.onlineStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
+                                </span>
+                              )}
+                            </div>
+                          );
+                          return null;
+                        })}
 
                         {/* Slick action dropdown */}
                         <div className="flex items-center justify-end pe-6" onClick={(e) => e.stopPropagation()}>
@@ -800,7 +749,7 @@ function DriversPageContent() {
             <Button
               size="sm"
               onClick={() => setDetailsOpen(false)}
-              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded-full px-4"
+              className="h-7 px-3 text-[11px] font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
             >
               {t.driversPage.cancelButton || 'Fermer'}
             </Button>
@@ -1057,12 +1006,12 @@ function DriversPageContent() {
         size="sm"
         footer={
           <div className="flex items-center justify-end gap-2 w-full mt-2">
-            <Button variant="ghost" size="sm" className="text-xs font-semibold text-slate-500 rounded-full px-4" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
+            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] font-bold rounded-md" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
             <Button
               size="sm"
               onClick={saveDriver}
               disabled={saving}
-              className="text-xs font-semibold bg-[var(--brand)] hover:opacity-90 text-white rounded-full px-4"
+              className="h-7 px-3 text-[11px] font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
             >
               {saving ? t.driversPage.resendInProgress : editingDriver ? t.driversPage.saveButton : t.driversPage.createButton}
             </Button>

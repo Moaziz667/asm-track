@@ -9,6 +9,7 @@ import {
   IconX,
   IconBan,
 } from '@tabler/icons-react';
+import { useT } from '@/lib/LocaleContext';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -39,28 +40,9 @@ interface RouteTimelineItemProps {
 }
 
 export function RouteTimelineItem({
-  stopOrder,
-  status,
-  clientName,
-  address,
-  city,
-  amount,
-  currency,
-  timeWindow,
-  isExpanded,
-  onToggle,
-  onEditWindow,
-  onRemove,
-  onCancel,
-  canEdit,
-  canRemove,
-  canCancel,
-  isActive,
-  isDone,
-  delayBadge,
-  priorityBadge,
-  children,
+  stop, currency, canEdit, canRemove, canCancel, isExpanded, onToggle, onEditWindow, onRemove, onCancel,
 }: RouteTimelineItemProps) {
+  const t = useT();
   // Status color mapping
   const statusConfig: Record<string, { bg: string; border: string; text: string; dot: string }> = {
     SCHEDULED: { bg: '#EFF6FF', border: '#BFDBFE', text: '#2563EB', dot: '#3B82F6' },
@@ -154,7 +136,7 @@ export function RouteTimelineItem({
                   e.stopPropagation();
                   onEditWindow?.();
                 }}
-                title="Modifier la fenêtre horaire"
+                title={t.tooltips.editWindow}
               >
                 <IconPencil size={13} />
               </button>
@@ -166,7 +148,7 @@ export function RouteTimelineItem({
                   e.stopPropagation();
                   onRemove?.();
                 }}
-                title="Retirer l'arrêt"
+                title={t.tooltips.removeStop}
               >
                 <IconX size={13} />
               </button>
@@ -178,7 +160,7 @@ export function RouteTimelineItem({
                   e.stopPropagation();
                   onCancel?.();
                 }}
-                title="Annuler le passage"
+                title={t.tooltips.cancelStop}
               >
                 <IconBan size={13} />
               </button>

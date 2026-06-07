@@ -4,6 +4,7 @@ import com.asm.delivery.dto.response.DepotResponse;
 import com.asm.delivery.service.DepotService;
 import com.asm.delivery.service.DepotSyncService;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -49,5 +50,12 @@ public class DepotController {
     @Operation(summary = "Sync depots from the ERP warehouses (Odoo stock.warehouse)")
     public ResponseEntity<DepotSyncService.SyncResult> sync() {
         return ResponseEntity.ok(depotSyncService.syncFromErp());
+    }
+
+    @PostMapping("/{id}/geolocate")
+    @Operation(summary = "Geocode depot address", description = "Calls Nominatim to resolve GPS coordinates from the depot's stored address and persists the result.")
+    public ResponseEntity<DepotResponse> geolocate(
+            @Parameter(description = "Depot UUID") @PathVariable UUID id) {
+        return ResponseEntity.ok(depotService.geolocate(id));
     }
 }

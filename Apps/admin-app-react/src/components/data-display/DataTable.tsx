@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
 import { TableSkeleton } from '@/components/feedback/TableSkeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { useT } from '@/lib/LocaleContext';
 
 export interface Column<T> {
   key: string;
@@ -31,7 +32,7 @@ export function DataTable<T>({
   data,
   loading = false,
   skeletonRows = 8,
-  emptyMessage = 'Aucun résultat',
+  emptyMessage,
   emptyHint,
   emptyIcon,
   onRowClick,
@@ -39,6 +40,8 @@ export function DataTable<T>({
   className,
   stickyHeader = false,
 }: DataTableProps<T>) {
+  const t = useT();
+  const resolvedEmptyMessage = emptyMessage ?? t.empty.generic;
   return (
     <div className={cn('pro-table-container', className)}>
       {/* Header */}
@@ -63,7 +66,7 @@ export function DataTable<T>({
       {loading && <TableSkeleton rows={skeletonRows} columns={columns.length} />}
 
       {!loading && data.length === 0 && (
-        <EmptyState icon={emptyIcon} message={emptyMessage} hint={emptyHint} />
+        <EmptyState icon={emptyIcon} message={resolvedEmptyMessage} hint={emptyHint} />
       )}
 
       {!loading && data.map((row, i) => (

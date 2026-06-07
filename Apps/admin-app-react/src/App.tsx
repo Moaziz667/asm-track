@@ -24,8 +24,10 @@ const RoutesTablePage = lazy(() => import('./pages/RoutesTablePage'));
 const DriversPage = lazy(() => import('./pages/DriversPage'));
 const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
 const DepotsPage = lazy(() => import('./pages/DepotsPage'));
-const CompaniesPage = lazy(() => import('./pages/CompaniesPage'));
-const OperationsPage = lazy(() => import('./pages/OperationsPage'));
+const SchedulePage = lazy(() => import('./pages/SchedulePage'));
+const OverviewCalendarPage = lazy(() => import('./pages/OverviewCalendarPage'));
+const ReturnsPage = lazy(() => import('./pages/ReturnsPage'));
+const SystemHealthPage = lazy(() => import('./pages/SystemHealthPage'));
 const PerformancePage = lazy(() => import('./pages/PerformancePage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const ErpIntegrationPage = lazy(() => import('./pages/ErpIntegrationPage'));
@@ -104,8 +106,8 @@ const router = createBrowserRouter([
       { path: "/drivers", element: guard(DISPATCH, <DriversPage />) },
       { path: "/vehicles", element: guard(DISPATCH, <VehiclesPage />) },
       { path: "/depots", element: guard(DISPATCH, <DepotsPage />) },
-      { path: "/companies", element: guard(ADMIN_ONLY, <CompaniesPage />) },
-      { path: "/operations", element: guard(ALL, <OperationsPage />) },
+      { path: "/schedule", element: guard(ALL, <SchedulePage />) },
+      { path: "/overview", element: guard(ALL, <OverviewCalendarPage />) },
       { path: "/performance", element: guard(ALL, <PerformancePage />) },
       { path: "/settings", element: guard(ADMIN_ONLY, <SettingsPage />) },
       { path: "/settings/erp", element: guard(ADMIN_ONLY, <ErpIntegrationPage />) },
@@ -113,6 +115,8 @@ const router = createBrowserRouter([
       { path: "/import", element: guard(DISPATCH, <ImportPage />) },
       { path: "/notifications", element: guard(ALL, <NotificationsPage />) },
       { path: "/zones", element: guard(DISPATCH, <ZonesPage />) },
+      { path: "/returns", element: guard(DISPATCH, <ReturnsPage />) },
+      { path: "/system-health", element: guard(ADMIN_ONLY, <SystemHealthPage />) },
       { path: "*", element: <NotFound /> },
     ]
   },

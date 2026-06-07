@@ -2,6 +2,7 @@
 import * as React from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/LocaleContext';
 import { IconSearch } from '@tabler/icons-react';
 
 type CommandItem = {
@@ -11,6 +12,7 @@ type CommandItem = {
 };
 
 export function CommandSurface() {
+  const t = useT();
   const router = useRouter();
   const [opened, setOpened] = React.useState(false);
   const [search, setSearch] = React.useState('');
@@ -18,14 +20,14 @@ export function CommandSurface() {
 
   // Core system commands catalog
   const COMMANDS = React.useMemo<CommandItem[]>(() => [
-    { label: "Aller au Tableau de bord", category: "Navigation", action: () => router('/dashboard') },
-    { label: "Aller au Dispatch Desk", category: "Navigation", action: () => router('/dispatch-desk') },
-    { label: "Aller au Suivi des livraisons", category: "Navigation", action: () => router('/deliveries') },
-    { label: "Aller à la Planification de tournée", category: "Navigation", action: () => router('/route-builder') },
-    { label: "Aller aux Paramètres système", category: "Navigation", action: () => router('/settings') },
-    { label: "Importer des commandes depuis Odoo", category: "Opérations", action: () => router('/import') },
-    { label: "Consulter les anomalies (échecs/retours)", category: "Opérations", action: () => router('/deliveries?status=FAILED') },
-  ], [router]);
+    { label: t.commandSurface.goToDashboard, category: t.commandSurface.categoryNavigation, action: () => router('/dashboard') },
+    { label: t.commandSurface.goToDispatch, category: t.commandSurface.categoryNavigation, action: () => router('/dispatch-desk') },
+    { label: t.commandSurface.goToDeliveries, category: t.commandSurface.categoryNavigation, action: () => router('/deliveries') },
+    { label: t.commandSurface.goToRouteBuilder, category: t.commandSurface.categoryNavigation, action: () => router('/route-builder') },
+    { label: t.commandSurface.goToSettings, category: t.commandSurface.categoryNavigation, action: () => router('/settings') },
+    { label: t.commandSurface.importFromOdoo, category: t.commandSurface.categoryOperations, action: () => router('/import') },
+    { label: t.commandSurface.checkExceptions, category: t.commandSurface.categoryOperations, action: () => router('/deliveries?status=FAILED') },
+  ], [router, t]);
 
   // Filter commands in place
   const filteredCommands = React.useMemo(() => {
@@ -100,7 +102,7 @@ export function CommandSurface() {
           <input
             type="text"
             autoFocus
-            placeholder="Rechercher une action ou page... (⌘K)"
+            placeholder={t.commandSurface.placeholder}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="flex-1 bg-transparent text-xs font-semibold text-[var(--text-primary)] placeholder:text-[var(--text-muted)]/60 outline-none h-full w-full"
@@ -111,7 +113,7 @@ export function CommandSurface() {
         <div className="flex-1 min-h-0 overflow-y-auto py-dense-2">
           {filteredCommands.length === 0 ? (
             <div className="px-dense-4 py-dense-3 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">
-              Aucun résultat trouvé
+              {t.commandSurface.noResults}
             </div>
           ) : (
             filteredCommands.map((cmd, i) => (

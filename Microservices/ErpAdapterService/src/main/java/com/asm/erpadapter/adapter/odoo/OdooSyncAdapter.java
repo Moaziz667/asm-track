@@ -2,6 +2,8 @@ package com.asm.erpadapter.adapter.odoo;
 
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
+import com.asm.erpadapter.dto.ErpPodDTO;
+import com.asm.erpadapter.dto.ErpReturnItemDTO;
 import com.asm.erpadapter.port.ErpSyncPort;
 import com.asm.erpadapter.service.IdempotencyService;
 import lombok.RequiredArgsConstructor;
@@ -74,6 +76,26 @@ public class OdooSyncAdapter implements ErpSyncPort {
             String key = inFlightKey(erpOrderId, pickingRef);
             if (!inFlight.add(key)) return false;
             try { return doSyncFailure(erpOrderId, failureCode, comment); }
+            finally { inFlight.remove(key); }
+        });
+    }
+
+    @Override
+    public boolean syncProofOfDelivery(String erpOrderId, ErpPodDTO pod, String transactionId, String pickingRef) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
+            try { return doSyncProofOfDelivery(erpOrderId, pod); }
+            finally { inFlight.remove(key); }
+        });
+    }
+
+    @Override
+    public boolean syncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String transactionId, String pickingRef) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
+            try { return doSyncReturn(erpOrderId, items, reason); }
             finally { inFlight.remove(key); }
         });
     }
@@ -287,6 +309,115 @@ public class OdooSyncAdapter implements ErpSyncPort {
         sb.append("<b>Code :</b> ").append(failureCode != null ? failureCode : "UNKNOWN").append("<br/>");
         if (comment != null && !comment.isBlank()) {
             sb.append("<b>Commentaire :</b> ").append(comment);
+        }
+        return sb.toString();
+    }
+
+    // ── Proof of delivery ──────────────────────────────────────────────────────
+
+    private boolean doSyncProofOfDelivery(String erpOrderId, ErpPodDTO pod) {
+        Integer erpId = resolveErpId(erpOrderId);
+        if (erpId == null) return false;
+        if (pod == null) pod = ErpPodDTO.builder().build();
+
+        // Attach the photos (best-effort, tolerant of missing/invalid base64).
+        createPodAttachment(erpId, pod.getBlPhotoBase64(), "bon-livraison.png");
+        createPodAttachment(erpId, pod.getPackagePhotoBase64(), "package.png");
+
+        // Post the metadata note to the chatter.
+        addNoteToSaleOrder(erpId, buildPodNote(pod));
+        return true;
+    }
+
+    private void createPodAttachment(Integer erpId, String base64, String name) {
+        if (base64 == null || base64.isBlank()) return;
+        // Strip a possible data-URL prefix (data:image/png;base64,....).
+        String data = base64.contains(",") ? base64.substring(base64.indexOf(',') + 1) : base64;
+        try {
+            Map<String, Object> values = new HashMap<>();
+            values.put("name", name);
+            values.put("datas", data);
+            values.put("res_model", "sale.order");
+            values.put("res_id", erpId);
+            values.put("mimetype", "image/png");
+            rpc.callRpc(rpc.buildArgs("ir.attachment", "create", List.of(values)));
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=syncPod erpId={} attachment={} action=skip reason={}", erpId, name, e.getMessage());
+        }
+    }
+
+    // ── Returns (RMA) ──────────────────────────────────────────────────────────
+
+    private boolean doSyncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason) {
+        Integer erpId = resolveErpId(erpOrderId);
+        if (erpId == null) return false;
+
+        // Record the return on the sale-order chatter (authoritative trace in the ERP).
+        addNoteToSaleOrder(erpId, buildReturnNote(items, reason));
+
+        // Best-effort reverse stock move for resellable units via the return-picking wizard.
+        // Tolerant of Odoo configuration differences — the note above is the guarantee.
+        try {
+            createReturnPicking(erpId, items);
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=syncReturn erpId={} action=return_picking_skipped reason={}", erpId, e.getMessage());
+        }
+        return true;
+    }
+
+    private void createReturnPicking(Integer erpId, List<ErpReturnItemDTO> items) {
+        // Locate the validated outgoing picking for this order.
+        Map<String, Object> picking = findSinglePicking(erpId);
+        if (picking == null) {
+            log.info("provider=odoo operation=syncReturn erpId={} action=no_done_picking", erpId);
+            return;
+        }
+        Integer pickingId = ((Number) picking.get("id")).intValue();
+        // Create the return-picking wizard bound to the source picking; Odoo computes the
+        // returnable move lines via default_get. We confirm with create_returns.
+        Map<String, Object> ctx = Map.of("active_id", pickingId, "active_model", "stock.picking", "active_ids", List.of(pickingId));
+        Map<String, Object> wizardResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "create",
+                List.of(Map.of("picking_id", pickingId)), Map.of("context", ctx)));
+        Object wizardIdRaw = wizardResp != null ? wizardResp.get("result") : null;
+        Integer wizardId = asInt(wizardIdRaw);
+        if (wizardId == null) {
+            log.info("provider=odoo operation=syncReturn erpId={} pickingId={} action=wizard_unavailable", erpId, pickingId);
+            return;
+        }
+        rpc.callRpc(rpc.buildArgs("stock.return.picking", "create_returns", List.of(List.of(wizardId)), Map.of("context", ctx)));
+        log.info("provider=odoo operation=syncReturn erpId={} pickingId={} action=return_created", erpId, pickingId);
+    }
+
+    private String buildReturnNote(List<ErpReturnItemDTO> items, String reason) {
+        StringBuilder sb = new StringBuilder("<b>ASM Track — Retour client (RMA)</b><br/>");
+        if (reason != null && !reason.isBlank()) sb.append("<b>Motif :</b> ").append(reason).append("<br/>");
+        if (items != null && !items.isEmpty()) {
+            sb.append("<b>Articles retournés :</b><ul>");
+            for (ErpReturnItemDTO it : items) {
+                sb.append("<li>")
+                  .append(it.getQuantity() != null ? it.getQuantity() : "?").append("× ")
+                  .append(it.getName() != null ? it.getName() : (it.getSku() != null ? it.getSku() : "Article"))
+                  .append(it.getCondition() != null ? " (" + it.getCondition() + ")" : "")
+                  .append("</li>");
+            }
+            sb.append("</ul>");
+        }
+        return sb.toString();
+    }
+
+    private String buildPodNote(ErpPodDTO pod) {
+        StringBuilder sb = new StringBuilder("<b>ASM Track — Preuve de livraison</b><br/>");
+        if (pod.getRecipientName() != null && !pod.getRecipientName().isBlank()) {
+            sb.append("<b>Reçu par :</b> ").append(pod.getRecipientName()).append("<br/>");
+        }
+        if (pod.getDeliveredAt() != null && !pod.getDeliveredAt().isBlank()) {
+            sb.append("<b>Horodatage :</b> ").append(pod.getDeliveredAt()).append("<br/>");
+        }
+        if (pod.getLat() != null && pod.getLng() != null) {
+            sb.append("<b>Position :</b> ").append(pod.getLat()).append(", ").append(pod.getLng()).append("<br/>");
+        }
+        if (pod.getComment() != null && !pod.getComment().isBlank()) {
+            sb.append("<b>Commentaire :</b> ").append(pod.getComment());
         }
         return sb.toString();
     }

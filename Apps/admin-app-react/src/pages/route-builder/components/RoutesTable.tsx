@@ -4,7 +4,6 @@ import { IconRoute, IconLock, IconLockOpen } from '@tabler/icons-react';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 
 const formatKm = (m?: number) => (!m || m <= 0 ? '—' : `${(m / 1000).toFixed(1)} km`);
@@ -19,7 +18,6 @@ const formatMin = (s?: number) => {
 
 export function RoutesTable() {
   const t = useT();
-  const locale = useLocaleStore((state) => state.locale);
   const rb = useRouteBuilderContext();
   const {
     routes,
@@ -86,7 +84,7 @@ export function RoutesTable() {
                             <IconLock size={11} />
                           </span>
                         </TooltipTrigger>
-                        <TooltipContent>{locale === 'ar' ? 'مغلق' : locale === 'en' ? 'Locked' : 'Verrouillée'}</TooltipContent>
+                        <TooltipContent>{t.routeBuilderPage.routeLockedBadge}</TooltipContent>
                       </Tooltip>
                     ) : (
                       <span className="text-[var(--text-muted)] shrink-0">

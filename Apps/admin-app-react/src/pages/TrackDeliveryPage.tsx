@@ -11,7 +11,7 @@ const TrackingMap = dynamic(() => import('./TrackingMap'));
 
 interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
-  deliveryId: string; status: string; clientName?: string; clientPhone?: string; erpOrderId?: string
+  deliveryId: string; status: string; failReason?: string; returnStatus?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
@@ -29,6 +29,7 @@ function getStatusConfig(t: any): Record<string, { label: string; sub: string; c
     PICKED_UP:   { label: t.trackingPage.statusPriseEnCharge, sub: t.trackingPage.statusSubPriseEnCharge, color: 'var(--brand)' },
     IN_TRANSIT:  { label: t.trackingPage.statusEnRoute, sub: t.trackingPage.statusSubEnRoute, color: 'var(--brand)' },
     DELIVERED:   { label: t.trackingPage.statusLivree, sub: t.trackingPage.statusSubLivree, color: '#16a34a' },
+    PARTIALLY_DELIVERED: { label: t.trackingPage.statusPartielle, sub: t.trackingPage.statusSubPartielle, color: '#f59e0b' },
     FAILED:      { label: t.trackingPage.statusTentativeEchouee, sub: t.trackingPage.statusSubTentativeEchouee, color: '#ef4444' },
     CANCELLED:   { label: t.trackingPage.statusAnnulee, sub: t.trackingPage.statusSubAnnulee, color: '#ef4444' },
   };
@@ -191,6 +192,24 @@ export default function TrackingPage() {
                 </div>
               )}
             </div>
+
+            {/* Failure reason — shown to the customer on failed / partial deliveries */}
+            {data.failReason && (
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: '#fef2f2', border: '1px solid #fecaca' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#b91c1c', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{t.trackingPage.labelFailureReason}</div>
+                <div style={{ fontSize: 13, color: '#7f1d1d', fontWeight: 600 }}>{data.failReason}</div>
+              </div>
+            )}
+
+            {/* Return (RMA) status banner */}
+            {data.returnStatus && (
+              <div style={{ marginTop: 12, padding: '10px 12px', borderRadius: 10, background: '#fffbeb', border: '1px solid #fde68a' }}>
+                <div style={{ fontSize: 10, fontWeight: 700, color: '#b45309', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 2 }}>{t.trackingPage.labelReturn}</div>
+                <div style={{ fontSize: 13, color: '#92400e', fontWeight: 600 }}>
+                  {(t.trackingPage.returnStatusLabels as Record<string, string>)[data.returnStatus] ?? data.returnStatus}
+                </div>
+              </div>
+            )}
 
             {/* Stepper */}
             {stepIdx >= 0 && (

@@ -93,6 +93,10 @@ export const AR_COPY = {
     unassignDelivery: 'إزالة من الرحلة وإرجاعها لقائمة الشحنات غير المعينة',
     capacityOver: 'تجاوزت سعة المركبة — اختر مركبة أخرى أو قسّم الشحنة',
     capacityOk: 'سعة المركبة متاحة',
+    editWindow: 'تعديل النافذة الزمنية',
+    removeStop: 'إزالة المحطة',
+    cancelStop: 'إلغاء المحطة',
+    reposition: 'إعادة ترتيب',
   },
 
   // ── Empty States ──────────────────────────────────────────────────────
@@ -336,10 +340,6 @@ export const AR_COPY = {
       title: 'إنشاء رحلة',
       subtitle: 'تخطيط المسارات وتحسينها على الخريطة',
     },
-    companies: {
-      title: 'الشركات',
-      subtitle: 'إدارة المستأجرين وتكوينات نظام ERP',
-    },
   },
 
   // ── Status Labels ──────────────────────────────────
@@ -365,6 +365,14 @@ export const AR_COPY = {
     REMOVED_REPLANNED: 'تمت إعادة جدولته',
     REMOVED_CANCELLED: 'ملغى (مزال)',
     FAILED_ATTEMPT: 'محاولة فاشلة',
+    ACTIVE: 'نشط',
+    MUTED: 'خارج الخدمة',
+    MAINTENANCE: 'صيانة',
+    REQUESTED: 'مطلوب',
+    APPROVED: 'تمت الموافقة',
+    RECEIVED: 'تم الاستلام',
+    RESTOCKED: 'أُعيد للمخزون',
+    REJECTED: 'مرفوض',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -548,6 +556,43 @@ export const AR_COPY = {
     },
   },
 
+  // ── Command Surface (palette) ─────────────────────────────────────────────
+  commandSurface: {
+    placeholder: 'ابحث عن إجراء أو صفحة... (⌘K)',
+    noResults: 'لم يتم العثور على نتائج',
+    goToDashboard: 'الانتقال إلى لوحة التحكم',
+    goToDispatch: 'الانتقال إلى مركز التوزيع',
+    goToDeliveries: 'الانتقال إلى تتبع التسليم',
+    goToRouteBuilder: 'الانتقال إلى تخطيط الرحلة',
+    goToSettings: 'الانتقال إلى إعدادات النظام',
+    importFromOdoo: 'استيراد الطلبات من Odoo',
+    checkExceptions: 'التحقق من الاستثناءات (الإخفاقات/المرتجعات)',
+    categoryNavigation: 'التنقل',
+    categoryOperations: 'العمليات',
+  },
+
+  // ── Display Settings ──────────────────────────────────────────────────────
+  displaySettings: {
+    title: 'إعدادات العرض',
+    density: 'الكثافة',
+    columns: 'الأعمدة',
+    visibleColumns: 'الأعمدة المرئية',
+    reset: 'إعادة تعيين',
+    pinned: 'مثبت',
+    compact: 'مضغوط',
+    comfortable: 'مريح',
+    spacious: 'فسيح',
+    display: 'العرض',
+    resetLayout: 'إعادة تعيين التخطيط',
+  },
+
+  // ── Error Boundary ─────────────────────────────────────────────────────────
+  errorBoundary: {
+    title: 'انهيار تدفق المكون (تعطل)',
+    description: 'حدث استثناء غير متوقع أثناء عرض هذه الكتلة التشغيلية. تظل سلامة التنسيق نشطة.',
+    resetButton: 'إعادة تعيين التدفق',
+  },
+
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
     syncError: 'فشل المزامنة',
@@ -607,6 +652,8 @@ export const AR_COPY = {
     kpiDriversOnline: 'السائقون المتصلون',
     kpiSlaRate: 'معدل SLA',
     kpiDeliveredOf: 'من',
+    kpiVsPrevPeriod: 'مقارنة بالفترة السابقة',
+    kpiActiveRoutesSub: 'نشطة',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -699,24 +746,23 @@ export const AR_COPY = {
     driverOnline: 'متصل',
     driverOnBreak: 'في استراحة',
     driverOffline: 'غير متصل',
-    // KPI strip
-    kpiCritical: 'حرجة',
-    kpiUnassigned: 'غير معينة',
-    kpiInTransit: 'قيد التسليم',
-    kpiFailed: 'فشلت',
     // Tabs
+    tabQueue: 'قائمة الانتظار',
     tabAssign: 'التكليفات',
     tabAction: 'يتطلب إجراء',
     tabFailed: 'فشلت',
     tabMissingGps: 'GPS مفقود',
     tabHandoff: 'التسليمات',
+    // عرض قائمة الانتظار المقسم
+    queueSelectPrompt: 'اختر طلبًا لعرض تفاصيله',
+    queueNoAlerts: 'لا توجد تنبيهات نشطة — التوصيل يسير بشكل طبيعي',
+    queueItemsLabel: 'العناصر',
     // شريط الإجراءات الجماعية
     batchCount: '{count} مختارة',
     batchMixedWarning: 'اختيار مختلط — اختر نوعًا واحدًا',
     batchAssign: 'تعيين ({count})',
     batchReassign: 'إعادة تعيين ({count})',
     batchCancel: 'إلغاء',
-    kpiUpdated: 'آخر تحديث',
     cardCreated: 'أُنشئت',
     handoffEmpty: 'لا توجد تسليمات جارية',
     handoffStateRequested: 'في انتظار الرمز',
@@ -837,6 +883,23 @@ export const AR_COPY = {
     suggestionWrongAddress: '→ تصحيح العنوان في تفاصيل الطلب',
     suggestionOther: '→ التحقق من تعليق السائق',
     suggestionSlaUnscheduledLate: '→ تعيين لرحلة عاجلة',
+    // Narration paragraphs (formatNarrative — "system talks to you" in Queue detail)
+    narrativeUnscheduledLate: 'ما زالت هذه الطلبية بانتظار تخصيص جولة وأصبحت متأخرة الآن — وهي تنتظر منذ {time}. تخصيص جولة عاجلة سيساعد على تفادي تجاوز اتفاقية مستوى الخدمة.',
+    narrativeUnscheduledToday: 'هذه الطلبية مجدولة لليوم ولم يتم تخصيص جولة لها بعد. من الأفضل تخصيصها بسرعة للبقاء ضمن الجدول الزمني.',
+    narrativeUnscheduled: 'هذه الطلبية تنتظر تخصيص جولة منذ {time}. لا شيء عاجل الآن، لكنها تستحق المتابعة.',
+    narrativeScheduled: 'هذه الطلبية مجدولة لكنها تقترب من حد اتفاقية مستوى الخدمة — تستحق نظرة سريعة.',
+    narrativePickup: 'لم يستلم السائق هذه الطلبية بعد ونافذة الاستلام توشك على الانتهاء. تذكير بسيط قد يساعد.',
+    narrativeInTransit: 'هذه الطلبية في الطريق منذ {time}، وهي مدة أطول من المتوقع. مكالمة سريعة مع السائق قد توضح الأمر.',
+    narrativeScheduledMonitoring: 'هذه الطلبية تسير بشكل طبيعي — لا حاجة لأي إجراء، مجرد متابعة روتينية.',
+    narrativeClientAbsent: 'لم يكن العميل متواجدًا في آخر محاولة توصيل، منذ {time}. مكالمة سريعة قبل إعادة المحاولة قد تمنع تكرار الأمر.',
+    narrativeRefused: 'رفض العميل استلام هذه الطلبية منذ {time}. حديث قصير قد يوضح الخطوة التالية قبل إعادة التخصيص.',
+    narrativeWrongAddress: 'يبدو أن العنوان المسجل غير صحيح — لم يتمكن السائق من إتمام التسليم. من الأفضل تأكيد العنوان الصحيح مع العميل قبل إرسالها مجددًا.',
+    narrativeDamaged: 'وصلت الطلبية تالفة. يُفضّل ترتيب إعادتها إلى المستودع وإبلاغ العميل.',
+    narrativePartial: 'تم تسليم جزء فقط من هذه الطلبية. يستحق الأمر مراجعة الناقص قبل تحديد الخطوة التالية.',
+    narrativeFailed: 'فشلت عملية التوصيل منذ {time} وتستحق المراجعة قبل إعادة التخصيص.',
+    narrativeCancelled: 'تم إلغاء هذه الطلبية.',
+    narrativeOther: 'تم الإبلاغ عن أمر يخص هذه الطلبية منذ {time} — يستحق إلقاء نظرة على التفاصيل قبل المتابعة.',
+    narrativeDefault: 'تم الإبلاغ عن حدث يخص هذه الطلبية منذ {time}.',
     // ReplanModal
     replanModalTitleReplan: 'إعادة جدولة للتخطيط',
     replanModalTitleReassign: 'إعادة تعيين التسليم',
@@ -1211,6 +1274,7 @@ export const AR_COPY = {
 
     // Last sync
     lastSync: 'آخر مزامنة:',
+    syncErpButton: 'مزامنة ERP',
   },
 
   // ── صفحة منشئ المسارات ────────────────────────────────────────────────
@@ -1244,6 +1308,7 @@ export const AR_COPY = {
     noRoutesForDate: 'لا توجد مسارات في هذا التاريخ',
     lockRoute: 'قفل المسار',
     unlockRoute: 'فتح قفل المسار',
+    routeLockedBadge: 'مقفل',
     selectForBatchOptimize: 'تحديد لتحسين العمليات المجمعة',
     selectAll: 'تحديد الكل',
     deselectAll: 'إلغاء تحديد الكل',
@@ -1709,6 +1774,7 @@ export const AR_COPY = {
     retireDescription: 'هل أنت متأكد من إحالة المركبة {vehicleName} للتقاعد؟ يمكن إعادة تفعيلها لاحقاً.',
     retireButton: 'إحالة للتقاعد',
     reactivateButton: 'إعادة تفعيل',
+    editButton: 'تعديل',
   },
 
   // ── صفحة المستودعات ──────────────────────────────────────────────────
@@ -1917,6 +1983,7 @@ export const AR_COPY = {
     generalConfig: 'الإعدادات العامة',
     slaParameters: 'حدود SLA',
     identitiesAccess: 'الهويات والوصول',
+    failureReasons: 'أسباب الفشل',
     tabSections: 'الأقسام',
     tabParameters: 'المعاملات',
     systemAdmin: 'إدارة النظام',
@@ -2182,14 +2249,10 @@ export const AR_COPY = {
     errorImportFailed: 'فشل الاستيراد',
 
     // Company CRUD
-    successCompanyCreated: 'تم إنشاء الشركة بنجاح',
     successCompanyUpdated: 'تم تحديث الشركة بنجاح',
-    successCompanyDeactivated: 'تم إلغاء تنشيط الشركة بنجاح',
-    errorCompanyCreateFailed: 'فشل إنشاء الشركة',
     errorCompanyUpdateFailed: 'فشل تحديث الشركة',
-    errorCompanyDeactivateFailed: 'فشل إلغاء تنشيط الشركة',
-    errorCompaniesLoadFailed: 'فشل تحميل الشركات',
-    errorCompanyNameRequired: 'اسم الشركة مطلوب',
+    successCompanySynced: 'تمت مزامنة المعلومات من نظام ERP',
+    errorCompanySyncFailed: 'فشلت المزامنة من نظام ERP',
 
     // Depot CRUD
     successDepotCreated: 'تم إنشاء المستودع بنجاح',
@@ -2286,6 +2349,7 @@ export const AR_COPY = {
       overview: 'نظرة عامة',
       dispatch: 'التوزيع',
       tracking: 'المتابعة',
+      returns: 'المرتجعات',
       import: 'الاستيراد',
       createRoute: 'إنشاء رحلة',
       routes: 'الرحلات',
@@ -2295,10 +2359,133 @@ export const AR_COPY = {
       zones: 'المناطق الجغرافية',
       performance: 'الأداء',
       audit: 'التدقيق',
+      systemHealth: 'صحة النظام',
       settings: 'الإعدادات',
       erpIntegration: 'ربط ERP',
-      companies: 'الشركات',
+    },
+    badges: {
+      dispatchActionRequired: 'إجراء مطلوب',
+      dispatchActionsRequired: 'إجراءات مطلوبة',
+      importOne: 'استيراد واحد',
+      imports: 'استيراد',
+      routeActive: 'مسار نشط',
+      routesActive: 'مسارات نشطة',
     }
+  },
+
+  // ── failureReasonsSettings ──────────────────────────────────────────────
+  failureReasonsSettings: {
+    title: 'أسباب الفشل',
+    subtitle: 'المراجع القابلة للتكوين المعروضة للسائقين عند فشل التوصيل.',
+    addButton: 'إضافة سبب',
+    tableLabel: 'التسمية',
+    tableCode: 'الرمز',
+    tableCategory: 'الفئة',
+    tableStatus: 'الحالة',
+    loading: 'جارٍ التحميل…',
+    empty: 'لا توجد أسباب',
+    active: 'نشط',
+    inactive: 'غير نشط',
+    editTitle: 'تعديل السبب',
+    createTitle: 'سبب جديد',
+    formLabel: 'التسمية',
+    formLabelPlaceholder: 'مثال: باب مغلق',
+    formCategory: 'الفئة (التحليلية)',
+    formCode: 'الرمز (اختياري)',
+    formCodePlaceholder: 'تلقائي من التسمية',
+    formOrder: 'الترتيب',
+    formActive: 'نشط',
+    cancelButton: 'إلغاء',
+    saveButton: 'حفظ',
+    savingButton: 'جارٍ الحفظ…',
+    editTooltip: 'تعديل',
+    deactivateTooltip: 'تعطيل',
+    reactivateTooltip: 'إعادة تنشيط',
+    toastLoadFailed: 'فشل تحميل الأسباب',
+    toastLabelRequired: 'التسمية مطلوبة',
+    toastUpdated: 'تم تحديث السبب',
+    toastCreated: 'تم إنشاء السبب',
+    toastDeactivated: 'تم تعطيل السبب',
+    toastReactivated: 'تم إعادة تنشيط السبب',
+    toastSaveFailed: 'فشل حفظ السبب',
+    toastDeactivateFailed: 'فشل التعطيل',
+    toastReactivateFailed: 'فشل إعادة التنشيط',
+  },
+
+  // ── routeFilterBar ──────────────────────────────────────────────────────
+  routeFilterBar: {
+    cityPlaceholder: 'مدينة...',
+    clearButton: 'مسح',
+    statusAll: 'الكل',
+    statusDraft: 'مسودة',
+    statusValidated: 'مؤكدة',
+    statusInProgress: 'قيد التنفيذ',
+    statusClosed: 'مغلقة',
+  },
+
+  // ── operationalFilterBar ──────────────────────────────────────────────
+  operationalFilterBar: {
+    title: 'فلاتر عامة',
+    persistLabel: 'الاستمرار بين الصفحات',
+    clearButton: 'مسح',
+    zonePlaceholder: 'المنطقة',
+    driverPlaceholder: 'السائق',
+    routePlaceholder: 'الرحلة',
+    statusPlaceholder: 'الحالة',
+    searchPlaceholder: 'بحث بالمعرف/العميل/الطلب',
+    presetMorning: 'توزيع الصباح',
+    presetNorth: 'المنطقة الشمالية',
+    presetAtRisk: 'الرحلات المعرضة للخطر',
+    saveAsMorning: 'حفظ كتوزيع الصباح',
+  },
+
+  // ── newDeliveryPanel ──────────────────────────────────────────────────
+  newDeliveryPanel: {
+    searchClient: 'بحث عن عميل',
+    searchClientPlaceholder: 'بحث عن عميل...',
+    systemClients: 'عملاء النظام',
+    deliveryInstructions: 'تعليمات التوصيل',
+    instructionsPlaceholder: 'مثال: الطابق الثاني، رن مرتين...',
+    productLabel: 'المنتج',
+    productPlaceholder: 'بحث عن منتج...',
+    noProductFound: 'لم يتم العثور على منتج — أدخل يدوياً',
+    quantityLabel: 'الكمية',
+    priceLabel: 'السعر',
+    skuLabel: 'SKU',
+    skuPlaceholder: 'SKU',
+    stockAvailable: 'المخزون المتاح: {stock} وحدة',
+    stockWarning: 'الكمية تتجاوز المخزون المتاح',
+    outOfStock: 'نفد المخزون',
+    inStock: 'في المخزون',
+  },
+
+  // ── pinDropoffModal ──────────────────────────────────────────────────
+  pinDropoffModal: {
+    title: 'تحديد الموقع وجيوكودة التوصيل',
+    closeButton: 'إغلاق',
+    loadingDetails: 'جارٍ تحميل تفاصيل التوصيل...',
+    autoGeocode: 'جيوكودة تلقائي',
+    latitude: 'خط العرض',
+    longitude: 'خط الطول',
+    address: 'العنوان',
+    city: 'المدينة',
+    postalCode: 'الرمز البريدي',
+    zoneHint: 'سيتم تعيين المنطقة تلقائياً بواسطة الرمز البريدي، مع الرجوع إلى المدينة، عند حفظ الموقع.',
+    saving: 'جارٍ الحفظ...',
+    savePin: 'حفظ الموقع',
+  },
+
+  // ── deliveryRow ──────────────────────────────────────────────────────
+  deliveryRow: {
+    pinPosition: 'تثبيت الموقع (P)',
+    createBackorder: 'إنشاء طلب إضافي',
+    cancelOrder: 'إلغاء الطلب (C)',
+  },
+
+  // ── erpIntegrationPage ─────────────────────────────────────────────
+  erpIntegrationPage: {
+    reportIdPlaceholder: 'stock.report_deliveryslip',
+    apiUrlPlaceholder: 'مثال: https://api.dux.com/v1',
   },
 
   // ── notifications ────────────────────────────────────────────────────────
@@ -2478,6 +2665,14 @@ export const AR_COPY = {
       title: 'طلبات ERP جاهزة',
       message: (p: any) => `${p.count || 'طلبات'} ERP في انتظار الاستيراد — بحاجة إلى مراجعة`,
     },
+    'pickup.overdue': {
+      title: 'تأخر الاستلام',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تأخر الاستلام${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'delivery.backorder_created': {
+      title: 'تم إنشاء طلب متأخر',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم إنشاء طلب متأخر${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
   },
   landingPage: {
     metaTitle: "ASM Track — إدارة وتوجيه اللوجستيات",
@@ -2590,6 +2785,18 @@ export const AR_COPY = {
     statusSubEnRoute: 'سائقك في الطريق إليك',
     statusLivree: 'تم التسليم',
     statusSubLivree: 'تم تسليم طلبك بنجاح',
+    statusPartielle: 'تم التسليم جزئيًا',
+    statusSubPartielle: 'تم تسليم جزء من طلبك',
+    labelFailureReason: 'السبب',
+    labelReturn: 'الإرجاع',
+    returnStatusLabels: {
+      REQUESTED: 'تم طلب الإرجاع',
+      APPROVED: 'تمت الموافقة على الإرجاع',
+      RECEIVED: 'تم استلام الإرجاع',
+      RESTOCKED: 'تمت معالجة الإرجاع',
+      REJECTED: 'تم رفض الإرجاع',
+      CANCELLED: 'تم إلغاء الإرجاع',
+    } as Record<string, string>,
     statusTentativeEchouee: 'محاولة فاشلة',
     statusSubTentativeEchouee: 'سيتم جدولة محاولة جديدة',
     statusAnnulee: 'ملغية',
