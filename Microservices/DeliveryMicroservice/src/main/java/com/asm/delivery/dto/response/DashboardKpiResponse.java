@@ -27,6 +27,14 @@ public class DashboardKpiResponse {
     @Schema(description = "Count of replan actions")
     private long totalReplanned;      // Nombre de replanifications
 
+    // 4. Period-over-period deltas (current range vs the immediately preceding range of equal length)
+    @Schema(description = "Total orders in the immediately preceding period of equal length")
+    private long previousPeriodOrders;
+    @Schema(description = "SLA compliance (%) for the current period")
+    private double slaRate;
+    @Schema(description = "SLA compliance (%) for the preceding period")
+    private double previousSlaRate;
+
     @Data
     @Builder
     @Schema(description = "Daily volume point")
@@ -36,5 +44,11 @@ public class DashboardKpiResponse {
 
         @Schema(description = "Order count for date")
         private long count;
+
+        @Schema(description = "Delivered (incl. partial) count for date")
+        private long delivered;
+
+        @Schema(description = "Failed count for date")
+        private long failed;
     }
 }

@@ -1,17 +1,18 @@
 import 'dart:convert';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:hive/hive.dart';
 
 import '../features/routes/models/route_models.dart';
 
 class RouteCacheService {
   static const _key = 'cached_today_route';
 
+  Box get _box => Hive.box('domain_cache');
+
   Future<void> save(DriverRoute route) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
       final encoded = jsonEncode(_routeToJson(route));
-      await prefs.setString(_key, encoded);
+      await _box.put(_key, encoded);
     } catch (_) {
       // Cache write failures are non-fatal
     }
@@ -19,8 +20,7 @@ class RouteCacheService {
 
   Future<DriverRoute?> load() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_key);
+      final raw = _box.get(_key) as String?;
       if (raw == null) return null;
       final map = jsonDecode(raw) as Map<String, dynamic>;
       final route = DriverRoute.fromJson(map);
@@ -49,8 +49,7 @@ class RouteCacheService {
 
   Future<void> clear() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_key);
+      await _box.delete(_key);
     } catch (_) {}
   }
 

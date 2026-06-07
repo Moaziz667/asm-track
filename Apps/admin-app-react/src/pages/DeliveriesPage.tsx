@@ -535,7 +535,7 @@ function DeliveriesPageContent() {
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               <div className="min-w-[1000px] lg:min-w-0">
                 <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-20 bg-[var(--surface)] border-b border-[var(--border)]">
+                  <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                     <tr>
                       <th className="w-2 px-0"></th>
                       {orderedColumns.map(col => {

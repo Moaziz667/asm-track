@@ -15,11 +15,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.DayOfWeek;
+import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
@@ -29,17 +31,20 @@ import java.util.stream.Collectors;
 @Transactional(readOnly = true)
 public class ReportingService {
 
+    private static final List<DeliveryStatus> COMPLETED_STATUSES =
+            List.of(DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED);
+
     private final DeliveryRepository deliveryRepository;
     private final RouteStopRepository routeStopRepository;
     private final AuditLogRepository auditLogRepository;
     private final DelayCalculationService delayCalculationService;
     private final ZoneRepository zoneRepository;
 
-    public DashboardKpiResponse getGlobalKpis(String period, java.time.LocalDate from, java.time.LocalDate to) {
-        List<Delivery> allDeliveries = deliveryRepository.findAll();
+    public DashboardKpiResponse getGlobalKpis(String period, LocalDate from, LocalDate to) {
         LocalDateTime now = LocalDateTime.now();
 
-        // 0. Time Filtering Logic
+        // 0. Resolve the current window [start, end] and the immediately preceding
+        //    window of equal length for period-over-period deltas.
         final LocalDateTime start;
         final LocalDateTime end;
         if (from != null) {
@@ -47,89 +52,50 @@ public class ReportingService {
             end = (to != null) ? to.atTime(23, 59, 59) : now;
         } else {
             end = now;
-            switch (period.toLowerCase()) {
-                case "all":
-                    start = java.time.LocalDate.of(2000, 1, 1).atStartOfDay();
-                    break;
-                case "week":
-                    start = java.time.LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
-                    break;
-                case "month":
-                    start = java.time.LocalDate.now().withDayOfMonth(1).atStartOfDay();
-                    break;
-                default: // "day"
-                    start = java.time.LocalDate.now().atStartOfDay();
-                    break;
+            switch (period == null ? "day" : period.toLowerCase()) {
+                case "all"   -> start = LocalDate.of(2000, 1, 1).atStartOfDay();
+                case "week"  -> start = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
+                case "month" -> start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
+                default      -> start = LocalDate.now().atStartOfDay();
             }
         }
 
-        List<Delivery> filteredDeliveries = allDeliveries.stream()
-                .filter(d -> {
-                    LocalDateTime referenceDate = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
-                    return referenceDate != null && !referenceDate.isBefore(start) && !referenceDate.isAfter(end);
-                })
-                .collect(Collectors.toList());
+        Duration windowLength = Duration.between(start, end);
+        LocalDateTime prevEnd = start.minusSeconds(1);
+        LocalDateTime prevStart = prevEnd.minus(windowLength);
 
-        // 1. Volumes
-        long ordersToday = filteredDeliveries.size();
+        // 1. Volumes (SQL COUNT, indexed on the reference date)
+        long ordersInPeriod = deliveryRepository.countInRange(start, end);
+        long previousPeriodOrders = deliveryRepository.countInRange(prevStart, prevEnd);
 
-        // 2. Performance
-        List<Delivery> completedDeliveries = filteredDeliveries.stream()
-                .filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED)
-                .toList();
+        // 2. SLA / average delay — load only completed deliveries in each window
+        SlaSummary current = summariseSla(start, end, now);
+        SlaSummary previous = summariseSla(prevStart, prevEnd, now);
 
-        Map<UUID, RouteStop> routeStopByDeliveryId = loadRouteStopsByDeliveryId(completedDeliveries);
-        List<SlaEvaluation> evaluations = completedDeliveries.stream()
-                .map(d -> evaluateDeliverySla(d, routeStopByDeliveryId.get(d.getId()), now))
-                .toList();
-
-        long measurableCount = evaluations.stream().filter(SlaEvaluation::measurable).count();
-        long onTimeCompleted = evaluations.stream().filter(e -> e.measurable() && e.onTime()).count();
-
-        double avgDelay = evaluations.stream()
-                .filter(SlaEvaluation::measurable)
-                .map(SlaEvaluation::delayMinutes)
-                .filter(v -> v != null)
-                .mapToInt(Integer::intValue)
-                .average()
-                .orElse(0.0);
-
-        double slaRate = measurableCount == 0 ? 100.0 : (double) onTimeCompleted / measurableCount * 100.0;
-
-        // 3. Zones les plus actives
+        // 3. Most active zones (SQL GROUP BY, mapped to names in memory)
         Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
+        Map<String, Long> ordersByZone = deliveryRepository.countByZoneInRange(start, end).stream()
+                .filter(row -> zoneNameById.containsKey((UUID) row[0]))
+                .collect(Collectors.toMap(
+                        row -> zoneNameById.get((UUID) row[0]),
+                        row -> (Long) row[1],
+                        Long::sum,
+                        LinkedHashMap::new));
 
-        Map<String, Long> ordersByZone = filteredDeliveries.stream()
-                .filter(d -> d.getOrder() != null && d.getOrder().getZoneId() != null
-                        && zoneNameById.containsKey(d.getOrder().getZoneId()))
-                .collect(Collectors.groupingBy(
-                        d -> zoneNameById.get(d.getOrder().getZoneId()),
-                        Collectors.counting()));
-
-        // 4. Exception Tracking
+        // 4. Exception tracking (audit log counters)
         long reassignments = auditLogRepository.countAllByActionContaining("REASSIGN");
         long replannings = auditLogRepository.countAllByActionContaining("REPLAN");
 
-        // 5. Trend (Keeping original 30-day view for the chart regardless of filter)
-        Map<String, Long> weeklyTrendMap = allDeliveries.stream()
-                .filter(d -> d.getCreatedAt() != null && d.getCreatedAt().isAfter(now.minusDays(30)))
-                .collect(Collectors.groupingBy(
-                        d -> d.getCreatedAt().toLocalDate().toString(),
-                        TreeMap::new,
-                        Collectors.counting()
-                ));
-
-        List<DashboardKpiResponse.DailyVolume> trend = weeklyTrendMap.entrySet().stream()
-                .map(e -> DashboardKpiResponse.DailyVolume.builder()
-                        .date(e.getKey())
-                        .count(e.getValue())
-                        .build())
-                .collect(Collectors.toList());
+        // 5. 30-day trend for the chart/sparklines — always last 30 days, one query.
+        List<DashboardKpiResponse.DailyVolume> trend = buildTrend(now.toLocalDate().minusDays(29).atStartOfDay(), now);
 
         return DashboardKpiResponse.builder()
-                .avgDelayMinutes(avgDelay)
-                .totalOrdersToday(ordersToday)   // Filtered orders in period
+                .avgDelayMinutes(current.avgDelay())
+                .totalOrdersToday(ordersInPeriod)
+                .previousPeriodOrders(previousPeriodOrders)
+                .slaRate(current.slaRate())
+                .previousSlaRate(previous.slaRate())
                 .ordersByZone(ordersByZone)
                 .totalReassigned(reassignments)
                 .totalReplanned(replannings)
@@ -137,60 +103,92 @@ public class ReportingService {
                 .build();
     }
 
-        private Map<UUID, RouteStop> loadRouteStopsByDeliveryId(List<Delivery> deliveries) {
-                List<UUID> deliveryIds = deliveries.stream().map(Delivery::getId).toList();
-                if (deliveryIds.isEmpty()) {
-                        return Collections.emptyMap();
-                }
+    private List<DashboardKpiResponse.DailyVolume> buildTrend(LocalDateTime start, LocalDateTime end) {
+        return deliveryRepository.dailySeries(start, end).stream()
+                .map(row -> DashboardKpiResponse.DailyVolume.builder()
+                        .date(((java.sql.Date) row[0]).toLocalDate().toString())
+                        .count(((Number) row[1]).longValue())
+                        .delivered(((Number) row[2]).longValue())
+                        .failed(((Number) row[3]).longValue())
+                        .build())
+                .collect(Collectors.toList());
+    }
 
-                return routeStopRepository.findAllByDeliveryIdInWithRoute(deliveryIds).stream()
-                                .collect(Collectors.toMap(
-                                                RouteStop::getDeliveryId,
-                                                Function.identity(),
-                                                this::pickMostRecentRouteStop
-                                ));
+    /** SLA compliance + average delay over completed deliveries in a window. */
+    private SlaSummary summariseSla(LocalDateTime start, LocalDateTime end, LocalDateTime now) {
+        List<Delivery> completed = deliveryRepository.findCompletedInRange(COMPLETED_STATUSES, start, end);
+        if (completed.isEmpty()) {
+            return new SlaSummary(100.0, 0.0);
         }
 
-        private RouteStop pickMostRecentRouteStop(RouteStop a, RouteStop b) {
-                if (a.getRoute() == null) return b;
-                if (b.getRoute() == null) return a;
-                if (a.getRoute().getDate() == null) return b;
-                if (b.getRoute().getDate() == null) return a;
-                return a.getRoute().getDate().isAfter(b.getRoute().getDate()) ? a : b;
+        Map<UUID, RouteStop> stopByDeliveryId = loadRouteStopsByDeliveryId(completed);
+        List<SlaEvaluation> evaluations = completed.stream()
+                .map(d -> evaluateDeliverySla(d, stopByDeliveryId.get(d.getId()), now))
+                .toList();
+
+        long measurable = evaluations.stream().filter(SlaEvaluation::measurable).count();
+        long onTime = evaluations.stream().filter(e -> e.measurable() && e.onTime()).count();
+        double avgDelay = evaluations.stream()
+                .filter(SlaEvaluation::measurable)
+                .map(SlaEvaluation::delayMinutes)
+                .filter(v -> v != null)
+                .mapToInt(Integer::intValue)
+                .average()
+                .orElse(0.0);
+        double slaRate = measurable == 0 ? 100.0 : (double) onTime / measurable * 100.0;
+        return new SlaSummary(slaRate, avgDelay);
+    }
+
+    private Map<UUID, RouteStop> loadRouteStopsByDeliveryId(List<Delivery> deliveries) {
+        List<UUID> deliveryIds = deliveries.stream().map(Delivery::getId).toList();
+        if (deliveryIds.isEmpty()) {
+            return Collections.emptyMap();
         }
+        return routeStopRepository.findAllByDeliveryIdInWithRoute(deliveryIds).stream()
+                .collect(Collectors.toMap(
+                        RouteStop::getDeliveryId,
+                        Function.identity(),
+                        this::pickMostRecentRouteStop));
+    }
 
-        private SlaEvaluation evaluateDeliverySla(Delivery delivery, RouteStop stop, LocalDateTime now) {
-                // Strict requirement: only measure SLA if manual windows are defined
-                if (stop != null && stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
-                        LocalDateTime reference = delivery.getCompletedAt() != null ? delivery.getCompletedAt() : now;
-                        SlaStatus status = RouteOptimizationService.computeSlaStatus(stop, reference);
-                        Integer delayMinutes = resolveDelayMinutes(delivery, stop);
-                        boolean onTime = status == SlaStatus.ON_TIME || status == SlaStatus.EARLY;
-                        return new SlaEvaluation(true, onTime, delayMinutes);
-                }
+    private RouteStop pickMostRecentRouteStop(RouteStop a, RouteStop b) {
+        if (a.getRoute() == null) return b;
+        if (b.getRoute() == null) return a;
+        if (a.getRoute().getDate() == null) return b;
+        if (b.getRoute().getDate() == null) return a;
+        return a.getRoute().getDate().isAfter(b.getRoute().getDate()) ? a : b;
+    }
 
-                // If no windows, we don't measure SLA performance, even if an ETA exists.
-                return new SlaEvaluation(false, false, null);
+    private SlaEvaluation evaluateDeliverySla(Delivery delivery, RouteStop stop, LocalDateTime now) {
+        // Strict requirement: only measure SLA if manual windows are defined
+        if (stop != null && stop.getStartTimeWindow() != null && stop.getEndTimeWindow() != null) {
+            LocalDateTime reference = delivery.getCompletedAt() != null ? delivery.getCompletedAt() : now;
+            SlaStatus status = RouteOptimizationService.computeSlaStatus(stop, reference);
+            Integer delayMinutes = resolveDelayMinutes(delivery, stop);
+            boolean onTime = status == SlaStatus.ON_TIME || status == SlaStatus.EARLY;
+            return new SlaEvaluation(true, onTime, delayMinutes);
         }
+        // If no windows, we don't measure SLA performance, even if an ETA exists.
+        return new SlaEvaluation(false, false, null);
+    }
 
-        private Integer resolveDelayMinutes(Delivery delivery, RouteStop stop) {
-                DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, stop.getRoute(), List.of(stop));
-                if (delayInfo != null) {
-                        return Math.max(delayInfo.delayMinutes, 0);
-                }
-
-                if (stop.getActualArrivalAt() != null && stop.getSlaDeadline() != null) {
-                        return Math.max(0, (int) java.time.Duration.between(stop.getSlaDeadline(), stop.getActualArrivalAt()).toMinutes());
-                }
-
-                if (delivery.getCompletedAt() != null && delivery.getRouteEtaAt() != null) {
-                        return Math.max(0, (int) java.time.Duration.between(delivery.getRouteEtaAt(), delivery.getCompletedAt()).toMinutes());
-                }
-
-                return 0;
+    private Integer resolveDelayMinutes(Delivery delivery, RouteStop stop) {
+        DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, stop.getRoute(), List.of(stop));
+        if (delayInfo != null) {
+            return Math.max(delayInfo.delayMinutes, 0);
         }
-
-
-        private record SlaEvaluation(boolean measurable, boolean onTime, Integer delayMinutes) {
+        if (stop.getActualArrivalAt() != null && stop.getSlaDeadline() != null) {
+            return Math.max(0, (int) Duration.between(stop.getSlaDeadline(), stop.getActualArrivalAt()).toMinutes());
         }
+        if (delivery.getCompletedAt() != null && delivery.getRouteEtaAt() != null) {
+            return Math.max(0, (int) Duration.between(delivery.getRouteEtaAt(), delivery.getCompletedAt()).toMinutes());
+        }
+        return 0;
+    }
+
+    private record SlaEvaluation(boolean measurable, boolean onTime, Integer delayMinutes) {
+    }
+
+    private record SlaSummary(double slaRate, double avgDelay) {
+    }
 }

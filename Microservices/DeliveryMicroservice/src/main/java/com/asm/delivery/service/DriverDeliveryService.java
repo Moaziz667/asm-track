@@ -52,6 +52,7 @@ public class DriverDeliveryService {
     private final ObjectMapper                    objectMapper;
     private final HandoffService                  handoffService;
     private final com.asm.delivery.repository.HandoffRepository handoffRepository;
+    private final FailureReasonService            failureReasonService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
@@ -463,6 +464,17 @@ public class DriverDeliveryService {
             }
         });
 
+        // Push the proof of delivery to the ERP (signature/photos + metadata) via the outbox.
+        Map<String, Object> podPayload = new HashMap<>();
+        podPayload.put("deliveryId", deliveryId.toString());
+        podPayload.put("deliveredAt", LocalDateTime.now().toString());
+        if (req.getComment() != null) podPayload.put("comment", req.getComment());
+        if (req.getLat() != null) podPayload.put("lat", req.getLat());
+        if (req.getLng() != null) podPayload.put("lng", req.getLng());
+        if (blBase64 != null) podPayload.put("blPhotoBase64", blBase64);
+        if (pkgBase64 != null) podPayload.put("packagePhotoBase64", pkgBase64);
+        outboxProcessor.enqueue("ERP_SYNC_POD", podPayload);
+
         return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
     }
 
@@ -509,16 +521,33 @@ public class DriverDeliveryService {
     // ── Fail ──────────────────────────────────────────────────────────────────
 
     @Transactional
-    public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, FailureCode failureCode, String failureComment, UserPrincipal principal) {
+    public DriverDeliveryResponse fail(UUID deliveryId, UUID driverId, String failureReasonCode,
+                                       FailureCode legacyCode, String failureComment, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
         if (delivery.getStatus() != DeliveryStatus.PICKED_UP && delivery.getStatus() != DeliveryStatus.IN_TRANSIT) {
             throw AppException.badRequest("Can only fail delivery from PICKED_UP or IN_TRANSIT state");
         }
 
+        // Resolve the configurable reason → analytics category + human label.
+        final FailureCode failureCode;
+        final String reasonLabel;
+        if (failureReasonCode != null && !failureReasonCode.isBlank()) {
+            FailureReasonService.Resolved resolved = failureReasonService.resolve(failureReasonCode);
+            failureCode = resolved.category();
+            reasonLabel = resolved.label();
+        } else {
+            failureCode = legacyCode != null ? legacyCode : FailureCode.OTHER;
+            reasonLabel = failureCode.name();
+        }
+        // Persist a human-readable reason: label enriched with the free-text comment when present.
+        String storedReason = (failureComment != null && !failureComment.isBlank())
+                ? reasonLabel + " — " + failureComment.trim()
+                : reasonLabel;
+
         delivery.setStatus(DeliveryStatus.FAILED);
         delivery.setFailedAt(LocalDateTime.now());
-        delivery.setFailReason(failureComment);
+        delivery.setFailReason(storedReason);
         delivery.setFailureCode(failureCode);
         delivery = deliveryRepo.save(delivery);
 

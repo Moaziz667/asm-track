@@ -6,6 +6,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
 import '../../../theme/widgets.dart';
+import '../../../theme/status_colors.dart';
 import '../models/delivery_models.dart';
 import 'delivery_detail_screen.dart';
 
@@ -261,7 +262,17 @@ class _HistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    final statusColor = delivery.status.badgeColor;
+    final statusColors = Theme.of(context).extension<StatusColors>()!;
+    final Color statusColor = switch (delivery.status) {
+      DeliveryStatus.unscheduled => statusColors.unscheduledText,
+      DeliveryStatus.scheduled => statusColors.scheduledText,
+      DeliveryStatus.pickedUp => statusColors.pickedUpText,
+      DeliveryStatus.inTransit => statusColors.inTransitText,
+      DeliveryStatus.delivered => statusColors.deliveredText,
+      DeliveryStatus.partially_delivered => statusColors.partiallyDeliveredText,
+      DeliveryStatus.failed => statusColors.failedText,
+      DeliveryStatus.cancelled => statusColors.cancelledText,
+    };
     final timestamp = delivery.timestamps['completedAt'] ??
         delivery.timestamps['failedAt'] ??
         delivery.timestamps['cancelledAt'] ??

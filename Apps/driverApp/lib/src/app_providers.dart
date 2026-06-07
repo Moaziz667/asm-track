@@ -27,6 +27,11 @@ final connectivityServiceProvider = Provider<ConnectivityService>(
   (ref) => ConnectivityService(),
 );
 
+final connectionStatusProvider = StreamProvider<bool>((ref) {
+  final connectivity = ref.watch(connectivityServiceProvider);
+  return connectivity.onlineStream;
+});
+
 final apiClientProvider = Provider<ApiClient>((Ref ref) {
   final config = ref.watch(appConfigProvider);
   final storage = ref.watch(tokenStorageProvider);

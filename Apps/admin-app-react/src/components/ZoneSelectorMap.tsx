@@ -5,6 +5,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'leaflet-draw';
 import 'leaflet-draw/dist/leaflet.draw.css';
+import { useT } from '@/lib/LocaleContext';
 import { IconSearch } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import ErrorBoundary from '@/components/ErrorBoundary';
@@ -243,7 +244,7 @@ function SearchControl() {
       <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-md" style={{ background: 'rgba(255,255,255,0.96)', borderColor: '#E5E7EB' }}>
         <input
           className="flex-1 text-[13px] outline-none bg-transparent placeholder:text-gray-400"
-          placeholder="Rechercher une ville…"
+          placeholder={t.placeholders.city}
           value={query}
           onChange={e => setQuery(e.target.value)}
           onKeyDown={e => e.key === 'Enter' && handleSearch()}
@@ -312,6 +313,7 @@ function ZoneSelectorMapInner({
   externalCoords = {},
   onGeometryChange, onPostalCodesChange, onCoordsFound,
 }: ZoneSelectorMapProps) {
+  const t = useT();
   const [processing,  setProcessing]  = useState(false);
   const [progress,    setProgress]    = useState(0);
   const [progressMsg, setProgressMsg] = useState('');

@@ -1,5 +1,6 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { IconLayoutGrid, IconX } from '@tabler/icons-react';
+import { useT } from '@/lib/LocaleContext';
 import { cn } from '@/lib/utils';
 
 export type Density = 'compact' | 'comfortable' | 'spacious';
@@ -19,13 +20,14 @@ export interface DisplaySettingsConfig {
   onColumnToggle?: (key: string) => void;
 }
 
-const DENSITIES: { value: Density; label: string; rowH: string }[] = [
-  { value: 'compact',     label: 'Compact',      rowH: '32px' },
-  { value: 'comfortable', label: 'Confortable',  rowH: '44px' },
-  { value: 'spacious',    label: 'Spacieux',     rowH: '56px' },
+const DENSITIES: { value: Density; rowH: string }[] = [
+  { value: 'compact',     rowH: '32px' },
+  { value: 'comfortable', rowH: '44px' },
+  { value: 'spacious',    rowH: '56px' },
 ];
 
 export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsConfig }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useRef<HTMLDivElement | null>(null);
@@ -56,7 +58,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
         ref={anchorRef}
         type="button"
         onClick={() => setOpen(o => !o)}
-        title="Paramètres d'affichage"
+        title={t.displaySettings.title}
         className="flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-[500] border transition-colors hover:bg-[var(--hover-bg)] shrink-0"
         style={{
           borderColor: open ? 'var(--brand-blue)' : 'var(--border)',
@@ -65,7 +67,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
         }}
       >
         <IconLayoutGrid size={13} />
-        <span className="hidden sm:inline">Affichage</span>
+        <span className="hidden sm:inline">{t.displaySettings.display}</span>
       </button>
 
       {open && (
@@ -82,7 +84,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
           }}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-            <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>Affichage</span>
+            <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{t.displaySettings.title}</span>
             <button type="button" onClick={() => setOpen(false)} className="hover:opacity-70 transition-opacity">
               <IconX size={12} style={{ color: 'var(--text-muted)' }} />
             </button>
@@ -90,7 +92,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
 
           {/* Density */}
           <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Densité</p>
+            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.density}</p>
             <div className="flex flex-col gap-1">
               {DENSITIES.map(d => (
                 <button
@@ -112,7 +114,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
                       <div key={i} className="w-full rounded-sm" style={{ height: d.value === 'spacious' ? 4 : 3, background: 'currentColor', opacity: 0.5 }} />
                     ))}
                   </div>
-                  {d.label}
+                  {d.value === 'compact' ? t.displaySettings.compact : d.value === 'comfortable' ? t.displaySettings.comfortable : t.displaySettings.spacious}
                 </button>
               ))}
             </div>
@@ -121,7 +123,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
           {/* Columns */}
           {config.columns && config.columns.length > 0 && (
             <div className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>Colonnes visibles</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.visibleColumns}</p>
               <div className="flex flex-col gap-1">
                 {config.columns.map(col => (
                   <button

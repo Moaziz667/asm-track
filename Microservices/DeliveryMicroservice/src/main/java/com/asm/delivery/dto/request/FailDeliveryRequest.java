@@ -1,12 +1,18 @@
 package com.asm.delivery.dto.request;
 
 import com.asm.delivery.entity.FailureCode;
-import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
 @Data
 public class FailDeliveryRequest {
-    @NotNull
+
+    /**
+     * Configurable failure-reason code (preferred). Resolved server-side to its
+     * analytics category + label. When blank, {@link #failureCode} is used.
+     */
+    private String failureReasonCode;
+
+    /** Legacy/fallback: raw analytics category enum. */
     private FailureCode failureCode;
 
     private String failureComment;

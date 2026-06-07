@@ -1,22 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import {
-  DndContext,
-  closestCenter,
-  PointerSensor,
-  useSensor,
-  useSensors,
-  DragEndEvent,
-  DragStartEvent,
-  DragOverlay,
-} from '@dnd-kit/core';
-import {
-  SortableContext,
-  verticalListSortingStrategy,
-  useSortable,
-  arrayMove,
-} from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
+import React, { useState, useEffect } from 'react';
+import { Responsive, WidthProvider, Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout/legacy';
+import { useLocaleStore } from '@/lib/i18n';
+import { useT } from '@/lib/LocaleContext';
+import { IconLayoutDashboard } from '@tabler/icons-react';
+
+import 'react-grid-layout/css/styles.css';
+import 'react-resizable/css/styles.css';
 import { cn } from '@/lib/utils';
+
+const ResponsiveGridLayout = WidthProvider(Responsive);
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -24,139 +16,261 @@ export interface WidgetItem {
   id: string;
   children: React.ReactNode;
   className?: string;
+  defaultLayout?: {
+    w: number;
+    h: number;
+    x?: number;
+    y?: number;
+    minW?: number;
+    minH?: number;
+  };
 }
 
 interface DraggableWidgetGridProps {
   storageKey: string;
   items: WidgetItem[];
   className?: string;
+  cols?: { lg: number; md: number; sm: number; xs: number; xxs: number };
+  rowHeight?: number;
 }
 
-// ── Drag handle (always visible, brand-blue) ──────────────────────────────────
+// ── Drag handle (Cloudscape Grip) ─────────────────────────────────────────────
 
-function DragHandleIcon({ bind }: { bind?: Record<string, unknown> }) {
+function DragHandleIcon() {
+  const t = useT();
   return (
     <div
-      {...(bind ?? {})}
-      className="absolute top-2 left-2 z-20 w-6 h-6 rounded flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
-      style={{ background: 'var(--brand-blue-soft)', color: 'var(--brand-blue)' }}
-      title="Réorganiser"
+      className="react-grid-dragHandle absolute top-[14px] start-[14px] z-20 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing select-none text-[#7d8998] hover:text-[#16191f] transition-colors"
+      title={t.tooltips?.reposition ?? 'Drag to reposition'}
       onPointerDown={e => e.stopPropagation()}
     >
-      <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor">
-        <circle cx="2" cy="2" r="1" /><circle cx="8" cy="2" r="1" />
-        <circle cx="2" cy="5" r="1" /><circle cx="8" cy="5" r="1" />
-        <circle cx="2" cy="8" r="1" /><circle cx="8" cy="8" r="1" />
+      <svg width="8" height="14" viewBox="0 0 8 14" fill="currentColor">
+        <circle cx="2" cy="2" r="1.5" /><circle cx="6" cy="2" r="1.5" />
+        <circle cx="2" cy="7" r="1.5" /><circle cx="6" cy="7" r="1.5" />
+        <circle cx="2" cy="12" r="1.5" /><circle cx="6" cy="12" r="1.5" />
       </svg>
-    </div>
-  );
-}
-
-// ── Sortable item slot (becomes transparent placeholder while dragging) ────────
-
-function SortableWidget({ id, children, className }: WidgetItem) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        transform: CSS.Translate.toString(transform),
-        transition: transition ?? 'transform 200ms ease',
-        opacity: isDragging ? 0 : 1,
-        position: 'relative',
-      }}
-      className={cn('relative', className)}
-    >
-      <DragHandleIcon bind={{ ...attributes, ...listeners }} />
-      {children}
     </div>
   );
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
 
-export function DraggableWidgetGrid({ storageKey, items, className }: DraggableWidgetGridProps) {
-  const [order, setOrder] = useState<string[]>(() => {
+export function DraggableWidgetGrid({
+  storageKey,
+  items,
+  className,
+  cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
+  rowHeight = 40, // Slightly denser rows for Cloudscape
+}: DraggableWidgetGridProps) {
+  const t = useT();
+  const { locale } = useLocaleStore();
+  const isRtl = locale === 'ar';
+  const dirSuffix = isRtl ? '-rtl-v2' : '-ltr';
+  const fullStorageKey = `widget-grid:${storageKey}${dirSuffix}`;
+  
+  const [isDragging, setIsDragging] = useState(false);
+  const [layouts, setLayouts] = useState<ResponsiveLayouts>(() => {
     try {
-      const stored = localStorage.getItem(`widget-order:${storageKey}`);
+      const stored = localStorage.getItem(fullStorageKey);
       if (stored) {
-        const parsed: string[] = JSON.parse(stored);
-        const validIds = new Set(items.map(i => i.id));
-        const filtered = parsed.filter(id => validIds.has(id));
-        const newIds = items.map(i => i.id).filter(id => !parsed.includes(id));
-        return [...filtered, ...newIds];
+        return JSON.parse(stored) as ResponsiveLayouts;
       }
     } catch { /* ignore */ }
-    return items.map(i => i.id);
+    return {};
   });
 
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    setOrder(prev => {
-      const existingIds = new Set(prev);
-      const newIds = items.map(i => i.id).filter(id => !existingIds.has(id));
-      if (newIds.length === 0) return prev;
-      return [...prev, ...newIds];
-    });
-  }, [items]);
-
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-  );
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    setActiveId(String(event.active.id));
+    setMounted(true);
   }, []);
 
-  const handleDragEnd = useCallback((event: DragEndEvent) => {
-    setActiveId(null);
-    const { active, over } = event;
-    if (over && active.id !== over.id) {
-      setOrder(prev => {
-        const oldIdx = prev.indexOf(String(active.id));
-        const newIdx = prev.indexOf(String(over.id));
-        const next = arrayMove(prev, oldIdx, newIdx);
-        try { localStorage.setItem(`widget-order:${storageKey}`, JSON.stringify(next)); } catch { /* ignore */ }
-        return next;
-      });
-    }
-  }, [storageKey]);
+  const handleLayoutChange = (currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
+    setLayouts(allLayouts);
+    try {
+      localStorage.setItem(fullStorageKey, JSON.stringify(allLayouts));
+    } catch { /* ignore */ }
+  };
 
-  const itemMap = new Map(items.map(i => [i.id, i]));
-  const sorted = order.map(id => itemMap.get(id)).filter(Boolean) as WidgetItem[];
-  const activeItem = activeId ? itemMap.get(activeId) : null;
+  const handleReset = () => {
+    localStorage.removeItem(fullStorageKey);
+    setLayouts({});
+  };
+
+  const generateDefaultLayout = (breakpointCols: number): Layout => {
+    return items.map((item, i) => {
+      const def = item.defaultLayout || { w: breakpointCols, h: 4 };
+      const w = Math.min(def.w, breakpointCols);
+      let x = def.x !== undefined ? def.x : (i * 4) % breakpointCols;
+      
+      // Clamp x first to fit the current breakpoint cols bounds
+      x = Math.min(x, breakpointCols - w);
+      
+      // Mirror x coordinate for RTL
+      if (isRtl) {
+        x = breakpointCols - w - x;
+      }
+
+      const l: LayoutItem = {
+        i: item.id,
+        x: x,
+        y: def.y !== undefined ? def.y : Math.floor(i / (breakpointCols / 4)) * def.h,
+        w: w,
+        h: def.h,
+        minW: def.minW || 2,
+        minH: def.minH || 2,
+      };
+      return l;
+    });
+  };
+
+  const mergedLayouts: ResponsiveLayouts = { ...layouts };
+  Object.keys(cols).forEach((bp) => {
+    const breakpointCols = cols[bp as keyof typeof cols];
+    if (!mergedLayouts[bp] || mergedLayouts[bp].length !== items.length) {
+      const existing = mergedLayouts[bp] || [];
+      const newLayout = generateDefaultLayout(breakpointCols).map((l: LayoutItem) => {
+        const found = existing.find((e: LayoutItem) => e.i === l.i);
+        return found ? found : l;
+      });
+      mergedLayouts[bp] = newLayout;
+    }
+  });
+
+  if (!mounted) {
+    return <div className="animate-pulse flex-1 bg-[var(--app-bg)] opacity-50" />;
+  }
 
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragEnd={handleDragEnd}
-    >
-      <SortableContext items={order} strategy={verticalListSortingStrategy}>
-        <div className={className}>
-          {sorted.map(item => (
-            <SortableWidget key={item.id} id={item.id} className={item.className}>
-              {item.children}
-            </SortableWidget>
-          ))}
-        </div>
-      </SortableContext>
+    <div className={cn('react-grid-wrapper -mx-2 flex flex-col', className)}>
+      
+      {/* ── Header: Reset Layout ── */}
+      <div className="flex justify-end px-2 mb-2">
+        <button 
+          onClick={handleReset} 
+          className="flex items-center gap-1 text-[11px] font-medium text-[var(--text-soft)] hover:text-[var(--text-primary)] transition-colors opacity-60 hover:opacity-100"
+        >
+          <IconLayoutDashboard size={12} />
+          {t.displaySettings?.resetLayout ?? 'Reset default layout'}
+        </button>
+      </div>
 
-      {/* Floating drag overlay — only this moves under the cursor */}
-      <DragOverlay dropAnimation={{ duration: 150, easing: 'cubic-bezier(0.18,0.67,0.6,1.22)' }}>
-        {activeItem && (
+      <style>{`
+        /* AWS Cloudscape Design System Grid Overrides */
+        .react-grid-item {
+          transition: all 200ms cubic-bezier(0.165, 0.84, 0.44, 1);
+          transition-property: left, top, right, bottom;
+          left: 0;
+          right: auto;
+        }
+        .react-grid-item.cssTransforms {
+          transition-property: transform;
+          left: 0;
+          right: auto;
+        }
+        .react-grid-item.resizing {
+          z-index: 100;
+          will-change: width, height;
+        }
+        
+        /* Dragging state: Cloudscape uses high elevation shadow */
+        .react-grid-item.react-draggable-dragging {
+          transition: none;
+          z-index: 100;
+          will-change: transform;
+          box-shadow: 0 12px 24px -4px rgba(0, 28, 36, 0.15), 0 4px 8px -2px rgba(0, 28, 36, 0.1) !important;
+          border: 1px solid var(--border) !important;
+          opacity: 0.95;
+        }
+
+        /* Show the visual blue grid behind the container when dragging */
+        .react-grid-layout.is-dragging {
+          background-image: linear-gradient(to right, rgba(9, 114, 211, 0.05) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(9, 114, 211, 0.05) 1px, transparent 1px);
+          background-size: calc((100% - 220px) / 12 + 20px) ${rowHeight + 20}px;
+          background-position: left top;
+        }
+
+        /* Resize Handle (Cloudscape angled lines) */
+        .react-grid-item > .react-resizable-handle {
+          position: absolute;
+          width: 20px;
+          height: 20px;
+          bottom: 0;
+          right: 0;
+          cursor: se-resize;
+          z-index: 20;
+          opacity: 0;
+          transition: opacity 0.2s ease-in-out;
+          background-image: none !important; /* remove default RGL icon */
+        }
+        .react-grid-item:hover > .react-resizable-handle {
+          opacity: 1;
+        }
+        .react-grid-item > .react-resizable-handle::after {
+          content: "";
+          position: absolute;
+          right: 6px;
+          bottom: 6px;
+          width: 8px;
+          height: 8px;
+          border-right: 2px solid var(--text-muted, #545b64);
+          border-bottom: 2px solid var(--text-muted, #545b64);
+          border-bottom-right-radius: 1px;
+        }
+        .react-grid-item > .react-resizable-handle::before {
+          content: "";
+          position: absolute;
+          right: 10px;
+          bottom: 10px;
+          width: 8px;
+          height: 8px;
+          border-right: 2px solid var(--text-muted, #545b64);
+          border-bottom: 2px solid var(--text-muted, #545b64);
+        }
+
+        /* Drop Placeholder: Cloudscape uses a blue dashed outline with light fill */
+        .react-grid-placeholder {
+          background: var(--brand, #0972d3) !important;
+          opacity: 0.05 !important;
+          border: 2px dashed var(--brand, #0972d3) !important;
+          border-radius: 8px;
+          transition-duration: 150ms;
+          z-index: 2;
+        }
+      `}</style>
+      <ResponsiveGridLayout
+        className={cn('layout', { 'is-dragging': isDragging })}
+        layouts={mergedLayouts}
+        breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
+        cols={cols}
+        rowHeight={rowHeight}
+        onLayoutChange={handleLayoutChange}
+        onDragStart={() => setIsDragging(true)}
+        onDragStop={() => setIsDragging(false)}
+        onResizeStart={() => setIsDragging(true)}
+        onResizeStop={() => setIsDragging(false)}
+        draggableHandle=".react-grid-dragHandle"
+        margin={[20, 20]} // Cloudscape 20px standard container spacing
+        containerPadding={[0, 0]}
+        useCSSTransforms={true}
+        isBounded={true}
+        isDroppable={true}
+      >
+        {items.map((item) => (
           <div
-            className={cn('relative cursor-grabbing', activeItem.className)}
-            style={{ opacity: 0.92, boxShadow: 'var(--shadow-card-hover)' }}
+            key={item.id}
+            className={cn('relative group h-full flex flex-col', item.className)}
           >
             <DragHandleIcon />
-            {activeItem.children}
+            <div className="w-full h-full [&>div]:h-full [&>div]:m-0">
+              {item.children}
+            </div>
           </div>
-        )}
-      </DragOverlay>
-    </DndContext>
+        ))}
+      </ResponsiveGridLayout>
+    </div>
   );
 }
+
+

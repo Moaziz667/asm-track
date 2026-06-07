@@ -5,18 +5,21 @@ import { colors, spacing, btn } from '@/lib/design-tokens';
 import { Spinner } from '@/components/feedback/LoadingBar';
 import type { DeliveriesFilters } from '../hooks/useDeliveries';
 import type { Driver, Zone } from '@/types';
+import { useT } from '@/lib/LocaleContext';
 
-const DELIVERY_STATUSES = [
-  { value: '',                    label: 'Tous statuts' },
-  { value: 'UNSCHEDULED',         label: 'Non planifié' },
-  { value: 'SCHEDULED',           label: 'Planifié' },
-  { value: 'PICKED_UP',           label: 'Ramassé' },
-  { value: 'IN_TRANSIT',          label: 'En route' },
-  { value: 'DELIVERED',           label: 'Livré' },
-  { value: 'PARTIALLY_DELIVERED', label: 'Partiel' },
-  { value: 'FAILED',              label: 'Échec' },
-  { value: 'CANCELLED',           label: 'Annulé' },
-];
+function getDeliveryStatuses(t: any) {
+  return [
+  { value: '',                    label: t.deliveryPage.filterStatusAll },
+  { value: 'UNSCHEDULED',         label: t.statusLabels.UNSCHEDULED },
+  { value: 'SCHEDULED',           label: t.statusLabels.SCHEDULED },
+  { value: 'PICKED_UP',           label: t.statusLabels.PICKED_UP },
+  { value: 'IN_TRANSIT',          label: t.statusLabels.IN_TRANSIT },
+  { value: 'DELIVERED',           label: t.statusLabels.DELIVERED },
+  { value: 'PARTIALLY_DELIVERED', label: t.statusLabels.PARTIALLY_DELIVERED },
+  { value: 'FAILED',              label: t.statusLabels.FAILED },
+  { value: 'CANCELLED',           label: t.statusLabels.CANCELLED },
+  ];
+}
 
 export interface QuickCounts {
   all: number;
@@ -58,19 +61,21 @@ const selectStyle: React.CSSProperties = {
 
 type QuickViewId = DeliveriesFilters['quickView'];
 
-const QUICK_TABS: Array<{
+function getQuickTabs(t: any): Array<{
   id: QuickViewId;
   label: string;
   icon?: React.ReactNode;
   dangerActive?: boolean;
-}> = [
-  { id: 'all',          label: 'Tous' },
-  { id: 'needsPinning', label: 'À épingler',  icon: <MapPin size={11} />, dangerActive: true },
-  { id: 'unassigned',   label: 'Non planifié', icon: <Route size={11} /> },
-  { id: 'inTransit',    label: 'En route',   icon: <RefreshCw size={11} /> },
-  { id: 'completed',    label: 'Livré' },
-  { id: 'failed',       label: 'Échec / Annulé' },
-];
+}> {
+  return [
+  { id: 'all',          label: t.deliveriesPage.quickViewAll },
+  { id: 'needsPinning', label: t.deliveriesPage.quickViewNeedsPinning,  icon: <MapPin size={11} />, dangerActive: true },
+  { id: 'unassigned',   label: t.deliveriesPage.quickViewUnassigned, icon: <Route size={11} /> },
+  { id: 'inTransit',    label: t.deliveriesPage.quickViewInTransit,   icon: <RefreshCw size={11} /> },
+  { id: 'completed',    label: t.deliveriesPage.quickViewCompleted },
+  { id: 'failed',       label: t.deliveriesPage.quickViewFailed },
+  ];
+}
 
 function getCount(id: QuickViewId, counts?: QuickCounts): number | undefined {
   if (!counts) return undefined;
@@ -100,13 +105,16 @@ export function DeliveryFilterBar({
   zones,
   quickCounts,
 }: DeliveryFilterBarProps) {
+  const t = useT();
   const activeQuick = filters.quickView ?? 'all';
+  const statusOptions = getDeliveryStatuses(t);
+  const quickTabs = getQuickTabs(t);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 12 }}>
       {/* Quick view pills */}
       <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-        {QUICK_TABS.map(({ id, label, icon, dangerActive }) => {
+        {quickTabs.map(({ id, label, icon, dangerActive }) => {
           const isActive = activeQuick === id;
           const count = getCount(id, quickCounts);
           const activeDanger = dangerActive && isActive;
@@ -168,7 +176,7 @@ export function DeliveryFilterBar({
           <input
             value={filters.query ?? ''}
             onChange={(e) => onChange({ query: e.target.value || undefined })}
-            placeholder="Client, ID, commande..."
+            placeholder={t.placeholders.searchDeliveries}
             style={{ ...inputStyle, paddingLeft: 28, width: 180 }}
           />
         </div>
@@ -179,7 +187,7 @@ export function DeliveryFilterBar({
           onChange={(e) => onChange({ status: (e.target.value as any) || undefined })}
           style={{ ...selectStyle, width: 140 }}
         >
-          {DELIVERY_STATUSES.map((opt) => (
+          {statusOptions.map((opt) => (
             <option key={opt.value} value={opt.value}>{opt.label}</option>
           ))}
         </select>
@@ -190,7 +198,7 @@ export function DeliveryFilterBar({
           onChange={(e) => onChange({ driverId: e.target.value || undefined })}
           style={{ ...selectStyle, width: 150 }}
         >
-          <option value="">Tous les chauffeurs</option>
+          <option value="">{t.deliveryPage.filterDriverPlaceholder}</option>
           {drivers.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
@@ -202,7 +210,7 @@ export function DeliveryFilterBar({
           onChange={(e) => onChange({ zoneId: e.target.value || undefined })}
           style={{ ...selectStyle, width: 140 }}
         >
-          <option value="">Toutes les zones</option>
+          <option value="">{t.deliveriesPage.filterByZone}</option>
           {zones.map((z) => (
             <option key={z.id} value={z.id}>{(z as any).name ?? z.id}</option>
           ))}
@@ -227,7 +235,7 @@ export function DeliveryFilterBar({
             color: colors.textMuted,
             fontVariantNumeric: 'tabular-nums',
           }}>
-            {totalElements} livraison{totalElements !== 1 ? 's' : ''}
+            {totalElements} {t.deliveriesPage.totalFlow}
           </span>
         )}
 
@@ -240,7 +248,7 @@ export function DeliveryFilterBar({
             padding: 0,
             justifyContent: 'center',
           }}
-          title="Réinitialiser les filtres"
+          title={t.actions.clearFilters}
         >
           <X size={13} color={colors.textSecondary} />
         </button>
@@ -255,7 +263,7 @@ export function DeliveryFilterBar({
             padding: 0,
             justifyContent: 'center',
           }}
-          title="Actualiser (R)"
+          title={t.actions.refresh}
         >
           {refreshing
             ? <Spinner size={13} color={colors.textSecondary} />

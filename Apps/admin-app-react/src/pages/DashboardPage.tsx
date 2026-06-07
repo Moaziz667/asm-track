@@ -12,11 +12,18 @@ import {
 import {
   IconPackage, IconChartBar, IconUser, IconRoute, IconRefresh, IconArrowUpRight, 
   IconAlertTriangle, IconCheck, IconTruck, IconMapPin, IconShield,
-  IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock
+  IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock,
+  IconTrendingUp, IconChevronRight
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { useNavigate as useRouter } from 'react-router-dom';
+import DispatchLiveMap from '@/components/DispatchLiveMap';
+import StatusBadge from '@/components/StatusBadge';
+import { KPICard } from '@/components/ui/kpi-card';
+import { SectionCard } from '@/components/ui/section-card';
+import { Badge } from '@/components/ui/badge';
+import { useRoutes } from '@/hooks/useRoutes';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
@@ -62,6 +69,7 @@ export default function DashboardPage() {
   const navigate = useRouter();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [ops, setOps] = useState<AdminOpsOverview | null>(null);
+  const [kpi, setKpi] = useState<any | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'all'>('all');
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
@@ -70,6 +78,14 @@ export default function DashboardPage() {
   // useNotificationsState — reads count only, does NOT re-render on action context updates
   const { notifications: ctxAlerts } = useNotificationsState();
   const { locale } = useLocaleStore();
+  
+  const { data: todayRoutes = [] } = useRoutes(new Date());
+
+  const driverName = useCallback((id: string | undefined) => {
+    if (!id) return 'Non assigné';
+    const d = drivers.find(d => d.id === id);
+    return d ? d.name : id;
+  }, [drivers]);
 
   const getStatusConfig = (status: DeliveryStatus): { label: string; color: string } => ({
     label: t.statusLabels[status] || status,
@@ -79,14 +95,16 @@ export default function DashboardPage() {
   const fetchData = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const [sR, oR, driversRes, routesRes] = await Promise.all([
+      const [sR, oR, driversRes, routesRes, kR] = await Promise.all([
         api.get('/api/admin/deliveries/stats', { params: { period } }),
         api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
         api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
+        api.get('/api/admin/reports/dashboard', { params: { period } }).catch(() => ({ data: null })),
       ]);
       setStats(sR.data);
       setOps(oR.data ?? null);
+      setKpi(kR.data ?? null);
       const driversData = driversRes.data;
       setDrivers(Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? []));
       setActiveRoutesCount(Array.isArray(routesRes.data) ? routesRes.data.length : 0);
@@ -135,12 +153,58 @@ export default function DashboardPage() {
   const exceptionsCount = (ops?.sla?.totalBreaches ?? 0) + (ctxAlerts?.length ?? 0);
   const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
 
+  // ── Real KPI series + deltas from /reports/dashboard (30-day daily trend) ──
+  const trend = useMemo(
+    () => (Array.isArray(kpi?.weeklyTrend) ? kpi.weeklyTrend : []) as Array<{ count: number; delivered: number; failed: number }>,
+    [kpi],
+  );
+  const deliveredSpark = useMemo(() => trend.map(d => Number(d.delivered) || 0), [trend]);
+  const totalSpark = useMemo(() => trend.map(d => Number(d.count) || 0), [trend]);
+  const completionSpark = useMemo(
+    () => trend.map(d => { const c = Number(d.count) || 0; return c > 0 ? Math.round(((Number(d.delivered) || 0) / c) * 100) : 100; }),
+    [trend],
+  );
+  // Week-over-week volume delta (last 7 days vs the 7 before).
+  const deliveredDelta = useMemo(() => {
+    if (deliveredSpark.length < 14) return null;
+    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+    const last = sum(deliveredSpark.slice(-7));
+    const prev = sum(deliveredSpark.slice(-14, -7));
+    return prev === 0 ? null : ((last - prev) / prev) * 100;
+  }, [deliveredSpark]);
+  // Completion-rate delta in percentage points (last 7 days vs the 7 before),
+  // kept consistent with the value (slaPercent) and the completion sparkline.
+  const slaDelta = useMemo(() => {
+    if (completionSpark.length < 14) return null;
+    const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
+    return avg(completionSpark.slice(-7)) - avg(completionSpark.slice(-14, -7));
+  }, [completionSpark]);
+
+  const vsPrev = t.dashboardPage.kpiVsPrevPeriod || 'vs prev. period';
+  const slaSub = slaDelta == null ? undefined : `${slaDelta >= 0 ? '+' : ''}${slaDelta.toFixed(1)} pts ${vsPrev}`;
+  const deliveredSub = deliveredDelta == null
+    ? `/ ${today?.total ?? 0}`
+    : `${deliveredDelta >= 0 ? '+' : ''}${deliveredDelta.toFixed(0)}% ${vsPrev}`;
+
   // Flatten active deliveries from lanes for the table
   const activeDeliveries = useMemo(() => {
     const list = ops?.lanes?.flatMap(l => l.items || []) || [];
     const unique = Array.from(new Map(list.map(item => [item.deliveryId || item.orderRef, item])).values());
-    return unique.slice(0, 8);
+    return unique.slice(0, 8).map(d => ({
+      ...d,
+      dropoffLat: Number(d.dropoffLat) || 36.8065,
+      dropoffLng: Number(d.dropoffLng) || 10.1815,
+      status: d.status || 'UNSCHEDULED'
+    }));
   }, [ops]);
+
+  const safeDrivers = useMemo(() => {
+    return drivers.map(d => ({
+      ...d,
+      currentLat: Number(d.currentLat) || null,
+      currentLng: Number(d.currentLng) || null,
+    }));
+  }, [drivers]);
 
   // Kanban lane map calculation
   const laneMap = useMemo(() => {
@@ -169,18 +233,18 @@ export default function DashboardPage() {
       {/* ── HEADER PANEL ── */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0 shadow-2xs">
         <div className="px-6 py-4 flex items-center justify-between gap-6 max-w-[1800px] mx-auto">
-          <div className="flex flex-col text-left">
+          <div className="flex flex-col text-start">
             <h1 className="text-[13.5px] font-bold text-[var(--text-primary)] leading-tight tracking-tight">
-              {t.pages.dashboard.title || 'Tableau de Bord'}
+              {t.dashboardPage?.title || 'Tableau de bord'}
             </h1>
             <span className="text-[11px] text-[var(--text-muted)] mt-1 font-medium">
-              {t.pages.dashboard.subtitle || 'Supervision administrative et indicateurs opérationnels'}
+              {t.dashboardPage?.subtitle || 'Supervision administrative et indicateurs opérationnels'}
             </span>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
             {/* View Mode selector (Pro Toggle) */}
-            <div className="flex items-center gap-1.5 mr-2">
+            <div className="flex items-center gap-1.5 me-2">
               <button
                 type="button"
                 onClick={() => handleViewChange('office')}
@@ -210,7 +274,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Period selector */}
-            <div className="flex items-center gap-1 mr-1">
+            <div className="flex items-center gap-1 me-1">
               {(['day', 'week', 'month', 'all'] as const).map((p) => {
                 const labelMap = {
                   day: t.dashboardPage.periodDay,
@@ -249,282 +313,281 @@ export default function DashboardPage() {
         /* ── OFFICE DESK LAYOUT ── */
         <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
         <DraggableWidgetGrid
-          storageKey="dashboard"
-          className="flex flex-col gap-6"
+          storageKey="dashboard-v2"
           items={[
             {
-              id: 'metric-strip',
+              id: 'kpi-sla',
+              defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: <KPICard
+                  label={t.dashboardPage.slaRateLabel}
+                value={`${slaPercent}%`}
+                sub={slaSub}
+                sparklineData={completionSpark.length > 0 ? completionSpark : undefined}
+                tone={today?.total > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
+                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+              />
+            },
+            {
+              id: 'kpi-delivered',
+              defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: <KPICard
+                label={t.dashboardPage.kpiDelivered || 'Livrés'}
+                value={today?.delivered ?? 0}
+                sub={deliveredSub}
+                sparklineData={deliveredSpark.length > 0 ? deliveredSpark : undefined}
+                tone={today?.delivered > 0 ? "info" : "default"}
+                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+              />
+            },
+            {
+              id: 'kpi-routes',
+              defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: <KPICard
+                label={t.dashboardPage.kpiActiveRoutes || 'Tournées'}
+                value={activeRoutesCount}
+                sub={t.dashboardPage.kpiActiveRoutesSub || 'en cours'}
+                tone={activeRoutesCount > 0 ? "info" : "default"}
+                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+              />
+            },
+            {
+              id: 'kpi-drivers',
+              defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: <KPICard
+                label={t.dashboardPage.kpiDriversOnline || 'En ligne'}
+                value={driverGroups.online.length}
+                sub={`/ ${drivers.length}`}
+                tone={driverGroups.online.length === 0 ? "danger" : "default"}
+                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+              />
+            },
+            {
+              id: 'progress-chips',
+              defaultLayout: { w: 12, h: 2, x: 0, y: 2, minW: 8, minH: 2 },
+              className: '',
+              children: (() => {
+                const delivered = today?.delivered ?? 0;
+                const inTransit = today?.inTransit ?? 0;
+                const pendingCount = (today?.waiting ?? 0) + (today?.unscheduled ?? 0) + (today?.scheduled ?? 0);
+                const failed = today?.failed ?? 0;
+                
+                const totalActual = delivered + inTransit + pendingCount + failed;
+                const denom = Math.max(1, totalActual);
+                
+                const deliveredPct = (delivered / denom) * 100;
+                const inTransitPct = (inTransit / denom) * 100;
+                const pendingPct = (pendingCount / denom) * 100;
+                const failedPct = (failed / denom) * 100;
+                
+                return (
+                  <div className="flex flex-row items-center bg-[var(--surface)] border border-[var(--border)] rounded-[12px] px-6 h-full shadow-none relative">
+                      <span className="text-[12px] font-bold text-[var(--text-soft)] tracking-widest uppercase shrink-0 min-w-[180px]">
+                        {t.dashboardPage.todayProgress || "PROGRESSION DU JOUR"}
+                      </span>
+                      
+                      <div className="flex items-center flex-1 gap-6 ms-4">
+                        <div className="flex gap-4 text-[12px] font-bold text-[var(--text-primary)] shrink-0">
+                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#4CAF82]" />{today?.delivered ?? 0}</div>
+                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#D4772C]" />{today?.inTransit ?? 0}</div>
+                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#C4881A]" />{pendingCount}</div>
+                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#C7372F]" />{today?.failed ?? 0}</div>
+                        </div>
+                        
+                        <div className="flex-1 h-3 rounded-full bg-[var(--border)] overflow-hidden flex opacity-100 max-w-[400px] shadow-inner">
+                          <div style={{ width: `${deliveredPct}%` }} className="bg-[#4CAF82] transition-all duration-500" />
+                          <div style={{ width: `${inTransitPct}%` }} className="bg-[#D4772C] transition-all duration-500" />
+                          <div style={{ width: `${pendingPct}%` }} className="bg-[#C4881A] transition-all duration-500" />
+                          <div style={{ width: `${failedPct}%` }} className="bg-[#C7372F] transition-all duration-500" />
+                        </div>
+                      </div>
+                  </div>
+                );
+              })(),
+            },
+            {
+              id: 'dispatch-live-map',
+              defaultLayout: { w: 8, h: 8, x: 0, y: 4, minW: 6, minH: 6 },
               className: '',
               children: (
-          <div className="flex items-stretch bg-[var(--surface)] rounded-[8px] overflow-hidden" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <div className="flex-1 px-5 py-4">
-              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiSlaRate}</div>
-              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums" style={{ color: slaPercent >= 90 ? 'var(--success)' : slaPercent >= 70 ? 'var(--warning)' : 'var(--danger)' }}>{slaPercent}%</div>
-            </div>
-            <div className="w-px bg-[var(--border)]" />
-            <div className="flex-1 px-5 py-4">
-              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiDelivered}</div>
-              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{today?.delivered ?? 0}<span className="text-[14px] font-normal text-[var(--text-soft)] ml-1">{t.dashboardPage.kpiDeliveredOf} {today?.total ?? 0}</span></div>
-            </div>
-            <div className="w-px bg-[var(--border)]" />
-            <div className="flex-1 px-5 py-4">
-              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiActiveRoutes}</div>
-              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{activeRoutesCount}</div>
-            </div>
-            <div className="w-px bg-[var(--border)]" />
-            <div className="flex-1 px-5 py-4">
-              <div className="text-[11px] font-medium text-[var(--text-soft)] mb-1">{t.dashboardPage.kpiDriversOnline}</div>
-              <div className="font-mono text-[24px] font-semibold leading-none tabular-nums text-[var(--success)]">{driverGroups.online.length}<span className="text-[14px] font-normal text-[var(--text-soft)] ml-1">/ {drivers.length}</span></div>
-            </div>
-          </div>
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] h-full overflow-hidden flex flex-col shadow-none relative">
+                  <DispatchLiveMap
+                    activeStops={activeDeliveries as any}
+                    drivers={safeDrivers as any}
+                  />
+                </div>
+              ),
+            },
+            ...(needsAttention.length > 0 ? [{
+              id: 'needs-attention',
+              defaultLayout: { w: 4, h: 8, x: 8, y: 4, minW: 3, minH: 6 },
+              className: '',
+              children: (
+                <div className="flex flex-col bg-[#FEF2F2] dark:bg-[#C7372F]/10 border border-[#C7372F]/30 rounded-[12px] h-full shadow-sm overflow-hidden relative">
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#C7372F]" />
+                  <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+                    <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
+                    <button
+                      onClick={() => navigate('/dispatch-desk?tab=action')}
+                      className="text-[11px] font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                    >
+                      {t.dashboardPage.needsAttentionViewAll || "View all"} <IconArrowUpRight size={11} />
+                    </button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto px-6 py-2" style={{ scrollbarWidth: 'thin' }}>
+                    <div className="flex flex-col gap-3 py-2">
+                      {needsAttention.map((exc: any, idx: number) => {
+                        const severity = exc.severity || 'INFO';
+                        const isCrit = severity === 'CRITICAL';
+                        
+                        const diffMins = exc.createdAt ? Math.floor((new Date().getTime() - new Date(exc.createdAt).getTime()) / 60000) : 0;
+                        const timeStr = diffMins < 60 ? `il y a ${diffMins} min` : diffMins < 1440 ? `il y a ${Math.floor(diffMins / 60)} h` : `il y a ${Math.floor(diffMins / 1440)} j`;
 
+                        return (
+                          <div key={idx} onClick={() => navigate(`/dispatch-desk?tab=action&orderRef=${exc.orderRef || ''}`)} className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--hover-bg)] hover:bg-[var(--border)]/50 transition-colors cursor-pointer group">
+                            <IconAlertTriangle size={16} className={cn("mt-0.5 shrink-0 transition-transform group-hover:scale-110", isCrit ? "text-[#C7372F]" : "text-[#D4772C]")} />
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <div className="flex items-center gap-2">
+                                <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">{exc.orderRef || 'Alert'}</span>
+                                {isCrit && <Badge variant="destructive" className="text-[9px] h-4 px-1.5 font-bold uppercase tracking-wider bg-[#C7372F]">CRITIQUE</Badge>}
+                              </div>
+                              <div className="text-[11.5px] font-medium text-[var(--text-primary)] opacity-80 mt-1 line-clamp-2 leading-relaxed text-left rtl:text-right" dir="ltr">
+                                {exc.message || exc.reason || 'An issue requires attention.'}
+                              </div>
+                              <div className="flex items-center justify-between mt-2">
+                                <span className="text-[10px] font-mono text-[var(--text-soft)]">{timeStr}</span>
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    navigate(`/dispatch-desk?tab=action&orderRef=${exc.orderRef || ''}`); 
+                                  }} 
+                                  className="text-[10px] font-bold text-[var(--brand-blue)] border border-[var(--brand-blue)] rounded px-2 py-0.5 hover:bg-[var(--brand-blue)] hover:text-white transition-colors"
+                                >
+                                  Assigner
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              ),
+            }] : []),
+            {
+              id: 'quick-actions',
+              defaultLayout: { w: 6, h: 5, x: 0, y: 12, minW: 4, minH: 4 },
+              className: '',
+              children: (
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] p-4 h-full shadow-none flex flex-col">
+                  <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
+                    {t.dashboardPage.quickActions || 'Quick Actions'}
+                  </span>
+                  <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+                    {[
+                      { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
+                      { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconRoute },
+                      { label: t.dashboardPage.actionGoToRoutes || 'Routes Table', path: '/routes-table', Icon: IconMapPin },
+                      { label: t.dashboardPage.actionGoToDeliveries || 'Deliveries Log', path: '/deliveries', Icon: IconPackage },
+                    ].map(({ label, path, Icon }) => (
+                      <button
+                        key={path}
+                        type="button"
+                        onClick={() => navigate(path)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
+                      >
+                        <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
+                        <span className="text-[13px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ),
             },
             {
-              id: 'progress-bar',
+              id: 'driver-availability',
+              defaultLayout: { w: 6, h: 5, x: 6, y: 12, minW: 4, minH: 4 },
               className: '',
               children: (
-          <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-4">
-              {t.dashboardPage.todayProgress}
-            </span>
-            {(() => {
-              const progressTotal = (today?.total ?? 0) || 1;
-              const segments = [
-                { key: 'delivered', count: today?.delivered ?? 0, color: STATUS_COLOR_MAP.DELIVERED, label: t.dashboardPage.progressDelivered },
-                { key: 'inTransit', count: today?.inTransit ?? 0, color: STATUS_COLOR_MAP.IN_TRANSIT, label: t.dashboardPage.progressInTransit },
-                { key: 'failed', count: today?.failed ?? 0, color: STATUS_COLOR_MAP.FAILED, label: t.dashboardPage.progressFailed },
-                { key: 'pending', count: (today?.waiting ?? 0) + (today?.unscheduled ?? 0) + (today?.scheduled ?? 0), color: STATUS_COLOR_MAP.UNSCHEDULED, label: t.dashboardPage.progressPending },
-              ];
-              return (
-                <>
-                  <div className="w-full h-3 rounded-full overflow-hidden flex bg-[var(--hover-bg)]">
-                    {segments.map(seg =>
-                      seg.count > 0 ? (
-                        <div
-                          key={seg.key}
-                          className="h-full transition-all duration-500"
-                          style={{ width: `${(seg.count / progressTotal) * 100}%`, backgroundColor: seg.color }}
-                        />
-                      ) : null
-                    )}
-                  </div>
-                  <div className="flex flex-wrap gap-4 mt-2.5">
-                    {segments.map(seg => (
-                      <div key={seg.key} className="flex items-center gap-1.5">
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: seg.color }} />
-                        <span className="text-[10.5px] font-semibold text-[var(--text-soft)]">
-                          {seg.label} <span className="font-mono font-bold">{seg.count}</span>
-                        </span>
+                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] p-4 h-full shadow-none flex flex-col">
+                  <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.driverAvailability || "Fleet Status"}</span>
+                  <div className="flex flex-col gap-3 overflow-y-auto pl-2">
+                    {[
+                      { group: driverGroups.online, label: "Online", dotColor: '#4CAF82' },
+                      { group: driverGroups.onBreak, label: "On Break", dotColor: '#D4772C' },
+                      { group: driverGroups.offline, label: "Offline", dotColor: '#8A8F98' },
+                    ].map(({ group, label, dotColor }) => (
+                      <div key={label} className="flex items-start gap-3">
+                        <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: dotColor }} />
+                        <div className="flex flex-col min-w-0 flex-1">
+                          <span className="text-[13px] font-bold text-[var(--text-secondary)]">
+                            {label} <span className="font-mono text-[var(--text-muted)] ml-1">({group.length})</span>
+                          </span>
+                          {group.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              {group.slice(0, 8).map((d: any, i: number) => (
+                                <span key={i} className="text-[11px] font-medium px-2 py-1 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">
+                                  {d.name || d.driverName || '?'}
+                                </span>
+                              ))}
+                              {group.length > 8 && (
+                                <span className="text-[11px] font-bold text-[var(--text-soft)] px-1 py-1">+{group.length - 8}</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
-                </>
-              );
-            })()}
-          </div>
-
+                </div>
               ),
             },
             {
-              id: 'two-col-layout',
+              id: 'section-start',
+              defaultLayout: { w: 4, h: 6, x: 8, y: 12, minW: 3, minH: 4 },
               className: '',
               children: (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
-            {/* Left: Needs Attention Feed */}
-            <div className="lg:col-span-2 flex flex-col bg-[var(--surface)] rounded-[16px] overflow-hidden" style={{ boxShadow: 'var(--shadow-card)', minHeight: 320 }}>
-              <div className="px-5 py-3.5 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-                <span className="text-[13px] font-semibold text-[var(--text-primary)]">
-                  {t.dashboardPage.needsAttention}
-                </span>
-                {needsAttention.length > 0 && (
-                  <button
-                    onClick={() => navigate('/dispatch-desk?tab=action')}
-                    className="text-[11px] font-medium text-[#0972d3] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
-                  >
-                    {t.dashboardPage.needsAttentionViewAll} <IconArrowUpRight size={11} />
-                  </button>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin', maxHeight: 420 }}>
-                {needsAttention.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-50">
-                    <IconCheck size={28} stroke={1.5} className="text-[#4CAF82]" />
-                    <span className="text-[12px] font-medium text-[var(--text-soft)]">
-                      {t.dashboardPage.needsAttentionEmpty}
-                    </span>
-                  </div>
-                ) : (
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="border-b border-[var(--border)] bg-[var(--app-bg)]/40">
-                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Sévérité</th>
-                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Référence</th>
-                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Client</th>
-                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide">Message</th>
-                        <th className="px-4 py-2 text-[10px] font-semibold text-[var(--text-muted)] tracking-wide text-right">Heure</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[var(--border)]/50">
-                      {needsAttention.map((exc: any, idx: number) => {
-                        const severity = exc.severity || 'INFO';
-                        const chipColor = severity === 'CRITICAL' ? '#C7372F' : severity === 'WARNING' ? '#D4772C' : '#8A8F98';
-                        const chipBg = severity === 'CRITICAL' ? 'rgba(199,55,47,0.08)' : severity === 'WARNING' ? 'rgba(212,119,44,0.08)' : 'rgba(138,143,152,0.06)';
-                        return (
-                          <tr
-                            key={idx}
-                            onClick={() => {
-                              const tab = exc.type === 'FAILED' ? 'failed' : 'action';
-                              const search = exc.orderRef ? `&search=${encodeURIComponent(exc.orderRef)}` : '';
-                              navigate(`/dispatch-desk?tab=${tab}${search}`);
-                            }}
-                            className="hover:bg-[var(--hover-bg)]/60 transition-colors cursor-pointer"
-                          >
-                            <td className="px-4 py-2.5">
-                              <span
-                                className="text-[9px] font-bold px-2 py-0.5 rounded-[4px] tracking-wide"
-                                style={{ backgroundColor: chipBg, color: chipColor }}
-                              >
-                                {severity}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2.5 font-mono text-[11px] font-semibold text-[var(--text-primary)]">
-                              {exc.orderRef || '—'}
-                            </td>
-                            <td className="px-4 py-2.5 text-[11px] font-medium text-[var(--text-secondary)] truncate max-w-[120px]">
-                              {exc.clientName || '—'}
-                            </td>
-                            <td className="px-4 py-2.5 text-[11px] text-[var(--text-muted)] truncate max-w-[200px]">
-                              {exc.message || exc.reason || '—'}
-                            </td>
-                            <td className="px-4 py-2.5 text-[10px] font-mono text-[var(--text-soft)] text-right">
-                              {exc.createdAt ? new Date(exc.createdAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false }) : '—'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                )}
-              </div>
-            </div>
-
-            {/* Right Column */}
-            <div className="flex flex-col gap-5">
-
-              {/* Driver Availability Grid */}
-              <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
-                <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
-                  {t.dashboardPage.driverAvailability}
-                </span>
-                <div className="flex flex-col gap-2.5">
-                  {[
-                    { group: driverGroups.online, label: t.dashboardPage.driverOnline, dotColor: '#4CAF82' },
-                    { group: driverGroups.onBreak, label: t.dashboardPage.driverOnBreak, dotColor: '#D4772C' },
-                    { group: driverGroups.offline, label: t.dashboardPage.driverOffline, dotColor: '#8A8F98' },
-                  ].map(({ group, label, dotColor }) => (
-                    <div key={label} className="flex items-start gap-2">
-                      <span className="w-2 h-2 rounded-full shrink-0 mt-1" style={{ backgroundColor: dotColor }} />
-                      <div className="flex flex-col min-w-0">
-                        <span className="text-[10.5px] font-bold text-[var(--text-secondary)]">
-                          {label} <span className="font-mono text-[var(--text-muted)]">({group.length})</span>
-                        </span>
-                        {group.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-1">
-                            {group.slice(0, 6).map((d: any, i: number) => (
-                              <span key={i} className="text-[9.5px] font-semibold px-1.5 py-0.5 rounded bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] truncate max-w-[80px]">
-                                {d.name || d.driverName || '?'}
-                              </span>
-                            ))}
-                            {group.length > 6 && (
-                              <span className="text-[9px] font-bold text-[var(--text-soft)] px-1 py-0.5">
-                                +{group.length - 6}
-                              </span>
-                            )}
-                          </div>
-                        )}
-                      </div>
+                <SectionCard
+                  title={
+                    <div className="flex items-center gap-2">
+                      <span>{t.dashboardPage?.sectionStart || "Tournées à Démarrer"}</span>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Quick Action Buttons */}
-              <div className="bg-[var(--surface)] rounded-[16px] p-5" style={{ boxShadow: 'var(--shadow-card)' }}>
-                <span className="text-[13px] font-semibold text-[var(--text-primary)] block mb-3">
-                  {t.dashboardPage.quickActions}
-                </span>
-                <div className="grid grid-cols-2 gap-2.5">
-                  {[
-                    { label: t.dashboardPage.actionGoToDispatch, path: '/dispatch-desk', Icon: IconLayoutKanban },
-                    { label: t.dashboardPage.actionGoToPlanner, path: '/route-builder', Icon: IconRoute },
-                    { label: t.dashboardPage.actionGoToRoutes, path: '/routes-table', Icon: IconMapPin },
-                    { label: t.dashboardPage.actionGoToDeliveries, path: '/deliveries', Icon: IconPackage },
-                  ].map(({ label, path, Icon }) => (
-                    <button
-                      key={path}
-                      type="button"
-                      onClick={() => navigate(path)}
-                      className="flex items-center gap-2.5 px-3.5 py-3 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
-                    >
-                      <Icon size={16} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
-                      <span className="text-[11.5px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-              ),
-            },
-            {
-              id: 'driver-chart',
-              className: '',
-              children: (
-          <div className="bg-[var(--surface)] rounded-[16px] p-5 text-left flex flex-col h-[280px]" style={{ boxShadow: 'var(--shadow-card)' }}>
-            <span className="text-[13px] font-semibold text-[var(--text-primary)] mb-4 block">
-              {t.dashboardPage.driverPerformanceTitle || 'Rendement par Chauffeur'}
-            </span>
-            <div className="flex-1 min-h-0">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={stats?.byDriver ?? []} barGap={5} barCategoryGap="42%">
-                  <CartesianGrid strokeDasharray="2 3" vertical={false} stroke="var(--border)" />
-                  <XAxis
-                    dataKey="driverName"
-                    tick={{ fontSize: 9, fill: 'var(--text-soft)', fontWeight: 600 }}
-                    axisLine={false}
-                    tickLine={false}
-                    dy={6}
-                    tickFormatter={capitalize}
-                  />
-                  <YAxis
-                    tick={{ fontSize: 9, fill: 'var(--text-soft)' }}
-                    axisLine={false}
-                    tickLine={false}
-                    width={18}
-                  />
-                  <Tooltip
-                    contentStyle={{
-                      background: 'var(--surface)',
-                      border: '1px solid var(--border)',
-                      borderRadius: '4px',
-                      padding: '6px 10px',
-                      fontSize: 10,
-                      color: 'var(--text-primary)',
-                      boxShadow: '0 2px 8px rgba(0,0,0,0.05)',
-                    }}
-                    cursor={{ fill: 'var(--hover-bg)' }}
-                  />
-                  <Bar name="Total" dataKey="total" fill="var(--border-strong)" barSize={12} radius={[2, 2, 0, 0]} />
-                  <Bar name="Livrées" dataKey="delivered" fill="var(--text-primary)" barSize={12} radius={[2, 2, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-              ),
+                  }
+                  actions={
+                    <Badge variant="secondary">
+                      {todayRoutes.filter(r => r.status === 'VALIDATED').length}
+                    </Badge>
+                  }
+                >
+                  {todayRoutes.filter(r => r.status === 'VALIDATED').length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
+                      <IconRoute size={24} stroke={1.5} className="text-[var(--text-muted)]" />
+                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || "Aucune tournée en attente"}</p>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col divide-y divide-[var(--border)] pl-2">
+                      {todayRoutes.filter(r => r.status === 'VALIDATED').slice(0, 4).map(route => (
+                        <button
+                          key={route.id}
+                          type="button"
+                          onClick={() => window.open(`/routes/${route.id}`, '_blank')}
+                          className="flex items-center justify-between py-2.5 hover:opacity-70 transition-opacity text-left"
+                        >
+                          <div>
+                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{route.name}</p>
+                            <p className="text-[11px] text-[var(--text-muted)]">{driverName(route.driverId)}</p>
+                          </div>
+                          <IconChevronRight size={14} className="text-[var(--text-muted)] shrink-0" />
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </SectionCard>
+              )
             },
           ]}
         />
@@ -620,13 +683,13 @@ export default function DashboardPage() {
 
 export function KpiCard({ title, value, subtitle, Icon, color, trend }: { title: string; value: string | number; subtitle: string; Icon: any; color: string; trend?: string }) {
   return (
-    <div className="bg-white border border-[#e0e0e0] rounded-[8px] p-4 hover:border-[#0972d3]/30 transition-colors">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[8px] p-4 hover:border-[var(--border-strong)] transition-colors">
       <div className="flex items-start justify-between mb-3">
-        <span className="text-[12px] font-medium text-[#545b64]">{title}</span>
-        <Icon size={16} strokeWidth={1.5} className="text-[#545b64]" />
+        <span className="text-[12px] font-medium text-[var(--text-secondary)]">{title}</span>
+        <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
       </div>
-      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{value}</div>
-      <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{subtitle}</div>
+      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{value}</div>
+      <div className="text-[11px] text-[var(--text-soft)] mt-1.5 font-normal">{subtitle}</div>
     </div>
   );
 }

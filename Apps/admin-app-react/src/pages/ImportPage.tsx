@@ -262,7 +262,7 @@ function ImportErpPageContent() {
           </div>
           <div className="overflow-y-auto flex-1">
             <table className="border-collapse min-w-[1000px] w-full">
-              <thead className="sticky top-0 z-10" style={{ background: 'var(--app-bg)' }}>
+              <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                 <tr className="border-b border-[var(--border)]">
                   <th className="w-[8px] p-0"></th>
                   <th className="w-10 py-4 pl-4 text-left">

@@ -4,6 +4,7 @@ import { IconEye as Eye, IconUserCheck as UserCheck, IconCircleX as XCircle, Ico
 import { colors, spacing, btn } from '@/lib/design-tokens';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import type { RouteItem } from '../hooks/useRoutes';
+import { useT } from '@/lib/LocaleContext';
 
 interface RouteRowProps {
   route: RouteItem;
@@ -73,6 +74,7 @@ export function RouteRow({
   closingId,
   deletingId,
 }: RouteRowProps) {
+  const t = useT();
   const [hovered, setHovered] = useState(false);
   const showActions = hovered || isFocused;
 
@@ -204,7 +206,7 @@ export function RouteRow({
         }}>
           {completedStops}/{totalStops}
         </span>
-        <span style={{ fontSize: 10, fontWeight: 500, color: colors.textMuted }}> arrêts</span>
+        <span style={{ fontSize: 10, fontWeight: 500, color: colors.textMuted }}> {t.routeDetailPage.stops}</span>
       </div>
 
       {/* Progress bar */}
@@ -262,7 +264,7 @@ export function RouteRow({
         {/* View detail */}
         <ActionIcon
           icon={<Eye size={14} />}
-          title="Voir détails"
+          title={t.tooltips.viewDetail}
           onClick={() => onView?.(route)}
         />
 
@@ -273,14 +275,14 @@ export function RouteRow({
               <>
                 <ActionIcon
                   icon={<CheckCircle size={14} />}
-                  title="Valider (V)"
+                  title={t.tooltips.validateRouteShort}
                   color={colors.success}
                   loading={validatingId === route.id}
                   onClick={() => onValidate?.(route)}
                 />
                 <ActionIcon
                   icon={<Trash2 size={14} />}
-                  title="Supprimer"
+                  title={t.actions.delete}
                   color={colors.danger}
                   loading={deletingId === route.id}
                   onClick={() => onDelete?.(route)}
@@ -292,7 +294,7 @@ export function RouteRow({
               <>
                 <ActionIcon
                   icon={<UserCheck size={14} />}
-                  title="Réaffecter (A)"
+                  title={t.tooltips.reassignRouteShort}
                   color={colors.primary}
                   loading={false}
                   onClick={() => onReassign?.(route)}
@@ -300,8 +302,8 @@ export function RouteRow({
                 <ActionIcon
                   icon={<XCircle size={14} />}
                   title={activeStopsCount > 0
-                    ? `Annuler (${activeStopsCount} arrêt${activeStopsCount > 1 ? 's' : ''} déjà ramassé${activeStopsCount > 1 ? 's' : ''} — restera avec le chauffeur)`
-                    : 'Annuler (C)'}
+                    ? t.tooltips.cancelRouteWithStops.replace('{count}', String(activeStopsCount))
+                    : t.tooltips.cancelRouteShort}
                   color={colors.danger}
                   loading={cancellingId === route.id}
                   onClick={() => onCancel?.(route)}
@@ -312,7 +314,7 @@ export function RouteRow({
             {route.status === 'IN_PROGRESS' && (
               <ActionIcon
                 icon={<CheckCircle size={14} />}
-                title="Clôturer"
+                title={t.tooltips.closeRoute}
                 color={colors.success}
                 loading={closingId === route.id}
                 onClick={() => onClose?.(route)}

@@ -2,6 +2,8 @@ package com.asm.erpadapter.port;
 
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
+import com.asm.erpadapter.dto.ErpPodDTO;
+import com.asm.erpadapter.dto.ErpReturnItemDTO;
 
 import java.util.List;
 
@@ -46,4 +48,17 @@ public interface ErpSyncPort {
      * Post a failure note on the ERP order when delivery could not be completed.
      */
     boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String pickingRef);
+
+    /**
+     * Push the proof of delivery (recipient, timestamp, geo + signature/photos) onto
+     * the ERP order: photos become ir.attachment records and the metadata is posted to
+     * the chatter. Idempotent on {@code transactionId}.
+     */
+    boolean syncProofOfDelivery(String erpOrderId, ErpPodDTO pod, String transactionId, String pickingRef);
+
+    /**
+     * Push a customer return (RMA) onto the ERP order: records the returned lines on the chatter
+     * and creates a reverse stock move for resellable items. Idempotent on {@code transactionId}.
+     */
+    boolean syncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String transactionId, String pickingRef);
 }

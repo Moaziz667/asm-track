@@ -497,8 +497,8 @@ function VehiclesPageContent() {
               </div>
             ) : (
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr style={{ background: 'var(--app-bg)', boxShadow: '0 1px 0 var(--border)' }}>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
+                  <tr style={{ boxShadow: '0 1px 0 var(--border)' }}>
                     {/* Thumbnail always first */}
                     <th className="px-4 py-2.5" style={{ color: 'var(--text-muted)', width: 56 }} />
                     {orderedColumns.map(col => visibleIds.has(col.id) && (

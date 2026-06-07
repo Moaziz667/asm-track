@@ -16,10 +16,11 @@ import { cn } from '@/lib/utils';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
+import FailureReasonsSettings from './settings/FailureReasonsSettings';
 
 // ── Types & Constants ────────────────────────────────────────────────────────
 
-type SettingSection = 'GENERAL' | 'SLA' | 'IAM';
+type SettingSection = 'GENERAL' | 'SLA' | 'FAILURE_REASONS' | 'IAM';
 
 // ── Sub-components ──────────────────────────────────────────────────────────
 
@@ -260,6 +261,7 @@ export default function SettingsPage() {
   const navSections = [
     { id: 'GENERAL', label: t.settingsPage.generalConfig, icon: IconCommand },
     { id: 'SLA', label: t.settingsPage.slaParameters, icon: IconClock },
+    { id: 'FAILURE_REASONS', label: t.settingsPage.failureReasons || "Motifs d'échec", icon: IconBan },
     { id: 'IAM', label: t.settingsPage.identitiesAccess, icon: IconShieldCheck },
   ];
 
@@ -545,6 +547,11 @@ export default function SettingsPage() {
                     </div>
                   </div>
                 </div>
+              )}
+
+              {/* SECTION: FAILURE REASONS */}
+              {section === 'FAILURE_REASONS' && (
+                <FailureReasonsSettings canManage={canManage} />
               )}
 
               {/* SECTION: IAM */}

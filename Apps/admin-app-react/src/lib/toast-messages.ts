@@ -304,34 +304,6 @@ export const messages = {
     }),
   },
 
-  // ──── COMPANIES (Entreprises) ──────────────────────────────────────────────
-  companies: {
-    loadFailed: {
-      title: 'Impossible de charger les entreprises',
-    },
-    createSuccess: {
-      title: '✓ Entreprise créée',
-    },
-    updateSuccess: {
-      title: '✓ Entreprise mise à jour',
-    },
-    createFailed: {
-      title: 'Impossible de créer l\'entreprise',
-    },
-    updateFailed: {
-      title: 'Impossible de mettre à jour l\'entreprise',
-    },
-    deactivateSuccess: {
-      title: '✓ Entreprise désactivée',
-    },
-    deactivateFailed: {
-      title: 'Impossible de désactiver l\'entreprise',
-    },
-    nameRequired: {
-      title: 'Nom d\'entreprise requis',
-    },
-  },
-
   // ──── GENERAL ──────────────────────────────────────────────────────────────
   general: {
     undoSuccess: {

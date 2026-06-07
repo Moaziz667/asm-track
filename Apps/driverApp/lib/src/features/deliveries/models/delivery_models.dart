@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 enum DeliveryStatus {
   unscheduled,
   scheduled,
@@ -55,27 +53,6 @@ extension DeliveryStatusX on DeliveryStatus {
         return 'Annulé';
     }
   }
-
-  Color get badgeColor {
-    switch (this) {
-      case DeliveryStatus.unscheduled:
-        return const Color(0xFF8EA1C0);
-      case DeliveryStatus.scheduled:
-        return const Color(0xFF6B8CFF);
-      case DeliveryStatus.pickedUp:
-        return const Color(0xFF1BD6A0);
-      case DeliveryStatus.inTransit:
-        return const Color(0xFF2E5BFF);
-      case DeliveryStatus.delivered:
-        return const Color(0xFF50E3C2);
-      case DeliveryStatus.partially_delivered:
-        return const Color(0xFF00B8D4);
-      case DeliveryStatus.failed:
-        return const Color(0xFFFF5F6D);
-      case DeliveryStatus.cancelled:
-        return const Color(0xFFF5A524);
-    }
-  }
 }
 
 enum FailureReason { clientAbsent, refused, wrongAddress, damaged, other }
@@ -115,6 +92,26 @@ extension FailureReasonX on FailureReason {
 class FailureCode {
   const FailureCode(this.value);
   final String value;
+}
+
+/// Configurable failure reason fetched from the backend referential.
+/// Falls back to the static [FailureReason] enum when offline.
+class FailureReasonOption {
+  const FailureReasonOption({required this.code, required this.label, this.category});
+  final String code;
+  final String label;
+  final String? category;
+
+  factory FailureReasonOption.fromJson(Map<String, dynamic> json) => FailureReasonOption(
+        code: json['code'] as String? ?? 'OTHER',
+        label: json['label'] as String? ?? (json['code'] as String? ?? 'Autre'),
+        category: json['category'] as String?,
+      );
+
+  /// Static fallback derived from the legacy enum (used when the API is unreachable).
+  static List<FailureReasonOption> get fallback => FailureReason.values
+      .map((r) => FailureReasonOption(code: r.apiCode.value, label: r.label, category: r.apiCode.value))
+      .toList();
 }
 
 class OrderItemModel {

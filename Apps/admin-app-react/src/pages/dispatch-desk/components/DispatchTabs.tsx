@@ -1,12 +1,11 @@
 import React from 'react';
-import { cn } from '@/lib/utils';
 import { IconX, IconAlertCircle } from '@tabler/icons-react';
 import { IconAssign, IconReassign } from '@/components/icons/DispatchIcons';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { useHandoffs } from '../hooks/useHandoffs';
 import { HandoffCards } from './HandoffCards';
-import { ActionCards } from './ActionCards';
 import { DeliveryCards } from './DeliveryCards';
+import { QueuePanel } from './QueuePanel';
 
 export function DispatchTabs() {
   const {
@@ -28,15 +27,14 @@ export function DispatchTabs() {
   const handoffs = useHandoffs();
 
   const isHandoffTab = dispatchTab === 'handoff';
-  const isActionTab  = dispatchTab === 'action';
+  const isQueueTab   = dispatchTab === 'queue';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Tab bar */}
       <div className="flex items-stretch h-10 shrink-0 flex-nowrap" style={{ background: 'var(--surface)', boxShadow: '0 1px 0 var(--border), var(--shadow-xs)' }}>
         {([
-          { id: 'assign',  label: t.dispatchDeskPage.tabAssign,     count: tabCounts.assign },
-          { id: 'action',  label: t.dispatchDeskPage.tabAction,     count: tabCounts.action },
+          { id: 'queue',   label: t.dispatchDeskPage.tabQueue,      count: tabCounts.queue },
           { id: 'failed',  label: t.dispatchDeskPage.tabFailed,     count: tabCounts.failed },
           { id: 'gps',     label: t.dispatchDeskPage.tabMissingGps, count: tabCounts.gps },
           { id: 'handoff', label: t.dispatchDeskPage.tabHandoff,    count: handoffs.open.length, danger: handoffs.overdueCount > 0 },
@@ -77,6 +75,69 @@ export function DispatchTabs() {
         })}
       </div>
 
+      {/* New alerts banner — shown across all selectable tabs (handoffs manage their own list) */}
+      {!isHandoffTab && newSinceLoad > 0 && (
+        <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
+          <div className="flex items-center gap-2">
+            <IconAlertCircle size={13} stroke={2.5} style={{ color: 'var(--text-secondary)' }} />
+            <span className="text-[11px] font-[500]" style={{ color: 'var(--text-secondary)' }}>
+              {newSinceLoad} {newSinceLoad > 1 ? t.dispatchDeskPage.newAlertPlural : t.dispatchDeskPage.newAlertSingular}
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={() => { setNewSinceLoad(0); doRefresh(); }}
+              className="text-[11px] font-[500] h-6 px-2 rounded-[var(--radius)] border transition-colors hover:bg-[var(--hover-bg)]"
+              style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
+            >
+              {t.dispatchDeskPage.newAlertBannerRefresh}
+            </button>
+            <button
+              type="button"
+              className="w-5 h-5 flex items-center justify-center rounded"
+              style={{ color: 'var(--text-muted)' }}
+              onClick={() => setNewSinceLoad(0)}
+            >
+              <IconX size={11} stroke={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Batch bar — shared selection works across Queue/Failed/GPS */}
+      {!isHandoffTab && selectedIds.size > 0 && (
+        <div className="flex items-center gap-3 px-4 h-10 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
+          <span className="text-[12px] font-[500]" style={{ color: 'var(--text-primary)' }}>
+            {t.dispatchDeskPage.batchCount.replace('{count}', String(selectedIds.size)).replace('{plural}', selectedIds.size > 1 ? 's' : '')}
+          </span>
+          {batchType === 'mixed' ? (
+            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
+          ) : (
+            batchType !== 'none' && (
+              <button
+                type="button"
+                className="text-[11px] font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors"
+                style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff' }}
+                onClick={() => setDrawerTargets(selectedTargets)}
+                disabled={isReadOnly}
+              >
+                {batchType === 'assign' ? <IconAssign size={13} /> : <IconReassign size={13} />}
+                {batchType === 'assign' ? t.dispatchDeskPage.batchAssign.replace('{count}', String(selectedIds.size)) : t.dispatchDeskPage.batchReassign.replace('{count}', String(selectedIds.size))}
+              </button>
+            )
+          )}
+          <button
+            type="button"
+            onClick={() => setSelectedIds(new Set())}
+            className="text-[11px] h-6 px-2 rounded-[var(--radius)] transition-colors hover:bg-[var(--hover-bg)]"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            {t.dispatchDeskPage.batchCancel}
+          </button>
+        </div>
+      )}
+
       {isHandoffTab ? (
         <HandoffCards
           open={handoffs.open}
@@ -86,74 +147,10 @@ export function DispatchTabs() {
           onCancel={handoffs.cancel}
           t={t}
         />
+      ) : isQueueTab ? (
+        <QueuePanel />
       ) : (
-        <>
-          {/* New alerts banner */}
-          {newSinceLoad > 0 && (
-            <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
-              <div className="flex items-center gap-2">
-                <IconAlertCircle size={13} stroke={2.5} style={{ color: 'var(--text-secondary)' }} />
-                <span className="text-[11px] font-[500]" style={{ color: 'var(--text-secondary)' }}>
-                  {newSinceLoad} {newSinceLoad > 1 ? t.dispatchDeskPage.newAlertPlural : t.dispatchDeskPage.newAlertSingular}
-                </span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={() => { setNewSinceLoad(0); doRefresh(); }}
-                  className="text-[11px] font-[500] h-6 px-2 rounded-[var(--radius)] border transition-colors hover:bg-[var(--hover-bg)]"
-                  style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
-                >
-                  {t.dispatchDeskPage.newAlertBannerRefresh}
-                </button>
-                <button
-                  type="button"
-                  className="w-5 h-5 flex items-center justify-center rounded"
-                  style={{ color: 'var(--text-muted)' }}
-                  onClick={() => setNewSinceLoad(0)}
-                >
-                  <IconX size={11} stroke={2.5} />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Batch bar */}
-          {selectedIds.size > 0 && (
-            <div className="flex items-center gap-3 px-4 h-10 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
-              <span className="text-[12px] font-[500]" style={{ color: 'var(--text-primary)' }}>
-                {t.dispatchDeskPage.batchCount.replace('{count}', String(selectedIds.size)).replace('{plural}', selectedIds.size > 1 ? 's' : '')}
-              </span>
-              {batchType === 'mixed' ? (
-                <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
-              ) : (
-                batchType !== 'none' && (
-                  <button
-                    type="button"
-                    className="text-[11px] font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors"
-                    style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff' }}
-                    onClick={() => setDrawerTargets(selectedTargets)}
-                    disabled={isReadOnly}
-                  >
-                    {batchType === 'assign' ? <IconAssign size={13} /> : <IconReassign size={13} />}
-                    {batchType === 'assign' ? t.dispatchDeskPage.batchAssign.replace('{count}', String(selectedIds.size)) : t.dispatchDeskPage.batchReassign.replace('{count}', String(selectedIds.size))}
-                  </button>
-                )
-              )}
-              <button
-                type="button"
-                onClick={() => setSelectedIds(new Set())}
-                className="text-[11px] h-6 px-2 rounded-[var(--radius)] transition-colors hover:bg-[var(--hover-bg)]"
-                style={{ color: 'var(--text-muted)' }}
-              >
-                {t.dispatchDeskPage.batchCancel}
-              </button>
-            </div>
-          )}
-
-          {/* Content — every tab is a card view */}
-          {isActionTab ? <ActionCards /> : <DeliveryCards />}
-        </>
+        <DeliveryCards />
       )}
     </div>
   );

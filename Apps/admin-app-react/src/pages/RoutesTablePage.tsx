@@ -64,12 +64,12 @@ type EnrichedRoute = RouteItem & {
 
 const DONE_STATUSES = new Set(['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED', 'FAILED_ATTEMPT', 'COMPLETED', 'PARTIAL']);
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; ribbon: string }> = {
-  DRAFT:       { label: 'Brouillon', color: 'gray',    ribbon: '#A1A1AA' },
-  VALIDATED:   { label: 'Planifié',  color: 'blue',    ribbon: '#2563EB' },
-  IN_PROGRESS: { label: 'En route',  color: 'orange',  ribbon: 'var(--brand)' },
-  CLOSED:      { label: 'Livré',     color: 'teal',    ribbon: '#10B981' },
-  CANCELLED:   { label: 'Annulé',    color: 'red',     ribbon: '#EF4444' },
+const STATUS_STYLE: Record<string, { color: string; ribbon: string }> = {
+  DRAFT:       { color: 'gray',   ribbon: '#A1A1AA' },
+  VALIDATED:   { color: 'blue',   ribbon: '#2563EB' },
+  IN_PROGRESS: { color: 'orange', ribbon: 'var(--brand)' },
+  CLOSED:      { color: 'teal',   ribbon: '#10B981' },
+  CANCELLED:   { color: 'red',    ribbon: '#EF4444' },
 };
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -136,7 +136,7 @@ function RouteRow({
   const total    = route.stops.length;
   const done     = route.completedStops;
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
-  const config   = STATUS_CONFIG[route.status] || { label: route.status, color: 'gray', ribbon: '#A1A1AA' };
+  const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
   const canClose = route.status === 'IN_PROGRESS';
 
   return (

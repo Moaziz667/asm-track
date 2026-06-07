@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, useTransition, type ReactNode } f
 import { createPortal } from 'react-dom'
 import { useNavigate as useRouter } from 'react-router-dom';
 import {
-  IconSearch, IconLayoutDashboard, IconAdjustments, IconMap2, IconTruck, IconUpload,
+  IconSearch, IconLayoutDashboard, IconCalendarEvent, IconMap2, IconTruck, IconUpload,
   IconRoute, IconTable, IconUser, IconCar, IconBuildingWarehouse, IconMapPin,
   IconChartBar, IconClipboardList, IconSettings, IconFileText,
   IconPackage, IconRefresh, IconSun, IconPlus,
@@ -68,7 +68,7 @@ type NavPageDef = {
 
 const NAV_PAGE_DEFS: NavPageDef[] = [
   { id: 'nav-dashboard',     labelKey: 'dashboard',    path: '/dashboard',     Icon: IconLayoutDashboard },
-  { id: 'nav-operations',    labelKey: 'overview',     path: '/operations',    Icon: IconAdjustments },
+  { id: 'nav-operations',    labelKey: 'overview',     path: '/schedule',    Icon: IconCalendarEvent },
   { id: 'nav-dispatch',      labelKey: 'dispatch',     path: '/dispatch-desk', Icon: IconMap2 },
   { id: 'nav-deliveries',    labelKey: 'tracking',     path: '/deliveries',    Icon: IconTruck },
   { id: 'nav-import',        labelKey: 'import',       path: '/import',        Icon: IconUpload },

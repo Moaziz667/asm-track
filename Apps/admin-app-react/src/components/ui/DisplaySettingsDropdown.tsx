@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { useT } from '@/lib/LocaleContext';
 import {
   DndContext,
   closestCenter,
@@ -111,15 +112,9 @@ const DENSITY_LABELS: Record<Density, string> = {
 };
 
 export function DisplaySettingsDropdown({
-  columns,
-  visibleIds,
-  onToggle,
-  onReorder,
-  onReset,
-  density,
-  onDensityChange,
   disabled,
-}: DisplaySettingsDropdownProps) {
+}: { disabled?: boolean }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
@@ -155,7 +150,7 @@ export function DisplaySettingsDropdown({
             : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]',
           disabled && 'opacity-40 cursor-default pointer-events-none',
         )}
-        title="Paramètres d'affichage"
+        title={t.displaySettings.title}
       >
         <IconAdjustmentsHorizontal size={14} />
       </button>
@@ -167,7 +162,7 @@ export function DisplaySettingsDropdown({
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',
-            boxShadow: 'var(--shadow-card-hover)',
+            boxShadow: 'var(--shadow-dropdown)',
           }}
           onMouseDown={e => e.stopPropagation()}
         >

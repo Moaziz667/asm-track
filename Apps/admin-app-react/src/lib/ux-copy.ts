@@ -114,6 +114,10 @@ export const FR_COPY = {
     unassignDelivery: 'Retirer de la tournée et renvoyer au pool non-affectées (dispatch plus tard)',
     capacityOver: 'Capacité véhicule dépassée — choisissez un autre véhicule ou divisez la livraison',
     capacityOk: 'Capacité véhicule disponible',
+    editWindow: 'Modifier la fenêtre horaire',
+    removeStop: "Retirer l'arrêt",
+    cancelStop: 'Annuler le passage',
+    reposition: 'Réorganiser',
   },
 
   // ── États vides ──────────────────────────────────────────────────────
@@ -357,10 +361,6 @@ export const FR_COPY = {
       title: 'Créer une tournée',
       subtitle: 'Planification cartographique et optimisation des tournées',
     },
-    companies: {
-      title: 'Entreprises',
-      subtitle: 'Gestion des locataires et configurations ERP',
-    },
   },
 
 
@@ -387,6 +387,14 @@ export const FR_COPY = {
     REMOVED_REPLANNED: 'Replanifié',
     REMOVED_CANCELLED: 'Annulé (retiré)',
     FAILED_ATTEMPT: 'Tentative échouée',
+    ACTIVE: 'En service',
+    MUTED: 'Hors service',
+    MAINTENANCE: 'Maintenance',
+    REQUESTED: 'Demandé',
+    APPROVED: 'Approuvé',
+    RECEIVED: 'Reçu',
+    RESTOCKED: 'Restocké',
+    REJECTED: 'Refusé',
   } as Record<string, string>,
 
   // ── Codes d'échec de livraison ────────────────────────────────────────
@@ -571,6 +579,43 @@ export const FR_COPY = {
     },
   },
 
+  // ── Command Surface (palette) ─────────────────────────────────────────────
+  commandSurface: {
+    placeholder: 'Rechercher une action ou page... (⌘K)',
+    noResults: 'Aucun résultat trouvé',
+    goToDashboard: 'Aller au Tableau de bord',
+    goToDispatch: 'Aller au Dispatch Desk',
+    goToDeliveries: 'Aller au Suivi des livraisons',
+    goToRouteBuilder: 'Aller à la Planification de tournée',
+    goToSettings: 'Aller aux Paramètres système',
+    importFromOdoo: 'Importer des commandes depuis Odoo',
+    checkExceptions: 'Consulter les anomalies (échecs/retours)',
+    categoryNavigation: 'Navigation',
+    categoryOperations: 'Opérations',
+  },
+
+  // ── Display Settings ──────────────────────────────────────────────────────
+  displaySettings: {
+    title: "Paramètres d'affichage",
+    density: 'Densité',
+    columns: 'Colonnes',
+    visibleColumns: 'Colonnes visibles',
+    reset: 'Réinitialiser',
+    pinned: 'fixé',
+    compact: 'Compact',
+    comfortable: 'Confort.',
+    spacious: 'Spacieux',
+    display: 'Affichage',
+    resetLayout: 'Réinitialiser la disposition',
+  },
+
+  // ── Error Boundary ─────────────────────────────────────────────────────────
+  errorBoundary: {
+    title: 'Rupture de Flux Composant (Crash)',
+    description: 'Une exception inattendue s\'est produite lors du rendu de ce bloc opérationnel. La sécurité de l\'orchestration reste active.',
+    resetButton: 'Réinitialiser le Flux',
+  },
+
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
     syncError: 'Échec de synchronisation',
@@ -630,6 +675,8 @@ export const FR_COPY = {
     kpiDriversOnline: 'Livreurs en ligne',
     kpiSlaRate: 'Taux SLA',
     kpiDeliveredOf: 'sur',
+    kpiVsPrevPeriod: 'vs période préc.',
+    kpiActiveRoutesSub: 'en cours',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -722,24 +769,23 @@ export const FR_COPY = {
     driverOnline: 'En service',
     driverOnBreak: 'En pause',
     driverOffline: 'Hors ligne',
-    // KPI strip
-    kpiCritical: 'Critiques',
-    kpiUnassigned: 'Non assignés',
-    kpiInTransit: 'En transit',
-    kpiFailed: 'Échoués',
     // Tabs
+    tabQueue: 'File d\'attente',
     tabAssign: 'Assignation',
     tabAction: 'Action requise',
     tabFailed: 'Échouées',
     tabMissingGps: 'GPS manquant',
     tabHandoff: 'Passations',
+    // Queue split-view
+    queueSelectPrompt: 'Sélectionnez une commande pour voir le détail',
+    queueNoAlerts: 'Aucune alerte active — la livraison suit son cours normal',
+    queueItemsLabel: 'Articles',
     // Batch action bar
     batchCount: '{count} sélectionnée{plural}',
     batchMixedWarning: 'Sélection mixte — choisissez un seul type',
     batchAssign: 'Assigner ({count})',
     batchReassign: 'Réassigner ({count})',
     batchCancel: 'Annuler',
-    kpiUpdated: 'Mis à jour',
     cardCreated: 'Créé depuis',
     handoffEmpty: 'Aucune passation en cours',
     handoffStateRequested: 'En attente du code',
@@ -860,6 +906,23 @@ export const FR_COPY = {
     suggestionWrongAddress: '→ Corriger l\'adresse dans la fiche commande',
     suggestionOther: '→ Vérifier le commentaire chauffeur',
     suggestionSlaUnscheduledLate: '→ Assigner une tournée d\'urgence',
+    // Narration paragraphs (formatNarrative — "system talks to you" in Queue detail)
+    narrativeUnscheduledLate: 'Cette commande attend toujours une tournée et accuse désormais du retard — elle patiente depuis {time}. Une assignation en urgence éviterait une rupture de SLA.',
+    narrativeUnscheduledToday: 'Cette commande est prévue pour aujourd\'hui mais n\'a pas encore de tournée. Mieux vaut l\'assigner rapidement pour rester dans les temps.',
+    narrativeUnscheduled: 'Cette commande attend une tournée depuis {time}. Rien d\'urgent pour l\'instant, mais à surveiller.',
+    narrativeScheduled: 'Cette commande est planifiée mais s\'approche de son délai SLA — un coup d\'œil ne ferait pas de mal.',
+    narrativePickup: 'Le chauffeur n\'a pas encore récupéré cette commande et la fenêtre de ramassage se referme. Un petit rappel pourrait aider.',
+    narrativeInTransit: 'Cette commande est en route depuis {time}, plus longtemps que prévu. Un appel au chauffeur permettrait d\'y voir plus clair.',
+    narrativeScheduledMonitoring: 'Cette commande suit son cours normal — rien à signaler, simple suivi de routine.',
+    narrativeClientAbsent: 'Le client était absent lors du dernier passage, il y a {time}. Un appel avant un nouveau passage éviterait un second échec.',
+    narrativeRefused: 'Le client a refusé cette livraison il y a {time}. Un échange rapide aiderait à clarifier la suite avant réaffectation.',
+    narrativeWrongAddress: 'L\'adresse semble incorrecte — le chauffeur n\'a pas pu effectuer la livraison. Mieux vaut la confirmer avec le client avant de relancer une tournée.',
+    narrativeDamaged: 'Le colis est arrivé endommagé. Il faudrait organiser son retour au dépôt et prévenir le client.',
+    narrativePartial: 'Seule une partie de cette commande a été livrée. À examiner avant de décider de la suite.',
+    narrativeFailed: 'Cette livraison a échoué il y a {time} et mérite un coup d\'œil avant toute réaffectation.',
+    narrativeCancelled: 'Cette commande a été annulée.',
+    narrativeOther: 'Un incident a été signalé sur cette commande il y a {time}. Les détails méritent d\'être vérifiés avant de poursuivre.',
+    narrativeDefault: 'Un événement a été signalé sur cette commande il y a {time}.',
     // ReplanModal
     replanModalTitleReplan: 'Remettre en attente de planification',
     replanModalTitleReassign: 'Réassigner la livraison',
@@ -973,6 +1036,17 @@ export const FR_COPY = {
     forceWarning: 'Forcer l\'affectation (ignorer l\'alerte)',
     cancelBtn: 'Annuler',
     confirmBtn: 'Confirmer',
+    modalTitle: 'Réaffecter',
+    tabDriver: 'Vers un chauffeur',
+    tabRoute: 'Vers une tournée',
+    unnamedDriver: 'Sans nom',
+    stopCountBadge: '{count} arrêt{s}',
+    orderField: 'Ordre de l\'arrêt',
+    startWindow: 'Début fenêtre',
+    endWindow: 'Fin fenêtre',
+    noteRequired: 'Note (obligatoire si déjà ramassée)',
+    capacityInfo: 'Capacité cible : {load} / {capacity} kg ({pct}%)',
+    forceOverride: 'Forcer malgré le dépassement',
   },
 
   // ── Delivery Detail Page ──────────────────────────────────────────────────
@@ -1268,6 +1342,7 @@ export const FR_COPY = {
     noRoutesForDate: 'Aucune tournée pour cette date',
     lockRoute: 'Verrouiller la tournée',
     unlockRoute: 'Déverrouiller la tournée',
+    routeLockedBadge: 'Verrouillée',
     selectForBatchOptimize: 'Sélectionner pour optimisation en lot',
     selectAll: 'Tout sélectionner',
     deselectAll: 'Désélectionner',
@@ -1949,6 +2024,7 @@ export const FR_COPY = {
     generalConfig: 'Configuration Générale',
     slaParameters: 'Paramètres Flux (SLA)',
     identitiesAccess: 'Identités & Accès',
+    failureReasons: "Motifs d'échec",
     tabSections: 'Sections',
     tabParameters: 'Paramètres',
     systemAdmin: 'Administration Système',
@@ -2224,16 +2300,10 @@ export const FR_COPY = {
     errorImportFailed: 'Erreur lors de l\'importation',
 
     // Company CRUD
-    successCompanyCreated: 'Entreprise créée avec succès',
     successCompanyUpdated: 'Entreprise mise à jour avec succès',
     successCompanySynced: 'Informations synchronisées depuis l\'ERP',
     errorCompanySyncFailed: 'Échec de la synchronisation depuis l\'ERP',
-    successCompanyDeactivated: 'Entreprise désactivée avec succès',
-    errorCompanyCreateFailed: 'Impossible de créer l\'entreprise',
     errorCompanyUpdateFailed: 'Impossible de mettre à jour l\'entreprise',
-    errorCompanyDeactivateFailed: 'Impossible de désactiver l\'entreprise',
-    errorCompaniesLoadFailed: 'Impossible de charger les entreprises',
-    errorCompanyNameRequired: 'Nom d\'entreprise requis',
 
     // Depot CRUD
     successDepotCreated: 'Dépôt créé avec succès',
@@ -2330,6 +2400,7 @@ export const FR_COPY = {
       overview: "Vue d'ensemble",
       dispatch: 'Centre de dispatch',
       tracking: 'Suivi',
+      returns: 'Retours',
       import: 'Importation',
       createRoute: 'Créer tournée',
       routes: 'Tournées',
@@ -2339,10 +2410,149 @@ export const FR_COPY = {
       zones: 'Zones',
       performance: 'Analyse de performance',
       audit: 'Audit',
+      systemHealth: 'Santé système',
       settings: 'Paramètres',
       erpIntegration: 'Intégration ERP',
-      companies: 'Entreprises',
+    },
+    badges: {
+      dispatchActionRequired: 'action requise',
+      dispatchActionsRequired: 'actions requises',
+      importOne: 'import',
+      imports: 'imports',
+      routeActive: 'active',
+      routesActive: 'actives',
+      arDispatchOne: 'إجراء مطلوب',
+      arDispatchMany: 'إجراءات مطلوبة',
+      arImportOne: 'استيراد واحد',
+      arImportMany: 'استيراد',
+      arRouteActive: 'مسار نشط',
+      arRouteActiveMany: 'مسارات نشطة',
     }
+  },
+
+  // ── failureReasonsSettings ──────────────────────────────────────────────
+  failureReasonsSettings: {
+    title: 'Motifs d\'échec',
+    subtitle: 'Référentiel configurable présenté aux livreurs lors d\'un échec de livraison.',
+    addButton: 'Ajouter un motif',
+    tableLabel: 'Libellé',
+    tableCode: 'Code',
+    tableCategory: 'Catégorie',
+    tableStatus: 'Statut',
+    loading: 'Chargement…',
+    empty: 'Aucun motif',
+    active: 'Actif',
+    inactive: 'Inactif',
+    editTitle: 'Modifier le motif',
+    createTitle: 'Nouveau motif',
+    formLabel: 'Libellé',
+    formLabelPlaceholder: 'ex. Porte fermée',
+    formCategory: 'Catégorie (analytique)',
+    formCode: 'Code (optionnel)',
+    formCodePlaceholder: 'auto-généré depuis le libellé',
+    formOrder: 'Ordre',
+    formActive: 'Actif',
+    cancelButton: 'Annuler',
+    saveButton: 'Enregistrer',
+    savingButton: 'Enregistrement…',
+    editTooltip: 'Modifier',
+    deactivateTooltip: 'Désactiver',
+    reactivateTooltip: 'Réactiver',
+    toastLoadFailed: 'Échec du chargement des motifs',
+    toastLabelRequired: 'Le libellé est requis',
+    toastUpdated: 'Motif mis à jour',
+    toastCreated: 'Motif créé',
+    toastDeactivated: 'Motif désactivé',
+    toastReactivated: 'Motif réactivé',
+    toastSaveFailed: 'Échec de l\'enregistrement',
+    toastDeactivateFailed: 'Échec de la désactivation',
+    toastReactivateFailed: 'Échec de la réactivation',
+  },
+
+  // ── routeFilterBar ──────────────────────────────────────────────────────
+  routeFilterBar: {
+    cityPlaceholder: 'Ville...',
+    clearButton: 'Effacer',
+    statusAll: 'Toutes',
+    statusDraft: 'Brouillon',
+    statusValidated: 'Validée',
+    statusInProgress: 'En cours',
+    statusClosed: 'Terminée',
+  },
+
+  // ── operationalFilterBar ──────────────────────────────────────────────
+  operationalFilterBar: {
+    title: 'Filtres globaux',
+    persistLabel: 'Persister entre les pages',
+    clearButton: 'Effacer',
+    zonePlaceholder: 'Zone',
+    driverPlaceholder: 'Chauffeur',
+    routePlaceholder: 'Tournée',
+    statusPlaceholder: 'Statut',
+    searchPlaceholder: 'Rechercher ID/client/commande',
+    presetMorning: 'Dispatch du matin',
+    presetNorth: 'Zone Nord',
+    presetAtRisk: 'Tournées à risque',
+    saveAsMorning: 'Enregistrer comme Dispatch du matin',
+  },
+
+  // ── newDeliveryPanel ──────────────────────────────────────────────────
+  newDeliveryPanel: {
+    searchClient: 'Rechercher un client',
+    searchClientPlaceholder: 'Rechercher un client...',
+    systemClients: 'Clients système',
+    deliveryInstructions: 'Instructions de livraison',
+    instructionsPlaceholder: 'Ex: 2eme etage, sonner 2 fois...',
+    productLabel: 'Produit',
+    productPlaceholder: 'Rechercher un produit...',
+    noProductFound: 'Aucun produit trouvé — saisir manuellement',
+    quantityLabel: 'Qté',
+    priceLabel: 'Prix',
+    skuLabel: 'SKU',
+    skuPlaceholder: 'SKU',
+    stockAvailable: 'Stock disponible: {stock} unités',
+    stockWarning: 'Quantité supérieure au stock disponible',
+    outOfStock: 'Rupture de stock',
+    inStock: 'en stock',
+    stepClient: 'Client',
+    stepAddress: 'Adresse',
+    stepArticles: 'Articles',
+    stepPayment: 'Paiement',
+    stepSummary: 'Récapitulatif',
+    noClientFound: 'Aucun client trouvé',
+    newClient: '+ Nouveau client',
+    skuNotAvailable: 'SKU N/A',
+    erpBadge: 'ERP',
+    phoneNotAvailable: 'N/A',
+  },
+
+  // ── pinDropoffModal ──────────────────────────────────────────────────
+  pinDropoffModal: {
+    title: 'Épingler et géocoder la livraison',
+    closeButton: 'Fermer',
+    loadingDetails: 'Chargement des détails de livraison...',
+    autoGeocode: 'Géocodage auto',
+    latitude: 'Latitude',
+    longitude: 'Longitude',
+    address: 'Adresse',
+    city: 'Ville',
+    postalCode: 'Code postal',
+    zoneHint: 'La zone sera automatiquement assignée par code postal, avec repli sur la ville, lors de l\'enregistrement.',
+    saving: 'Enregistrement...',
+    savePin: 'Enregistrer la position',
+  },
+
+  // ── deliveryRow ──────────────────────────────────────────────────────
+  deliveryRow: {
+    pinPosition: 'Épingler la position (P)',
+    createBackorder: 'Créer un backorder',
+    cancelOrder: 'Annuler la commande (C)',
+  },
+
+  // ── erpIntegrationPage ─────────────────────────────────────────────
+  erpIntegrationPage: {
+    reportIdPlaceholder: 'stock.report_deliveryslip',
+    apiUrlPlaceholder: 'e.g. https://api.dux.com/v1',
   },
 
   // ── notifications ────────────────────────────────────────────────────────
@@ -2522,6 +2732,14 @@ export const FR_COPY = {
       title: 'Commandes ERP prêtes',
       message: (p: any) => `${p.count || 'Nouvelles'} commande${Number(p.count) > 1 ? 's' : ''} ERP en attente d'import — à valider`,
     },
+    'pickup.overdue': {
+      title: 'Enlèvement en retard',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — enlèvement en retard${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'delivery.backorder_created': {
+      title: 'Reliquat créé',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — reliquat créé${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
   },
   landingPage: {
     metaTitle: "ASM Track — Orchestration Logistique",
@@ -2634,6 +2852,18 @@ export const FR_COPY = {
     statusSubEnRoute: 'Votre livreur est en chemin',
     statusLivree: 'Livrée',
     statusSubLivree: 'Votre commande a été livrée avec succès',
+    statusPartielle: 'Partiellement livrée',
+    statusSubPartielle: 'Une partie de votre commande a été livrée',
+    labelFailureReason: 'Motif',
+    labelReturn: 'Retour',
+    returnStatusLabels: {
+      REQUESTED: 'Retour demandé',
+      APPROVED: 'Retour approuvé',
+      RECEIVED: 'Retour reçu',
+      RESTOCKED: 'Retour traité',
+      REJECTED: 'Retour refusé',
+      CANCELLED: 'Retour annulé',
+    } as Record<string, string>,
     statusTentativeEchouee: 'Tentative échouée',
     statusSubTentativeEchouee: 'Une nouvelle tentative sera planifiée',
     statusAnnulee: 'Annulée',

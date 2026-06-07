@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { cn } from '@/lib/utils';
 import { IconX } from '@tabler/icons-react';
+import { useT } from '@/lib/LocaleContext';
 
 interface AppModalProps {
   open?: boolean;
@@ -44,10 +45,12 @@ export function AppModal({
   className,
 }: AppModalProps) {
   const isOpen = open ?? opened ?? false;
+  const t = useT();
   return (
     <Dialog open={isOpen} onOpenChange={(v) => !v && onClose()}>
       <DialogContent
         showCloseButton={false}
+        style={{ boxShadow: 'var(--shadow-lg)' }}
         className={cn(
           'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)] rounded-[16px]',
           'max-h-[90dvh]',
@@ -75,7 +78,7 @@ export function AppModal({
               <button
                 type="button"
                 className="w-7 h-7 flex items-center justify-center rounded border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)] text-[var(--text-muted)] transition-colors shrink-0 ml-3"
-                aria-label="Fermer"
+                aria-label={t.actions.close}
               />
             }
           >

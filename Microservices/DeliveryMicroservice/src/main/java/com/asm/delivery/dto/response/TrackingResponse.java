@@ -9,6 +9,10 @@ import java.util.List;
 public class TrackingResponse {
     private String deliveryId;
     private String status;
+    /** Human-readable failure reason (label + optional comment); null unless status is FAILED/PARTIALLY_DELIVERED. */
+    private String failReason;
+    /** Latest return lifecycle state for this delivery (RmaStatus name), or null if no return exists. */
+    private String returnStatus;
     private String clientName;
     private String clientPhone;
     private String erpOrderId;

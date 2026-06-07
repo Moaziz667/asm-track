@@ -500,7 +500,7 @@ function DriversPageContent() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── Right Slab (full-width, sidebar removed) ── */}
-        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -529,18 +529,20 @@ function DriversPageContent() {
                   '90px',
                 ].join(' ');
                 return (
-                  <div className="sticky top-0 bg-[var(--surface)] z-10 grid gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]"
-                    style={{ gridTemplateColumns: gridCols }}>
+                  <div
+                    className="sticky top-0 z-10 grid gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]"
+                    style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                  >
                     <div className="w-[8px]" />
-                    <span className="text-[11px] font-[600] text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
                     {orderedColumns.filter(c => !c.pinned).map(col => !visibleIds.has(col.id) ? null : (
-                      <span key={col.id} className="text-[11px] font-[600] text-[var(--text-muted)] text-start">
+                      <span key={col.id} className="text-[11px] font-semibold text-[var(--text-muted)] text-start">
                         {col.id === 'contact' ? t.driversPage.tableHeaderContact
                          : col.id === 'activity' ? t.driversPage.tableHeaderActivity
                          : t.driversPage.statusActive || 'Statut'}
                       </span>
                     ))}
-                    <span className="text-[11px] font-[600] text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
+                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
                   </div>
                 );
               })()}
@@ -570,7 +572,7 @@ function DriversPageContent() {
                     '90px',
                   ].join(' ');
                   return (
-                    <div key={drv.id} className="border-b border-[var(--border)]">
+                    <div key={drv.id} className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
                       <div
                         className="grid gap-4 items-center cursor-pointer group hover:bg-[var(--hover-bg)] transition-colors"
                         style={{ gridTemplateColumns: gridCols, height: DRIVER_ROW_H[density] }}

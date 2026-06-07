@@ -18,7 +18,6 @@ import { formatMotif, formatComment, formatSuggestion } from './formatters';
 import { rowId } from './utils';
 import { DispatchDeskProvider, useDispatchDeskContext } from './hooks/useDispatchDeskState';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
-import { KPIStrip } from './components/KPIStrip';
 import { DispatchTabs } from './components/DispatchTabs';
 
 // ── PageFilterBar bridge — reads from dispatch context ───────────────────────
@@ -169,7 +168,6 @@ function DispatchDeskContentInner() {
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
-            <KPIStrip />
             <DispatchTabs />
           </div>
         </div>

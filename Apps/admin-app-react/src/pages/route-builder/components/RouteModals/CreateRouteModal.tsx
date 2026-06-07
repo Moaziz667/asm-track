@@ -33,13 +33,13 @@ export function CreateRouteModal() {
     <AppModal
       opened={createOpen}
       onClose={() => setCreateOpen(false)}
-      subtitle="Nouvelle planification"
+      subtitle={t.routeBuilderPage.createRouteTitle}
       title={t.routeBuilderPage.createRouteTitle}
       size="lg"
       footer={
         <div className="flex items-center justify-end gap-2 w-full">
           <Button variant="outline" size="sm" onClick={() => setCreateOpen(false)}>
-            Annuler
+            {t.actions.cancel}
           </Button>
           <Button
             size="sm"
@@ -48,7 +48,7 @@ export function CreateRouteModal() {
             className="bg-[var(--brand-orange)] hover:opacity-90 font-semibold"
           >
             <IconRoute size={14} className="mr-1.5" />
-            Confirmer la création
+            {t.routeBuilderPage.createRouteTitle}
           </Button>
         </div>
       }
@@ -57,7 +57,7 @@ export function CreateRouteModal() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <FieldInput
             label={t.routeBuilderPage.routeNameLabel}
-            placeholder="Ex: Livraison Centre-Ville"
+            placeholder={t.placeholders.searchGeneric}
             value={createForm.name}
             onChange={(e) => {
               const val = e.currentTarget.value;
@@ -66,7 +66,7 @@ export function CreateRouteModal() {
           />
           <FieldInput
             type="date"
-            label="Date de planification"
+            label={t.placeholders.date}
             value={createForm.date}
             onChange={(e) => {
               const val = e.currentTarget.value;

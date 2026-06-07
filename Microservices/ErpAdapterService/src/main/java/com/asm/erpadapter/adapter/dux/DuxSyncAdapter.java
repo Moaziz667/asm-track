@@ -2,6 +2,8 @@ package com.asm.erpadapter.adapter.dux;
 
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
+import com.asm.erpadapter.dto.ErpPodDTO;
+import com.asm.erpadapter.dto.ErpReturnItemDTO;
 import com.asm.erpadapter.port.ErpSyncPort;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -37,6 +39,18 @@ public class DuxSyncAdapter implements ErpSyncPort {
     @Override
     public boolean syncFailure(String erpOrderId, String failureCode, String comment, String transactionId, String pickingRef) {
         log.warn("DUX syncFailure not yet implemented for order {} (TX: {})", erpOrderId, transactionId);
+        return false;
+    }
+
+    @Override
+    public boolean syncProofOfDelivery(String erpOrderId, ErpPodDTO pod, String transactionId, String pickingRef) {
+        log.warn("DUX syncProofOfDelivery not yet implemented for order {} (TX: {})", erpOrderId, transactionId);
+        return false;
+    }
+
+    @Override
+    public boolean syncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String transactionId, String pickingRef) {
+        log.warn("DUX syncReturn not yet implemented for order {} (TX: {})", erpOrderId, transactionId);
         return false;
     }
 }

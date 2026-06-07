@@ -137,7 +137,7 @@ export function ReassignModal({
       onClose={onCancel}
       title={
         <div className="flex items-center gap-2">
-          <span>Réaffecter</span>
+          <span>{t.reassignCommandOverlay.title}</span>
           {entityName && (
             <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand)]">
               {entityLabel} · {entityName}
@@ -158,7 +158,7 @@ export function ReassignModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
               </svg>
             )}
-            Confirmer la réaffectation
+            {t.reassignCommandOverlay.confirmBtn}
           </Button>
         </div>
       }
@@ -168,17 +168,17 @@ export function ReassignModal({
           <Tabs value={tab} onValueChange={v => setTab(v as Tab)}>
             <TabsList className="w-full">
               <TabsTrigger value="driver" className="flex-1 gap-1.5">
-                <IconUser size={13} /> Vers un chauffeur
+                <IconUser size={13} /> {t.reassignCommandOverlay.driverTab}
               </TabsTrigger>
               <TabsTrigger value="route" className="flex-1 gap-1.5">
-                <IconRoute size={13} /> Vers une tournée
+                <IconRoute size={13} /> {t.reassignCommandOverlay.routeTab}
               </TabsTrigger>
             </TabsList>
           </Tabs>
         )}
 
         <FieldInput
-          placeholder={tab === 'driver' ? 'Rechercher un chauffeur…' : 'Rechercher une tournée…'}
+          placeholder={tab === 'driver' ? t.reassignCommandOverlay.searchDriver : t.reassignCommandOverlay.searchRoute}
           leftSection={<IconSearch size={13} />}
           value={search}
           onChange={e => setSearch(e.currentTarget.value)}
@@ -200,9 +200,9 @@ export function ReassignModal({
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[var(--text-primary)] truncate">{d.name ?? 'Sans nom'}</span>
+                    <span className="text-sm font-medium text-[var(--text-primary)] truncate">{d.name ?? t.reassignCommandOverlay.unnamed}</span>
                     {d.todayRouteId && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">{d.todayStopCount ?? 0} arrêts</span>
+                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">{d.todayStopCount ?? 0} {t.reassignCommandOverlay.stops}</span>
                     )}
                   </div>
                   <p className="text-xs text-[var(--text-soft)] truncate">
@@ -229,29 +229,29 @@ export function ReassignModal({
                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sidebar-bg)] text-[var(--text-muted)]">{r.status}</span>
                   </div>
                   <p className="text-xs text-[var(--text-soft)] truncate">
-                    {r.driverName ?? 'Sans chauffeur'} · {r.stopCount} arrêts{r.city ? ` · ${r.city}` : ''}
+                    {r.driverName ?? t.reassignCommandOverlay.noDriver} · {r.stopCount} {t.reassignCommandOverlay.stops}{r.city ? ` · ${r.city}` : ''}
                   </p>
                 </div>
               </button>
             );
           })}
           {((tab === 'driver' && filteredDrivers.length === 0) || (tab === 'route' && filteredRoutes.length === 0)) && (
-            <p className="text-sm text-[var(--text-soft)] text-center py-6">Aucun résultat</p>
+            <p className="text-sm text-[var(--text-soft)] text-center py-6">{t.reassignCommandOverlay.noResults}</p>
           )}
         </div>
 
         {tab === 'route' && selectedId && (
           <div className="grid grid-cols-3 gap-2">
-            <FieldInput label="Ordre de l'arrêt" type="number" placeholder="Ex. 5" min={1}
+            <FieldInput label={t.reassignCommandOverlay.orderField} type="number" placeholder={t.reassignCommandOverlay.orderField} min={1}
               value={stopOrder} onChange={e => setStopOrder(e.target.value ? Number(e.target.value) : '')} />
-            <FieldInput label="Début fenêtre" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-            <FieldInput label="Fin fenêtre" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+            <FieldInput label={t.reassignCommandOverlay.startWindow} type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+            <FieldInput label={t.reassignCommandOverlay.endWindow} type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
           </div>
         )}
 
         <FieldTextarea
-          label="Note (obligatoire si déjà ramassée)"
-          placeholder="Motif de la réaffectation…"
+          label={t.reassignCommandOverlay.noteRequired}
+          placeholder={t.reassignCommandOverlay.notePlaceholder}
           value={note}
           onChange={e => setNote(e.target.value)}
         />

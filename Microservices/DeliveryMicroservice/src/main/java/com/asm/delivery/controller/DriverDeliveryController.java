@@ -38,6 +38,7 @@ public class DriverDeliveryController {
 
     private final DriverDeliveryService deliveryService;
     private final BonLivraisonPdfService bonLivraisonPdfService;
+    private final com.asm.delivery.service.FailureReasonService failureReasonService;
 
     @GetMapping("/available")
     @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
@@ -119,10 +120,17 @@ public class DriverDeliveryController {
         return ResponseEntity.ok(deliveryService.fail(
             id,
             UUID.fromString(principal.getUserId()),
+            req.getFailureReasonCode(),
             req.getFailureCode(),
             req.getFailureComment(),
             principal
         ));
+    }
+
+    @GetMapping("/failure-reasons")
+    @Operation(summary = "List active failure reasons for the failure form")
+    public ResponseEntity<List<com.asm.delivery.dto.response.FailureReasonResponse>> failureReasons() {
+        return ResponseEntity.ok(failureReasonService.listActive());
     }
 
     @PostMapping("/{id}/cancel")

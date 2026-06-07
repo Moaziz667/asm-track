@@ -236,7 +236,7 @@ function RouteBuilderPageInner() {
   }, [resize, stopResizing]);
 
   if (rb.loading) {
-    return <AppLoader centered height="100vh" size="xl" label="Initialisation Console..." />;
+    return <AppLoader centered height="100vh" size="xl" label={t.loading.generic} />;
   }
 
   // Derived KPI counters
@@ -472,7 +472,7 @@ function RouteBuilderPageInner() {
                   <div
                     onMouseDown={startResizingBottom}
                     className="h-1.5 cursor-row-resize hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center shrink-0 border-b border-[var(--border)]"
-                    title="Redimensionner"
+                    title={t.routeBuilderPage.actionBarSettingsTooltip}
                   >
                     <div className="w-10 h-[2px] bg-[var(--border)] rounded-full" />
                   </div>

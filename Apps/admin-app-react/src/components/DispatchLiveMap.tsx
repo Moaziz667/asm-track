@@ -165,6 +165,54 @@ function DispatchLiveMapInner({
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
+  const visibleDrivers = drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt));
+  
+  const activeStopMarkers = useMemo(() => {
+    return activeStops
+      .filter(s => s.dropoffLat && s.dropoffLng)
+      .map(stop => (
+        <Marker
+          key={stop.deliveryId}
+          position={[stop.dropoffLat, stop.dropoffLng]}
+          icon={makeStopIcon(stop.status, stop.deliveryId === selectedStopId)}
+          eventHandlers={{ click: () => onStopClick?.(stop.deliveryId) }}
+        >
+          <Popup>
+            <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
+              <div style={{ fontSize: 10, fontWeight: 800, color: STOP_COLOR[stop.status] ?? '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
+                {stop.status}
+              </div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: '#09090B', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
+              {stop.city && <div style={{ fontSize: 11, color: '#71717A' }}>{stop.city}</div>}
+            </div>
+          </Popup>
+        </Marker>
+      ));
+  }, [activeStops, selectedStopId, onStopClick]);
+
+  const driverMarkers = useMemo(() => {
+    return visibleDrivers.map(driver => (
+      <Marker
+        key={driver.id}
+        position={[driver.currentLat!, driver.currentLng!]}
+        icon={makeDriverIcon(driver.name, driver.onlineStatus ?? 'OFFLINE', driver.id === selectedDriverId)}
+        eventHandlers={{ click: () => onDriverClick?.(driver.id) }}
+      >
+        <Popup>
+          <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
+            <div style={{ fontSize: 10, color: STATUS_RING[driver.onlineStatus ?? 'OFFLINE'] ?? STATUS_RING.OFFLINE, fontWeight: 600, marginTop: 2 }}>
+              {STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}
+            </div>
+            <div style={{ fontSize: 9, color: '#A1A1AA', marginTop: 4 }}>
+              {driver.id === selectedDriverId ? 'Cliquer pour masquer la tournée' : 'Cliquer pour voir la tournée'}
+            </div>
+          </div>
+        </Popup>
+      </Marker>
+    ));
+  }, [visibleDrivers, selectedDriverId, onDriverClick]);
+
   if (!mounted) {
     return (
       <div style={{ width: '100%', height: '100%', background: '#F4F4F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
@@ -175,15 +223,14 @@ function DispatchLiveMapInner({
     );
   }
 
-  const visibleDrivers = drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt));
   const center: [number, number] = [36.8065, 10.1815];
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', zIndex: 0, isolation: 'isolate' }}>
       <MapContainer center={center} zoom={11} style={{ width: '100%', height: '100%' }} zoomControl>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com/attributions">CARTO</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           maxZoom={19}
         />
 
@@ -198,52 +245,10 @@ function DispatchLiveMapInner({
         )}
 
         {/* Active stop markers */}
-        {useMemo(() => {
-          return activeStops
-            .filter(s => s.dropoffLat && s.dropoffLng)
-            .map(stop => (
-              <Marker
-                key={stop.deliveryId}
-                position={[stop.dropoffLat, stop.dropoffLng]}
-                icon={makeStopIcon(stop.status, stop.deliveryId === selectedStopId)}
-                eventHandlers={{ click: () => onStopClick?.(stop.deliveryId) }}
-              >
-                <Popup>
-                  <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
-                    <div style={{ fontSize: 10, fontWeight: 800, color: STOP_COLOR[stop.status] ?? '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                      {stop.status}
-                    </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: '#09090B', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
-                    {stop.city && <div style={{ fontSize: 11, color: '#71717A' }}>{stop.city}</div>}
-                  </div>
-                </Popup>
-              </Marker>
-            ));
-        }, [activeStops, selectedStopId, onStopClick])}
+        {activeStopMarkers}
 
         {/* Driver markers */}
-        {useMemo(() => {
-          return visibleDrivers.map(driver => (
-            <Marker
-              key={driver.id}
-              position={[driver.currentLat!, driver.currentLng!]}
-              icon={makeDriverIcon(driver.name, driver.onlineStatus ?? 'OFFLINE', driver.id === selectedDriverId)}
-              eventHandlers={{ click: () => onDriverClick?.(driver.id) }}
-            >
-              <Popup>
-                <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
-                  <div style={{ fontSize: 10, color: STATUS_RING[driver.onlineStatus ?? 'OFFLINE'] ?? STATUS_RING.OFFLINE, fontWeight: 600, marginTop: 2 }}>
-                    {STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}
-                  </div>
-                  <div style={{ fontSize: 9, color: '#A1A1AA', marginTop: 4 }}>
-                    {driver.id === selectedDriverId ? 'Cliquer pour masquer la tournée' : 'Cliquer pour voir la tournée'}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
-          ));
-        }, [visibleDrivers, selectedDriverId, onDriverClick])}
+        {driverMarkers}
       </MapContainer>
 
       {/* Map overlay badges */}

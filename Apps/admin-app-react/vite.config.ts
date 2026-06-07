@@ -20,7 +20,11 @@ export default defineConfig(({ mode }) => {
         },
       }),
     ],
-    define: { global: 'globalThis' },
+    define: { 
+      global: 'globalThis',
+      'process.env.NODE_ENV': JSON.stringify(mode),
+      'process.env': {} 
+    },
     resolve: {
       alias: {
         '@': path.resolve(__dirname, './src'),

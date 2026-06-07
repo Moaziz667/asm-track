@@ -52,7 +52,7 @@ const DOT: Record<string, string> = {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
-export default function OperationsPage() {
+export default function SchedulePage() {
   const t = useT();
   const router = useRouter();
   const isReadOnly = isReadOnlyRole(getCurrentRole());
@@ -149,49 +149,58 @@ export default function OperationsPage() {
         <TabsContent value="today" className="flex-1 overflow-auto m-0">
           <div className="p-6 max-w-[1400px] mx-auto">
           <DraggableWidgetGrid
-            storageKey="operations-today"
-            className="flex flex-col gap-6"
+            storageKey="operations-today-v3"
             items={[
               {
-                id: 'kpi-strip',
+                id: 'kpi-active-routes',
+                defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
                 children: (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <KPICard
-                label={t.operationsPage.kpiActiveRoutes}
-                value={todayRoutes.filter(r => r.status === 'IN_PROGRESS' || r.status === 'VALIDATED').length}
-                icon={<IconRoute size={16} />}
-              />
-              <KPICard
-                label={t.operationsPage.kpiFieldDrivers}
-                value={new Set(todayRoutes.filter(r => r.status === 'IN_PROGRESS').map(r => r.driverId)).size}
-                icon={<IconUsers size={16} />}
-              />
-              <KPICard
-                label={t.operationsPage.kpiCompletedStops}
-                value={todayStats.successCount}
-                icon={<IconCheck size={16} />}
-                tone="success"
-              />
-              <KPICard
-                label={t.operationsPage.kpiFailures}
-                value={todayStats.failCount}
-                icon={<IconAlertTriangle size={16} />}
-                tone={todayStats.failCount > 0 ? 'danger' : 'default'}
-              />
-            </div>
-
+                  <KPICard
+                    label={t.operationsPage.kpiActiveRoutes}
+                    value={todayRoutes.filter(r => r.status === 'IN_PROGRESS' || r.status === 'VALIDATED').length}
+                    icon={<IconRoute size={16} />}
+                  />
                 ),
               },
               {
-                id: 'bento-grid',
+                id: 'kpi-field-drivers',
+                defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
                 children: (
-            <>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-
-              {/* Left column */}
-              <div className="flex flex-col gap-5">
-
-                {/* À Démarrer */}
+                  <KPICard
+                    label={t.operationsPage.kpiFieldDrivers}
+                    value={new Set(todayRoutes.filter(r => r.status === 'IN_PROGRESS').map(r => r.driverId)).size}
+                    icon={<IconUsers size={16} />}
+                  />
+                ),
+              },
+              {
+                id: 'kpi-completed-stops',
+                defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiCompletedStops}
+                    value={todayStats.successCount}
+                    icon={<IconCheck size={16} />}
+                    tone="success"
+                  />
+                ),
+              },
+              {
+                id: 'kpi-failures',
+                defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+                children: (
+                  <KPICard
+                    label={t.operationsPage.kpiFailures}
+                    value={todayStats.failCount}
+                    icon={<IconAlertTriangle size={16} />}
+                    tone={todayStats.failCount > 0 ? 'danger' : 'default'}
+                  />
+                ),
+              },
+              {
+                id: 'section-start',
+                defaultLayout: { w: 4, h: 6, x: 0, y: 2, minW: 3, minH: 4 },
+                children: (
                 <SectionCard
                   title={
                     <div className="flex items-center gap-2">
@@ -229,8 +238,12 @@ export default function OperationsPage() {
                     </div>
                   )}
                 </SectionCard>
-
-                {/* Points de Vigilance */}
+                ),
+              },
+              {
+                id: 'section-watchpoints',
+                defaultLayout: { w: 4, h: 6, x: 4, y: 2, minW: 3, minH: 4 },
+                children: (
                 <SectionCard
                   title={
                     <div className="flex items-center gap-2">
@@ -277,9 +290,12 @@ export default function OperationsPage() {
                     </div>
                   )}
                 </SectionCard>
-              </div>
-
-              {/* Right: Performance donut */}
+                ),
+              },
+              {
+                id: 'section-performance',
+                defaultLayout: { w: 4, h: 6, x: 8, y: 2, minW: 3, minH: 4 },
+                children: (
               <SectionCard
                 title={
                   <div className="flex items-center gap-2">
@@ -318,9 +334,12 @@ export default function OperationsPage() {
                   </div>
                 </div>
               </SectionCard>
-            </div>
-
-            {/* All Routes Table */}
+                ),
+              },
+              {
+                id: 'routes-table',
+                defaultLayout: { w: 12, h: 8, x: 0, y: 8, minW: 6, minH: 4 },
+                children: (
             <SectionCard
               title={t.operationsPage.tableTodayRoutes}
               actions={
@@ -397,7 +416,6 @@ export default function OperationsPage() {
                 </TableBody>
               </Table>
             </SectionCard>
-            </>
                 ),
               },
             ]}

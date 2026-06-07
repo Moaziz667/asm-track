@@ -283,8 +283,8 @@ export default function ZonesPage() {
               </div>
             ) : (
               <table className="w-full border-collapse">
-                <thead className="sticky top-0 z-10">
-                  <tr style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}>
+                <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
+                  <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th className="w-2 p-0" style={{ background: 'var(--app-bg)' }}></th>
                     {orderedColumns.map(col => visibleIds.has(col.id) && (
                       <th key={col.id} className="text-[11px] font-semibold py-3 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>

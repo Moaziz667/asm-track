@@ -2,6 +2,8 @@ package com.asm.erpadapter.config;
 
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
+import com.asm.erpadapter.dto.ErpPodDTO;
+import com.asm.erpadapter.dto.ErpReturnItemDTO;
 import com.asm.erpadapter.port.ErpSyncPort;
 
 import java.util.List;
@@ -14,4 +16,6 @@ class NoopSyncAdapter implements ErpSyncPort {
         return ErpPartialDeliveryResultDTO.builder().success(true).build();
     }
     @Override public boolean syncFailure(String id, String code, String comment, String txId, String pickingRef) { return true; }
+    @Override public boolean syncProofOfDelivery(String id, ErpPodDTO pod, String txId, String pickingRef) { return true; }
+    @Override public boolean syncReturn(String id, List<ErpReturnItemDTO> items, String reason, String txId, String pickingRef) { return true; }
 }

@@ -15,6 +15,7 @@ import { useT } from '@/lib/LocaleContext';
 // - z-index garanti à 200 (au-dessus de tout)
 //
 export function ModalRenderer() {
+  const t = useT();
   const { config, loading, reason, close, setLoading, setReason } = useModalStore();
   const containerRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<Element | null>(null);
@@ -76,7 +77,7 @@ export function ModalRenderer() {
     <div
       aria-modal="true"
       role="dialog"
-      aria-label={config.type === 'CONFIRM' ? config.title : 'Réaffectation'}
+      aria-label={config.type === 'CONFIRM' ? config.title : t.reassignCommandOverlay.modalTitle}
       onClick={close}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
@@ -140,7 +141,7 @@ function ConfirmContent({
         </div>
         <button
           onClick={close}
-          aria-label="Fermer"
+          aria-label={t.actions.close}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <X size={14} />
@@ -164,7 +165,7 @@ function ConfirmContent({
 
       {/* Actions */}
       <div className="flex items-center justify-between gap-3 mt-5">
-        <p className="text-[10px] text-slate-400 font-mono">Échap pour annuler · Entrée pour confirmer</p>
+        <p className="text-[10px] text-slate-400 font-mono">{t.actions.cancel} · {t.actions.confirm}</p>
         <div className="flex gap-2">
           <button
             onClick={close}
@@ -237,7 +238,7 @@ function ReassignContent({
               <UserCheck size={14} className="text-blue-600" />
             </div>
             <h2 className="text-[15px] font-bold text-slate-900">
-              Réaffecter {(config.entityLabel ?? 'la tournée').toLowerCase()}
+              {t.reassignCommandOverlay.title} {(config.entityLabel ?? t.reassignDrawer.assignTitle).toLowerCase()}
             </h2>
           </div>
           {config.entityName && (
@@ -246,7 +247,7 @@ function ReassignContent({
         </div>
         <button
           onClick={close}
-          aria-label="Fermer"
+          aria-label={t.actions.close}
           className="shrink-0 flex items-center justify-center w-7 h-7 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
         >
           <X size={14} />
@@ -259,7 +260,7 @@ function ReassignContent({
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          placeholder="Rechercher un chauffeur..."
+          placeholder={t.reassignCommandOverlay.searchDriver}
           className="w-full h-9 pl-9 pr-3 text-sm text-slate-800 bg-slate-50 border border-slate-200 rounded-lg outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-400 transition-colors"
         />
       </div>
@@ -268,7 +269,7 @@ function ReassignContent({
       <div className="border border-slate-200 rounded-xl overflow-hidden mb-4 max-h-56 overflow-y-auto">
         {filtered.length === 0 ? (
           <div className="py-8 text-center text-sm text-slate-400">
-            Aucun chauffeur disponible
+            {t.reassignCommandOverlay.noResults}
           </div>
         ) : (
           filtered.map((driver, idx) => {
@@ -302,7 +303,7 @@ function ReassignContent({
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : 'bg-amber-50 text-amber-700 border border-amber-200'
                   }`}>
-                    {driver.isAvailable ? 'Disponible' : 'En tournée'}
+                    {driver.isAvailable ? t.availability.driverAvailable : t.availability.driverBusy}
                   </span>
                 )}
                 {isSelected && (
@@ -323,14 +324,14 @@ function ReassignContent({
           disabled={loading}
           className="flex-1 h-9 text-sm font-semibold text-slate-700 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
-          Annuler
+          {t.reassignCommandOverlay.cancelBtn}
         </button>
         <button
           onClick={handleConfirm}
           disabled={!selectedId || loading}
           className="flex-1 h-9 text-sm font-semibold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {loading ? '…' : 'Réaffecter →'}
+          {loading ? '…' : t.reassignCommandOverlay.confirmBtn}
         </button>
       </div>
     </div>

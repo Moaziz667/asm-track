@@ -212,7 +212,7 @@ export default function ErpIntegrationPage() {
                           type="text"
                           className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder="stock.report_deliveryslip"
+                          placeholder={t.erpIntegrationPage.reportIdPlaceholder}
                           value={erpSettings.erpConfiguration.reportId || ''}
                           onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, reportId: e.target.value}})}
                           disabled={!canManage}
@@ -228,7 +228,7 @@ export default function ErpIntegrationPage() {
                         <input
                           className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                           style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder="e.g. https://api.dux.com/v1"
+                          placeholder={t.erpIntegrationPage.apiUrlPlaceholder}
                           value={erpSettings.erpConfiguration.url || ''}
                           onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, url: e.target.value}})}
                           disabled={!canManage}

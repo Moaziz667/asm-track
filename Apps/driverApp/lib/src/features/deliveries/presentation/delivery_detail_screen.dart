@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:phosphor_flutter/phosphor_flutter.dart';
 import 'package:url_launcher/url_launcher_string.dart';
-import 'package:lucide_icons/lucide_icons.dart';
 
 import '../../../app_providers.dart';
+import '../../../services/locale_provider.dart';
 import '../../../services/location_service.dart';
-import '../../../services/offline_queue_service.dart';
+import '../../../theme/status_colors.dart';
 import '../../../theme/widgets.dart';
+import '../../../theme/swipe_button.dart';
 import '../../pod/presentation/pod_form_screen.dart';
 import '../models/delivery_models.dart';
-import 'handoff_token_sheet.dart';
 import 'handoff_scanner_screen.dart';
-
-
+import 'handoff_token_sheet.dart';
 
 class DeliveryDetailArgs {
   const DeliveryDetailArgs({required this.deliveryId});
@@ -40,6 +39,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
   }
 
   Future<void> _perform(Future<DriverDelivery> Function() task) async {
+    final locale = ref.read(localeProvider);
     setState(() => _isWorking = true);
     try {
       await task();
@@ -48,13 +48,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
       if (e == 'OFFLINE_QUEUED') {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Hors ligne — sera envoyé à la reconnexion')),
+            SnackBar(content: Text(DriverCopy.get('delivery_detail_offline_queue', locale))),
           );
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Erreur: $e')),
+            SnackBar(content: Text('${DriverCopy.get('delivery_detail_error_prefix', locale)}: $e')),
           );
         }
       }
@@ -66,6 +66,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
     final asyncDetail = ref.watch(deliveryDetailProvider(widget.args.deliveryId));
     return Scaffold(
       backgroundColor: cs.surface,
@@ -75,7 +76,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
           icon: const Icon(PhosphorIconsBold.caretLeft, size: 18),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Détails de la livraison'),
+        title: Text(DriverCopy.get('delivery_detail_title', locale)),
       ),
       body: asyncDetail.when(
         data: (delivery) => RefreshIndicator(
@@ -119,11 +120,13 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                       );
                 }),
                 onFail: () async {
-                  final reason = await _showFailSheet(context);
+                  final reasons = await ref.read(deliveryRepositoryProvider).fetchFailureReasons();
+                  if (!context.mounted) return;
+                  final reason = await _showFailSheet(context, reasons);
                   if (reason == null) return;
                   await _perform(() => ref.read(deliveryRepositoryProvider).fail(
                         delivery.id,
-                        reason: reason.$1,
+                        reasonCode: reason.$1,
                         comment: reason.$2,
                       ));
                 },
@@ -138,21 +141,29 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
             ],
           ),
         ),
-        loading: () => const LoadingState(message: 'Chargement de la livraison…'),
-        error: (_, __) => EmptyState(
-          icon: PhosphorIconsRegular.warningCircle,
-          title: 'Échec du chargement',
-          action: _refresh,
-          actionLabel: 'Réessayer',
-        ),
+        loading: () => LoadingState(message: DriverCopy.get('delivery_detail_loading', locale)),
+        error: (error, _) {
+          final isUnauthorized = error.toString().contains('403') || error.toString().contains('unauthorized');
+          return EmptyState(
+            icon: PhosphorIconsRegular.warningCircle,
+            title: isUnauthorized 
+                ? DriverCopy.get('delivery_detail_unauthorized_link', locale)
+                : DriverCopy.get('delivery_detail_load_failed', locale),
+            action: _refresh,
+            actionLabel: DriverCopy.get('delivery_detail_retry', locale),
+          );
+        },
       ),
     );
   }
 
-  Future<(FailureReason, String?)?> _showFailSheet(BuildContext context) async {
+  Future<(String, String?)?> _showFailSheet(BuildContext context, List<FailureReasonOption> reasons) async {
     final cs = Theme.of(context).colorScheme;
-    FailureReason selected = FailureReason.clientAbsent;
+    final locale = ref.read(localeProvider);
+    final options = reasons.isNotEmpty ? reasons : FailureReasonOption.fallback;
+    FailureReasonOption selected = options.first;
     final commentCtrl = TextEditingController();
+    
     final confirmed = await showModalBottomSheet<bool>(
       context: context,
       isScrollControlled: true,
@@ -173,16 +184,28 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                     child: Container(
                       width: 40,
                       height: 4,
-                      decoration: BoxDecoration(color: cs.outlineVariant, borderRadius: BorderRadius.circular(2)),
+                      decoration: BoxDecoration(
+                        color: cs.outlineVariant, 
+                        borderRadius: BorderRadius.circular(2),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 20),
-                  Text('Signaler un échec', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: cs.onSurface)),
+                  Text(
+                    DriverCopy.get('delivery_detail_fail_report', locale), 
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                          fontWeight: FontWeight.w700, 
+                          color: cs.onSurface,
+                        ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Sélectionnez la raison de l\'échec de cette livraison.', style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13)),
+                  Text(
+                    DriverCopy.get('delivery_detail_fail_select', locale), 
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+                  ),
                   const SizedBox(height: 20),
-                  ...FailureReason.values.map((reason) {
-                    final isSelected = reason == selected;
+                  ...options.map((reason) {
+                    final isSelected = reason.code == selected.code;
                     return GestureDetector(
                       onTap: () => setModal(() => selected = reason),
                       child: Container(
@@ -220,9 +243,9 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                   TextField(
                     controller: commentCtrl,
                     style: TextStyle(color: cs.onSurface),
-                    decoration: const InputDecoration(
-                      hintText: 'Commentaire supplémentaire (optionnel)',
-                      prefixIcon: Icon(PhosphorIconsRegular.notePencil, size: 18),
+                    decoration: InputDecoration(
+                      hintText: DriverCopy.get('delivery_detail_comment_hint', locale),
+                      prefixIcon: const Icon(PhosphorIconsRegular.notePencil, size: 18),
                     ),
                   ),
                   const SizedBox(height: 20),
@@ -231,7 +254,7 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
                     child: TextButton.icon(
                       onPressed: () => Navigator.pop(context, true),
                       icon: const Icon(PhosphorIconsBold.flagPennant),
-                      label: const Text('Soumettre le rapport d\'échec'),
+                      label: Text(DriverCopy.get('delivery_detail_fail_submit', locale)),
                       style: TextButton.styleFrom(
                         foregroundColor: cs.error,
                         padding: const EdgeInsets.symmetric(vertical: 14),
@@ -246,37 +269,42 @@ class _DeliveryDetailScreenState extends ConsumerState<DeliveryDetailScreen> {
       },
     );
     if (confirmed == true) {
-      return (selected, commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim());
+      return (selected.code, commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim());
     }
     return null;
   }
 }
 
 // ─── Hero Card ───────────────────────────────────────────────────────────────
-class _HeroCard extends StatelessWidget {
+class _HeroCard extends ConsumerWidget {
   const _HeroCard({required this.delivery});
   final DriverDelivery delivery;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    final statusColor = delivery.status.badgeColor;
-    return Container(
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cs.outlineVariant),
-      ),
+    final locale = ref.watch(localeProvider);
+    final statusColors = Theme.of(context).extension<StatusColors>()!;
+
+    final Color statusColor = switch (delivery.status) {
+      DeliveryStatus.unscheduled => statusColors.unscheduledText,
+      DeliveryStatus.scheduled => statusColors.scheduledText,
+      DeliveryStatus.pickedUp => statusColors.pickedUpText,
+      DeliveryStatus.inTransit => statusColors.inTransitText,
+      DeliveryStatus.delivered => statusColors.deliveredText,
+      DeliveryStatus.partially_delivered => statusColors.partiallyDeliveredText,
+      DeliveryStatus.failed => statusColors.failedText,
+      DeliveryStatus.cancelled => statusColors.cancelledText,
+    };
+
+    return Card(
+      clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Color bar
           Container(
             height: 4,
-            decoration: BoxDecoration(
-              color: statusColor,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-            ),
+            color: statusColor,
           ),
           Padding(
             padding: const EdgeInsets.all(20),
@@ -288,9 +316,9 @@ class _HeroCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.15),
+                        color: statusColor.withValues(alpha: 0.09),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                        border: Border.all(color: statusColor.withValues(alpha: 0.15)),
                       ),
                       child: Text(
                         delivery.status.label,
@@ -306,10 +334,10 @@ class _HeroCard extends StatelessWidget {
                       Text(
                         delivery.orderRef!,
                         style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: cs.onSurfaceVariant,
-                        ),
+                              fontSize: 12,
+                              fontWeight: FontWeight.w700,
+                              color: cs.onSurfaceVariant,
+                            ),
                       ),
                   ],
                 ),
@@ -317,18 +345,24 @@ class _HeroCard extends StatelessWidget {
                 if (delivery.clientName != null) ...[
                   Row(
                     children: [
-                      Icon(Icons.person_outline_rounded, size: 14, color: cs.onSurfaceVariant),
+                      Icon(PhosphorIconsRegular.user, size: 14, color: cs.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(delivery.clientName!, style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: cs.onSurface)),
+                      Text(
+                        delivery.clientName!, 
+                        style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
+                      ),
                       if (delivery.clientPhone != null) ...[
                         const SizedBox(width: 8),
                         GestureDetector(
                           onTap: () => launchUrlString('tel:${delivery.clientPhone}'),
                           child: Row(
                             children: [
-                              Icon(Icons.phone_outlined, size: 13, color: cs.primary),
+                              Icon(PhosphorIconsRegular.phone, size: 13, color: cs.primary),
                               const SizedBox(width: 3),
-                              Text(delivery.clientPhone!, style: TextStyle(fontSize: 13, color: cs.primary, fontWeight: FontWeight.w500)),
+                              Text(
+                                delivery.clientPhone!, 
+                                style: TextStyle(fontSize: 13, color: cs.primary, fontWeight: FontWeight.w500),
+                              ),
                             ],
                           ),
                         ),
@@ -340,17 +374,20 @@ class _HeroCard extends StatelessWidget {
                 Text(
                   delivery.address ?? 'Aucune adresse fournie',
                   style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: cs.onSurface,
-                  ),
+                        fontWeight: FontWeight.w700,
+                        color: cs.onSurface,
+                      ),
                 ),
                 if (delivery.city != null) ...[
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      Icon(Icons.location_on_outlined, size: 14, color: cs.onSurfaceVariant),
+                      Icon(PhosphorIconsRegular.mapPin, size: 14, color: cs.onSurfaceVariant),
                       const SizedBox(width: 4),
-                      Text(delivery.city!, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant)),
+                      Text(
+                        delivery.city!, 
+                        style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant),
+                      ),
                     ],
                   ),
                 ],
@@ -360,13 +397,13 @@ class _HeroCard extends StatelessWidget {
                 Row(
                   children: [
                     _StatBox(
-                      label: 'Articles',
+                      label: DriverCopy.get('delivery_detail_articles', locale),
                       value: '${delivery.items.length}',
                     ),
                     if (delivery.scheduledAt != null) ...[
                       const SizedBox(width: 12),
                       _StatBox(
-                        label: 'Planifiée',
+                        label: DriverCopy.get('delivery_detail_scheduled', locale),
                         value: _fmtDate(delivery.scheduledAt!),
                       ),
                     ],
@@ -405,9 +442,15 @@ class _StatBox extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(label, style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, fontWeight: FontWeight.w600)),
+            Text(
+              label, 
+              style: TextStyle(fontSize: 10, color: cs.onSurfaceVariant, fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 4),
-            Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface)),
+            Text(
+              value, 
+              style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: cs.onSurface),
+            ),
           ],
         ),
       ),
@@ -433,10 +476,13 @@ class _InstructionsCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline_rounded, color: cs.tertiary, size: 18),
+          Icon(PhosphorIconsRegular.info, color: cs.tertiary, size: 18),
           const SizedBox(width: 12),
           Expanded(
-            child: Text(text, style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant, height: 1.5)),
+            child: Text(
+              text, 
+              style: TextStyle(fontSize: 14, color: cs.onSurfaceVariant, height: 1.5),
+            ),
           ),
         ],
       ),
@@ -445,20 +491,25 @@ class _InstructionsCard extends StatelessWidget {
 }
 
 // ─── Items ───────────────────────────────────────────────────────────────────
-class _ItemsCard extends StatelessWidget {
+class _ItemsCard extends ConsumerWidget {
   const _ItemsCard({required this.items});
   final List<OrderItemModel> items;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
+    final countText = '${items.length} ${locale == 'ar' ? 'سلعة' : locale == 'en' ? 'item${items.length != 1 ? 's' : ''}' : 'article${items.length != 1 ? 's' : ''}'}';
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SectionHeader(title: 'Contenu du colis', subtitle: '${items.length} article${items.length != 1 ? 's' : ''}'),
+            SectionHeader(
+              title: DriverCopy.get('delivery_detail_content', locale), 
+              subtitle: countText,
+            ),
             const SizedBox(height: 14),
             ...items.asMap().entries.map((e) {
               final isLast = e.key == items.length - 1;
@@ -474,11 +525,14 @@ class _ItemsCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: cs.outlineVariant),
                         ),
-                        child: Icon(Icons.inventory_2_outlined, size: 14, color: cs.onSurfaceVariant),
+                        child: Icon(PhosphorIconsRegular.package, size: 14, color: cs.onSurfaceVariant),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
-                        child: Text(e.value.name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: cs.onSurface)),
+                        child: Text(
+                          e.value.name, 
+                          style: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: cs.onSurface),
+                        ),
                       ),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
@@ -510,16 +564,17 @@ class _ItemsCard extends StatelessWidget {
 }
 
 // ─── Timestamps ───────────────────────────────────────────────────────────────
-class _TimestampCard extends StatelessWidget {
+class _TimestampCard extends ConsumerWidget {
   const _TimestampCard({required this.delivery});
   final DriverDelivery delivery;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
     final entries = delivery.timestamps.entries
         .where((e) => e.value != null)
-        .map((e) => (label: _keyLabel(e.key), time: e.value!))
+        .map((e) => (label: _keyLabel(e.key, locale), time: e.value!))
         .toList()
       ..sort((a, b) => a.time.compareTo(b.time));
 
@@ -531,14 +586,14 @@ class _TimestampCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SectionHeader(title: 'Chronologie'),
+            SectionHeader(title: DriverCopy.get('delivery_detail_timeline', locale)),
             const SizedBox(height: 14),
             ...entries.map((e) {
               return Padding(
                 padding: const EdgeInsets.symmetric(vertical: 5),
                 child: Row(
                   children: [
-                    Icon(Icons.circle, size: 6, color: cs.primary),
+                    Icon(PhosphorIconsFill.circle, size: 6, color: cs.primary),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(e.label, style: TextStyle(fontSize: 13, color: cs.onSurfaceVariant)),
@@ -557,15 +612,15 @@ class _TimestampCard extends StatelessWidget {
     );
   }
 
-  String _keyLabel(String key) {
+  String _keyLabel(String key, String locale) {
     switch (key) {
-      case 'scheduledAt': return 'Planifiée';
-      case 'pickedUpAt': return 'Ramassée';
-      case 'inTransitAt': return 'En cours';
-      case 'completedAt': return 'Livrée';
-      case 'failedAt': return 'Échouée';
-      case 'cancelledAt': return 'Annulée';
-      case 'createdAt': return 'Créée';
+      case 'scheduledAt': return DriverCopy.get('delivery_detail_ts_scheduled', locale);
+      case 'pickedUpAt': return DriverCopy.get('delivery_detail_ts_picked_up', locale);
+      case 'inTransitAt': return DriverCopy.get('delivery_detail_ts_in_transit', locale);
+      case 'completedAt': return DriverCopy.get('delivery_detail_ts_delivered', locale);
+      case 'failedAt': return DriverCopy.get('delivery_detail_ts_failed', locale);
+      case 'cancelledAt': return DriverCopy.get('delivery_detail_ts_cancelled', locale);
+      case 'createdAt': return DriverCopy.get('delivery_detail_ts_created', locale);
       default: return key;
     }
   }
@@ -577,7 +632,7 @@ class _TimestampCard extends StatelessWidget {
 }
 
 // ─── Action Panel ─────────────────────────────────────────────────────────────
-class _ActionPanel extends StatelessWidget {
+class _ActionPanel extends ConsumerWidget {
   const _ActionPanel({
     required this.delivery,
     required this.isWorking,
@@ -599,16 +654,17 @@ class _ActionPanel extends StatelessWidget {
   final Future<void> Function()? onScanHandoff;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
+    final locale = ref.watch(localeProvider);
 
-    // Handoff lock: only blocks the receiver (handoffToDriverId) until QR is scanned
-    if (delivery.requiresHandoff &&
+    // Handoff: the receiver (handoffToDriverId) is invited to scan the sender's QR,
+    // but this is non-blocking — they can keep working their current stop. We surface
+    // it as a banner above the normal actions instead of replacing them.
+    final bool showHandoffBanner = delivery.requiresHandoff &&
         delivery.handoffConfirmedAt == null &&
         currentDriverId != null &&
-        delivery.handoffToDriverId == currentDriverId) {
-      return _HandoffLockPanel(onScan: onScanHandoff);
-    }
+        delivery.handoffToDriverId == currentDriverId;
 
     final buttons = <Widget>[];
 
@@ -620,7 +676,6 @@ class _ActionPanel extends StatelessWidget {
       try {
         await launchUrlString(googleUrl, mode: LaunchMode.externalApplication);
       } catch (_) {
-        // Fallback to geo: URI
         final geoUrl = 'geo:$lat,$lng?q=$lat,$lng';
         try {
           await launchUrlString(geoUrl, mode: LaunchMode.externalApplication);
@@ -633,38 +688,31 @@ class _ActionPanel extends StatelessWidget {
     switch (delivery.status) {
       case DeliveryStatus.unscheduled:
         buttons.add(
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cs.outlineVariant),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.info_outline_rounded, size: 16, color: cs.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  'En attente de dispatch',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-                ),
-              ],
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(PhosphorIconsRegular.info, size: 16, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(
+                    DriverCopy.get('delivery_detail_pending_dispatch', locale),
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
           )
         );
         break;
       case DeliveryStatus.scheduled:
         buttons.addAll([
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isWorking ? null : onPickup,
-              icon: isWorking
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(PhosphorIconsBold.package),
-              label: const Text('Ramasser le colis'),
-            ),
+          SwipeButton(
+            label: DriverCopy.get('delivery_detail_pickup_package', locale),
+            onSwipe: isWorking ? null : onPickup,
+            isWorking: isWorking,
+            icon: PhosphorIconsBold.package,
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -672,7 +720,7 @@ class _ActionPanel extends StatelessWidget {
             child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
               icon: const Icon(PhosphorIconsBold.flagPennant),
-              label: const Text('Signaler un échec'),
+              label: Text(DriverCopy.get('delivery_detail_fail_report', locale)),
             ),
           ),
         ]);
@@ -685,22 +733,18 @@ class _ActionPanel extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: launchNav,
                 icon: const Icon(PhosphorIconsBold.navigationArrow),
-                label: const Text('Naviguer'),
+                label: Text(DriverCopy.get('delivery_detail_navigate', locale)),
               ),
             ),
           );
           buttons.add(const SizedBox(height: 10));
         }
         buttons.addAll([
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isWorking ? null : onTransit,
-              icon: isWorking
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(PhosphorIconsBold.steeringWheel),
-              label: const Text('Démarrer le trajet'),
-            ),
+          SwipeButton(
+            label: DriverCopy.get('delivery_detail_start_transit', locale),
+            onSwipe: isWorking ? null : onTransit,
+            isWorking: isWorking,
+            icon: PhosphorIconsBold.steeringWheel,
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -708,7 +752,7 @@ class _ActionPanel extends StatelessWidget {
             child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
               icon: const Icon(PhosphorIconsBold.flagPennant),
-              label: const Text('Signaler un échec'),
+              label: Text(DriverCopy.get('delivery_detail_fail_report', locale)),
             ),
           ),
           if (delivery.requiresHandoff && delivery.handoffConfirmedAt == null) ...[
@@ -721,8 +765,8 @@ class _ActionPanel extends StatelessWidget {
                   isScrollControlled: true,
                   builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
                 ),
-                icon: const Icon(LucideIcons.qrCode),
-                label: const Text('Générer le code de transfert'),
+                icon: const Icon(PhosphorIconsBold.qrCode),
+                label: Text(DriverCopy.get('delivery_detail_generate_handoff', locale)),
               ),
             ),
           ],
@@ -736,22 +780,18 @@ class _ActionPanel extends StatelessWidget {
               child: OutlinedButton.icon(
                 onPressed: launchNav,
                 icon: const Icon(PhosphorIconsBold.navigationArrow),
-                label: const Text('Naviguer'),
+                label: Text(DriverCopy.get('delivery_detail_navigate', locale)),
               ),
             ),
           );
           buttons.add(const SizedBox(height: 10));
         }
         buttons.addAll([
-          SizedBox(
-            width: double.infinity,
-            child: FilledButton.icon(
-              onPressed: isWorking ? null : onPod,
-              icon: isWorking
-                  ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(PhosphorIconsBold.sealCheck),
-              label: const Text('Soumettre la preuve de livraison'),
-            ),
+          SwipeButton(
+            label: DriverCopy.get('delivery_detail_submit_pod', locale),
+            onSwipe: isWorking ? null : onPod,
+            isWorking: isWorking,
+            icon: PhosphorIconsBold.sealCheck,
           ),
           const SizedBox(height: 10),
           SizedBox(
@@ -759,7 +799,7 @@ class _ActionPanel extends StatelessWidget {
             child: TextButton.icon(
               onPressed: isWorking ? null : onFail,
               icon: const Icon(PhosphorIconsBold.flagPennant),
-              label: const Text('Signaler un échec'),
+              label: Text(DriverCopy.get('delivery_detail_fail_report', locale)),
               style: TextButton.styleFrom(foregroundColor: cs.error),
             ),
           ),
@@ -773,8 +813,8 @@ class _ActionPanel extends StatelessWidget {
                   isScrollControlled: true,
                   builder: (_) => HandoffTokenSheet(deliveryId: delivery.id),
                 ),
-                icon: const Icon(LucideIcons.qrCode),
-                label: const Text('Générer le code de transfert'),
+                icon: const Icon(PhosphorIconsBold.qrCode),
+                label: Text(DriverCopy.get('delivery_detail_generate_handoff', locale)),
               ),
             ),
           ],
@@ -785,32 +825,37 @@ class _ActionPanel extends StatelessWidget {
       case DeliveryStatus.failed:
       case DeliveryStatus.cancelled:
         buttons.add(
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: cs.surfaceContainerLow,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: cs.outlineVariant),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(PhosphorIconsFill.lock, size: 16, color: cs.onSurfaceVariant),
+                  const SizedBox(width: 8),
+                  Text(
+                    DriverCopy.get('delivery_detail_locked', locale),
+                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
+                  ),
+                ],
+              ),
             ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.lock_rounded, size: 16, color: cs.onSurfaceVariant),
-                const SizedBox(width: 8),
-                Text(
-                  'Mission terminée — aucune action requise',
-                  style: TextStyle(color: cs.onSurfaceVariant, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
+          )
         );
         break;
     }
 
-    if (buttons.isEmpty) return const SizedBox.shrink();
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: buttons);
+    if (buttons.isEmpty && !showHandoffBanner) return const SizedBox.shrink();
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (showHandoffBanner) ...[
+          _HandoffBanner(onScan: onScanHandoff),
+          const SizedBox(height: 12),
+        ],
+        ...buttons,
+      ],
+    );
   }
 }
 
@@ -827,9 +872,9 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
   bool _loading = false;
 
   Future<void> _open() async {
+    final locale = ref.read(localeProvider);
     if (_loading) return;
 
-    // Offline check
     final isOnline = await ref.read(connectivityServiceProvider).isOnline;
     if (!isOnline) {
       if (mounted) {
@@ -848,13 +893,13 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
       );
       if (!ok && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Aucune application PDF installée.')),
+          SnackBar(content: Text(DriverCopy.get('pod_pdf_open_error', locale))),
         );
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Erreur téléchargement du bon de livraison.')),
+          SnackBar(content: Text(DriverCopy.get('pod_pdf_download_error', locale))),
         );
       }
     } finally {
@@ -865,46 +910,43 @@ class _BonLivraisonCardState extends ConsumerState<_BonLivraisonCard> {
   @override
   Widget build(BuildContext context) {
     final cs = Theme.of(context).colorScheme;
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: cs.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: cs.outlineVariant),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: cs.tertiary.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
+    final locale = ref.watch(localeProvider);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: cs.tertiary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(PhosphorIconsRegular.filePdf, color: cs.tertiary, size: 20),
             ),
-            child: Icon(Icons.picture_as_pdf_outlined, color: cs.tertiary, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Bon de livraison',
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    DriverCopy.get('pod_view_print_bl', locale),
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      color: cs.onSurface,
-                    )),
-                const SizedBox(height: 2),
-                Text('Ouvrir le PDF pour impression',
-                    style: TextStyle(color: cs.onSurfaceVariant, fontSize: 11)),
-              ],
+                          fontWeight: FontWeight.w700,
+                          color: cs.onSurface,
+                        ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          TextButton(
-            onPressed: _loading ? null : _open,
-            child: _loading
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
-                : const Text('Ouvrir'),
-          ),
-        ],
+            TextButton(
+              onPressed: _loading ? null : _open,
+              child: _loading
+                  ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                  : Text(locale == 'ar' ? 'عرض' : locale == 'en' ? 'Open' : 'Ouvrir'),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -922,7 +964,7 @@ class SectionHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.onSurface)),
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(color: cs.onSurface, fontWeight: FontWeight.bold)),
         if (subtitle != null) ...[
           const SizedBox(height: 2),
           Text(subtitle!, style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant)),
@@ -932,44 +974,56 @@ class SectionHeader extends StatelessWidget {
   }
 }
 
-// ─── Handoff Lock Panel ───────────────────────────────────────────────────────
-class _HandoffLockPanel extends StatelessWidget {
-  const _HandoffLockPanel({this.onScan});
+// ─── Handoff Banner (non-blocking) ────────────────────────────────────────────
+// Informs the receiving driver that a package was transferred to them and offers
+// a "scan QR" action — but does NOT block the rest of the stop's actions.
+class _HandoffBanner extends ConsumerWidget {
+  const _HandoffBanner({this.onScan});
   final Future<void> Function()? onScan;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final cs = Theme.of(context).colorScheme;
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cs.secondary.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: cs.secondary.withValues(alpha: 0.4)),
-          ),
-          child: Row(
+    final locale = ref.watch(localeProvider);
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: cs.secondary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: cs.secondary.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.lock_outline_rounded, color: cs.secondary, size: 20),
+              Icon(PhosphorIconsRegular.package, color: cs.secondary, size: 20),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Remise physique requise',
+                      locale == 'ar'
+                          ? 'طرد محوّل إليك'
+                          : locale == 'en'
+                              ? 'Package transferred to you'
+                              : 'Colis transféré vers vous',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                        color: cs.secondary,
-                      ),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: cs.secondary,
+                          ),
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      'Ce colis vous a été transféré. Scannez le QR du chauffeur expéditeur pour confirmer la réception et débloquer les actions.',
+                      locale == 'ar'
+                          ? 'عند الاستلام، امسح رمز QR الخاص بالسائق المرسل لتأكيد الاستلام. يمكنك متابعة عملك في هذه الأثناء.'
+                          : locale == 'en'
+                              ? 'When you receive it, scan the sender driver\'s QR to confirm. You can keep working in the meantime.'
+                              : 'À la réception, scannez le QR du chauffeur expéditeur pour confirmer. Vous pouvez continuer votre travail entre-temps.',
                       style: TextStyle(fontSize: 12, color: cs.onSurfaceVariant, height: 1.4),
                     ),
                   ],
@@ -977,17 +1031,23 @@ class _HandoffLockPanel extends StatelessWidget {
               ),
             ],
           ),
-        ),
-        const SizedBox(height: 16),
-        SizedBox(
-          width: double.infinity,
-          child: FilledButton.icon(
-            onPressed: onScan,
-            icon: const Icon(PhosphorIconsBold.qrCode),
-            label: const Text('Scanner le QR de l\'expéditeur'),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              onPressed: onScan,
+              icon: const Icon(PhosphorIconsBold.qrCode, size: 18),
+              label: Text(
+                locale == 'ar'
+                    ? 'امسح رمز المرسل'
+                    : locale == 'en'
+                        ? 'Scan sender\'s QR'
+                        : 'Scanner le QR de l\'expéditeur',
+              ),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
