@@ -48,3 +48,22 @@ export function useSyncDepotsFromErp() {
     },
   });
 }
+
+/** Geocode a single depot's address via the backend Nominatim proxy. */
+export function useGeolocateDepot() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (depotId: string) => {
+      const res = await api.post(`/api/v1/depots/${depotId}/geolocate`);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDepotGeolocate');
+      queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDepotGeolocateFailed');
+    },
+  });
+}

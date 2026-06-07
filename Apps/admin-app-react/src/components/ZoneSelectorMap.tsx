@@ -226,6 +226,7 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
 // ── Search bar ────────────────────────────────────────────────────────────────
 function SearchControl() {
   const map = useMap();
+  const t = useT();
   const [query,   setQuery]   = useState('');
   const [loading, setLoading] = useState(false);
 

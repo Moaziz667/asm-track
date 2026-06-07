@@ -1,10 +1,10 @@
 
 
 import { lazy as dynamic } from 'react';
-import { useDepots, useSyncDepotsFromErp } from '@/hooks/useDepots';
+import { useDepots, useSyncDepotsFromErp, useGeolocateDepot } from '@/hooks/useDepots';
 import { useT } from '@/lib/LocaleContext';
 import {
-  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload,
+  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload, IconMapPin,
 } from '@tabler/icons-react';
 import { isReadOnlyRole, getCurrentRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -34,8 +34,9 @@ export default function DepotsPage() {
 
   const { data: depots = [], isLoading: loading, refetch: fetchDepots } = useDepots();
   const syncMutation = useSyncDepotsFromErp();
+  const geolocateMutation = useGeolocateDepot();
 
-  const mappableDepots = depots.filter(d => d.latitude != null && d.longitude != null);
+  const mappableDepots = depots.filter(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
 
   return (
     <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
@@ -198,18 +199,32 @@ export default function DepotsPage() {
                         </p>
 
                         {/* Coordinates */}
-                        <div className="flex justify-center">
-                          {depot.latitude != null && depot.longitude != null ? (
+                        <div className="flex justify-center items-center gap-2">
+                          {depot.latitude != null && depot.longitude != null && !isNaN(Number(depot.latitude)) && !isNaN(Number(depot.longitude)) ? (
                             <span
                               className="text-[11px] font-bold font-mono px-2 py-1 rounded-md inline-block"
                               style={{ color: 'var(--text-primary)', background: 'var(--app-bg)' }}
                             >
-                              {depot.latitude.toFixed(5)}, {depot.longitude.toFixed(5)}
+                              {Number(depot.latitude).toFixed(5)}, {Number(depot.longitude).toFixed(5)}
                             </span>
                           ) : (
                             <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>
                               {t.depotsPage.coordsMissing}
                             </span>
+                          )}
+                          {!readOnly && depot.address && (
+                            <button
+                              type="button"
+                              title="Géolocaliser"
+                              disabled={geolocateMutation.isPending}
+                              onClick={() => geolocateMutation.mutate(depot.id)}
+                              className="w-6 h-6 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
+                              style={{ background: 'var(--app-bg)' }}
+                            >
+                              {geolocateMutation.isPending && geolocateMutation.variables === depot.id
+                                ? <Spinner size={11} />
+                                : <IconMapPin size={11} style={{ color: 'var(--brand)' }} />}
+                            </button>
                           )}
                         </div>
 

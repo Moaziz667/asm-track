@@ -537,7 +537,18 @@ export default function ZonesPage() {
                   <p className="text-[18px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{form.postalCodes.length}</p>
                   <IconScan size={18} style={{ color: 'var(--brand)' }} />
                 </div>
-                <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activePostalPoints}</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activePostalPoints}</p>
+                  {form.postalCodes.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setForm(p => ({ ...p, postalCodes: [] }))}
+                      className="text-[10px] font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                    >
+                      Désélectionner tout
+                    </button>
+                  )}
+                </div>
 
                 <div className="max-h-[200px] overflow-y-auto">
                   <div className="flex flex-wrap gap-1">

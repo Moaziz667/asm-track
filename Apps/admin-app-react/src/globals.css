@@ -109,66 +109,63 @@
   --color-card:    var(--card);
   --color-foreground:    var(--foreground);
   --color-background:    var(--background);
-  --radius-2xl:    calc(var(--radius) * 1.8);
-  --radius-3xl:    calc(var(--radius) * 2.2);
-  --radius-4xl:    calc(var(--radius) * 2.6);
 }
 
 /* ── Light mode ─────────────────────────────────────────────────────────────── */
 :root {
-  /* Brand — AWS Amazon Orange interactive voltage */
-  --brand:       #DF7C1C;
-  --brand-hover: #C3640F;
-  --brand-soft:  rgba(223, 124, 28, 0.08);
+  /* Brand / Primary Accent — Minimalist Charcoal/Black */
+  --brand:       #09090b;
+  --brand-hover: #18181b;
+  --brand-soft:  #f4f4f5;
 
-  /* Brand Blue — AWS Cerulean Blue supporting accent */
-  --brand-blue:       #0972d3;
-  --brand-blue-hover: #035eb4;
-  --brand-blue-soft:  rgba(9, 114, 211, 0.08);
+  /* Brand Blue / supporting accent — clean steel blue */
+  --brand-blue:       #27272a;
+  --brand-blue-hover: #3f3f46;
+  --brand-blue-soft:  #f4f4f5;
 
-  /* AWS Spectral Gradients (123deg editorial gradients) */
-  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
-  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
-  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
-  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
-  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
+  /* AWS Spectral Gradients (123deg editorial gradients) -> replaced with clean monochrome dark-to-light gradients */
+  --gradient-blue:    linear-gradient(123deg, #09090b 0%, #27272a 50%, #71717a 100%);
+  --gradient-teal:    linear-gradient(123deg, #18181b 0%, #3f3f46 50%, #a1a1aa 100%);
+  --gradient-purple:  linear-gradient(123deg, #27272a 0%, #52525b 50%, #d4d4d8 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #3f3f46 0%, #71717a 50%, #e4e4e7 100%);
+  --gradient-orange:  linear-gradient(123deg, #18181b 0%, #52525b 50%, #fafafa 100%);
 
-  /* Backgrounds — 4-layer depth stack (darker → lighter = deeper → higher) */
-  --app-bg:        #FCFCFD; /* Canvas — clearly gray so white cards float above it */
-  --sidebar-bg:    #1B232D; /* Nav-bg */
-  --surface:       #ffffff; /* Cards — pure white, sits above page bg */
-  --elevated:      #ffffff; /* Above surface (modals, selected state) */
-  --hover-bg:      #ECEEF2; /* Hover / subtle row bg */
-  --surface-sunken:#EAECF1; /* Recessed: table headers, input bgs, inset areas */
+  /* Backgrounds — Flat Monochrome layers */
+  --app-bg:        #ffffff; /* Canvas */
+  --sidebar-bg:    #09090b; /* Pure black navigation */
+  --surface:       #ffffff; /* Cards */
+  --elevated:      #ffffff;
+  --hover-bg:      #f4f4f5; /* Hover */
+  --surface-sunken:#fafafa; /* Recessed / headers */
 
-  /* Borders */
-  --border:        #D4D6DC; /* Hairline */
-  --border-strong: #BBBEC8;
+  /* Borders — Clean flat 1px borders */
+  --border:        #e4e4e7;
+  --border-strong: #a1a1aa;
 
-  /* Depth shadows — two-step: inset top highlight + drop bottom */
-  --shadow-xs:         0 1px 2px rgba(0,0,0,0.05);
-  --shadow-sm:         0 1px 3px rgba(0,0,0,0.07), 0 1px 2px rgba(0,0,0,0.04);
-  --shadow-card:       inset 0 1px 0 rgba(255,255,255,0.80), 0 1px 3px rgba(0,0,0,0.09), 0 2px 6px rgba(0,0,0,0.05);
-  --shadow-card-hover: inset 0 1px 0 rgba(255,255,255,0.90), 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-md:         0 4px 14px rgba(0,0,0,0.10), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-lg:         0 8px 32px rgba(0,0,0,0.13), 0 4px 8px rgba(0,0,0,0.06);
-  --shadow-dropdown:   inset 0 1px 0 rgba(255,255,255,0.90), 0 6px 24px rgba(0,0,0,0.13), 0 2px 6px rgba(0,0,0,0.07);
-  --shadow-inset:      inset 0 2px 5px rgba(0,0,0,0.06), inset 0 1px 0 rgba(0,0,0,0.03);
+  /* Shadows — Flat design, minimal shadows */
+  --shadow-xs:         none;
+  --shadow-sm:         none;
+  --shadow-card:       none;
+  --shadow-card-hover: none;
+  --shadow-md:         none;
+  --shadow-lg:         none;
+  --shadow-dropdown:   0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  --shadow-inset:      none;
 
-  /* Text — slate scale */
-  --text-primary:   #161d26; /* Ink */
-  --text-secondary: #232b37; /* Ink Body */
-  --text-muted:     #333333; /* Ink Secondary */
-  --text-soft:      #72747e; /* Ink Muted */
-  --text-faded:     #a4a4ad; /* Ink Faded */
+  /* Text — Ink scale */
+  --text-primary:   #09090b;
+  --text-secondary: #27272a;
+  --text-muted:     #71717a;
+  --text-soft:      #a1a1aa;
+  --text-faded:     #d4d4d8;
 
-  /* Status */
-  --success:    #16A34A;  --success-bg: #F0FDF4;
-  --warning:    #D97706;  --warning-bg: #FFFBEB;
-  --danger:     #DC2626;  --danger-bg:  #FEF2F2;
-  --info:       #DF7C1C;  --info-bg:    #EFF6FF;
+  /* Status — Desaturated monochrome/muted warnings */
+  --success:    #18181b;  --success-bg: #f4f4f5;
+  --warning:    #27272a;  --warning-bg: #fafafa;
+  --danger:     #09090b;  --danger-bg:  #f4f4f5;
+  --info:       #18181b;  --info-bg:    #f4f4f5;
 
-  /* shadcn compatibility — primary = brand orange */
+  /* shadcn compatibility */
   --background:          var(--app-bg);
   --foreground:          var(--text-primary);
   --card:                var(--surface);
@@ -187,19 +184,19 @@
   --destructive-foreground: #ffffff;
   --input:               var(--border);
   --ring:                var(--brand);
-  --radius:              16px;
+  --radius:              8px; /* Refined from 16px to modern 8px */
 
   /* Sidebar shadcn */
   --sidebar:                    var(--sidebar-bg);
-  --sidebar-foreground:         #ffffff;
+  --sidebar-foreground:         #fafafa;
   --sidebar-primary:            var(--brand);
   --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:             rgba(255, 255, 255, 0.08);
+  --sidebar-accent:             #18181b;
   --sidebar-accent-foreground:  #ffffff;
-  --sidebar-border:             rgba(255, 255, 255, 0.08);
-  --sidebar-ring:               var(--brand);
+  --sidebar-border:             #27272a;
+  --sidebar-ring:               #ffffff;
 
-  /* Legacy aliases — keep during Mantine migration */
+  /* Legacy aliases */
   --brand-orange:      var(--brand);
   --brand-orange-dark: var(--brand-hover);
   --brand-orange-soft: var(--brand-soft);
@@ -210,60 +207,58 @@
   --border-subtle:     var(--border);
   --text-strong:       var(--text-primary);
   --text:              var(--text-secondary);
-  --chart-1: #DF7C1C; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+  --chart-1: #09090b; --chart-2: #27272a; --chart-3: #52525b; --chart-4: #71717a; --chart-5: #a1a1aa;
 }
 
 /* ── Dark mode ──────────────────────────────────────────────────────────────── */
 .dark {
-  --brand:       #DF7C1C;
-  --brand-hover: #F1953D;
-  --brand-soft:  rgba(223, 124, 28, 0.15);
+  --brand:       #ffffff;
+  --brand-hover: #fafafa;
+  --brand-soft:  #27272a;
 
-  --brand-blue:       #0972d3;
-  --brand-blue-hover: #035eb4;
-  --brand-blue-soft:  rgba(9, 114, 211, 0.15);
+  --brand-blue:       #a1a1aa;
+  --brand-blue-hover: #d4d4d8;
+  --brand-blue-soft:  #27272a;
 
-  /* AWS Spectral Gradients (123deg editorial gradients) */
-  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
-  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
-  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
-  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
-  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
+  /* AWS Spectral Gradients */
+  --gradient-blue:    linear-gradient(123deg, #ffffff 0%, #a1a1aa 50%, #27272a 100%);
+  --gradient-teal:    linear-gradient(123deg, #fafafa 0%, #d4d4d8 50%, #3f3f46 100%);
+  --gradient-purple:  linear-gradient(123deg, #a1a1aa 0%, #71717a 50%, #18181b 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #71717a 0%, #3f3f46 50%, #09090b 100%);
+  --gradient-orange:  linear-gradient(123deg, #fafafa 0%, #71717a 50%, #09090b 100%);
 
-  --app-bg:        #0f141a; /* AWS pitch black nav/footer canvas */
-  --sidebar-bg:    #1B232D;
-  --surface:       #161d26; /* AWS Ink as surface card background */
-  --elevated:      #1e2733;
-  --hover-bg:      #1e2733;
-  --surface-sunken:#0a0f14; /* Below page bg — table headers, recessed */
+  --app-bg:        #09090b; /* Pure pitch black */
+  --sidebar-bg:    #09090b;
+  --surface:       #09090b; /* Flat cards are black with borders */
+  --elevated:      #18181b;
+  --hover-bg:      #18181b;
+  --surface-sunken:#18181b;
 
-  --border:        rgba(255, 255, 255, 0.08);
-  --border-strong: rgba(255, 255, 255, 0.16);
+  --border:        #27272a;
+  --border-strong: #3f3f46;
 
-  /* Depth shadows — stronger inset highlight visible on dark surfaces */
-  --shadow-xs:         0 1px 2px rgba(0,0,0,0.30);
-  --shadow-sm:         0 1px 4px rgba(0,0,0,0.40), 0 1px 2px rgba(0,0,0,0.25);
-  --shadow-card:       inset 0 1px 0 rgba(255,255,255,0.06), 0 2px 8px rgba(0,0,0,0.35), 0 1px 2px rgba(0,0,0,0.20);
-  --shadow-card-hover: inset 0 1px 0 rgba(255,255,255,0.10), 0 6px 20px rgba(0,0,0,0.50), 0 2px 6px rgba(0,0,0,0.30);
-  --shadow-md:         0 4px 16px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.25);
-  --shadow-lg:         0 8px 40px rgba(0,0,0,0.55), 0 4px 12px rgba(0,0,0,0.30);
-  --shadow-dropdown:   inset 0 1px 0 rgba(255,255,255,0.07), 0 8px 32px rgba(0,0,0,0.60), 0 2px 8px rgba(0,0,0,0.35);
-  --shadow-inset:      inset 0 2px 6px rgba(0,0,0,0.35), inset 0 1px 0 rgba(0,0,0,0.20);
+  --shadow-xs:         none;
+  --shadow-sm:         none;
+  --shadow-card:       none;
+  --shadow-card-hover: none;
+  --shadow-md:         none;
+  --shadow-lg:         none;
+  --shadow-dropdown:   0 4px 6px -1px rgba(0, 0, 0, 0.5);
+  --shadow-inset:      none;
 
-  --text-primary:   #f3f3f7;
-  --text-secondary: #dedee3;
-  --text-muted:     #a4a4ad;
-  --text-soft:      #72747e;
+  --text-primary:   #fafafa;
+  --text-secondary: #d4d4d8;
+  --text-muted:     #a1a1aa;
+  --text-soft:      #71717a;
 
-  /* Status — dark pastels (subtle tints over #1A1A1A surface) */
-  --success:    #22C55E;  --success-bg: #0D2818;
-  --warning:    #F59E0B;  --warning-bg: #2A1F0A;
-  --danger:     #EF4444;  --danger-bg:  #2A1215;
-  --info:       #DF7C1C;  --info-bg:    #0F1A2E;
+  --success:    #fafafa;  --success-bg: #18181b;
+  --warning:    #d4d4d8;  --warning-bg: #27272a;
+  --danger:     #ffffff;  --danger-bg:  #18181b;
+  --info:       #fafafa;  --info-bg:    #18181b;
 
   /* Legacy dark aliases */
-  --brand-orange-dark: #F1953D;
-  --brand-orange-soft: rgba(223, 124, 28, 0.15);
+  --brand-orange-dark: #fafafa;
+  --brand-orange-soft: #27272a;
   --surface-1:    var(--surface);
   --surface-2:    var(--app-bg);
   --surface-3:    var(--sidebar-bg);
@@ -281,7 +276,7 @@
   --popover:             var(--surface);
   --popover-foreground:  var(--text-primary);
   --primary:             var(--brand);
-  --primary-foreground:  #ffffff;
+  --primary-foreground:  #09090b;
   --secondary:           var(--sidebar-bg);
   --secondary-foreground:var(--text-primary);
   --muted:               var(--sidebar-bg);
@@ -291,46 +286,45 @@
   --destructive:         var(--danger);
   --input:               var(--border);
   --ring:                var(--brand);
-  --chart-1: #DF7C1C; --chart-2: #10B981; --chart-3: #2563EB; --chart-4: #D97706; --chart-5: #8B5CF6;
+  --chart-1: #ffffff; --chart-2: #d4d4d8; --chart-3: #a1a1aa; --chart-4: #71717a; --chart-5: #3f3f46;
   --sidebar:                    var(--sidebar-bg);
   --sidebar-foreground:         var(--text-primary);
   --sidebar-primary:            var(--brand);
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent:             #2E2E2E;
-  --sidebar-accent-foreground:  #E5E5E5;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent:             #18181b;
+  --sidebar-accent-foreground:  #ffffff;
   --sidebar-border:             var(--border);
   --sidebar-ring:               var(--brand);
 }
 
 /* ── Also support [data-mantine-color-scheme=dark] during migration ─────────── */
 [data-mantine-color-scheme='dark'] {
-  --brand:       #DF7C1C;
-  --brand-hover: #F1953D;
-  --brand-soft:  rgba(223, 124, 28, 0.15);
+  --brand:       #ffffff;
+  --brand-hover: #fafafa;
+  --brand-soft:  #27272a;
 
-  --brand-blue:       #0972d3;
-  --brand-blue-hover: #035eb4;
-  --brand-blue-soft:  rgba(9, 114, 211, 0.15);
+  --brand-blue:       #a1a1aa;
+  --brand-blue-hover: #d4d4d8;
+  --brand-blue-soft:  #27272a;
 
-  /* AWS Spectral Gradients (123deg editorial gradients) */
-  --gradient-blue:    linear-gradient(123deg, #008559 0%, #0972d3 50%, #5e6ad2 100%);
-  --gradient-teal:    linear-gradient(123deg, #008559 0%, #2594b8 50%, #0972d3 100%);
-  --gradient-purple:  linear-gradient(123deg, #d600ba 0%, #5e6ad2 50%, #2594b8 100%);
-  --gradient-fuchsia: linear-gradient(123deg, #ff9900 0%, #d600ba 50%, #5e6ad2 100%);
-  --gradient-orange:  linear-gradient(123deg, #d600ba 0%, #db0000 50%, #ff9900 100%);
-  --app-bg:      #0f141a;
-  --sidebar-bg:  #1B232D;
-  --surface:     #161d26;
-  --elevated:    #232b37;
-  --hover-bg:    #232b37;
-  --border:      rgba(255, 255, 255, 0.08);
-  --border-strong:rgba(255, 255, 255, 0.16);
-  --text-primary: #f3f3f7;
-  --text-secondary:#dedee3;
-  --text-muted:  #a4a4ad;
-  --text-soft:   #72747e;
-  --brand-orange-dark: #F1953D;
-  --brand-orange-soft: rgba(223, 124, 28, 0.15);
+  --gradient-blue:    linear-gradient(123deg, #ffffff 0%, #a1a1aa 50%, #27272a 100%);
+  --gradient-teal:    linear-gradient(123deg, #fafafa 0%, #d4d4d8 50%, #3f3f46 100%);
+  --gradient-purple:  linear-gradient(123deg, #a1a1aa 0%, #71717a 50%, #18181b 100%);
+  --gradient-fuchsia: linear-gradient(123deg, #71717a 0%, #3f3f46 50%, #09090b 100%);
+  --gradient-orange:  linear-gradient(123deg, #fafafa 0%, #71717a 50%, #09090b 100%);
+  --app-bg:      #09090b;
+  --sidebar-bg:  #09090b;
+  --surface:     #09090b;
+  --elevated:    #18181b;
+  --hover-bg:    #18181b;
+  --border:      #27272a;
+  --border-strong:#3f3f46;
+  --text-primary: #fafafa;
+  --text-secondary:#d4d4d8;
+  --text-muted:  #a1a1aa;
+  --text-soft:   #71717a;
+  --brand-orange-dark: #fafafa;
+  --brand-orange-soft: #27272a;
   --surface-1:   var(--surface);
   --surface-2:   var(--app-bg);
   --surface-3:   var(--sidebar-bg);
@@ -339,10 +333,10 @@
   --text-strong: var(--text-primary);
   --text:        var(--text-secondary);
   --hover-bg:    var(--hover-bg);
-  --success:    #22C55E;  --success-bg: #0D2818;
-  --warning:    #F59E0B;  --warning-bg: #2A1F0A;
-  --danger:     #EF4444;  --danger-bg:  #2A1215;
-  --info:       #DF7C1C;  --info-bg:    #0F1A2E;
+  --success:    #fafafa;  --success-bg: #18181b;
+  --warning:    #d4d4d8;  --warning-bg: #27272a;
+  --danger:     #ffffff;  --danger-bg:  #18181b;
+  --info:       #fafafa;  --info-bg:    #18181b;
 }
 
 /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -714,10 +708,10 @@
   color: inherit !important;
 }
 
-/* ── Force Sidebar Background to be #1B232D in light mode ─────────────────── */
+/* ── Force Sidebar Background to be #09090b in light mode ─────────────────── */
 aside,
 [class*="sidebar"] {
-  background-color: #1B232D !important;
+  background-color: #09090b !important;
 }
 
 /* Maintain dark mode for sidebar */
@@ -725,6 +719,6 @@ aside,
 .dark [class*="sidebar"],
 [data-mantine-color-scheme='dark'] aside,
 [data-mantine-color-scheme='dark'] [class*="sidebar"] {
-  background-color: #1B232D !important;
+  background-color: #09090b !important;
 }
 

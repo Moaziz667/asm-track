@@ -112,8 +112,15 @@ const DENSITY_LABELS: Record<Density, string> = {
 };
 
 export function DisplaySettingsDropdown({
+  columns,
+  visibleIds,
+  onToggle,
+  onReorder,
+  onReset,
+  density,
+  onDensityChange,
   disabled,
-}: { disabled?: boolean }) {
+}: DisplaySettingsDropdownProps) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);

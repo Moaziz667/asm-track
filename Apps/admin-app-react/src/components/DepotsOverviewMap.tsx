@@ -32,10 +32,10 @@ function MapUpdater({ depots }: { depots: Depot[] }) {
   useEffect(() => {
     if (depots.length === 0) return;
     
-    const validDepots = depots.filter(d => typeof d.latitude === 'number' && typeof d.longitude === 'number');
+    const validDepots = depots.filter(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
     if (validDepots.length === 0) return;
 
-    const bounds = L.latLngBounds(validDepots.map(d => [d.latitude as number, d.longitude as number]));
+    const bounds = L.latLngBounds(validDepots.map(d => [Number(d.latitude), Number(d.longitude)]));
     map.fitBounds(bounds, { padding: [50, 50], maxZoom: 13 });
   }, [map, depots]);
 
@@ -45,8 +45,8 @@ function MapUpdater({ depots }: { depots: Depot[] }) {
 export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
   const center: [number, number] = useMemo(() => {
     if (depots.length > 0) {
-      const first = depots.find(d => typeof d.latitude === 'number' && typeof d.longitude === 'number');
-      if (first) return [first.latitude as number, first.longitude as number];
+      const first = depots.find(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
+      if (first) return [Number(first.latitude), Number(first.longitude)];
     }
     return [36.8065, 10.1815]; // Tunis
   }, [depots]);
@@ -60,11 +60,11 @@ export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
         />
         <MapUpdater depots={depots} />
         {depots.map((depot) => {
-          if (typeof depot.latitude !== 'number' || typeof depot.longitude !== 'number') return null;
+          if (depot.latitude == null || depot.longitude == null || isNaN(Number(depot.latitude)) || isNaN(Number(depot.longitude))) return null;
           return (
             <Marker 
               key={depot.id} 
-              position={[depot.latitude, depot.longitude]} 
+              position={[Number(depot.latitude), Number(depot.longitude)]} 
               icon={makeDepotIcon(depot.isActive)}
             >
               <Popup>
