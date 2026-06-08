@@ -33,7 +33,7 @@
   "oauth2DevicePollingInterval": 5,
   "revokeRefreshToken": true,
   "refreshTokenMaxReuse": 0,
-  "sslRequired": "external",
+  "sslRequired": "none",
   "roles": {
     "realm": [
       {

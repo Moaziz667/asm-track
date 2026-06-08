@@ -103,11 +103,17 @@ public class ErpLookupService {
         List<Map<String, Object>> res = erpAdapterClient.getPendingOrders(limit, null);
         List<ErpPendingOrderSummaryDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
-                // Dedup per delivery-note (BL) when present, else per ERP order ref.
                 .filter(dto -> dto.getErpOrderId() != null)
-                .filter(dto -> StringUtils.hasText(dto.getBlNumber())
-                        ? !importedBls.contains(dto.getBlNumber())
-                        : !importedErpIds.contains(dto.getErpOrderId()))
+                // Mark (don't drop) already-imported orders — by delivery-note (BL) when
+                // present, else by ERP order ref — so the UI's "Déjà importées" tab can
+                // show them instead of the list silently excluding them.
+                .map(dto -> {
+                    boolean imported = StringUtils.hasText(dto.getBlNumber())
+                            ? importedBls.contains(dto.getBlNumber())
+                            : importedErpIds.contains(dto.getErpOrderId());
+                    dto.setAlreadyImported(imported);
+                    return dto;
+                })
                 .collect(Collectors.toList());
 
         pendingOrderCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));

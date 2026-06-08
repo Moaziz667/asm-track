@@ -103,8 +103,9 @@ public class ErpController {
     @Operation(
         summary = "List pending ERP orders",
         description = """
-            Returns confirmed ERP orders (state = 'sale') that have **not yet been imported** into ASM Track.
-            The list is automatically filtered — already-imported orders are excluded.
+            Returns confirmed ERP orders (state = 'sale'). Already-imported orders are
+            included but flagged with `alreadyImported=true` so the UI can split them into
+            "À importer" / "Déjà importées" tabs.
 
             Results are cached for 5 minutes. Click "Synchroniser ERP" on the import page to force a refresh.
 
