@@ -1,6 +1,6 @@
 
-import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
-import { useNavigate as useRouter } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
 import { formatDateTime } from '@/lib/date';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { api } from '@/lib/api';
@@ -28,6 +28,8 @@ import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { AppDrawer } from '@/components/overlays/AppDrawer';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/LocaleContext';
+import { getDayBucket } from '@/lib/sla';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
@@ -43,6 +45,12 @@ const IMPORT_COLUMNS: ColumnDef[] = [
   { id: 'status',   label: 'Statut' },
 ];
 
+const CELL_PADDING: Record<'compact' | 'comfortable' | 'spacious', string> = {
+  compact: 'px-3 py-1.5',
+  comfortable: 'px-3 py-3',
+  spacious: 'px-3 py-5',
+};
+
 const ITEMS_PER_PAGE = 25;
 
 const money = (value: number | null | undefined, currency = 'TND') => formatMoney(value, currency);
@@ -54,6 +62,8 @@ function formatDate(value: string | null | undefined) {
 function ImportErpPageContent() {
   const t = useT();
   const { density, setDensity } = useDensity('import', 'comfortable');
+  const thPaddingClass = density === 'compact' ? 'py-2' : density === 'spacious' ? 'py-6' : 'py-4';
+  const rowPaddingClass = density === 'compact' ? 'py-1.5' : density === 'spacious' ? 'py-5' : 'py-3';
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('import', IMPORT_COLUMNS);
   usePageBreadcrumb([{ label: t.importPage?.pageTitle ? `${t.importPage.pageTitle} ${t.importPage.pageTitleBrand}` : 'Import ERP' }]);
   const router = useRouter();
@@ -70,7 +80,11 @@ function ImportErpPageContent() {
   const [importingId, setImportingId] = useState<string | null>(null);
   const [confirmForId, setConfirmForId] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
-  const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'done'>('all');
+  const [searchParams] = useSearchParams();
+  const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'done'>(() => {
+    const tab = searchParams.get('tab');
+    return tab === 'ready' || tab === 'done' ? tab : 'all';
+  });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkImporting, setBulkImporting] = useState(false);
 
@@ -97,6 +111,18 @@ function ImportErpPageContent() {
     }, 45000);
     return () => clearInterval(interval);
   }, [loadPendingOrders]);
+
+  // When the backend's ERP poller detects new orders (erp.orders_ready), pull a
+  // fresh list immediately instead of waiting for the 45s tick. Debounced so a
+  // burst of events triggers a single forced refetch.
+  const erpRefetchTimer = useRef<number | null>(null);
+  useRealtimeEvent(['erp.orders_ready'], () => {
+    if (erpRefetchTimer.current != null) return;
+    erpRefetchTimer.current = window.setTimeout(() => {
+      erpRefetchTimer.current = null;
+      void loadPendingOrders(true, true);
+    }, 1500);
+  });
 
   const filteredRows = useMemo(() => {
     let result = rows;
@@ -265,24 +291,54 @@ function ImportErpPageContent() {
               <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                 <tr className="border-b border-[var(--border)]">
                   <th className="w-[8px] p-0"></th>
-                  <th className="w-10 py-4 pl-4 text-left">
+                  <th className={cn("w-10 pl-4 text-left", thPaddingClass)}>
                     <input type="checkbox" checked={allPageSelected} onChange={toggleSelectAll}
                       className="w-3.5 h-3.5 cursor-pointer accent-[var(--brand)]" />
                   </th>
-                  {visibleIds.has('ref') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerReference}</th>}
-                  {visibleIds.has('customer') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerCustomer}</th>}
-                  {visibleIds.has('dest') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerDestination}</th>}
-                  {visibleIds.has('amount') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerAmount}</th>}
-                  {visibleIds.has('date') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">Date Planifiée</th>}
-                  {visibleIds.has('status') && <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-left px-3">{t.importPage.headerStatus}</th>}
-                  <th className="text-[11px] font-semibold text-[var(--text-muted)] py-4 text-right px-3">{t.importPage.headerActions}</th>
+                  {orderedColumns.map((col) => {
+                    if (!visibleIds.has(col.id)) return null;
+                    if (col.id === 'ref') return (
+                      <th key="ref" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                        {t.importPage.headerReference}
+                      </th>
+                    );
+                    if (col.id === 'customer') return (
+                      <th key="customer" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                        {t.importPage.headerCustomer}
+                      </th>
+                    );
+                    if (col.id === 'dest') return (
+                      <th key="dest" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                        {t.importPage.headerDestination}
+                      </th>
+                    );
+                    if (col.id === 'amount') return (
+                      <th key="amount" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
+                        {t.importPage.headerAmount}
+                      </th>
+                    );
+                    if (col.id === 'date') return (
+                      <th key="date" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                        Date Planifiée
+                      </th>
+                    );
+                    if (col.id === 'status') return (
+                      <th key="status" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                        {t.importPage.headerStatus}
+                      </th>
+                    );
+                    return null;
+                  })}
+                  <th className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
+                    {t.importPage.headerActions}
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {loading && !refreshing ? (
                   Array.from({ length: 15 }).map((_, i) => (
                     <tr key={i} className="border-b border-[var(--border)] animate-pulse">
-                      <td colSpan={visibleIds.size + 3} className="py-4 px-3">
+                      <td colSpan={visibleIds.size + 3} className={cn("px-3", rowPaddingClass)}>
                         <div className="h-3 rounded-full w-3/4 mx-auto" style={{ background: 'var(--hover-bg)' }} />
                       </td>
                     </tr>
@@ -309,11 +365,11 @@ function ImportErpPageContent() {
                       >
                         {/* Ribbon */}
                         <td className="p-0">
-                          <div className="w-[3px] h-[14px] rounded-r-[1px]"
+                          <div className={cn("w-[3px] rounded-r-[1px]", density === 'compact' ? "h-[10px]" : density === 'spacious' ? "h-[22px]" : "h-[14px]")}
                             style={{ backgroundColor: isImported ? '#4CAF82' : '#5E6AD2' }} />
                         </td>
                         {/* Checkbox */}
-                        <td className="pl-4 py-3">
+                        <td className={cn("pl-4", rowPaddingClass)}>
                           {!isImported && (
                             <input type="checkbox"
                               checked={selectedIds.has(row.erpOrderId)}
@@ -321,130 +377,137 @@ function ImportErpPageContent() {
                               className="w-3.5 h-3.5 accent-[var(--brand)] cursor-pointer" />
                           )}
                         </td>
-                        {visibleIds.has('ref') && (
-                          <td className="px-3 py-3">
-                            <div className="flex flex-col gap-0.5">
-                              <div className="flex items-center gap-1.5">
-                                <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
-                                  {row.blNumber || row.erpOrderId}
-                                </p>
-                                {row.warehouseCode && (
-                                  <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
-                                    {row.warehouseCode}
+                        {orderedColumns.map((col) => {
+                          if (!visibleIds.has(col.id)) return null;
+                          if (col.id === 'ref') return (
+                            <td key="ref" className={cn(CELL_PADDING[density])}>
+                              <div className="flex flex-col gap-0.5">
+                                <div className="flex items-center gap-1.5">
+                                  <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
+                                    {row.blNumber || row.erpOrderId}
+                                  </p>
+                                  {row.warehouseCode && (
+                                    <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
+                                      {row.warehouseCode}
+                                    </span>
+                                  )}
+                                </div>
+                                {row.blNumber && row.erpOrderId && (
+                                  <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
+                                )}
+                                {row.externalRef && (
+                                  <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
+                                )}
+                              </div>
+                            </td>
+                          );
+                          if (col.id === 'customer') return (
+                            <td key="customer" className={cn(CELL_PADDING[density])}>
+                              <div>
+                                <p className="text-[11px] font-semibold text-[var(--text-primary)]">{row.customerName}</p>
+                                <div className="flex items-center gap-1">
+                                  <IconPhone size={10} className="text-[var(--text-muted)]" />
+                                  <p className="text-[10px] font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
+                                </div>
+                              </div>
+                            </td>
+                          );
+                          if (col.id === 'dest') return (
+                            <td key="dest" className={cn(CELL_PADDING[density])}>
+                              <div className="max-w-[220px]">
+                                <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
+                                <p className="text-[11px] font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
+                              </div>
+                            </td>
+                          );
+                          if (col.id === 'amount') return (
+                            <td key="amount" className={cn(CELL_PADDING[density], "text-right")}>
+                              <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
+                            </td>
+                          );
+                          if (col.id === 'date') return (
+                            <td key="date" className={cn(CELL_PADDING[density])}>
+                              {(() => {
+                                // Same-day calendar model: red = scheduled date already
+                                // passed, amber = due today. Matches Deliveries 'Overdue'/'Today'
+                                // so an order's date reads identically on every screen.
+                                const bucket = isImported ? 'none' : getDayBucket(row.scheduledAt);
+                                const isLate = bucket === 'overdue';
+                                const isSoon = bucket === 'today';
+                                const color = isLate ? '#dc2626' : isSoon ? '#d97706' : undefined;
+                                const tooltip = isLate ? t.importPage.lateTooltip : isSoon ? t.importPage.soonTooltip : null;
+                                return (
+                                  <div className="relative group/datecell flex flex-col gap-1">
+                                    <div className="flex items-center gap-1.5">
+                                      <IconCalendarClock size={13} style={{ color: color ?? 'var(--text-muted)' }} />
+                                      <span
+                                        className="text-[11px] font-bold tracking-tight"
+                                        style={{ color: color ?? 'var(--text-primary)' }}
+                                      >
+                                        {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
+                                      </span>
+                                    </div>
+                                    {tooltip && (
+                                      <div
+                                        className="absolute bottom-full left-0 mb-1.5 z-50 hidden group-hover/datecell:block w-max max-w-[260px] px-2.5 py-1.5 rounded-md text-[10px] font-medium leading-snug pointer-events-none"
+                                        style={{ background: '#1c1c1e', color: '#f4f4f5', boxShadow: '0 4px 12px rgba(0,0,0,0.25)' }}
+                                      >
+                                        {tooltip}
+                                        <div
+                                          className="absolute top-full left-3"
+                                          style={{ width: 0, height: 0, borderLeft: '5px solid transparent', borderRight: '5px solid transparent', borderTop: '5px solid #1c1c1e' }}
+                                        />
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })()}
+                            </td>
+                          );
+                          if (col.id === 'status') return (
+                            <td key="status" className={cn(CELL_PADDING[density])}>
+                              <div className="flex flex-col gap-1">
+                                {isImported ? (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    height: 18,
+                                    padding: '0 6px',
+                                    borderRadius: 99,
+                                    background: 'rgba(76,175,130,0.09)',
+                                    color: '#2D8A5E',
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    border: '1px solid rgba(76,175,130,0.15)'
+                                  }}>
+                                    <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: '#4CAF82' }} />
+                                    {t.importPage.statusSynced}
+                                  </span>
+                                ) : (
+                                  <span style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: 4,
+                                    height: 18,
+                                    padding: '0 6px',
+                                    borderRadius: 99,
+                                    background: 'rgba(94,106,210,0.09)',
+                                    color: '#4C56B8',
+                                    fontSize: 10,
+                                    fontWeight: 600,
+                                    border: '1px solid rgba(94,106,210,0.15)'
+                                  }}>
+                                    <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: '#5E6AD2' }} />
+                                    {t.importPage.statusReady}
                                   </span>
                                 )}
                               </div>
-                              {row.blNumber && row.erpOrderId && (
-                                <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
-                              )}
-                              {row.externalRef && (
-                                <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
-                              )}
-                            </div>
-                          </td>
-                        )}
-                        {visibleIds.has('customer') && (
-                          <td className="px-3 py-3">
-                            <div>
-                              <p className="text-[11px] font-semibold text-[var(--text-primary)]">{row.customerName}</p>
-                              <div className="flex items-center gap-1">
-                                <IconPhone size={10} className="text-[var(--text-muted)]" />
-                                <p className="text-[10px] font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
-                              </div>
-                            </div>
-                          </td>
-                        )}
-                        {visibleIds.has('dest') && (
-                          <td className="px-3 py-3">
-                            <div className="max-w-[220px]">
-                              <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
-                              <p className="text-[11px] font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
-                            </div>
-                          </td>
-                        )}
-                        {visibleIds.has('amount') && (
-                          <td className="px-3 py-3 text-right">
-                            <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
-                          </td>
-                        )}
-                        {visibleIds.has('date') && (
-                          <td className="px-3 py-3">
-                            <div className="flex flex-col gap-1.5">
-                              <div className="flex items-center gap-1.5">
-                                <IconCalendarClock size={13} className="text-[var(--text-muted)]" />
-                                <span className="text-[11px] font-bold text-[var(--text-primary)] tracking-tight">
-                                  {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
-                                </span>
-                              </div>
-                              {(() => {
-                                if (!row.scheduledAt || isImported) return null;
-                                const targetDate = new Date(row.scheduledAt);
-                                const now = new Date();
-                                const diffMs = targetDate.getTime() - now.getTime();
-                                const diffMins = Math.round(diffMs / 60000);
-
-                                if (diffMins < 0) {
-                                  return (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-block w-fit">
-                                      En retard ({Math.abs(Math.round(diffMins / 60))}h)
-                                    </span>
-                                  );
-                                }
-                                const isToday = targetDate.toDateString() === now.toDateString();
-                                if (isToday) {
-                                  return (
-                                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-block w-fit">
-                                      Planifié Aujourd'hui
-                                    </span>
-                                  );
-                                }
-                                return null;
-                              })()}
-                            </div>
-                          </td>
-                        )}
-                        {visibleIds.has('status') && (
-                        <td className="px-3 py-3">
-                          <div className="flex flex-col gap-1">
-                            {isImported ? (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                height: 18,
-                                padding: '0 6px',
-                                borderRadius: 99,
-                                background: 'rgba(76,175,130,0.09)',
-                                color: '#2D8A5E',
-                                fontSize: 10,
-                                fontWeight: 600,
-                                border: '1px solid rgba(76,175,130,0.15)'
-                              }}>
-                                <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: '#4CAF82' }} />
-                                {t.importPage.statusSynced}
-                              </span>
-                            ) : (
-                              <span style={{
-                                display: 'inline-flex',
-                                alignItems: 'center',
-                                gap: 4,
-                                height: 18,
-                                padding: '0 6px',
-                                borderRadius: 99,
-                                background: 'rgba(94,106,210,0.09)',
-                                color: '#4C56B8',
-                                fontSize: 10,
-                                fontWeight: 600,
-                                border: '1px solid rgba(94,106,210,0.15)'
-                              }}>
-                                <span style={{ width: 4.5, height: 4.5, borderRadius: '50%', background: '#5E6AD2' }} />
-                                {t.importPage.statusReady}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        )}
-                        <td className="px-3 py-3">
+                            </td>
+                          );
+                          return null;
+                        })}
+                        <td className={cn(CELL_PADDING[density])}>
                           <div className="flex gap-2 justify-end">
                             <button
                               type="button"

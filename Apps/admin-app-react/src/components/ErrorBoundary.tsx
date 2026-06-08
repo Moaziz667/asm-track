@@ -2,6 +2,7 @@ import React, { Component, ErrorInfo, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { IconShieldCheck, IconX } from '@tabler/icons-react';
 import { getCopy } from '@/lib/LocaleContext';
+import { useLocaleStore } from '@/lib/i18n';
 
 interface Props {
   children?: ReactNode;
@@ -39,7 +40,7 @@ export class ErrorBoundary extends Component<Props, State> {
         return this.props.fallback;
       }
 
-      const t = getCopy();
+      const t = getCopy(useLocaleStore.getState().locale || 'fr');
       return (
         <div className="flex flex-col items-center justify-center p-10 min-h-[400px] text-center bg-[var(--surface)] border border-[var(--border)] rounded-[2px] animate-fade-in max-w-[600px] mx-auto my-10">
           <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-50 text-red-600 mb-4 shadow-sm border border-red-100">

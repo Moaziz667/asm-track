@@ -2,40 +2,40 @@
 
 /* ── Design tokens — mirrors globals.css exactly ─────────────────────────── */
 :root {
-  --brand:        #DF7C1C;
-  --brand-hover:  #C3640F;
-  --brand-blue:   #0972d3;
+  --brand:        #3E6AE1;
+  --brand-hover:  #2B52C3;
+  --brand-blue:   #3E6AE1;
 
-  --app-bg:    #FCFCFD;
-  --sidebar:   #1B232D;
+  --app-bg:    #FFFFFF;
+  --sidebar:   #171A20;
   --surface:   #ffffff;
-  --hover-bg:  #f4f4f5;
+  --hover-bg:  #F4F4F4;
 
-  --border:        #ccccd1;
-  --border-strong: #dedee3;
+  --border:        #EEEEEE;
+  --border-strong: #D0D1D2;
 
-  --text-primary:   #161d26;
-  --text-secondary: #232b37;
-  --text-muted:     #333333;
-  --text-soft:      #72747e;
-  --text-faded:     #a4a4ad;
+  --text-primary:   #171A20;
+  --text-secondary: #393C41;
+  --text-muted:     #5C5E62;
+  --text-soft:      #8E8E8E;
+  --text-faded:     #8E8E8E;
 
   --danger:     #DC2626;
-  --danger-bg:  #FEF2F2;
-  --danger-border: #FECACA;
+  --danger-bg:  #F4F4F4;
+  --danger-border: #EEEEEE;
   --success:    #16A34A;
-  --success-bg: #F0FDF4;
+  --success-bg: #F4F4F4;
   --warning:    #D97706;
-  --warning-bg: #FFFBEB;
-  --info:       #0972d3;
-  --info-bg:    #EFF6FF;
+  --warning-bg: #F4F4F4;
+  --info:       #3E6AE1;
+  --info-bg:    #F4F4F4;
 
-  --radius-xs: 4px;
-  --radius-sm: 8px;
-  --radius-md: 16px;
-  --radius-lg: 24px;
+  --radius-xs: 0px;
+  --radius-sm: 4px;
+  --radius-md: 4px;
+  --radius-lg: 12px;
 
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Universal Sans Text', 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -80,7 +80,7 @@ html, body {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(223,124,28,0.12) 0%, transparent 70%),
+    radial-gradient(ellipse 60% 40% at 20% 80%, rgba(62,106,225,0.12) 0%, transparent 70%),
     radial-gradient(ellipse 50% 50% at 80% 20%, rgba(9,114,211,0.08) 0%, transparent 70%);
   pointer-events: none;
 }
@@ -115,20 +115,21 @@ html, body {
 }
 
 .asm-brand-name {
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 16px;
+  font-weight: 500;
   color: #ffffff;
-  letter-spacing: -0.03em;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
   line-height: 1.1;
 }
 
 .asm-brand-tagline {
-  font-size: 11px;
+  font-size: 9px;
   font-weight: 400;
-  color: rgba(255,255,255,0.45);
-  letter-spacing: 0.04em;
+  color: rgba(255,255,255,0.35);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  margin-top: 3px;
+  margin-top: 5px;
 }
 
 .asm-brand-body {
@@ -210,9 +211,9 @@ html, body {
   max-width: 400px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-sm);
   padding: 32px 28px 28px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.04), 0 4px 24px rgba(0,0,0,0.04);
+  box-shadow: none;
 }
 
 /* ── Form elements ────────────────────────────────────────────────────────── */
@@ -264,7 +265,10 @@ html, body {
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.33s cubic-bezier(0.5, 0, 0, 0.75), 
+              background-color 0.33s cubic-bezier(0.5, 0, 0, 0.75), 
+              color 0.33s cubic-bezier(0.5, 0, 0, 0.75), 
+              box-shadow 0.25s cubic-bezier(0.5, 0, 0, 0.75);
   -webkit-appearance: none;
 }
 
@@ -272,7 +276,7 @@ html, body {
 
 .asm-input:focus {
   border-color: var(--brand);
-  box-shadow: 0 0 0 3px rgba(223,124,28,0.12);
+  box-shadow: 0 0 0 1px var(--brand);
 }
 
 .asm-input.error {
@@ -363,7 +367,7 @@ html, body {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.15s, opacity 0.15s;
+  transition: all 0.33s cubic-bezier(0.5, 0, 0, 0.75);
   margin-top: 4px;
 }
 .asm-btn-primary:hover:not(:disabled) { background: var(--brand-hover); }
@@ -440,7 +444,7 @@ html, body {
 .asm-icon-page .asm-card-title { text-align: center; }
 .asm-icon-page .asm-card-subtitle { text-align: center; }
 
-.asm-icon-wrap-orange { background: rgba(223,124,28,0.1); color: var(--brand); }
+.asm-icon-wrap-orange { background: rgba(62,106,225,0.1); color: var(--brand); }
 .asm-icon-wrap-red    { background: var(--danger-bg);    color: var(--danger); }
 .asm-icon-wrap-blue   { background: var(--info-bg);      color: var(--info); }
 .asm-icon-wrap-green  { background: var(--success-bg);   color: var(--success); }
@@ -533,7 +537,7 @@ html, body {
 .asm-card select:focus,
 .asm-card textarea:focus {
   border-color: var(--brand) !important;
-  box-shadow: 0 0 0 3px rgba(223,124,28,0.12) !important;
+  box-shadow: 0 0 0 3px rgba(62,106,225,0.12) !important;
 }
 
 .asm-card label:not(.asm-label):not(.asm-checkbox-label) {
@@ -606,3 +610,75 @@ html, body {
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */
 * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+
+/* ── System Dark Mode support ────────────────────────────────────────────── */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --brand:       #3E6AE1;
+    --brand-hover: #2B52C3;
+    --brand-blue:  #3E6AE1;
+
+    --app-bg:      #171A20;
+    --sidebar:     #171A20;
+    --surface:     #171A20;
+    --hover-bg:    #22262F;
+
+    --border:        rgba(255, 255, 255, 0.08);
+    --border-strong: rgba(255, 255, 255, 0.16);
+
+    --text-primary:   #F3F3F7;
+    --text-secondary: #DEDEE3;
+    --text-muted:     #A4A4AD;
+    --text-soft:      #72747E;
+    --text-faded:     #72747E;
+
+    --danger:     #EF4444;
+    --danger-bg:  #171A20;
+    --success:    #22C55E;
+    --success-bg: #171A20;
+    --warning:    #F59E0B;
+    --warning-bg: #171A20;
+    --info:       #3E6AE1;
+    --info-bg:    #171A20;
+  }
+
+  body {
+    background: var(--app-bg) !important;
+    color: var(--text-secondary) !important;
+  }
+
+  .asm-brand-panel::before {
+    background:
+      radial-gradient(ellipse 60% 40% at 20% 80%, rgba(62,106,225,0.08) 0%, transparent 70%),
+      radial-gradient(ellipse 50% 50% at 80% 20%, rgba(62,106,225,0.05) 0%, transparent 70%) !important;
+  }
+
+  .asm-card {
+    border-color: var(--border) !important;
+    background: var(--surface) !important;
+  }
+
+  /* High contrast black text on primary button in dark mode */
+  .asm-btn-primary {
+    color: #171A20 !important;
+  }
+
+  /* Keycloak default inputs & secondary actions styling inside card */
+  .asm-card input:not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]):not(.asm-input),
+  .asm-card select,
+  .asm-card textarea {
+    background: var(--surface) !important;
+    border-color: var(--border) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .asm-card button[type="submit"]:not(.asm-btn-primary):not(.asm-btn-secondary):not(.asm-toggle-btn),
+  .asm-card input[type="submit"],
+  .asm-card #kc-login {
+    color: #171A20 !important;
+  }
+
+  .asm-checkbox-label input[type="checkbox"] {
+    color-scheme: dark;
+  }
+}

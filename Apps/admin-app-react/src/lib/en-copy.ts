@@ -1,4 +1,6 @@
 // ── Notification template helpers (kept local to avoid a cycle with ux-copy) ─
+import { humanizeMinutes } from './sla';
+
 const _en_fmtEta = (iso: string): string => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -73,6 +75,10 @@ export const EN_COPY = {
     reassignRoute: 'Assign this route to another driver',
     closeRoute: 'Manually close this route',
     deleteDraft: 'Delete this route draft',
+    validateRouteShort: 'Validate Route',
+    reassignRouteShort: 'Reassign Route',
+    cancelRouteShort: 'Cancel Route',
+    cancelRouteWithStops: 'Cancel route ({count} active stops)',
     viewDetail: 'View details for this item',
     addStop: 'Add a delivery to this route',
     removeStop: 'Remove this stop from the route',
@@ -85,6 +91,9 @@ export const EN_COPY = {
     unassignDelivery: 'Remove from route and return to unassigned pool (dispatch later)',
     capacityOver: 'Vehicle capacity exceeded — choose another vehicle or split delivery',
     capacityOk: 'Vehicle capacity available',
+    editWindow: 'Edit time window',
+    cancelStop: 'Cancel passage',
+    reposition: 'Reorder',
   },
 
   // ── Empty States ──────────────────────────────────────────────────────
@@ -543,6 +552,8 @@ export const EN_COPY = {
 
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
+    title: 'Dashboard',
+    subtitle: 'Operations overview and live statistics',
     syncError: 'Sync failed',
     kpiTotal: 'Total',
     kpiInTransit: 'In Transit',
@@ -600,6 +611,15 @@ export const EN_COPY = {
     kpiDriversOnline: 'Drivers online',
     kpiSlaRate: 'SLA Rate',
     kpiDeliveredOf: 'of',
+    kpiVsPrevPeriod: 'vs prev. period',
+    kpiActiveRoutesSub: 'in progress',
+    noData: 'No data available',
+    sectionStart: 'Routes to Start',
+    noRoutesWaiting: 'No pending routes',
+    assignButton: 'Assign',
+    genericAlert: 'An issue requires your attention',
+    critiqueBadge: 'CRITICAL',
+    overdueChipLabel: '{count} unscheduled overdue',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -698,11 +718,16 @@ export const EN_COPY = {
     kpiInTransit: 'In Transit',
     kpiFailed: 'Failed',
     // Tabs
+    tabQueue: 'Queue',
     tabAssign: 'Assignments',
     tabAction: 'Action Required',
     tabFailed: 'Failed',
     tabMissingGps: 'Missing GPS',
     tabHandoff: 'Handovers',
+    // Queue split-view
+    queueSelectPrompt: 'Select an order to view details',
+    queueNoAlerts: 'No active alerts — delivery is proceeding normally',
+    queueItemsLabel: 'Items',
     // Batch action bar
     batchCount: '{count} selected',
     batchMixedWarning: 'Mixed selection — choose one type',
@@ -710,7 +735,7 @@ export const EN_COPY = {
     batchReassign: 'Reassign ({count})',
     batchCancel: 'Cancel',
     kpiUpdated: 'Updated',
-    cardCreated: 'Created',
+    cardCreated: 'Imported {time} ago',
     handoffEmpty: 'No handovers in progress',
     handoffStateRequested: 'Awaiting code',
     handoffStateInProgress: 'Code issued · awaiting scan',
@@ -802,6 +827,9 @@ export const EN_COPY = {
     motifUnknown: 'Unknown Incident',
     motifSlaUnscheduledLate: 'Late (Unscheduled)',
     motifSlaUnscheduledToday: 'Scheduled Today',
+    motifSlaWaiting: 'Extended wait',
+    motifSlaAssignment: 'Assignment deadline exceeded',
+    motifSlaTransit: 'Transit overdue',
     // Time elapsed (formatElapsed)
     timeJustNow: 'just now',
     timeMinutes: '{diff} min',
@@ -830,6 +858,29 @@ export const EN_COPY = {
     suggestionWrongAddress: '→ Correct the address in the order details',
     suggestionOther: '→ Check driver comment',
     suggestionSlaUnscheduledLate: '→ Assign to an urgent route',
+    suggestionSlaUnscheduledToday: '→ Schedule before end of day',
+    // Narration paragraphs (formatNarrative — "system talks to you" in Queue detail)
+    narrativeUnscheduledLate: 'Unscheduled order · {time} — assign urgently.',
+    narrativeUnscheduledToday: 'Scheduled for today — no route yet. Assign quickly.',
+    narrativeUnscheduled: 'No route yet · due {time}.',
+    narrativeUnscheduledNoDate: 'No route yet · waiting · {time}.',
+    narrativeScheduled: 'Scheduled but SLA deadline approaching ({time}) — monitor.',
+    narrativePickup: 'The driver has not picked up this order yet and the pickup window is closing. A quick reminder might help.',
+    narrativeInTransit: 'This order has been in transit for {time}, longer than expected. Calling the driver would help clarify.',
+    narrativeScheduledMonitoring: 'This order is proceeding normally — nothing to report, standard monitoring.',
+    narrativeClientAbsent: 'The client was absent during the last attempt, {time} ago. Calling before a new attempt will prevent a second failure.',
+    narrativeRefused: 'The client refused this delivery {time} ago. A quick exchange will help clarify next steps before reassignment.',
+    narrativeWrongAddress: 'The address appears to be incorrect — the driver was unable to deliver. Confirm it with the client before rescheduling.',
+    narrativeDamaged: 'The package arrived damaged. A return to depot should be organized, and the client notified.',
+    narrativePartial: 'Only a portion of this order has been delivered. Review before deciding on next steps.',
+    narrativeFailed: 'This delivery failed {time} ago and deserves a look before any reassignment.',
+    narrativeCancelled: 'This order was cancelled.',
+    narrativeOther: 'An incident was reported on this order {time} ago. The details should be verified before proceeding.',
+    narrativeDefault: 'An event was reported on this order {time} ago.',
+    chipScheduleLate: 'Overdue · {time}',
+    chipScheduleIn: 'Due {time}',
+    chipNoSchedule: 'No scheduled date',
+    chipLateAction: '— plan urgently',
     // ReplanModal
     replanModalTitleReplan: 'Reschedule for Planning',
     replanModalTitleReassign: 'Reassign Delivery',
@@ -1205,6 +1256,10 @@ export const EN_COPY = {
 
     // Last sync
     lastSync: 'Last sync:',
+
+    // Late / soon scheduling tooltips
+    lateTooltip: 'Scheduling overdue — this order should have been imported before the scheduled date',
+    soonTooltip: 'Imminent dispatch — less than 24 hours before the scheduled date',
   },
 
   // ── Route Builder Page ─────────────────────────────────────────────────
@@ -1913,6 +1968,7 @@ export const EN_COPY = {
     generalConfig: 'General Configuration',
     slaParameters: 'Flow Parameters (SLA)',
     identitiesAccess: 'Identities & Access',
+    failureReasons: 'Failure Reasons',
     tabSections: 'Sections',
     tabParameters: 'Parameters',
     systemAdmin: 'System Administration',
@@ -2289,14 +2345,21 @@ export const EN_COPY = {
       audit: 'Audit',
       settings: 'Settings',
       erpIntegration: 'ERP Integration',
+      companies: 'Companies',
     },
     badges: {
       dispatchActionRequired: 'action required',
       dispatchActionsRequired: 'actions required',
-      importActionRequired: 'import pending',
-      importActionsRequired: 'imports pending',
-      routeTelemetryActionRequired: 'action required',
-      routeTelemetryActionsRequired: 'actions required',
+      importOne: 'import pending',
+      imports: 'imports pending',
+      routeActive: 'active',
+      routesActive: 'active routes',
+      arDispatchOne: 'إجراء مطلوب',
+      arDispatchMany: 'إجراءات مطلوبة',
+      arImportOne: 'استيراد واحد',
+      arImportMany: 'استيراد',
+      arRouteActive: 'مسار نشط',
+      arRouteActiveMany: 'مسارات نشطة',
     },
   },
 
@@ -2444,13 +2507,13 @@ export const EN_COPY = {
       message: (p: any) => {
         const head = `${_en_ref(p)}${p.clientName || 'Client'} — `;
         if (p.motif === 'SLA_WAITING') {
-          return `${head}Awaiting assignment for ${p.elapsed} min (limit ${p.limit} min)`;
+          return `${head}Awaiting assignment for ${humanizeMinutes(p.elapsed, 'en')} (limit ${p.limit} min)`;
         }
         if (p.motif === 'SLA_ASSIGNMENT') {
-          return `${head}Start overdue: ${p.elapsed} min since assignment (limit ${p.limit} min)`;
+          return `${head}Start overdue: ${humanizeMinutes(p.elapsed, 'en')} since assignment (limit ${p.limit} min)`;
         }
         if (p.motif === 'SLA_PICKUP') {
-          return `${head}Depot departure overdue: ${p.elapsed} min (limit ${p.limit} min)`;
+          return `${head}Depot departure overdue: ${humanizeMinutes(p.elapsed, 'en')} (limit ${p.limit} min)`;
         }
         if (p.motif === 'SLA_TRANSIT') {
           return `${head}Delivery running late vs. planned window`;
@@ -2663,6 +2726,16 @@ export const EN_COPY = {
     mapLayerSatellite: 'Satellite',
     mapLayerDark: 'Dark',
     confirmButton: 'Apply settings',
+    density: 'Density',
+    columns: 'Columns',
+    visibleColumns: 'Visible columns',
+    reset: 'Reset',
+    pinned: 'pinned',
+    compact: 'Compact',
+    comfortable: 'Comfortable',
+    spacious: 'Spacious',
+    display: 'Display',
+    resetLayout: 'Reset layout',
   },
 
   // ── Failure Reasons Settings ──────────────────────────────────────────────
@@ -2670,29 +2743,38 @@ export const EN_COPY = {
     title: 'Failure Reasons',
     subtitle: 'Configure failure reasons used during delivery tracking.',
     addButton: 'Add a reason',
-    editTitle: 'Edit reason',
-    createTitle: 'New reason',
-    savingButton: 'Saving...',
-    saveButton: 'Save',
+    tableLabel: 'Label',
+    tableCode: 'Code',
+    tableCategory: 'Category',
+    tableStatus: 'Status',
+    loading: 'Loading…',
+    empty: 'No reasons',
     active: 'Active',
     inactive: 'Inactive',
-    fieldCode: 'Code',
-    fieldCodePlaceholder: 'Auto-generated if empty',
-    fieldLabel: 'Label',
-    fieldLabelPlaceholder: 'e.g. Customer refused',
-    fieldCategory: 'Category',
-    fieldSortOrder: 'Sort order',
-    fieldActive: 'Active',
-    deactivateConfirm: 'Deactivate this reason?',
-    reactivateConfirm: 'Reactivate this reason?',
+    editTitle: 'Edit reason',
+    createTitle: 'New reason',
+    formLabel: 'Label',
+    formLabelPlaceholder: 'e.g. Closed door',
+    formCategory: 'Category (analytics)',
+    formCode: 'Code (optional)',
+    formCodePlaceholder: 'auto-generated from label',
+    formOrder: 'Order',
+    formActive: 'Active',
+    cancelButton: 'Cancel',
+    saveButton: 'Save',
+    savingButton: 'Saving…',
+    editTooltip: 'Edit',
+    deactivateTooltip: 'Deactivate',
+    reactivateTooltip: 'Reactivate',
     toastLoadFailed: 'Failed to load failure reasons',
+    toastLabelRequired: 'Label is required',
     toastUpdated: 'Reason updated',
     toastCreated: 'Reason created',
-    toastSaveFailed: 'Failed to save reason',
     toastDeactivated: 'Reason deactivated',
-    toastDeactivateFailed: 'Failed to deactivate reason',
     toastReactivated: 'Reason reactivated',
-    toastReactivateFailed: 'Failed to reactivate reason',
+    toastSaveFailed: 'Failed to save',
+    toastDeactivateFailed: 'Failed to deactivate',
+    toastReactivateFailed: 'Failed to reactivate',
   },
 
   // ── Companies Page ────────────────────────────────────────────────────────
@@ -2703,12 +2785,28 @@ export const EN_COPY = {
     placeholderCity: 'City',
     citiesPlaceholder: 'All cities',
     clearButton: 'Clear filters',
+    cityPlaceholder: 'City...',
+    statusAll: 'All',
+    statusDraft: 'Draft',
+    statusValidated: 'Validated',
+    statusInProgress: 'In Progress',
+    statusClosed: 'Closed',
   },
 
   // ── Operational Filter Bar ───────────────────────────────────────────────
   operationalFilterBar: {
     title: 'Filters',
+    persistLabel: 'Persist across pages',
+    clearButton: 'Clear all',
+    zonePlaceholder: 'Zone',
+    driverPlaceholder: 'Driver',
+    routePlaceholder: 'Route',
+    statusPlaceholder: 'Status',
     searchPlaceholder: 'Search orders, clients, references...',
+    presetMorning: 'Morning dispatch',
+    presetNorth: 'North zone',
+    presetAtRisk: 'At-risk routes',
+    saveAsMorning: 'Save as Morning dispatch',
     statusFilter: 'Filter by status',
     zoneFilter: 'Zone',
     deliveryTypeFilter: 'Type',
@@ -2719,7 +2817,6 @@ export const EN_COPY = {
     presetFailed: 'Failed',
     showArchived: 'Show archived',
     persistenceInfo: 'Filters are saved per user.',
-    clearButton: 'Clear all',
   },
 
   // ── newDeliveryPanel ──────────────────────────────────────────────────
@@ -2779,6 +2876,13 @@ export const EN_COPY = {
   erpIntegrationPage: {
     reportIdPlaceholder: 'stock.report_deliveryslip',
     apiUrlPlaceholder: 'e.g. https://api.dux.com/v1',
+  },
+
+  // ── errorBoundary ──────────────────────────────────────────────────
+  errorBoundary: {
+    title: 'Application Error',
+    description: 'An unexpected error occurred in this section. Please try reloading the page.',
+    resetButton: 'Reload Page',
   },
 
 } as const;

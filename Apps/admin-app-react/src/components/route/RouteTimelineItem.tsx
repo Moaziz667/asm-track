@@ -40,7 +40,26 @@ interface RouteTimelineItemProps {
 }
 
 export function RouteTimelineItem({
-  stop, currency, canEdit, canRemove, canCancel, isExpanded, onToggle, onEditWindow, onRemove, onCancel,
+  stopOrder,
+  status,
+  clientName,
+  address,
+  amount,
+  currency,
+  timeWindow,
+  isExpanded,
+  onToggle,
+  onEditWindow,
+  onRemove,
+  onCancel,
+  canEdit,
+  canRemove,
+  canCancel,
+  isActive,
+  isDone,
+  delayBadge,
+  priorityBadge,
+  children,
 }: RouteTimelineItemProps) {
   const t = useT();
   // Status color mapping

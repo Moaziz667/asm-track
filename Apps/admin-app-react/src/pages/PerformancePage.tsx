@@ -214,13 +214,13 @@ export default function PerformancePage() {
               defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
               className: 'h-full flex',
               children: (
-            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+            <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.operationalVolume}</span>
-                <IconBolt size={16} strokeWidth={1.5} className="text-[#545b64]" />
+                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.operationalVolume}</span>
+                <IconBolt size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{stats?.today?.total?.toString() ?? "0"}</div>
-              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{stats?.today?.total?.toString() ?? "0"}</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
             </div>
               )
             },
@@ -229,13 +229,13 @@ export default function PerformancePage() {
               defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
               className: 'h-full flex',
               children: (
-            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+            <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.completionRate}</span>
-                <IconTrendingUp size={16} strokeWidth={1.5} className="text-[#545b64]" />
+                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.completionRate}</span>
+                <IconTrendingUp size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
-              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
             </div>
               )
             },
@@ -244,13 +244,13 @@ export default function PerformancePage() {
               defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
               className: 'h-full flex',
               children: (
-            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+            <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.avgDelay}</span>
-                <IconClock size={16} strokeWidth={1.5} className="text-[#545b64]" />
+                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.avgDelay}</span>
+                <IconClock size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
-              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
             </div>
               )
             },
@@ -259,13 +259,13 @@ export default function PerformancePage() {
               defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
               className: 'h-full flex',
               children: (
-            <div className="flex-1 w-full flex flex-col h-full bg-white border border-[#eaeded] rounded-lg pl-10 pr-4 py-4 hover:border-[#0972d3]/30 transition-colors">
+            <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[#545b64]">{t.performancePage.lifeCycle}</span>
-                <IconActivity size={16} strokeWidth={1.5} className="text-[#545b64]" />
+                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.lifeCycle}</span>
+                <IconActivity size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[#16191f]">{fmtMinutes(totalCycleMinutes)}</div>
-              <div className="text-[11px] text-[#545b64] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
+              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(totalCycleMinutes)}</div>
+              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
             </div>
               )
             },
@@ -274,8 +274,8 @@ export default function PerformancePage() {
               defaultLayout: { w: 6, h: 7, x: 0, y: 2, minW: 4, minH: 5 },
               className: '',
               children: (
-             <div className="rounded-lg overflow-hidden bg-white border border-[#eaeded] flex flex-col h-full">
-               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
+             <div className="card overflow-hidden flex flex-col h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
@@ -327,8 +327,8 @@ export default function PerformancePage() {
               defaultLayout: { w: 6, h: 7, x: 6, y: 2, minW: 4, minH: 5 },
               className: '',
               children: (
-             <div className="rounded-lg overflow-hidden flex flex-col justify-between bg-white border border-[#eaeded] h-full">
-               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
+             <div className="card overflow-hidden flex flex-col justify-between h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconActivity size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
@@ -370,8 +370,8 @@ export default function PerformancePage() {
               defaultLayout: { w: 4, h: 8, x: 0, y: 9, minW: 3, minH: 5 },
               className: '',
               children: (
-             <div className="rounded-lg overflow-hidden bg-white border border-[#eaeded] flex flex-col h-full">
-               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
+             <div className="card overflow-hidden flex flex-col h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
                    {t.performancePage.densityByZone}
                  </span>
@@ -399,8 +399,8 @@ export default function PerformancePage() {
               defaultLayout: { w: 8, h: 8, x: 4, y: 9, minW: 5, minH: 5 },
               className: '',
               children: (
-             <div className="rounded-lg overflow-hidden lg:col-span-2 flex flex-col bg-white border border-[#eaeded] h-full">
-               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[#eaeded]">
+             <div className="card overflow-hidden lg:col-span-2 flex flex-col h-full">
+               <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconUsers size={16} style={{ color: 'var(--brand)' }} />
                    <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>

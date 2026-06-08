@@ -67,7 +67,7 @@ export function QueueDetail() {
     motif: alert?.motif ?? d.failureReason ?? d.status, driverId: d.driverId, driverName: d.driverName,
     clientName: d.clientName, city: d.dropoffCity, zoneName: d.zoneName,
     severity: alert?.severity ?? 'WARNING', comment: alert?.comment ?? d.failureReason,
-    createdAt: d.createdAt, updatedAt: d.updatedAt,
+    createdAt: d.createdAt, updatedAt: d.updatedAt, scheduledAt: d.scheduledAt,
   });
 
   return (
@@ -90,7 +90,7 @@ export function QueueDetail() {
             </div>
           </div>
 
-          {/* Narration — "the system talks to you", told as one flowing sentence */}
+          {/* Narration block */}
           <div
             className="rounded-[var(--radius)] p-3.5"
             style={{
@@ -153,7 +153,7 @@ export function QueueDetail() {
           {/* Schedule / slot / amount */}
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
             <span className="inline-flex items-center gap-1.5" title={formatShortDate(d.createdAt)}>
-              <IconClock size={13} stroke={2.5} /> {t.dispatchDeskPage.cardCreated} {formatElapsed(alert?.updatedAt ?? d.createdAt, t)}
+              <IconClock size={13} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(alert?.updatedAt ?? d.createdAt, t))}
             </span>
             {d.scheduledAt && (
               <span className="inline-flex items-center gap-1.5">

@@ -1,13 +1,14 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AdminOpsOverview, DashboardStats, DeliveryStatus } from '@/types';
-import { showErrorToast } from '@/lib/toast-service';
 import { useNotificationsState } from '@/components/AlertsProvider';
+import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
 import { cn } from '@/lib/utils';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import {
   IconPackage, IconChartBar, IconUser, IconRoute, IconRefresh, IconArrowUpRight, 
@@ -19,11 +20,15 @@ import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { useNavigate as useRouter } from 'react-router-dom';
 import DispatchLiveMap from '@/components/DispatchLiveMap';
+import ActivityTicker from '@/components/ActivityTicker';
 import StatusBadge from '@/components/StatusBadge';
 import { KPICard } from '@/components/ui/kpi-card';
 import { SectionCard } from '@/components/ui/section-card';
 import { Badge } from '@/components/ui/badge';
 import { useRoutes } from '@/hooks/useRoutes';
+import { getDayBucket, formatElapsed, getBusinessDayKey } from '@/lib/sla';
+import { formatNarrative } from '@/pages/dispatch-desk/formatters';
+import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
@@ -64,22 +69,79 @@ const DISPATCH_STATUSES: DeliveryStatus[] = [
   'UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'FAILED', 'DELIVERED',
 ];
 
+// Realtime events that can move a dashboard KPI. Excludes high-frequency noise
+// (driver.location_updated) so a moving truck doesn't trigger constant refetches.
+const DASHBOARD_EVENTS = [
+  'delivery.created', 'delivery.scheduled', 'delivery.completed', 'delivery.failed',
+  'delivery.cancelled', 'delivery.in_transit', 'delivery.reassigned', 'sla.breach',
+  'erp.orders_ready', 'route.validated',
+] as const;
+
 export default function DashboardPage() {
   const t = useT();
   const navigate = useRouter();
-  const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [ops, setOps] = useState<AdminOpsOverview | null>(null);
-  const [kpi, setKpi] = useState<any | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'all'>('all');
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
-  const [drivers, setDrivers] = useState<any[]>([]);
-  const [activeRoutesCount, setActiveRoutesCount] = useState(0);
+  const queryClient = useQueryClient();
+  const connected = useRealtimeStatus();
+
+  // Source of truth = REST via React Query. Realtime events only invalidate this
+  // (debounced), so KPIs self-heal from the server instead of trusting WS payloads.
+  const { data: dash, isFetching: refreshing, refetch } = useQuery({
+    queryKey: ['dashboard-overview', period],
+    queryFn: async () => {
+      const [sR, oR, driversRes, routesRes, kR] = await Promise.all([
+        api.get('/api/admin/deliveries/stats', { params: { period } }),
+        api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
+        api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
+        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
+        api.get('/api/admin/reports/dashboard', { params: { period } }).catch(() => ({ data: null })),
+      ]);
+      const driversData = driversRes.data;
+      return {
+        stats: (sR.data ?? null) as DashboardStats | null,
+        ops: (oR.data ?? null) as AdminOpsOverview | null,
+        kpi: kR.data ?? null,
+        drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as any[],
+        activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
+      };
+    },
+    staleTime: 30_000,
+  });
+
+  const stats = dash?.stats ?? null;
+  const ops = dash?.ops ?? null;
+  const kpi = dash?.kpi ?? null;
+  const drivers = dash?.drivers ?? [];
+  const activeRoutesCount = dash?.activeRoutesCount ?? 0;
+
+  // Coalesce a burst of events into a single background refetch (leading timer).
+  const invalidateTimer = useRef<number | null>(null);
+  useRealtimeEvent(DASHBOARD_EVENTS, () => {
+    if (invalidateTimer.current != null) return;
+    invalidateTimer.current = window.setTimeout(() => {
+      invalidateTimer.current = null;
+      queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    }, 1500);
+  });
+
+  // Reconnect catch-up: when the socket re-establishes, refetch once to absorb
+  // anything that happened while it was down.
+  const prevConnected = useRef(connected);
+  useEffect(() => {
+    if (connected && !prevConnected.current) {
+      queryClient.invalidateQueries({ queryKey: ['dashboard-overview'] });
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    }
+    prevConnected.current = connected;
+  }, [connected, queryClient]);
+
   // useNotificationsState — reads count only, does NOT re-render on action context updates
   const { notifications: ctxAlerts } = useNotificationsState();
   const { locale } = useLocaleStore();
-  
-  const { data: todayRoutes = [] } = useRoutes(new Date());
+  const todayIso = useMemo(() => getBusinessDayKey(), []);
+  const { data: todayRoutes = [] } = useRoutes({ from: todayIso, to: todayIso });
 
   const driverName = useCallback((id: string | undefined) => {
     if (!id) return 'Non assigné';
@@ -92,37 +154,13 @@ export default function DashboardPage() {
     color: STATUS_COLOR_MAP[status],
   });
 
-  const fetchData = useCallback(async (silent = false) => {
-    if (!silent) setRefreshing(true);
-    try {
-      const [sR, oR, driversRes, routesRes, kR] = await Promise.all([
-        api.get('/api/admin/deliveries/stats', { params: { period } }),
-        api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
-        api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
-        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
-        api.get('/api/admin/reports/dashboard', { params: { period } }).catch(() => ({ data: null })),
-      ]);
-      setStats(sR.data);
-      setOps(oR.data ?? null);
-      setKpi(kR.data ?? null);
-      const driversData = driversRes.data;
-      setDrivers(Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? []));
-      setActiveRoutesCount(Array.isArray(routesRes.data) ? routesRes.data.length : 0);
-    } catch {
-      if (!silent) showErrorToast(null, t.dashboardPage.syncError);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [period, t]);
-
   useEffect(() => {
-    fetchData();
     // Load preferred view mode from localStorage on mount
     const cachedMode = localStorage.getItem('asm_dashboard_view');
     if (cachedMode === 'office' || cachedMode === 'kanban') {
       setViewMode(cachedMode);
     }
-  }, [fetchData]);
+  }, []);
 
   const handleViewChange = (mode: 'office' | 'kanban') => {
     setViewMode(mode);
@@ -132,18 +170,12 @@ export default function DashboardPage() {
   const today = stats?.today;
   const overdueCount = useMemo(() => {
     if (!ops?.lanes) return 0;
-    const now = new Date();
-    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
     let count = 0;
-    
     ops.lanes.forEach(lane => {
       if (lane.items) {
         lane.items.forEach((item: any) => {
           const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-          const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
-          if (isPending && scheduledDate && scheduledDate < todayStr) {
-            count++;
-          }
+          if (isPending && getDayBucket(item.scheduledAt) === 'overdue') count++;
         });
       }
     });
@@ -190,12 +222,15 @@ export default function DashboardPage() {
   const activeDeliveries = useMemo(() => {
     const list = ops?.lanes?.flatMap(l => l.items || []) || [];
     const unique = Array.from(new Map(list.map(item => [item.deliveryId || item.orderRef, item])).values());
-    return unique.slice(0, 8).map(d => ({
-      ...d,
-      dropoffLat: Number(d.dropoffLat) || 36.8065,
-      dropoffLng: Number(d.dropoffLng) || 10.1815,
-      status: d.status || 'UNSCHEDULED'
-    }));
+    return unique.slice(0, 8).map(d => {
+      const item = d as any;
+      return {
+        ...d,
+        dropoffLat: Number(item.dropoffLat) || 36.8065,
+        dropoffLng: Number(item.dropoffLng) || 10.1815,
+        status: item.status || 'UNSCHEDULED'
+      };
+    });
   }, [ops]);
 
   const safeDrivers = useMemo(() => {
@@ -237,9 +272,22 @@ export default function DashboardPage() {
             <h1 className="text-[13.5px] font-bold text-[var(--text-primary)] leading-tight tracking-tight">
               {t.dashboardPage?.title || 'Tableau de bord'}
             </h1>
-            <span className="text-[11px] text-[var(--text-muted)] mt-1 font-medium">
-              {t.dashboardPage?.subtitle || 'Supervision administrative et indicateurs opérationnels'}
-            </span>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <span className="text-[11px] text-[var(--text-muted)] font-medium">
+                {t.dashboardPage?.subtitle || 'Supervision administrative et indicateurs opérationnels'}
+              </span>
+              {overdueCount > 0 && (
+                <button
+                  onClick={() => navigate('/dispatch-desk?tab=queue')}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 transition-colors cursor-pointer"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+                  {(t.dashboardPage.overdueChipLabel || '{count} non planifiées en retard')
+                    .replace('{count}', String(overdueCount))
+                    .replace('{plural}', overdueCount > 1 ? 's' : '')}
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
@@ -301,7 +349,7 @@ export default function DashboardPage() {
               })}
             </div>
 
-            <RefreshButton refreshing={refreshing} onClick={() => fetchData()} />
+            <RefreshButton refreshing={refreshing} onClick={() => refetch()} />
           </div>
         </div>
       </div>
@@ -324,8 +372,8 @@ export default function DashboardPage() {
                 value={`${slaPercent}%`}
                 sub={slaSub}
                 sparklineData={completionSpark.length > 0 ? completionSpark : undefined}
-                tone={today?.total > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
-                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+                tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
+                className="h-full"
               />
             },
             {
@@ -337,8 +385,8 @@ export default function DashboardPage() {
                 value={today?.delivered ?? 0}
                 sub={deliveredSub}
                 sparklineData={deliveredSpark.length > 0 ? deliveredSpark : undefined}
-                tone={today?.delivered > 0 ? "info" : "default"}
-                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+                tone={(today?.delivered ?? 0) > 0 ? "info" : "default"}
+                className="h-full"
               />
             },
             {
@@ -350,7 +398,7 @@ export default function DashboardPage() {
                 value={activeRoutesCount}
                 sub={t.dashboardPage.kpiActiveRoutesSub || 'en cours'}
                 tone={activeRoutesCount > 0 ? "info" : "default"}
-                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+                className="h-full"
               />
             },
             {
@@ -362,58 +410,83 @@ export default function DashboardPage() {
                 value={driverGroups.online.length}
                 sub={`/ ${drivers.length}`}
                 tone={driverGroups.online.length === 0 ? "danger" : "default"}
-                className="h-full bg-[var(--surface)] border border-[var(--border)] rounded-[12px] shadow-none"
+                className="h-full"
               />
             },
             {
-              id: 'progress-chips',
-              defaultLayout: { w: 12, h: 2, x: 0, y: 2, minW: 8, minH: 2 },
+              id: 'trend-chart',
+              defaultLayout: { w: 12, h: 3, x: 0, y: 2, minW: 8, minH: 3 },
               className: '',
-              children: (() => {
-                const delivered = today?.delivered ?? 0;
-                const inTransit = today?.inTransit ?? 0;
-                const pendingCount = (today?.waiting ?? 0) + (today?.unscheduled ?? 0) + (today?.scheduled ?? 0);
-                const failed = today?.failed ?? 0;
-                
-                const totalActual = delivered + inTransit + pendingCount + failed;
-                const denom = Math.max(1, totalActual);
-                
-                const deliveredPct = (delivered / denom) * 100;
-                const inTransitPct = (inTransit / denom) * 100;
-                const pendingPct = (pendingCount / denom) * 100;
-                const failedPct = (failed / denom) * 100;
-                
-                return (
-                  <div className="flex flex-row items-center bg-[var(--surface)] border border-[var(--border)] rounded-[12px] px-6 h-full shadow-none relative">
-                      <span className="text-[12px] font-bold text-[var(--text-soft)] tracking-widest uppercase shrink-0 min-w-[180px]">
-                        {t.dashboardPage.todayProgress || "PROGRESSION DU JOUR"}
+              children: (
+                <div className="card overflow-hidden flex flex-col h-full">
+                  <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+                    <div className="flex items-center gap-2">
+                      <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
+                      <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                        {t.performancePage.volumeCurve}
                       </span>
-                      
-                      <div className="flex items-center flex-1 gap-6 ms-4">
-                        <div className="flex gap-4 text-[12px] font-bold text-[var(--text-primary)] shrink-0">
-                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#4CAF82]" />{today?.delivered ?? 0}</div>
-                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#D4772C]" />{today?.inTransit ?? 0}</div>
-                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#C4881A]" />{pendingCount}</div>
-                          <div className="flex items-center gap-1.5"><div className="w-2.5 h-2.5 rounded-full bg-[#C7372F]" />{today?.failed ?? 0}</div>
-                        </div>
-                        
-                        <div className="flex-1 h-3 rounded-full bg-[var(--border)] overflow-hidden flex opacity-100 max-w-[400px] shadow-inner">
-                          <div style={{ width: `${deliveredPct}%` }} className="bg-[#4CAF82] transition-all duration-500" />
-                          <div style={{ width: `${inTransitPct}%` }} className="bg-[#D4772C] transition-all duration-500" />
-                          <div style={{ width: `${pendingPct}%` }} className="bg-[#C4881A] transition-all duration-500" />
-                          <div style={{ width: `${failedPct}%` }} className="bg-[#C7372F] transition-all duration-500" />
-                        </div>
-                      </div>
+                    </div>
+                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                      {t.performancePage.lastSevenDays}
+                    </span>
                   </div>
-                );
-              })(),
+                  
+                  <div className="p-4 flex-1 min-h-0 w-full">
+                    {trend.length === 0 ? (
+                      <div className="flex items-center justify-center h-full opacity-40">
+                        <span className="text-[11px]">{t.dashboardPage.noData || "Aucune donnée disponible"}</span>
+                      </div>
+                    ) : (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorVolume" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="var(--brand)" stopOpacity={0.25}/>
+                              <stop offset="95%" stopColor="var(--brand)" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                          <XAxis
+                            dataKey="date"
+                            tickFormatter={(v) => v ? v.split('-').slice(1).reverse().join('/') : ''}
+                            tick={{ fontSize: 10, fontWeight: 500, fill: 'var(--text-secondary)' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <YAxis
+                            tick={{ fontSize: 10, fontWeight: 500, fill: 'var(--text-secondary)' }}
+                            axisLine={false}
+                            tickLine={false}
+                          />
+                          <Tooltip
+                            cursor={{ stroke: 'var(--border)', strokeWidth: 1 }}
+                            contentStyle={{ background: 'var(--surface)', border: '1px solid var(--border)', borderRadius: '4px', padding: '8px 12px', color: 'var(--text-primary)', fontSize: 11 }}
+                            labelStyle={{ color: 'var(--text-secondary)', fontSize: '10px', fontWeight: 500, marginBottom: '4px' }}
+                            itemStyle={{ color: 'var(--text-primary)', fontSize: '12px', fontWeight: 600, fontFamily: 'monospace' }}
+                            formatter={(value) => [`${value}`, t.performancePage.volume || 'Volume']}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="count" 
+                            stroke="var(--brand)" 
+                            strokeWidth={2}
+                            fillOpacity={1} 
+                            fill="url(#colorVolume)"
+                            activeDot={{ r: 4, strokeWidth: 0, fill: 'var(--brand)' }}
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    )}
+                  </div>
+                </div>
+              ),
             },
             {
               id: 'dispatch-live-map',
               defaultLayout: { w: 8, h: 8, x: 0, y: 4, minW: 6, minH: 6 },
               className: '',
               children: (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] h-full overflow-hidden flex flex-col shadow-none relative">
+                <div className="card h-full overflow-hidden flex flex-col relative">
                   <DispatchLiveMap
                     activeStops={activeDeliveries as any}
                     drivers={safeDrivers as any}
@@ -442,32 +515,22 @@ export default function DashboardPage() {
                       {needsAttention.map((exc: any, idx: number) => {
                         const severity = exc.severity || 'INFO';
                         const isCrit = severity === 'CRITICAL';
-                        
-                        const diffMins = exc.createdAt ? Math.floor((new Date().getTime() - new Date(exc.createdAt).getTime()) / 60000) : 0;
-                        const timeStr = diffMins < 60 ? `il y a ${diffMins} min` : diffMins < 1440 ? `il y a ${Math.floor(diffMins / 60)} h` : `il y a ${Math.floor(diffMins / 1440)} j`;
+                        const timeRef = exc.scheduledAt || exc.createdAt;
+                        const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
 
                         return (
-                          <div key={idx} onClick={() => navigate(`/dispatch-desk?tab=action&orderRef=${exc.orderRef || ''}`)} className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--hover-bg)] hover:bg-[var(--border)]/50 transition-colors cursor-pointer group">
+                          <div key={idx} onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))} className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--hover-bg)] hover:bg-[var(--border)]/50 transition-colors cursor-pointer group">
                             <IconAlertTriangle size={16} className={cn("mt-0.5 shrink-0 transition-transform group-hover:scale-110", isCrit ? "text-[#C7372F]" : "text-[#D4772C]")} />
                             <div className="flex flex-col min-w-0 flex-1">
                               <div className="flex items-center gap-2">
                                 <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">{exc.orderRef || 'Alert'}</span>
-                                {isCrit && <Badge variant="destructive" className="text-[9px] h-4 px-1.5 font-bold uppercase tracking-wider bg-[#C7372F]">CRITIQUE</Badge>}
+                                {isCrit && <Badge variant="destructive" className="text-[9px] h-4 px-1.5 font-bold uppercase tracking-wider bg-[#C7372F]">{t.dashboardPage.critiqueBadge}</Badge>}
                               </div>
                               <div className="text-[11.5px] font-medium text-[var(--text-primary)] opacity-80 mt-1 line-clamp-2 leading-relaxed text-left rtl:text-right" dir="ltr">
-                                {exc.message || exc.reason || 'An issue requires attention.'}
+                                {formatNarrative({ ...exc, motif: exc.motif ?? exc.status }, t)}
                               </div>
-                              <div className="flex items-center justify-between mt-2">
+                              <div className="flex items-center mt-2">
                                 <span className="text-[10px] font-mono text-[var(--text-soft)]">{timeStr}</span>
-                                <button 
-                                  onClick={(e) => { 
-                                    e.stopPropagation(); 
-                                    navigate(`/dispatch-desk?tab=action&orderRef=${exc.orderRef || ''}`); 
-                                  }} 
-                                  className="text-[10px] font-bold text-[var(--brand-blue)] border border-[var(--brand-blue)] rounded px-2 py-0.5 hover:bg-[var(--brand-blue)] hover:text-white transition-colors"
-                                >
-                                  Assigner
-                                </button>
                               </div>
                             </div>
                           </div>
@@ -483,7 +546,7 @@ export default function DashboardPage() {
               defaultLayout: { w: 6, h: 5, x: 0, y: 12, minW: 4, minH: 4 },
               className: '',
               children: (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] p-4 h-full shadow-none flex flex-col">
+                <div className="card p-4 h-full flex flex-col">
                   <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
                     {t.dashboardPage.quickActions || 'Quick Actions'}
                   </span>
@@ -513,7 +576,7 @@ export default function DashboardPage() {
               defaultLayout: { w: 6, h: 5, x: 6, y: 12, minW: 4, minH: 4 },
               className: '',
               children: (
-                <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[12px] p-4 h-full shadow-none flex flex-col">
+                <div className="card p-4 h-full flex flex-col">
                   <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.driverAvailability || "Fleet Status"}</span>
                   <div className="flex flex-col gap-3 overflow-y-auto pl-2">
                     {[
@@ -588,6 +651,12 @@ export default function DashboardPage() {
                   )}
                 </SectionCard>
               )
+            },
+            {
+              id: 'activity-ticker',
+              defaultLayout: { w: 4, h: 6, x: 0, y: 18, minW: 3, minH: 4 },
+              className: '',
+              children: <ActivityTicker />,
             },
           ]}
         />
@@ -683,7 +752,7 @@ export default function DashboardPage() {
 
 export function KpiCard({ title, value, subtitle, Icon, color, trend }: { title: string; value: string | number; subtitle: string; Icon: any; color: string; trend?: string }) {
   return (
-    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[8px] p-4 hover:border-[var(--border-strong)] transition-colors">
+    <div className="card p-4">
       <div className="flex items-start justify-between mb-3">
         <span className="text-[12px] font-medium text-[var(--text-secondary)]">{title}</span>
         <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
@@ -758,11 +827,9 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
       {/* SLA Status Indicator */}
       {(() => {
         if (!d.scheduledAt || !['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)) return null;
-        const scheduledDate = d.scheduledAt.split('T')[0];
-        const now = new Date();
-        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-        
-        if (scheduledDate < todayStr) {
+        const bucket = getDayBucket(d.scheduledAt);
+
+        if (bucket === 'overdue') {
           return (
             <div className="mb-2">
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
@@ -770,7 +837,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
               </span>
             </div>
           );
-        } else if (scheduledDate === todayStr) {
+        } else if (bucket === 'today') {
           return (
             <div className="mb-2">
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
@@ -861,11 +928,9 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
       {/* SLA Status Indicator */}
       {(() => {
         if (!d.scheduledAt || !['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)) return null;
-        const scheduledDate = d.scheduledAt.split('T')[0];
-        const now = new Date();
-        const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
-        
-        if (scheduledDate < todayStr) {
+        const bucket = getDayBucket(d.scheduledAt);
+
+        if (bucket === 'overdue') {
           return (
             <div className="mb-2">
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
@@ -873,7 +938,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
               </span>
             </div>
           );
-        } else if (scheduledDate === todayStr) {
+        } else if (bucket === 'today') {
           return (
             <div className="mb-2">
               <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">

@@ -144,6 +144,7 @@ const createEmptyItem = (): OrderItem => ({
 
 export default function NewDeliveryPanel({ open, onClose, onCreated, prefillClient }: NewDeliveryPanelProps) {
   const t = useT();
+  const STEPS = STEP_KEYS.map(k => t.newDeliveryPanel[k]);
   const [step, setStep] = useState(prefillClient ? 2 : 1);
   const [submitting, setSubmitting] = useState(false);
 

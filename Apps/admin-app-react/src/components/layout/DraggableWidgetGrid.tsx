@@ -40,7 +40,7 @@ function DragHandleIcon() {
   const t = useT();
   return (
     <div
-      className="react-grid-dragHandle absolute top-[14px] start-[14px] z-20 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing select-none text-[#7d8998] hover:text-[#16191f] transition-colors"
+      className="react-grid-dragHandle absolute top-[14px] start-[14px] z-20 w-6 h-6 flex items-center justify-center cursor-grab active:cursor-grabbing select-none text-[var(--text-soft)] hover:text-[var(--text-primary)] transition-colors"
       title={t.tooltips?.reposition ?? 'Drag to reposition'}
       onPointerDown={e => e.stopPropagation()}
     >
@@ -156,7 +156,7 @@ export function DraggableWidgetGrid({
       </div>
 
       <style>{`
-        /* AWS Cloudscape Design System Grid Overrides */
+        /* Tesla Grid Overrides */
         .react-grid-item {
           transition: all 200ms cubic-bezier(0.165, 0.84, 0.44, 1);
           transition-property: left, top, right, bottom;
@@ -173,25 +173,26 @@ export function DraggableWidgetGrid({
           will-change: width, height;
         }
         
-        /* Dragging state: Cloudscape uses high elevation shadow */
+        /* Dragging state: flat design with Electric Blue border outline */
         .react-grid-item.react-draggable-dragging {
           transition: none;
           z-index: 100;
           will-change: transform;
-          box-shadow: 0 12px 24px -4px rgba(0, 28, 36, 0.15), 0 4px 8px -2px rgba(0, 28, 36, 0.1) !important;
-          border: 1px solid var(--border) !important;
+          box-shadow: none !important;
+          border: 2px solid var(--brand) !important;
+          border-radius: var(--radius) !important;
           opacity: 0.95;
         }
 
-        /* Show the visual blue grid behind the container when dragging */
+        /* Show the visual Electric Blue grid behind the container when dragging */
         .react-grid-layout.is-dragging {
-          background-image: linear-gradient(to right, rgba(9, 114, 211, 0.05) 1px, transparent 1px),
-                            linear-gradient(to bottom, rgba(9, 114, 211, 0.05) 1px, transparent 1px);
+          background-image: linear-gradient(to right, rgba(62, 106, 225, 0.05) 1px, transparent 1px),
+                            linear-gradient(to bottom, rgba(62, 106, 225, 0.05) 1px, transparent 1px);
           background-size: calc((100% - 220px) / 12 + 20px) ${rowHeight + 20}px;
           background-position: left top;
         }
 
-        /* Resize Handle (Cloudscape angled lines) */
+        /* Resize Handle */
         .react-grid-item > .react-resizable-handle {
           position: absolute;
           width: 20px;
@@ -202,7 +203,7 @@ export function DraggableWidgetGrid({
           z-index: 20;
           opacity: 0;
           transition: opacity 0.2s ease-in-out;
-          background-image: none !important; /* remove default RGL icon */
+          background-image: none !important;
         }
         .react-grid-item:hover > .react-resizable-handle {
           opacity: 1;
@@ -214,8 +215,8 @@ export function DraggableWidgetGrid({
           bottom: 6px;
           width: 8px;
           height: 8px;
-          border-right: 2px solid var(--text-muted, #545b64);
-          border-bottom: 2px solid var(--text-muted, #545b64);
+          border-right: 2px solid var(--text-soft, #8E8E8E);
+          border-bottom: 2px solid var(--text-soft, #8E8E8E);
           border-bottom-right-radius: 1px;
         }
         .react-grid-item > .react-resizable-handle::before {
@@ -225,16 +226,16 @@ export function DraggableWidgetGrid({
           bottom: 10px;
           width: 8px;
           height: 8px;
-          border-right: 2px solid var(--text-muted, #545b64);
-          border-bottom: 2px solid var(--text-muted, #545b64);
+          border-right: 2px solid var(--text-soft, #8E8E8E);
+          border-bottom: 2px solid var(--text-soft, #8E8E8E);
         }
 
-        /* Drop Placeholder: Cloudscape uses a blue dashed outline with light fill */
+        /* Drop Placeholder: Electric Blue dashed outline with light fill */
         .react-grid-placeholder {
-          background: var(--brand, #0972d3) !important;
+          background: var(--brand) !important;
           opacity: 0.05 !important;
-          border: 2px dashed var(--brand, #0972d3) !important;
-          border-radius: 8px;
+          border: 2px dashed var(--brand) !important;
+          border-radius: var(--radius);
           transition-duration: 150ms;
           z-index: 2;
         }

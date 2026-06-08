@@ -60,32 +60,48 @@ export default function LoginPage() {
       minHeight: '100dvh',
       display: 'flex',
       flexDirection: 'column',
-      background: 'var(--app-bg)',
+      position: 'relative',
+      overflow: 'hidden',
       direction: isRTL ? 'rtl' : 'ltr',
-      fontFamily: '"IBM Plex Sans", system-ui, sans-serif'
+      fontFamily: "'Universal Sans Text', -apple-system, sans-serif"
     }}>
-      {/* Top bar with brand + language */}
+      {/* Cinematic Full-Bleed Logistics/Transportation Hero Image */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        backgroundImage: 'url(https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=80)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        filter: 'brightness(0.55) grayscale(15%)',
+        zIndex: 0
+      }} />
+
+      {/* Floating Transparent Navigation Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '16px 24px',
+        padding: '24px 32px',
+        position: 'relative',
+        zIndex: 10,
         flexShrink: 0
       }}>
         <Link to="/" style={{ display: 'flex', alignItems: 'center', gap: 14, textDecoration: 'none' }}>
-          <div style={{ width: 72, height: 72, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', flexShrink: 0 }}>
-            <img src="/icon.png" alt="ASM" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-          </div>
           <div style={{ display: 'flex', flexDirection: 'column' }}>
-            <span style={{ fontSize: 22, fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '-0.02em', fontFamily: '"IBM Plex Sans", system-ui, sans-serif', lineHeight: 1.1 }}>
+            <span style={{
+              fontSize: 14,
+              fontWeight: 500,
+              color: '#FFFFFF',
+              letterSpacing: '0.3em',
+              fontFamily: "'Universal Sans Display', -apple-system, sans-serif",
+              lineHeight: 1.1,
+              textTransform: 'uppercase'
+            }}>
               ASM Track
-            </span>
-            <span style={{ fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', letterSpacing: '0.03em', marginTop: 2 }}>
-              {t.loginPage.brandTagline}
             </span>
           </div>
         </Link>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <button
             type="button"
             onClick={toggleDark}
@@ -96,48 +112,89 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              background: 'var(--hover-bg)',
-              border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)',
-              color: 'var(--text-secondary)',
-              cursor: 'pointer'
+              background: 'rgba(255, 255, 255, 0.15)',
+              backdropFilter: 'blur(8px)',
+              border: 'none',
+              borderRadius: 4,
+              color: '#FFFFFF',
+              cursor: 'pointer',
+              transition: 'background-color 0.33s'
             }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.25)'; }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.backgroundColor = 'rgba(255, 255, 255, 0.15)'; }}
           >
             {isDark ? <IconSun size={14} /> : <IconMoon size={14} />}
           </button>
-          <LanguageSelector />
+          <LanguageSelector variant="landing" scrolled={false} />
         </div>
       </div>
 
-      {/* Centered login card */}
+      {/* Centered Model-Style Overlay Title + Minimal Card */}
       <div style={{
         flex: 1,
         display: 'flex',
+        flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
-        padding: 24
+        padding: 24,
+        position: 'relative',
+        zIndex: 10
       }}>
+        {/* Floating Model Text Overlay */}
+        <div style={{
+          textAlign: 'center',
+          color: '#FFFFFF',
+          marginBottom: '5vh',
+          userSelect: 'none'
+        }}>
+          <h1 style={{
+            fontSize: '40px',
+            fontWeight: 500,
+            margin: 0,
+            letterSpacing: '0.05em',
+            fontFamily: "'Universal Sans Display', -apple-system, sans-serif"
+          }}>
+            ASM Track
+          </h1>
+          <p style={{
+            fontSize: '14px',
+            color: 'rgba(255, 255, 255, 0.75)',
+            marginTop: 8,
+            margin: 0,
+            fontWeight: 400
+          }}>
+            {t.loginPage.brandTagline}
+          </p>
+        </div>
+
+        {/* Minimal Login Container Card */}
         <div style={{
           width: '100%',
           maxWidth: 380,
-          background: 'var(--surface)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius)',
-          padding: '36px 32px 28px',
-          textAlign: isRTL ? 'right' : 'left'
+          background: isDark ? 'rgba(23, 26, 32, 0.85)' : 'rgba(255, 255, 255, 0.85)',
+          backdropFilter: 'blur(16px)',
+          borderRadius: 4,
+          padding: '40px 36px 32px',
+          textAlign: isRTL ? 'right' : 'left',
+          boxShadow: 'none',
+          border: 'none'
         }}>
-          {/* Headline */}
-          <h1 style={{
-            fontSize: 18,
-            fontWeight: 600,
-            color: 'var(--text-primary)',
-            letterSpacing: '-0.02em',
+          <h2 style={{
+            fontSize: 20,
+            fontWeight: 500,
+            color: isDark ? '#F3F3F7' : '#171A20',
             lineHeight: 1.3,
             margin: 0
           }}>
             {t.loginPage.welcomeBack}
-          </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-secondary)', margin: '4px 0 24px', lineHeight: 1.5 }}>
+          </h2>
+          <p style={{
+            fontSize: 13,
+            color: isDark ? '#A4A4AD' : '#5C5E62',
+            margin: '6px 0 28px',
+            lineHeight: 1.5,
+            fontWeight: 400
+          }}>
             {t.loginPage.signInToContinue}
           </p>
 
@@ -147,47 +204,43 @@ export default function LoginPage() {
               display: 'flex',
               alignItems: 'center',
               gap: 8,
-              padding: '8px 12px',
-              background: 'var(--danger-bg)',
-              border: '1px solid var(--danger)',
-              borderRadius: 'var(--radius)',
-              marginBottom: 16,
+              padding: '10px 14px',
+              background: isDark ? 'rgba(239, 68, 68, 0.15)' : 'rgba(220, 38, 36, 0.08)',
+              border: `1px solid ${isDark ? '#EF4444' : '#DC2626'}`,
+              borderRadius: 4,
+              marginBottom: 20,
               flexDirection: isRTL ? 'row-reverse' : 'row'
             }}>
-              <IconAlertCircle size={14} style={{ color: 'var(--danger)', flexShrink: 0 }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--danger)' }}>{displayError}</span>
+              <IconAlertCircle size={14} style={{ color: isDark ? '#EF4444' : '#DC2626', flexShrink: 0 }} />
+              <span style={{ fontSize: 12, fontWeight: 500, color: isDark ? '#EF4444' : '#DC2626' }}>{displayError}</span>
             </div>
           )}
 
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* OIDC Login does not need email/password fields */}
-
-
-            {/* Submit */}
+            {/* Submit CTA */}
             <button
               type="submit"
               disabled={loading}
               style={{
                 width: '100%',
-                height: 38,
-                marginTop: 4,
-                background: loading ? 'var(--border)' : 'var(--brand)',
-                color: loading ? 'var(--text-muted)' : '#09090B',
+                height: 40,
+                background: loading ? (isDark ? '#393C41' : '#EEEEEE') : '#3E6AE1',
+                color: '#FFFFFF',
                 fontSize: 13,
-                fontWeight: 700,
+                fontWeight: 500,
                 border: 'none',
-                borderRadius: 'var(--radius)',
+                borderRadius: 4,
                 cursor: loading ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: 8,
-                letterSpacing: '-0.01em',
-                transition: 'opacity 0.15s',
+                letterSpacing: '0.02em',
+                textTransform: 'lowercase',
                 fontFamily: 'inherit'
               }}
-              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.opacity = '0.85'; }}
-              onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
+              onMouseEnter={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = '#2B52C3'; }}
+              onMouseLeave={e => { if (!loading) (e.currentTarget as HTMLElement).style.backgroundColor = '#3E6AE1'; }}
             >
               {loading ? (
                 <><svg className="animate-spin" width="14" height="14" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/><path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/></svg> {t.loginPage.buttonLoading}</>
@@ -197,11 +250,16 @@ export default function LoginPage() {
             </button>
           </form>
 
-          {/* Contact */}
-          <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid var(--border)', textAlign: 'center' }}>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, margin: 0 }}>
+          {/* Contact Support */}
+          <div style={{
+            marginTop: 28,
+            paddingTop: 24,
+            borderTop: `1px solid ${isDark ? 'rgba(255,255,255,0.08)' : '#EEEEEE'}`,
+            textAlign: 'center'
+          }}>
+            <p style={{ fontSize: 12, color: isDark ? '#A4A4AD' : '#5C5E62', fontWeight: 400, margin: 0 }}>
               {t.loginPage.needAccess}{' '}
-              <a href="mailto:contact@asmtrack.com" style={{ color: 'var(--brand)', fontWeight: 600, textDecoration: 'none' }}>
+              <a href="mailto:contact@asmtrack.com" style={{ color: '#3E6AE1', fontWeight: 500, textDecoration: 'none' }}>
                 {t.loginPage.contactTeam}
               </a>
             </p>

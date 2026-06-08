@@ -1,8 +1,6 @@
 
 import { ReactNode } from 'react';
 import { cn } from '@/lib/utils';
-import { Area, AreaChart, ResponsiveContainer } from 'recharts';
-
 interface KPICardProps {
   label: string;
   value: ReactNode;
@@ -22,53 +20,63 @@ const TONE_DOT: Record<string, string> = {
   info:    'bg-[var(--info)]',
 };
 
-const TONE_CHART_COLOR: Record<string, string> = {
-  default: 'var(--brand)',
-  success: '#4CAF82',
-  warning: '#D4772C',
-  danger: '#C7372F',
-  info: '#0972d3',
-};
+export function KPICard({ label, value, sub, icon, tone = 'default', className, onClick, sparklineData }: KPICardProps) {
+  const renderSparkline = () => {
+    if (!sparklineData || sparklineData.length < 2) return null;
+    const max = Math.max(...sparklineData);
+    const min = Math.min(...sparklineData);
+    const range = max - min === 0 ? 1 : max - min;
+    const width = 100;
+    const height = 24;
+    const points = sparklineData.map((val, index) => {
+      const x = (index / (sparklineData.length - 1)) * width;
+      const y = height - ((val - min) / range) * (height - 4) - 2;
+      return `${x},${y}`;
+    }).join(' ');
 
-export function KPICard({ label, value, sub, icon, tone = 'default', sparklineData, className, onClick }: KPICardProps) {
-  const chartData = sparklineData?.map((v, i) => ({ value: v, index: i }));
+    const strokeColor = tone === 'success' ? 'var(--success)' : tone === 'warning' ? 'var(--warning)' : tone === 'danger' ? 'var(--danger)' : tone === 'info' ? 'var(--info)' : 'var(--brand)';
+
+    return (
+      <div className="absolute bottom-2 right-4 opacity-40 pointer-events-none">
+        <svg width={width} height={height}>
+          <polyline
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            points={points}
+          />
+        </svg>
+      </div>
+    );
+  };
 
   return (
     <div
       onClick={onClick}
       className={cn(
-        'card py-4 px-6 flex flex-col justify-center gap-2 relative overflow-hidden shadow-sm',
-        onClick && 'cursor-pointer hover:border-[var(--border-strong)] transition-colors',
+        'card pl-10 pr-4 py-4 flex flex-col justify-center h-full relative overflow-hidden',
+        onClick && 'cursor-pointer',
         className,
       )}
     >
-      <div className={cn("absolute top-0 left-0 right-0 h-[3px] z-10", tone === 'default' ? 'bg-[var(--brand)]' : TONE_DOT[tone])} />
-      
-      {chartData && chartData.length > 0 && (
-        <div className="absolute bottom-0 right-0 left-0 h-[45px] opacity-20 pointer-events-none">
-          <ResponsiveContainer width="100%" height="100%">
-            <AreaChart data={chartData}>
-              <Area 
-                type="monotone" 
-                dataKey="value" 
-                stroke={TONE_CHART_COLOR[tone] || 'var(--brand)'} 
-                fill={TONE_CHART_COLOR[tone] || 'var(--brand)'} 
-                strokeWidth={2} 
-              />
-            </AreaChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-
-      <div className="flex items-center justify-between relative z-10">
-        <span className="label-sm text-[var(--text-muted)]">{label}</span>
-        <div className="flex items-center gap-2">
-          {icon && <span className="text-[var(--text-soft)]">{icon}</span>}
-          <span className={cn('w-2 h-2 rounded-full', TONE_DOT[tone])} />
+      <div className="flex items-start justify-between mb-3 shrink-0 relative z-10">
+        <span className="text-[12px] font-medium text-[var(--text-muted)]">{label}</span>
+        <div className="flex items-center gap-2 text-[var(--text-muted)]">
+          {icon}
+          {tone !== 'default' && <span className={cn('w-2 h-2 rounded-full', TONE_DOT[tone])} />}
         </div>
       </div>
-      <div className="kpi-value text-[32px] font-black leading-none text-[var(--text-primary)] tabular-nums tracking-tight mt-1 relative z-10 text-left rtl:text-right" dir="ltr">{value}</div>
-      {sub && <div className="text-xs text-[var(--text-soft)] font-medium relative z-10 text-left rtl:text-right" dir="ltr">{sub}</div>}
+      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
+        {value}
+      </div>
+      {sub && (
+        <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal relative z-10 text-left rtl:text-right" dir="ltr">
+          {sub}
+        </div>
+      )}
+      {renderSparkline()}
     </div>
   );
 }

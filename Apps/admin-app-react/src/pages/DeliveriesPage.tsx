@@ -49,6 +49,7 @@ import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { useT } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
+import { getDayBucket } from '@/lib/sla';
 import {
   useDeliveries,
   useActiveZones,
@@ -259,21 +260,19 @@ function DeliveriesPageContent() {
 
   const filteredRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const now = new Date();
-    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 
     let result = rows.filter((item: DeliveryRow) => {
-      const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
       const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+      const bucket = getDayBucket(item.scheduledAt);
 
       if (quickView === 'needsPinning') return !item.dropoffPinned;
       if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
       if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT') return false;
       if (quickView === 'completed' && item.status !== 'DELIVERED') return false;
       if (quickView === 'failed' && !['FAILED','CANCELLED'].includes(item.status)) return false;
-      if (quickView === 'overdue') return isPending && scheduledDate && scheduledDate < todayStr;
-      if (quickView === 'today') return isPending && scheduledDate === todayStr;
-      if (quickView === 'future') return isPending && scheduledDate && scheduledDate > todayStr;
+      if (quickView === 'overdue') return isPending && bucket === 'overdue';
+      if (quickView === 'today') return isPending && bucket === 'today';
+      if (quickView === 'future') return isPending && bucket === 'future';
       
       if (!q) return true;
       return [item.rowId, item.orderId, item.erpOrderId, item.orderRef, item.erpId, item.clientName, item.dropoffCity, item.driverName, item.routeName, item.status]
@@ -306,8 +305,6 @@ function DeliveriesPageContent() {
   const quickCounts = useMemo(() => {
     let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0;
     let overdue = 0, today = 0, future = 0;
-    const now = new Date();
-    const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
 
     rows.forEach((item: DeliveryRow) => {
       if (!item.dropoffPinned) needsPinning++;
@@ -317,11 +314,11 @@ function DeliveriesPageContent() {
       if (['FAILED','CANCELLED'].includes(item.status)) failed++;
 
       const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-      const scheduledDate = item.scheduledAt ? item.scheduledAt.split('T')[0] : null;
-      if (isPending && scheduledDate) {
-        if (scheduledDate < todayStr) overdue++;
-        else if (scheduledDate === todayStr) today++;
-        else future++;
+      if (isPending && item.scheduledAt) {
+        const bucket = getDayBucket(item.scheduledAt);
+        if (bucket === 'overdue') overdue++;
+        else if (bucket === 'today') today++;
+        else if (bucket === 'future') future++;
       }
     });
     return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future };
@@ -646,14 +643,12 @@ function DeliveriesPageContent() {
                                   if (!item.scheduledAt) {
                                     return <span className="text-[11px] text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
                                   }
-                                  const scheduledDate = item.scheduledAt.split('T')[0];
-                                  const now = new Date();
-                                  const todayStr = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().split('T')[0];
                                   const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
+                                  const bucket = getDayBucket(item.scheduledAt);
                                   let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
                                   if (isPending) {
-                                    if (scheduledDate < todayStr) colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
-                                    else if (scheduledDate === todayStr) colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
+                                    if (bucket === 'overdue') colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
+                                    else if (bucket === 'today') colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
                                     else colorClass = 'text-[#3B82F6] bg-blue-50 border-blue-200';
                                   }
                                   return (

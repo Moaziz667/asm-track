@@ -242,15 +242,15 @@ export function ReassignModal({
 
         {tab === 'route' && selectedId && (
           <div className="grid grid-cols-3 gap-2">
-            <FieldInput label={t.reassignCommandOverlay.orderField} type="number" placeholder={t.reassignCommandOverlay.orderField} min={1}
+            <FieldInput label={t.reassignCommandOverlay.orderLabel} type="number" placeholder={t.reassignCommandOverlay.orderLabel} min={1}
               value={stopOrder} onChange={e => setStopOrder(e.target.value ? Number(e.target.value) : '')} />
-            <FieldInput label={t.reassignCommandOverlay.startWindow} type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
-            <FieldInput label={t.reassignCommandOverlay.endWindow} type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+            <FieldInput label={t.reassignCommandOverlay.timeStart} type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+            <FieldInput label={t.reassignCommandOverlay.timeEnd} type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
           </div>
         )}
 
         <FieldTextarea
-          label={t.reassignCommandOverlay.noteRequired}
+          label={t.reassignCommandOverlay.noteLabel}
           placeholder={t.reassignCommandOverlay.notePlaceholder}
           value={note}
           onChange={e => setNote(e.target.value)}

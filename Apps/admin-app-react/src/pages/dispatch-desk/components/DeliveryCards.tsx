@@ -36,7 +36,7 @@ function MetaLine({ d, t }: { d: Delivery; t: any }) {
         </span>
       ) : (
         <span className="inline-flex items-center gap-1" title={formatShortDate(d.createdAt)}>
-          <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated} {created}
+          <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', created)}
         </span>
       )}
       {slot && <span className="inline-flex items-center gap-1"><IconCalendar size={11} stroke={2.5} /> {slot}</span>}
@@ -258,7 +258,7 @@ export function DeliveryCards() {
                     <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
                       <span className="inline-flex items-center gap-1 font-mono font-medium" title={formatShortDate(d.createdAt)}>
                         <IconClock size={11} stroke={2.5} />
-                        <span>{t.dispatchDeskPage.cardCreated} {created}</span>
+                        <span>{t.dispatchDeskPage.cardCreated.replace('{time}', created)}</span>
                       </span>
                       {amount && (
                         <span className="font-[600]" style={{ color: 'var(--text-secondary)' }}>

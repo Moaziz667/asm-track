@@ -174,7 +174,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   };
 
   return (
-    <header className="sticky top-0 shrink-0 border-b border-[var(--border)] bg-[var(--surface)] z-40 h-14 flex items-center gap-4 md:gap-6 px-4 md:px-6 relative">
+    <header className="sticky top-0 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/75 backdrop-blur-md z-40 h-14 flex items-center gap-4 md:gap-6 px-4 md:px-6 relative">
       {/* Sidebar toggle */}
       <SidebarTrigger className="-ml-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]" />
 

@@ -1,11 +1,10 @@
 import {
-  createContext, useContext, useEffect, useState, useCallback, useMemo, useRef, ReactNode,
+  createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode,
 } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 
 import { toast } from '@/lib/toast';
-import { Client } from '@stomp/stompjs';
-import SockJS from 'sockjs-client';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { useLocaleStore } from '@/lib/i18n';
 import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
@@ -87,7 +86,7 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'ROUTE_STARTED':         { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
   'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
   'erp.sync_failed':       { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
-  'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import' },
+  'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import?tab=ready' },
 };
 
 // The server (/api/admin/notifications) is the source of truth — read-state is
@@ -170,7 +169,6 @@ const mapResponseToNotification = (item: any): Notification => {
 export default function NotificationsProvider({ children }: { children: ReactNode }) {
   const [notifs, setNotifs] = useState<Notification[]>([]);
   const router = useRouter();
-  const stompRef = useRef<Client | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -178,7 +176,13 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       if (res.data && Array.isArray(res.data.content)) {
         setNotifs(res.data.content.map(mapResponseToNotification));
       }
-    } catch (err) {
+    } catch (err: any) {
+      // The persistent-history endpoint may not be deployed yet; degrade to the
+      // live (in-session) feed instead of throwing an uncaught rejection.
+      if (err?.response?.status === 404) {
+        console.warn('[Notifications] History endpoint unavailable (404) — live feed only.');
+        return;
+      }
       console.error('[Notifications] Failed to fetch notification history from server:', err);
       throw err;
     }
@@ -292,102 +296,9 @@ export default function NotificationsProvider({ children }: { children: ReactNod
     });
   }, [router]);
 
-  // WebSocket
-  useEffect(() => {
-    const wsBase = import.meta.env.VITE_WS_BASE_URL
-      ?? import.meta.env.VITE_API_BASE_URL
-      ?? (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
-    const wsUrl = `${wsBase}/ws`;
-
-    if (import.meta.env.DEV) {
-      console.log('[Notifications] Connecting to WebSocket at:', wsUrl);
-    }
-
-    let retryCount = 0;
-
-    const client = new Client({
-      webSocketFactory: () => new SockJS(wsUrl),
-      reconnectDelay: 5000,
-      heartbeatIncoming: 10000,
-      heartbeatOutgoing: 10000,
-      onConnect: (frame) => {
-        retryCount = 0;
-        if (import.meta.env.DEV) {
-          console.log('[Notifications] Connected to STOMP');
-        }
-
-        const deliveriesTopic = '/topic/admin.deliveries';
-        const routesTopic     = '/topic/admin.routes';
-        const erpTopic        = '/topic/admin.erp';
-
-        client.subscribe(deliveriesTopic, msg => {
-          if (import.meta.env.DEV) {
-            console.log('[Notifications] Received message on deliveriesTopic:', msg.body);
-          }
-          try { 
-            const cloudEvent = JSON.parse(msg.body);
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Parsed deliveriesTopic JSON:', cloudEvent);
-            }
-            const payload = cloudEvent.data || cloudEvent;
-            payload.event = cloudEvent.type || payload.event;
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Final payload for addNotification:', payload);
-            }
-            addNotification(payload); 
-          } catch(e) { console.error('[Notifications] deliveriesTopic Parse error:', e); }
-        });
-        client.subscribe(routesTopic, msg => {
-          if (import.meta.env.DEV) {
-            console.log('[Notifications] Received message on routesTopic:', msg.body);
-          }
-          try { 
-            const cloudEvent = JSON.parse(msg.body);
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Parsed routesTopic JSON:', cloudEvent);
-            }
-            const payload = cloudEvent.data || cloudEvent;
-            payload.event = cloudEvent.type || payload.event;
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Final payload for addNotification:', payload);
-            }
-            addNotification(payload); 
-          } catch(e) { console.error('[Notifications] routesTopic Parse error:', e); }
-        });
-        client.subscribe(erpTopic, msg => {
-          if (import.meta.env.DEV) {
-            console.log('[Notifications] Received message on erpTopic:', msg.body);
-          }
-          try { 
-            const cloudEvent = JSON.parse(msg.body);
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Parsed erpTopic JSON:', cloudEvent);
-            }
-            const payload = cloudEvent.data || cloudEvent;
-            payload.event = cloudEvent.type || payload.event;
-            if (import.meta.env.DEV) {
-              console.log('[Notifications] Final payload for addNotification:', payload);
-            }
-            addNotification(payload); 
-          } catch(e) { console.error('[Notifications] erpTopic Parse error:', e); }
-        });
-      },
-      onStompError: frame => {
-        if (retryCount === 0 || retryCount % 5 === 0) {
-          console.warn('[Notifications] STOMP unavailable (attempt', retryCount + 1, '):', frame.headers?.message);
-        }
-        retryCount++;
-        client.reconnectDelay = Math.min(5000 * Math.pow(2, retryCount - 1), 60_000);
-      },
-      onWebSocketClose: () => {
-        if (retryCount <= 1) console.warn('[Notifications] WebSocket closed');
-      }
-    });
-
-    client.activate();
-    stompRef.current = client;
-    return () => { client.deactivate(); };
-  }, [addNotification]);
+  // Live feed: consume the shared RealtimeProvider socket instead of opening our
+  // own. Unknown events are filtered out inside addNotification (EVENT_MAP).
+  useRealtimeEvent('*', evt => addNotification(evt.payload));
 
   const markRead = useCallback((id: string) => {
     setNotifs(prev => prev.map(x => x.id === id ? { ...x, read: true } : x));

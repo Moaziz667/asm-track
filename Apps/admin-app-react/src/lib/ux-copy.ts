@@ -1,6 +1,7 @@
 import { useLocaleStore, getLocaleFromCookie } from './i18n';
 import { EN_COPY } from './en-copy';
 import { AR_COPY } from './ar-copy';
+import { humanizeMinutes } from './sla';
 
 export { EN_COPY, AR_COPY };
 
@@ -102,6 +103,10 @@ export const FR_COPY = {
     reassignRoute: 'Affecter cette tournée à un autre chauffeur',
     closeRoute: 'Clôturer manuellement la tournée',
     deleteDraft: 'Supprimer ce brouillon de tournée',
+    validateRouteShort: 'Valider la tournée',
+    reassignRouteShort: 'Réassigner la tournée',
+    cancelRouteShort: 'Annuler la tournée',
+    cancelRouteWithStops: 'Annuler la tournée ({count} arrêts actifs)',
     viewDetail: 'Voir les détails de cet élément',
     addStop: 'Ajouter une livraison à cette tournée',
     removeStop: 'Retirer cet arrêt de la tournée',
@@ -115,7 +120,6 @@ export const FR_COPY = {
     capacityOver: 'Capacité véhicule dépassée — choisissez un autre véhicule ou divisez la livraison',
     capacityOk: 'Capacité véhicule disponible',
     editWindow: 'Modifier la fenêtre horaire',
-    removeStop: "Retirer l'arrêt",
     cancelStop: 'Annuler le passage',
     reposition: 'Réorganiser',
   },
@@ -597,13 +601,25 @@ export const FR_COPY = {
   // ── Display Settings ──────────────────────────────────────────────────────
   displaySettings: {
     title: "Paramètres d'affichage",
+    compactView: 'Vue compacte',
+    compactViewDesc: 'Réduire l\'espacement pour une mise en page plus condensée',
+    showThumbnails: 'Afficher les miniatures',
+    showThumbnailsDesc: 'Afficher les images des articles dans la liste de livraison',
+    expandGroups: 'Développer les groupes',
+    expandGroupsDesc: 'Toujours développer les groupes de sections par défaut',
+    mapLayer: 'Couche de carte',
+    mapLayerDesc: 'Sélectionner le style de couche de carte par défaut',
+    mapLayerStreet: 'Rue',
+    mapLayerSatellite: 'Satellite',
+    mapLayerDark: 'Sombre',
+    confirmButton: 'Appliquer les paramètres',
     density: 'Densité',
     columns: 'Colonnes',
     visibleColumns: 'Colonnes visibles',
     reset: 'Réinitialiser',
     pinned: 'fixé',
     compact: 'Compact',
-    comfortable: 'Confort.',
+    comfortable: 'Confortable',
     spacious: 'Spacieux',
     display: 'Affichage',
     resetLayout: 'Réinitialiser la disposition',
@@ -618,6 +634,8 @@ export const FR_COPY = {
 
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
+    title: 'Tableau de bord',
+    subtitle: 'Supervision administrative et indicateurs opérationnels',
     syncError: 'Échec de synchronisation',
     kpiTotal: 'Total',
     kpiInTransit: 'En transit',
@@ -677,6 +695,14 @@ export const FR_COPY = {
     kpiDeliveredOf: 'sur',
     kpiVsPrevPeriod: 'vs période préc.',
     kpiActiveRoutesSub: 'en cours',
+    noData: 'Aucune donnée disponible',
+    sectionStart: 'Tournées à Démarrer',
+    noRoutesWaiting: 'Aucune tournée en attente',
+    // Needs attention panel (i18n fixes)
+    assignButton: 'Assigner',
+    genericAlert: 'Un problème requiert votre attention',
+    critiqueBadge: 'CRITIQUE',
+    overdueChipLabel: '{count} non planifiée{plural} en retard',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -769,6 +795,11 @@ export const FR_COPY = {
     driverOnline: 'En service',
     driverOnBreak: 'En pause',
     driverOffline: 'Hors ligne',
+    kpiCritical: 'Critique',
+    kpiUnassigned: 'Non assigné',
+    kpiInTransit: 'En route',
+    kpiFailed: 'Échoué',
+    kpiUpdated: 'Mis à jour',
     // Tabs
     tabQueue: 'File d\'attente',
     tabAssign: 'Assignation',
@@ -786,7 +817,7 @@ export const FR_COPY = {
     batchAssign: 'Assigner ({count})',
     batchReassign: 'Réassigner ({count})',
     batchCancel: 'Annuler',
-    cardCreated: 'Créé depuis',
+    cardCreated: 'Importée il y a {time}',
     handoffEmpty: 'Aucune passation en cours',
     handoffStateRequested: 'En attente du code',
     handoffStateInProgress: 'Code émis · attente du scan',
@@ -878,6 +909,9 @@ export const FR_COPY = {
     motifUnknown: 'Incident inconnu',
     motifSlaUnscheduledLate: 'Retard (Non Planifié)',
     motifSlaUnscheduledToday: 'Planifié Aujourd\'hui',
+    motifSlaWaiting: 'En attente prolongée',
+    motifSlaAssignment: 'Délai d\'affectation dépassé',
+    motifSlaTransit: 'Transit en retard',
     // Time elapsed (formatElapsed)
     timeJustNow: 'à l\'instant',
     timeMinutes: '{diff} min',
@@ -906,11 +940,13 @@ export const FR_COPY = {
     suggestionWrongAddress: '→ Corriger l\'adresse dans la fiche commande',
     suggestionOther: '→ Vérifier le commentaire chauffeur',
     suggestionSlaUnscheduledLate: '→ Assigner une tournée d\'urgence',
+    suggestionSlaUnscheduledToday: '→ Planifier avant la fin de la journée',
     // Narration paragraphs (formatNarrative — "system talks to you" in Queue detail)
-    narrativeUnscheduledLate: 'Cette commande attend toujours une tournée et accuse désormais du retard — elle patiente depuis {time}. Une assignation en urgence éviterait une rupture de SLA.',
-    narrativeUnscheduledToday: 'Cette commande est prévue pour aujourd\'hui mais n\'a pas encore de tournée. Mieux vaut l\'assigner rapidement pour rester dans les temps.',
-    narrativeUnscheduled: 'Cette commande attend une tournée depuis {time}. Rien d\'urgent pour l\'instant, mais à surveiller.',
-    narrativeScheduled: 'Cette commande est planifiée mais s\'approche de son délai SLA — un coup d\'œil ne ferait pas de mal.',
+    narrativeUnscheduledLate: 'Commande non planifiée · {time} — à assigner d\'urgence.',
+    narrativeUnscheduledToday: 'Prévue aujourd\'hui — pas encore de tournée. À assigner rapidement.',
+    narrativeUnscheduled: 'Pas encore de tournée · prévue {time}.',
+    narrativeUnscheduledNoDate: 'Pas encore de tournée · en attente · {time}.',
+    narrativeScheduled: 'Planifiée mais délai SLA proche ({time}) — à surveiller.',
     narrativePickup: 'Le chauffeur n\'a pas encore récupéré cette commande et la fenêtre de ramassage se referme. Un petit rappel pourrait aider.',
     narrativeInTransit: 'Cette commande est en route depuis {time}, plus longtemps que prévu. Un appel au chauffeur permettrait d\'y voir plus clair.',
     narrativeScheduledMonitoring: 'Cette commande suit son cours normal — rien à signaler, simple suivi de routine.',
@@ -923,6 +959,11 @@ export const FR_COPY = {
     narrativeCancelled: 'Cette commande a été annulée.',
     narrativeOther: 'Un incident a été signalé sur cette commande il y a {time}. Les détails méritent d\'être vérifiés avant de poursuivre.',
     narrativeDefault: 'Un événement a été signalé sur cette commande il y a {time}.',
+    // Schedule chips (QueueDetail SLA motifs)
+    chipScheduleLate: 'En retard · {time}',
+    chipScheduleIn: 'Prévu {time}',
+    chipNoSchedule: 'Pas de date prévue',
+    chipLateAction: '— à planifier d\'urgence',
     // ReplanModal
     replanModalTitleReplan: 'Remettre en attente de planification',
     replanModalTitleReassign: 'Réassigner la livraison',
@@ -1309,6 +1350,10 @@ export const FR_COPY = {
 
     // Last sync
     lastSync: 'Dernière synchronisation :',
+
+    // Late / soon scheduling tooltips
+    lateTooltip: 'Retard de planification — cette commande aurait dû être importée avant la date prévue',
+    soonTooltip: 'Planification imminente — moins de 24h avant la date prévue',
   },
 
   // ── Route Builder Page ─────────────────────────────────────────────────
@@ -2413,6 +2458,7 @@ export const FR_COPY = {
       systemHealth: 'Santé système',
       settings: 'Paramètres',
       erpIntegration: 'Intégration ERP',
+      companies: 'Entreprises',
     },
     badges: {
       dispatchActionRequired: 'action requise',
@@ -2471,8 +2517,12 @@ export const FR_COPY = {
 
   // ── routeFilterBar ──────────────────────────────────────────────────────
   routeFilterBar: {
-    cityPlaceholder: 'Ville...',
+    title: 'Filtres',
+    placeholderStatus: 'Filtrer par statut',
+    placeholderCity: 'Ville',
+    citiesPlaceholder: 'Toutes les villes',
     clearButton: 'Effacer',
+    cityPlaceholder: 'Ville...',
     statusAll: 'Toutes',
     statusDraft: 'Brouillon',
     statusValidated: 'Validée',
@@ -2494,6 +2544,16 @@ export const FR_COPY = {
     presetNorth: 'Zone Nord',
     presetAtRisk: 'Tournées à risque',
     saveAsMorning: 'Enregistrer comme Dispatch du matin',
+    statusFilter: 'Filtrer par statut',
+    zoneFilter: 'Zone',
+    deliveryTypeFilter: 'Type',
+    filterPresets: 'Filtres prédéfinis',
+    presetToday: 'Aujourd\'hui',
+    presetWeek: 'Cette semaine',
+    presetPending: 'En attente',
+    presetFailed: 'Échoué',
+    showArchived: 'Afficher les archivés',
+    persistenceInfo: 'Les filtres sont enregistrés par utilisateur.',
   },
 
   // ── newDeliveryPanel ──────────────────────────────────────────────────
@@ -2699,13 +2759,13 @@ export const FR_COPY = {
       message: (p: any) => {
         const head = `${refTag(p)}${p.clientName || 'Client'} — `;
         if (p.motif === 'SLA_WAITING') {
-          return `${head}En attente d'affectation depuis ${p.elapsed} min (limite ${p.limit} min)`;
+          return `${head}En attente d'affectation depuis ${humanizeMinutes(p.elapsed, 'fr')} (limite ${p.limit} min)`;
         }
         if (p.motif === 'SLA_ASSIGNMENT') {
-          return `${head}Démarrage en retard : ${p.elapsed} min depuis l'affectation (limite ${p.limit} min)`;
+          return `${head}Démarrage en retard : ${humanizeMinutes(p.elapsed, 'fr')} depuis l'affectation (limite ${p.limit} min)`;
         }
         if (p.motif === 'SLA_PICKUP') {
-          return `${head}Départ du dépôt en retard : ${p.elapsed} min (limite ${p.limit} min)`;
+          return `${head}Départ du dépôt en retard : ${humanizeMinutes(p.elapsed, 'fr')} (limite ${p.limit} min)`;
         }
         if (p.motif === 'SLA_TRANSIT') {
           return `${head}Livraison en retard sur le créneau prévu`;

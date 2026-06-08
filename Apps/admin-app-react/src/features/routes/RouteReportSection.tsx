@@ -332,6 +332,7 @@ function timingPill(finalStatus: string, delayMinutes: number | null) {
 
 // ── Stops table ───────────────────────────────────────────────────────────────
 function StopsTable({ report }: { report: RouteReport }) {
+  const t = useT();
   return (
     <div className="overflow-hidden rounded" style={{ border: '1px solid var(--border)' }}>
       <div className="overflow-auto">

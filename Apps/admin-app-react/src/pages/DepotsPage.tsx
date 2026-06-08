@@ -1,18 +1,20 @@
 
 
-import { lazy as dynamic } from 'react';
+import { lazy as dynamic, useState, Suspense } from 'react';
 import { useDepots, useSyncDepotsFromErp, useGeolocateDepot } from '@/hooks/useDepots';
 import { useT } from '@/lib/LocaleContext';
 import {
-  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload, IconMapPin,
+  IconRefresh, IconBuildingWarehouse, IconWorld, IconLayoutDashboard, IconCloudDownload, IconMapPin, IconPencil,
 } from '@tabler/icons-react';
 import { isReadOnlyRole, getCurrentRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import type { Depot } from '@/types';
 
-// ─── Map Components (SSR Disabled) ───────────────────────────────────────────
+// ─── Lazy components ──────────────────────────────────────────────────────────
 
 const DepotsOverviewMap = dynamic(() => import('@/components/DepotsOverviewMap'));
+const DepotLocationModal = dynamic(() => import('@/components/DepotLocationModal'));
 
 // ─── Spinner ──────────────────────────────────────────────────────────────────
 
@@ -35,6 +37,7 @@ export default function DepotsPage() {
   const { data: depots = [], isLoading: loading, refetch: fetchDepots } = useDepots();
   const syncMutation = useSyncDepotsFromErp();
   const geolocateMutation = useGeolocateDepot();
+  const [editingDepot, setEditingDepot] = useState<Depot | null>(null);
 
   const mappableDepots = depots.filter(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
 
@@ -151,10 +154,10 @@ export default function DepotsPage() {
                   <div className="min-w-[800px] lg:min-w-0">
                     {/* Table header */}
                     <div
-                      className="grid grid-cols-[2fr_1fr_3fr_2fr_1fr] px-4 py-3"
+                      className="grid grid-cols-[2fr_1fr_3fr_2fr_1fr_40px] px-4 py-3"
                       style={{ background: 'var(--app-bg)', borderBottom: '1px solid var(--border)' }}
                     >
-                      {[t.depotsPage.headerDesignation, t.depotsPage.headerWarehouseCode, t.depotsPage.headerLocation, t.depotsPage.headerCoordinates, t.depotsPage.headerStatus].map((h, i) => (
+                      {[t.depotsPage.headerDesignation, t.depotsPage.headerWarehouseCode, t.depotsPage.headerLocation, t.depotsPage.headerCoordinates, t.depotsPage.headerStatus, ''].map((h, i) => (
                         <div
                           key={i}
                           className={cn('text-[11px] font-[600]', i === 3 || i === 4 ? 'text-center' : '')}
@@ -169,7 +172,7 @@ export default function DepotsPage() {
                     {depots.map((depot) => (
                       <div
                         key={depot.id}
-                        className="grid grid-cols-[2fr_1fr_3fr_2fr_1fr] px-4 py-3 items-center transition-colors hover:bg-[var(--hover-bg)]"
+                        className="grid grid-cols-[2fr_1fr_3fr_2fr_1fr_40px] px-4 py-3 items-center transition-colors hover:bg-[var(--hover-bg)]"
                         style={{ borderBottom: '1px solid var(--border)' }}
                       >
                         {/* Name */}
@@ -245,6 +248,21 @@ export default function DepotsPage() {
                             {depot.isActive ? t.depotsPage.statusOperational : t.depotsPage.statusInactive}
                           </span>
                         </div>
+
+                        {/* Edit location */}
+                        <div className="flex justify-center">
+                          {!readOnly && (
+                            <button
+                              type="button"
+                              title="Modifier la localisation"
+                              onClick={() => setEditingDepot(depot)}
+                              className="w-7 h-7 flex items-center justify-center rounded-md border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                              style={{ background: 'var(--app-bg)' }}
+                            >
+                              <IconPencil size={12} style={{ color: 'var(--brand)' }} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -254,6 +272,16 @@ export default function DepotsPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Location edit modal ── */}
+      {editingDepot && (
+        <Suspense fallback={null}>
+          <DepotLocationModal
+            depot={editingDepot}
+            onClose={() => setEditingDepot(null)}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }

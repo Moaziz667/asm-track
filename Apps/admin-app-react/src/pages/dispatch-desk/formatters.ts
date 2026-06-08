@@ -1,6 +1,7 @@
 import type { OpsException } from './types';
 import { getCopy, type CopyDict } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
+import { formatElapsed as slaFormatElapsed, formatCountdown } from '@/lib/sla';
 
 export function formatMotif(motif?: string, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
@@ -11,6 +12,9 @@ export function formatMotif(motif?: string, copy?: CopyDict): string {
   if (key === 'SLA_SCHEDULED'   || key.includes('SLA_SCHEDULED'))   return resolvedCopy.dispatchDeskPage.motifSlaScheduled;
   if (key === 'SLA_PICKUP'      || key.includes('SLA_PICKUP'))      return resolvedCopy.dispatchDeskPage.motifSlaPickup;
   if (key === 'SLA_IN_TRANSIT'  || key.includes('SLA_IN_TRANSIT'))  return resolvedCopy.dispatchDeskPage.motifSlaInTransit;
+  if (key === 'SLA_WAITING')    return resolvedCopy.dispatchDeskPage.motifSlaWaiting;
+  if (key === 'SLA_ASSIGNMENT') return resolvedCopy.dispatchDeskPage.motifSlaAssignment;
+  if (key === 'SLA_TRANSIT')    return resolvedCopy.dispatchDeskPage.motifSlaTransit;
   if (key === 'SCHEDULED_MONITORING')                                return resolvedCopy.dispatchDeskPage.motifScheduledMonitoring;
   if (key === 'CLIENT_ABSENT')  return resolvedCopy.dispatchDeskPage.motifClientAbsent;
   if (key === 'REFUSED')        return resolvedCopy.dispatchDeskPage.motifRefused;
@@ -30,45 +34,43 @@ export function formatMotif(motif?: string, copy?: CopyDict): string {
   return motif ?? resolvedCopy.dispatchDeskPage.motifUnknown;
 }
 
-export function formatElapsed(dateString?: string, copy?: CopyDict): string {
-  if (!dateString) return '—';
-  const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
-  const diff = Math.floor((Date.now() - new Date(dateString).getTime()) / 60000);
-  if (diff < 1)  return resolvedCopy.dispatchDeskPage.timeJustNow;
-  if (diff < 60) return resolvedCopy.dispatchDeskPage.timeMinutes.replace('{diff}', String(diff));
-  const h = Math.floor(diff / 60);
-  if (h < 24)    return resolvedCopy.dispatchDeskPage.timeHours.replace('{h}', String(h)).replace('{mm}', String(diff % 60).padStart(2, '0'));
-  return resolvedCopy.dispatchDeskPage.timeDays.replace('{d}', String(Math.floor(h / 24)));
+export function formatElapsed(dateString?: string, _copy?: CopyDict): string {
+  const locale = useLocaleStore.getState().locale || 'fr';
+  return slaFormatElapsed(dateString, locale);
 }
 
 export function formatComment(row: OpsException, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
+  const c = resolvedCopy.dispatchDeskPage || {};
   const comment = row.comment ?? '';
   const key = (row.motif ?? '').toUpperCase().trim();
-  const t = formatElapsed(row.createdAt, resolvedCopy);
-  if (key === 'SLA_UNSCHEDULED_LATE')  return comment || resolvedCopy.dispatchDeskPage.commentSlaUnscheduledLate.replace('{time}', t);
-  if (key === 'SLA_UNSCHEDULED_TODAY') return comment || resolvedCopy.dispatchDeskPage.commentSlaUnscheduledToday;
-  if (key === 'SLA_UNSCHEDULED')       return resolvedCopy.dispatchDeskPage.commentSlaUnscheduled.replace('{time}', t);
-  if (key.includes('SLA_SCHEDULED'))   return resolvedCopy.dispatchDeskPage.commentSlaScheduled.replace('{time}', t);
-  if (key.includes('SLA_PICKUP'))      return resolvedCopy.dispatchDeskPage.commentSlaPickup.replace('{time}', t);
-  if (key.includes('SLA_IN_TRANSIT'))  return resolvedCopy.dispatchDeskPage.commentSlaInTransit.replace('{time}', t);
-  if (key === 'SCHEDULED_MONITORING')  return resolvedCopy.dispatchDeskPage.commentScheduledMonitoring;
-  if (key === 'CLIENT_ABSENT')  return `${resolvedCopy.dispatchDeskPage.commentClientAbsent.replace('{time}', t)}${comment ? ` · ${comment}` : ''}`;
-  if (key === 'REFUSED')        return `${resolvedCopy.dispatchDeskPage.commentRefused.replace('{time}', t)}${comment ? ` · ${comment}` : ''}`;
-  if (key === 'WRONG_ADDRESS')  return `${resolvedCopy.dispatchDeskPage.commentWrongAddress.replace('{time}', t)}${comment ? ` · ${comment}` : ''}`;
-  if (key === 'DAMAGED')        return `${resolvedCopy.dispatchDeskPage.commentDamaged.replace('{time}', t)}${comment ? ` · ${comment}` : ''}`;
-  if (key === 'OTHER')          return comment ? `${comment} · ${t}` : resolvedCopy.dispatchDeskPage.commentOther.replace('{time}', t);
-  if (key.includes('PARTIAL'))  return `${resolvedCopy.dispatchDeskPage.commentPartial.replace('{time}', t)}${comment ? ` · ${comment}` : ''}`;
+  // SLA motifs use scheduledAt (ERP delivery promise), not createdAt (import time)
+  const scheduleRef = row.scheduledAt || row.createdAt;
+  const t = formatElapsed(scheduleRef, resolvedCopy);
+  if (key === 'SLA_UNSCHEDULED_LATE')  return comment || (c.commentSlaUnscheduledLate || 'Late since {time}').replace('{time}', t);
+  if (key === 'SLA_UNSCHEDULED_TODAY') return comment || c.commentSlaUnscheduledToday || 'Scheduled today';
+  if (key === 'SLA_UNSCHEDULED')       return (c.commentSlaUnscheduled || 'Waiting since {time}').replace('{time}', t);
+  if (key.includes('SLA_SCHEDULED'))   return (c.commentSlaScheduled || 'Scheduled since {time}').replace('{time}', t);
+  if (key.includes('SLA_PICKUP'))      return (c.commentSlaPickup || 'Pickup pending since {time}').replace('{time}', t);
+  if (key.includes('SLA_IN_TRANSIT'))  return (c.commentSlaInTransit || 'In transit since {time}').replace('{time}', t);
+  if (key === 'SCHEDULED_MONITORING')  return c.commentScheduledMonitoring || 'Monitoring scheduled route';
+  if (key === 'CLIENT_ABSENT')  return `${c.commentClientAbsent ? c.commentClientAbsent.replace('{time}', t) : `Absent (${t})`}${comment ? ` · ${comment}` : ''}`;
+  if (key === 'REFUSED')        return `${c.commentRefused ? c.commentRefused.replace('{time}', t) : `Refused (${t})`}${comment ? ` · ${comment}` : ''}`;
+  if (key === 'WRONG_ADDRESS')  return `${c.commentWrongAddress ? c.commentWrongAddress.replace('{time}', t) : `Incorrect address (${t})`}${comment ? ` · ${comment}` : ''}`;
+  if (key === 'DAMAGED')        return `${c.commentDamaged ? c.commentDamaged.replace('{time}', t) : `Damaged (${t})`}${comment ? ` · ${comment}` : ''}`;
+  if (key === 'OTHER')          return comment ? `${comment} · ${t}` : (c.commentOther || 'Incident ({time})').replace('{time}', t);
+  if (key.includes('PARTIAL'))  return `${c.commentPartial ? c.commentPartial.replace('{time}', t) : `Partial (${t})`}${comment ? ` · ${comment}` : ''}`;
   if (key === 'FAILED' || key.includes('FAILED'))
-    return `${resolvedCopy.dispatchDeskPage.commentFailed.replace('{time}', t)}${comment && !comment.toLowerCase().includes('sla') ? ` · ${comment}` : ''}`;
-  if (key.includes('CANCELLED')) return resolvedCopy.dispatchDeskPage.commentCancelled.replace('{time}', t);
-  return comment || resolvedCopy.dispatchDeskPage.commentDefault.replace('{time}', t);
+    return `${c.commentFailed ? c.commentFailed.replace('{time}', t) : `Failed (${t})`}${comment && !comment.toLowerCase().includes('sla') ? ` · ${comment}` : ''}`;
+  if (key.includes('CANCELLED')) return (c.commentCancelled || 'Cancelled ({time})').replace('{time}', t);
+  return comment || (c.commentDefault || 'Event ({time})').replace('{time}', t);
 }
 
 export function formatSuggestion(row: OpsException, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (row.motif ?? '').toUpperCase().trim();
-  if (key === 'SLA_UNSCHEDULED_LATE' || key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduledLate;
+  if (key === 'SLA_UNSCHEDULED_LATE') return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduledLate;
+  if (key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduledToday;
   if (key.includes('SLA_UNSCHEDULED')) return resolvedCopy.dispatchDeskPage.suggestionSlaUnscheduled;
   if (key === 'SCHEDULED_MONITORING')  return resolvedCopy.dispatchDeskPage.suggestionScheduledMonitoring;
   if (key === 'WRONG_ADDRESS')         return resolvedCopy.dispatchDeskPage.suggestionWrongAddress;
@@ -76,28 +78,47 @@ export function formatSuggestion(row: OpsException, copy?: CopyDict): string {
   return '';
 }
 
-/** One flowing sentence describing the situation + what to do — the "system talks to you" narration in the Queue detail panel. */
+/** One flowing sentence describing the situation. For SLA motifs uses scheduledAt (delivery promise),
+ *  not createdAt (import time), so "overdue by X" reflects reality, not time-since-import. */
 export function formatNarrative(row: OpsException, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
-  const c = resolvedCopy.dispatchDeskPage;
+  const locale = useLocaleStore.getState().locale || 'fr';
+  const c = resolvedCopy.dispatchDeskPage || {};
   const key = (row.motif ?? '').toUpperCase().trim();
-  const t = formatElapsed(row.createdAt, resolvedCopy);
-  if (key === 'SLA_UNSCHEDULED_LATE')  return c.narrativeUnscheduledLate.replace('{time}', t);
-  if (key === 'SLA_UNSCHEDULED_TODAY') return c.narrativeUnscheduledToday;
-  if (key === 'SLA_UNSCHEDULED')       return c.narrativeUnscheduled.replace('{time}', t);
-  if (key.includes('SLA_SCHEDULED'))   return c.narrativeScheduled.replace('{time}', t);
-  if (key.includes('SLA_PICKUP'))      return c.narrativePickup.replace('{time}', t);
-  if (key.includes('SLA_IN_TRANSIT'))  return c.narrativeInTransit.replace('{time}', t);
-  if (key === 'SCHEDULED_MONITORING')  return c.narrativeScheduledMonitoring;
-  if (key === 'CLIENT_ABSENT')         return c.narrativeClientAbsent.replace('{time}', t);
-  if (key === 'REFUSED')               return c.narrativeRefused.replace('{time}', t);
-  if (key === 'WRONG_ADDRESS')         return c.narrativeWrongAddress;
-  if (key === 'DAMAGED')               return c.narrativeDamaged;
-  if (key.includes('PARTIAL'))         return c.narrativePartial;
-  if (key === 'FAILED' || key.includes('FAILED')) return c.narrativeFailed.replace('{time}', t);
-  if (key.includes('CANCELLED'))       return c.narrativeCancelled;
-  if (key === 'OTHER')                 return row.comment || c.narrativeOther.replace('{time}', t);
-  return c.narrativeDefault.replace('{time}', t);
+  // For SLA motifs: time relative to scheduledAt (ERP promise), fallback to createdAt
+  const slaTime = formatCountdown(row.scheduledAt || row.createdAt, locale);
+  const elapsed = formatElapsed(row.createdAt, resolvedCopy);
+  if (key === 'SLA_UNSCHEDULED_LATE')  return (c.narrativeUnscheduledLate || 'Order is overdue by {time} — plan urgently').replace('{time}', slaTime);
+  if (key === 'SLA_UNSCHEDULED_TODAY') return c.narrativeUnscheduledToday || 'Scheduled for today — assign now';
+  // SLA_WAITING (real-time) is the monitoring twin of SLA_UNSCHEDULED, and raw
+  // UNSCHEDULED is what the analytics endpoint emits for a not-yet-late order.
+  // All three mean the same thing to a dispatcher: no route yet. With a date we
+  // show the countdown to the promise; without one, how long it has been waiting.
+  if (key === 'SLA_UNSCHEDULED' || key === 'SLA_WAITING' || key === 'UNSCHEDULED')
+    return row.scheduledAt
+      ? (c.narrativeUnscheduled || 'No route yet · due {time}.').replace('{time}', slaTime)
+      : (c.narrativeUnscheduledNoDate || 'No route yet · waiting · {time}.').replace('{time}', elapsed);
+  if (key.includes('SLA_SCHEDULED'))   return (c.narrativeScheduled || 'Scheduled (approaching deadline: {time})').replace('{time}', slaTime);
+  if (key.includes('SLA_PICKUP'))      return (c.narrativePickup || 'Not picked up yet (waiting since {time})').replace('{time}', elapsed);
+  if (key.includes('SLA_IN_TRANSIT'))  return (c.narrativeInTransit || 'In transit since {time}').replace('{time}', elapsed);
+  // Real-time monitoring motifs (SlaMonitoringService) — semantic twins of the
+  // batch analytics motifs above, so they reuse the same schedule-anchored copy.
+  // (SLA_WAITING is handled alongside SLA_UNSCHEDULED above.)
+  if (key === 'SLA_ASSIGNMENT') return (c.narrativeScheduled || 'Scheduled (approaching deadline: {time})').replace('{time}', slaTime);
+  if (key === 'SLA_TRANSIT')    return (c.narrativeInTransit || 'In transit since {time}').replace('{time}', elapsed);
+  if (key === 'SCHEDULED_MONITORING')  return c.narrativeScheduledMonitoring || 'Proceeding normally';
+  if (key === 'CLIENT_ABSENT')         return (c.narrativeClientAbsent || 'Client absent ({time})').replace('{time}', elapsed);
+  if (key === 'REFUSED')               return (c.narrativeRefused || 'Refused ({time})').replace('{time}', elapsed);
+  if (key === 'WRONG_ADDRESS')         return c.narrativeWrongAddress || 'Incorrect address';
+  if (key === 'DAMAGED')               return c.narrativeDamaged || 'Damaged';
+  if (key.includes('PARTIAL'))         return c.narrativePartial || 'Partial delivery';
+  if (key === 'FAILED' || key.includes('FAILED')) return (c.narrativeFailed || 'Failed ({time})').replace('{time}', elapsed);
+  if (key.includes('CANCELLED'))       return c.narrativeCancelled || 'Cancelled';
+  if (key === 'OTHER')                 return row.comment || (c.narrativeOther || 'Incident ({time})').replace('{time}', elapsed);
+  // Fallback: raw status codes (SCHEDULED, PICKED_UP, IN_TRANSIT, …) and anything
+  // unrecognized resolve to their calm localized label rather than an alarmist
+  // "an event was reported" sentence, which read as noise on benign states.
+  return formatMotif(key, resolvedCopy);
 }
 
 export function needsClientContact(motif?: string): boolean {

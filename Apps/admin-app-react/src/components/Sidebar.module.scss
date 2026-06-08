@@ -6,23 +6,18 @@
 //   All colour tokens are CSS custom props on .sidebar.
 //   Light values are defaults; dark values override via :global(.dark) &.
 //   No duplication. One source of truth per token.
-// ─────────────────────────────────────────────────────────────────────────────
-
-// ── Static SCSS constants (geometry + motion) ─────────────────────────────────
-
-$accent:     #DF7C1C;
-$live:       #34c77b;
+// ───�$accent:     #3E6AE1;
+$live:       #3E6AE1;
 $width:      212px;
 $width-icon: 48px;
 
-// Apple UIKit deceleration — the curve that makes motion feel physical
-$ease-out:   cubic-bezier(0.25, 0.46, 0.45, 0.94);
-// Slightly springier for interactive feedback
-$ease-back:  cubic-bezier(0.34, 1.12, 0.64, 1);
+// Tesla 0.33s cubic-bezier timing
+$ease-out:   cubic-bezier(0.5, 0, 0, 0.75);
+$ease-back:  cubic-bezier(0.5, 0, 0, 0.75);
 
-$t-fast:  0.12s $ease-out;
-$t-mid:   0.18s $ease-out;
-$t-slow:  0.26s $ease-out;
+$t-fast:  0.33s $ease-out;
+$t-mid:   0.33s $ease-out;
+$t-slow:  0.33s $ease-out;
 
 
 // ── Colour tokens ─────────────────────────────────────────────────────────────
@@ -30,79 +25,75 @@ $t-slow:  0.26s $ease-out;
 .sidebar {
 
   // ── Light ─────────────────────────────────────────────────────────────────
-  // White surface. Separation from content via shadow, not a heavy border.
-  // "Enterprise white" — not consumer-app bright, not template-flat.
-
-  --sb-bg:              #1B232D;  // Deep Navy Sidebar
-  --sb-bg-hover:        rgba(255, 255, 255, 0.08);
-  --sb-bg-active:       rgba(223, 124, 28, 0.15);
-  --sb-sep-right:       rgba(255, 255, 255, 0.08);
-  --sb-sep-h:           rgba(255, 255, 255, 0.08);
+  --sb-bg:              #FFFFFF;
+  --sb-bg-hover:        #F4F4F4;  // Light Ash
+  --sb-bg-active:       #F4F4F4;  // Light Ash
+  --sb-sep-right:       #EEEEEE;  // Cloud Gray
+  --sb-sep-h:           #EEEEEE;  // Cloud Gray
 
   // Brand
-  --sb-brand-name:      #ffffff;
-  --sb-brand-sub:       #cbd5e1;  // bright light-slate
+  --sb-brand-name:      #171A20;  // Carbon Dark
+  --sb-brand-sub:       #5C5E62;  // Pewter
 
   // Navigation text
-  --sb-label:           #cbd5e1;  // bright light-slate (group headers)
-  --sb-item:            #cbd5e1;  // bright light-slate (inactive items)
-  --sb-item-hover:      #ffffff;
-  --sb-item-active:     #ffffff;
+  --sb-label:           #5C5E62;  // Pewter
+  --sb-item:            #393C41;  // Graphite
+  --sb-item-hover:      #171A20;  // Carbon Dark
+  --sb-item-active:     #171A20;  // Carbon Dark
 
   // Icons
-  --sb-icon:            #94a3b8;  // soft light-slate
-  --sb-icon-hover:      #ffffff;
-  --sb-icon-active:     #ffffff;
+  --sb-icon:            #5C5E62;  // Pewter
+  --sb-icon-hover:      #171A20;
+  --sb-icon-active:     #171A20;
 
   // Accent indicator
-  --sb-bar:             #DF7C1C;  // AWS Amazon Orange
+  --sb-bar:             #3E6AE1;  // Electric Blue
 
   // Operational status
-  --sb-status:          #94a3b8;
+  --sb-status:          #5C5E62;
 
   // Controls
-  --sb-ctrl:            #94a3b8;
-  --sb-ctrl-hover:      #ffffff;
+  --sb-ctrl:            #5C5E62;
+  --sb-ctrl-hover:      #171A20;
 
   // Tooltip surface
-  --sb-tip-bg:          #161d26;
-  --sb-tip-border:      rgba(255, 255, 255, 0.08);
-  --sb-tip-text:        #ffffff;
-  --sb-tip-shadow:      0 4px 20px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.20);
+  --sb-tip-bg:          #FFFFFF;
+  --sb-tip-border:      #EEEEEE;
+  --sb-tip-text:        #171A20;
+  --sb-tip-shadow:      none;
 
   // ── Dark override ─────────────────────────────────────────────────────────
   :global(.dark) & {
-    --sb-bg:              #1B232D;
-    --sb-bg-hover:        #18181b;  // zinc-900
-    --sb-bg-active:       #18181b;  // zinc-900
-    --sb-sep-right:       #27272a;  // zinc-800
-    --sb-sep-h:           #18181b;  // zinc-900
+    --sb-bg:              #171A20;  // Carbon Dark
+    --sb-bg-hover:        #22262F;
+    --sb-bg-active:       #22262F;
+    --sb-sep-right:       rgba(255, 255, 255, 0.08);
+    --sb-sep-h:           rgba(255, 255, 255, 0.08);
 
-    --sb-brand-name:      #f4f4f5;  // zinc-100
-    --sb-brand-sub:       #a1a1aa;  // zinc-400
+    --sb-brand-name:      #F3F3F7;
+    --sb-brand-sub:       #A4A4AD;
 
-    --sb-label:           #a1a1aa;  // zinc-400
-    --sb-item:            #d4d4d8;  // zinc-300
-    --sb-item-hover:      #fafafa;  // zinc-50
-    --sb-item-active:     #fafafa;  // zinc-50
+    --sb-label:           #A4A4AD;
+    --sb-item:            #DEDEE3;
+    --sb-item-hover:      #F3F3F7;
+    --sb-item-active:     #F3F3F7;
 
-    --sb-icon:            #a1a1aa;  // zinc-400
-    --sb-icon-hover:      #fafafa;  // zinc-50
-    --sb-icon-active:     #fafafa;  // zinc-50
+    --sb-icon:            #A4A4AD;
+    --sb-icon-hover:      #F3F3F7;
+    --sb-icon-active:     #F3F3F7;
 
-    --sb-bar:             #DF7C1C;  // brand accent
+    --sb-bar:             #3E6AE1;
 
-    --sb-status:          #a1a1aa;  // zinc-400
+    --sb-status:          #A4A4AD;
 
-    --sb-ctrl:            #a1a1aa;  // zinc-400
-    --sb-ctrl-hover:      #fafafa;  // zinc-50
+    --sb-ctrl:            #A4A4AD;
+    --sb-ctrl-hover:      #F3F3F7;
 
-    --sb-tip-bg:          #18181b;
-    --sb-tip-border:      #27272a;
-    --sb-tip-text:        #fafafa;
-    --sb-tip-shadow:      0 4px 20px rgba(0, 0, 0, 0.35), 0 1px 4px rgba(0, 0, 0, 0.20);
+    --sb-tip-bg:          #1E2129;
+    --sb-tip-border:      rgba(255, 255, 255, 0.08);
+    --sb-tip-text:        #F3F3F7;
+    --sb-tip-shadow:      none;
   }
-
 
   // ── Shell ─────────────────────────────────────────────────────────────────
 
@@ -117,7 +108,7 @@ $t-slow:  0.26s $ease-out;
     right: 0;
     border-right: none;
     border-left: 1px solid var(--sb-sep-right);
-    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.18), -1px 0 0 rgba(0, 0, 0, 0.10);
+    box-shadow: none;
   }
 
   width: $width;
@@ -126,7 +117,7 @@ $t-slow:  0.26s $ease-out;
   flex-direction: column;
   z-index: 50;
   border-right: 1px solid var(--sb-sep-right);
-  box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18), 1px 0 0 rgba(0, 0, 0, 0.10);
+  box-shadow: none;
   transition: width $t-mid;
   overflow: hidden;
   // Subpixel rendering precision
@@ -438,7 +429,7 @@ $t-slow:  0.26s $ease-out;
   // Anchored, calm, amber-accented. Not a pill, not a highlight.
   &--active {
     background: var(--sb-bg-active);
-    box-shadow: inset 0 1px 0 rgba(255,255,255,0.06), 0 1px 3px rgba(0,0,0,0.12);
+    box-shadow: none;
 
     // Inline-start indicator: logical property mirrors automatically in RTL
     &::before {

@@ -77,7 +77,7 @@ export function ModalRenderer() {
     <div
       aria-modal="true"
       role="dialog"
-      aria-label={config.type === 'CONFIRM' ? config.title : t.reassignCommandOverlay.modalTitle}
+      aria-label={config.type === 'CONFIRM' ? config.title : t.reassignCommandOverlay.title}
       onClick={close}
       className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
     >
@@ -201,6 +201,7 @@ function ReassignContent({
   setLoading: (v: boolean) => void;
   close: () => void;
 }) {
+  const t = useT();
   const available = config.drivers.filter((d) => d.id !== config.currentDriverId);
   const [selectedId, setSelectedId] = React.useState(available[0]?.id ?? '');
   const [search, setSearch] = React.useState('');

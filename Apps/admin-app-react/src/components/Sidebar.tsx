@@ -222,7 +222,17 @@ export function AppSidebar() {
           <img src="/icon.png" alt="ASM" className={s.brand__logo} />
         </div>
         <div className={s.brand__text}>
-          <span className={s['brand__text-name']}>ASM Track</span>
+          <span 
+            className={s['brand__text-name']} 
+            style={{ 
+              letterSpacing: '0.25em', 
+              textTransform: 'uppercase', 
+              fontSize: '11px', 
+              fontFamily: "'Universal Sans Display', -apple-system, sans-serif" 
+            }}
+          >
+            ASM Track
+          </span>
           <span className={s['brand__text-sub']}>{t.loginPage.brandTagline}</span>
         </div>
       </Link>

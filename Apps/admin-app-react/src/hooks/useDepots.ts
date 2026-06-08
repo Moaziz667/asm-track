@@ -49,6 +49,29 @@ export function useSyncDepotsFromErp() {
   });
 }
 
+export interface PatchDepotLocationPayload {
+  latitude?: number;
+  longitude?: number;
+  address?: string;
+}
+
+export function usePatchDepotLocation() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ depotId, payload }: { depotId: string; payload: PatchDepotLocationPayload }) => {
+      const res = await api.patch(`/api/v1/depots/${depotId}/location`, payload);
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successDepotUpdated');
+      queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
+    },
+    onError: (err: any) => {
+      showErrorToast(err, 'errorDepotUpdateFailed');
+    },
+  });
+}
+
 /** Geocode a single depot's address via the backend Nominatim proxy. */
 export function useGeolocateDepot() {
   const queryClient = useQueryClient();

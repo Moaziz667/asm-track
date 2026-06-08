@@ -264,7 +264,18 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   // ── Computed ──────────────────────────────────────────────────────────────
 
-  const alertMap    = useMemo(() => new Map(rows.map(r => [r.deliveryId, r])), [rows]);
+  // The backend emits one exception per delivery, but dedup defensively by
+  // deliveryId and keep the most severe so a WARNING can never mask a CRITICAL
+  // (the residual half of the SLA_WAITING / SLA_UNSCHEDULED_LATE overlap).
+  const alertMap = useMemo(() => {
+    const sev = (s?: string) => (s === 'CRITICAL' ? 3 : s === 'WARNING' ? 2 : 1);
+    const m = new Map<string, OpsException>();
+    for (const r of rows) {
+      const existing = m.get(r.deliveryId);
+      if (!existing || sev(r.severity) > sev(existing.severity)) m.set(r.deliveryId, r);
+    }
+    return m;
+  }, [rows]);
   const deliveryMap = useMemo(() => new Map(allDeliveries.map(d => [rowId(d), d])), [allDeliveries]);
 
   const matchSearch = useCallback((clientName?: string, ref?: string, erpId?: string, id?: string) => {

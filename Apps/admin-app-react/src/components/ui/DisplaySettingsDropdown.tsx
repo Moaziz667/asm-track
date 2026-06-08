@@ -30,6 +30,7 @@ function SortableColumnRow({
   visible: boolean;
   onToggle: () => void;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: col.id,
     disabled: !!col.pinned,
@@ -44,7 +45,7 @@ function SortableColumnRow({
         opacity: isDragging ? 0.4 : 1,
         background: 'var(--surface)',
       }}
-      className="flex items-center gap-2 px-2 py-[5px] rounded hover:bg-[var(--hover-bg)]"
+      className="flex items-center gap-2 px-2 py-[3.5px] rounded hover:bg-[var(--hover-bg)]"
     >
       {/* Drag handle */}
       <div
@@ -58,20 +59,18 @@ function SortableColumnRow({
       </div>
 
       {/* Checkbox */}
-      <button
-        type="button"
+      <div
         onClick={col.pinned ? undefined : onToggle}
-        disabled={col.pinned}
         className={cn(
-          'flex-shrink-0 w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors',
+          'flex-shrink-0 w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors cursor-pointer',
           visible
             ? 'border-[var(--brand)] bg-[var(--brand)]'
             : 'border-[var(--border)] bg-transparent hover:border-[var(--brand)]',
-          col.pinned && 'opacity-50 cursor-default',
+          col.pinned && 'opacity-50 cursor-default pointer-events-none',
         )}
       >
         {visible && <IconCheck size={9} style={{ color: 'white' }} strokeWidth={3} />}
-      </button>
+      </div>
 
       <span
         className="text-[11px] flex-1 select-none truncate"
@@ -85,7 +84,7 @@ function SortableColumnRow({
           className="text-[9px] font-medium px-1 py-0.5 rounded"
           style={{ color: 'var(--text-muted)', background: 'var(--hover-bg)' }}
         >
-          fixé
+          {t.displaySettings.pinned}
         </span>
       )}
     </div>
@@ -105,12 +104,6 @@ interface DisplaySettingsDropdownProps {
   disabled?: boolean;
 }
 
-const DENSITY_LABELS: Record<Density, string> = {
-  compact:     'Compact',
-  comfortable: 'Confort.',
-  spacious:    'Spacieux',
-};
-
 export function DisplaySettingsDropdown({
   columns,
   visibleIds,
@@ -124,6 +117,12 @@ export function DisplaySettingsDropdown({
   const t = useT();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  const DENSITY_LABELS: Record<Density, string> = {
+    compact:     t.displaySettings.compact,
+    comfortable: t.displaySettings.comfortable,
+    spacious:    t.displaySettings.spacious,
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -165,7 +164,7 @@ export function DisplaySettingsDropdown({
       {/* Panel */}
       {open && (
         <div
-          className="absolute right-0 top-[calc(100%+4px)] z-[200] w-[210px] rounded-lg border py-2"
+          className="absolute right-0 top-[calc(100%+4px)] z-[200] w-[185px] rounded-lg border py-1.5"
           style={{
             background: 'var(--surface)',
             borderColor: 'var(--border)',
@@ -175,12 +174,12 @@ export function DisplaySettingsDropdown({
         >
           {/* Density */}
           {density !== undefined && onDensityChange && (
-            <div className="px-3 pb-2 mb-1" style={{ borderBottom: '1px solid var(--border)' }}>
+            <div className="px-2.5 pb-2 mb-1" style={{ borderBottom: '1px solid var(--border)' }}>
               <p
                 className="text-[9px] font-bold uppercase tracking-widest mb-1.5"
                 style={{ color: 'var(--text-muted)' }}
               >
-                Densité
+                {t.displaySettings.density}
               </p>
               <div className="flex gap-1">
                 {(['compact', 'comfortable', 'spacious'] as Density[]).map(d => (
@@ -203,12 +202,12 @@ export function DisplaySettingsDropdown({
           )}
 
           {/* Columns */}
-          <div className="px-3 flex items-center justify-between mb-1 mt-1">
+          <div className="px-2.5 flex items-center justify-between mb-1 mt-1">
             <p
               className="text-[9px] font-bold uppercase tracking-widest"
               style={{ color: 'var(--text-muted)' }}
             >
-              Colonnes
+              {t.displaySettings.columns}
             </p>
             {onReset && (
               <button
@@ -220,7 +219,7 @@ export function DisplaySettingsDropdown({
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}
               >
                 <IconRotateClockwise size={10} />
-                Réinitialiser
+                {t.displaySettings.reset}
               </button>
             )}
           </div>

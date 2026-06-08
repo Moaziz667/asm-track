@@ -1,4 +1,6 @@
 // ── Notification template helpers (local to avoid a cycle with ux-copy) ─────
+import { humanizeMinutes } from './sla';
+
 const _ar_fmtEta = (iso: string): string => {
   if (!iso) return '';
   const d = new Date(iso);
@@ -81,6 +83,10 @@ export const AR_COPY = {
     reassignRoute: 'تعيين هذه الرحلة لسائق آخر',
     closeRoute: 'إغلاق هذه الرحلة يدوياً',
     deleteDraft: 'حذف مسودة الرحلة هذه',
+    validateRouteShort: 'تأكيد الرحلة',
+    reassignRouteShort: 'إعادة تعيين الرحلة',
+    cancelRouteShort: 'إلغاء الرحلة',
+    cancelRouteWithStops: 'إلغاء الرحلة ({count} محطات نشطة)',
     viewDetail: 'عرض تفاصيل هذا العنصر',
     addStop: 'إضافة شحنة لهذه الرحلة',
     removeStop: 'إزالة هذه المحطة من الرحلة',
@@ -94,7 +100,6 @@ export const AR_COPY = {
     capacityOver: 'تجاوزت سعة المركبة — اختر مركبة أخرى أو قسّم الشحنة',
     capacityOk: 'سعة المركبة متاحة',
     editWindow: 'تعديل النافذة الزمنية',
-    removeStop: 'إزالة المحطة',
     cancelStop: 'إلغاء المحطة',
     reposition: 'إعادة ترتيب',
   },
@@ -574,6 +579,18 @@ export const AR_COPY = {
   // ── Display Settings ──────────────────────────────────────────────────────
   displaySettings: {
     title: 'إعدادات العرض',
+    compactView: 'عرض مضغوط',
+    compactViewDesc: 'تقليل المساافات لتنسيق أكثر ضغطاً',
+    showThumbnails: 'إظهار الصور المصغرة',
+    showThumbnailsDesc: 'عرض صور عناصر الطلب في قائمة التوصيل',
+    expandGroups: 'توسيع المجموعات',
+    expandGroupsDesc: 'توسيع مجموعات الأقسام دائماً بشكل افتراضي',
+    mapLayer: 'طبقة الخريطة',
+    mapLayerDesc: 'اختر نمط طبقة الخريطة الافتراضي',
+    mapLayerStreet: 'شوارع',
+    mapLayerSatellite: 'قمر صناعي',
+    mapLayerDark: 'داكن',
+    confirmButton: 'تطبيق الإعدادات',
     density: 'الكثافة',
     columns: 'الأعمدة',
     visibleColumns: 'الأعمدة المرئية',
@@ -595,6 +612,8 @@ export const AR_COPY = {
 
   // ── Dashboard page ──────────────────────────────────────────────────────
   dashboardPage: {
+    title: 'لوحة القيادة',
+    subtitle: 'نظرة عامة على العمليات والإحصاءات المباشرة',
     syncError: 'فشل المزامنة',
     kpiTotal: 'الإجمالي',
     kpiInTransit: 'في الطريق',
@@ -654,6 +673,13 @@ export const AR_COPY = {
     kpiDeliveredOf: 'من',
     kpiVsPrevPeriod: 'مقارنة بالفترة السابقة',
     kpiActiveRoutesSub: 'نشطة',
+    noData: 'لا توجد بيانات متاحة',
+    sectionStart: 'رحلات للبدء',
+    noRoutesWaiting: 'لا توجد رحلات قيد الانتظار',
+    assignButton: 'تعيين',
+    genericAlert: 'مشكلة تتطلب انتباهك',
+    critiqueBadge: 'حرج',
+    overdueChipLabel: '{count} غير مجدولة ومتأخرة',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -746,6 +772,11 @@ export const AR_COPY = {
     driverOnline: 'متصل',
     driverOnBreak: 'في استراحة',
     driverOffline: 'غير متصل',
+    kpiCritical: 'حرج',
+    kpiUnassigned: 'غير معين',
+    kpiInTransit: 'في الطريق',
+    kpiFailed: 'فاشل',
+    kpiUpdated: 'تم التحديث',
     // Tabs
     tabQueue: 'قائمة الانتظار',
     tabAssign: 'التكليفات',
@@ -763,7 +794,7 @@ export const AR_COPY = {
     batchAssign: 'تعيين ({count})',
     batchReassign: 'إعادة تعيين ({count})',
     batchCancel: 'إلغاء',
-    cardCreated: 'أُنشئت',
+    cardCreated: 'تم استيرادها منذ {time}',
     handoffEmpty: 'لا توجد تسليمات جارية',
     handoffStateRequested: 'في انتظار الرمز',
     handoffStateInProgress: 'تم إصدار الرمز · بانتظار المسح',
@@ -855,6 +886,9 @@ export const AR_COPY = {
     motifUnknown: 'حادثة غير معروفة',
     motifSlaUnscheduledLate: 'متأخر (غير مجدول)',
     motifSlaUnscheduledToday: 'مجدول اليوم',
+    motifSlaWaiting: 'انتظار مطوّل',
+    motifSlaAssignment: 'تجاوز مهلة التعيين',
+    motifSlaTransit: 'عبور متأخر',
     // Time elapsed (formatElapsed)
     timeJustNow: 'للتو',
     timeMinutes: '{diff} دقيقة',
@@ -883,11 +917,13 @@ export const AR_COPY = {
     suggestionWrongAddress: '→ تصحيح العنوان في تفاصيل الطلب',
     suggestionOther: '→ التحقق من تعليق السائق',
     suggestionSlaUnscheduledLate: '→ تعيين لرحلة عاجلة',
+    suggestionSlaUnscheduledToday: '→ الجدولة قبل نهاية اليوم',
     // Narration paragraphs (formatNarrative — "system talks to you" in Queue detail)
-    narrativeUnscheduledLate: 'ما زالت هذه الطلبية بانتظار تخصيص جولة وأصبحت متأخرة الآن — وهي تنتظر منذ {time}. تخصيص جولة عاجلة سيساعد على تفادي تجاوز اتفاقية مستوى الخدمة.',
-    narrativeUnscheduledToday: 'هذه الطلبية مجدولة لليوم ولم يتم تخصيص جولة لها بعد. من الأفضل تخصيصها بسرعة للبقاء ضمن الجدول الزمني.',
-    narrativeUnscheduled: 'هذه الطلبية تنتظر تخصيص جولة منذ {time}. لا شيء عاجل الآن، لكنها تستحق المتابعة.',
-    narrativeScheduled: 'هذه الطلبية مجدولة لكنها تقترب من حد اتفاقية مستوى الخدمة — تستحق نظرة سريعة.',
+    narrativeUnscheduledLate: 'طلبية غير مجدولة · {time} — يجب التعيين فوراً.',
+    narrativeUnscheduledToday: 'مجدولة لليوم — لا جولة بعد. عيّن بسرعة.',
+    narrativeUnscheduled: 'لا جولة بعد · موعد {time}.',
+    narrativeUnscheduledNoDate: 'لا جولة بعد · في الانتظار · {time}.',
+    narrativeScheduled: 'مجدولة لكن مهلة SLA قريبة ({time}) — راقب الوضع.',
     narrativePickup: 'لم يستلم السائق هذه الطلبية بعد ونافذة الاستلام توشك على الانتهاء. تذكير بسيط قد يساعد.',
     narrativeInTransit: 'هذه الطلبية في الطريق منذ {time}، وهي مدة أطول من المتوقع. مكالمة سريعة مع السائق قد توضح الأمر.',
     narrativeScheduledMonitoring: 'هذه الطلبية تسير بشكل طبيعي — لا حاجة لأي إجراء، مجرد متابعة روتينية.',
@@ -900,6 +936,10 @@ export const AR_COPY = {
     narrativeCancelled: 'تم إلغاء هذه الطلبية.',
     narrativeOther: 'تم الإبلاغ عن أمر يخص هذه الطلبية منذ {time} — يستحق إلقاء نظرة على التفاصيل قبل المتابعة.',
     narrativeDefault: 'تم الإبلاغ عن حدث يخص هذه الطلبية منذ {time}.',
+    chipScheduleLate: 'متأخر · {time}',
+    chipScheduleIn: 'موعد {time}',
+    chipNoSchedule: 'لا تاريخ محدد',
+    chipLateAction: '— يحتاج جدولة عاجلة',
     // ReplanModal
     replanModalTitleReplan: 'إعادة جدولة للتخطيط',
     replanModalTitleReassign: 'إعادة تعيين التسليم',
@@ -1275,6 +1315,10 @@ export const AR_COPY = {
     // Last sync
     lastSync: 'آخر مزامنة:',
     syncErpButton: 'مزامنة ERP',
+
+    // Late / soon scheduling tooltips
+    lateTooltip: 'تأخر في الجدولة — كان يجب استيراد هذا الطلب قبل الموعد المحدد',
+    soonTooltip: 'جدولة وشيكة — أقل من 24 ساعة قبل الموعد المحدد',
   },
 
   // ── صفحة منشئ المسارات ────────────────────────────────────────────────
@@ -2362,6 +2406,7 @@ export const AR_COPY = {
       systemHealth: 'صحة النظام',
       settings: 'الإعدادات',
       erpIntegration: 'ربط ERP',
+      companies: 'الشركات',
     },
     badges: {
       dispatchActionRequired: 'إجراء مطلوب',
@@ -2370,7 +2415,13 @@ export const AR_COPY = {
       imports: 'استيراد',
       routeActive: 'مسار نشط',
       routesActive: 'مسارات نشطة',
-    }
+      arDispatchOne: 'إجراء مطلوب',
+      arDispatchMany: 'إجراءات مطلوبة',
+      arImportOne: 'استيراد واحد',
+      arImportMany: 'استيراد',
+      arRouteActive: 'مسار نشط',
+      arRouteActiveMany: 'مسارات نشطة',
+    },
   },
 
   // ── failureReasonsSettings ──────────────────────────────────────────────
@@ -2414,8 +2465,12 @@ export const AR_COPY = {
 
   // ── routeFilterBar ──────────────────────────────────────────────────────
   routeFilterBar: {
-    cityPlaceholder: 'مدينة...',
+    title: 'الفلاتر',
+    placeholderStatus: 'تصفية حسب الحالة',
+    placeholderCity: 'المدينة',
+    citiesPlaceholder: 'كل المدن',
     clearButton: 'مسح',
+    cityPlaceholder: 'مدينة...',
     statusAll: 'الكل',
     statusDraft: 'مسودة',
     statusValidated: 'مؤكدة',
@@ -2437,6 +2492,16 @@ export const AR_COPY = {
     presetNorth: 'المنطقة الشمالية',
     presetAtRisk: 'الرحلات المعرضة للخطر',
     saveAsMorning: 'حفظ كتوزيع الصباح',
+    statusFilter: 'تصفية حسب الحالة',
+    zoneFilter: 'المنطقة',
+    deliveryTypeFilter: 'النوع',
+    filterPresets: 'الخيارات الجاهزة',
+    presetToday: 'اليوم',
+    presetWeek: 'هذا الاسبوع',
+    presetPending: 'قيد الانتظار',
+    presetFailed: 'فاشل',
+    showArchived: 'عرض الأرشيف',
+    persistenceInfo: 'يتم حفظ الفلاتر لكل مستخدم.',
   },
 
   // ── newDeliveryPanel ──────────────────────────────────────────────────
@@ -2457,6 +2522,16 @@ export const AR_COPY = {
     stockWarning: 'الكمية تتجاوز المخزون المتاح',
     outOfStock: 'نفد المخزون',
     inStock: 'في المخزون',
+    stepClient: 'العميل',
+    stepAddress: 'العنوان',
+    stepArticles: 'العناصر',
+    stepPayment: 'الدفع',
+    stepSummary: 'الملخص',
+    noClientFound: 'لم يتم العثور على العميل',
+    newClient: '+ عميل جديد',
+    skuNotAvailable: 'SKU غير متوفر',
+    erpBadge: 'ERP',
+    phoneNotAvailable: 'غير متوفر',
   },
 
   // ── pinDropoffModal ──────────────────────────────────────────────────
@@ -2632,13 +2707,13 @@ export const AR_COPY = {
       message: (p: any) => {
         const head = `${_ar_ref(p)}${p.clientName || 'العميل'} — `;
         if (p.motif === 'SLA_WAITING') {
-          return `${head}في انتظار الإسناد منذ ${p.elapsed} دقيقة (الحد ${p.limit} دقيقة)`;
+          return `${head}في انتظار الإسناد منذ ${humanizeMinutes(p.elapsed, 'ar')} (الحد ${p.limit} دقيقة)`;
         }
         if (p.motif === 'SLA_ASSIGNMENT') {
-          return `${head}تأخّر الانطلاق: ${p.elapsed} دقيقة منذ الإسناد (الحد ${p.limit} دقيقة)`;
+          return `${head}تأخّر الانطلاق: ${humanizeMinutes(p.elapsed, 'ar')} منذ الإسناد (الحد ${p.limit} دقيقة)`;
         }
         if (p.motif === 'SLA_PICKUP') {
-          return `${head}تأخّر المغادرة من المستودع: ${p.elapsed} دقيقة (الحد ${p.limit} دقيقة)`;
+          return `${head}تأخّر المغادرة من المستودع: ${humanizeMinutes(p.elapsed, 'ar')} (الحد ${p.limit} دقيقة)`;
         }
         if (p.motif === 'SLA_TRANSIT') {
           return `${head}تأخّر التسليم عن الموعد المحدد`;

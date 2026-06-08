@@ -1025,7 +1025,6 @@ function DriversPageContent() {
             required
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
-            className="text-slate-800 dark:text-white"
           />
           <FieldInput
             label={t.driversPage.phoneLabel}
@@ -1033,7 +1032,7 @@ function DriversPageContent() {
             required
             value={form.phone}
             onChange={(e) => setForm({ ...form, phone: e.target.value })}
-            className="font-mono text-slate-800 dark:text-white"
+            className="font-mono"
           />
           <FieldInput
             label={t.driversPage.emailLabel}
@@ -1043,7 +1042,6 @@ function DriversPageContent() {
             value={form.email}
             onChange={(e) => setForm({ ...form, email: e.target.value })}
             hint={t.driversPage.invitationEmailHelp}
-            className="text-slate-800 dark:text-white"
           />
         </div>
       </AppModal>

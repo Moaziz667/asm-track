@@ -3,13 +3,13 @@ import React from 'react';
 import { IconSearch as Search, IconRefresh as RefreshCw, IconMapPin as MapPin, IconRoute as Route, IconX as X } from '@tabler/icons-react';
 import { colors, spacing, btn } from '@/lib/design-tokens';
 import { Spinner } from '@/components/feedback/LoadingBar';
-import type { DeliveriesFilters } from '../hooks/useDeliveries';
+import type { DeliveriesFilters } from '@/hooks/useDeliveries';
 import type { Driver, Zone } from '@/types';
 import { useT } from '@/lib/LocaleContext';
 
 function getDeliveryStatuses(t: any) {
   return [
-  { value: '',                    label: t.deliveryPage.filterStatusAll },
+  { value: '',                    label: t.dispatchDeskPage.filterStatusAll },
   { value: 'UNSCHEDULED',         label: t.statusLabels.UNSCHEDULED },
   { value: 'SCHEDULED',           label: t.statusLabels.SCHEDULED },
   { value: 'PICKED_UP',           label: t.statusLabels.PICKED_UP },
@@ -198,7 +198,7 @@ export function DeliveryFilterBar({
           onChange={(e) => onChange({ driverId: e.target.value || undefined })}
           style={{ ...selectStyle, width: 150 }}
         >
-          <option value="">{t.deliveryPage.filterDriverPlaceholder}</option>
+          <option value="">{t.dispatchDeskPage.filterDriverPlaceholder}</option>
           {drivers.map((d) => (
             <option key={d.id} value={d.id}>{d.name}</option>
           ))}
