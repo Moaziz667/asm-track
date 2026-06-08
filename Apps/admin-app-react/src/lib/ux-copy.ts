@@ -2447,6 +2447,7 @@ export const FR_COPY = {
       tracking: 'Suivi',
       returns: 'Retours',
       import: 'Importation',
+      failureReasons: "Motifs d'échec",
       createRoute: 'Créer tournée',
       routes: 'Tournées',
       drivers: 'Chauffeurs',
@@ -2666,7 +2667,8 @@ export const FR_COPY = {
       title: 'Échec livraison',
       message: (p: any) => {
         const parts = [`${p.clientName || 'Client'} — échouée`];
-        if (p.motif) parts.push(p.motif);
+        const detail = p.reason || p.motif;
+        if (detail) parts.push(detail);
         if (p.driverName) parts.push(p.driverName);
         return `${refTag(p)}${parts.join(' · ')}`;
       },

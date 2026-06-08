@@ -79,6 +79,16 @@ spring:
           predicates:
             - Path=/api/admin/notifications/**
 
+        - id: delivery-admin-failure-reasons
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/failure-reasons/**
+
+        - id: delivery-admin-system
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/admin/system/**
+
         - id: delivery-admin-erp
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:

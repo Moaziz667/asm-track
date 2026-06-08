@@ -427,7 +427,12 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT delivery.failed orderId={} deliveryId={} reason={}", order != null ? order.getId() : null, delivery.getId(), reason);
             DeliveryEventPayload p = deliveryPayload("delivery.failed", order, delivery);
-            p.setReason(reason);
+            // Carry the canonical category (code) + the rich human reason (catalog
+            // label enriched with the driver comment), so notifications match the
+            // delivery/route/timeline failure presentation instead of a bare comment.
+            p.setMotif(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null);
+            p.setReason(delivery.getFailReason() != null && !delivery.getFailReason().isBlank()
+                    ? delivery.getFailReason() : reason);
             sendDelivery("delivery.failed", p);
         });
     }

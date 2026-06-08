@@ -2395,6 +2395,7 @@ export const AR_COPY = {
       tracking: 'المتابعة',
       returns: 'المرتجعات',
       import: 'الاستيراد',
+      failureReasons: 'أسباب الفشل',
       createRoute: 'إنشاء رحلة',
       routes: 'الرحلات',
       drivers: 'السائقين',
@@ -2614,7 +2615,8 @@ export const AR_COPY = {
       title: 'فشل التوصيل',
       message: (p: any) => {
         const parts = [`${p.clientName || 'العميل'} — فشل`];
-        if (p.motif) parts.push(p.motif);
+        const detail = p.reason || p.motif;
+        if (detail) parts.push(detail);
         if (p.driverName) parts.push(p.driverName);
         return `${_ar_ref(p)}${parts.join(' · ')}`;
       },

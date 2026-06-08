@@ -17,6 +17,7 @@ import { useLocaleStore } from '@/lib/i18n';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
+import { FailureInfo } from '@/components/data-display/FailureInfo';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -168,10 +169,11 @@ export default function DeliveryDetailPage() {
                 {/* Status row */}
                 <div className="flex items-center gap-2">
                   <StatusBadge status={delivery.status} size="sm" />
-                  {isFailed && (delivery as any).failureCode && (
-                    <span className="text-[10px] font-medium px-2 py-1 rounded-[3px] bg-red-50 text-red-700 border border-red-200">
-                      {t.failureCodes[(delivery as any).failureCode] ?? (delivery as any).failureCode}
-                    </span>
+                  {isFailed && ((delivery as any).failureCode || (delivery as any).failReason || (delivery as any).failureComment) && (
+                    <FailureInfo
+                      code={(delivery as any).failureCode}
+                      reason={(delivery as any).failReason ?? (delivery as any).failureComment}
+                    />
                   )}
                   {isCancelled && (
                     <span className="text-[10px] font-medium px-2 py-1 rounded-[3px] bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>

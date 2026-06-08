@@ -523,6 +523,8 @@ public class OpsAnalyticsService {
                 .routePlannedStartTime(routeInfo != null ? routeInfo.plannedStartTime() : null)
                 .routeEndTimeWindow(routeInfo != null ? routeInfo.endTimeWindow() : null)
                 .status(d.getStatus().name())
+                .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
+                .failReason(d.getFailReason())
                 .source(order != null ? order.getSource() : null)
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)

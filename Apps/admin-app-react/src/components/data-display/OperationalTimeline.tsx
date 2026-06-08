@@ -25,9 +25,54 @@ interface OperationalTimelineProps {
 
 const TIMELINE_DICT: Record<string, Record<string, string>> = {
   DELIVERY_CREATED: {
-    fr: '📦 Livraison initialisée sur le système.',
-    en: '📦 Delivery initialized on the system.',
-    ar: '📦 تم إنشاء الشحنة في النظام.',
+    fr: '📦 Commande importée et créée dans le système.',
+    en: '📦 Order imported and created in the system.',
+    ar: '📦 تم استيراد الطلب وإنشاؤه في النظام.',
+  },
+  DELIVERY_ASSIGNED: {
+    fr: '👤 Affectée à un chauffeur.',
+    en: '👤 Assigned to a driver.',
+    ar: '👤 تم إسنادها إلى سائق.',
+  },
+  DELIVERY_REASSIGNED: {
+    fr: '🔄 Réaffectée à un autre chauffeur.',
+    en: '🔄 Reassigned to another driver.',
+    ar: '🔄 تمت إعادة إسنادها إلى سائق آخر.',
+  },
+  DELIVERY_REMOVED_FROM_ROUTE: {
+    fr: '➖ Retirée de la tournée.',
+    en: '➖ Removed from the route.',
+    ar: '➖ تمت إزالتها من الجولة.',
+  },
+  DELIVERY_REMOVED: {
+    fr: '➖ Retirée de la tournée.',
+    en: '➖ Removed from the route.',
+    ar: '➖ تمت إزالتها من الجولة.',
+  },
+  DELIVERY_TIMEOUT_RESET: {
+    fr: '⏱️ Compteur de délai (SLA) réinitialisé.',
+    en: '⏱️ SLA timer reset.',
+    ar: '⏱️ تمت إعادة ضبط مؤقت المهلة.',
+  },
+  DELIVERY_CANCELLED_BY_ADMIN: {
+    fr: '🚫 Annulée par l\'administrateur. Motif : {reason}',
+    en: '🚫 Cancelled by admin. Reason: {reason}',
+    ar: '🚫 تم الإلغاء من قبل المسؤول. السبب: {reason}',
+  },
+  DELIVERY_CANCELLED_BY_CLIENT: {
+    fr: '🚫 Annulée à la demande du client. Motif : {reason}',
+    en: '🚫 Cancelled at client request. Reason: {reason}',
+    ar: '🚫 تم الإلغاء بطلب من العميل. السبب: {reason}',
+  },
+  DELIVERY_CANCELLED_BY_DRIVER: {
+    fr: '🚫 Annulée par le chauffeur. Motif : {reason}',
+    en: '🚫 Cancelled by driver. Reason: {reason}',
+    ar: '🚫 تم الإلغاء من قبل السائق. السبب: {reason}',
+  },
+  DELIVERY_CANCELLED_BY_SYSTEM: {
+    fr: '🚫 Annulée automatiquement (système). Motif : {reason}',
+    en: '🚫 Auto-cancelled (system). Reason: {reason}',
+    ar: '🚫 تم الإلغاء تلقائياً (النظام). السبب: {reason}',
   },
   DELIVERY_SCHEDULED: {
     fr: '📅 Livraison planifiée pour le client.',
@@ -60,9 +105,14 @@ const TIMELINE_DICT: Record<string, Record<string, string>> = {
     ar: '⚠️ تم التسليم الجزئي للشحنة.',
   },
   DELIVERY_FAILED: {
-    fr: '❌ Livraison en échec. Motif : {reason}',
-    en: '❌ Delivery failed. Reason: {reason}',
-    ar: '❌ فشل التسليم. السبب: {reason}',
+    fr: '❌ Livraison en échec — {code} · {reason}',
+    en: '❌ Delivery failed — {code} · {reason}',
+    ar: '❌ فشل التسليم — {code} · {reason}',
+  },
+  DELIVERY_FAILED_BY_SYSTEM: {
+    fr: '❌ Échec automatique (système) — {code} · {reason}',
+    en: '❌ Auto-failed (system) — {code} · {reason}',
+    ar: '❌ فشل تلقائي (النظام) — {code} · {reason}',
   },
   DELIVERY_CANCELLED: {
     fr: '🚫 Livraison annulée. Motif : {reason}',
@@ -143,7 +193,7 @@ export default function OperationalTimeline({ events, className }: OperationalTi
     const activeLocale = locale || 'fr';
     const key = evt.eventKey || evt.status || 'UNKNOWN';
     const templateObj = TIMELINE_DICT[key];
-    
+
     // Parse parameters
     let params: Record<string, any> = {};
     if (evt.eventParams) {
@@ -162,25 +212,32 @@ export default function OperationalTimeline({ events, className }: OperationalTi
       // Fallback for unmapped custom keys — construct readable message
       const fallbackMsg = key.replace(/_/g, ' ').toLowerCase();
       const capitalized = fallbackMsg.charAt(0).toUpperCase() + fallbackMsg.slice(1);
-      
+
       const reasonVal = params.reason || params.motif || params.comment || '';
       return reasonVal ? `${capitalized} (${reasonVal})` : capitalized;
     }
 
     const template = templateObj[activeLocale] || templateObj['en'] || templateObj['fr'];
 
-    // Interpolate bracket parameters safely
-    return template.replace(/\{(\w+)\}/g, (match, k) => {
-      const val = params[k];
-      if (val !== undefined && val !== null) {
-        // Translate key outcomes or statuses if they are strings
-        if (k === 'slaType') {
-          return activeLocale === 'ar' ? 'الانتظار' : (activeLocale === 'en' ? 'waiting' : 'attente');
-        }
-        return String(val);
+    // Interpolate. Empty/missing params keep their {placeholder} so we can strip
+    // both the placeholder and the separator in front of it (e.g. a dangling
+    // " · {reason}" when no comment was given).
+    const interpolated = template.replace(/\{(\w+)\}/g, (match, k) => {
+      if (k === 'slaType') {
+        return activeLocale === 'ar' ? 'الانتظار' : (activeLocale === 'en' ? 'waiting' : 'attente');
       }
-      return match;
+      const val = params[k];
+      if (val === undefined || val === null || String(val).trim() === '') return match;
+      // Localize the failure category code to its label — same as every other surface.
+      if (k === 'code') return (t.failureCodes as any)?.[val] ?? String(val);
+      return String(val);
     });
+
+    return interpolated
+      .replace(/\s*[—:·-]\s*\{\w+\}/g, '')  // drop "<sep> {emptyParam}"
+      .replace(/\{\w+\}/g, '')               // drop any remaining standalone {param}
+      .replace(/\s{2,}/g, ' ')
+      .trim();
   };
 
   if (!events || events.length === 0) {
@@ -205,15 +262,15 @@ export default function OperationalTimeline({ events, className }: OperationalTi
         const colorClasses = getEventColor(evt.status);
         const actorName = evt.changedBy || evt.actor || 'SYSTEM';
         const actorRole = evt.changedByRole || 'SYSTEM';
-        
+
         return (
           <div key={evt.id || idx} className="relative group animate-fade-in">
             {/* Timeline Node Dot */}
-            <div 
+            <div
               className={cn(
                 'absolute -left-[21px] rtl:-left-0 rtl:-right-[21px] top-1.5 w-3.5 h-3.5 rounded-full border-2 border-[var(--app-bg)] bg-[var(--surface)] transition-transform duration-200 group-hover:scale-125 z-10 flex items-center justify-center',
-                evt.status === 'COMPLETED' || evt.status === 'DELIVERED' ? 'bg-emerald-500' : 
-                evt.status === 'FAILED' ? 'bg-rose-500' : 
+                evt.status === 'COMPLETED' || evt.status === 'DELIVERED' ? 'bg-emerald-500' :
+                evt.status === 'FAILED' ? 'bg-rose-500' :
                 evt.status === 'CANCELLED' ? 'bg-slate-500' : 'bg-[var(--text-soft)]'
               )}
             />
@@ -251,4 +308,3 @@ export default function OperationalTimeline({ events, className }: OperationalTi
     </div>
   );
 }
-

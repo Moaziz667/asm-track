@@ -44,6 +44,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { colors, DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
@@ -855,6 +856,15 @@ export default function RouteDetailsPage() {
                         <IconMapPin size={12} />
                         <p className="truncate">{addr}</p>
                       </div>
+                      {displayStatus === 'FAILED' && ((delivery as any)?.failureCode || (delivery as any)?.failReason || (stop as any)?.failureCode || (stop as any)?.failReason) && (
+                        <div className="mt-1.5">
+                          <FailureInfo
+                            code={(delivery as any)?.failureCode ?? (stop as any)?.failureCode}
+                            reason={(delivery as any)?.failReason ?? (stop as any)?.failReason}
+                            size="xs"
+                          />
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 ml-2">
                       <p className="text-xs font-mono font-bold">{formatMoney(amount, stop.order?.currency ?? currency)}</p>

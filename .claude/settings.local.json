@@ -202,7 +202,11 @@
       "Bash(sed -n '1,20p' entity/Delivery.java)",
       "Bash(grep -v \"^package\\\\|^public\\\\|^}\\\\|^$\\\\|//\" entity/DeliveryStatus.java)",
       "Bash(echo \"--- TOTAL ERRORS: $\\(npx tsc --noEmit 2>&1)",
-      "Bash(echo \"TOTAL ERRORS: $\\(npx tsc --noEmit 2>&1)"
+      "Bash(echo \"TOTAL ERRORS: $\\(npx tsc --noEmit 2>&1)",
+      "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 30; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 20; \"EXIT=$LASTEXITCODE\")",
+      "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 25; \"EXIT=$LASTEXITCODE\")",
+      "Bash(git rev-list *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

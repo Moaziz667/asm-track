@@ -27,6 +27,7 @@ const DepotsPage = lazy(() => import('./pages/DepotsPage'));
 const SchedulePage = lazy(() => import('./pages/SchedulePage'));
 const OverviewCalendarPage = lazy(() => import('./pages/OverviewCalendarPage'));
 const ReturnsPage = lazy(() => import('./pages/ReturnsPage'));
+const FailureReasonsPage = lazy(() => import('./pages/FailureReasonsPage'));
 const SystemHealthPage = lazy(() => import('./pages/SystemHealthPage'));
 const PerformancePage = lazy(() => import('./pages/PerformancePage'));
 const SettingsPage = lazy(() => import('./pages/SettingsPage'));
@@ -116,6 +117,7 @@ const router = createBrowserRouter([
       { path: "/notifications", element: guard(ALL, <NotificationsPage />) },
       { path: "/zones", element: guard(DISPATCH, <ZonesPage />) },
       { path: "/returns", element: guard(DISPATCH, <ReturnsPage />) },
+      { path: "/failure-reasons", element: guard(ADMIN_ONLY, <FailureReasonsPage />) },
       { path: "/system-health", element: guard(ADMIN_ONLY, <SystemHealthPage />) },
       { path: "*", element: <NotFound /> },
     ]

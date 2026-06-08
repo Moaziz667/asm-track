@@ -2335,6 +2335,7 @@ export const EN_COPY = {
       dispatch: 'Dispatch',
       tracking: 'Tracking',
       import: 'Import',
+      failureReasons: 'Failure reasons',
       createRoute: 'Create Route',
       routes: 'Routes',
       drivers: 'Drivers',
@@ -2414,7 +2415,8 @@ export const EN_COPY = {
       title: 'Delivery Failed',
       message: (p: any) => {
         const parts = [`${p.clientName || 'Client'} — failed`];
-        if (p.motif) parts.push(p.motif);
+        const detail = p.reason || p.motif;
+        if (detail) parts.push(detail);
         if (p.driverName) parts.push(p.driverName);
         return `${_en_ref(p)}${parts.join(' · ')}`;
       },

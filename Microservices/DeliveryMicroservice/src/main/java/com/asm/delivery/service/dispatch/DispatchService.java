@@ -600,6 +600,8 @@ public class DispatchService {
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
                 .status(d.getStatus().name())
+                .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
+                .failReason(d.getFailReason())
                 .source(order != null ? order.getSource() : null)
                 .warehouseCode(order != null ? order.getWarehouseCode() : null)
                 .sourceDepotId(d.getSourceDepotId() != null ? d.getSourceDepotId()

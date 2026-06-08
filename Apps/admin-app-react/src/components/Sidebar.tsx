@@ -8,7 +8,7 @@ import {
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2,
   IconChartLine, IconFileText, IconSettings, IconDatabase,
   IconChevronsLeft, IconChevronsRight,
-  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat
+  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan
 } from '@tabler/icons-react';
 import {
   canManageSettings, getCurrentRole, canImportErp,
@@ -56,6 +56,7 @@ const GROUP_DEFS: NavGroupDef[] = [
       { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          roleCheck: canDispatch },
       { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    roleCheck: canDispatch },
       { labelKey: 'import',     href: '/import',        Icon: IconUpload,           roleCheck: canImportErp },
+      { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        roleCheck: canManageSettings },
     ],
   },
   {

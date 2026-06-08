@@ -9,6 +9,7 @@ import type { Delivery } from '@/types';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, RIBBON, SEVERITY_CHIP } from '../constants';
 import { formatMotif, formatElapsed, formatShortDate } from '../formatters';
+import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { rowId } from '../utils';
 import type { OpsException } from '../types';
 
@@ -245,10 +246,10 @@ export function DeliveryCards() {
                       )}
                     </div>
  
-                    {/* Failure reason (failed tab) Callout */}
-                    {isFailedTab && d.failureReason && (
-                      <div className="text-[13px] leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
-                        {formatMotif(d.failureReason, t)}
+                    {/* Failure code + reason (failed tab) callout */}
+                    {isFailedTab && ((d as any).failureCode || (d as any).failReason || d.failureReason) && (
+                      <div className="px-2.5 py-2 rounded-r border-l-2 border-rose-500 bg-rose-50/60 dark:bg-rose-950/20">
+                        <FailureInfo code={(d as any).failureCode} reason={(d as any).failReason ?? d.failureReason} />
                       </div>
                     )}
                   </div>

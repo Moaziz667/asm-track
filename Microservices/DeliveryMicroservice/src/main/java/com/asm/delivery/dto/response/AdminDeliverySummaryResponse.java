@@ -46,6 +46,11 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Delivery status", example = "IN_TRANSIT")
     private String status;
 
+    /** Canonical failure category (FailureCode name) when the delivery failed. */
+    private String failureCode;
+    /** Human reason (catalog label enriched with the driver comment) when failed. */
+    private String failReason;
+
     @Schema(description = "Order source", example = "ODOO")
     private OrderSource source;
 
