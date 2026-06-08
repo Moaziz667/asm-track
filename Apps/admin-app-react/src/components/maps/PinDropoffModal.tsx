@@ -4,6 +4,7 @@ import { CircleMarker, MapContainer, TileLayer, useMap, useMapEvents } from 'rea
 import type { LatLngExpression, LeafletMouseEvent } from 'leaflet'
 import { useT } from '@/lib/LocaleContext'
 import { geocodeDelivery, getAdminDeliveryDetail, pinDropoff, reverseGeocode } from '../../services/deliveryAdmin'
+import { useIsDark } from '@/lib/theme'
 
 type Props = {
   deliveryId: string | null
@@ -35,6 +36,7 @@ function FlyToMarker({ position }: { position: LatLngExpression | null }) {
 export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
   const t = useT();
   const isOpen = Boolean(deliveryId)
+  const isDark = useIsDark()
 
   const detailQuery = useQuery({
     queryKey: ['delivery-detail-pin', deliveryId],
@@ -119,8 +121,8 @@ export function PinDropoffModal({ deliveryId, onClose, onPinned }: Props) {
           <div className="h-[320px] overflow-hidden rounded-md border border-[var(--border-default)]">
             <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
               <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; OpenStreetMap contributors'}
+                url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
               />
               <ClickListener
                 onClick={(newLat, newLng) => {

@@ -1,5 +1,6 @@
 package com.asm.delivery.controller;
 
+import com.asm.delivery.dto.request.PatchDepotLocationRequest;
 import com.asm.delivery.dto.response.DepotResponse;
 import com.asm.delivery.service.DepotService;
 import com.asm.delivery.service.DepotSyncService;
@@ -7,6 +8,7 @@ import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -57,5 +59,13 @@ public class DepotController {
     public ResponseEntity<DepotResponse> geolocate(
             @Parameter(description = "Depot UUID") @PathVariable UUID id) {
         return ResponseEntity.ok(depotService.geolocate(id));
+    }
+
+    @PatchMapping("/{id}/location")
+    @Operation(summary = "Update depot location", description = "Manually update the latitude, longitude, and address of a depot.")
+    public ResponseEntity<DepotResponse> updateLocation(
+            @Parameter(description = "Depot UUID") @PathVariable UUID id,
+            @Valid @RequestBody PatchDepotLocationRequest request) {
+        return ResponseEntity.ok(depotService.updateLocation(id, request));
     }
 }

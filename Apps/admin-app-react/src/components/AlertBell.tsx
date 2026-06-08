@@ -10,12 +10,16 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { CopyDict } from '@/lib/LocaleContext';
 
-/* ── Severity → left-bar color ─────────────────────────────────────────────── */
+import trackyInfo from '@/assets/tracky_info.png';
+import trackyWarning from '@/assets/tracky_warning.png';
+import trackyCritical from '@/assets/tracky_critical.png';
 
-const SEV_BAR: Record<string, string> = {
-  critical: 'bg-red-500',
-  warning:  'bg-amber-500',
-  info:     'bg-blue-500',
+/* ── Mascot severity mapping ──────────────────────────────────────────────── */
+
+const SEV_MASCOT: Record<string, string> = {
+  critical: trackyCritical,
+  warning: trackyWarning,
+  info: trackyInfo,
 };
 
 /* ── Compact relative time ("3m", "2h", "1d", "Yesterday") ────────────────── */
@@ -52,7 +56,6 @@ function NotifRow({
   locale: string;
 }) {
   const localized = getLocalizedNotif(n, locale);
-  const barColor = SEV_BAR[n.severity] || SEV_BAR.info;
 
   return (
     <button
@@ -66,10 +69,11 @@ function NotifRow({
         'outline-none focus-visible:bg-[var(--hover-bg)]',
       )}
     >
-      {/* 2px severity left bar */}
-      <span
-        aria-hidden
-        className={cn('absolute left-0 top-0 bottom-0 w-0.5', barColor)}
+      {/* Mascot severity square image */}
+      <img
+        src={SEV_MASCOT[n.severity] || trackyInfo}
+        alt={n.severity}
+        className="w-8 h-8 rounded-md border border-[var(--border)] shrink-0 mt-0.5 object-cover"
       />
 
       {/* Content */}

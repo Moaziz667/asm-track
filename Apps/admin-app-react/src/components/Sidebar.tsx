@@ -47,6 +47,7 @@ const GROUP_DEFS: NavGroupDef[] = [
       { labelKey: 'dashboard',  href: '/dashboard',     Icon: IconLayoutDashboard },
       { labelKey: 'overview',   href: '/overview',    Icon: IconCalendarEvent,           roleCheck: canViewReadOnly },
       { labelKey: 'dispatch',   href: '/dispatch-desk', Icon: IconCommand,          roleCheck: canDispatch },
+      { labelKey: 'systemHealth', href: '/system-health', Icon: IconHeartbeat,      roleCheck: canManageSettings },
     ],
   },
   {
@@ -83,7 +84,6 @@ const GROUP_DEFS: NavGroupDef[] = [
     items: [
       { labelKey: 'performance', href: '/performance',  Icon: IconChartLine },
       { labelKey: 'audit',       href: '/audit-logs',   Icon: IconFileText,         roleCheck: canDispatch },
-      { labelKey: 'systemHealth', href: '/system-health', Icon: IconHeartbeat,      roleCheck: canManageSettings },
     ],
   },
 ];
@@ -229,7 +229,7 @@ export function AppSidebar() {
               letterSpacing: '0.25em', 
               textTransform: 'uppercase', 
               fontSize: '11px', 
-              fontFamily: "'Universal Sans Display', -apple-system, sans-serif" 
+              fontFamily: "var(--font-heading)" 
             }}
           >
             ASM Track

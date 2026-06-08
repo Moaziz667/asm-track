@@ -7,6 +7,7 @@ import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvid
 import { cn } from '@/lib/utils';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
+import { useIsDark } from '@/lib/theme';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
@@ -14,7 +15,7 @@ import {
   IconPackage, IconChartBar, IconUser, IconRoute, IconRefresh, IconArrowUpRight, 
   IconAlertTriangle, IconCheck, IconTruck, IconMapPin, IconShield,
   IconInbox, IconDots, IconArrowRight, IconTable, IconLayoutKanban, IconCalendar, IconClock,
-  IconTrendingUp, IconChevronRight
+  IconTrendingUp, IconChevronRight, IconServer, IconServerOff
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
@@ -29,6 +30,7 @@ import { useRoutes } from '@/hooks/useRoutes';
 import { getDayBucket, formatElapsed, getBusinessDayKey } from '@/lib/sla';
 import { formatNarrative } from '@/pages/dispatch-desk/formatters';
 import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
+import { deriveHealthSummary } from '@/lib/system-health';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
@@ -80,6 +82,7 @@ const DASHBOARD_EVENTS = [
 export default function DashboardPage() {
   const t = useT();
   const navigate = useRouter();
+  const isDark = useIsDark();
   const [period, setPeriod] = useState<'day' | 'week' | 'month' | 'all'>('all');
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
   const queryClient = useQueryClient();
@@ -90,12 +93,13 @@ export default function DashboardPage() {
   const { data: dash, isFetching: refreshing, refetch } = useQuery({
     queryKey: ['dashboard-overview', period],
     queryFn: async () => {
-      const [sR, oR, driversRes, routesRes, kR] = await Promise.all([
+      const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
         api.get('/api/admin/deliveries/stats', { params: { period } }),
         api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
         api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
         api.get('/api/admin/reports/dashboard', { params: { period } }).catch(() => ({ data: null })),
+        api.get('/api/admin/system/health').catch(() => ({ data: null })),
       ]);
       const driversData = driversRes.data;
       return {
@@ -104,6 +108,7 @@ export default function DashboardPage() {
         kpi: kR.data ?? null,
         drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as any[],
         activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
+        health: healthRes.data,
       };
     },
     staleTime: 30_000,
@@ -114,6 +119,50 @@ export default function DashboardPage() {
   const kpi = dash?.kpi ?? null;
   const drivers = dash?.drivers ?? [];
   const activeRoutesCount = dash?.activeRoutesCount ?? 0;
+  const healthData = dash?.health ?? null;
+
+  const healthSummary = useMemo(() => {
+    return deriveHealthSummary(healthData);
+  }, [healthData]);
+
+  const healthProblemsSummary = useMemo(() => {
+    if (!healthData) return '';
+    const downCbs = (healthData.circuitBreakers ?? []).filter(
+      cb => cb.state === 'OPEN' || cb.state === 'FORCED_OPEN' || cb.reachable === false
+    );
+    const parts: string[] = [];
+    
+    if (downCbs.length > 0) {
+      const names = Array.from(
+        new Set(
+          downCbs.map(cb => {
+            const n = cb.name.toLowerCase();
+            if (n.includes('erp') || n.includes('odoo')) return t.dashboardPage.systemHealthCategoryErp || 'ERP';
+            if (n.includes('keycloak') || n.includes('auth')) return t.dashboardPage.systemHealthCategoryAuth || 'Auth';
+            if (n.includes('route') || n.includes('osrm') || n.includes('geocode')) return t.dashboardPage.systemHealthCategoryRoutes || 'Carto';
+            if (n.includes('driver')) return t.dashboardPage.systemHealthCategoryDrivers || 'Chauffeurs';
+            return cb.name;
+          })
+        )
+      );
+      parts.push(`${names.join(', ')}`);
+    }
+    
+    if (healthData.db?.reachable === false) {
+      parts.push(t.dashboardPage.systemHealthDb || 'Base de données');
+    }
+    
+    const stuckQueuesCount = Object.entries(healthData.dlq ?? {}).filter(([, v]) => Number(v) > 0).length;
+    if (stuckQueuesCount > 0) {
+      parts.push(t.dashboardPage.systemHealthDlq?.replace('{count}', String(stuckQueuesCount)) || `${stuckQueuesCount} file(s) DLQ`);
+    }
+    
+    if ((healthData.erpSync?.failed ?? 0) > 0) {
+      parts.push(t.dashboardPage.systemHealthErpSync || 'Synchro ERP');
+    }
+    
+    return parts.join(', ');
+  }, [healthData, t]);
 
   // Coalesce a burst of events into a single background refetch (leading timer).
   const invalidateTimer = useRef<number | null>(null);
@@ -279,12 +328,19 @@ export default function DashboardPage() {
               {overdueCount > 0 && (
                 <button
                   onClick={() => navigate('/dispatch-desk?tab=queue')}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-100 text-red-700 border border-red-200 hover:bg-red-200 transition-colors cursor-pointer"
+                  style={{
+                    backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#DC2626',
+                    color: isDark ? '#F87171' : '#FFFFFF',
+                    borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#B91C1C',
+                  }}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer shadow-2xs"
                 >
-                  <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
-                  {(t.dashboardPage.overdueChipLabel || '{count} non planifiées en retard')
-                    .replace('{count}', String(overdueCount))
-                    .replace('{plural}', overdueCount > 1 ? 's' : '')}
+                  <IconAlertTriangle size={11} className="animate-pulse" style={{ color: isDark ? '#F87171' : '#FFFFFF' }} />
+                  <span>
+                    {(t.dashboardPage.overdueChipLabel || '{count} non planifiées en retard')
+                      .replace('{count}', String(overdueCount))
+                      .replace('{plural}', overdueCount > 1 ? 's' : '')}
+                  </span>
                 </button>
               )}
             </div>
@@ -361,7 +417,7 @@ export default function DashboardPage() {
         /* ── OFFICE DESK LAYOUT ── */
         <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
         <DraggableWidgetGrid
-          storageKey="dashboard-v2"
+          storageKey="dashboard-v3"
           items={[
             {
               id: 'kpi-sla',
@@ -378,7 +434,7 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-delivered',
-              defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiDelivered || 'Livrés'}
@@ -391,7 +447,7 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-routes',
-              defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 5, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiActiveRoutes || 'Tournées'}
@@ -403,13 +459,47 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-drivers',
-              defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 7, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiDriversOnline || 'En ligne'}
                 value={driverGroups.online.length}
                 sub={`/ ${drivers.length}`}
                 tone={driverGroups.online.length === 0 ? "danger" : "default"}
+                className="h-full"
+              />
+            },
+            {
+              id: 'kpi-system-health',
+              defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: <KPICard
+                label={t.dashboardPage.systemHealthLabel || 'Santé Système'}
+                value={
+                  healthSummary.serviceCount > 0
+                    ? `${healthSummary.okServices} / ${healthSummary.serviceCount}`
+                    : '--'
+                }
+                sub={
+                  healthSummary.allGood
+                    ? t.dashboardPage.systemHealthOptimal || 'Optimal'
+                    : `${healthSummary.downCount > 0 ? (t.dashboardPage.systemHealthOffline || 'Hors ligne') : (t.dashboardPage.systemHealthDegraded || 'Dégradé')} · ${healthProblemsSummary}`
+                }
+                icon={
+                  healthSummary.allGood ? (
+                    <IconServer size={16} className="text-[var(--success)]" />
+                  ) : (
+                    <IconServerOff size={16} className={healthSummary.downCount > 0 ? "text-[var(--danger)]" : "text-[var(--warning)]"} />
+                  )
+                }
+                tone={
+                  healthSummary.allGood
+                    ? 'success'
+                    : healthSummary.downCount > 0
+                    ? 'danger'
+                    : 'warning'
+                }
+                onClick={() => navigate('/system-health')}
                 className="h-full"
               />
             },

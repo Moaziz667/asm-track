@@ -5,6 +5,9 @@ import 'leaflet/dist/leaflet.css';
 import { IconMapPin, IconX, IconCheck, IconCurrentLocation } from '@tabler/icons-react';
 import { usePatchDepotLocation } from '@/hooks/useDepots';
 import type { Depot } from '@/types';
+import { api } from '@/lib/api';
+
+import { useIsDark } from '@/lib/theme';
 
 // ── Draggable marker that also responds to map clicks ──────────────────────────
 
@@ -63,6 +66,7 @@ interface Props {
 
 export default function DepotLocationModal({ depot, onClose }: Props) {
   const patch = usePatchDepotLocation();
+  const isDark = useIsDark();
 
   const defaultLat = depot.latitude ?? 36.8065;
   const defaultLng = depot.longitude ?? 10.1815;
@@ -78,9 +82,24 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
     parseFloat(lng) || defaultLng,
   ];
 
-  const onMapPick = useCallback((pickedLat: number, pickedLng: number) => {
+  const [reverseGeocoding, setReverseGeocoding] = useState(false);
+
+  const onMapPick = useCallback(async (pickedLat: number, pickedLng: number) => {
     setLat(pickedLat.toFixed(6));
     setLng(pickedLng.toFixed(6));
+    try {
+      setReverseGeocoding(true);
+      const res = await api.get<{ displayName?: string }>('/api/admin/deliveries/reverse-geocode', {
+        params: { lat: pickedLat, lng: pickedLng }
+      });
+      if (res.data?.displayName) {
+        setAddress(res.data.displayName);
+      }
+    } catch (err) {
+      console.error('Failed to reverse geocode location:', err);
+    } finally {
+      setReverseGeocoding(false);
+    }
   }, []);
 
   const handleRecenter = () => {
@@ -139,8 +158,8 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
             key={`map-${depot.id}`}
           >
             <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}
+              url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
             />
             <PickerMarker position={markerPos} onChange={onMapPick} />
             {recenter && <MapCenterer position={mapCenter} />}
@@ -210,10 +229,11 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
             </label>
             <input
               type="text"
-              value={address}
+              value={reverseGeocoding ? 'Localisation en cours...' : address}
               onChange={(e) => setAddress(e.target.value)}
+              disabled={reverseGeocoding}
               placeholder="Adresse du dépôt…"
-              className="w-full px-3 py-2 rounded-md text-[12px] outline-none transition-colors"
+              className="w-full px-3 py-2 rounded-md text-[12px] outline-none transition-colors disabled:opacity-60"
               style={{
                 background: 'var(--app-bg)',
                 border: '1px solid var(--border)',

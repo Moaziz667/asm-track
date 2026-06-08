@@ -27,7 +27,7 @@ export function formatMoney(
   if (amount == null || amount === '') return '—';
   const num = typeof amount === 'string' ? parseFloat(amount) : amount;
   if (isNaN(num)) return '—';
-  const decimals = currency === 'TND' ? 3 : 2;
+  const decimals = currency === 'TND' || currency === 'DT' ? 3 : 2;
   const formatted = num.toLocaleString('fr-FR', {
     minimumFractionDigits: decimals,
     maximumFractionDigits: decimals,

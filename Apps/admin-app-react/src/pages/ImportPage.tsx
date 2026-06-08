@@ -139,11 +139,14 @@ function ImportErpPageContent() {
       );
     }
 
-    // Sort by scheduled date (oldest first) to help admin prioritize overdue imports
+    // Sort by appearing time (order date/creation order) descending - newest/last ones first
     result.sort((a, b) => {
-      const dateA = a.scheduledAt ? new Date(a.scheduledAt).getTime() : Infinity;
-      const dateB = b.scheduledAt ? new Date(b.scheduledAt).getTime() : Infinity;
-      return dateA - dateB;
+      const timeA = a.dateOrder ? new Date(a.dateOrder).getTime() : (a.scheduledAt ? new Date(a.scheduledAt).getTime() : 0);
+      const timeB = b.dateOrder ? new Date(b.dateOrder).getTime() : (b.scheduledAt ? new Date(b.scheduledAt).getTime() : 0);
+      if (timeA !== timeB) {
+        return timeB - timeA;
+      }
+      return b.erpOrderId.localeCompare(a.erpOrderId);
     });
 
     return result;

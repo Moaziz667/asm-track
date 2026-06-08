@@ -93,6 +93,13 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void _handleWsEvent(RouteWsEvent event) {
     if (!mounted) return;
 
+    // S2: an admin force-logged-out this driver — sign out instantly instead of waiting for
+    // the access token to expire. The DriverApp auth listener handles navigation to login.
+    if (event.event == 'session.revoked') {
+      ref.read(authControllerProvider.notifier).logout();
+      return;
+    }
+
     ref.invalidate(todayRouteProvider);
     ref.invalidate(weekRoutesProvider(ref.read(calendarWeekProvider)));
     ref.invalidate(activeDeliveriesProvider);

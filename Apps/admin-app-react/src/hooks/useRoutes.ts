@@ -31,6 +31,15 @@ export interface RouteItem {
   status: string;
   city?: string;
   stops: RouteStop[];
+  totalStops?: number;
+  completedStops?: number;
+  failedStops?: number;
+  partialStops?: number;
+  pendingStops?: number;
+  progressPercent?: number;
+  totalDurationSeconds?: number;
+  totalDistanceMeters?: number;
+  depotName?: string;
 }
 
 export interface RoutesQueryParams {

@@ -150,7 +150,7 @@ const mapResponseToNotification = (item: any): Notification => {
     id: item.id,
     event: item.event,
     category: cfg ? cfg.category : 'delivery',
-    severity: item.severity as 'critical' | 'warning' | 'info',
+    severity: (item.severity ? String(item.severity).toLowerCase() : (cfg ? cfg.severity : 'info')) as 'critical' | 'warning' | 'info',
     title: item.title,
     message: item.message,
     deliveryId: item.deliveryId || undefined,
@@ -263,7 +263,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       id: `${event}-${p.deliveryId || p.routeId || ts}-${ts}`,
       event,
       category: cfg.category,
-      severity: cfg.severity,
+      severity: (raw.severity ? String(raw.severity).toLowerCase() : cfg.severity) as 'critical' | 'warning' | 'info',
       title,
       message,
       deliveryId: p.deliveryId || undefined,
@@ -367,11 +367,6 @@ export function getLocalizedNotif(n: Notification, locale: string) {
   if (!cfg) {
     return { title: n.title, message: n.message };
   }
-  const title = cfg.title || n.title;
-  // Fold the top-level Notification columns into the param bag so persisted
-  // notifications (whose eventParams only carry the backend `payload` map)
-  // localize with the same fields the live STOMP path provides. erpOrderId and
-  // orderId are kept as aliases since copy ref-tags read `orderId`.
   const ep = (n.eventParams || {}) as Record<string, any>;
   const p = {
     ...ep,
@@ -382,7 +377,9 @@ export function getLocalizedNotif(n: Notification, locale: string) {
     routeId:    ep.routeId ?? n.routeId ?? '',
     orderId:    ep.orderId ?? ep.erpOrderId ?? n.orderId ?? '',
     erpOrderId: ep.erpOrderId ?? ep.orderId ?? n.orderId ?? '',
+    message: n.message,
   };
+  const title = typeof cfg.title === 'function' ? cfg.title(p) : (cfg.title || n.title);
   const message = typeof cfg.message === 'function' ? cfg.message(p) : n.message;
   return { title, message };
 }

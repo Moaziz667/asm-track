@@ -1,83 +1,51 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.service.DlqReplayService;
-import io.github.resilience4j.circuitbreaker.CircuitBreaker;
-import io.github.resilience4j.circuitbreaker.CircuitBreakerRegistry;
+import com.asm.delivery.erp.ErpResyncService;
+import com.asm.delivery.service.SystemHealthSnapshotService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.ArrayList;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 /**
- * Operator-facing system health: dead-letter queue depths, Resilience4j circuit-breaker
- * states, and a derived ERP connectivity signal. Backs the admin "System Health" page.
+ * Operator-facing system health: dead-letter queue depths, Resilience4j circuit-breaker states,
+ * database + service reachability, and ERP sync status (failed orders + drill-down). The aggregate
+ * is built on a background schedule by {@link SystemHealthSnapshotService} and served from cache, so
+ * this endpoint never blocks on network probes. Backs the admin "System Health" page.
  */
 @RestController
 @RequestMapping("/api/admin/system")
-@Tag(name = "Admin System Health", description = "DLQ, circuit breakers and ERP connectivity")
+@Tag(name = "Admin System Health", description = "DLQ, circuit breakers, DB and ERP sync health")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor
 public class AdminSystemHealthController {
 
-    private final DlqReplayService dlqReplayService;
-    // Optional: the registry only exists once a circuit breaker has been created.
-    private final ObjectProvider<CircuitBreakerRegistry> circuitBreakerRegistry;
+    private final SystemHealthSnapshotService snapshotService;
+    private final ErpResyncService erpResyncService;
 
     @GetMapping("/health")
-    @Operation(summary = "Aggregated system health for the operator console")
+    @Operation(summary = "Aggregated system health for the operator console (cached snapshot)")
     public ResponseEntity<Map<String, Object>> health() {
-        Map<String, Object> out = new LinkedHashMap<>();
-
-        // 1. DLQ depths
-        Map<String, Object> dlq = dlqReplayService.depths();
-        out.put("dlq", dlq);
-
-        // 2. Circuit breakers
-        List<Map<String, Object>> breakers = new ArrayList<>();
-        CircuitBreakerRegistry registry = circuitBreakerRegistry.getIfAvailable();
-        if (registry != null) {
-            for (CircuitBreaker cb : registry.getAllCircuitBreakers()) {
-                CircuitBreaker.Metrics m = cb.getMetrics();
-                Map<String, Object> b = new LinkedHashMap<>();
-                b.put("name", cb.getName());
-                b.put("state", cb.getState().name());
-                b.put("failureRate", m.getFailureRate());
-                b.put("bufferedCalls", m.getNumberOfBufferedCalls());
-                b.put("failedCalls", m.getNumberOfFailedCalls());
-                b.put("notPermittedCalls", m.getNumberOfNotPermittedCalls());
-                breakers.add(b);
-            }
-        }
-        out.put("circuitBreakers", breakers);
-
-        // 3. Derived ERP signal: reachable unless an ERP-related breaker is OPEN.
-        boolean erpDegraded = breakers.stream().anyMatch(b ->
-                String.valueOf(b.get("name")).toLowerCase().contains("erp")
-                        && "OPEN".equals(b.get("state")));
-        long erpDlqDepth = dlq.entrySet().stream()
-                .filter(e -> e.getKey().toLowerCase().contains("erp") || e.getKey().toLowerCase().contains("sync"))
-                .mapToLong(e -> toLong(e.getValue()))
-                .sum();
-        Map<String, Object> erp = new LinkedHashMap<>();
-        erp.put("reachable", !erpDegraded);
-        erp.put("pendingSyncFailures", erpDlqDepth);
-        out.put("erp", erp);
-
-        return ResponseEntity.ok(out);
+        return ResponseEntity.ok(snapshotService.current());
     }
 
-    private static long toLong(Object v) {
-        if (v instanceof Number n) return n.longValue();
-        try { return Long.parseLong(String.valueOf(v)); } catch (Exception e) { return 0L; }
+    @PostMapping("/erp-sync/{orderId}/resync")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Re-drive a single SYNC_FAILED order through the ERP sync path")
+    public ResponseEntity<Map<String, Object>> resync(@PathVariable UUID orderId) {
+        return ResponseEntity.ok(erpResyncService.resync(orderId).toMap());
+    }
+
+    @PostMapping("/erp-sync/resync-all")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Re-drive up to {max} of the oldest SYNC_FAILED orders")
+    public ResponseEntity<Map<String, Object>> resyncAll(@RequestParam(defaultValue = "50") int max) {
+        return ResponseEntity.ok(erpResyncService.resyncAll(max));
     }
 }

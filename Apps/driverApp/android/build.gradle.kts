@@ -19,14 +19,13 @@ subprojects {
 
 val flutterExpectedBuildDir: Directory = rootProject.layout.projectDirectory.dir("../build")
 
-tasks.register<Copy>("copyDebugApkForFlutterTool") {
-    from(newBuildDir.dir("app/outputs/flutter-apk"))
-    into(flutterExpectedBuildDir.dir("app/outputs/flutter-apk"))
-    include("*.apk")
+tasks.register<Copy>("copyOutputsForFlutterTool") {
+    from(newBuildDir.dir("app/outputs"))
+    into(flutterExpectedBuildDir.dir("app/outputs"))
 }
 
-project(":app").tasks.matching { it.name == "assembleDebug" }.configureEach {
-    finalizedBy(rootProject.tasks.named("copyDebugApkForFlutterTool"))
+project(":app").tasks.matching { it.name.startsWith("assemble") || it.name.startsWith("bundle") }.configureEach {
+    finalizedBy(rootProject.tasks.named("copyOutputsForFlutterTool"))
 }
 
 tasks.register<Delete>("clean") {

@@ -11,7 +11,7 @@ import { safeStorage } from '@/lib/storage';
 // useRealtimeEvent instead of each opening their own socket. Events nudge; the
 // REST/React-Query cache stays the source of truth.
 
-export type RealtimeCategory = 'delivery' | 'route' | 'erp';
+export type RealtimeCategory = 'delivery' | 'route' | 'erp' | 'security';
 
 export interface RealtimeEvent {
   /** CloudEvent type, e.g. 'delivery.completed'. */
@@ -41,6 +41,7 @@ const TOPICS: { topic: string; category: RealtimeCategory }[] = [
   { topic: '/topic/admin.deliveries', category: 'delivery' },
   { topic: '/topic/admin.routes', category: 'route' },
   { topic: '/topic/admin.erp', category: 'erp' },
+  { topic: '/topic/admin.security', category: 'security' },
 ];
 
 export function RealtimeProvider({ children }: { children: ReactNode }) {

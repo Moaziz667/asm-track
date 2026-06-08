@@ -3,6 +3,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 import 'leaflet-draw';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import { useT } from '@/lib/LocaleContext';
@@ -227,6 +228,7 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
 function SearchControl() {
   const map = useMap();
   const t = useT();
+  const isDark = useIsDark();
   const [query,   setQuery]   = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -242,9 +244,9 @@ function SearchControl() {
 
   return (
     <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000, width: 260 }}>
-      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-md" style={{ background: 'rgba(255,255,255,0.96)', borderColor: '#E5E7EB' }}>
+      <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <input
-          className="flex-1 text-[13px] outline-none bg-transparent placeholder:text-gray-400"
+          className="flex-1 text-[13px] outline-none bg-transparent placeholder:text-[var(--text-soft)] text-[var(--text-primary)]"
           placeholder={t.placeholders.city}
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -315,6 +317,7 @@ function ZoneSelectorMapInner({
   onGeometryChange, onPostalCodesChange, onCoordsFound,
 }: ZoneSelectorMapProps) {
   const t = useT();
+  const isDark = useIsDark();
   const [processing,  setProcessing]  = useState(false);
   const [progress,    setProgress]    = useState(0);
   const [progressMsg, setProgressMsg] = useState('');
@@ -338,7 +341,7 @@ function ZoneSelectorMapInner({
       {processing && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 2000,
-          background: 'rgba(255,255,255,0.82)', backdropFilter: 'blur(4px)',
+          background: isDark ? 'rgba(23, 26, 32, 0.85)' : 'rgba(255,255,255,0.82)', backdropFilter: 'blur(4px)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div className="flex flex-col items-center gap-3">
@@ -354,7 +357,7 @@ function ZoneSelectorMapInner({
 
       <MapContainer center={center} zoom={7} style={{ height: '100%', width: '100%' }}>
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'}
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>'
         />
 

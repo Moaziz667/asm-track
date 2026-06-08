@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useIsDark } from '@/lib/theme';
 
 export type MapException = {
   deliveryId: string;
@@ -96,6 +97,7 @@ function BoundsController({ exceptions, drivers }: { exceptions: MapException[];
 
 function ExceptionsMapInner({ exceptions, drivers, selectedId, onSelect }: Props) {
   const [mounted, setMounted] = useState(false);
+  const isDark = useIsDark();
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -123,8 +125,8 @@ function ExceptionsMapInner({ exceptions, drivers, selectedId, onSelect }: Props
         zoomControl={true}
       >
         <TileLayer
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          attribution='&copy; <a href="https://carto.com">CARTO</a>'
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'}
+          attribution='&copy; <a href="https://carto.com">CARTO</a> &copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>'
         />
 
         <BoundsController exceptions={withCoords} drivers={activeDrivers} />

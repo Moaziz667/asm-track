@@ -3,6 +3,7 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 
 type DepotPinMapProps = {
   lat?: number;
@@ -44,6 +45,7 @@ function MapUpdater({ lat, lng }: { lat?: number; lng?: number }) {
 
 export default function DepotPinMap({ lat, lng, onPick, height = 300 }: DepotPinMapProps) {
   const center: [number, number] = lat != null && lng != null ? [lat, lng] : [36.8065, 10.1815]; // Default to Tunis
+  const isDark = useIsDark();
 
   return (
     <div style={{ height, width: '100%', position: 'relative', zIndex: 1 }}>
@@ -53,8 +55,8 @@ export default function DepotPinMap({ lat, lng, onPick, height = 300 }: DepotPin
         style={{ height: '100%', width: '100%' }}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
         <ClickHandler onPick={onPick} />
         <MapUpdater lat={lat} lng={lng} />
@@ -65,8 +67,8 @@ export default function DepotPinMap({ lat, lng, onPick, height = 300 }: DepotPin
       </MapContainer>
       
       {/* Overlay instruction */}
-      <div className="absolute top-3 right-3 z-[1000] px-3 py-1.5 bg-white/90 backdrop-blur-sm border border-slate-200 rounded-lg shadow-sm pointer-events-none">
-        <span className="text-[10px] font-black uppercase tracking-widest text-slate-950">
+      <div className="absolute top-3 right-3 z-[1000] px-3 py-1.5 bg-[var(--surface)]/90 backdrop-blur-sm border border-[var(--border)] rounded-lg shadow-sm pointer-events-none">
+        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
           Cliquez pour positionner
         </span>
       </div>

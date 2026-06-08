@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap, useMapEvents 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useIsDark } from '@/lib/theme';
 import { STATUS_COLORS as BADGE_STATUS_COLORS } from '@/components/StatusBadge';
 import voitureFourgon from '../../icons/voiture-fourgon.png';
 
@@ -214,6 +215,7 @@ function RouteTrackingMapInner({
   center: manualCenter,
 }: Props) {
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
+  const isDark = useIsDark();
 
   const pinnedStops = stops
     .filter((s) => s.dropoffLat != null && s.dropoffLng != null
@@ -272,8 +274,8 @@ function RouteTrackingMapInner({
     <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius)', overflow: 'hidden', background: 'var(--surface)', position: 'relative', zIndex: 1, height: h }}>
       <MapContainer center={center} zoom={zoom} style={{ width: '100%', height: h, position: 'relative', zIndex: 0 }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
           maxZoom={19}
         />
 

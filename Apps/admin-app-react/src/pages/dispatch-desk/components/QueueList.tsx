@@ -4,6 +4,7 @@ import { IconCheck } from '@tabler/icons-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
+import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { STATUS_DOT, getDriverStatusTip, SEVERITY_CHIP } from '../constants';
@@ -27,7 +28,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
     ? (alert.severity === 'CRITICAL' ? 'CRITICAL' : alert.severity === 'WARNING' ? 'WARNING' : 'INFO')
     : null;
   const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
-    ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 0 })} TND`
+    ? formatMoney(d.totalAmount, d.currency ?? 'TND')
     : null;
 
   return (

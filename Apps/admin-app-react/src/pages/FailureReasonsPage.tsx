@@ -9,7 +9,10 @@ import FailureReasonsSettings from './settings/FailureReasonsSettings';
 export default function FailureReasonsPage() {
   const t = useT();
   const canManage = canManageSettings(getCurrentRole());
-  usePageBreadcrumb([{ label: t.settingsPage?.failureReasons || "Motifs d'échec" }]);
+  usePageBreadcrumb([
+    { label: t.sidebar?.groups?.deliveries || "Livraisons", href: '/deliveries' },
+    { label: t.sidebar?.items?.failureReasons || t.settingsPage?.failureReasons || "Motifs d'échec" }
+  ]);
 
   return (
     <div className="w-full h-full overflow-y-auto bg-[var(--app-bg)]">

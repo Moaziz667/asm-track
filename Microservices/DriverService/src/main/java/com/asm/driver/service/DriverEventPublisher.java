@@ -19,6 +19,25 @@ public class DriverEventPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
+    /**
+     * S2 of force-logout: relays a session-revoked signal through the shared {@code audit.exchange}
+     * so DeliveryService (which owns the WebSocket broker) can push it to the driver's
+     * {@code /topic/driver.<id>} topic and the Flutter app logs itself out instantly. The short access
+     * token lifespan (S1) remains the backstop if the device is offline and misses this.
+     */
+    public void publishSessionRevoked(UUID driverId) {
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("action", "SESSION_REVOKED");
+            event.put("driverId", driverId.toString());
+            event.put("timestamp", Instant.now().toString());
+            // Shared audit channel — consumed by DeliveryService's AuditEventConsumer.
+            rabbitTemplate.convertAndSend("audit.exchange", "audit.log", event);
+        } catch (Exception e) {
+            log.warn("Failed to publish driver session-revoked for driverId={}: {}", driverId, e.getMessage());
+        }
+    }
+
     public void publishStatusChanged(UUID driverId,
                                      DriverOnlineStatus oldStatus, DriverOnlineStatus newStatus,
                                      String driverName) {        try {

@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { useT } from '@/lib/LocaleContext';
 import { IconPlus, IconPencil, IconBan, IconCheck } from '@tabler/icons-react';
+import { useDensity } from '@/hooks/useDensity';
+import { useColumnSettings, ColumnDef } from '@/hooks/useColumnSettings';
+import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { cn } from '@/lib/utils';
 
 // Analytics categories the configurable reasons roll up to (mirrors backend FailureCode enum).
 const CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'OTHER'] as const;
@@ -38,8 +42,23 @@ interface FormState {
 
 const EMPTY_FORM: FormState = { code: '', label: '', category: 'OTHER', sortOrder: 100, active: true };
 
+const REASON_ROW_H = {
+  compact: 'h-9',
+  comfortable: 'h-12',
+  spacious: 'h-15',
+} as const;
+
 export default function FailureReasonsSettings({ canManage }: { canManage: boolean }) {
   const t = useT();
+  const REASON_COLUMNS = useMemo<ColumnDef[]>(() => [
+    { id: 'label', label: t.failureReasonsSettings.tableLabel || "Motif", pinned: true },
+    { id: 'code', label: t.failureReasonsSettings.tableCode || "Code" },
+    { id: 'category', label: t.failureReasonsSettings.tableCategory || "Catégorie" },
+    { id: 'status', label: t.failureReasonsSettings.tableStatus || "Statut" },
+  ], [t]);
+
+  const { density, setDensity } = useDensity('failure-reasons', 'comfortable');
+  const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('failure-reasons', REASON_COLUMNS);
   const [reasons, setReasons] = useState<FailureReason[]>([]);
   const [loading, setLoading] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -124,45 +143,73 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
             {t.failureReasonsSettings.subtitle}
           </p>
         </div>
-        {canManage && (
-          <Button size="sm" onClick={openCreate} className="h-8 px-3 text-[11px] font-bold flex items-center gap-1.5">
-            <IconPlus size={14} /> {t.failureReasonsSettings.addButton}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          <DisplaySettingsDropdown
+            columns={orderedColumns}
+            visibleIds={visibleIds}
+            onToggle={toggleColumn}
+            onReorder={moveColumn}
+            onReset={resetColumns}
+            density={density}
+            onDensityChange={setDensity}
+          />
+          {canManage && (
+            <Button size="sm" onClick={openCreate} className="h-8 px-3 text-[11px] font-bold flex items-center gap-1.5">
+              <IconPlus size={14} /> {t.failureReasonsSettings.addButton}
+            </Button>
+          )}
+        </div>
       </div>
 
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <table className="w-full text-[12px]">
+        <table className="w-full text-[12px] border-collapse">
           <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
-              <th className="text-start font-bold px-4 py-2.5">{t.failureReasonsSettings.tableLabel}</th>
-              <th className="text-start font-bold px-4 py-2.5">{t.failureReasonsSettings.tableCode}</th>
-              <th className="text-start font-bold px-4 py-2.5">{t.failureReasonsSettings.tableCategory}</th>
-              <th className="text-start font-bold px-4 py-2.5">{t.failureReasonsSettings.tableStatus}</th>
-              <th className="px-4 py-2.5" />
+            <tr className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
+              {orderedColumns.map(col => {
+                if (!visibleIds.has(col.id)) return null;
+                return (
+                  <th key={col.id} className="text-start font-bold px-4 align-middle">{col.label}</th>
+                );
+              })}
+              <th className="px-4 align-middle" />
             </tr>
           </thead>
-          <tbody>
+          <tbody className="divide-y divide-[var(--border)]">
             {loading ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.loading}</td></tr>
+              <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.loading}</td></tr>
             ) : reasons.length === 0 ? (
-              <tr><td colSpan={5} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.empty}</td></tr>
+              <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.empty}</td></tr>
             ) : reasons.map(r => (
-              <tr key={r.id} className="border-t border-[var(--border)] group">
-                <td className="px-4 py-2.5 font-semibold text-[var(--text-primary)]">{r.label}</td>
-                <td className="px-4 py-2.5 font-mono text-[11px] text-[var(--text-muted)]">{r.code}</td>
-                <td className="px-4 py-2.5">
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
-                    {CATEGORY_LABELS[r.category] ?? r.category}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5">
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 ${r.active ? 'text-[#2D8A5E]' : 'text-[var(--text-muted)]'}`}
-                        style={{ background: r.active ? 'rgba(76,175,130,0.10)' : 'var(--hover-bg)' }}>
-                    {r.active ? <><IconCheck size={11} /> {t.failureReasonsSettings.active}</> : t.failureReasonsSettings.inactive}
-                  </span>
-                </td>
-                <td className="px-4 py-2.5 text-end">
+              <tr key={r.id} className={cn("group hover:bg-[var(--hover-bg)] transition-all", REASON_ROW_H[density])}>
+                {orderedColumns.map(col => {
+                  if (!visibleIds.has(col.id)) return null;
+                  if (col.id === 'label') return (
+                    <td key="label" className="px-4 font-semibold text-[var(--text-primary)] align-middle">{r.label}</td>
+                  );
+                  if (col.id === 'code') return (
+                    <td key="code" className="px-4 font-mono text-[11px] text-[var(--text-muted)] align-middle">{r.code}</td>
+                  );
+                  if (col.id === 'category') return (
+                    <td key="category" className="px-4 align-middle">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
+                        {CATEGORY_LABELS[r.category] ?? r.category}
+                      </span>
+                    </td>
+                  );
+                  if (col.id === 'status') return (
+                    <td key="status" className="px-4 align-middle">
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1",
+                        r.active ? 'text-[#2D8A5E]' : 'text-[var(--text-muted)]'
+                      )}
+                            style={{ background: r.active ? 'rgba(76,175,130,0.10)' : 'var(--hover-bg)' }}>
+                        {r.active ? <><IconCheck size={11} /> {t.failureReasonsSettings.active}</> : t.failureReasonsSettings.inactive}
+                      </span>
+                    </td>
+                  );
+                  return null;
+                })}
+                <td className="px-4 text-end align-middle">
                   {canManage && (
                     <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button type="button" onClick={() => openEdit(r)}

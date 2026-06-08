@@ -11,6 +11,7 @@ import {
 import {
   getLocalizedNotif,
   useNotifications,
+  type Notification,
 } from '@/components/AlertsProvider';
 
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
@@ -23,12 +24,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
+import trackyInfo from '@/assets/tracky_info.png';
+import trackyWarning from '@/assets/tracky_warning.png';
+import trackyCritical from '@/assets/tracky_critical.png';
+
 type Filter = 'all' | 'unread' | 'critical' | 'warning' | 'info';
 
-const SEV_DOT: Record<string, string> = {
-  critical: 'bg-red-500',
-  warning: 'bg-amber-500',
-  info: 'bg-sky-500',
+/* ── Mascot severity mapping ──────────────────────────────────────────────── */
+
+const SEV_MASCOT: Record<string, string> = {
+  critical: trackyCritical,
+  warning: trackyWarning,
+  info: trackyInfo,
 };
 
 function localeTag(locale: string) {
@@ -234,7 +241,12 @@ export default function NotificationsPage() {
                           !n.read && 'bg-[var(--brand-soft)]/30',
                         )}
                       >
-                        <span className={cn('mt-1.5 h-2 w-2 shrink-0 rounded-full', SEV_DOT[n.severity] ?? 'bg-[var(--border)]')} />
+                        {/* Mascot severity square image */}
+                        <img
+                          src={SEV_MASCOT[n.severity] || trackyInfo}
+                          alt={n.severity}
+                          className="w-8 h-8 rounded-md border border-[var(--border)] shrink-0 mt-0.5 object-cover"
+                        />
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
                             <span className={cn('truncate text-sm', n.read ? 'font-medium text-[var(--text-primary)]' : 'font-semibold text-[var(--text-primary)]')}>

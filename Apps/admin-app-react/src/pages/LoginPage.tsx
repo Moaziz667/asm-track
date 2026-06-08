@@ -63,16 +63,13 @@ export default function LoginPage() {
       position: 'relative',
       overflow: 'hidden',
       direction: isRTL ? 'rtl' : 'ltr',
-      fontFamily: "'Universal Sans Text', -apple-system, sans-serif"
+      fontFamily: "var(--font-sans)"
     }}>
-      {/* Cinematic Full-Bleed Logistics/Transportation Hero Image */}
+      {/* Premium Gradient Background */}
       <div style={{
         position: 'absolute',
         inset: 0,
-        backgroundImage: 'url(https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?auto=format&fit=crop&w=2000&q=80)',
-        backgroundSize: 'cover',
-        backgroundPosition: 'center',
-        filter: 'brightness(0.55) grayscale(15%)',
+        background: isDark ? 'radial-gradient(circle at center, #1e293b 0%, #0f172a 100%)' : 'radial-gradient(circle at center, #f8fafc 0%, #e2e8f0 100%)',
         zIndex: 0
       }} />
 
@@ -93,7 +90,7 @@ export default function LoginPage() {
               fontWeight: 500,
               color: '#FFFFFF',
               letterSpacing: '0.3em',
-              fontFamily: "'Universal Sans Display', -apple-system, sans-serif",
+              fontFamily: "var(--font-heading)",
               lineHeight: 1.1,
               textTransform: 'uppercase'
             }}>
@@ -152,7 +149,7 @@ export default function LoginPage() {
             fontWeight: 500,
             margin: 0,
             letterSpacing: '0.05em',
-            fontFamily: "'Universal Sans Display', -apple-system, sans-serif"
+            fontFamily: "var(--font-heading)"
           }}>
             ASM Track
           </h1>

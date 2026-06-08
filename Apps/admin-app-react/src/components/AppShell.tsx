@@ -4,6 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import AlertsProvider from './AlertsProvider';
 import { RealtimeProvider } from './RealtimeProvider';
+import SessionRevocationWatcher from './SessionRevocationWatcher';
 import TopNav from './TopNav';
 import { AppSidebar } from './Sidebar';
 import { BreadcrumbProvider } from '@/lib/breadcrumb';
@@ -28,6 +29,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     <SidebarProvider>
       <BreadcrumbProvider>
         <RealtimeProvider>
+        <SessionRevocationWatcher />
         <AlertsProvider>
           {/* Fixed sidebar */}
           <AppSidebar />

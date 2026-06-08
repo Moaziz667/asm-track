@@ -206,7 +206,15 @@
       "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 30; \"EXIT=$LASTEXITCODE\")",
       "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 20; \"EXIT=$LASTEXITCODE\")",
       "PowerShell(npx --prefix \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\" tsc -p \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Apps\\\\admin-app-react\\\\tsconfig.json\" --noEmit 2>&1 | Select-Object -First 25; \"EXIT=$LASTEXITCODE\")",
-      "Bash(git rev-list *)"
+      "Bash(git rev-list *)",
+      "Bash(docker run *)",
+      "PowerShell($dir = \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DeliveryMicroservice\"; docker run --rm -v \"${dir}:/workspace\" -w /workspace alpine:3 sh -c \"ls /workspace/settings.gradle /workspace/build.gradle && echo MOUNT_OK\")",
+      "PowerShell($dir = \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DeliveryMicroservice\"; docker run --rm -v \"${dir}:/workspace\" -v asm_gradle_cache:/home/gradle/.gradle -w /workspace -e GRADLE_OPTS=\"-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000\" gradle:8.5-jdk17 gradle test --no-daemon --tests \"com.asm.delivery.erp.ErpResyncServiceTest\" 2>&1 | Select-Object -Last 60)",
+      "Bash(npx vitest *)",
+      "PowerShell($dir = \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\AppBackend\"; docker run --rm -v \"${dir}:/workspace\" -v asm_gradle_cache:/home/gradle/.gradle -w /workspace -e GRADLE_OPTS=\"-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000\" gradle:8.5-jdk17 gradle compileJava --no-daemon 2>&1 | Select-Object -Last 25)",
+      "PowerShell(docker info --format '{{.ServerVersion}}' 2>&1)",
+      "PowerShell($dir = \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DeliveryMicroservice\"; docker run --rm -v \"${dir}:/workspace\" -v asm_gradle_cache:/home/gradle/.gradle -w /workspace -e GRADLE_OPTS=\"-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000\" gradle:8.5-jdk17 gradle compileJava --no-daemon 2>&1 | Select-Object -Last 20)",
+      "PowerShell($dir = \"C:\\\\Users\\\\M S I\\\\OneDrive\\\\Documents\\\\PFE\\\\Microservices\\\\DriverService\"; docker run --rm -v \"${dir}:/workspace\" -v asm_gradle_cache:/home/gradle/.gradle -w /workspace -e GRADLE_OPTS=\"-Dorg.gradle.internal.http.connectionTimeout=120000 -Dorg.gradle.internal.http.socketTimeout=120000\" gradle:8.5-jdk17 gradle compileJava --no-daemon 2>&1 | Select-Object -Last 18)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

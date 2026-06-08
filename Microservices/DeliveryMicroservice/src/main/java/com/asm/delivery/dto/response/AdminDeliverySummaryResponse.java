@@ -102,6 +102,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Order total amount")
     private BigDecimal totalAmount;
 
+    @Schema(description = "ISO currency code", example = "TND")
+    private String currency;
+
     @Schema(description = "Order total weight in kilograms")
     private BigDecimal totalWeightKg;
 

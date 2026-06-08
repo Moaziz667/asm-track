@@ -4,6 +4,7 @@ import com.asm.appbackend.dto.admin.*;
 import com.asm.appbackend.entity.AdminUser;
 import com.asm.appbackend.exception.AppException;
 import com.asm.appbackend.client.KeycloakAdminClient;
+import com.asm.appbackend.messaging.AuditEventPublisher;
 import com.asm.appbackend.repository.AdminUserRepository;
 import com.asm.appbackend.security.KeycloakUserRollbackEvent;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,7 @@ public class AdminUserService {
     private final AdminUserRepository adminUserRepo;
     private final KeycloakAdminClient keycloakAdminClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final AuditEventPublisher auditEventPublisher;
 
     // ── User management (unchanged) ───────────────────────────────────────────
 
@@ -116,6 +118,8 @@ public class AdminUserService {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
         keycloakAdminClient.forceLogout(user.getEmail());
+        // S2: tell the user's client to log out immediately instead of waiting for token expiry.
+        auditEventPublisher.publishSessionRevoked(user.getEmail());
     }
 
     @Transactional

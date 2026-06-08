@@ -254,7 +254,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       AUTH_SERVER_URL: http://keycloak:8080/realms/asm
-      AUTH_ISSUER_URL: http://localhost:8089/realms/asm
+      AUTH_ISSUER_URL : http://192.168.1.7:8089/realms/asm     
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082

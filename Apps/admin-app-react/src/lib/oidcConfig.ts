@@ -40,6 +40,7 @@ export function syncSession(user: User | null | undefined): void {
       'admin_name',
       decoded.name || decoded.preferred_username || decoded.email || 'Admin'
     );
+    if (decoded.email) safeStorage.setItem('admin_email', decoded.email);
     safeStorage.setItem('role', role);
   } catch (e) {
     console.error('Failed to parse JWT', e);
@@ -50,6 +51,7 @@ function clearSession(): void {
   safeStorage.removeItem('access_token');
   safeStorage.removeItem('admin_user');
   safeStorage.removeItem('admin_name');
+  safeStorage.removeItem('admin_email');
   safeStorage.removeItem('role');
 }
 

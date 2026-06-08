@@ -4,6 +4,7 @@ import { TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useIsDark } from '@/lib/theme';
 
 interface TrackingData {
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
@@ -51,6 +52,7 @@ function InvalidateOnMount() {
 }
 
 function TrackingMapInner({ data }: { data: TrackingData }) {
+  const isDark = useIsDark();
   const defaultCenter: [number, number] = [36.8065, 10.1815];
 
   const points: [number, number][] = [];
@@ -76,7 +78,7 @@ function TrackingMapInner({ data }: { data: TrackingData }) {
       <FitBounds points={points} />
 
       <TileLayer
-        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png"
+        url={isDark ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png" : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
         attribution="© OpenStreetMap © CARTO"
       />
 

@@ -120,6 +120,8 @@ public class OutboxProcessor {
                         final UUID resolvedOrderId = orderId;
                         orderRepo.findById(resolvedOrderId).ifPresent(order -> {
                             order.setOdooSyncStatus("SYNC_FAILED");
+                            order.setLastSyncOp(resyncOpForEventType(event.getEventType()));
+                            order.setLastSyncError(event.getLastError());
                             orderRepo.save(order);
                             log.info("Successfully marked order ID={} as SYNC_FAILED after outbox exhaustion", resolvedOrderId);
                         });
@@ -156,6 +158,18 @@ public class OutboxProcessor {
         } catch (Exception ex) {
             log.warn("Could not publish erp.sync_failed admin notification for eventId={}: {}", event.getId(), ex.getMessage());
         }
+    }
+
+    /** Canonical sync op stored on the order so the operator "Resync" knows what to replay. */
+    private String resyncOpForEventType(String eventType) {
+        return switch (eventType == null ? "" : eventType) {
+            case "ERP_SYNC_STOCK"        -> "STOCK_FULL";
+            case "ERP_SYNC_FAILURE"      -> "FAILURE";
+            case "ERP_SYNC_CANCELLATION" -> "CANCELLATION";
+            case "ERP_SYNC_POD"          -> "POD";
+            case "ERP_SYNC_RETURN"       -> "RETURN";
+            default                      -> "SYNC";
+        };
     }
 
     private String erpOperationCode(String eventType) {

@@ -69,6 +69,8 @@ public class ErpSyncResultConsumer {
             }
         } else {
             order.setOdooSyncStatus("SYNC_FAILED");
+            order.setLastSyncOp(op);
+            order.setLastSyncError(truncate(str(result.get("errorReason"))));
             orderRepo.save(order);
             log.error("ERP sync SYNC_FAILED — orderId={} op={} reason={}", orderId, op, result.get("errorReason"));
             try {
@@ -90,6 +92,12 @@ public class ErpSyncResultConsumer {
 
     private static String str(Object v) {
         return v != null ? String.valueOf(v) : null;
+    }
+
+    /** Keep the stored error short — the column is TEXT but the UI only shows a snippet. */
+    private static String truncate(String s) {
+        if (s == null) return null;
+        return s.length() > 2000 ? s.substring(0, 2000) : s;
     }
 
     private static Integer asInt(Object v) {

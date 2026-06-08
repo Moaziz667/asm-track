@@ -1,5 +1,6 @@
 package com.asm.delivery.service;
 
+import com.asm.delivery.dto.request.PatchDepotLocationRequest;
 import com.asm.delivery.dto.response.DepotResponse;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
@@ -59,6 +60,21 @@ public class DepotService {
         }
         depot.setLatitude(geo.getLat());
         depot.setLongitude(geo.getLng());
+        return toResponse(depotRepository.save(depot));
+    }
+
+    @Transactional
+    public DepotResponse updateLocation(UUID id, PatchDepotLocationRequest req) {
+        Depot depot = getDepot(id);
+        if (req.getLatitude() != null) {
+            depot.setLatitude(req.getLatitude());
+        }
+        if (req.getLongitude() != null) {
+            depot.setLongitude(req.getLongitude());
+        }
+        if (req.getAddress() != null) {
+            depot.setAddress(req.getAddress());
+        }
         return toResponse(depotRepository.save(depot));
     }
 

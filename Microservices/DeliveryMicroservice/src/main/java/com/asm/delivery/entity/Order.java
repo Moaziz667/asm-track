@@ -174,6 +174,14 @@ public class Order {
     @Column(name = "odoo_backorder_id")
     private Integer odooBackorderId;
 
+    /** Last ERP sync operation attempted (STOCK_FULL | FAILURE | CANCELLATION | …) — drives Resync replay. */
+    @Column(name = "last_sync_op", length = 40)
+    private String lastSyncOp;
+
+    /** Human-readable reason the last sync failed — shown in the System Health drill-down. */
+    @Column(name = "last_sync_error", columnDefinition = "text")
+    private String lastSyncError;
+
     /** Number of failed sync attempts since last SYNCED state. */
     @Column(name = "sync_retry_count", nullable = false)
     @Builder.Default

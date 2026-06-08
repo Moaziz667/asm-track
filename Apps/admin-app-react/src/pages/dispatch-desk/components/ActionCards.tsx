@@ -15,6 +15,7 @@ import {
 } from '../formatters';
 import type { OpsException } from '../types';
 import type { Delivery } from '@/types';
+import { formatMoney } from '@/lib/utils';
 
 // Pastel severity palette, aligned with the StatusBadge Linear tones.
 function severityStyle(severity?: string): { accent: string; chipColor: string; chipBg: string } {
@@ -99,7 +100,7 @@ export function ActionCards() {
                 ? `${d.timeSlotStartTime.slice(0, 5)}–${d.timeSlotEndTime.slice(0, 5)}`
                 : d?.timeSlotName || (d?.requestedDeliveryDate ? d.requestedDeliveryDate.slice(0, 10) : null);
               const amount = d && typeof d.totalAmount === 'number' && d.totalAmount > 0
-                ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
+                ? formatMoney(d.totalAmount, d.currency ?? 'TND')
                 : null;
 
               const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(row.status);

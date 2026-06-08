@@ -76,10 +76,19 @@ class TokenStorage {
   Future<List<int>> getOrCreateDbKey() async {
     final base64Key = await _secureStorage.read(key: _kDbEncryptionKey);
     if (base64Key != null && base64Key.isNotEmpty) {
-      return base64Decode(base64Key);
+      try {
+        final decoded = base64Decode(base64Key);
+        if (decoded.length == 32) {
+          return decoded;
+        } else if (decoded.length > 32) {
+          return decoded.sublist(0, 32);
+        }
+      } catch (_) {
+        // Fall through and generate fresh key
+      }
     }
     final random = Random.secure();
-    final freshKey = Uint8List.fromList(List<int>.generate(64, (_) => random.nextInt(256)));
+    final freshKey = Uint8List.fromList(List<int>.generate(32, (_) => random.nextInt(256)));
     await _secureStorage.write(key: _kDbEncryptionKey, value: base64Encode(freshKey));
     return freshKey;
   }

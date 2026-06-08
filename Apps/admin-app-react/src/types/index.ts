@@ -84,6 +84,7 @@ export interface Delivery {
   createdAt: string;
   updatedAt?: string;
   failureReason?: string;
+  currency?: string;
 }
 
 export type DriverAccountStatus = 'PENDING_SETUP' | 'ACTIVE' | 'SUSPENDED';

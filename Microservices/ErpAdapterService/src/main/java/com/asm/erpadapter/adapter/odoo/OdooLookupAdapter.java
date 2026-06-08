@@ -148,7 +148,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         long start = System.currentTimeMillis();
         List<Map<String, Object>> pickings = rpc.searchReadStrict(
-                "stock.picking", READY_DELIVERY_DOMAIN, PICKING_FIELDS, limit, "scheduled_date asc");
+                "stock.picking", READY_DELIVERY_DOMAIN, PICKING_FIELDS, limit, "id desc");
         if (pickings.isEmpty()) return List.of();
 
         Map<Integer, Warehouse> warehouses = resolveWarehouses(pickings);

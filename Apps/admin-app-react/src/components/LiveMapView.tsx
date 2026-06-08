@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 import { Driver, Delivery } from '@/types';
 import { IconPhone as Phone, IconPackage as Package } from '@tabler/icons-react';
 
@@ -154,6 +155,7 @@ export default function LiveMapView({
   routeStops = [],
   center = [33.5731, -7.5898], // Casablanca default
 }: LiveMapViewProps) {
+  const isDark = useIsDark();
   const driverPositions: [number, number][] = drivers
     .filter((d) => (d.location?.lat && d.location?.lng) || (d.currentLat && d.currentLng))
     .map((d) => [d.location?.lat ?? d.currentLat!, d.location?.lng ?? d.currentLng!]);
@@ -197,8 +199,8 @@ export default function LiveMapView({
       zoomControl={false}
     >
       <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'}
+        url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
       />
 
       {allPositions.length > 0 && <FitBounds positions={allPositions} />}

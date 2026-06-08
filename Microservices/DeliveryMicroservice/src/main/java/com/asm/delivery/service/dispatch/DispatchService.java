@@ -620,6 +620,7 @@ public class DispatchService {
                 .driverName(driver != null ? driver.getName() : null)
                 .driverPhone(driver != null ? driver.getPhone() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
+                .currency(order != null ? order.getCurrency() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .routeDistanceKm(d.getRouteDistanceKm())
                 .routeDurationMinutes(d.getRouteDurationMinutes())

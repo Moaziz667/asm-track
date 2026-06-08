@@ -3,6 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Popup, useMap, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 import type { Depot } from '@/types';
 
 type Props = {
@@ -43,6 +44,7 @@ function MapUpdater({ depots }: { depots: Depot[] }) {
 }
 
 export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
+  const isDark = useIsDark();
   const center: [number, number] = useMemo(() => {
     if (depots.length > 0) {
       const first = depots.find(d => d.latitude != null && d.longitude != null && !isNaN(Number(d.latitude)) && !isNaN(Number(d.longitude)));
@@ -52,11 +54,11 @@ export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
   }, [depots]);
 
   return (
-    <div style={{ height, width: '100%', borderRadius: 12, overflow: 'hidden', border: '1px solid #e2e8f0', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)', position: 'relative', zIndex: 1 }}>
+    <div style={{ height, width: '100%', borderRadius: 12, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: 'none', position: 'relative', zIndex: 1 }}>
       <MapContainer center={center} zoom={11} style={{ height: '100%', width: '100%' }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
         <MapUpdater depots={depots} />
         {depots.map((depot) => {

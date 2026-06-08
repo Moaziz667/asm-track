@@ -40,4 +40,24 @@ public class AuditEventPublisher {
             log.warn("Failed to publish audit event action={}: {}", action, e.getMessage());
         }
     }
+
+    /**
+     * Signals that a user's session was force-revoked, so their client can log itself out instantly
+     * (S2) instead of waiting for the access token to expire (S1). Travels over the same audit
+     * exchange; DeliveryService relays it to the {@code /topic/admin.security} WebSocket topic.
+     * Best-effort — the short token lifespan is the backstop if this never arrives.
+     */
+    public void publishSessionRevoked(String email) {
+        if (email == null || email.isBlank()) return;
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("action", "SESSION_REVOKED");
+            event.put("email", email);
+            event.put("timestamp", Instant.now().toString());
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.AUDIT_EXCHANGE, RabbitMQConfig.AUDIT_ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.warn("Failed to publish session-revoked event for {}: {}", email, e.getMessage());
+        }
+    }
 }

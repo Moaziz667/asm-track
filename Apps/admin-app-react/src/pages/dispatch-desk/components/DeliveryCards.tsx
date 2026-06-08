@@ -12,6 +12,7 @@ import { formatMotif, formatElapsed, formatShortDate } from '../formatters';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { rowId } from '../utils';
 import type { OpsException } from '../types';
+import { formatMoney } from '@/lib/utils';
 
 const CTA_ICON = 'w-7 h-7 flex items-center justify-center rounded shrink-0 transition-opacity hover:opacity-80';
 
@@ -22,7 +23,7 @@ function MetaLine({ d, t }: { d: Delivery; t: any }) {
     ? `${d.timeSlotStartTime.slice(0, 5)}–${d.timeSlotEndTime.slice(0, 5)}`
     : d.timeSlotName || (d.requestedDeliveryDate ? d.requestedDeliveryDate.slice(0, 10) : null);
   const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
-    ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
+    ? formatMoney(d.totalAmount, d.currency ?? 'TND')
     : null;
 
   const scheduled = d.scheduledAt 
@@ -120,7 +121,7 @@ export function DeliveryCards() {
                 ? `${d.timeSlotStartTime.slice(0, 5)}–${d.timeSlotEndTime.slice(0, 5)}`
                 : d.timeSlotName || (d.requestedDeliveryDate ? d.requestedDeliveryDate.slice(0, 10) : null);
               const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
-                ? `${d.totalAmount.toLocaleString('fr-FR', { maximumFractionDigits: 2 })} TND`
+                ? formatMoney(d.totalAmount, d.currency ?? 'TND')
                 : null;
 
               const target = {

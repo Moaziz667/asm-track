@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from 'react-
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
+import { useIsDark } from '@/lib/theme';
 
 export type ActiveStop = {
   deliveryId: string;
@@ -163,6 +164,7 @@ function DispatchLiveMapInner({
   onDriverClick,
 }: Props) {
   const [mounted, setMounted] = useState(false);
+  const isDark = useIsDark();
   useEffect(() => { setMounted(true); }, []);
 
   const visibleDrivers = drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt));
@@ -229,8 +231,8 @@ function DispatchLiveMapInner({
     <div style={{ width: '100%', height: '100%', position: 'relative', zIndex: 0, isolation: 'isolate' }}>
       <MapContainer center={center} zoom={11} style={{ width: '100%', height: '100%' }} zoomControl>
         <TileLayer
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
           maxZoom={19}
         />
 

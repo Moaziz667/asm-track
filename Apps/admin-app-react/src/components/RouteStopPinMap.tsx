@@ -2,6 +2,7 @@
 import { MapContainer, Marker, Popup, Polyline, TileLayer, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 
 type MapStop = {
   deliveryId: string;
@@ -63,6 +64,7 @@ function ClickHandler({ onMapPick }: { onMapPick: (lat: number, lng: number) => 
 }
 
 export default function RouteStopPinMap({ stops, activeStopDeliveryId, onMapPick, depotLat, depotLng, fullRouteGeometry, height = 280 }: Props) {
+  const isDark = useIsDark();
   const pinned = stops.filter((s) => s.dropoffLat != null && s.dropoffLng != null);
   const activeStop = stops.find((s) => s.deliveryId === activeStopDeliveryId) ?? null;
 
@@ -94,11 +96,11 @@ export default function RouteStopPinMap({ stops, activeStopDeliveryId, onMapPick
         : [36.8065, 10.1815];
 
   return (
-    <div style={{ border: '1px solid #e5e7eb', borderRadius: 8, overflow: 'hidden', background: '#fff' }}>
+    <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', background: 'var(--surface)' }}>
       <MapContainer center={center} zoom={11} style={{ width: '100%', height }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
         <ClickHandler onMapPick={onMapPick} />
 

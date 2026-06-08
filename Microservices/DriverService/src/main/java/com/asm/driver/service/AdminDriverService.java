@@ -52,6 +52,7 @@ public class AdminDriverService {
     private final DeliveryServiceWebClient deliveryClient;
     private final KeycloakAdminClient keycloakAdminClient;
     private final ApplicationEventPublisher eventPublisher;
+    private final DriverEventPublisher driverEventPublisher;
 
     @Value("${invite.ttl-hours:48}")
     private long inviteTtlHours;
@@ -493,6 +494,9 @@ public class AdminDriverService {
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
         keycloakAdminClient.forceLogout(driver.getId().toString());
+
+        // S2: push an instant logout to the driver's app instead of waiting for token expiry.
+        driverEventPublisher.publishSessionRevoked(driver.getId());
 
         auditLogService.log(
                 "DRIVER_FORCE_LOGOUT",

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@100..800&display=swap');
 
 /* ── Design tokens — mirrors globals.css exactly ─────────────────────────── */
 :root {
@@ -35,7 +35,7 @@
   --radius-md: 4px;
   --radius-lg: 12px;
 
-  --font-sans: 'Universal Sans Text', 'Inter', system-ui, -apple-system, sans-serif;
+  --font-sans: 'Sora', sans-serif;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */
@@ -104,8 +104,8 @@ html, body {
 }
 
 .asm-brand-logo img {
-  width: 44px;
-  height: 44px;
+  width: 54px;
+  height: 54px;
   object-fit: contain;
 }
 
@@ -193,8 +193,8 @@ html, body {
 }
 
 .asm-mobile-logo img {
-  width: 36px;
-  height: 36px;
+  width: 44px;
+  height: 44px;
   object-fit: contain;
 }
 

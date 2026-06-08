@@ -2,6 +2,7 @@
 import { MapContainer, Marker, Polyline, Popup, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 
 type StopPoint = {
   id: string;
@@ -70,6 +71,7 @@ function makeDriverIcon() {
 }
 
 export default function RouteDetailMap({ stops, geometry, driverLocation }: RouteDetailMapProps) {
+  const isDark = useIsDark();
   const stopPoints = stops.filter((s) => typeof s.lat === 'number' && typeof s.lng === 'number');
 
   const center: [number, number] =
@@ -77,11 +79,11 @@ export default function RouteDetailMap({ stops, geometry, driverLocation }: Rout
     (stopPoints[0] ? [stopPoints[0].lat as number, stopPoints[0].lng as number] : [36.8065, 10.1815]);
 
   return (
-    <div style={{ height: 360, border: '1px solid #d1d5db', borderRadius: 8, overflow: 'hidden' }}>
+    <div style={{ height: 360, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
       <MapContainer center={center} zoom={12} style={{ height: '100%', width: '100%' }}>
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={isDark ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>' : '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>'}
+          url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
         />
 
         {geometry.length > 1 && <Polyline positions={geometry} pathOptions={{ color: '#111827', weight: 4 }} />}

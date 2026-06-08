@@ -6,6 +6,7 @@ import com.asm.delivery.service.AuditLogService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -24,6 +25,7 @@ import java.util.Map;
 public class AuditEventConsumer {
 
     private final AuditLogService auditLogService;
+    private final SimpMessagingTemplate ws;
 
     @RabbitListener(queues = RabbitMQConfig.AUDIT_QUEUE)
     public void onAuditEvent(Map<String, Object> event) {
@@ -32,6 +34,23 @@ public class AuditEventConsumer {
             log.warn("AuditEventConsumer: event missing 'action', dropping: {}", event);
             return; // ack + drop — not retryable
         }
+
+        // S2: a force-logout signal is relayed straight to the user's client, not persisted as audit
+        // (the originating FORCE_LOGOUT_* row already records the action). Admin users match by email
+        // on /topic/admin.security; drivers are targeted directly on their own /topic/driver.<id>.
+        if ("SESSION_REVOKED".equals(action)) {
+            String driverId = str(event.get("driverId"));
+            String email = str(event.get("email"));
+            if (driverId != null) {
+                ws.convertAndSend("/topic/driver." + driverId,
+                        Map.of("type", "session.revoked", "driverId", driverId));
+            } else if (email != null) {
+                ws.convertAndSend("/topic/admin.security",
+                        Map.of("type", "session.revoked", "email", email));
+            }
+            return;
+        }
+
         AuditLog log = AuditLog.builder()
                 .actorName(str(event.getOrDefault("actorName", "SERVICE")))
                 .actorRole(str(event.getOrDefault("actorRole", "SERVICE")))

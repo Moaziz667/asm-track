@@ -33,6 +33,12 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     List<Order> findTop100ByOdooSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
 
+    /** Count of orders in a given ERP sync state — backs the System Health ERP sync card. */
+    long countByOdooSyncStatus(String status);
+
+    /** Oldest-first slice of orders in a given sync state (e.g. SYNC_FAILED) for the drill-down. */
+    List<Order> findTop50ByOdooSyncStatusOrderByUpdatedAtAsc(String status);
+
     /**
      * Find orders whose ERP sync has failed and are due for a retry attempt.
      *

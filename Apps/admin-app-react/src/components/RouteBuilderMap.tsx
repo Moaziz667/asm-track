@@ -7,6 +7,7 @@ import { MapContainer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { useIsDark } from '@/lib/theme';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import { useRouteBuilderContext } from '@/pages/route-builder/hooks/useRouteBuilder';
@@ -214,6 +215,7 @@ function DrawSelector({ orders, onSelectionChange }: { orders: BuilderOrder[]; o
 
 function BaseTiles({ mapLayer }: { mapLayer?: 'street' | 'satellite' | 'hot' }) {
   const map = useMap();
+  const isDark = useIsDark();
   useEffect(() => {
     const panes = (map as any)?._panes;
     if (!panes || !panes.tilePane) return;
@@ -227,8 +229,13 @@ function BaseTiles({ mapLayer }: { mapLayer?: 'street' | 'satellite' | 'hot' }) 
       url = 'https://tile.openstreetmap.fr/hot/{z}/{x}/{y}.png';
       attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, Tiles courtesy of <a href="https://hot.openstreetmap.org/">Humanitarian OpenStreetMap Team</a>';
     } else {
-      url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
-      attribution = '&copy; OpenStreetMap contributors';
+      if (isDark) {
+        url = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png';
+        attribution = '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+      } else {
+        url = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+        attribution = '&copy; OpenStreetMap contributors';
+      }
     }
 
     const layer = L.tileLayer(url, { attribution, maxZoom: 19 });
