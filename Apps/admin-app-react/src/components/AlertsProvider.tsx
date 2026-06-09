@@ -253,6 +253,15 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       transitSlaMinutes: String(raw.transitSlaMinutes ?? ''),
     };
 
+    // The live WS payload nests SLA fields under `slaParams` (phase/health/reasonKey/dueAt +
+    // reasonParams); the persisted record stores them flat. Flatten here so the live item renders
+    // identically to the refreshed one (otherwise sla.alert shows up empty until a manual refresh).
+    if (raw.slaParams && typeof raw.slaParams === 'object') {
+      for (const [k, v] of Object.entries(raw.slaParams as Record<string, unknown>)) {
+        if (p[k] === undefined || p[k] === '') p[k] = v == null ? '' : String(v);
+      }
+    }
+
     const ts = Date.now();
     const activeLocale = useLocaleStore.getState().locale || 'fr';
     const copyDict = activeLocale === 'ar' ? AR_COPY : (activeLocale === 'en' ? EN_COPY : FR_COPY);
