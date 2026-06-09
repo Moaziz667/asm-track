@@ -193,34 +193,9 @@ public class RouteOptimizationService {
         calculateAndSaveETAs(route, depot, stops, deliveryMap);
     }
 
-    // ─── SLA status update (called by SlaMonitoringService) ──────────────────────
-
-    /**
-     * Recomputes slaStatus for all non-terminal stops of a route based on current time.
-     * Returns true if any status changed.
-     */
-    @Transactional
-    public boolean refreshSlaStatuses(UUID routeId) {
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId);
-        LocalDateTime now = LocalDateTime.now();
-        boolean anyChanged = false;
-
-        for (RouteStop stop : stops) {
-            if (stop.getEtaAt() == null || stop.getEtaBufferAt() == null) continue;
-            if (isTerminal(stop.getStatus())) continue;
-
-            SlaStatus newStatus = computeSlaStatus(stop, now);
-            if (newStatus != stop.getSlaStatus()) {
-                stop.setSlaStatus(newStatus);
-                anyChanged = true;
-            }
-        }
-
-        if (anyChanged) {
-            routeStopRepository.saveAll(stops);
-        }
-        return anyChanged;
-    }
+    // The legacy per-stop slaStatus refresh was removed: the unified SlaState (SlaEvaluator/
+    // SlaStateService) is now the single source of SLA truth. computeSlaStatus(...) below is kept
+    // only as an on-demand ETA-vs-deadline calculator used by reporting.
 
     // ─── ETA computation core ────────────────────────────────────────────────────
 

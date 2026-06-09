@@ -846,35 +846,34 @@ public class RoutePlanningService {
 
     @Transactional(readOnly = true)
     public SlaSummaryResponse getSlaSummary() {
-        List<RouteStop> stops = routeStopRepository.findActivePendingStops();
-        int total = stops.size();
-        int late = (int) stops.stream().filter(s -> s.getSlaStatus() == SlaStatus.LATE).count();
-        int onTime = (int) stops.stream().filter(s -> s.getSlaStatus() == SlaStatus.ON_TIME || s.getSlaStatus() == SlaStatus.EARLY).count();
+        // Reads the unified SlaState source of truth (replaces the legacy RouteStop.slaStatus path).
+        // "late" = live breach or terminal-late; "onTime" = on-track / at-risk / met.
+        long late = slaStateRepository.countByHealthIn(java.util.List.of(
+                com.asm.delivery.sla.SlaHealth.BREACHED, com.asm.delivery.sla.SlaHealth.LATE));
+        long onTime = slaStateRepository.countByHealthIn(java.util.List.of(
+                com.asm.delivery.sla.SlaHealth.ON_TRACK, com.asm.delivery.sla.SlaHealth.AT_RISK, com.asm.delivery.sla.SlaHealth.MET));
 
-        List<SlaSummaryResponse.SlaStopItem> lateStops = stops.stream()
-            .filter(s -> s.getSlaStatus() == SlaStatus.LATE)
+        List<SlaSummaryResponse.SlaStopItem> lateStops = slaStateRepository.findByHealthIn(java.util.List.of(
+                com.asm.delivery.sla.SlaHealth.BREACHED, com.asm.delivery.sla.SlaHealth.LATE)).stream()
             .sorted((a, b) -> {
-                if (a.getEtaAt() == null && b.getEtaAt() == null) return 0;
-                if (a.getEtaAt() == null) return 1;
-                if (b.getEtaAt() == null) return -1;
-                return a.getEtaAt().compareTo(b.getEtaAt());
+                if (a.getDueAt() == null && b.getDueAt() == null) return 0;
+                if (a.getDueAt() == null) return 1;
+                if (b.getDueAt() == null) return -1;
+                return a.getDueAt().compareTo(b.getDueAt());
             })
             .limit(10)
-            .map(s -> SlaSummaryResponse.SlaStopItem.builder()
-                .stopId(s.getId())
-                .deliveryId(s.getDeliveryId())
-                .routeId(s.getRoute() != null ? s.getRoute().getId() : null)
-                .clientName(null)
-                .etaAt(s.getEtaAt())
-                .slaDeadline(s.getEtaBufferAt())
-                .slaStatus(s.getSlaStatus() != null ? s.getSlaStatus().name() : null)
+            .map(st -> SlaSummaryResponse.SlaStopItem.builder()
+                .deliveryId(st.getDeliveryId())
+                .etaAt(st.getDueAt())
+                .slaDeadline(st.getDueAt())
+                .slaStatus(st.getHealth() != null ? st.getHealth().name() : null)
                 .build())
             .collect(Collectors.toList());
 
         return SlaSummaryResponse.builder()
-            .onTime(onTime)
-            .late(late)
-            .total(total)
+            .onTime((int) onTime)
+            .late((int) late)
+            .total((int) (onTime + late))
             .lateStops(lateStops)
             .build();
     }

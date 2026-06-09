@@ -12,5 +12,9 @@ public interface SlaStateRepository extends JpaRepository<SlaState, UUID> {
     /** Bulk fetch for route/full mapping to avoid a per-stop SLA query (N+1). */
     List<SlaState> findByDeliveryIdIn(List<UUID> deliveryIds);
 
+    List<SlaState> findByHealthIn(List<SlaHealth> healths);
+
     long countByHealth(SlaHealth health);
+
+    long countByHealthIn(List<SlaHealth> healths);
 }
