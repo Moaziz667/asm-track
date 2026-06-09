@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 /**
@@ -58,6 +59,8 @@ public class SlaStateService {
         if (r.health() == SlaHealth.BREACHED && state.getBreachedAt() == null) state.setBreachedAt(now);
         if (transition) state.setLastTransitionAt(now);
 
+        recordPhaseHealth(state, r.phase(), r.health());
+
         boolean inGrace = state.getSuppressAlertsUntil() != null && now.isBefore(state.getSuppressAlertsUntil());
         if (!inGrace && r.health().isAlertable() && r.health() != state.getLastAlertedHealth()) {
             eventPublisher.publishSlaAlert(d, r.phase(), r.health(), r.reasonKey(), r.reasonParams(), r.dueAt());
@@ -67,6 +70,38 @@ public class SlaStateService {
         if (!r.health().isAlertable()) state.setLastAlertedHealth(null);
 
         repo.save(state);
+    }
+
+    /**
+     * Remember the worst health a phase ever reached, keyed by phase name. For a terminal phase
+     * (DELIVERED/PARTIAL) we attribute the outcome to the DELIVERY phase so the stepper's delivery
+     * node reflects a late arrival. Severity rank: BREACHED/LATE &gt; AT_RISK &gt; everything else.
+     */
+    private void recordPhaseHealth(SlaState state, SlaPhase phase, SlaHealth health) {
+        String key = switch (phase) {
+            case DELIVERED, PARTIAL, FAILED, CANCELLED -> SlaPhase.DELIVERY.name();
+            default -> phase.name();
+        };
+        Map<String, String> map = state.getPhaseHealth() != null
+                ? new java.util.HashMap<>(state.getPhaseHealth()) : new java.util.HashMap<>();
+        SlaHealth existing = map.containsKey(key) ? safeHealth(map.get(key)) : null;
+        if (existing == null || rank(health) > rank(existing)) {
+            map.put(key, health.name());
+            state.setPhaseHealth(map);
+        }
+    }
+
+    private SlaHealth safeHealth(String s) {
+        try { return SlaHealth.valueOf(s); } catch (Exception e) { return null; }
+    }
+
+    /** Higher = worse, so the stepper colours a passed phase by its worst moment. */
+    private int rank(SlaHealth h) {
+        return switch (h) {
+            case BREACHED, LATE -> 3;
+            case AT_RISK -> 2;
+            default -> 1; // ON_TRACK / MET / NONE
+        };
     }
 
     @Transactional

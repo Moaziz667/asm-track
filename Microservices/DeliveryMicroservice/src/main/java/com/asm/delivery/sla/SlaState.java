@@ -69,6 +69,12 @@ public class SlaState {
     @Column(name = "reason_params", columnDefinition = "jsonb")
     private Map<String, String> reasonParams;
 
+    /** Worst health each lifecycle phase ever reached, e.g. {"DEPARTURE":"BREACHED"} — lets the
+     *  timeline colour passed phases truthfully instead of a flat green "done". */
+    @Type(JsonType.class)
+    @Column(name = "phase_health", columnDefinition = "jsonb")
+    private Map<String, String> phaseHealth;
+
     /** Last health an {@code sla.alert} was emitted for — persisted dedup across restarts. */
     @Enumerated(EnumType.STRING)
     @Column(name = "last_alerted_health", length = 12)

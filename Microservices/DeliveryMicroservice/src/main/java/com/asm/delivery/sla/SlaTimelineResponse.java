@@ -12,7 +12,8 @@ public record SlaTimelineResponse(Current current, List<Event> timeline, Context
 
     public record Current(String phase, String health, String dueAt, Integer lateMinutes,
                           boolean attributableToDriver, String reasonKey,
-                          Map<String, String> reasonParams) {}
+                          Map<String, String> reasonParams,
+                          Map<String, String> phaseHealth) {}
 
     /**
      * One lifecycle event. {@code params} is the stored JSON string (driver names, route, reason…);

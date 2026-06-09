@@ -23,6 +23,7 @@ interface SlaTimelineData {
   current?: {
     phase: Phase; health: Health; dueAt?: string; lateMinutes?: number;
     attributableToDriver?: boolean; reasonKey?: string; reasonParams?: Record<string, string>;
+    phaseHealth?: Record<string, string>;
   };
   timeline: { at?: string; status?: string; eventKey?: string; params?: string; actor?: string; actorRole?: string }[];
   context?: {
@@ -155,7 +156,13 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
         {FLOW.map((p, i) => {
           const state = cur.phase === p ? 'current' : i < reachedIndex ? 'done' : 'pending';
-          const tone = state === 'current' ? healthTone(cur.health) : state === 'done' ? TONE.done : TONE.pending;
+          // A passed ('done') phase keeps the worst health it actually reached, so a late
+          // departure/delivery stays amber/red instead of a flat green. Falls back to green when
+          // no per-phase history was recorded (older deliveries).
+          const pastHealth = cur.phaseHealth?.[p] as Health | undefined;
+          const doneTone = pastHealth && (pastHealth === 'BREACHED' || pastHealth === 'LATE' || pastHealth === 'AT_RISK')
+            ? healthTone(pastHealth) : TONE.done;
+          const tone = state === 'current' ? healthTone(cur.health) : state === 'done' ? doneTone : TONE.pending;
           return (
             <StepNode
               key={p}

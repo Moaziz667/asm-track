@@ -46,7 +46,8 @@ public class SlaTimelineService {
                 state.getLateMinutes(),
                 state.isAttributableToDriver(),
                 state.getReasonKey(),
-                state.getReasonParams());
+                state.getReasonParams(),
+                state.getPhaseHealth());
 
         var rows = historyRepository.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
         java.util.Map<String, String> driverNames = resolveDriverNames(rows);
