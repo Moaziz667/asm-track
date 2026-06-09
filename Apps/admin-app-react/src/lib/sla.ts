@@ -149,7 +149,7 @@ export function formatCountdown(
   locale: string
 ): string {
   if (!scheduledAt) return '—';
-  const diffMins = Math.floor((new Date(scheduledAt).getTime() - Date.now()) / 60000);
+  const diffMins = Math.floor((effectiveDeadlineMs(scheduledAt) - Date.now()) / 60000);
   if (diffMins >= 0) {
     if (diffMins < 60) {
       if (locale === 'ar') return `خلال ${diffMins} دق`;

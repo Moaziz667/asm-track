@@ -62,9 +62,13 @@ public class RouteStop {
     @Column(name = "eta_at")
     private LocalDateTime etaAt;
 
-    /** SLA deadline = etaAt + sla buffer (default 30 min). */
+    /**
+     * ETA prediction + buffer (etaAt + buffer, default 30 min) used by the optimizer for routing.
+     * NOT an SLA commitment — the real SLA deadline is the dispatcher's time window (see SlaEvaluator).
+     * DB column kept as {@code sla_deadline} to avoid a migration; the Java name reflects its true role.
+     */
     @Column(name = "sla_deadline")
-    private LocalDateTime slaDeadline;
+    private LocalDateTime etaBufferAt;
 
     /** When the driver actually arrived at this stop (set by mobile app). */
     @Column(name = "actual_arrival_at")

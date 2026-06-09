@@ -365,15 +365,22 @@ export function getLocalizedNotif(n: Notification, locale: string) {
     ? AR_COPY
     : (locale === 'en' ? EN_COPY : FR_COPY);
 
-  // Unified SLA event: render phase · health + reason from the slaTimeline copy (3-lang).
+  // Unified SLA event: render "phase · health" + reason, enriched with client/order context.
   if (n.event === 'sla.alert') {
     const sl = (copyDict as any).slaTimeline ?? {};
     const ep2 = (n.eventParams || {}) as Record<string, any>;
-    const phase = sl.phase?.[ep2.phase] ?? ep2.phase ?? '';
-    const health = sl.health?.[ep2.health] ?? ep2.health ?? '';
-    const reason = String(sl.reason?.[ep2.reasonKey] ?? '')
-      .replace(/\{(\w+)\}/g, (_: string, k: string) => ep2[k] ?? '');
-    return { title: `${phase}${health ? ' · ' + health : ''}`, message: reason || n.message };
+    // Live WS nests the SLA fields under slaParams; the persisted record stores them flat.
+    const sp = (ep2.slaParams ?? ep2) as Record<string, any>;
+    const phase = sl.phase?.[sp.phase] ?? sp.phase ?? '';
+    const health = sl.health?.[sp.health] ?? sp.health ?? '';
+    const reason = String(sl.reason?.[sp.reasonKey] ?? '')
+      .replace(/\{(\w+)\}/g, (_: string, k: string) => sp[k] ?? '');
+    const ref = ep2.erpOrderId ?? ep2.orderId ?? sp.erpOrderId ?? n.orderId ?? '';
+    const client = ep2.clientName ?? n.clientName ?? '';
+    const driver = ep2.driverName ?? n.driverName ?? '';
+    const context = [ref ? `#${ref}` : '', client, driver].filter(Boolean).join(' · ');
+    const message = [reason, context].filter(Boolean).join(' — ') || n.message;
+    return { title: `${phase}${health ? ' · ' + health : ''}`, message };
   }
 
   const cfg = (copyDict.notifications as any)[n.event];

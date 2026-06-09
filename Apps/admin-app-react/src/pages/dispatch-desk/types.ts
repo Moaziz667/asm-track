@@ -16,6 +16,8 @@ export type OpsException = {
   city?: string;
   zoneName?: string;
   severity: string;
+  slaPhase?: string;
+  slaHealth?: string;
   comment?: string;
   returnToOrigin?: boolean;
   createdAt?: string;

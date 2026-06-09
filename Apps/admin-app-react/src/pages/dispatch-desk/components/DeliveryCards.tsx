@@ -5,6 +5,7 @@ import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/ico
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import type { Delivery } from '@/types';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, RIBBON, SEVERITY_CHIP } from '../constants';
@@ -171,7 +172,7 @@ export function DeliveryCards() {
                         )}
                       </div>
                       {/* Per-tab right chip */}
-                      {isAssignTab && alert && (
+                      {isAssignTab && alert && formatMotif(alert.motif, t) && (
                         <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0"
                           style={{ color: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].text, background: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].bg }}>
                           {formatMotif(alert.motif, t)}
@@ -189,6 +190,7 @@ export function DeliveryCards() {
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge status={d.status} size="sm" />
+                        <SlaHealthBadge health={d.slaHealth} />
                         {d.driverName ? (
                           <Tooltip>
                             <TooltipTrigger asChild>

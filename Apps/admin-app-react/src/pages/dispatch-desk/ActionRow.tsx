@@ -8,7 +8,8 @@ import StatusBadge from '@/components/StatusBadge';
 import type { Driver } from '@/types';
 import type { OpsException, ActionKind } from './types';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip } from './constants';
-import { formatMotif, formatElapsed, formatComment, formatSuggestion, formatShortDate, needsClientContact, needsDriverContact, needsReturnToDepot } from './formatters';
+import { formatMotif, isSlaMotif, formatElapsed, formatComment, formatSuggestion, formatShortDate, needsClientContact, needsDriverContact, needsReturnToDepot } from './formatters';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 
@@ -158,17 +159,21 @@ export function ActionRow({
             {row.routeName && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{row.routeName}</p>}
           </td>
 
-          {/* Motif */}
+          {/* Motif — SLA lateness shown via the unified health badge; genuine exceptions as a chip */}
           <td style={{ padding: '8px 12px' }}>
-            <span
-              className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
-              style={{
-                color: row.severity === 'CRITICAL' ? '#dc2626' : row.severity === 'WARNING' ? '#ea580c' : 'var(--text-muted)',
-                background: row.severity === 'CRITICAL' ? 'rgba(220,38,38,0.10)' : row.severity === 'WARNING' ? 'rgba(234,88,12,0.10)' : 'var(--hover-bg)',
-              }}
-            >
-              {formatMotif(row.motif)}
-            </span>
+            {isSlaMotif(row.motif) ? (
+              <SlaHealthBadge health={(row as any).slaHealth} />
+            ) : formatMotif(row.motif) ? (
+              <span
+                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                style={{
+                  color: row.severity === 'CRITICAL' ? '#dc2626' : row.severity === 'WARNING' ? '#ea580c' : 'var(--text-muted)',
+                  background: row.severity === 'CRITICAL' ? 'rgba(220,38,38,0.10)' : row.severity === 'WARNING' ? 'rgba(234,88,12,0.10)' : 'var(--hover-bg)',
+                }}
+              >
+                {formatMotif(row.motif)}
+              </span>
+            ) : null}
           </td>
 
           {/* CTA buttons */}

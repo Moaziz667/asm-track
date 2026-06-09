@@ -4,6 +4,7 @@ import { IconCheck } from '@tabler/icons-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
@@ -71,6 +72,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
         {/* Bottom line: status · driver · elapsed · amount */}
         <div className="flex items-center gap-1.5 min-w-0 text-[11px]" style={{ color: 'var(--text-muted)' }}>
           <StatusBadge status={d.status} size="sm" />
+          <SlaHealthBadge health={d.slaHealth} />
           {d.driverName ? (
             <span className="inline-flex items-center gap-1 truncate" title={getDriverStatusTip(driverOnlineStatus, t)}>
               <span style={{ width: 5, height: 5, borderRadius: '50%', background: STATUS_DOT[driverOnlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />

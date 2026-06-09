@@ -5,6 +5,7 @@ import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/ico
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
   REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, SEVERITY_CHIP,
@@ -138,15 +139,18 @@ export function ActionCards() {
                           </p>
                         )}
                       </div>
-                      <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
-                        {formatMotif(row.motif, t)}
-                      </span>
+                      {formatMotif(row.motif, t) && (
+                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
+                          {formatMotif(row.motif, t)}
+                        </span>
+                      )}
                     </div>
 
                     {/* Status + driver */}
                     <div className="flex flex-col gap-1.5">
                       <div className="flex items-center gap-2 flex-wrap">
                         <StatusBadge status={row.status} size="sm" />
+                        <SlaHealthBadge health={(row as any).slaHealth} />
                         {row.driverName ? (
                           <Tooltip>
                             <TooltipTrigger asChild>

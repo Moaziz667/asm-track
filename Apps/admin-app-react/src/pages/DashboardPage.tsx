@@ -27,7 +27,7 @@ import { SectionCard } from '@/components/ui/section-card';
 import { Badge } from '@/components/ui/badge';
 import { useRoutes } from '@/hooks/useRoutes';
 import { getDayBucket, formatElapsed, getBusinessDayKey } from '@/lib/sla';
-import { formatNarrative } from '@/pages/dispatch-desk/formatters';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
 import { deriveHealthSummary } from '@/lib/system-health';
 
@@ -127,14 +127,14 @@ export default function DashboardPage() {
   const healthProblemsSummary = useMemo(() => {
     if (!healthData) return '';
     const downCbs = (healthData.circuitBreakers ?? []).filter(
-      cb => cb.state === 'OPEN' || cb.state === 'FORCED_OPEN' || cb.reachable === false
+      (cb: any) => cb.state === 'OPEN' || cb.state === 'FORCED_OPEN' || cb.reachable === false
     );
     const parts: string[] = [];
     
     if (downCbs.length > 0) {
       const names = Array.from(
         new Set(
-          downCbs.map(cb => {
+          downCbs.map((cb: any) => {
             const n = cb.name.toLowerCase();
             if (n.includes('erp') || n.includes('odoo')) return t.dashboardPage.systemHealthCategoryErp || 'ERP';
             if (n.includes('keycloak') || n.includes('auth')) return t.dashboardPage.systemHealthCategoryAuth || 'Auth';
@@ -215,8 +215,8 @@ export default function DashboardPage() {
 
   const today = stats?.today;
   // Unified SLA (source of truth): breached = past the window/promise; needs-attention = at-risk + breached.
-  const overdueCount = ops?.sla?.slaBreached ?? 0;
-  const exceptionsCount = (ops?.sla?.slaBreached ?? 0) + (ops?.sla?.slaAtRisk ?? 0);
+  const overdueCount = (ops?.sla as any)?.slaBreached ?? 0;
+  const exceptionsCount = ((ops?.sla as any)?.slaBreached ?? 0) + ((ops?.sla as any)?.slaAtRisk ?? 0);
   const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
 
   // ── Real KPI series + deltas from /reports/dashboard (30-day daily trend) ──
@@ -579,7 +579,7 @@ export default function DashboardPage() {
                   <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
                     <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
                     <button
-                      onClick={() => navigate('/dispatch-desk?tab=action')}
+                      onClick={() => navigate('/dispatch-desk?tab=queue')}
                       className="text-[11px] font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       {t.dashboardPage.needsAttentionViewAll || "View all"} <IconArrowUpRight size={11} />
@@ -588,24 +588,35 @@ export default function DashboardPage() {
                   <div className="flex-1 overflow-y-auto px-6 py-2" style={{ scrollbarWidth: 'thin' }}>
                     <div className="flex flex-col gap-3 py-2">
                       {needsAttention.map((exc: any, idx: number) => {
-                        const severity = exc.severity || 'INFO';
-                        const isCrit = severity === 'CRITICAL';
+                        const isCrit = exc.slaHealth === 'BREACHED' || exc.severity === 'CRITICAL';
+                        const accent = isCrit ? '#C7372F' : '#D4772C';
                         const timeRef = exc.scheduledAt || exc.createdAt;
                         const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
 
                         return (
-                          <div key={idx} onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))} className="flex items-start gap-3 p-3 rounded-[8px] bg-[var(--hover-bg)] hover:bg-[var(--border)]/50 transition-colors cursor-pointer group">
-                            <IconAlertTriangle size={16} className={cn("mt-0.5 shrink-0 transition-transform group-hover:scale-110", isCrit ? "text-[#C7372F]" : "text-[#D4772C]")} />
-                            <div className="flex flex-col min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[13px] font-semibold text-[var(--text-primary)] leading-tight">{exc.orderRef || 'Alert'}</span>
-                                {isCrit && <Badge variant="destructive" className="text-[9px] h-4 px-1.5 font-bold uppercase tracking-wider bg-[#C7372F]">{t.dashboardPage.critiqueBadge}</Badge>}
+                          <div
+                            key={idx}
+                            onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))}
+                            className="flex items-stretch rounded-[10px] border bg-[var(--surface)] hover:shadow-sm transition-all cursor-pointer overflow-hidden group"
+                            style={{ borderColor: 'var(--border)' }}
+                          >
+                            <span className="w-[3px] shrink-0" style={{ background: accent }} />
+                            <div className="flex flex-col min-w-0 flex-1 gap-1.5 p-2.5">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--brand)' }}>
+                                  {exc.orderRef || exc.deliveryId?.slice(0, 8) || 'Alert'}
+                                </span>
+                                <span className="text-[10px] font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
                               </div>
-                              <div className="text-[11.5px] font-medium text-[var(--text-primary)] opacity-80 mt-1 line-clamp-2 leading-relaxed text-left rtl:text-right" dir="ltr">
-                                {formatNarrative({ ...exc, motif: exc.motif ?? exc.status }, t)}
-                              </div>
-                              <div className="flex items-center mt-2">
-                                <span className="text-[10px] font-mono text-[var(--text-soft)]">{timeStr}</span>
+                              <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate leading-tight">
+                                {exc.clientName || '—'}{exc.city ? <span className="font-normal text-[var(--text-muted)]"> · {exc.city}</span> : null}
+                              </span>
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <StatusBadge status={exc.status} size="sm" />
+                                <SlaHealthBadge health={exc.slaHealth} />
+                                {exc.driverName && (
+                                  <span className="text-[10.5px] text-[var(--text-muted)] truncate">· {exc.driverName}</span>
+                                )}
                               </div>
                             </div>
                           </div>

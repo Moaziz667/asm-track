@@ -2,7 +2,7 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
-import { IconBell, IconCheck } from '@tabler/icons-react';
+import { IconBell, IconCheck, IconAlertTriangle, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { useNotifications, type Notification, getLocalizedNotif } from './AlertsProvider';
 import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
 import { useLocaleStore } from '@/lib/i18n';
@@ -10,17 +10,38 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { CopyDict } from '@/lib/LocaleContext';
 
-import trackyInfo from '@/assets/tracky_info.png';
-import trackyWarning from '@/assets/tracky_warning.png';
-import trackyCritical from '@/assets/tracky_critical.png';
+/* ── Severity Icon component ──────────────────────────────────────────────── */
 
-/* ── Mascot severity mapping ──────────────────────────────────────────────── */
+export function SeverityIcon({
+  severity,
+  className,
+}: {
+  severity: 'critical' | 'warning' | 'info';
+  className?: string;
+}) {
+  const config = {
+    critical: {
+      Icon: IconAlertTriangle,
+      bg: 'bg-red-500/10 dark:bg-red-500/20 text-red-600 dark:text-red-400 border-red-500/20',
+    },
+    warning: {
+      Icon: IconAlertCircle,
+      bg: 'bg-amber-500/10 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/20',
+    },
+    info: {
+      Icon: IconInfoCircle,
+      bg: 'bg-blue-500/10 dark:bg-blue-500/20 text-blue-600 dark:text-blue-400 border-blue-500/20',
+    },
+  };
 
-const SEV_MASCOT: Record<string, string> = {
-  critical: trackyCritical,
-  warning: trackyWarning,
-  info: trackyInfo,
-};
+  const { Icon, bg } = config[severity] || config.info;
+
+  return (
+    <div className={cn('flex items-center justify-center rounded-md border shrink-0', bg, className)}>
+      <Icon size={16} stroke={2.5} />
+    </div>
+  );
+}
 
 /* ── Compact relative time ("3m", "2h", "1d", "Yesterday") ────────────────── */
 
@@ -69,12 +90,8 @@ function NotifRow({
         'outline-none focus-visible:bg-[var(--hover-bg)]',
       )}
     >
-      {/* Mascot severity square image */}
-      <img
-        src={SEV_MASCOT[n.severity] || trackyInfo}
-        alt={n.severity}
-        className="w-8 h-8 rounded-md border border-[var(--border)] shrink-0 mt-0.5 object-cover"
-      />
+      {/* Severity Icon */}
+      <SeverityIcon severity={n.severity} className="w-8 h-8 mt-0.5" />
 
       {/* Content */}
       <div className="flex-1 min-w-0">

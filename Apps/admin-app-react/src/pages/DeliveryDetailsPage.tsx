@@ -58,15 +58,6 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   );
 }
 
-const STATUS_DOT_COLOR: Record<string, string> = {
-  DELIVERED: '#10B981',
-  FAILED: '#EF4444',
-  CANCELLED: '#6B7280',
-  IN_TRANSIT: 'var(--brand)',
-  PICKED_UP: 'var(--brand)',
-  ASSIGNED: '#F59E0B',
-};
-
 // ── Main ──────────────────────────────────────────────────────────────────────
 
 export default function DeliveryDetailPage() {
@@ -429,58 +420,7 @@ export default function DeliveryDetailPage() {
 
             {/* SLA journey — single source of truth (phase + health + per-phase event log) */}
             <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
-              <SlaTimeline deliveryId={delivery.id} variant="detailed" />
-            </Section>
-
-            {/* Raw status history (legacy view, retained until full cut-over) */}
-            <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
-              {history.length === 0 ? (
-                <span className="text-[12px] text-[var(--text-muted)]">{t.deliveryPage.noHistory}</span>
-              ) : (
-                <div className="flex flex-col gap-0">
-                  {history.map((evt, idx) => {
-                    const isLast  = idx === history.length - 1;
-                    const ts = evt.changedAt ?? evt.timestamp;
-                    const dotColor = isLast ? (STATUS_DOT_COLOR[evt.status] ?? 'var(--brand)') : 'var(--border)';
-                    return (
-                      <div key={idx} style={{ display: 'flex', gap: 14 }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
-                          <div style={{
-                            width: 20, height: 20, borderRadius: '50%', flexShrink: 0,
-                            background: isLast ? dotColor : 'var(--app-bg)',
-                            border: `2px solid ${dotColor}`,
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                          }}>
-                            {isLast && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff' }} />}
-                          </div>
-                          {!isLast && (
-                            <div style={{ width: 1, flex: 1, minHeight: 16, background: 'var(--border)', margin: '2px 0' }} />
-                          )}
-                        </div>
-                        <div style={{ paddingBottom: isLast ? 0 : 14 }}>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <StatusBadge status={evt.status} size="sm" />
-                            <span className="text-[10px] font-mono text-[var(--text-muted)]">
-                              {ts ? new Date(ts).toLocaleString() : '—'}
-                            </span>
-                          </div>
-                          {(evt.changedBy ?? evt.actor) && (
-                            <span className="text-[10px] text-[var(--text-muted)]">
-                              {t.deliveryPage.byLabel} {t.actors[evt.changedBy ?? evt.actor ?? ''] ?? (evt.changedBy ?? evt.actor)}
-                            </span>
-                          )}
-                          {evt.note && (
-                            <p className="text-[11px] text-[var(--text-primary)] mt-0.5">{evt.note}</p>
-                          )}
-                          {(evt.eventParams as any)?.reason && (
-                            <p className="text-[11px] text-[var(--text-primary)] mt-0.5 italic">{t.deliveryPage.reasonLabel} {(evt.eventParams as any).reason}</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+              <SlaTimeline deliveryId={delivery.id || id} variant="detailed" />
             </Section>
 
             {/* Proof of delivery */}

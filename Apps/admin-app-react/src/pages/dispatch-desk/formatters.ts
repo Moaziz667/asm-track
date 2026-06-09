@@ -3,19 +3,20 @@ import { getCopy, type CopyDict } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { formatElapsed as slaFormatElapsed, formatCountdown } from '@/lib/sla';
 
+/**
+ * SLA-derived motifs are no longer shown as their own chip — lateness is conveyed by the unified
+ * SlaHealthBadge (single source of truth). This identifies them so rows can render the badge instead.
+ */
+export function isSlaMotif(motif?: string): boolean {
+  const key = (motif ?? '').toUpperCase().trim();
+  return key.startsWith('SLA_') || key === 'SCHEDULED_MONITORING';
+}
+
 export function formatMotif(motif?: string, copy?: CopyDict): string {
   const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const key = (motif ?? '').toUpperCase().trim();
-  if (key === 'SLA_UNSCHEDULED_LATE') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduledLate;
-  if (key === 'SLA_UNSCHEDULED_TODAY') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduledToday;
-  if (key === 'SLA_UNSCHEDULED') return resolvedCopy.dispatchDeskPage.motifSlaUnscheduled;
-  if (key === 'SLA_SCHEDULED'   || key.includes('SLA_SCHEDULED'))   return resolvedCopy.dispatchDeskPage.motifSlaScheduled;
-  if (key === 'SLA_PICKUP'      || key.includes('SLA_PICKUP'))      return resolvedCopy.dispatchDeskPage.motifSlaPickup;
-  if (key === 'SLA_IN_TRANSIT'  || key.includes('SLA_IN_TRANSIT'))  return resolvedCopy.dispatchDeskPage.motifSlaInTransit;
-  if (key === 'SLA_WAITING')    return resolvedCopy.dispatchDeskPage.motifSlaWaiting;
-  if (key === 'SLA_ASSIGNMENT') return resolvedCopy.dispatchDeskPage.motifSlaAssignment;
-  if (key === 'SLA_TRANSIT')    return resolvedCopy.dispatchDeskPage.motifSlaTransit;
-  if (key === 'SCHEDULED_MONITORING')                                return resolvedCopy.dispatchDeskPage.motifScheduledMonitoring;
+  // SLA-derived motifs → no chip (the SlaHealthBadge carries lateness). Keep genuine exceptions below.
+  if (isSlaMotif(key)) return '';
   if (key === 'CLIENT_ABSENT')  return resolvedCopy.dispatchDeskPage.motifClientAbsent;
   if (key === 'REFUSED')        return resolvedCopy.dispatchDeskPage.motifRefused;
   if (key === 'WRONG_ADDRESS')  return resolvedCopy.dispatchDeskPage.motifWrongAddress;

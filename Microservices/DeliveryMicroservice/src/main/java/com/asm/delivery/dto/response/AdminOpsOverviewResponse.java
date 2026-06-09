@@ -88,5 +88,7 @@ public class AdminOpsOverviewResponse {
         private UUID routeId;
         private String routeName;
         private String routeStatus;
+        private String slaPhase;
+        private String slaHealth;
     }
 }

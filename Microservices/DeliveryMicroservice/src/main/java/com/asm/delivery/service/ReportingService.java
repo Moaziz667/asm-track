@@ -177,8 +177,8 @@ public class ReportingService {
         if (delayInfo != null) {
             return Math.max(delayInfo.delayMinutes, 0);
         }
-        if (stop.getActualArrivalAt() != null && stop.getSlaDeadline() != null) {
-            return Math.max(0, (int) Duration.between(stop.getSlaDeadline(), stop.getActualArrivalAt()).toMinutes());
+        if (stop.getActualArrivalAt() != null && stop.getEtaBufferAt() != null) {
+            return Math.max(0, (int) Duration.between(stop.getEtaBufferAt(), stop.getActualArrivalAt()).toMinutes());
         }
         if (delivery.getCompletedAt() != null && delivery.getRouteEtaAt() != null) {
             return Math.max(0, (int) Duration.between(delivery.getRouteEtaAt(), delivery.getCompletedAt()).toMinutes());

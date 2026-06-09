@@ -83,6 +83,12 @@ public class RouteStopFullResponse {
     @Schema(description = "Delivery status SLA")
     private SlaStatus slaStatus;
 
+    @Schema(description = "Unified SLA phase (source of truth)")
+    private String slaPhase;
+
+    @Schema(description = "Unified SLA health: ON_TRACK/AT_RISK/BREACHED/MET/LATE/NONE")
+    private String slaHealth;
+
     @Schema(description = "Calculated delay in minutes")
     private Integer delayMinutes;
 

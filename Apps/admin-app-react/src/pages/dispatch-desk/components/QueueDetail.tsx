@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
@@ -70,16 +71,29 @@ export function QueueDetail() {
     <div className="flex-1 flex flex-col min-h-0">
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col gap-5 p-5 max-w-[680px]">
-          {/* Header */}
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <Link to={`/deliveries/${id}`} className="font-mono text-[12px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
-                {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
-              </Link>
-              <p className="text-[18px] font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>{d.clientName ?? '—'}</p>
+          {/* Header — client hero with avatar + grouped status/health */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3 min-w-0">
+              <div
+                className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0"
+                style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
+              >
+                {(d.clientName ?? '?').slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-[17px] font-bold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>
+                  {d.clientName ?? '—'}
+                </p>
+                <Link to={`/deliveries/${id}`} className="font-mono text-[11.5px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
+                  {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
+                </Link>
+              </div>
             </div>
-            <div className="flex items-center gap-2.5 shrink-0">
-              <StatusBadge status={d.status} size="sm" />
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5">
+                <StatusBadge status={d.status} size="sm" />
+                <SlaHealthBadge health={d.slaHealth ?? alert?.slaHealth} size="md" />
+              </div>
               <Link to={`/deliveries/${id}`} className="text-[11px] font-[500] hover:underline" style={{ color: 'var(--text-secondary)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>
@@ -87,8 +101,8 @@ export function QueueDetail() {
           </div>
 
           {/* Unified SLA journey — single source of truth (phase + health), replaces the old narrative */}
-          {d.id
-            ? <SlaTimeline deliveryId={d.id} variant="compact" />
+          {id
+            ? <SlaTimeline deliveryId={id} variant="compact" />
             : (
               <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
                 <p className="text-[13px] leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
@@ -101,7 +115,7 @@ export function QueueDetail() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Driver */}
-            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5" style={{ background: 'var(--hover-bg)' }}>
+            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
                 {t.dispatchDeskPage.driverLabel}
               </span>
@@ -126,7 +140,7 @@ export function QueueDetail() {
             </div>
 
             {/* Address / client */}
-            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5" style={{ background: 'var(--hover-bg)' }}>
+            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
               <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
                 {t.dispatchDeskPage.orderLabel}
               </span>
@@ -144,19 +158,19 @@ export function QueueDetail() {
             </div>
           </div>
 
-          {/* Schedule / slot / amount */}
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-[12px]" style={{ color: 'var(--text-muted)' }}>
-            <span className="inline-flex items-center gap-1.5" title={formatShortDate(d.createdAt)}>
-              <IconClock size={13} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(alert?.updatedAt ?? d.createdAt, t))}
+          {/* Schedule / slot / amount — subtle meta pills */}
+          <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }} title={formatShortDate(d.createdAt)}>
+              <IconClock size={12} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(alert?.updatedAt ?? d.createdAt, t))}
             </span>
             {d.scheduledAt && (
-              <span className="inline-flex items-center gap-1.5">
-                <IconCalendar size={13} stroke={2.5} />
-                {t.dispatchDeskPage.filterStatusScheduled}: {new Date(d.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} {new Date(d.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
+              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }}>
+                <IconCalendar size={12} stroke={2.5} />
+                {new Date(d.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} {new Date(d.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
               </span>
             )}
-            {slot && <span className="inline-flex items-center gap-1.5"><IconCalendar size={13} stroke={2.5} /> {slot}</span>}
-            {amount && <span className="font-[700]" style={{ color: 'var(--text-primary)' }}>{amount}</span>}
+            {slot && <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }}><IconCalendar size={12} stroke={2.5} /> {slot}</span>}
+            {amount && <span className="inline-flex items-center px-2 py-1 rounded-full font-[700]" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>{amount}</span>}
           </div>
 
           {/* Items */}

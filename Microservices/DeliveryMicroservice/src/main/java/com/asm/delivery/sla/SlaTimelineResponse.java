@@ -14,8 +14,13 @@ public record SlaTimelineResponse(Current current, List<Event> timeline, Context
                           boolean attributableToDriver, String reasonKey,
                           Map<String, String> reasonParams) {}
 
-    /** One raw lifecycle event from DeliveryStatusHistory. {@code params} is the stored JSON string. */
-    public record Event(String at, String status, String eventKey, String params) {}
+    /**
+     * One lifecycle event. {@code params} is the stored JSON string (driver names, route, reason…);
+     * {@code actor} is the human who did it (resolved driver name / Admin / System / Client) and
+     * {@code actorRole} the role for icon/label.
+     */
+    public record Event(String at, String status, String eventKey, String params,
+                        String actor, String actorRole) {}
 
     public record Context(String failureCode, String failReason,
                           String backorderDirection, String backorderDeliveryId, String backorderBlNumber) {}

@@ -54,6 +54,7 @@ public class OpsAnalyticsService {
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
+    private final ExceptionClassifier exceptionClassifier;
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
@@ -270,7 +271,7 @@ public class OpsAnalyticsService {
         String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
 
         List<AdminOpsExceptionsResponse.ExceptionItem> filteredItems = deliveries.stream()
-                .map(delivery -> toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
+                .map(delivery -> exceptionClassifier.toExceptionItem(delivery, driverMap, routeInfoByDeliveryId, zoneNameById, now))
                 .filter(Objects::nonNull)
                 .filter(item -> {
                     if (motifQuery == null) return true;
@@ -281,7 +282,7 @@ public class OpsAnalyticsService {
                 })
                 .filter(item -> zoneQuery == null || containsIgnoreCase(item.getZoneName(), zoneQuery))
                 .sorted((a, b) -> {
-                    int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
+                    int severityOrder = exceptionClassifier.severityScore(b.getSeverity()) - exceptionClassifier.severityScore(a.getSeverity());
                     if (severityOrder != 0) return severityOrder;
                     LocalDateTime aTime = a.getUpdatedAt() != null ? a.getUpdatedAt() : a.getCreatedAt();
                     LocalDateTime bTime = b.getUpdatedAt() != null ? b.getUpdatedAt() : b.getCreatedAt();
@@ -413,10 +414,10 @@ public class OpsAnalyticsService {
         );
 
         List<AdminOpsOverviewResponse.ExceptionRow> exceptions = summaries.stream()
-                .map(s -> toExceptionRow(s, now, effectiveWaitingSlaMinutes, 0))
+                .map(s -> exceptionClassifier.toExceptionRow(s, now, effectiveWaitingSlaMinutes, 0))
                 .filter(Objects::nonNull)
                 .sorted((a, b) -> {
-                    int severityOrder = severityScore(b.getSeverity()) - severityScore(a.getSeverity());
+                    int severityOrder = exceptionClassifier.severityScore(b.getSeverity()) - exceptionClassifier.severityScore(a.getSeverity());
                     if (severityOrder != 0) return severityOrder;
                     LocalDateTime aTime = a.getCreatedAt() != null ? a.getCreatedAt() : LocalDateTime.MIN;
                     LocalDateTime bTime = b.getCreatedAt() != null ? b.getCreatedAt() : LocalDateTime.MIN;
@@ -562,16 +563,6 @@ public class OpsAnalyticsService {
                 .build();
     }
 
-        private record RouteInfo(
-            UUID routeId, 
-            String routeName, 
-            com.asm.delivery.entity.RouteStatus routeStatus,
-            LocalDateTime startedAt,
-            LocalDateTime departureTime,
-            java.time.LocalDate date,
-            java.time.LocalTime plannedStartTime,
-            java.time.LocalTime endTimeWindow
-        ) {}
 
         private String normalizeText(String value) {
                 if (!StringUtils.hasText(value)) {
@@ -618,270 +609,6 @@ public class OpsAnalyticsService {
                                 .build();
         }
 
-        private AdminOpsOverviewResponse.ExceptionRow toExceptionRow(AdminDeliverySummaryResponse s,
-                                                                                                                          LocalDateTime now,
-                                                                                                                          int effectiveWaitingSlaMinutes,
-                                                                                                                          int effectiveTransitSlaMinutes) {
-                if ("FAILED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Delivery failed: manual intervention required");
-                }
-                if ("CANCELLED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Delivery cancelled by user or system");
-                }
-                if ("PARTIALLY_DELIVERED".equals(s.getStatus())) {
-                        return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Partial delivery reported");
-                }
-                if ("UNSCHEDULED".equals(s.getStatus())) {
-                        // Lead-time vs ERP scheduled date; fallback to since-creation when absent.
-                        if (s.getScheduledAt() != null) {
-                                int assignLeadTimeMins = systemSettingsService.getInt("ops.sla.assign-leadtime-minutes", 120);
-                                LocalDateTime deadline = s.getScheduledAt().minusMinutes(assignLeadTimeMins);
-                                if (now.isAfter(deadline)) {
-                                        long over = Duration.between(deadline, now).toMinutes();
-                                        return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING",
-                                             String.format("Affectation tardive: %d min apres le seuil avant date planifiee", over));
-                                }
-                        } else if (s.getCreatedAt() != null) {
-                                int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
-                                long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
-                                if (elapsed > waitingLimit) {
-                                        return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING",
-                                             String.format("Planning SLA exceeded: unscheduled for %d minutes", elapsed));
-                                }
-                        }
-                }
-                if ("SCHEDULED".equals(s.getStatus())) {
-                        int assignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
-                        Long elapsed = resolveAssignSlaElapsedMinutes(s, now);
-                        if (elapsed == null) {
-                                return null;
-                        }
-                        if (elapsed > assignLimit) {
-                            return buildExceptionRow(s, DeliveryStatus.SCHEDULED, "CRITICAL", 
-                                 "Assignment SLA exceeded: driver delay in depot pickup");
-                        }
-                }
-                if ("IN_TRANSIT".equals(s.getStatus())) {
-                        if (s.getRouteEndTimeWindow() != null) {
-                                LocalDateTime deadline = LocalDateTime.of(now.toLocalDate(), s.getRouteEndTimeWindow());
-                                if (now.isAfter(deadline)) {
-                                        return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Critical delay: delivery time window exceeded");
-                                }
-                        }
-                }
-                return null;
-        }
-
-        private Long resolveAssignSlaElapsedMinutes(AdminDeliverySummaryResponse s, LocalDateTime now) {
-                if (s.getRouteId() == null) {
-                        return s.getAssignedAt() != null
-                                        ? Duration.between(s.getAssignedAt(), now).toMinutes()
-                                        : null;
-                }
-
-                if (s.getRouteStartedAt() != null) {
-                        return Duration.between(s.getRouteStartedAt(), now).toMinutes();
-                }
-                if (s.getRouteDepartureTime() != null) {
-                        return Duration.between(s.getRouteDepartureTime(), now).toMinutes();
-                }
-                if (s.getRouteDate() != null && s.getRoutePlannedStartTime() != null) {
-                        return Duration.between(s.getRouteDate().atTime(s.getRoutePlannedStartTime()), now).toMinutes();
-                }
-
-                return s.getAssignedAt() != null
-                                ? Duration.between(s.getAssignedAt(), now).toMinutes()
-                                : null;
-        }
-
-        private AdminOpsOverviewResponse.ExceptionRow buildExceptionRow(AdminDeliverySummaryResponse s,
-                                                                                                                                        DeliveryStatus status,
-                                                                                                                                        String severity,
-                                                                                                                                        String message) {
-                return AdminOpsOverviewResponse.ExceptionRow.builder()
-                                .deliveryId(s.getDeliveryId())
-                                .orderId(s.getOrderId())
-                                .orderRef(s.getOrderRef())
-                                .status(status)
-                                .clientName(s.getClientName())
-                                .city(s.getDropoffCity())
-                                .driverName(s.getDriverName())
-                                .severity(severity)
-                                .message(message)
-                                .createdAt(s.getCreatedAt())
-                                .scheduledAt(s.getScheduledAt())
-                                .routeId(s.getRouteId())
-                                .routeName(s.getRouteName())
-                                .routeStatus(s.getRouteStatus())
-                                .build();
-        }
-
-        private int severityScore(String severity) {
-                if ("CRITICAL".equalsIgnoreCase(severity)) return 3;
-                if ("WARNING".equalsIgnoreCase(severity)) return 2;
-                return 1;
-        }
-
-        private AdminOpsExceptionsResponse.ExceptionItem toExceptionItem(Delivery delivery,
-                                                                                                                                                 Map<String, DriverDTO> driverMap,
-                                                                                                                                                 Map<UUID, RouteInfo> routeInfoByDeliveryId,
-                                                                                                                                                 Map<UUID, String> zoneNameById,
-                                                                                                                                                 LocalDateTime now) {
-                RouteInfo routeInfo = routeInfoByDeliveryId.get(delivery.getId());
-                ExceptionClassification classification = classifyException(delivery, routeInfo, now);
-                if (classification == null) {
-                        return null;
-                }
-
-                Order order = delivery.getOrder();
-                String orderRef = order != null ? order.resolveRef() : "-";
-
-                DriverDTO driver = delivery.getDriverId() != null ? driverMap.get(delivery.getDriverId().toString()) : null;
-
-                return AdminOpsExceptionsResponse.ExceptionItem.builder()
-                                .deliveryId(delivery.getId())
-                                .orderId(order != null ? order.getId() : null)
-                                .orderRef(orderRef)
-                                .routeId(routeInfo != null ? routeInfo.routeId() : null)
-                                .routeName(routeInfo != null ? routeInfo.routeName() : null)
-                                .routeStatus(routeInfo != null && routeInfo.routeStatus() != null ? routeInfo.routeStatus().name() : null)
-                                .status(delivery.getStatus())
-                                .failureCode(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null)
-                                .motif(classification.motif())
-                                .driverId(delivery.getDriverId())
-                                .driverName(driver != null ? driver.getName() : null)
-                                .clientName(order != null ? order.getClientName() : null)
-                                .city(order != null ? order.getDropoffCity() : null)
-                                .zoneName(order != null && order.getZoneId() != null ? zoneNameById.get(order.getZoneId()) : null)
-                                .severity(classification.severity())
-                                .comment(classification.comment())
-                                .createdAt(delivery.getCreatedAt())
-                                .updatedAt(delivery.getUpdatedAt())
-                                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
-                                .dropoffLat(order != null ? order.getDropoffLat() : null)
-                                .dropoffLng(order != null ? order.getDropoffLng() : null)
-                                .build();
-        }
-        private ExceptionClassification classifyException(Delivery delivery, RouteInfo routeInfo, LocalDateTime now) {
-                DeliveryStatus status = delivery.getStatus();
-                if (status == DeliveryStatus.FAILED) {
-                        String motif = delivery.getFailureCode() != null ? delivery.getFailureCode().name() : "FAILED";
-                        String comment = StringUtils.hasText(delivery.getFailReason()) ? delivery.getFailReason() : "Delivery failed and requires follow-up";
-                        return new ExceptionClassification("CRITICAL", motif, comment);
-                }
-                if (status == DeliveryStatus.SCHEDULED) {
-                        int effectiveAssignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
-                        LocalDateTime baseline = delivery.getAssignedAt();
-
-                        if (routeInfo != null) {
-                                // 1. Use Route reference if available
-                                baseline = routeInfo.startedAt();
-                                if (baseline == null) baseline = routeInfo.departureTime();
-                                if (baseline == null && routeInfo.date() != null && routeInfo.plannedStartTime() != null) {
-                                        baseline = routeInfo.date().atTime(routeInfo.plannedStartTime());
-                                }
-                        }
-                        
-                        if (baseline == null) {
-                                baseline = delivery.getAssignedAt() != null ? delivery.getAssignedAt() : delivery.getCreatedAt();
-                        }
-
-                        // We skip the complex previousStop logic here to avoid N+1 queries.
-                        // It was doing findByRouteIdOrderByStopOrderAsc in a loop!
-
-                        long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
-                        String motif = elapsed > effectiveAssignLimit ? "SLA_SCHEDULED" : "SCHEDULED_MONITORING";
-                        String comment = elapsed > effectiveAssignLimit
-                                        ? "Pickup SLA exceeded: driver pickup delay"
-                                        : "Delivery unscheduled: awaiting routing";
-                        return new ExceptionClassification("WARNING", motif, comment);
-                }
-                if (status == DeliveryStatus.CANCELLED) {
-                        String comment = StringUtils.hasText(delivery.getCancelReason()) ? delivery.getCancelReason() : "Delivery cancelled: manual review required";
-                        return new ExceptionClassification("CRITICAL", "CANCELLED", comment);
-                }
-                if (status == DeliveryStatus.PARTIALLY_DELIVERED) {
-                        return new ExceptionClassification("WARNING", "PARTIAL_DELIVERY", "Partial delivery reported");
-                }
-                if (status == DeliveryStatus.UNSCHEDULED) {
-                        Order order = delivery.getOrder();
-                        if (order != null && order.effectiveScheduledAt() != null) {
-                                LocalDate scheduledDate = order.effectiveScheduledAt().toLocalDate();
-                                LocalDate today = now.toLocalDate();
-                                if (scheduledDate.isBefore(today)) {
-                                        return new ExceptionClassification("CRITICAL", "SLA_UNSCHEDULED_LATE", "En retard (Planifié le " + scheduledDate + ")");
-                                } else if (scheduledDate.isEqual(today)) {
-                                        return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED_TODAY", "Planifié pour aujourd'hui");
-                                }
-                                return new ExceptionClassification("INFO", "UNSCHEDULED", "Awaiting planning");
-                        }
-                        LocalDateTime baseline = delivery.getUpdatedAt() != null
-                                ? delivery.getUpdatedAt() : delivery.getCreatedAt();
-                        long elapsed = baseline != null ? Duration.between(baseline, now).toMinutes() : 0;
-                        if (elapsed > waitingSlaMinutes) {
-                                return new ExceptionClassification("WARNING", "SLA_UNSCHEDULED", "Planning SLA exceeded");
-                        }
-                        return new ExceptionClassification("INFO", "UNSCHEDULED", "Awaiting planning");
-                }
-                if (status == DeliveryStatus.IN_TRANSIT) {
-                        if (routeInfo != null && routeInfo.endTimeWindow() != null && routeInfo.date() != null) {
-                                LocalDateTime deadline = routeInfo.date().atTime(routeInfo.endTimeWindow());
-                                if (now.isAfter(deadline)) {
-                                        return new ExceptionClassification("CRITICAL", "SLA_IN_TRANSIT", "Delivery time window exceeded");
-                                }
-                        }
-                        return new ExceptionClassification("INFO", "IN_TRANSIT", "Delivery in transit");
-                }
-                if (status == DeliveryStatus.PICKED_UP) {
-                        long elapsed = delivery.getPickedUpAt() != null ? Duration.between(delivery.getPickedUpAt(), now).toMinutes() : 0;
-                        int effectivePickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 120);
-                        if (elapsed > effectivePickupLimit) {
-                                return new ExceptionClassification("WARNING", "SLA_PICKUP", "Parcel picked up but transit not started for " + elapsed + " mins");
-                        }
-                        return new ExceptionClassification("INFO", "PICKED_UP", "Parcel loaded: awaiting transit departure");
-                }
-                return null;
-        }
-
-        private boolean isRouteStopFinished(RouteStopStatus status) {
-                return status == RouteStopStatus.COMPLETED
-                                || status == RouteStopStatus.FAILED
-                                || status == RouteStopStatus.PARTIAL;
-        }
-
-        private AdminOpsExceptionsResponse.ExceptionItem mapActionResult(Delivery delivery,
-                                                                                                                                                  String severity,
-                                                                                                                                                  String motif,
-                                                                                                                                                  String comment) {
-                Order order = delivery.getOrder();
-                DriverDTO driver = delivery.getDriverId() != null ? transportPort.getDriver(delivery.getDriverId().toString()) : null;
-                RouteInfo routeInfo = loadRouteInfoMap(List.of(delivery)).get(delivery.getId());
-                String zoneName = null;
-                if (order != null && order.getZoneId() != null) {
-                        zoneName = zoneRepository.findById(order.getZoneId()).map(Zone::getName).orElse(null);
-                }
-                return AdminOpsExceptionsResponse.ExceptionItem.builder()
-                                .deliveryId(delivery.getId())
-                                .orderId(order != null ? order.getId() : null)
-                                .routeId(routeInfo != null ? routeInfo.routeId() : null)
-                                .routeName(routeInfo != null ? routeInfo.routeName() : null)
-                                .status(delivery.getStatus())
-                                .failureCode(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null)
-                                .motif(motif)
-                                .driverId(delivery.getDriverId())
-                                .driverName(driver != null ? driver.getName() : null)
-                                .clientName(order != null ? order.getClientName() : null)
-                                .city(order != null ? order.getDropoffCity() : null)
-                                .zoneName(zoneName)
-                                .severity(severity)
-                                .comment(comment)
-                                .createdAt(delivery.getCreatedAt())
-                                .updatedAt(delivery.getUpdatedAt())
-                                .scheduledAt(order != null ? order.effectiveScheduledAt() : null)
-                                .dropoffLat(order != null ? order.getDropoffLat() : null)
-                                .dropoffLng(order != null ? order.getDropoffLng() : null)
-                                .build();
-        }
 
         private boolean containsIgnoreCase(String value, String query) {
                 return value != null && value.toLowerCase(Locale.ROOT).contains(query);
@@ -1243,6 +970,5 @@ public class OpsAnalyticsService {
 
 
 
-    private record ExceptionClassification(String severity, String motif, String comment) {}
     private record ActorInfo(String name, Role role) {}
 }

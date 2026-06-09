@@ -24,6 +24,7 @@ public class SlaTimelineService {
     private final SlaStateService slaStateService;
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
+    private final com.asm.delivery.transport.TransportPort transportPort;
 
     @Transactional
     public SlaTimelineResponse build(UUID deliveryId) {
@@ -46,16 +47,59 @@ public class SlaTimelineService {
                 state.getReasonKey(),
                 state.getReasonParams());
 
-        List<SlaTimelineResponse.Event> timeline = historyRepository
-                .findByDeliveryIdOrderByChangedAtAsc(deliveryId).stream()
-                .map(h -> new SlaTimelineResponse.Event(
-                        h.getChangedAt() != null ? h.getChangedAt().toString() : null,
-                        h.getStatus() != null ? h.getStatus().name() : null,
-                        h.getEventKey(),
-                        h.getEventParams()))
-                .toList();
+        var rows = historyRepository.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
+        java.util.Map<String, String> driverNames = resolveDriverNames(rows);
+        String source = d.getOrder() != null && d.getOrder().getSource() != null ? d.getOrder().getSource().name() : "";
+        boolean hasCreatedRow = rows.stream().anyMatch(h -> "DELIVERY_CREATED".equals(h.getEventKey()));
+
+        List<SlaTimelineResponse.Event> timeline = new java.util.ArrayList<>();
+        // Only synthesize the "imported" event when the real creation row is absent (older deliveries).
+        if (!hasCreatedRow) timeline.add(importedEvent(d));
+        for (com.asm.delivery.entity.DeliveryStatusHistory h : rows) {
+            String role = h.getChangedByRole() != null ? h.getChangedByRole().name() : null;
+            // For driver actions changedBy is a driver UUID — show the resolved name instead.
+            String actor = "DRIVER".equals(role) ? driverNames.get(h.getChangedBy()) : null;
+            String eventKey = h.getEventKey();
+            String params = h.getEventParams();
+            // Promote the creation row to the richer "imported · source" line (no duplicate).
+            if ("DELIVERY_CREATED".equals(eventKey)) {
+                eventKey = "DELIVERY_IMPORTED";
+                params = "{\"source\":\"" + source + "\"}";
+            }
+            timeline.add(new SlaTimelineResponse.Event(
+                    h.getChangedAt() != null ? h.getChangedAt().toString() : null,
+                    h.getStatus() != null ? h.getStatus().name() : null,
+                    eventKey, params, actor, role));
+        }
 
         return new SlaTimelineResponse(current, timeline, buildContext(d));
+    }
+
+    /** Batch-resolve driver UUIDs (the actor of driver events) to names for a readable audit trail. */
+    private java.util.Map<String, String> resolveDriverNames(List<com.asm.delivery.entity.DeliveryStatusHistory> rows) {
+        java.util.Map<String, String> names = new java.util.HashMap<>();
+        rows.stream()
+                .filter(h -> h.getChangedByRole() == com.asm.delivery.entity.Role.DRIVER && h.getChangedBy() != null)
+                .map(com.asm.delivery.entity.DeliveryStatusHistory::getChangedBy)
+                .distinct()
+                .forEach(id -> {
+                    try {
+                        var dto = transportPort.getDriver(id);
+                        if (dto != null && dto.getName() != null) names.put(id, dto.getName());
+                    } catch (Exception ignored) { /* fall back to role label on the frontend */ }
+                });
+        return names;
+    }
+
+    /** Synthetic "order entered the system" event, derived from createdAt + the order source. */
+    private SlaTimelineResponse.Event importedEvent(Delivery d) {
+        String source = d.getOrder() != null && d.getOrder().getSource() != null
+                ? d.getOrder().getSource().name() : "";
+        String role = "ADMIN".equalsIgnoreCase(source) ? "ADMIN" : "SYSTEM";
+        return new SlaTimelineResponse.Event(
+                d.getCreatedAt() != null ? d.getCreatedAt().toString() : null,
+                "UNSCHEDULED", "DELIVERY_IMPORTED",
+                "{\"source\":\"" + source + "\"}", null, role);
     }
 
     private SlaTimelineResponse.Context buildContext(Delivery d) {

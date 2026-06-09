@@ -2,10 +2,11 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   IconPackageImport, IconRoute, IconTruckLoading, IconTruckDelivery,
   IconArrowsExchange, IconCircleCheck, IconCircleX, IconAlertTriangle,
-  IconClockExclamation, IconCircle, IconBan, IconPackages, IconPointFilled,
+  IconClockExclamation, IconCircle, IconBan, IconPackages,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 
 /**
  * Unified SLA timeline — the single enterprise view of a delivery's journey.
@@ -23,7 +24,7 @@ interface SlaTimelineData {
     phase: Phase; health: Health; dueAt?: string; lateMinutes?: number;
     attributableToDriver?: boolean; reasonKey?: string; reasonParams?: Record<string, string>;
   };
-  timeline: { at?: string; status?: string; eventKey?: string; params?: string }[];
+  timeline: { at?: string; status?: string; eventKey?: string; params?: string; actor?: string; actorRole?: string }[];
   context?: {
     failureCode?: string; failReason?: string;
     backorderDirection?: 'parent' | 'child'; backorderDeliveryId?: string; backorderBlNumber?: string;
@@ -78,6 +79,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
 
   useEffect(() => {
     let alive = true;
+    if (!deliveryId) { setLoading(false); setData(null); return; }
     setLoading(true);
     api.get(`/api/admin/deliveries/${deliveryId}/sla-timeline`)
       .then((r) => { if (alive) setData(r.data); })
@@ -94,9 +96,17 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
     if (!raw) return key.split('.').pop() || key;
     return raw.replace(/\{(\w+)\}/g, (_: string, k: string) => params?.[k] ?? '');
   };
-  const eventLabel = (ev: { eventKey?: string; status?: string }) =>
-    (ev.eventKey && c.event?.[ev.eventKey]) || (ev.status && c.event?.[ev.status]) ||
-    ev.eventKey || ev.status || '';
+  // Rich, human-readable audit line: localized template + interpolated params (driver, route, reason…).
+  const eventLabel = (ev: { eventKey?: string; status?: string; params?: string }) => {
+    const tpl = (ev.eventKey && c.event?.[ev.eventKey]) || (ev.status && c.event?.[ev.status])
+      || ev.eventKey || ev.status || '';
+    let params: Record<string, string> = {};
+    try { params = ev.params ? JSON.parse(ev.params) : {}; } catch { /* keep template as-is */ }
+    return String(tpl).replace(/\{(\w+)\}/g, (_: string, k: string) => params[k] ?? '');
+  };
+  // "by {driver name}" for driver actions, otherwise the role label (Admin / System / Client).
+  const actorLabel = (ev: { actor?: string; actorRole?: string }) =>
+    ev.actor || (ev.actorRole ? (c.actor?.[ev.actorRole] ?? '') : '');
 
   // Furthest phase the journey has reached, to mark nodes done/current/pending.
   const reachedIndex = useMemo(() => {
@@ -105,8 +115,21 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
     return cur ? FLOW.indexOf(cur) : 0;
   }, [data]);
 
-  if (loading) return <div style={{ padding: 12, color: 'var(--text-muted)', fontSize: 12 }}>…</div>;
-  if (!data || !data.current) return null;
+  if (loading) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 12px', color: 'var(--text-muted)', fontSize: 12 }}>
+        <span style={{ width: 14, height: 14, borderRadius: '50%', border: '2px solid var(--border,#e5e7eb)', borderTopColor: 'var(--text-muted)', animation: 'asm-pulse 1s linear infinite' }} />
+        {c.loading ?? 'Loading SLA…'}
+      </div>
+    );
+  }
+  // No current state yet (e.g. brand-new delivery) — still show the event log if we have one.
+  if (!data || !data.current) {
+    if (variant === 'detailed' && data?.timeline?.length) {
+      return <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} />;
+    }
+    return <div style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{c.noTimeline ?? '—'}</div>;
+  }
 
   const cur = data.current;
   const terminal = TERMINALS.includes(cur.phase);
@@ -158,7 +181,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
       </div>
 
       {variant === 'detailed' && (
-        <DetailedSection data={data} c={c} eventLabel={eventLabel} />
+        <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} />
       )}
     </div>
   );
@@ -226,9 +249,12 @@ function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDon
   );
 }
 
-function DetailedSection({ data, c, eventLabel }: {
-  data: SlaTimelineData; c: any; eventLabel: (e: { eventKey?: string; status?: string }) => string;
+function DetailedSection({ data, c, eventLabel, actorLabel }: {
+  data: SlaTimelineData; c: any;
+  eventLabel: (e: { eventKey?: string; status?: string; params?: string }) => string;
+  actorLabel: (e: { actor?: string; actorRole?: string }) => string;
 }) {
+  const by = c.by ?? 'by';
   const ctx = data.context;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -262,13 +288,19 @@ function DetailedSection({ data, c, eventLabel }: {
         {(!data.timeline || data.timeline.length === 0) && (
           <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.noTimeline ?? '—'}</span>
         )}
-        {data.timeline?.map((ev, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
-            <IconPointFilled size={14} color={TONE.pending.dot} />
-            <span style={{ fontSize: 12, color: 'var(--text-strong, #1f2937)', flex: 1 }}>{eventLabel(ev)}</span>
-            <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{fmtTime(ev.at)}</span>
-          </div>
-        ))}
+        {data.timeline?.map((ev, i) => {
+          const who = actorLabel(ev);
+          return (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0' }}>
+              {ev.status && <span style={{ flexShrink: 0 }}><StatusBadge status={ev.status} size="sm" /></span>}
+              <span style={{ flex: 1, lineHeight: 1.3 }}>
+                <span style={{ fontSize: 12, color: 'var(--text-strong, #1f2937)' }}>{eventLabel(ev)}</span>
+                {who && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}> · {by} {who}</span>}
+              </span>
+              <span style={{ fontSize: 11, color: 'var(--text-muted)', flexShrink: 0 }}>{fmtTime(ev.at)}</span>
+            </div>
+          );
+        })}
       </div>
     </div>
   );

@@ -11,11 +11,9 @@ import com.asm.delivery.event.DeliveryEventPayload;
 import com.asm.delivery.event.HandoffEventPayload;
 import com.asm.delivery.event.RouteEventPayload;
 import com.asm.delivery.transport.TransportPort;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -29,22 +27,14 @@ import java.util.UUID;
 @Slf4j
 public class EventPublisher {
 
-    private final SimpMessagingTemplate ws;
-
-    @Autowired(required = false)
-    private FcmNotificationService fcm;
+    @Autowired
+    private com.asm.delivery.notification.NotificationGateway notificationGateway;
 
     @Autowired
     private TransportPort transportPort;
-    
-    @Autowired
-    private ObjectMapper objectMapper;
 
     @Autowired
     private com.asm.delivery.repository.RouteStopRepository routeStopRepository;
-
-    @Autowired
-    private NotificationService notificationService;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -123,7 +113,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        ws.convertAndSend("/topic/admin.deliveries", envelope);
+        notificationGateway.broadcast("/topic/admin.deliveries", envelope);
     }
 
     private void sendRoute(String eventType, Object payload) {
@@ -132,7 +122,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        ws.convertAndSend("/topic/admin.routes", envelope);
+        notificationGateway.broadcast("/topic/admin.routes", envelope);
     }
 
     private void sendErp(String eventType, Object payload) {
@@ -141,7 +131,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        ws.convertAndSend("/topic/admin.erp", envelope);
+        notificationGateway.broadcast("/topic/admin.erp", envelope);
     }
 
     /** Push a real-time event to a single driver's personal STOMP topic. */
@@ -152,7 +142,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        ws.convertAndSend("/topic/driver." + driverId, envelope);
+        notificationGateway.broadcast("/topic/driver." + driverId, envelope);
     }
 
     // ── Handoff lifecycle events (real-time: driver topics + admin + FCM) ───────
@@ -181,7 +171,7 @@ public class EventPublisher {
             log.info("EVENT handoff.requested handoffId={} from={} to={}", h.getId(), h.getFromDriverId(), h.getToDriverId());
             sendDriver(h.getToDriverId(), "handoff.incoming", p);
             sendDriver(h.getFromDriverId(), "handoff.outgoing", p);
-            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.requested").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -190,7 +180,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — passation "
                     + (fromName != null ? fromName : "—") + " → " + (toName != null ? toName : "—");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("handoff.requested").severity("warning")
                     .title("Passation requise")
                     .message(msg)
@@ -219,13 +209,13 @@ public class EventPublisher {
             log.info("EVENT handoff.confirmed handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
             sendDriver(h.getToDriverId(), "handoff.confirmed", p);
             sendDriver(h.getFromDriverId(), "handoff.confirmed", p);
-            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("delivery.handoff_confirmed").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
             String msg = "Colis" + (clientName != null ? " de " + clientName : "") + " remis au nouveau livreur";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.handoff_confirmed").severity("info")
                     .title("Transfert colis confirmé")
                     .message(msg)
@@ -246,14 +236,14 @@ public class EventPublisher {
             log.info("EVENT handoff.cancelled handoffId={} reason={}", h.getId(), h.getReason());
             sendDriver(h.getToDriverId(), "handoff.cancelled", p);
             sendDriver(h.getFromDriverId(), "handoff.cancelled", p);
-            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.cancelled").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — passation annulée"
                     + (h.getReason() != null && !h.getReason().isBlank() ? " · " + h.getReason() : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("handoff.cancelled").severity("warning")
                     .title("Passation annulée")
                     .message(msg)
@@ -272,7 +262,7 @@ public class EventPublisher {
         final HandoffEventPayload p = handoffPayload(h, order);
         executeAfterCommitAsync(() -> {
             log.warn("EVENT handoff.overdue handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
-            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.overdue").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -281,7 +271,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — passation non confirmée ("
                     + (fromName != null ? fromName : "—") + " → " + (toName != null ? toName : "—") + ")";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("handoff.overdue").severity("critical")
                     .title("Passation en retard")
                     .message(msg)
@@ -309,7 +299,7 @@ public class EventPublisher {
             p.put("reason", parcelCount + " colis");
             log.warn("EVENT pickup.overdue routeId={} stopId={} depot={}", route.getId(), pickupStop.getId(), depotName);
             sendDriver(route.getDriverId(), "pickup.overdue", p);
-            ws.convertAndSend("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
                 .source("/delivery-service").type("pickup.overdue").data(p).build());
             sendFcmFatPayload(route.getDriverId() != null ? route.getDriverId().toString() : null, "PICKUP_OVERDUE", p);
             // Persist so admins still see overdue depot pickups in the bell/history after a reload.
@@ -319,7 +309,7 @@ public class EventPublisher {
             persisted.put("clientName", depotName != null ? depotName : "");
             persisted.put("driverName", driverName != null ? driverName : "");
             persisted.put("reason", parcelCount + " colis");
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("pickup.overdue").severity("critical")
                     .title("Pickup overdue")
                     .message((depotName != null ? depotName + " — " : "") + "pickup overdue ("
@@ -333,18 +323,7 @@ public class EventPublisher {
     }
 
     private void sendFcmFatPayload(String driverId, String eventType, Object payload) {
-        if (fcm == null || driverId == null) return;
-        try {
-            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
-                .source("/delivery-service")
-                .type(eventType)
-                .data(payload)
-                .build();
-            String json = objectMapper.writeValueAsString(envelope);
-            fcm.sendDataToDriver(driverId, Map.of("payload", json, "event_type", eventType));
-        } catch (Exception e) {
-            log.warn("Failed to serialize FCM payload for driverId={}: {}", driverId, e.getMessage());
-        }
+        notificationGateway.pushToDriver(driverId, eventType, payload);
     }
 
     public void publishDriverLocation(UUID driverId, BigDecimal lat, BigDecimal lng) {
@@ -366,7 +345,7 @@ public class EventPublisher {
             .type("driver.location_updated")
             .data(p)
             .build();
-        ws.convertAndSend("/topic/public." + deliveryId, envelope);
+        notificationGateway.broadcast("/topic/public." + deliveryId, envelope);
     }
 
     private void executeAfterCommitAsync(Runnable runnable) {
@@ -397,46 +376,6 @@ public class EventPublisher {
             });
     }
 
-    public void publishSlaBreach(Delivery delivery, String motif, String severity, Map<String, Object> params) {
-        // Eagerly resolve the payload in the active transaction thread to avoid LazyInitializationException
-        final DeliveryEventPayload p = deliveryPayload("sla.breach", delivery.getOrder(), delivery);
-        p.setMotif(motif);
-        p.setSeverity(severity);
-        p.setSlaParams(params != null ? params : Map.of());
-        
-        String elapsedStr = p.getSlaParams().get("elapsed") != null ? p.getSlaParams().get("elapsed") + " min" : "";
-        String msg = p.getClientName() != null ? p.getClientName() + " — " : "";
-        if ("SLA_WAITING".equals(motif)) {
-            boolean hasSchedule = p.getSlaParams().get("scheduledAt") != null
-                    && !String.valueOf(p.getSlaParams().get("scheduledAt")).isBlank();
-            msg += hasSchedule
-                    ? "Affectation tardive — " + elapsedStr + " après le seuil avant la date planifiée"
-                    : "Attente de " + elapsedStr + " (Dépassement SLA)";
-        }
-        else if ("SLA_ASSIGNMENT".equals(motif)) msg += "Délai démarrage " + elapsedStr + " (Dépassement SLA)";
-        else if ("SLA_PICKUP".equals(motif)) msg += "Délai de départ " + elapsedStr + " (Dépassement SLA)";
-        else if ("SLA_TRANSIT".equals(motif)) msg += "En retard sur le trajet (Dépassement SLA)";
-        else msg += "Dépassement SLA critique";
-        
-        p.setSlaMessage(msg);
-
-        executeAfterCommitAsync(() -> {
-            log.warn("EVENT sla.breach deliveryId={} motif={} severity={}", delivery.getId(), motif, severity);
-            sendDelivery("sla.breach", p);
-            String sevNorm = "critical".equalsIgnoreCase(severity) ? "critical" : "warning";
-            Map<String, Object> dbPayload = new HashMap<>(p.getSlaParams() != null ? p.getSlaParams() : Map.of());
-            dbPayload.put("motif", motif);
-            notificationService.record(Notification.builder()
-                    .eventType("sla.breach").severity(sevNorm)
-                    .title("SLA breach")
-                    .message(p.getSlaMessage())
-                    .orderRef(p.getErpOrderId()).deliveryId(p.getDeliveryId())
-                    .routeId(p.getRouteId()).driverName(p.getDriverName()).clientName(p.getClientName())
-                    .payload(dbPayload)
-                    .build());
-        });
-    }
-
     /**
      * Unified SLA notification (replaces the 4 {@code sla.breach} motifs). Fired only on health
      * transitions by {@link com.asm.delivery.sla.SlaStateService}. Carries phase/health/reasonKey so
@@ -461,7 +400,7 @@ public class EventPublisher {
         executeAfterCommitAsync(() -> {
             log.info("EVENT sla.alert deliveryId={} phase={} health={}", delivery.getId(), phase, health);
             sendDelivery("sla.alert", p);
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("sla.alert").severity(critical ? "critical" : "warning")
                     .title("SLA " + health.name())
                     .message(reasonKey)
@@ -486,7 +425,7 @@ public class EventPublisher {
                     ? "Commande " + erpOrderId + " créée" + (clientName != null ? " · " + clientName : "")
                     : "Nouvelle commande" + (clientName != null ? " · " + clientName : "");
                     
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.created").severity("info")
                     .title("Nouvelle livraison")
                     .message(msg)
@@ -510,7 +449,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — planifiée"
                     + (driverName != null ? " · " + driverName : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.scheduled").severity("info")
                     .title("Livraison planifiée")
                     .message(msg)
@@ -534,7 +473,7 @@ public class EventPublisher {
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — pris en charge";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.picked_up").severity("info")
                     .title("Colis récupéré")
                     .message(msg)
@@ -569,7 +508,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — en route"
                     + (driverName != null ? " · " + driverName : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.in_transit").severity("info")
                     .title("En livraison")
                     .message(msg)
@@ -589,7 +528,7 @@ public class EventPublisher {
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — livrée";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.completed").severity("info")
                     .title("Livraison réussie")
                     .message(msg)
@@ -614,7 +553,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — échouée"
                     + (detail != null ? " · " + detail : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.failed").severity("critical")
                     .title("Échec livraison")
                     .message(msg)
@@ -634,7 +573,7 @@ public class EventPublisher {
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — annulée";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.cancelled").severity("warning")
                     .title("Livraison annulée")
                     .message(msg)
@@ -668,7 +607,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — nouveau livreur"
                     + (driverName != null ? " · " + driverName : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.reassigned").severity("info")
                     .title("Livraison réassignée")
                     .message(msg)
@@ -697,7 +636,7 @@ public class EventPublisher {
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — reportée";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.replanned").severity("warning")
                     .title("Livraison replanifiée")
                     .message(msg)
@@ -718,7 +657,7 @@ public class EventPublisher {
             String clientName = order != null ? order.getClientName() : null;
             String msg = (clientName != null ? clientName : "Client") + " — retirée de la tournée du livreur";
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.reassigned_away").severity("warning")
                     .title("Livraison retirée")
                     .message(msg)
@@ -745,7 +684,7 @@ public class EventPublisher {
             String msg = (clientName != null ? clientName : "Client") + " — passation de colis requise"
                     + (driverName != null ? " · " + driverName : "");
 
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.handoff_required").severity("warning")
                     .title("Passation requise")
                     .message(msg)
@@ -770,7 +709,7 @@ public class EventPublisher {
                 .type("erp.orders_ready")
                 .data(m)
                 .build();
-            ws.convertAndSend("/topic/admin.erp", envelope);
+            notificationGateway.broadcast("/topic/admin.erp", envelope);
         });
     }
 
@@ -795,7 +734,7 @@ public class EventPublisher {
                     .motif(operation)
                     .build();
             sendErp("erp.sync_failed", p);
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("erp.sync_failed").severity("critical")
                     .title("ERP sync failed")
                     .message((client != null ? client + " — " : "") + "Order " + (erpId != null ? erpId : dId)
@@ -829,13 +768,13 @@ public class EventPublisher {
                     .type("delivery.backorder_created")
                     .data(p)
                     .build();
-            ws.convertAndSend("/topic/admin.deliveries", envelope);
+            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
             // Persist the same params so the bell/history re-localizes identically after a reload.
             Map<String, Object> persisted = new HashMap<>();
             persisted.put("erpOrderId", orderRef != null ? orderRef : "");
             persisted.put("clientName", client != null ? client : "");
             persisted.put("blNumber", backorderBlNumber != null ? backorderBlNumber : "");
-            notificationService.record(Notification.builder()
+            notificationGateway.record(Notification.builder()
                     .eventType("delivery.backorder_created").severity("info")
                     .title("Backorder created")
                     .message((client != null ? client + " — " : "") + "Remaining items for "
@@ -918,7 +857,6 @@ public class EventPublisher {
     public void publishStopsTransferred(UUID sourceDriverId, UUID targetDriverId, int count, boolean requiresHandoff) {
         executeAfterCommitAsync(() -> {
             log.info("EVENT stops.transferred sourceDriver={} targetDriver={} count={} handoff={}", sourceDriverId, targetDriverId, count, requiresHandoff);
-            if (fcm == null) return;
             Map<String, Object> p = Map.of("count", count);
             if (sourceDriverId != null) {
                 sendFcmFatPayload(sourceDriverId.toString(), "STOPS_TRANSFERRED_OUT", p);
@@ -942,7 +880,7 @@ public class EventPublisher {
                 .type("delivery.handoff_confirmed")
                 .data(m)
                 .build();
-            ws.convertAndSend("/topic/admin.routes", envelope);
+            notificationGateway.broadcast("/topic/admin.routes", envelope);
         });
     }
 }

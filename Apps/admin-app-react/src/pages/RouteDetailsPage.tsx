@@ -44,6 +44,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
@@ -102,6 +103,8 @@ type RouteStop = {
   startTimeWindow?: string;
   endTimeWindow?: string;
   slaStatus?: string;
+  slaHealth?: string;
+  slaPhase?: string;
   delayMinutes?: number;
   delayStatus?: string;
   delayReason?: string;
@@ -784,6 +787,7 @@ export default function RouteDetailsPage() {
                           <IconBuildingWarehouse size={16} className="text-cyan-600 shrink-0" />
                           <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{stop.sourceDepotName || t.routeBuilderPage.depotLabel}</p>
                           <StatusBadge status={displayStatus} size="sm" />
+                          <SlaHealthBadge health={stop.slaHealth} />
                         </div>
                         <div className="flex items-center gap-2 text-xs text-[var(--text-muted)]">
                           <IconMapPin size={12} />

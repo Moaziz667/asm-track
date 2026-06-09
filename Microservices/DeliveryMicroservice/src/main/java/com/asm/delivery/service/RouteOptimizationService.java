@@ -206,7 +206,7 @@ public class RouteOptimizationService {
         boolean anyChanged = false;
 
         for (RouteStop stop : stops) {
-            if (stop.getEtaAt() == null || stop.getSlaDeadline() == null) continue;
+            if (stop.getEtaAt() == null || stop.getEtaBufferAt() == null) continue;
             if (isTerminal(stop.getStatus())) continue;
 
             SlaStatus newStatus = computeSlaStatus(stop, now);
@@ -259,7 +259,7 @@ public class RouteOptimizationService {
             } else {
                 // OSRM not available — skip duration/distance part
                 stop.setEtaAt(null);
-                stop.setSlaDeadline(null);
+                stop.setEtaBufferAt(null);
                 stop.setDriveDurationSeconds(null);
                 stop.setDriveDistanceMeters(null);
             }
@@ -272,7 +272,7 @@ public class RouteOptimizationService {
 
             // Use per-stop buffer (fallback to global default if null)
             int buffer = stop.getBufferMinutes() != null ? stop.getBufferMinutes() : slaBufferMinutes;
-            stop.setSlaDeadline(currentTime.plusMinutes(buffer));
+            stop.setEtaBufferAt(currentTime.plusMinutes(buffer));
 
             stop.setDriveDurationSeconds(driveSec);
             stop.setDriveDistanceMeters(driveMt);
@@ -289,7 +289,7 @@ public class RouteOptimizationService {
             // In Manual Mode, we keep ETA null or use the manual window start if you prefer.
             // For now, we follow the request to disable OSRM-based automatic timing.
             stop.setEtaAt(null); 
-            stop.setSlaDeadline(null);
+            stop.setEtaBufferAt(null);
             stop.setSlaStatus(null);
             
             stop.setDriveDurationSeconds(driveSec);
@@ -501,8 +501,8 @@ public class RouteOptimizationService {
         }
 
         // 2. Deadline-based fallback
-        if (stop.getSlaDeadline() != null) {
-            if (arrival.isAfter(stop.getSlaDeadline())) return SlaStatus.LATE;
+        if (stop.getEtaBufferAt() != null) {
+            if (arrival.isAfter(stop.getEtaBufferAt())) return SlaStatus.LATE;
             if (stop.getEtaAt() != null && arrival.isBefore(stop.getEtaAt())) return SlaStatus.EARLY;
             return SlaStatus.ON_TIME;
         }
