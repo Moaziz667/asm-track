@@ -156,13 +156,25 @@ public class KeycloakAdminClient {
     }
 
     private String getUserIdByUsername(String username, String token) {
-        List<Map<String, Object>> body = restClient.get()
-                .uri(getAdminUrl() + "/users?username=" + username + "&exact=true")
-                .header("Authorization", "Bearer " + token)
-                .retrieve()
-                .body(LIST_OF_MAPS);
-        if (body != null && !body.isEmpty()) {
-            return (String) body.get(0).get("id");
+        // Retry 3x with 200ms delay to wait for Keycloak user indexation after creation
+        for (int attempt = 0; attempt < 3; attempt++) {
+            try {
+                List<Map<String, Object>> body = restClient.get()
+                        .uri(getAdminUrl() + "/users?username=" + username + "&exact=true")
+                        .header("Authorization", "Bearer " + token)
+                        .retrieve()
+                        .body(LIST_OF_MAPS);
+                if (body != null && !body.isEmpty()) {
+                    return (String) body.get(0).get("id");
+                }
+                // User not found on this attempt — retry
+                if (attempt < 2) {
+                    Thread.sleep(200);
+                }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                return null;
+            }
         }
         return null;
     }

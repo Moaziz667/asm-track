@@ -53,6 +53,7 @@ public class DriverDeliveryService {
     private final HandoffService                  handoffService;
     private final com.asm.delivery.repository.HandoffRepository handoffRepository;
     private final FailureReasonService            failureReasonService;
+    private final com.asm.delivery.sla.SlaStateService slaStateService;
 
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
@@ -829,6 +830,10 @@ public class DriverDeliveryService {
                 .eventKey(eventKey)
                 .eventParams(jsonParams)
                 .build());
+
+        // Single hook: every status transition in this service refreshes the SLA source of truth
+        // (covers accept/pickup/transit/complete/fail/cancel — incl. terminal states the tick skips).
+        slaStateService.refresh(delivery);
     }
 
     public DriverDeliveryResponse toDriverDeliveryResponse(Delivery delivery) {

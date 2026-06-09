@@ -46,9 +46,9 @@ public class AdminUserService {
         // Provision in Keycloak (Resilient: caught exceptions will not roll back database)
         try {
             keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password());
-            eventPublisher.publishEvent(new KeycloakUserRollbackEvent(this, req.email()));
+            eventPublisher.publishEvent(new KeycloakUserRollbackEvent(this, user.getId().toString()));
         } catch (Exception e) {
-            log.warn("Keycloak is down/failed to provision user (email={}) during creation. Sync scheduler will reconcile: {}", req.email(), e.getMessage());
+            log.warn("Keycloak is down/failed to provision user (appUserId={}) during creation. Sync scheduler will reconcile: {}", user.getId(), e.getMessage());
         }
 
         log.info("Admin user created locally: email={} role={}", req.email(), req.role());
@@ -69,12 +69,12 @@ public class AdminUserService {
 
         try {
             if (active) {
-                keycloakAdminClient.enableUser(user.getEmail());
+                keycloakAdminClient.enableUser(user.getId().toString());
             } else {
-                keycloakAdminClient.disableUser(user.getEmail());
+                keycloakAdminClient.disableUser(user.getId().toString());
             }
         } catch (Exception e) {
-            log.warn("Failed to update user status in Keycloak for email={}. Reconciliation scheduler will retry: {}", user.getEmail(), e.getMessage());
+            log.warn("Failed to update user status in Keycloak for appUserId={}. Reconciliation scheduler will retry: {}", user.getId(), e.getMessage());
         }
 
         return toResponse(saved);
@@ -101,13 +101,15 @@ public class AdminUserService {
         // Sync to Keycloak resiliently
         try {
             if (!trimmedEmail.equalsIgnoreCase(oldEmail)) {
-                keycloakAdminClient.updateUserEmail(oldEmail, trimmedEmail);
+                // Pass oldEmail for fallback search (finding users created with email as username)
+                keycloakAdminClient.updateUserEmail(user.getId().toString(), oldEmail, trimmedEmail);
             }
             if (!role.equalsIgnoreCase(oldRole)) {
-                keycloakAdminClient.setUserRole(trimmedEmail, role);
+                // Pass email for fallback search
+                keycloakAdminClient.setUserRole(user.getId().toString(), trimmedEmail, role);
             }
         } catch (Exception e) {
-            log.warn("Failed to sync updates to Keycloak for user: {}. Reconciliation scheduler will retry: {}", trimmedEmail, e.getMessage());
+            log.warn("Failed to sync updates to Keycloak for appUserId={}. Reconciliation scheduler will retry: {}", user.getId(), e.getMessage());
         }
 
         return toResponse(saved);
@@ -117,7 +119,7 @@ public class AdminUserService {
     public void forceLogout(UUID id) {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
-        keycloakAdminClient.forceLogout(user.getEmail());
+        keycloakAdminClient.forceLogout(user.getId().toString());
         // S2: tell the user's client to log out immediately instead of waiting for token expiry.
         auditEventPublisher.publishSessionRevoked(user.getEmail());
     }
@@ -126,7 +128,7 @@ public class AdminUserService {
     public void resetPasswordEmail(UUID id) {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
-        keycloakAdminClient.triggerPasswordResetEmail(user.getEmail());
+        keycloakAdminClient.triggerPasswordResetEmail(user.getId().toString());
     }
 
     private AdminUserResponse toResponse(AdminUser user) {

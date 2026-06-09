@@ -70,6 +70,9 @@ export interface Delivery {
   routeDistanceKm?: number;
   routeDurationMinutes?: number;
   transitSlaMinutesComputed?: number;
+  /** Unified SLA (source of truth) — set by the backend SlaState. */
+  slaPhase?: 'PLANNING' | 'ASSIGNMENT' | 'DEPARTURE' | 'DELIVERY' | 'HANDOFF' | 'DELIVERED' | 'PARTIAL' | 'FAILED' | 'CANCELLED';
+  slaHealth?: 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'MET' | 'LATE' | 'NONE';
   routeEtaAt?: string;
   routeProvider?: string;
   odooSyncStatus?: string;

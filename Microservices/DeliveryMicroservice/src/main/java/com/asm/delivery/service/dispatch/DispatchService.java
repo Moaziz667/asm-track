@@ -64,6 +64,7 @@ public class DispatchService {
     private final com.asm.delivery.service.AuditLogService auditLogService;
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.service.HandoffService handoffService;
+    private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
@@ -592,7 +593,10 @@ public class DispatchService {
         Zone zone = (order != null && order.getZoneId() != null)
                 ? zoneRepository.findById(order.getZoneId()).orElse(null)
                 : null;
+        com.asm.delivery.sla.SlaState slaState = slaStateRepository.findByDeliveryId(d.getId()).orElse(null);
         return AdminDeliverySummaryResponse.builder()
+                .slaPhase(slaState != null && slaState.getPhase() != null ? slaState.getPhase().name() : null)
+                .slaHealth(slaState != null && slaState.getHealth() != null ? slaState.getHealth().name() : null)
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
                 .orderRef(order != null ? order.resolveRef() : null)

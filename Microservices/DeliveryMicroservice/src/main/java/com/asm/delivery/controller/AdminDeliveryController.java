@@ -56,6 +56,7 @@ public class AdminDeliveryController {
     private final BonLivraisonPdfService bonLivraisonPdfService;
     private final com.asm.delivery.service.OrderService orderService;
     private final com.asm.delivery.service.OrderGeocodingService orderGeocodingService;
+    private final com.asm.delivery.sla.SlaTimelineService slaTimelineService;
 
     @PostMapping("/re-geocode-missing")
     @Operation(summary = "Re-run auto-geocoding for all unlocated orders",
@@ -149,6 +150,14 @@ public class AdminDeliveryController {
     public ResponseEntity<AdminDeliveryDetailResponse> detail(
             @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID id) {
         return ResponseEntity.ok(dispatchService.getDeliveryDetail(id));
+    }
+
+    @GetMapping("/{id}/sla-timeline")
+    @Operation(summary = "Get unified SLA timeline",
+            description = "Current phase + health (single source of truth) plus the full lifecycle event log and driver context (failure motif, backorder link). Powers the SLA timeline component.")
+    public ResponseEntity<com.asm.delivery.sla.SlaTimelineResponse> slaTimeline(
+            @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID id) {
+        return ResponseEntity.ok(slaTimelineService.build(id));
     }
 
     @GetMapping("/{id}/geocode")

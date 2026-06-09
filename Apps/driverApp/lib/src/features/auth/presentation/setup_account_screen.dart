@@ -267,49 +267,46 @@ class _SetupAccountScreenState extends ConsumerState<SetupAccountScreen> {
                     const SizedBox(height: 32),
                     Text('Code d\'activation', style: theme.textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 12),
-                    Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Expanded(
-                          child: TextFormField(
-                            controller: _tokenCtrl,
-                            decoration: InputDecoration(
-                              hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
-                              prefixIcon: const Icon(LucideIcons.key, size: 18),
-                              errorText: _tokenError,
-                              suffixIcon: _validatedName != null
-                                  ? Icon(LucideIcons.checkCircle, size: 18, color: colorScheme.primary)
-                                  : null,
-                            ),
-                            enabled: _validatedName == null,
-                            onChanged: (_) {
-                              if (_tokenError != null || _validatedName != null) {
-                                setState(() {
-                                  _tokenError = null;
-                                  _validatedName = null;
-                                });
-                              }
-                            },
-                          ),
-                        ),
-                        if (_validatedName == null) ...[
-                          const SizedBox(width: 8),
-                          SizedBox(
-                            height: 56,
-                            child: FilledButton(
-                              onPressed: _isValidating ? null : _validateToken,
-                              child: _isValidating
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
-                                  : const Text('Valider'),
-                            ),
-                          ),
-                        ],
-                      ],
+                    // Field on its own line + button below — no Row/Expanded, which was the
+                    // source of the "render box never laid out" hit-test failure.
+                    TextFormField(
+                      controller: _tokenCtrl,
+                      decoration: InputDecoration(
+                        hintText: 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx',
+                        prefixIcon: const Icon(LucideIcons.key, size: 18),
+                        border: const OutlineInputBorder(),
+                        errorText: _tokenError,
+                        suffixIcon: _validatedName != null
+                            ? Icon(LucideIcons.checkCircle, size: 18, color: colorScheme.primary)
+                            : null,
+                      ),
+                      enabled: _validatedName == null,
+                      onChanged: (_) {
+                        if (_tokenError != null || _validatedName != null) {
+                          setState(() {
+                            _tokenError = null;
+                            _validatedName = null;
+                          });
+                        }
+                      },
                     ),
+                    if (_validatedName == null) ...[
+                      const SizedBox(height: 12),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 48,
+                        child: FilledButton(
+                          onPressed: _isValidating ? null : _validateToken,
+                          child: _isValidating
+                              ? const SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                )
+                              : const Text('Valider le code'),
+                        ),
+                      ),
+                    ],
                     if (_validatedName == null) ...[
                       const SizedBox(height: 16),
                       Container(
@@ -327,34 +324,31 @@ class _SetupAccountScreenState extends ConsumerState<SetupAccountScreen> {
                               style: theme.textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                             ),
                             const SizedBox(height: 10),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _phoneCtrl,
-                                    decoration: const InputDecoration(
-                                      hintText: 'Votre telephone',
-                                      prefixIcon: Icon(LucideIcons.phone, size: 16),
-                                      contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                                      isDense: true,
-                                    ),
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                SizedBox(
-                                  height: 40,
-                                  child: FilledButton(
-                                    onPressed: _isResending ? null : _resendCode,
-                                    child: _isResending
-                                        ? const SizedBox(
-                                            width: 12,
-                                            height: 12,
-                                            child: CircularProgressIndicator(strokeWidth: 1.5),
-                                          )
-                                        : const Text('Renvoyer'),
-                                  ),
-                                ),
-                              ],
+                            // Full-width field on its own line + button below — no Row/Expanded,
+                            // so nothing can shrink or overlap the input's tap area.
+                            TextField(
+                              controller: _phoneCtrl,
+                              keyboardType: TextInputType.phone,
+                              decoration: const InputDecoration(
+                                hintText: 'Votre telephone',
+                                prefixIcon: Icon(LucideIcons.phone, size: 18),
+                                border: OutlineInputBorder(),
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 44,
+                              child: FilledButton(
+                                onPressed: _isResending ? null : _resendCode,
+                                child: _isResending
+                                    ? const SizedBox(
+                                        width: 14,
+                                        height: 14,
+                                        child: CircularProgressIndicator(strokeWidth: 1.5),
+                                      )
+                                    : const Text('Renvoyer le code'),
+                              ),
                             ),
                           ],
                         ),

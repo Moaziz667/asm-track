@@ -36,6 +36,10 @@ public class AdminOpsOverviewResponse {
         private long assignBreaches;
         private long pickupBreaches;
         private long totalBreaches;
+
+        // Unified SLA (source of truth): live counts from SlaState across all phases.
+        private long slaAtRisk;
+        private long slaBreached;
     }
 
     @Data

@@ -6,22 +6,18 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/StatusBadge';
+import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
-  REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, SEVERITY_CHIP,
+  REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip,
 } from '../constants';
 import {
-  formatNarrative, formatElapsed, formatShortDate,
+  formatElapsed, formatShortDate,
   needsClientContact, needsDriverContact, needsReturnToDepot,
 } from '../formatters';
 import { rowId } from '../utils';
 import type { OpsException } from '../types';
 import { formatMoney } from '@/lib/utils';
-
-function severityStyle(severity?: string) {
-  const key: 'CRITICAL' | 'WARNING' | 'INFO' = severity === 'CRITICAL' ? 'CRITICAL' : severity === 'WARNING' ? 'WARNING' : 'INFO';
-  return SEVERITY_CHIP[key];
-}
 
 export function QueueDetail() {
   const {
@@ -43,7 +39,6 @@ export function QueueDetail() {
   const { delivery: d, alert } = selectedQueueRow;
   const id = rowId(d);
   const driver = drivers.find(dr => dr.id === d.driverId);
-  const sev = severityStyle(alert?.severity);
   const motif = (alert?.motif ?? '').toUpperCase().trim();
 
   const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
@@ -91,18 +86,16 @@ export function QueueDetail() {
             </div>
           </div>
 
-          {/* Narration block */}
-          <div
-            className="rounded-[var(--radius)] p-3.5"
-            style={{
-              background: alert ? sev.bg : 'var(--hover-bg)',
-              borderInlineStart: alert ? `3px solid ${sev.accent}` : '3px solid var(--border)',
-            }}
-          >
-            <p className="text-[13px] leading-relaxed font-[500]" style={{ color: alert ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-              {alert ? formatNarrative(alert, t) : t.dispatchDeskPage.queueNoAlerts}
-            </p>
-          </div>
+          {/* Unified SLA journey — single source of truth (phase + health), replaces the old narrative */}
+          {d.id
+            ? <SlaTimeline deliveryId={d.id} variant="compact" />
+            : (
+              <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
+                <p className="text-[13px] leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
+                  {t.dispatchDeskPage.queueNoAlerts}
+                </p>
+              </div>
+            )}
 
           <Separator />
 

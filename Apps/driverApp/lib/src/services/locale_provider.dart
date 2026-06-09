@@ -92,7 +92,7 @@ class DriverCopy {
       'language_setting': 'Langue',
 
       // Login Screen
-      'login_driver_space': 'Espace chauffeur',
+      'login_driver_space': 'Bonjour, Espace chauffeur',
       'login_secure_access': 'Accès sécurisé AsmOne',
       'login_auth_header': 'Authentification',
       'login_auth_desc': 'Vous allez être redirigé vers la page de connexion sécurisée pour vous identifier.',

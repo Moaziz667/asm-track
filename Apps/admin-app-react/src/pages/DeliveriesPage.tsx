@@ -9,6 +9,7 @@ import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { Delivery, DeliverySource, DeliveryStatus, Driver, Zone, GeocodeSuggestion } from '@/types';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { STATUS_COLORS } from '@/components/StatusBadge';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -674,7 +675,10 @@ function DeliveriesPageContent() {
                             );
                             if (col.id === 'status') return (
                               <td key="status" className="px-6">
-                                <StatusBadge status={item.status} size="sm" />
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <StatusBadge status={item.status} size="sm" />
+                                  <SlaHealthBadge health={item.slaHealth} />
+                                </div>
                               </td>
                             );
                             if (col.id === 'driver') return (

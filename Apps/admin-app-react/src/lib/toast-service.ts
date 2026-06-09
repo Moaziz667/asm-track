@@ -182,11 +182,13 @@ export function showErrorToast(
 ): void {
   const msgStr = typeof errorMessage === 'string'
     ? errorMessage
-    : (errorMessage && typeof errorMessage === 'object' && 'message' in errorMessage)
-      ? String(errorMessage.message)
-      : errorMessage
-        ? String(errorMessage)
-        : null;
+    : (errorMessage && typeof errorMessage === 'object' && (errorMessage.response?.data?.message || errorMessage.response?.data?.error))
+      ? String(errorMessage.response.data.message || errorMessage.response.data.error)
+      : (errorMessage && typeof errorMessage === 'object' && 'message' in errorMessage)
+        ? String(errorMessage.message)
+        : errorMessage
+          ? String(errorMessage)
+          : null;
   const translatedMessage = getTranslatedErrorMessage(msgStr, fallbackKey, true);
   const formatted = formatToastMessage(translatedMessage, context);
   toast.error(formatted.title, { description: formatted.description });

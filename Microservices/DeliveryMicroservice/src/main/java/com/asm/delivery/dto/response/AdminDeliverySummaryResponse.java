@@ -117,6 +117,12 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Computed transit SLA in minutes")
     private Integer transitSlaMinutesComputed;
 
+    @Schema(description = "Unified SLA phase (source of truth): PLANNING/ASSIGNMENT/DEPARTURE/DELIVERY/HANDOFF/DELIVERED/PARTIAL/FAILED/CANCELLED")
+    private String slaPhase;
+
+    @Schema(description = "Unified SLA health: ON_TRACK/AT_RISK/BREACHED/MET/LATE/NONE")
+    private String slaHealth;
+
     @Schema(description = "Estimated time of arrival for route leg")
     private LocalDateTime routeEtaAt;
 

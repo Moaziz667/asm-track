@@ -65,14 +65,17 @@ class _HomeShellState extends ConsumerState<HomeShell> {
 
   void _showNotificationPanel() {
     if (!mounted) return;
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-      ),
-      builder: (_) => const _NotificationPanel(),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        builder: (_) => const _NotificationPanel(),
+      );
+    });
   }
 
   Future<void> _initWebSocket() async {
@@ -257,11 +260,14 @@ class _HomeShellState extends ConsumerState<HomeShell> {
   void _openHandoffDelivery(String? deliveryId) {
     ScaffoldMessenger.of(context).hideCurrentMaterialBanner();
     if (deliveryId == null || deliveryId.isEmpty || !mounted) return;
-    setState(() => _index = 0);
-    Navigator.of(context).pushNamed(
-      DeliveryDetailScreen.routeName,
-      arguments: DeliveryDetailArgs(deliveryId: deliveryId),
-    );
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() => _index = 0);
+      Navigator.of(context).pushNamed(
+        DeliveryDetailScreen.routeName,
+        arguments: DeliveryDetailArgs(deliveryId: deliveryId),
+      );
+    });
   }
 
   void _showHandoffBanner({
@@ -273,10 +279,12 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     required String locale,
   }) {
     if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    final theme = Theme.of(context);
-    messenger.hideCurrentMaterialBanner();
-    messenger.showMaterialBanner(
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      final theme = Theme.of(context);
+      messenger.hideCurrentMaterialBanner();
+      messenger.showMaterialBanner(
       MaterialBanner(
         backgroundColor: theme.colorScheme.surface,
         dividerColor: theme.colorScheme.outlineVariant,
@@ -298,6 +306,7 @@ class _HomeShellState extends ConsumerState<HomeShell> {
         ],
       ),
     );
+    });
   }
 
   void _showHandoffSnack(String message, IconData icon, Color color) {

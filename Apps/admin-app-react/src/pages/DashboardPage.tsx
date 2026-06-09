@@ -2,7 +2,6 @@ import React, { useEffect, useState, useCallback, useMemo, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AdminOpsOverview, DashboardStats, DeliveryStatus } from '@/types';
-import { useNotificationsState } from '@/components/AlertsProvider';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
 import { cn } from '@/lib/utils';
 import { useLocaleStore } from '@/lib/i18n';
@@ -186,8 +185,6 @@ export default function DashboardPage() {
     prevConnected.current = connected;
   }, [connected, queryClient]);
 
-  // useNotificationsState — reads count only, does NOT re-render on action context updates
-  const { notifications: ctxAlerts } = useNotificationsState();
   const { locale } = useLocaleStore();
   const todayIso = useMemo(() => getBusinessDayKey(), []);
   const { data: todayRoutes = [] } = useRoutes({ from: todayIso, to: todayIso });
@@ -217,21 +214,9 @@ export default function DashboardPage() {
   };
 
   const today = stats?.today;
-  const overdueCount = useMemo(() => {
-    if (!ops?.lanes) return 0;
-    let count = 0;
-    ops.lanes.forEach(lane => {
-      if (lane.items) {
-        lane.items.forEach((item: any) => {
-          const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
-          if (isPending && getDayBucket(item.scheduledAt) === 'overdue') count++;
-        });
-      }
-    });
-    return count;
-  }, [ops]);
-
-  const exceptionsCount = (ops?.sla?.totalBreaches ?? 0) + (ctxAlerts?.length ?? 0);
+  // Unified SLA (source of truth): breached = past the window/promise; needs-attention = at-risk + breached.
+  const overdueCount = ops?.sla?.slaBreached ?? 0;
+  const exceptionsCount = (ops?.sla?.slaBreached ?? 0) + (ops?.sla?.slaAtRisk ?? 0);
   const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
 
   // ── Real KPI series + deltas from /reports/dashboard (30-day daily trend) ──

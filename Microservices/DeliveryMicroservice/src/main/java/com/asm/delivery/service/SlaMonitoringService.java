@@ -18,10 +18,12 @@ public class SlaMonitoringService {
     private final SystemSettingsService settings;
     private final java.util.Set<String> alertedKeys = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
-    @Scheduled(fixedDelayString = "${app.sla.check-interval-ms:20000}")
-    @Transactional
+    // DISABLED: the unified com.asm.delivery.sla.SlaStateService is now the single SLA engine and
+    // owns all alerting (one sla.alert per health transition, persisted dedup). This legacy 20s
+    // motif loop is retained only so existing injectors (clearDeliveryAlerts) still resolve; its
+    // periodic emission is turned off to avoid double-notifying. Removed entirely in the cleanup step.
     public void checkSlaStatuses() {
-        processSla();
+        // no-op — see SlaStateService.reconcile()
     }
 
     /**

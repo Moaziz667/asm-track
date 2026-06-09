@@ -52,6 +52,7 @@ public class OpsAnalyticsService {
     private final ZoneRepository zoneRepository;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final DelayCalculationService delayCalculationService;
+    private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
         @Transactional(readOnly = true)
@@ -437,6 +438,8 @@ public class OpsAnalyticsService {
                         .assignBreaches(assignBreaches)
                         .pickupBreaches(pickupBreaches)
                         .totalBreaches(waitingBreaches + assignBreaches + pickupBreaches)
+                        .slaAtRisk(slaStateRepository.countByHealth(com.asm.delivery.sla.SlaHealth.AT_RISK))
+                        .slaBreached(slaStateRepository.countByHealth(com.asm.delivery.sla.SlaHealth.BREACHED))
                         .build())
                 .lanes(lanes)
                 .exceptions(exceptions)

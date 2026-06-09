@@ -47,7 +47,7 @@ public class KeycloakSyncScheduler {
                     if (kcEnabled != dbUser.isActive()) {
                         log.info("Sync: Status out of sync for user {}. DB active={}, Keycloak enabled={}. Reconciling...",
                                 dbUser.getEmail(), dbUser.isActive(), kcEnabled);
-                        keycloakAdminClient.setUserEnabled(dbUser.getEmail(), dbUser.isActive());
+                        keycloakAdminClient.setUserEnabled(dbUser.getId().toString(), dbUser.isActive());
                     }
 
                     // Reconcile role
@@ -56,7 +56,7 @@ public class KeycloakSyncScheduler {
                     if (!kcRoles.contains(dbUser.getRole().toUpperCase())) {
                         log.info("Sync: Role out of sync for user {}. DB role={}, Keycloak roles={}. Reconciling...",
                                 dbUser.getEmail(), dbUser.getRole(), kcRoles);
-                        keycloakAdminClient.setUserRole(dbUser.getEmail(), dbUser.getRole());
+                        keycloakAdminClient.setUserRole(dbUser.getId().toString(), dbUser.getEmail(), dbUser.getRole());
                     }
                 }
             } catch (Exception e) {

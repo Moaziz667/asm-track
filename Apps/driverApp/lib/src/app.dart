@@ -38,7 +38,9 @@ class _DriverAppState extends ConsumerState<DriverApp> {
     // right screen from a single place instead of each screen doing it ad hoc.
     ref.listen<AuthState>(authControllerProvider, (prev, next) {
       if (prev?.status == next.status || next.isLoading) return;
-      navigateToHome(rootNavigatorKey.currentContext, next.status);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        navigateToHome(rootNavigatorKey.currentContext, next.status);
+      });
     });
 
     return MaterialApp(

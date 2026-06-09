@@ -11,10 +11,26 @@ export function getScheduleSignal(
   leadtimeMinutes: number
 ): ScheduleSignal {
   if (!scheduledAt) return 'none';
-  const diffMins = (new Date(scheduledAt).getTime() - Date.now()) / 60000;
+  const diffMins = (effectiveDeadlineMs(scheduledAt) - Date.now()) / 60000;
   if (diffMins < 0) return 'late';
   if (diffMins <= leadtimeMinutes) return 'soon';
   return 'ok';
+}
+
+/** End-of-business-day hour used when the ERP promise is a bare date (no time). */
+const BUSINESS_EOD_HOUR = 18;
+
+/**
+ * Effective deadline (ms) for a scheduled date. A date-only ERP promise (serialized at midnight)
+ * means "by end of business day", not 00:00 — so a delivery scheduled *today* is not reported
+ * "overdue" the moment the day begins. Mirrors the backend SlaEvaluator's EOD rule.
+ */
+function effectiveDeadlineMs(scheduledAt: string): number {
+  const d = new Date(scheduledAt);
+  if (/T00:00(:00)?(\.0+)?(Z|[+-]\d{2}:?\d{2})?$/.test(scheduledAt)) {
+    d.setHours(BUSINESS_EOD_HOUR, 0, 0, 0);
+  }
+  return d.getTime();
 }
 
 export type DayBucket = 'overdue' | 'today' | 'future' | 'none';
@@ -52,9 +68,9 @@ export function getDayBucket(scheduledAt: string | undefined | null): DayBucket 
   if (!scheduledAt) return 'none';
   const sched = new Date(scheduledAt);
   const now = new Date();
-  // Absolute-instant comparison — timezone-independent: a past moment is past
-  // everywhere, so this correctly takes precedence over "today".
-  if (sched.getTime() < now.getTime()) return 'overdue';
+  // Past-its-effective-deadline (EOD for date-only promises) takes precedence over "today",
+  // so an order scheduled *for today* is not shown overdue until the business day ends.
+  if (effectiveDeadlineMs(scheduledAt) < now.getTime()) return 'overdue';
   return getBusinessDayKey(sched) === getBusinessDayKey(now) ? 'today' : 'future';
 }
 

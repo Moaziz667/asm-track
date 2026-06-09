@@ -77,6 +77,8 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'handoff.overdue':   { category: 'route', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'handoff.cancelled': { category: 'route', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'sla.breach': { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
+  // Unified SLA event (one per health transition) from the new SlaStateService.
+  'sla.alert': { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'pickup.overdue': { category: 'route', severity: 'critical', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/dispatch-desk' },
   'delivery.backorder_created': { category: 'delivery', severity: 'info', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
 
@@ -362,6 +364,17 @@ export function getLocalizedNotif(n: Notification, locale: string) {
   const copyDict = locale === 'ar'
     ? AR_COPY
     : (locale === 'en' ? EN_COPY : FR_COPY);
+
+  // Unified SLA event: render phase · health + reason from the slaTimeline copy (3-lang).
+  if (n.event === 'sla.alert') {
+    const sl = (copyDict as any).slaTimeline ?? {};
+    const ep2 = (n.eventParams || {}) as Record<string, any>;
+    const phase = sl.phase?.[ep2.phase] ?? ep2.phase ?? '';
+    const health = sl.health?.[ep2.health] ?? ep2.health ?? '';
+    const reason = String(sl.reason?.[ep2.reasonKey] ?? '')
+      .replace(/\{(\w+)\}/g, (_: string, k: string) => ep2[k] ?? '');
+    return { title: `${phase}${health ? ' · ' + health : ''}`, message: reason || n.message };
+  }
 
   const cfg = (copyDict.notifications as any)[n.event];
   if (!cfg) {

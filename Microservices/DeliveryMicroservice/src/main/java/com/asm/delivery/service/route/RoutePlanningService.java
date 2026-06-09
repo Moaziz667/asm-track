@@ -55,6 +55,7 @@ public class RoutePlanningService {
     private final EventPublisher eventPublisher;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final RouteWebSocketService routeWebSocketService;
+    private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final EntityManager entityManager;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private RoutePlanningService self;
@@ -409,12 +410,15 @@ public class RoutePlanningService {
         Delivery delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
                 .orElseThrow(() -> AppException.notFound("Delivery not found: " + stop.getDeliveryId()));
 
-        delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-        delivery.setDriverId(null);
-        delivery.setAssignedAt(null);
-        delivery.setPickedUpAt(null);
+        // Cancelling a stop ends this shipment's journey — it does NOT re-pool as a fresh
+        // UNSCHEDULED order (which made the SLA re-fire "as if newly imported").
+        delivery.setStatus(DeliveryStatus.CANCELLED);
+        delivery.setCancelledAt(LocalDateTime.now());
+        delivery.setCancelReason(cancelReason);
+        delivery.setCancelledBy(Role.ADMIN);
         deliveryRepository.save(delivery);
-        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_CANCELLED", Map.of("reason", cancelReason));
+        appendHistory(delivery, DeliveryStatus.CANCELLED, "ADMIN", Role.ADMIN, "ROUTE_STOP_CANCELLED", Map.of("reason", cancelReason));
+        slaStateService.refresh(delivery); // → terminal CANCELLED, no further alerts
 
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
                 Map.of("routeId", routeId.toString(), "reason", cancelReason));
@@ -566,6 +570,10 @@ public class RoutePlanningService {
                 delivery.setAssignedAt(null);
                 deliveryRepository.save(delivery);
                 appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_REMOVED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
+                // Re-planning U-turn: recompute SLA but suppress the planning alarm briefly so it is
+                // not re-flagged "as if newly imported" the instant it returns to the pool.
+                slaStateService.refresh(delivery);
+                slaStateService.applyReplanGrace(delivery.getId());
             }
         });
 

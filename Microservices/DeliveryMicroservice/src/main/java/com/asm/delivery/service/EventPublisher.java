@@ -375,13 +375,26 @@ public class EventPublisher {
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        java.util.concurrent.CompletableFuture.runAsync(runnable);
+                        runAsyncLogged(runnable);
                     }
                 }
             );
         } else {
-            java.util.concurrent.CompletableFuture.runAsync(runnable);
+            runAsyncLogged(runnable);
         }
+    }
+
+    /**
+     * Runs the publish task off the request thread. {@link java.util.concurrent.CompletableFuture#runAsync}
+     * discards exceptions silently, which previously hid failures (e.g. a LazyInitializationException while
+     * building a payload) and made events vanish — so we log them here instead.
+     */
+    private void runAsyncLogged(Runnable runnable) {
+        java.util.concurrent.CompletableFuture.runAsync(runnable)
+            .exceptionally(ex -> {
+                log.error("Async after-commit event publish failed: {}", ex.getMessage(), ex);
+                return null;
+            });
     }
 
     public void publishSlaBreach(Delivery delivery, String motif, String severity, Map<String, Object> params) {
@@ -420,6 +433,41 @@ public class EventPublisher {
                     .orderRef(p.getErpOrderId()).deliveryId(p.getDeliveryId())
                     .routeId(p.getRouteId()).driverName(p.getDriverName()).clientName(p.getClientName())
                     .payload(dbPayload)
+                    .build());
+        });
+    }
+
+    /**
+     * Unified SLA notification (replaces the 4 {@code sla.breach} motifs). Fired only on health
+     * transitions by {@link com.asm.delivery.sla.SlaStateService}. Carries phase/health/reasonKey so
+     * the frontend renders one consistent message; payload resolved eagerly (avoids lazy-init).
+     */
+    public void publishSlaAlert(Delivery delivery, com.asm.delivery.sla.SlaPhase phase,
+                                com.asm.delivery.sla.SlaHealth health, String reasonKey,
+                                Map<String, String> reasonParams, java.time.LocalDateTime dueAt) {
+        final DeliveryEventPayload p = deliveryPayload("sla.alert", delivery.getOrder(), delivery);
+        final boolean critical = health == com.asm.delivery.sla.SlaHealth.BREACHED;
+        p.setMotif(phase.name());
+        p.setSeverity(critical ? "critical" : "warning");
+        Map<String, Object> params = new HashMap<>();
+        if (reasonParams != null) params.putAll(reasonParams);
+        params.put("phase", phase.name());
+        params.put("health", health.name());
+        params.put("reasonKey", reasonKey);
+        if (dueAt != null) params.put("dueAt", dueAt.toString());
+        p.setSlaParams(params);
+        p.setSlaMessage(reasonKey);
+
+        executeAfterCommitAsync(() -> {
+            log.info("EVENT sla.alert deliveryId={} phase={} health={}", delivery.getId(), phase, health);
+            sendDelivery("sla.alert", p);
+            notificationService.record(Notification.builder()
+                    .eventType("sla.alert").severity(critical ? "critical" : "warning")
+                    .title("SLA " + health.name())
+                    .message(reasonKey)
+                    .orderRef(p.getErpOrderId()).deliveryId(p.getDeliveryId())
+                    .routeId(p.getRouteId()).driverName(p.getDriverName()).clientName(p.getClientName())
+                    .payload(params)
                     .build());
         });
     }
@@ -802,59 +850,67 @@ public class EventPublisher {
     // ── Route events ──────────────────────────────────────────────────────────
 
     public void publishRouteValidated(Route route) {
+        // Build the payload in the transactional thread — it touches lazy associations
+        // (route.getStops()) that are unavailable once the async after-commit task runs.
+        final RouteEventPayload p = routePayload("route.validated", route);
+        final UUID driverId = route.getDriverId();
+        final UUID routeId = route.getId();
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.validated routeId={} driverId={}", route.getId(), route.getDriverId());
-            RouteEventPayload p = routePayload("route.validated", route);
+            log.info("EVENT route.validated routeId={} driverId={}", routeId, driverId);
             sendRoute("route.validated", p);
-            
-            if (route.getDriverId() != null) {
-                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_VALIDATED", p);
+
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "ROUTE_VALIDATED", p);
             }
         });
     }
 
     public void publishRouteScheduleChanged(Route route) {
+        final RouteEventPayload p = routePayload("route.schedule_changed", route);
+        final UUID driverId = route.getDriverId();
+        final UUID routeId = route.getId();
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.schedule_changed routeId={} driverId={}", route.getId(), route.getDriverId());
-            RouteEventPayload p = routePayload("route.schedule_changed", route);
+            log.info("EVENT route.schedule_changed routeId={} driverId={}", routeId, driverId);
             sendRoute("route.schedule_changed", p);
-            
-            if (route.getDriverId() != null) {
-                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_SCHEDULE_CHANGED", p);
+
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "ROUTE_SCHEDULE_CHANGED", p);
             }
         });
     }
 
     public void publishRouteStopAdded(Route route, String clientName) {
+        final RouteEventPayload p = routePayload("route.stop_added", route);
+        p.setClientName(clientName);
+        final UUID driverId = route.getDriverId();
+        final UUID routeId = route.getId();
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.stop_added routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
-            RouteEventPayload p = routePayload("route.stop_added", route);
-            p.setClientName(clientName);
+            log.info("EVENT route.stop_added routeId={} driverId={} client={}", routeId, driverId, clientName);
             sendRoute("route.stop_added", p);
-            
-            if (route.getDriverId() != null) {
-                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_STOP_ADDED", p);
+
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "ROUTE_STOP_ADDED", p);
             }
         });
     }
 
     public void publishRouteStopRemoved(Route route, String clientName) {
-        executeAfterCommitAsync(() -> {
-            publishRouteStopRemoved(route, clientName, null, null);
-        });
+        publishRouteStopRemoved(route, clientName, null, null);
     }
 
     public void publishRouteStopRemoved(Route route, String clientName, String erpOrderId, String reason) {
+        final RouteEventPayload p = routePayload("route.stop_removed", route);
+        p.setClientName(clientName);
+        p.setErpOrderId(erpOrderId);
+        p.setReason(reason);
+        final UUID driverId = route.getDriverId();
+        final UUID routeId = route.getId();
         executeAfterCommitAsync(() -> {
-            log.info("EVENT route.stop_removed routeId={} driverId={} client={}", route.getId(), route.getDriverId(), clientName);
-            RouteEventPayload p = routePayload("route.stop_removed", route);
-            p.setClientName(clientName);
-            p.setErpOrderId(erpOrderId);
-            p.setReason(reason);
+            log.info("EVENT route.stop_removed routeId={} driverId={} client={}", routeId, driverId, clientName);
             sendRoute("route.stop_removed", p);
-            
-            if (route.getDriverId() != null) {
-                sendFcmFatPayload(route.getDriverId().toString(), "ROUTE_STOP_REMOVED", p);
+
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "ROUTE_STOP_REMOVED", p);
             }
         });
     }

@@ -28,6 +28,9 @@ export type SlaSnapshot = {
   waitingBreaches: number
   transitBreaches: number
   totalBreaches: number
+  /** Unified SLA (source of truth) — live counts from SlaState. */
+  slaAtRisk?: number
+  slaBreached?: number
 }
 
 export type OpsOverviewResponse = {

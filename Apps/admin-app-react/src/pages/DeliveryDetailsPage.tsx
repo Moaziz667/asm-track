@@ -17,6 +17,7 @@ import { useLocaleStore } from '@/lib/i18n';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
+import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -426,7 +427,12 @@ export default function DeliveryDetailPage() {
               </Section>
             )}
 
-            {/* Timeline */}
+            {/* SLA journey — single source of truth (phase + health + per-phase event log) */}
+            <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
+              <SlaTimeline deliveryId={delivery.id} variant="detailed" />
+            </Section>
+
+            {/* Raw status history (legacy view, retained until full cut-over) */}
             <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
               {history.length === 0 ? (
                 <span className="text-[12px] text-[var(--text-muted)]">{t.deliveryPage.noHistory}</span>
