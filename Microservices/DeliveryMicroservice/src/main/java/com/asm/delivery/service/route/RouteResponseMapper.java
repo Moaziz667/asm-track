@@ -266,13 +266,34 @@ public class RouteResponseMapper {
         // Note: Driver name resolution for history is omitted for brevity or handled by building a map if needed.
         // For PFE, we prioritize stability (fixing the LazyInit crash).
 
+        // Pre-load SLA state + source depots for all stops once, so toFullStopResponse does no
+        // per-stop SLA/depot query (was N+1: two SlaState reads + one depot read per stop).
+        List<UUID> allDeliveryIds = allStops.stream()
+                .map(RouteStop::getDeliveryId)
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .toList();
+        Map<UUID, com.asm.delivery.sla.SlaState> slaByDeliveryId = allDeliveryIds.isEmpty() ? Map.of()
+                : slaStateRepository.findByDeliveryIdIn(allDeliveryIds).stream()
+                    .collect(Collectors.toMap(com.asm.delivery.sla.SlaState::getDeliveryId, Function.identity(), (a, b) -> a));
+
+        Set<UUID> depotIds = new HashSet<>();
+        for (RouteStop s : allStops) {
+            if (s.getSourceDepotId() != null) depotIds.add(s.getSourceDepotId());
+            Delivery d = s.getDeliveryId() != null ? deliveryMap.get(s.getDeliveryId()) : null;
+            if (d != null && d.getSourceDepotId() != null) depotIds.add(d.getSourceDepotId());
+        }
+        Map<UUID, com.asm.delivery.entity.Depot> depotById = depotIds.isEmpty() ? Map.of()
+                : depotRepository.findAllById(depotIds).stream()
+                    .collect(Collectors.toMap(com.asm.delivery.entity.Depot::getId, Function.identity()));
+
         List<RouteStopFullResponse> stops = activeStops.stream()
-                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById))
                 .toList();
 
         List<RouteStopFullResponse> legacyStops = allStops.stream()
                 .filter(stop -> RoutePlanningService.isRemovedStatus(stop.getStatus()))
-                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById))
                 .toList();
 
         int totalActiveStops = activeStops.size();
@@ -417,7 +438,9 @@ public class RouteResponseMapper {
         ).orElse(com.asm.delivery.dto.response.VehicleResponse.builder().id(vehicleId).build());
     }
 
-    private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap) {
+    private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap,
+                                                     Map<UUID, com.asm.delivery.sla.SlaState> slaByDeliveryId,
+                                                     Map<UUID, com.asm.delivery.entity.Depot> depotById) {
         Delivery delivery = stop.getDeliveryId() != null ? deliveryMap.get(stop.getDeliveryId()) : null;
         if (delivery == null && stop.getDeliveryId() != null) {
             // Fallback for safety, though it shouldn't happen with the pre-fetch
@@ -425,6 +448,7 @@ public class RouteResponseMapper {
         }
 
         com.asm.delivery.entity.Order orderInfo = delivery != null ? delivery.getOrder() : null;
+        com.asm.delivery.sla.SlaState slaState = stop.getDeliveryId() != null ? slaByDeliveryId.get(stop.getDeliveryId()) : null;
 
         // Calculate delay details
         DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
@@ -436,7 +460,7 @@ public class RouteResponseMapper {
 
         UUID sourceDepotId = stop.getStopType() == RouteStopType.PICKUP ? stop.getSourceDepotId() :
                              (delivery != null ? delivery.getSourceDepotId() : null);
-        com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotRepository.findById(sourceDepotId).orElse(null) : null;
+        com.asm.delivery.entity.Depot sourceDepot = sourceDepotId != null ? depotById.get(sourceDepotId) : null;
 
         // Parcel count for PICKUP stops: count DELIVERY stops whose source depot matches
         int parcelCount = 0;
@@ -477,12 +501,8 @@ public class RouteResponseMapper {
                 .routeDurationMinutes(stop.getDriveDurationSeconds() != null ? stop.getDriveDurationSeconds() / 60 : null)
                 .routeEtaAt(stop.getEtaAt())
                 .transitSlaMinutesComputed(transitSlaMinutesComputed)
-                .slaPhase(stop.getDeliveryId() != null
-                        ? slaStateRepository.findByDeliveryId(stop.getDeliveryId())
-                            .map(s -> s.getPhase() != null ? s.getPhase().name() : null).orElse(null) : null)
-                .slaHealth(stop.getDeliveryId() != null
-                        ? slaStateRepository.findByDeliveryId(stop.getDeliveryId())
-                            .map(s -> s.getHealth() != null ? s.getHealth().name() : null).orElse(null) : null)
+                .slaPhase(slaState != null && slaState.getPhase() != null ? slaState.getPhase().name() : null)
+                .slaHealth(slaState != null && slaState.getHealth() != null ? slaState.getHealth().name() : null)
                 .slaStatus(delayStatus != null ? SlaStatus.valueOf(delayStatus) : stop.getSlaStatus())
                 .delayMinutes(delayMinutes)
                 .delayStatus(delayStatus)
