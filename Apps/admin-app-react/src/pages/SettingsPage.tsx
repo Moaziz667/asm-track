@@ -10,7 +10,8 @@ import {
   IconSettings, IconPlus, IconLock,
   IconMail, IconUser, IconCheck, IconClock, IconX, IconShield,
   IconCpu, IconRouter, IconShieldCheck, IconChevronRight, IconCommand,
-  IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout
+  IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
+  IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -447,6 +448,40 @@ export default function SettingsPage() {
                     <p className="text-[11px] text-[var(--text-muted)] mb-6">{t.settingsPage.slaDesc}</p>
                   </div>
 
+                  {/* SLA Guide / Explainer */}
+                  <div className="rounded-lg p-5" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <IconInfoCircle size={16} className="text-[var(--brand)]" />
+                      <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.slaGuideTitle}</p>
+                    </div>
+                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mb-4">{t.settingsPage.slaGuideIntro}</p>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{t.settingsPage.slaGuidePhasesHeading}</p>
+                        <ul className="flex flex-col gap-1.5 text-[11px] leading-relaxed text-[var(--text-primary)]">
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhasePlanning}</span> — {t.settingsPage.slaPhasePlanningD}</li>
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseAssignment}</span> — {t.settingsPage.slaPhaseAssignmentD}</li>
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseDeparture}</span> — {t.settingsPage.slaPhaseDepartureD}</li>
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseDelivery}</span> — {t.settingsPage.slaPhaseDeliveryD}</li>
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseHandoff}</span> — {t.settingsPage.slaPhaseHandoffD}</li>
+                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseTerminal}</span> — {t.settingsPage.slaPhaseTerminalD}</li>
+                        </ul>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{t.settingsPage.slaHealthHeading}</p>
+                        <ul className="flex flex-col gap-1.5 text-[11px] leading-relaxed text-[var(--text-primary)]">
+                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#16a34a' }} />{t.settingsPage.slaHealthOnTrack}</li>
+                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#d97706' }} />{t.settingsPage.slaHealthAtRisk}</li>
+                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} />{t.settingsPage.slaHealthBreached}</li>
+                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#2563eb' }} />{t.settingsPage.slaHealthMet}</li>
+                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#b45309' }} />{t.settingsPage.slaHealthLate}</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed mt-4 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>{t.settingsPage.slaGuideNote}</p>
+                  </div>
+
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
                     {/* Waiting Time Card */}
                     <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
@@ -540,6 +575,102 @@ export default function SettingsPage() {
                       <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.transitDelayDesc}</p>
                       <div className="flex items-baseline gap-1">
                         <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.pickup-limit-minutes'] || '0'}</p>
+                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
+                      </div>
+                    </div>
+
+                    {/* Planning Wait Limit Card */}
+                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
+                            <IconHourglass size={16} className="text-[var(--brand)]" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.waitingLimit}</p>
+                          </div>
+                        </div>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSla({ key: 'ops.sla.waiting-limit-minutes', label: t.settingsPage.waitingLimit, value: slaSettings['ops.sla.waiting-limit-minutes'] || '15' });
+                              setNewSlaValue(slaSettings['ops.sla.waiting-limit-minutes'] || '15');
+                              setSlaEditOpen(true);
+                            }}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
+                          >
+                            {t.actions.edit}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.waitingLimitDesc}</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.waiting-limit-minutes'] || '15'}</p>
+                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
+                      </div>
+                    </div>
+
+                    {/* At-Risk Warning Window Card */}
+                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
+                            <IconAlertTriangle size={16} className="text-[var(--brand)]" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.atRiskWindow}</p>
+                          </div>
+                        </div>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSla({ key: 'ops.sla.at-risk-window-minutes', label: t.settingsPage.atRiskWindow, value: slaSettings['ops.sla.at-risk-window-minutes'] || '30' });
+                              setNewSlaValue(slaSettings['ops.sla.at-risk-window-minutes'] || '30');
+                              setSlaEditOpen(true);
+                            }}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
+                          >
+                            {t.actions.edit}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.atRiskWindowDesc}</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.at-risk-window-minutes'] || '30'}</p>
+                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
+                      </div>
+                    </div>
+
+                    {/* Replan Grace Period Card */}
+                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
+                            <IconArrowBackUp size={16} className="text-[var(--brand)]" />
+                          </div>
+                          <div>
+                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.replanGrace}</p>
+                          </div>
+                        </div>
+                        {canManage && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setEditingSla({ key: 'ops.sla.replan-grace-minutes', label: t.settingsPage.replanGrace, value: slaSettings['ops.sla.replan-grace-minutes'] || '60' });
+                              setNewSlaValue(slaSettings['ops.sla.replan-grace-minutes'] || '60');
+                              setSlaEditOpen(true);
+                            }}
+                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
+                          >
+                            {t.actions.edit}
+                          </button>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.replanGraceDesc}</p>
+                      <div className="flex items-baseline gap-1">
+                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.replan-grace-minutes'] || '60'}</p>
                         <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
                       </div>
                     </div>
@@ -872,6 +1003,9 @@ export default function SettingsPage() {
               {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingTimeDesc}
               {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentDelayDesc}
               {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.transitDelayDesc}
+              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingLimitDesc}
+              {editingSla?.key === 'ops.sla.at-risk-window-minutes' && t.settingsPage.atRiskWindowDesc}
+              {editingSla?.key === 'ops.sla.replan-grace-minutes' && t.settingsPage.replanGraceDesc}
             </p>
           </div>
 
@@ -911,6 +1045,9 @@ export default function SettingsPage() {
               {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingRec}
               {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentRec}
               {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.pickupRec}
+              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingLimitRec}
+              {editingSla?.key === 'ops.sla.at-risk-window-minutes' && t.settingsPage.atRiskWindowRec}
+              {editingSla?.key === 'ops.sla.replan-grace-minutes' && t.settingsPage.replanGraceRec}
             </p>
           </div>
         </div>
