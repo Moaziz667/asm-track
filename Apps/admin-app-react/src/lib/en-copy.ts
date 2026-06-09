@@ -3157,7 +3157,7 @@ export const EN_COPY = {
       DELIVERY_TRANSIT_STARTED: 'Departed for client',
       DELIVERY_COMPLETED: 'Delivered to client',
       DELIVERY_PARTIALLY_DELIVERED: 'Partially delivered',
-      DELIVERY_FAILED: 'Delivery failed',
+      DELIVERY_FAILED: 'Delivery failed · {reason}',
       DELIVERY_FAILED_BY_SYSTEM: 'Auto-failed · {reason}',
       DELIVERY_CANCELLED: 'Delivery cancelled',
       DELIVERY_CANCELLED_BY_ADMIN: 'Cancelled · {reason}',
@@ -3182,6 +3182,7 @@ export const EN_COPY = {
       REFUSED: 'Refused',
       WRONG_ADDRESS: 'Wrong address',
       DAMAGED: 'Damaged',
+      OTHER: 'Other reason',
     },
   },
 

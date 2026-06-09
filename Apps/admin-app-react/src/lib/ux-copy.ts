@@ -3220,7 +3220,7 @@ export const FR_COPY = {
       DELIVERY_TRANSIT_STARTED: 'Départ vers le client',
       DELIVERY_COMPLETED: 'Livrée au client',
       DELIVERY_PARTIALLY_DELIVERED: 'Livrée partiellement',
-      DELIVERY_FAILED: 'Livraison en échec',
+      DELIVERY_FAILED: 'Livraison en échec · {reason}',
       DELIVERY_FAILED_BY_SYSTEM: 'Échec auto · {reason}',
       DELIVERY_CANCELLED: 'Livraison annulée',
       DELIVERY_CANCELLED_BY_ADMIN: 'Annulée · {reason}',
@@ -3245,6 +3245,7 @@ export const FR_COPY = {
       REFUSED: 'Refusée',
       WRONG_ADDRESS: 'Mauvaise adresse',
       DAMAGED: 'Endommagée',
+      OTHER: 'Autre motif',
     },
   },
 } as const;

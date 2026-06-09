@@ -3168,7 +3168,7 @@ export const AR_COPY = {
       DELIVERY_TRANSIT_STARTED: 'انطلقت نحو العميل',
       DELIVERY_COMPLETED: 'سُلِّمت للعميل',
       DELIVERY_PARTIALLY_DELIVERED: 'سُلِّمت جزئياً',
-      DELIVERY_FAILED: 'فشل التسليم',
+      DELIVERY_FAILED: 'فشل التسليم · {reason}',
       DELIVERY_FAILED_BY_SYSTEM: 'فشل تلقائي · {reason}',
       DELIVERY_CANCELLED: 'أُلغي التسليم',
       DELIVERY_CANCELLED_BY_ADMIN: 'أُلغيت · {reason}',
@@ -3193,6 +3193,7 @@ export const AR_COPY = {
       REFUSED: 'مرفوضة',
       WRONG_ADDRESS: 'عنوان خاطئ',
       DAMAGED: 'تالفة',
+      OTHER: 'سبب آخر',
     },
   },
 } as const;

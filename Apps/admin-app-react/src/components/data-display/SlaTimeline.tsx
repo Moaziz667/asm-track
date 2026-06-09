@@ -102,7 +102,9 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
       || ev.eventKey || ev.status || '';
     let params: Record<string, string> = {};
     try { params = ev.params ? JSON.parse(ev.params) : {}; } catch { /* keep template as-is */ }
-    return String(tpl).replace(/\{(\w+)\}/g, (_: string, k: string) => params[k] ?? '');
+    const filled = String(tpl).replace(/\{(\w+)\}/g, (_: string, k: string) => params[k] ?? '');
+    // Drop a dangling "· " separator left when an optional param (e.g. reason) is empty.
+    return filled.replace(/\s*·\s*$/, '').trim();
   };
   // "by {driver name}" for driver actions, otherwise the role label (Admin / System / Client).
   const actorLabel = (ev: { actor?: string; actorRole?: string }) =>
