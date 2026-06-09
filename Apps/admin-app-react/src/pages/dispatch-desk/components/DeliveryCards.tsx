@@ -113,7 +113,13 @@ export function DeliveryCards() {
               const alert     = alertMap.get(id);
               const driver    = drivers.find(dr => dr.id === d.driverId);
               const isChecked = selectedIds.has(id);
-              const accent    = alert ? SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].accent : (RIBBON[d.status] ?? '#94A3B8');
+              // Accent follows the unified SLA health (matches the list dot + detail badge):
+              // BREACHED/LATE → critical, AT_RISK → warning; else the alert severity, else status ribbon.
+              const _h = (d.slaHealth ?? '').toUpperCase();
+              const accent    = (_h === 'BREACHED' || _h === 'LATE') ? SEVERITY_CHIP.CRITICAL.accent
+                : _h === 'AT_RISK' ? SEVERITY_CHIP.WARNING.accent
+                : alert ? SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].accent
+                : (RIBBON[d.status] ?? '#94A3B8');
               const canAssign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
               const canReplan = (REPLANNABLE_STATUSES as string[]).includes(d.status);
 

@@ -25,9 +25,19 @@ interface RowProps {
 
 function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onToggle, t }: RowProps) {
   const { delivery: d, alert } = row;
-  const sevKey: 'CRITICAL' | 'WARNING' | 'INFO' | null = alert
+  // The dot follows the unified SLA health (the same source as the detail SlaHealthBadge) so the
+  // list dot and the badge can never disagree: BREACHED/LATE → red, AT_RISK → amber. Terminal or
+  // failure exceptions (SLA health NONE/absent) fall back to the classifier severity.
+  const health = (d.slaHealth ?? '').toUpperCase();
+  const healthSev: 'CRITICAL' | 'WARNING' | null =
+    health === 'BREACHED' || health === 'LATE' ? 'CRITICAL'
+      : health === 'AT_RISK' ? 'WARNING'
+      : null;
+  const alertSev: 'CRITICAL' | 'WARNING' | 'INFO' | null = alert
     ? (alert.severity === 'CRITICAL' ? 'CRITICAL' : alert.severity === 'WARNING' ? 'WARNING' : 'INFO')
     : null;
+  const sevKey: 'CRITICAL' | 'WARNING' | 'INFO' | null = healthSev ?? alertSev;
+  const dotTip = alert ? formatMotif(alert.motif, t) : health || undefined;
   const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
     ? formatMoney(d.totalAmount, d.currency ?? 'TND')
     : null;
@@ -58,7 +68,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
             <span
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ background: SEVERITY_CHIP[sevKey].accent }}
-              title={formatMotif(alert!.motif, t)}
+              title={dotTip}
             />
           )}
           <span className="font-mono text-[11px] font-[600] shrink-0" style={{ color: 'var(--brand)' }}>
