@@ -28,6 +28,8 @@ interface SlaTimelineData {
   context?: {
     failureCode?: string; failReason?: string;
     backorderDirection?: 'parent' | 'child'; backorderDeliveryId?: string; backorderBlNumber?: string;
+    podComment?: string;
+    itemOutcomes?: { name?: string; outcome?: string; reason?: string; comment?: string }[];
   };
 }
 
@@ -282,6 +284,38 @@ function DetailedSection({ data, c, eventLabel, actorLabel }: {
               {ctx.backorderBlNumber ? ` · ${ctx.backorderBlNumber}` : ''}
             </span>
           )}
+        </div>
+      )}
+
+      {/* Driver's proof-of-delivery note */}
+      {ctx?.podComment && (
+        <div style={{
+          fontSize: 11.5, color: 'var(--text-strong, #1f2937)', background: 'var(--app-bg)',
+          border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px',
+        }}>
+          <span style={{ color: 'var(--text-muted)' }}>{c.podComment ?? 'Driver note'}: </span>
+          {ctx.podComment}
+        </div>
+      )}
+
+      {/* Per-item outcomes: only items not delivered cleanly (refused / damaged) */}
+      {ctx?.itemOutcomes && ctx.itemOutcomes.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
+            {c.itemsNotDelivered ?? 'Items not delivered'}
+          </span>
+          {ctx.itemOutcomes.map((it, i) => (
+            <span key={i} style={{
+              display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: TONE.breach.fg,
+              background: TONE.breach.bg, border: `1px solid ${TONE.breach.dot}33`, borderRadius: 8, padding: '4px 9px', width: 'fit-content',
+            }}>
+              <IconPackages size={13} stroke={1.8} />
+              {it.name ? `${it.name} · ` : ''}
+              {it.outcome ? ((c.motif?.[it.outcome]) || it.outcome) : ''}
+              {it.reason ? ` · ${(c.motif?.[it.reason]) || it.reason}` : ''}
+              {it.comment ? ` · ${it.comment}` : ''}
+            </span>
+          ))}
         </div>
       )}
 

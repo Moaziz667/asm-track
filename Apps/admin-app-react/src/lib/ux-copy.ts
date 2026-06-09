@@ -3247,6 +3247,8 @@ export const FR_COPY = {
       DAMAGED: 'Endommagée',
       OTHER: 'Autre motif',
     },
+    podComment: 'Note du chauffeur',
+    itemsNotDelivered: 'Articles non livrés',
   },
 } as const;
 

@@ -3195,5 +3195,7 @@ export const AR_COPY = {
       DAMAGED: 'تالفة',
       OTHER: 'سبب آخر',
     },
+    podComment: 'ملاحظة السائق',
+    itemsNotDelivered: 'عناصر لم تُسلَّم',
   },
 } as const;

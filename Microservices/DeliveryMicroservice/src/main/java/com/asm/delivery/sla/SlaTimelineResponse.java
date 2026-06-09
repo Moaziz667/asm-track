@@ -23,5 +23,9 @@ public record SlaTimelineResponse(Current current, List<Event> timeline, Context
                         String actor, String actorRole) {}
 
     public record Context(String failureCode, String failReason,
-                          String backorderDirection, String backorderDeliveryId, String backorderBlNumber) {}
+                          String backorderDirection, String backorderDeliveryId, String backorderBlNumber,
+                          String podComment, List<ItemOutcome> itemOutcomes) {}
+
+    /** A line item the driver did not deliver cleanly: refused or damaged, with the why. */
+    public record ItemOutcome(String name, String outcome, String reason, String comment) {}
 }

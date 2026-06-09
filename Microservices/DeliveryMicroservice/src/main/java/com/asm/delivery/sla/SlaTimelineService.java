@@ -25,6 +25,7 @@ public class SlaTimelineService {
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
     private final com.asm.delivery.transport.TransportPort transportPort;
+    private final com.asm.delivery.repository.ProofOfDeliveryRepository proofOfDeliveryRepository;
 
     @Transactional
     public SlaTimelineResponse build(UUID deliveryId) {
@@ -106,6 +107,22 @@ public class SlaTimelineService {
         String failureCode = d.getFailureCode() != null ? d.getFailureCode().name() : null;
         String failReason = d.getFailReason();
 
+        // Driver's proof-of-delivery note (handover comment), if captured.
+        String podComment = proofOfDeliveryRepository.findByDeliveryId(d.getId())
+                .map(com.asm.delivery.entity.ProofOfDelivery::getComment)
+                .filter(c -> c != null && !c.isBlank())
+                .orElse(null);
+
+        // Per-item outcomes the dispatcher needs to see: only the items NOT delivered cleanly.
+        List<SlaTimelineResponse.ItemOutcome> itemOutcomes = java.util.List.of();
+        if (d.getOrder() != null && d.getOrder().getItems() != null) {
+            itemOutcomes = d.getOrder().getItems().stream()
+                    .filter(it -> it.getOutcome() != null && !"DELIVERED".equalsIgnoreCase(it.getOutcome()))
+                    .map(it -> new SlaTimelineResponse.ItemOutcome(
+                            it.getName(), it.getOutcome(), it.getReason(), it.getComment()))
+                    .toList();
+        }
+
         String direction = null, linkedId = null, linkedBl = null;
         if (d.getOdooBackorderId() != null) {
             // This shipment IS a backorder — link back to the original shipment of the same order.
@@ -121,7 +138,8 @@ public class SlaTimelineService {
                     .findFirst().orElse(null);
             if (child != null) { direction = "parent"; linkedId = child.getId().toString(); linkedBl = child.getBlNumber(); }
         }
-        return new SlaTimelineResponse.Context(failureCode, failReason, direction, linkedId, linkedBl);
+        return new SlaTimelineResponse.Context(failureCode, failReason, direction, linkedId, linkedBl,
+                podComment, itemOutcomes);
     }
 
     private List<Delivery> siblings(Delivery d) {

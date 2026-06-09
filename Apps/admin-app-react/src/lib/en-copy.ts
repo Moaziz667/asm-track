@@ -3184,6 +3184,8 @@ export const EN_COPY = {
       DAMAGED: 'Damaged',
       OTHER: 'Other reason',
     },
+    podComment: 'Driver note',
+    itemsNotDelivered: 'Items not delivered',
   },
 
 } as const;
