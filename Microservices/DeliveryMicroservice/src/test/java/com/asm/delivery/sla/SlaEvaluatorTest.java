@@ -278,6 +278,18 @@ class SlaEvaluatorTest {
             assertThat(r.phase()).isEqualTo(SlaPhase.FAILED);
             assertThat(r.reasonParams()).containsEntry("code", "CLIENT_ABSENT");
         }
+
+        @Test @DisplayName("delivered hours late → LATE, not a false 'on time' (regression: completedAt vs window)")
+        void deliveredHoursLate_isNotFalselyOnTime() {
+            // Window ends 11:39, delivered 23:49 same day → ~730 min late. Must be LATE.
+            RouteStop stop = stop(route(today, null), null, java.time.LocalTime.of(11, 39), RouteStopType.DELIVERY, null);
+            Delivery d = delivery(DeliveryStatus.DELIVERED, orderScheduled(now));
+            stubActiveStop(d, stop);
+            when(delayCalc.calculateStrictStopDelayMinutes(any(), any())).thenReturn(730);
+            SlaEvaluator.Result r = evaluator.evaluate(d, today.atTime(23, 49));
+            assertThat(r.health()).isEqualTo(SlaHealth.LATE);
+            assertThat(r.lateMinutes()).isEqualTo(730);
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════════════

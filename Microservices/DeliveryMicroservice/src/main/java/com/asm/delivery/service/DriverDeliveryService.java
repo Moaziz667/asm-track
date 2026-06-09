@@ -283,7 +283,11 @@ public class DriverDeliveryService {
         String eventKey = isPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED";
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, eventKey, Map.of("driverId", driverId.toString()));
         routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), eventKey);
-        
+        // Recompute the terminal SLA verdict NOW the stop's completedAt is stamped — otherwise the
+        // earlier (in-transit) state stays, and since terminal statuses aren't reconciled it would
+        // be stuck reporting on-time even for a late delivery.
+        slaStateService.refresh(delivery);
+
         eventPublisher.publishDeliveryCompleted(delivery.getOrder(), delivery, driverId);
 
         Map<String, Object> statPayload = new HashMap<>();
@@ -567,6 +571,7 @@ public class DriverDeliveryService {
         appendHistory(delivery, DeliveryStatus.FAILED, driverId.toString(), Role.DRIVER, "DELIVERY_FAILED",
                 Map.of("driverId", driverId.toString(), "reason", failureComment != null ? failureComment : "", "code", failureCode != null ? failureCode.name() : ""));
         routeExecutionService.syncStopFromDelivery(delivery.getId(), DeliveryStatus.FAILED, delivery.getFailedAt(), failureComment);
+        slaStateService.refresh(delivery);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
         // P1: Outbox Sync for failures

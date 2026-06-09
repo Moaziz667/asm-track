@@ -32,12 +32,12 @@ public class SlaTimelineService {
         Delivery d = deliveryRepository.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found: " + deliveryId));
 
-        // Ensure state exists (lazily compute on first read for pre-existing deliveries).
+        // Always recompute on read: this single-delivery refresh keeps the headline truthful and
+        // self-heals any stale terminal verdict (e.g. a late delivery whose state was computed
+        // before its stop's completedAt was stamped). Terminal health isn't alertable, so no
+        // spurious alert fires. Cheap — one evaluation, not the bulk reconcile loop.
+        slaStateService.refresh(d);
         SlaState state = slaStateRepository.findByDeliveryId(deliveryId).orElse(null);
-        if (state == null) {
-            slaStateService.refresh(d);
-            state = slaStateRepository.findByDeliveryId(deliveryId).orElse(null);
-        }
 
         SlaTimelineResponse.Current current = state == null ? null : new SlaTimelineResponse.Current(
                 state.getPhase() != null ? state.getPhase().name() : null,
