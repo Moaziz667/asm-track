@@ -81,7 +81,7 @@ public class SlaEvaluator {
         }
         // Multi-depot: cannot breach before the driver could physically reach the source depot.
         boolean reachable = depotReached(d, stop, now);
-        SlaHealth health = reachable ? liveHealth(now, dueAt, null) : SlaHealth.ON_TRACK;
+        SlaHealth health = reachable ? liveHealth(now, dueAt, null, stop) : SlaHealth.ON_TRACK;
         return new Result(SlaPhase.ASSIGNMENT, health, dueAt, null, true,
                 "assignment." + key(health), timeParams(dueAt));
     }
@@ -99,7 +99,7 @@ public class SlaEvaluator {
             return new Result(SlaPhase.DEPARTURE, SlaHealth.ON_TRACK, null, null, true,
                     "departure.awaiting", Map.of());
         }
-        SlaHealth health = liveHealth(now, dueAt, null);
+        SlaHealth health = liveHealth(now, dueAt, null, stop);
         return new Result(SlaPhase.DEPARTURE, health, dueAt, null, true,
                 "departure." + key(health), timeParams(dueAt));
     }
@@ -114,7 +114,7 @@ public class SlaEvaluator {
         }
         LocalDateTime eta = d.getRouteEtaAt() != null ? d.getRouteEtaAt()
                 : (stop != null ? stop.getEtaAt() : null);
-        SlaHealth health = liveHealth(now, dueAt, eta);
+        SlaHealth health = liveHealth(now, dueAt, eta, stop);
         return new Result(SlaPhase.DELIVERY, health, dueAt, null, true,
                 "delivery." + key(health), timeParams(dueAt));
     }
@@ -141,11 +141,27 @@ public class SlaEvaluator {
     // ── Helpers ─────────────────────────────────────────────────────────────────
 
     /** ON_TRACK → AT_RISK (near dueAt or ETA misses) → BREACHED (past dueAt). */
-    private SlaHealth liveHealth(LocalDateTime now, LocalDateTime dueAt, LocalDateTime eta) {
+    private SlaHealth liveHealth(LocalDateTime now, LocalDateTime dueAt, LocalDateTime eta, RouteStop stop) {
         if (now.isAfter(dueAt)) return SlaHealth.BREACHED;
-        boolean nearDeadline = now.isAfter(dueAt.minusMinutes(policy.atRiskWindowMinutes()));
+        boolean nearDeadline = now.isAfter(dueAt.minusMinutes(effectiveAtRiskMinutes(stop)));
         boolean etaMisses = eta != null && eta.isAfter(dueAt);
         return (nearDeadline || etaMisses) ? SlaHealth.AT_RISK : SlaHealth.ON_TRACK;
+    }
+
+    /**
+     * The amber "at-risk" lead-time, capped at 25% of the stop's time window so a tight 10-min slot
+     * doesn't light amber from the very first second the way the flat configured value would. Falls
+     * back to the configured {@code at-risk-window-minutes} when the window span is unknown.
+     */
+    private long effectiveAtRiskMinutes(RouteStop stop) {
+        long configured = policy.atRiskWindowMinutes();
+        LocalDateTime ws = windowStart(stop);
+        LocalDateTime we = windowEnd(stop);
+        if (ws != null && we != null) {
+            long span = java.time.Duration.between(ws, we).toMinutes();
+            if (span > 0) return Math.max(1, Math.min(configured, span / 4));
+        }
+        return configured;
     }
 
     /** The ERP commitment as an instant: a bare date (00:00) becomes EOD-business; a real time stays. */

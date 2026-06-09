@@ -87,7 +87,7 @@ public class RouteResponseMapper {
                 DelayCalculationService.DelayInfo delayInfo = delayCalculationService.calculateDelay(stop, route, activeStops);
                 SlaStatus preferredSla = delayInfo != null && delayInfo.delayStatus != null
                     ? SlaStatus.valueOf(delayInfo.delayStatus)
-                    : stop.getSlaStatus();
+                    : null;
 
                 UUID sourceDepotId = stop.getStopType() == RouteStopType.PICKUP ? stop.getSourceDepotId() :
                                      (delivery != null ? delivery.getSourceDepotId() : null);
@@ -503,7 +503,7 @@ public class RouteResponseMapper {
                 .transitSlaMinutesComputed(transitSlaMinutesComputed)
                 .slaPhase(slaState != null && slaState.getPhase() != null ? slaState.getPhase().name() : null)
                 .slaHealth(slaState != null && slaState.getHealth() != null ? slaState.getHealth().name() : null)
-                .slaStatus(delayStatus != null ? SlaStatus.valueOf(delayStatus) : stop.getSlaStatus())
+                .slaStatus(delayStatus != null ? SlaStatus.valueOf(delayStatus) : null)
                 .delayMinutes(delayMinutes)
                 .delayStatus(delayStatus)
                 .delayReason(delayReason)

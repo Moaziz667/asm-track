@@ -74,10 +74,6 @@ public class RouteStop {
     @Column(name = "actual_arrival_at")
     private LocalDateTime actualArrivalAt;
 
-    /** Computed SLA status: ON_TIME, EARLY, LATE. */
-    @Enumerated(EnumType.STRING)
-    @Column(name = "sla_status", length = 20)
-    private SlaStatus slaStatus;
 
     /** Drive duration (seconds) from previous point (depot or previous stop). */
     @Column(name = "drive_duration_seconds")

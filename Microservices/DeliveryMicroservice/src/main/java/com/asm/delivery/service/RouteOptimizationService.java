@@ -263,10 +263,9 @@ public class RouteOptimizationService {
             
             // In Manual Mode, we keep ETA null or use the manual window start if you prefer.
             // For now, we follow the request to disable OSRM-based automatic timing.
-            stop.setEtaAt(null); 
+            stop.setEtaAt(null);
             stop.setEtaBufferAt(null);
-            stop.setSlaStatus(null);
-            
+
             stop.setDriveDurationSeconds(driveSec);
             stop.setDriveDistanceMeters(driveMt);
             totalDuration += driveSec;
