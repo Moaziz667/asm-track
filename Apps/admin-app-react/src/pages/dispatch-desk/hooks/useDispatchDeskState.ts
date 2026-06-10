@@ -132,7 +132,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.dispatch?.title || 'Dispatch' }]);
   const isReadOnly = isReadOnlyRole(getCurrentRole());
-  const { filters: globalFilters, applyFilters, globalContext } = useGlobalFilters();
+  const { filters: globalFilters, applyFilters, clearFilters, globalContext } = useGlobalFilters();
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [rows, setRows]                   = useState<OpsException[]>([]);
@@ -246,6 +246,11 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     const id = setInterval(() => { void fetchExceptions(true); void fetchAllDeliveries(); }, 45_000);
     return () => clearInterval(id);
   }, [fetchExceptions, fetchAllDeliveries]);
+
+  // Reset on leave: dispatch filters are per-visit. Clearing the shared operational-filter store on
+  // unmount means returning to the desk — or arriving via a notification deep-link (?search=…) —
+  // always starts from a clean state, and a notification's search never lingers as a stale filter.
+  useEffect(() => () => { clearFilters(); }, [clearFilters]);
 
   useEffect(() => {
     if (!globalContext || initialSyncRef.current) return;
