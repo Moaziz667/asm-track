@@ -280,7 +280,10 @@ public class OutboxProcessor {
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) payload.getOrDefault("items", List.of());
         String reason = (String) payload.get("reason");
-        erpSyncService.syncReturn(delivery, items, reason, txId);
+        // D2 — Carry rmaId so the adapter echoes it back on the result, letting the result consumer
+        // close the reverse-move loop on the right RMA.
+        String rmaId = (String) payload.get("rmaId");
+        erpSyncService.syncReturn(delivery, items, reason, rmaId, txId);
     }
 
     private void processErpFailure(Map<String, Object> payload, String txId) throws Exception {

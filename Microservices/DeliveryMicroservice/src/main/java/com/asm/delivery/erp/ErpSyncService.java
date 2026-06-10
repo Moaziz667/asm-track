@@ -71,13 +71,13 @@ public class ErpSyncService {
                 pickingRef(delivery), transactionId, pod);
     }
 
-    public void syncReturn(Delivery delivery, List<java.util.Map<String, Object>> items, String reason, String transactionId) {
+    public void syncReturn(Delivery delivery, List<java.util.Map<String, Object>> items, String reason, String rmaId, String transactionId) {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
         commandPublisher.publishReturn(
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
-                pickingRef(delivery), transactionId, reason, items);
+                pickingRef(delivery), transactionId, reason, rmaId, items);
     }
 
     /** Picking (BL) number for this shipment — from the delivery, falling back to the order (legacy). */

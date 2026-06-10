@@ -74,19 +74,27 @@ public class RmaService {
                 .createdBy(principal != null ? principal.getDisplayName() : null)
                 .build();
 
+        // D3 — A customer can only return what was actually delivered. Build a per-SKU map of the
+        // delivered quantity from the order lines and clamp every requested return quantity to it,
+        // so an over-return (e.g. return 10 of an item only 3 of which were delivered) is impossible.
+        Map<String, Integer> deliveredBySku = deliveredQuantitiesBySku(order);
         for (CreateRmaRequest.Item it : req.getItems()) {
             if (it.getQuantity() == null || it.getQuantity() <= 0) continue;
+            int requested = it.getQuantity();
+            int returnable = deliveredBySku.getOrDefault(it.getSku() != null ? it.getSku().trim() : null, requested);
+            int qty = Math.min(requested, Math.max(returnable, 0));
+            if (qty <= 0) continue; // nothing of this SKU was delivered → not returnable
             rma.addItem(RmaItem.builder()
                     .sku(it.getSku())
                     .name(it.getName())
-                    .quantity(it.getQuantity())
+                    .quantity(qty)
                     .unitPrice(it.getUnitPrice())
                     .condition(it.getCondition() != null ? it.getCondition() : RmaItemCondition.RESELLABLE)
                     .reason(it.getReason())
                     .build());
         }
         if (rma.getItems().isEmpty()) {
-            throw AppException.badRequest("RMA_EMPTY", "Au moins un article avec une quantité valide est requis.");
+            throw AppException.badRequest("RMA_EMPTY", "Au moins un article avec une quantité valide (et effectivement livrée) est requis.");
         }
 
         Rma saved = rmaRepository.save(rma);
@@ -163,6 +171,22 @@ public class RmaService {
         payload.put("reason", rma.getReason());
         payload.put("items", items);
         outboxProcessor.enqueue("ERP_SYNC_RETURN", payload);
+    }
+
+    /**
+     * D3 — Returns a SKU → delivered-quantity map from the order lines, so a return can be clamped to
+     * what was actually delivered. Lines without a SKU are skipped (they can't be matched reliably);
+     * an empty map means "no line detail", in which case the caller keeps the requested quantity.
+     */
+    private Map<String, Integer> deliveredQuantitiesBySku(Order order) {
+        Map<String, Integer> delivered = new HashMap<>();
+        if (order == null || order.getItems() == null) return delivered;
+        for (OrderItem item : order.getItems()) {
+            if (item == null || item.getSku() == null || item.getSku().isBlank()) continue;
+            int done = item.getQuantityDone() != null ? Math.max(item.getQuantityDone(), 0) : 0;
+            delivered.merge(item.getSku().trim(), done, Integer::sum);
+        }
+        return delivered;
     }
 
     @Transactional(readOnly = true)

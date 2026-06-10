@@ -59,9 +59,11 @@ public class ErpSyncCommandPublisher {
     }
 
     public void publishReturn(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
-                              String reason, List<Map<String, Object>> items) {
+                              String reason, String rmaId, List<Map<String, Object>> items) {
         Map<String, Object> cmd = base("RETURN", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (reason != null) cmd.put("reason", reason);
+        // rmaId is echoed back by the adapter on the result so the loop closes on the right RMA (D2).
+        if (rmaId != null) cmd.put("rmaId", rmaId);
         cmd.put("returnItems", items != null ? items : new ArrayList<>());
         send(cmd);
     }
