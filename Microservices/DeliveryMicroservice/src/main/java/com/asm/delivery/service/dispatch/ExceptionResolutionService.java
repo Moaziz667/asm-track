@@ -459,6 +459,16 @@ public class ExceptionResolutionService {
 		Order order = orderRepo.findById(orderId)
 				.orElseThrow(() -> AppException.notFound("Order not found: " + orderId));
 
+		// C4 — REFUSED ≠ backorder. A backorder re-delivers the *remainder*, which only makes sense
+		// for lines the customer still wants but didn't get (short-shipped / out of stock). A line the
+		// customer REFUSED at the door must NOT be re-delivered. If every undelivered unit on the order
+		// is refused (no genuine short-ship remains), we skip the backorder entirely — even though Odoo
+		// produced a backorder picking — and leave it for the dispatcher to handle as a return if needed.
+		if (!hasBackorderEligibleRemainder(order)) {
+			log.info("Skipping backorder for orderId={} — the undelivered remainder is entirely REFUSED (no short-ship to re-deliver)", orderId);
+			return null;
+		}
+
 		// The remainder ships from the same depot; items stay on the order (remaining = ordered − delivered).
 		Delivery backorder = Delivery.builder()
 				.order(order)
@@ -482,6 +492,29 @@ public class ExceptionResolutionService {
 		log.info("Backorder shipment created — orderId={} backorderDeliveryId={} odooBackorderId={} bl={}",
 				orderId, backorder.getId(), backorderPickingId, backorderBlNumber);
 		return backorder.getId();
+	}
+
+	/**
+	 * C4 — Returns true if the order has at least one line with an undelivered remainder that the
+	 * customer still wants (i.e. {@code quantityDone < quantity} and the line was NOT refused).
+	 * Lines with {@code outcome == REFUSED} are excluded: a refusal is not a short-ship, so it must
+	 * never trigger an automatic re-delivery. If no line qualifies, no backorder should be created.
+	 */
+	private boolean hasBackorderEligibleRemainder(Order order) {
+		if (order.getItems() == null || order.getItems().isEmpty()) {
+			// No line detail to reason about → keep the legacy behavior (allow the backorder).
+			return true;
+		}
+		for (OrderItem item : order.getItems()) {
+			if (item == null) continue;
+			int planned = item.getQuantity() != null ? item.getQuantity() : 0;
+			int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
+			boolean refused = "REFUSED".equalsIgnoreCase(item.getOutcome());
+			if (!refused && done < planned) {
+				return true;
+			}
+		}
+		return false;
 	}
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()

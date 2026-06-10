@@ -255,9 +255,12 @@ public class OutboxProcessor {
                 .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
         if (delivery.getOrder() == null) return;
 
-        // Forward the POD fields (metadata + base64 photos) carried in the outbox payload.
+        // Forward the POD metadata + MinIO photo URLs carried in the outbox payload (C5). The image
+        // bytes are NOT inlined — the ERP adapter fetches them from these URLs and uploads to Odoo,
+        // so neither the outbox table nor the RabbitMQ frame carries the (large) base64 payload.
         Map<String, Object> pod = new java.util.HashMap<>();
-        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng", "blPhotoBase64", "packagePhotoBase64")) {
+        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng",
+                                 "bonLivraisonPhotoUrl", "packagePhotoUrl")) {
             if (payload.get(k) != null) pod.put(k, payload.get(k));
         }
         erpSyncService.syncProofOfDelivery(delivery, pod, txId);
