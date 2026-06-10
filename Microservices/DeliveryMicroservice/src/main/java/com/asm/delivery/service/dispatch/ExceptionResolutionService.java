@@ -411,7 +411,12 @@ public class ExceptionResolutionService {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
             if (order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
-                outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
+                // B4 — Carry the exact deliveryId being cancelled. An order can have several deliveries
+                // (multi-depot, backorder); the processor must cancel THIS shipment's picking, not an
+                // arbitrary first() one.
+                outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of(
+                        "orderId", order.getId().toString(),
+                        "deliveryId", delivery.getId().toString()));
             }
         }
     }

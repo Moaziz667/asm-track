@@ -274,24 +274,14 @@ public class DriverDeliveryService {
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
-        // Mark the order as pending sync BEFORE saving and enqueueing.
-        // The Order default is "SYNCED", so without this the OutboxProcessor
-        // sees SYNCED and silently skips the event without ever calling Odoo.
-        if (delivery.getOrder() != null) {
-            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
-        }
         delivery = deliveryRepo.save(delivery);
 
-        // P1: Transactional Outbox Pattern. `isPartial` reflects the SERVER-derived verdict
-        // (treatedAsPartial), not the raw mobile flag, so Odoo gets a full-delivery sync whenever every
-        // line was in fact delivered.
-        Map<String, Object> outboxPayload = new HashMap<>();
-        outboxPayload.put("deliveryId", deliveryId.toString());
-        outboxPayload.put("isPartial", treatedAsPartial);
-        if (treatedAsPartial && normalizedPartialItems != null) {
-            outboxPayload.put("partialItems", normalizedPartialItems);
-        }
-        outboxProcessor.enqueue("ERP_SYNC_STOCK", outboxPayload);
+        // P1: Transactional Outbox. enqueueErpStockSync atomically marks the order PENDING_SYNC and
+        // enqueues the event (B5), so we no longer reset the status by hand. `treatedAsPartial` is the
+        // SERVER-derived verdict (C3), not the raw mobile flag, so Odoo gets a full-delivery sync
+        // whenever every line was in fact delivered.
+        outboxProcessor.enqueueErpStockSync(deliveryId, treatedAsPartial,
+                treatedAsPartial ? normalizedPartialItems : null);
 
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
@@ -618,6 +608,11 @@ public class DriverDeliveryService {
         delivery.setFailedAt(LocalDateTime.now());
         delivery.setFailReason(storedReason);
         delivery.setFailureCode(failureCode);
+        // B5 — A failure is also pushed to the ERP, so the order must be PENDING_SYNC for the
+        // reconciliation sweep to recover it if the ERP result is ever lost.
+        if (delivery.getOrder() != null) {
+            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+        }
         delivery = deliveryRepo.save(delivery);
 
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
