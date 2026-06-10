@@ -710,6 +710,9 @@ export const FR_COPY = {
     kpiActiveRoutesSub: 'en cours',
     noData: 'Aucune donnée disponible',
     sectionStart: 'Tournées à Démarrer',
+    sectionActiveRoutes: 'Tournées actives',
+    focusOnMap: 'Centrer sur la carte',
+    stopsLabel: 'arrêts',
     noRoutesWaiting: 'Aucune tournée en attente',
     // Needs attention panel (i18n fixes)
     assignButton: 'Assigner',

@@ -33,6 +33,16 @@ import { deriveHealthSummary } from '@/lib/system-health';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
+// Shared route palette — the same colour identifies a route's legend row, its stop pins and its
+// driver car on the live map, so a dispatcher can match them at a glance.
+const ROUTE_PALETTE = ['#5E6AD2', '#2D8A5E', '#D4772C', '#9333EA', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#15803D', '#B45309'];
+export function routeColor(routeId?: string | null): string {
+  if (!routeId) return '#71717A';
+  let h = 0;
+  for (let i = 0; i < routeId.length; i++) h = (h * 31 + routeId.charCodeAt(i)) >>> 0;
+  return ROUTE_PALETTE[h % ROUTE_PALETTE.length];
+}
+
 // Status colors for the Kanban cards
 const STATUS_COLOR_MAP: Record<DeliveryStatus, string> = {
   UNSCHEDULED:          '#C4881A',
@@ -188,6 +198,14 @@ export default function DashboardPage() {
   const { locale } = useLocaleStore();
   const todayIso = useMemo(() => getBusinessDayKey(), []);
   const { data: todayRoutes = [] } = useRoutes({ from: todayIso, to: todayIso });
+
+  // Routes that are live on the map: ready-to-start (VALIDATED) + currently running (IN_PROGRESS).
+  const activeRoutes = useMemo(
+    () => todayRoutes.filter(r => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS'),
+    [todayRoutes]
+  );
+  // Shared focus between the Tournées legend widget and the live map (set on row/pin click).
+  const [focusedRouteId, setFocusedRouteId] = useState<string | null>(null);
 
   const driverName = useCallback((id: string | undefined) => {
     if (!id) return 'Non assigné';
@@ -703,36 +721,52 @@ export default function DashboardPage() {
                 <SectionCard
                   title={
                     <div className="flex items-center gap-2">
-                      <span>{t.dashboardPage?.sectionStart || "Tournées à Démarrer"}</span>
+                      <span>{t.dashboardPage?.sectionActiveRoutes || "Tournées actives"}</span>
                     </div>
                   }
-                  actions={
-                    <Badge variant="secondary">
-                      {todayRoutes.filter(r => r.status === 'VALIDATED').length}
-                    </Badge>
-                  }
+                  actions={<Badge variant="secondary">{activeRoutes.length}</Badge>}
                 >
-                  {todayRoutes.filter(r => r.status === 'VALIDATED').length === 0 ? (
+                  {activeRoutes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
                       <IconRoute size={24} stroke={1.5} className="text-[var(--text-muted)]" />
-                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || "Aucune tournée en attente"}</p>
+                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || "Aucune tournée active"}</p>
                     </div>
                   ) : (
-                    <div className="flex flex-col divide-y divide-[var(--border)] pl-2">
-                      {todayRoutes.filter(r => r.status === 'VALIDATED').slice(0, 4).map(route => (
-                        <button
-                          key={route.id}
-                          type="button"
-                          onClick={() => window.open(`/routes/${route.id}`, '_blank')}
-                          className="flex items-center justify-between py-2.5 hover:opacity-70 transition-opacity text-left"
-                        >
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{route.name}</p>
-                            <p className="text-[11px] text-[var(--text-muted)]">{driverName(route.driverId)}</p>
-                          </div>
-                          <IconChevronRight size={14} className="text-[var(--text-muted)] shrink-0" />
-                        </button>
-                      ))}
+                    <div className="flex flex-col gap-1 pr-1">
+                      {activeRoutes.map(route => {
+                        const color = routeColor(route.id);
+                        const focused = focusedRouteId === route.id;
+                        const stopCount = route.totalStops ?? route.stops?.length ?? 0;
+                        return (
+                          <button
+                            key={route.id}
+                            type="button"
+                            onClick={() => setFocusedRouteId(focused ? null : route.id)}
+                            className="flex items-center gap-2.5 py-2 px-2 rounded-md text-left transition-colors"
+                            style={{ background: focused ? 'var(--hover-bg)' : 'transparent', boxShadow: focused ? `inset 2px 0 0 ${color}` : undefined }}
+                            title={t.dashboardPage?.focusOnMap || 'Centrer sur la carte'}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center gap-1.5">
+                                <p className="text-[12px] font-bold text-[var(--text-primary)] truncate">{route.name}</p>
+                                <StatusBadge status={route.status} size="sm" />
+                              </div>
+                              <p className="text-[11px] text-[var(--text-muted)] truncate">
+                                {driverName(route.driverId)} · {stopCount} {t.dashboardPage?.stopsLabel || 'arrêts'}
+                              </p>
+                            </div>
+                            <span
+                              role="link"
+                              onClick={(e) => { e.stopPropagation(); window.open(`/routes/${route.id}`, '_blank'); }}
+                              className="shrink-0 p-1 -m-1 rounded hover:bg-[var(--hover-bg)]"
+                              title={t.tooltips?.viewDetail || 'Ouvrir'}
+                            >
+                              <IconChevronRight size={14} className="text-[var(--text-muted)]" />
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
                   )}
                 </SectionCard>
