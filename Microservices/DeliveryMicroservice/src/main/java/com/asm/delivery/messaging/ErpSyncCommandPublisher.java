@@ -51,6 +51,13 @@ public class ErpSyncCommandPublisher {
         send(base("CANCELLATION", deliveryId, orderId, erpOrderId, pickingRef, txId));
     }
 
+    public void publishReschedule(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+                                  String scheduledAt) {
+        Map<String, Object> cmd = base("RESCHEDULE", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        if (scheduledAt != null) cmd.put("scheduledAt", scheduledAt);
+        send(cmd);
+    }
+
     public void publishPod(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
                            Map<String, Object> pod) {
         Map<String, Object> cmd = base("POD", deliveryId, orderId, erpOrderId, pickingRef, txId);

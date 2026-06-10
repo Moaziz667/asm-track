@@ -61,4 +61,15 @@ public interface ErpSyncPort {
      * and creates a reverse stock move for resellable items. Idempotent on {@code transactionId}.
      */
     boolean syncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String transactionId, String pickingRef);
+
+    /**
+     * Push a new committed delivery date onto the ERP order after a re-plan, so the ERP's promised
+     * date matches the delivery platform. Idempotent on {@code transactionId}. Default no-op for
+     * providers that do not track a delivery date.
+     *
+     * @param scheduledAt ISO-8601 date/time string of the new commitment
+     */
+    default boolean syncReschedule(String erpOrderId, String scheduledAt, String transactionId, String pickingRef) {
+        return true;
+    }
 }

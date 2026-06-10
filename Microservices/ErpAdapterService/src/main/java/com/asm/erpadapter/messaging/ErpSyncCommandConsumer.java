@@ -81,11 +81,19 @@ public class ErpSyncCommandConsumer {
                         .deliveredAt(str(cmd.get("deliveredAt")))
                         .lat(asDouble(cmd.get("lat")))
                         .lng(asDouble(cmd.get("lng")))
+                        // Preferred: MinIO URLs (adapter fetches the bytes); base64 kept as legacy fallback.
+                        .bonLivraisonPhotoUrl(str(cmd.get("bonLivraisonPhotoUrl")))
+                        .packagePhotoUrl(str(cmd.get("packagePhotoUrl")))
                         .blPhotoBase64(str(cmd.get("blPhotoBase64")))
                         .packagePhotoBase64(str(cmd.get("packagePhotoBase64")))
                         .build();
                 boolean ok = sync.syncProofOfDelivery(erpOrderId, pod, txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncProofOfDelivery returned false for erpOrderId=" + erpOrderId);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+            }
+            case "RESCHEDULE" -> {
+                boolean ok = sync.syncReschedule(erpOrderId, str(cmd.get("scheduledAt")), txId, pickingRef);
+                if (!ok) throw new IllegalStateException("syncReschedule returned false for erpOrderId=" + erpOrderId);
                 resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
             case "RETURN" -> {

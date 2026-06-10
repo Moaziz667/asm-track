@@ -168,6 +168,7 @@ public class OutboxProcessor {
             case "ERP_SYNC_CANCELLATION" -> "CANCELLATION";
             case "ERP_SYNC_POD"          -> "POD";
             case "ERP_SYNC_RETURN"       -> "RETURN";
+            case "ERP_SYNC_RESCHEDULE"   -> "RESCHEDULE";
             default                      -> "SYNC";
         };
     }
@@ -200,6 +201,9 @@ public class OutboxProcessor {
                 break;
             case "ERP_SYNC_RETURN":
                 processErpReturn(payload, transactionId);
+                break;
+            case "ERP_SYNC_RESCHEDULE":
+                processErpReschedule(payload, transactionId);
                 break;
             case "INCREMENT_DRIVER_STAT":
                 String driverId = (String) payload.get("driverId");
@@ -284,6 +288,15 @@ public class OutboxProcessor {
         // close the reverse-move loop on the right RMA.
         String rmaId = (String) payload.get("rmaId");
         erpSyncService.syncReturn(delivery, items, reason, rmaId, txId);
+    }
+
+    private void processErpReschedule(Map<String, Object> payload, String txId) throws Exception {
+        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
+        if (delivery.getOrder() == null) return;
+        String scheduledAt = (String) payload.get("scheduledAt");
+        erpSyncService.syncReschedule(delivery, scheduledAt, txId);
     }
 
     private void processErpFailure(Map<String, Object> payload, String txId) throws Exception {

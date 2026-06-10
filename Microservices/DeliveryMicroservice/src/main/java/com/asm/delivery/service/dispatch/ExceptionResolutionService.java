@@ -285,12 +285,26 @@ public class ExceptionResolutionService {
                 // failedAt and failureCode are kept for historical reporting
 
                 // New commitment: SLAs must measure against this date, not the stale ERP one.
+                boolean rescheduled = false;
                 if (request.getScheduledAt() != null && delivery.getOrder() != null) {
                         delivery.getOrder().setRescheduledAt(request.getScheduledAt());
                         orderRepo.save(delivery.getOrder());
+                        rescheduled = true;
                 }
 
                 deliveryRepo.save(delivery);
+
+                // V3.3 — Push the new commitment date to the ERP so Odoo's promised date matches ASM's
+                // (otherwise the two diverge after a replan). ODOO orders only; routed through the outbox.
+                if (rescheduled && delivery.getOrder() != null
+                                && delivery.getOrder().getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
+                        delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+                        orderRepo.save(delivery.getOrder());
+                        outboxProcessor.enqueue("ERP_SYNC_RESCHEDULE", Map.of(
+                                        "deliveryId", delivery.getId().toString(),
+                                        "orderId", delivery.getOrder().getId().toString(),
+                                        "scheduledAt", request.getScheduledAt().toString()));
+                }
 
                 // E2 — Re-baseline the unified SLA against the NEW scheduled date and hold the planning
                 // alarm for a grace window, so the replanned delivery is not re-flagged "as if newly
@@ -501,12 +515,25 @@ public class ExceptionResolutionService {
 	}
 
 	/**
-	 * C4 — Returns true if the order has at least one line with an undelivered remainder that the
-	 * customer still wants (i.e. {@code quantityDone < quantity} and the line was NOT refused).
-	 * Lines with {@code outcome == REFUSED} are excluded: a refusal is not a short-ship, so it must
-	 * never trigger an automatic re-delivery. If no line qualifies, no backorder should be created.
+	 * Reasons under which a REFUSED line still warrants a re-delivery: the customer wants the product,
+	 * just not THIS unit/timing (damaged, wrong item/size, postponed). A pure rejection ("don't want it
+	 * anymore", i.e. CLIENT_REJECTED or no reason) is NOT re-delivered.
 	 */
-	private boolean hasBackorderEligibleRemainder(Order order) {
+	private static final java.util.Set<String> REDELIVERABLE_REFUSAL_REASONS =
+			java.util.Set.of("DAMAGED", "WRONG_ITEM", "POSTPONED");
+
+	/**
+	 * V1.4 / C4 — Returns true if the order has at least one undelivered line that should be re-delivered
+	 * (a backorder is warranted). A line qualifies when {@code quantityDone < quantity} AND it is not a
+	 * pure refusal:
+	 * <ul>
+	 *   <li>short-ship / out-of-stock (not refused)        → re-deliver;</li>
+	 *   <li>refused for a defect/timing (DAMAGED/WRONG_ITEM/POSTPONED) → re-deliver a good unit;</li>
+	 *   <li>refused outright (CLIENT_REJECTED or no reason) → do NOT re-deliver.</li>
+	 * </ul>
+	 * If no line qualifies, no backorder is created (even if Odoo produced a backorder picking).
+	 */
+	static boolean hasBackorderEligibleRemainder(Order order) {
 		if (order.getItems() == null || order.getItems().isEmpty()) {
 			// No line detail to reason about → keep the legacy behavior (allow the backorder).
 			return true;
@@ -515,8 +542,13 @@ public class ExceptionResolutionService {
 			if (item == null) continue;
 			int planned = item.getQuantity() != null ? item.getQuantity() : 0;
 			int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
+			if (done >= planned) continue; // fully delivered → nothing to re-deliver
+
 			boolean refused = "REFUSED".equalsIgnoreCase(item.getOutcome());
-			if (!refused && done < planned) {
+			boolean wantsReplacement = item.getReason() != null
+					&& REDELIVERABLE_REFUSAL_REASONS.contains(item.getReason().toUpperCase());
+			// Re-deliver unless it is a pure refusal (refused with no replacement-worthy reason).
+			if (!refused || wantsReplacement) {
 				return true;
 			}
 		}

@@ -71,6 +71,15 @@ public class ErpSyncService {
                 pickingRef(delivery), transactionId, pod);
     }
 
+    public void syncReschedule(Delivery delivery, String scheduledAt, String transactionId) {
+        Order order = delivery.getOrder();
+        String erpOrderId = resolveErpOrderId(order);
+        if (erpOrderId == null) return;
+        commandPublisher.publishReschedule(
+                delivery.getId().toString(), order.getId().toString(), erpOrderId,
+                pickingRef(delivery), transactionId, scheduledAt);
+    }
+
     public void syncReturn(Delivery delivery, List<java.util.Map<String, Object>> items, String reason, String rmaId, String transactionId) {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
