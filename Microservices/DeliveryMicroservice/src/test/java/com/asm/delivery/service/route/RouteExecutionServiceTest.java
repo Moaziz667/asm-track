@@ -31,6 +31,7 @@ class RouteExecutionServiceTest {
     @Mock RoutePlanningService routePlanningService;
     @Mock TransportPort transportPort;
     @Mock DelayCalculationService delayCalculationService;
+    @Mock RouteAutoCloseService routeAutoCloseService;
 
     @InjectMocks RouteExecutionService service;
 
@@ -105,20 +106,23 @@ class RouteExecutionServiceTest {
     // ── route auto-close ───────────────────────────────────────────────────────
 
     @Test
-    void syncStopFromDelivery_autoClosesRouteWhenAllStopsDone() {
+    void syncStopFromDelivery_advancesStopAndDelegatesFinalization() {
         stop.setStatus(RouteStopStatus.IN_TRANSIT);
         stop.setRoute(route);
         stop.setDeliveryId(UUID.randomUUID());
 
-        when(routeStopRepository.findByDeliveryId(stop.getDeliveryId())).thenReturn(Optional.of(stop));
+        when(routeStopRepository.findByDeliveryIdWithRoute(stop.getDeliveryId())).thenReturn(Optional.of(stop));
         when(routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId)).thenReturn(List.of(stop));
         when(delayCalculationService.calculateCumulativeDelayMinutes(any(), any())).thenReturn(0);
         when(delayCalculationService.calculateOnTimeCompletionRate(any(), any())).thenReturn(1.0);
 
         service.syncStopFromDelivery(stop.getDeliveryId(), DeliveryStatus.DELIVERED, null, "delivered");
 
-        assertThat(route.getStatus()).isEqualTo(RouteStatus.CLOSED);
-        verify(routeRepository, atLeastOnce()).save(route);
+        // The stop is advanced to its terminal state, and finalization (CLOSED vs CANCELLED) is
+        // delegated to RouteAutoCloseService — the single source of truth for that decision.
+        assertThat(stop.getStatus()).isEqualTo(RouteStopStatus.COMPLETED);
+        verify(routeStopRepository).save(stop);
+        verify(routeAutoCloseService).finalizeIfResolved(route);
     }
 
     @Test
@@ -126,13 +130,14 @@ class RouteExecutionServiceTest {
         stop.setStatus(RouteStopStatus.COMPLETED);
         stop.setDeliveryId(UUID.randomUUID());
 
-        when(routeStopRepository.findByDeliveryId(stop.getDeliveryId())).thenReturn(Optional.of(stop));
+        when(routeStopRepository.findByDeliveryIdWithRoute(stop.getDeliveryId())).thenReturn(Optional.of(stop));
 
         // Attempting to sync IN_TRANSIT after COMPLETED should be a no-op
         service.syncStopFromDelivery(stop.getDeliveryId(), DeliveryStatus.IN_TRANSIT, null, "");
 
         assertThat(stop.getStatus()).isEqualTo(RouteStopStatus.COMPLETED); // unchanged
         verify(routeStopRepository, never()).save(stop);
+        verifyNoInteractions(routeAutoCloseService);
     }
 
     // ── admin close() ──────────────────────────────────────────────────────────
