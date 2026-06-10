@@ -1676,6 +1676,19 @@ export const AR_COPY = {
 
     // Close route tooltip
     closeRouteTooltip: 'إغلاق',
+    cancelRouteTooltip: 'إلغاء الجولة',
+    cancelRouteTitle: 'إلغاء الجولة',
+    cancelRouteBack: 'رجوع',
+    cancelRoutePending: 'جارٍ الإلغاء…',
+    cancelRouteConfirm: 'إلغاء الجولة',
+    cancelRouteWhatHappens: 'ما الذي سيحدث',
+    cancelConseqRepool: 'تعود المحطات غير المُسلَّمة إلى التخطيط (لا تُلغى طلبات العملاء).',
+    cancelConseqTerminal: 'تحتفظ المحطات المُسلَّمة/الفاشلة بنتيجتها.',
+    cancelConseqDriver: 'يتم إشعار السائق وتحريره لجولة أخرى.',
+    cancelConseqStatus: 'تصبح الجولة «ملغاة» (تُحفظ للأرشيف).',
+    cancelConseqIrreversible: 'لا يمكن التراجع عن هذا الإجراء.',
+    cancelRouteReasonLabel: 'سبب الإلغاء',
+    cancelRouteReasonPlaceholder: 'اشرح سبب إلغاء هذه الجولة…',
 
     // Close route modal
     closeRouteTitle: 'إغلاق الرحلة',
@@ -2270,6 +2283,7 @@ export const AR_COPY = {
     successRouteValidated: 'تم تأكيد الرحلة',
     successRouteReassigned: 'تم إعادة تعيين الرحلة',
     successRouteClosed: 'تم إغلاق الرحلة',
+    successRouteCancelled: 'تم إلغاء الجولة',
     successRouteCancelled: 'تم إلغاء الرحلة',
     successBackorderCreated: 'تم إنشاء طلب إضافي',
     successDeliveryRescheduled: 'تمت إعادة جدولة الشحنة',
@@ -2313,6 +2327,7 @@ export const AR_COPY = {
     errorRouteValidationFailed: 'فشل تأكيد الرحلة',
     errorRouteReassignmentFailed: 'فشل إعادة تعيين الرحلة',
     errorRouteClosureFailed: 'فشل إغلاق الرحلة',
+    errorRouteCancelFailed: 'فشل إلغاء الجولة',
     errorRouteCancellationFailed: 'فشل إلغاء الرحلة',
     errorOnlyValidatedRoutes: 'فقط الرحلات المؤكدة أو الجارية يمكن تعديلها',
 

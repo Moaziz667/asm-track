@@ -1617,6 +1617,19 @@ export const EN_COPY = {
 
     // Close route tooltip
     closeRouteTooltip: 'Close',
+    cancelRouteTooltip: 'Cancel route',
+    cancelRouteTitle: 'Cancel route',
+    cancelRouteBack: 'Back',
+    cancelRoutePending: 'Cancelling…',
+    cancelRouteConfirm: 'Cancel route',
+    cancelRouteWhatHappens: 'What will happen',
+    cancelConseqRepool: 'Undelivered stops return to planning (the customer orders are NOT cancelled).',
+    cancelConseqTerminal: 'Already delivered / failed stops keep their outcome.',
+    cancelConseqDriver: 'The driver is notified and freed for another route.',
+    cancelConseqStatus: 'The route becomes "Cancelled" (kept for history).',
+    cancelConseqIrreversible: 'This action cannot be undone.',
+    cancelRouteReasonLabel: 'Cancellation reason',
+    cancelRouteReasonPlaceholder: 'Explain why this route is being cancelled…',
 
     // Close route modal
     closeRouteTitle: 'Close Route',
@@ -2212,6 +2225,7 @@ export const EN_COPY = {
     successRouteReassigned: 'Route reassigned',
     successRouteClosed: 'Route closed',
     successRouteCancelled: 'Route cancelled',
+    successRouteCancelled: 'Route cancelled',
     successBackorderCreated: 'Backorder created',
     successDeliveryRescheduled: 'Delivery rescheduled',
     successDeliveryReassigned: 'Delivery reassigned',
@@ -2254,6 +2268,7 @@ export const EN_COPY = {
     errorRouteValidationFailed: 'Route validation failed',
     errorRouteReassignmentFailed: 'Route reassignment failed',
     errorRouteClosureFailed: 'Route closure failed',
+    errorRouteCancelFailed: 'Route cancellation failed',
     errorRouteCancellationFailed: 'Route cancellation failed',
     errorOnlyValidatedRoutes: 'Only VALIDATED or IN_PROGRESS routes can be modified',
 

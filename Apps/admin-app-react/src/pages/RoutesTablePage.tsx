@@ -5,11 +5,13 @@ import { useT } from '@/lib/LocaleContext';
 import {
   IconRefresh, IconPlus, IconCalendar, IconSearch, IconChevronDown,
   IconChevronRight, IconMapPin, IconUser, IconTruck, IconRoute,
-  IconCar, IconLock, IconExternalLink, IconPackage, IconWeight, IconClock
+  IconCar, IconLock, IconExternalLink, IconPackage, IconWeight, IconClock, IconX, IconAlertTriangle
 } from '@tabler/icons-react';
 import { showErrorToast } from '@/lib/toast-service';
 import { api } from '@/lib/api';
-import { useCloseRoute } from '@/hooks/useRoutes';
+import { useCloseRoute, useCancelRoute } from '@/hooks/useRoutes';
+import { AppModal } from '@/components/overlays/AppModal';
+import { Button } from '@/components/ui/button';
 import type { Driver, DeliveryItem } from '@/types';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -122,12 +124,13 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
 }
 
 function RouteRow({
-  route, driverName, depotName, onCloseClick,
+  route, driverName, depotName, onCloseClick, onCancelClick,
 }: {
   route:        EnrichedRoute;
   driverName:   string;
   depotName:    string;
   onCloseClick: (route: EnrichedRoute) => void;
+  onCancelClick: (route: EnrichedRoute) => void;
 }) {
   const t = useT();
   const [expanded, setExpanded] = useState(false);
@@ -138,6 +141,7 @@ function RouteRow({
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
   const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
   const canClose = route.status === 'IN_PROGRESS';
+  const canCancel = route.status === 'VALIDATED' || route.status === 'IN_PROGRESS';
 
   return (
     <div className="border-b border-[var(--border)]">
@@ -215,6 +219,20 @@ function RouteRow({
               <TooltipContent>{t.routesTablePage.closeRouteTooltip}</TooltipContent>
             </Tooltip>
           )}
+          {canCancel && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)] transition-colors"
+                  onClick={() => onCancelClick(route)}
+                >
+                  <IconX size={14} />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent>{t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}</TooltipContent>
+            </Tooltip>
+          )}
           <button
             type="button"
             className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
@@ -290,6 +308,20 @@ function RoutesTablePageContent() {
   // Close modal
   const [closeTarget, setCloseTarget] = useState<EnrichedRoute | null>(null);
   const closeRouteMutation = useCloseRoute();
+
+  // Cancel modal (reason required)
+  const [cancelTarget, setCancelTarget] = useState<EnrichedRoute | null>(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const cancelRouteMutation = useCancelRoute();
+  const handleCancelRoute = useCallback(async () => {
+    if (!cancelTarget || !cancelReason.trim()) return;
+    try {
+      await cancelRouteMutation.mutateAsync({ routeId: cancelTarget.id, reason: cancelReason.trim() });
+      setCancelTarget(null);
+      setCancelReason('');
+      fetchData();
+    } catch { /* toast handled in hook */ }
+  }, [cancelTarget, cancelReason, cancelRouteMutation]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -519,6 +551,7 @@ function RoutesTablePageContent() {
                           driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
                           depotName={depots.find(d => d.id === route.depotId)?.name || ''}
                           onCloseClick={setCloseTarget}
+                          onCancelClick={setCancelTarget}
                         />
                       ))}
                     </div>
@@ -540,6 +573,62 @@ function RoutesTablePageContent() {
           onConfirm={handleCloseRoute}
           onCancel={() => setCloseTarget(null)}
         />
+
+        {/* Cancel route — reason required + consequences spelled out */}
+        <AppModal
+          open={cancelTarget !== null}
+          onClose={() => { setCancelTarget(null); setCancelReason(''); }}
+          title={t.routesTablePage.cancelRouteTitle || 'Annuler la tournée'}
+          subtitle={cancelTarget?.name}
+          footer={
+            <div className="flex items-center justify-end gap-2">
+              <Button variant="ghost" size="sm" onClick={() => { setCancelTarget(null); setCancelReason(''); }}>
+                {t.routesTablePage.cancelRouteBack || 'Retour'}
+              </Button>
+              <Button
+                size="sm"
+                className="bg-[var(--danger)] hover:bg-[var(--danger)]/90 text-white"
+                disabled={!cancelReason.trim() || cancelRouteMutation.isPending}
+                onClick={handleCancelRoute}
+              >
+                {cancelRouteMutation.isPending ? (t.routesTablePage.cancelRoutePending || 'Annulation…') : (t.routesTablePage.cancelRouteConfirm || 'Annuler la tournée')}
+              </Button>
+            </div>
+          }
+        >
+          <div className="flex flex-col gap-4">
+            {/* Consequences */}
+            <div className="rounded-lg p-3" style={{ background: 'var(--danger-bg, rgba(199,55,47,0.08))', border: '1px solid rgba(199,55,47,0.25)' }}>
+              <div className="flex items-center gap-2 mb-2">
+                <IconAlertTriangle size={15} className="text-[var(--danger)]" />
+                <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.routesTablePage.cancelRouteWhatHappens || 'Ce qui va se passer'}</p>
+              </div>
+              <ul className="flex flex-col gap-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary,var(--text-primary))]">
+                <li>• {t.routesTablePage.cancelConseqRepool || 'Les arrêts non livrés repassent en planification (les commandes ne sont PAS annulées).'}</li>
+                <li>• {t.routesTablePage.cancelConseqTerminal || 'Les arrêts déjà livrés / échoués gardent leur résultat.'}</li>
+                <li>• {t.routesTablePage.cancelConseqDriver || 'Le chauffeur est notifié et libéré pour une autre tournée.'}</li>
+                <li>• {t.routesTablePage.cancelConseqStatus || 'La tournée passe en « Annulée » (conservée pour l’historique).'}</li>
+                <li className="font-semibold text-[var(--danger)]">• {t.routesTablePage.cancelConseqIrreversible || 'Cette action est irréversible.'}</li>
+              </ul>
+            </div>
+
+            {/* Reason (required) */}
+            <div>
+              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">
+                {t.routesTablePage.cancelRouteReasonLabel || 'Motif d’annulation'} <span className="text-[var(--danger)]">*</span>
+              </label>
+              <textarea
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                rows={3}
+                maxLength={500}
+                placeholder={t.routesTablePage.cancelRouteReasonPlaceholder || 'Expliquez pourquoi cette tournée est annulée…'}
+                className="w-full text-[12px] rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
+                style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+              />
+            </div>
+          </div>
+        </AppModal>
       </div>
     </TooltipProvider>
   );

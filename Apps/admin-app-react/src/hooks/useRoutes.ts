@@ -132,6 +132,27 @@ export function useCloseRoute() {
 }
 
 /**
+ * Cancel a committed route (VALIDATED/IN_PROGRESS → CANCELLED). Re-pools undelivered stops; the
+ * reason is mandatory and recorded on the route + each delivery's history.
+ */
+export function useCancelRoute() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ routeId, reason }: { routeId: string; reason: string }) => {
+      const res = await api.post(`/api/admin/routes/${routeId}/cancel`, null, { params: { reason } });
+      return res.data;
+    },
+    onSuccess: () => {
+      showSuccessToast('successRouteCancelled');
+      queryClient.invalidateQueries({ queryKey: ['routes'] });
+    },
+    onError: (err: unknown) => {
+      showErrorToast(err, 'errorRouteCancelFailed');
+    },
+  });
+}
+
+/**
  * Validate a route (transition to VALIDATED status).
  */
 export function useValidateRoute() {

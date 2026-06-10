@@ -804,6 +804,20 @@ public class EventPublisher {
         });
     }
 
+    public void publishRouteCancelled(Route route, String reason) {
+        final RouteEventPayload p = routePayload("route.cancelled", route);
+        p.setReason(reason);
+        final UUID driverId = route.getDriverId();
+        final UUID routeId = route.getId();
+        executeAfterCommitAsync(() -> {
+            log.info("EVENT route.cancelled routeId={} driverId={} reason={}", routeId, driverId, reason);
+            sendRoute("route.cancelled", p);
+            if (driverId != null) {
+                sendFcmFatPayload(driverId.toString(), "ROUTE_CANCELLED", p);
+            }
+        });
+    }
+
     public void publishRouteScheduleChanged(Route route) {
         final RouteEventPayload p = routePayload("route.schedule_changed", route);
         final UUID driverId = route.getDriverId();

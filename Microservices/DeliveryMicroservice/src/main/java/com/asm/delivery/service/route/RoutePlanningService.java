@@ -345,6 +345,78 @@ public class RoutePlanningService {
                 Map.of("tournee", route.getName(), "action", "Suppression de tournee"));
     }
 
+    /**
+     * Cancel a whole committed route. Unlike delete (DRAFT only) this keeps the row for audit and,
+     * critically, does NOT cancel the customers' orders: every not-yet-delivered stop is re-pooled
+     * (its delivery returns to UNSCHEDULED for re-planning, with SLA grace) while already-resolved
+     * stops keep their terminal outcome. Frees the driver/vehicle (conflict checks skip CANCELLED),
+     * notifies the driver, and records the mandatory reason on the route + each delivery's history.
+     */
+    @Transactional
+    public RouteResponse cancelRoute(UUID routeId, String reason) {
+        Route route = getRoute(routeId);
+        RouteStatus status = route.getStatus();
+        if (status == RouteStatus.CANCELLED) {
+            return routeResponseMapper.toResponse(route); // idempotent
+        }
+        if (status != RouteStatus.VALIDATED && status != RouteStatus.IN_PROGRESS) {
+            throw AppException.badRequest("Only a validated or in-progress route can be cancelled");
+        }
+        if (reason == null || reason.isBlank()) {
+            throw AppException.badRequest("A cancellation reason is required");
+        }
+        String cancelReason = reason.trim();
+
+        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
+        int repooled = 0;
+        for (RouteStop stop : stops) {
+            if (isRemovedStatus(stop.getStatus())) continue;
+            // Leave resolved stops (delivered/failed/partial) and pickups; re-pool the rest.
+            Set<RouteStopStatus> repoolable = Set.of(
+                    RouteStopStatus.PENDING, RouteStopStatus.SCHEDULED,
+                    RouteStopStatus.ARRIVED, RouteStopStatus.PICKED_UP, RouteStopStatus.IN_TRANSIT);
+            if (stop.getStopType() != RouteStopType.DELIVERY || !repoolable.contains(stop.getStatus())) continue;
+
+            stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
+            stop.setRemovedAt(LocalDateTime.now());
+            stop.setRemovedReason(cancelReason);
+            stop.setRemovedBy("ADMIN");
+            routeStopRepository.save(stop);
+
+            if (stop.getDeliveryId() != null) {
+                deliveryRepository.findByIdWithOrder(stop.getDeliveryId()).ifPresent(delivery -> {
+                    delivery.setStatus(DeliveryStatus.UNSCHEDULED);
+                    delivery.setDriverId(null);
+                    delivery.setAssignedAt(null);
+                    delivery.setPickedUpAt(null);
+                    deliveryRepository.save(delivery);
+                    appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_CANCELLED",
+                            Map.of("reason", cancelReason, "routeName", route.getName() != null ? route.getName() : ""));
+                    slaStateService.refresh(delivery);
+                    slaStateService.applyReplanGrace(delivery.getId());
+                });
+                repooled++;
+            }
+        }
+
+        route.setStatus(RouteStatus.CANCELLED);
+        route.setCancelledAt(LocalDateTime.now());
+        route.setCancelReason(cancelReason);
+        routeRepository.save(route);
+
+        auditLogService.logAction(null, "CANCEL_ROUTE", "ROUTE", routeId.toString(),
+                Map.of("reason", cancelReason, "repooledDeliveries", String.valueOf(repooled),
+                        "tournee", route.getName() != null ? route.getName() : routeId.toString()));
+
+        if (route.getDriverId() != null) {
+            routeWebSocketService.notifyDriver(route.getDriverId(), "route.cancelled", route.getId(), route.getName());
+            eventPublisher.publishRouteCancelled(route, cancelReason);
+        }
+
+        log.info("CANCEL_ROUTE routeId={} reason='{}' repooled={}", routeId, cancelReason, repooled);
+        return routeResponseMapper.toResponse(route);
+    }
+
     @Transactional
     public RouteResponse cancelStop(UUID routeId, UUID stopId, String reason) {
         Route route = getRoute(routeId);

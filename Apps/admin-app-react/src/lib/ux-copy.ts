@@ -1711,6 +1711,19 @@ export const FR_COPY = {
 
     // Close route tooltip
     closeRouteTooltip: 'Clôturer',
+    cancelRouteTooltip: 'Annuler la tournée',
+    cancelRouteTitle: 'Annuler la tournée',
+    cancelRouteBack: 'Retour',
+    cancelRoutePending: 'Annulation…',
+    cancelRouteConfirm: 'Annuler la tournée',
+    cancelRouteWhatHappens: 'Ce qui va se passer',
+    cancelConseqRepool: 'Les arrêts non livrés repassent en planification (les commandes ne sont PAS annulées).',
+    cancelConseqTerminal: 'Les arrêts déjà livrés / échoués gardent leur résultat.',
+    cancelConseqDriver: 'Le chauffeur est notifié et libéré pour une autre tournée.',
+    cancelConseqStatus: 'La tournée passe en « Annulée » (conservée pour l’historique).',
+    cancelConseqIrreversible: 'Cette action est irréversible.',
+    cancelRouteReasonLabel: 'Motif d’annulation',
+    cancelRouteReasonPlaceholder: 'Expliquez pourquoi cette tournée est annulée…',
 
     // Close route modal
     closeRouteTitle: 'Clôturer la Tournée',
@@ -2314,6 +2327,7 @@ export const FR_COPY = {
     successRouteReassigned: 'Tournée réaffectée',
     successRouteClosed: 'Tournée clôturée',
     successRouteCancelled: 'Tournée annulée',
+    successRouteCancelled: 'Tournée annulée',
     successBackorderCreated: 'Commande supplémentaire créée',
     successDeliveryRescheduled: 'Livraison remise en file de planification',
     successDeliveryReassigned: 'Livraison réaffectée',
@@ -2360,6 +2374,7 @@ export const FR_COPY = {
     errorRouteValidationFailed: 'Validation de la tournée échouée',
     errorRouteReassignmentFailed: 'Réaffectation de la tournée échouée',
     errorRouteClosureFailed: 'Clôture de la tournée échouée',
+    errorRouteCancelFailed: 'Échec de l’annulation de la tournée',
     errorRouteCancellationFailed: 'Annulation de la tournée échouée',
     errorOnlyValidatedRoutes: 'Seules les tournées validées ou en cours peuvent être modifiées',
 

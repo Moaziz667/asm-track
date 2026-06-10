@@ -69,6 +69,12 @@ public class Route {
     @Column(name = "closed_at")
     private LocalDateTime closedAt;
 
+    @Column(name = "cancelled_at")
+    private LocalDateTime cancelledAt;
+
+    @Column(name = "cancel_reason", length = 500)
+    private String cancelReason;
+
     @Column(name = "updated_at", nullable = false)
     private LocalDateTime updatedAt;
 

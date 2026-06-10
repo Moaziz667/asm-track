@@ -284,6 +284,17 @@ public class AdminRouteController {
         return ResponseEntity.ok(routePlanningService.getSlaSummary());
     }
 
+    // ─── Route cancellation ───────────────────────────────────────────────────────
+
+    @PostMapping("/{id}/cancel")
+    @Operation(summary = "Cancel a committed route (VALIDATED/IN_PROGRESS). Re-pools undelivered stops to UNSCHEDULED; keeps terminal ones. Reason required.")
+    @IdempotentOperation
+    public ResponseEntity<RouteResponse> cancelRoute(
+            @PathVariable UUID id,
+            @RequestParam(required = false) String reason) {
+        return ResponseEntity.ok(routePlanningService.cancelRoute(id, reason));
+    }
+
     // ─── Stop cancellation ────────────────────────────────────────────────────────
 
     @PostMapping("/{id}/stops/{stopId}/cancel")
