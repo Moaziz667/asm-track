@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
+import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
   REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip,
@@ -99,6 +100,16 @@ export function QueueDetail() {
               </Link>
             </div>
           </div>
+
+          {/* Failure motif (motif d'échec) — same as the per-delivery page. Backend summary uses
+              failureCode/failReason (not failureReason); fall back to the alert's fields. */}
+          {(d.status === 'FAILED' || d.status === 'PARTIALLY_DELIVERED') &&
+            (alert?.failureCode || (d as any).failureCode || alert?.comment || (d as any).failReason) && (
+            <FailureInfo
+              code={alert?.failureCode ?? (d as any).failureCode}
+              reason={alert?.comment ?? (d as any).failReason}
+            />
+          )}
 
           {/* Unified SLA journey — single source of truth (phase + health), replaces the old narrative */}
           {id

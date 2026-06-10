@@ -235,13 +235,8 @@ export default function DeliveryDetailPage() {
               )}
             </div>
 
-            {/* Failure / cancellation notice */}
-            {isFailed && (delivery as any).failureComment && (
-              <div className="px-3 py-2 rounded-[3px] border border-red-200 bg-red-50 flex items-start gap-2">
-                <IconAlertTriangle size={12} style={{ color: '#dc2626', flexShrink: 0, marginTop: 1 }} />
-                <span className="text-[11px] text-red-700">{(delivery as any).failureComment}</span>
-              </div>
-            )}
+            {/* Failure motif already shown at the top (FailureInfo) + in the SLA timeline history;
+                only the cancellation notice stays here. */}
             {isCancelled && (delivery as any).cancelReason && (
               <div className="px-3 py-2 rounded-[3px] border border-gray-200 bg-gray-50 flex items-start gap-2">
                 <IconX size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
