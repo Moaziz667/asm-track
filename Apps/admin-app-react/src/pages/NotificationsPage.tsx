@@ -20,7 +20,7 @@ import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import { cn } from '@/lib/utils';
 import { toast } from '@/lib/toast';
-import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/dispatch-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
@@ -104,13 +104,7 @@ export default function NotificationsPage() {
   // where the actual actions (assign / reassign / replan) live.
   const openInDispatch = (n: typeof notifications[number]) => {
     if (!n.read) markRead(n.id);
-    if (n.event === 'erp.orders_ready') {
-      navigate('/import?tab=ready');
-    } else if (n.deliveryId || n.orderId) {
-      navigate(dispatchDeskQueueLink({ orderRef: n.orderId, orderId: n.orderId, deliveryId: n.deliveryId }));
-    } else if (n.routeId) {
-      navigate(`/routes/${n.routeId}`);
-    }
+    navigate(notifDestination(n));
   };
 
   const doRefresh = async () => {

@@ -10,6 +10,7 @@ import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
 import { AR_COPY } from '@/lib/ar-copy';
 import { api } from '@/lib/api';
+import { notifDestination } from '@/lib/dispatch-link';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -68,11 +69,11 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'delivery.handoff_required': { category: 'delivery', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
   'delivery.replanned': { category: 'delivery', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
   
-  'route.validated': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'route.schedule_changed': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'route.stop_added': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'route.stop_removed': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'delivery.handoff_confirmed': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
+  'route.validated': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'route.schedule_changed': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'route.stop_added': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'route.stop_removed': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'delivery.handoff_confirmed': { category: 'route', severity: 'info', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
   'handoff.requested': { category: 'route', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'handoff.overdue':   { category: 'route', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
   'handoff.cancelled': { category: 'route', severity: 'warning', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/dispatch-desk' },
@@ -83,10 +84,10 @@ const EVENT_MAP: Record<string, EventConfig> = {
   'delivery.backorder_created': { category: 'delivery', severity: 'info', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
 
   // Transfer events
-  'STOPS_TRANSFERRED_OUT': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'STOPS_TRANSFERRED_IN':  { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'ROUTE_STARTED':         { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
-  'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes' },
+  'STOPS_TRANSFERRED_OUT': { category: 'route', severity: 'warning', navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'STOPS_TRANSFERRED_IN':  { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'ROUTE_STARTED':         { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
+  'PICKUP_CONFIRMED':      { category: 'route', severity: 'info',    navigateTo: p => p.routeId ? `/routes/${p.routeId}` : '/routes-table' },
   'erp.sync_failed':       { category: 'delivery', severity: 'critical', navigateTo: p => p.deliveryId ? `/deliveries/${p.deliveryId}` : '/deliveries' },
   'erp.orders_ready':      { category: 'erp',      severity: 'info',     navigateTo: () => '/import?tab=ready' },
 };
@@ -293,7 +294,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
 
     const localized = getLocalizedNotif(notif, activeLocale);
 
-    const dest = cfg.navigateTo(p);
+    const dest = notifDestination(notif);
     const toastFn = cfg.severity === 'critical' ? toast.error
       : cfg.severity === 'warning' ? toast.warning
       : toast.info;

@@ -4,7 +4,7 @@ import { useRef, useEffect, useState } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 import { IconBell, IconCheck, IconAlertTriangle, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { useNotifications, type Notification, getLocalizedNotif } from './AlertsProvider';
-import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/dispatch-link';
 import { useLocaleStore } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
@@ -57,14 +57,8 @@ function relativeTime(ts: number, copy: CopyDict['notificationsDropdown']): stri
 
 /* ── Navigate destination: command alerts open the Dispatch Desk, filtered ──── */
 
-function navigateDest(n: Notification): string {
-  if (n.event === 'erp.orders_ready') return '/import?tab=ready';
-  if (n.deliveryId || n.orderId) {
-    return dispatchDeskQueueLink({ orderRef: n.orderId, orderId: n.orderId, deliveryId: n.deliveryId });
-  }
-  if (n.category === 'route' && n.routeId) return `/routes/${n.routeId}`;
-  return '/notifications';
-}
+// Single source of truth for click destinations (toast / bell / notifications page all share it).
+const navigateDest = (n: Notification): string => notifDestination(n);
 
 /* ── Single notification row ───────────────────────────────────────────────── */
 
