@@ -1,22 +1,11 @@
-
 import { useEffect, useRef, useState, useMemo } from 'react';
-import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap } from 'react-leaflet';
+import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
 
-export type ActiveStop = {
-  deliveryId: string;
-  status: string;
-  clientName?: string;
-  city?: string;
-  driverId?: string;
-  dropoffLat: number;
-  dropoffLng: number;
-  updatedAt?: string;
-};
-
+// ── Types ────────────────────────────────────────────────────────────────────
 export type LiveDriver = {
   id: string;
   name: string;
@@ -26,43 +15,37 @@ export type LiveDriver = {
   onlineStatus?: string;
 };
 
+export type MapRouteStop = {
+  deliveryId?: string;
+  status: string;
+  clientName?: string;
+  deliveryCity?: string;
+  dropoffLat?: number;
+  dropoffLng?: number;
+  stopType?: 'PICKUP' | 'DELIVERY';
+};
+
+export type MapRoute = {
+  id: string;
+  name: string;
+  status: string;
+  driverId?: string;
+  stops: MapRouteStop[];
+};
+
 interface Props {
-  activeStops: ActiveStop[];
+  routes: MapRoute[];
   drivers: LiveDriver[];
-  selectedStopId?: string | null;
-  selectedDriverId?: string | null;
-  selectedDriverRoute?: [number, number][];
-  onStopClick?: (deliveryId: string) => void;
-  onDriverClick?: (driverId: string) => void;
+  focusedRouteId?: string | null;
+  onFocusRoute?: (routeId: string | null) => void;
+  routeColor: (routeId?: string | null) => string;
 }
 
-// ── Color maps ─────────────────────────────────────────────────────────────────
-
-const STOP_COLOR: Record<string, string> = {
-  SCHEDULED:           '#2563eb',
-  PICKED_UP:           '#f97316',
-  IN_TRANSIT:          '#f97316',
-  DELIVERED:           '#16a34a',
-  PARTIALLY_DELIVERED: '#7c3aed',
-  FAILED:              '#dc2626',
-  CANCELLED:           '#dc2626',
-  UNSCHEDULED:         '#71717a',
-};
-
-const STATUS_RING: Record<string, string> = {
-  ONLINE:   '#10B981',
-  ON_BREAK: '#F59E0B',
-  OFFLINE:  '#9CA3AF',
-};
-
 const STATUS_LABEL: Record<string, string> = {
-  ONLINE:   'En service',
-  ON_BREAK: 'En pause',
-  OFFLINE:  'Hors ligne',
+  ONLINE: 'En service', ON_BREAK: 'En pause', OFFLINE: 'Hors ligne',
 };
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
-
 function isGpsStale(lastLocationAt?: string | null): boolean {
   if (!lastLocationAt) return true;
   return Date.now() - new Date(lastLocationAt).getTime() > 10 * 60 * 1000;
@@ -72,26 +55,21 @@ function stopSymbol(status: string): string {
   if (status === 'IN_TRANSIT') return '▶';
   if (status === 'PICKED_UP') return '↑';
   if (status === 'DELIVERED') return '✓';
-  if (status === 'FAILED') return '✗';
+  if (status === 'FAILED' || status === 'CANCELLED') return '✗';
+  if (status === 'PARTIALLY_DELIVERED' || status === 'PARTIAL') return '◑';
   return '●';
 }
 
-// ── Icon factories ─────────────────────────────────────────────────────────────
-
-function makeStopIcon(status: string, selected: boolean) {
-  const color = STOP_COLOR[status] ?? '#71717a';
+// ── Icon factories (coloured by ROUTE, not status) ───────────────────────────────
+function makeStopIcon(color: string, status: string, dim: boolean, focused: boolean) {
   const symbol = stopSymbol(status);
-  const shadow = selected
-    ? 'drop-shadow(0 0 7px rgba(255,87,34,0.85)) drop-shadow(0 2px 8px rgba(0,0,0,0.4))'
-    : 'drop-shadow(0 2px 5px rgba(0,0,0,0.28))';
-  const scale = selected ? 'scale(1.25)' : 'scale(1)';
+  const scale = focused ? 'scale(1.2)' : 'scale(1)';
+  const opacity = dim ? 0.35 : 1;
   return L.divIcon({
     className: '',
-    iconSize: [28, 36],
-    iconAnchor: [14, 36],
-    popupAnchor: [0, -40],
-    html: `<div style="width:28px;height:36px;transform:${scale};transform-origin:50% 100%;filter:${shadow};transition:transform 0.15s,filter 0.15s;">
-  <svg width="28" height="36" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
+    iconSize: [26, 34], iconAnchor: [13, 34], popupAnchor: [0, -36],
+    html: `<div style="width:26px;height:34px;transform:${scale};transform-origin:50% 100%;opacity:${opacity};filter:drop-shadow(0 2px 5px rgba(0,0,0,0.28));transition:transform 0.15s,opacity 0.15s;">
+  <svg width="26" height="34" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 0C6.268 0 0 6.268 0 14c0 5.746 3.44 10.71 8.44 13.07L14 36l5.56-8.93C24.56 24.71 28 19.746 28 14 28 6.268 21.732 0 14 0z" fill="${color}"/>
     <text x="14" y="15" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="800" font-family="system-ui,sans-serif">${symbol}</text>
   </svg>
@@ -99,18 +77,15 @@ function makeStopIcon(status: string, selected: boolean) {
   });
 }
 
-function makeDriverIcon(name: string, onlineStatus: string, selected: boolean) {
-  const ring = STATUS_RING[onlineStatus] ?? STATUS_RING.OFFLINE;
-  const size = selected ? 40 : 34;
-  const ringW = selected ? 4 : 3;
-  const glow = selected ? `box-shadow:0 0 0 3px ${ring}55,0 0 12px ${ring}44;` : `box-shadow:0 0 0 2px ${ring}33;`;
+// Driver van icon — same artwork as the per-route page, ring tinted by the route colour.
+function makeDriverIcon(ring: string, dim: boolean, focused: boolean) {
+  const size = focused ? 40 : 34;
+  const opacity = dim ? 0.4 : 1;
   return L.divIcon({
     className: '',
-    iconSize: [size + 10, size + 10],
-    iconAnchor: [(size + 10) / 2, (size + 10) / 2],
-    popupAnchor: [0, -(size / 2) - 8],
-    html: `<div style="width:${size + 10}px;height:${size + 10}px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));">
-  <div style="width:${size}px;height:${size}px;border-radius:50%;background:#111827;border:${ringW}px solid ${ring};${glow}display:flex;align-items:center;justify-content:center;transition:all 0.15s;">
+    iconSize: [size + 10, size + 10], iconAnchor: [(size + 10) / 2, (size + 10) / 2], popupAnchor: [0, -(size / 2) - 8],
+    html: `<div style="width:${size + 10}px;height:${size + 10}px;display:flex;align-items:center;justify-content:center;opacity:${opacity};filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));transition:opacity 0.15s;">
+  <div style="width:${size}px;height:${size}px;border-radius:50%;background:#111827;border:3px solid ${ring};box-shadow:0 0 0 2px ${ring}44;display:flex;align-items:center;justify-content:center;">
     <svg width="${Math.round(size * 0.56)}" height="${Math.round(size * 0.56)}" viewBox="0 -2 20 20" xmlns="http://www.w3.org/2000/svg" fill="none">
       <g transform="translate(-2 -4)">
         <path fill="#F08734" d="M20.24,10.81,19,10.5l-.79-2.77a1,1,0,0,0-1-.73H13V17h2a2,2,0,0,1,4,0h1a1,1,0,0,0,1-1V11.78A1,1,0,0,0,20.24,10.81Z"/>
@@ -125,95 +100,113 @@ function makeDriverIcon(name: string, onlineStatus: string, selected: boolean) {
   });
 }
 
-// ── Auto-fit on first load ─────────────────────────────────────────────────────
-
-function FitBounds({ stops, drivers }: { stops: ActiveStop[]; drivers: LiveDriver[] }) {
+// ── Camera: fit everything on first load, fly to a route when focused ────────────
+function Camera({ routes, drivers, focusedRouteId }: { routes: MapRoute[]; drivers: LiveDriver[]; focusedRouteId?: string | null }) {
   const map = useMap();
   const fitted = useRef(false);
 
+  // Initial fit to all stops + drivers.
   useEffect(() => {
     if (fitted.current) return;
-    const pts: [number, number][] = [
-      ...stops.filter(s => s.dropoffLat && s.dropoffLng).map(s => [s.dropoffLat, s.dropoffLng] as [number, number]),
-      ...drivers
-        .filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt))
-        .map(d => [d.currentLat!, d.currentLng!] as [number, number]),
-    ];
+    const pts: [number, number][] = [];
+    routes.forEach(r => r.stops.forEach(s => { if (s.dropoffLat && s.dropoffLng) pts.push([s.dropoffLat, s.dropoffLng]); }));
+    drivers.forEach(d => { if (d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt)) pts.push([d.currentLat, d.currentLng]); });
     if (pts.length === 0) return;
     try {
-      const bounds = L.latLngBounds(pts);
-      if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [48, 48], maxZoom: 14 });
-        fitted.current = true;
-      }
+      const b = L.latLngBounds(pts);
+      if (b.isValid()) { map.fitBounds(b, { padding: [48, 48], maxZoom: 14 }); fitted.current = true; }
     } catch { /* ignore */ }
-  }, [map, stops, drivers]);
+  }, [map, routes, drivers]);
+
+  // Fly to the focused route.
+  useEffect(() => {
+    if (!focusedRouteId) return;
+    const r = routes.find(x => x.id === focusedRouteId);
+    if (!r) return;
+    const pts: [number, number][] = [];
+    r.stops.forEach(s => { if (s.dropoffLat && s.dropoffLng) pts.push([s.dropoffLat, s.dropoffLng]); });
+    const drv = r.driverId ? drivers.find(d => d.id === r.driverId) : null;
+    if (drv?.currentLat && drv?.currentLng && !isGpsStale(drv.lastLocationAt)) pts.push([drv.currentLat, drv.currentLng]);
+    if (pts.length === 0) return;
+    try {
+      const b = L.latLngBounds(pts);
+      if (b.isValid()) map.flyToBounds(b, { padding: [60, 60], maxZoom: 15, duration: 0.6 });
+    } catch { /* ignore */ }
+  }, [map, focusedRouteId, routes, drivers]);
 
   return null;
 }
 
-// ── Main ───────────────────────────────────────────────────────────────────────
-
-function DispatchLiveMapInner({
-  activeStops,
-  drivers,
-  selectedStopId,
-  selectedDriverId,
-  selectedDriverRoute,
-  onStopClick,
-  onDriverClick,
-}: Props) {
+// ── Main ─────────────────────────────────────────────────────────────────────────
+function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, routeColor }: Props) {
   const [mounted, setMounted] = useState(false);
   const isDark = useIsDark();
   useEffect(() => { setMounted(true); }, []);
 
-  const visibleDrivers = drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt));
-  
-  const activeStopMarkers = useMemo(() => {
-    return activeStops
-      .filter(s => s.dropoffLat && s.dropoffLng)
-      .map(stop => (
+  const visibleDrivers = useMemo(
+    () => drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt)),
+    [drivers]
+  );
+  // driverId → the route (and colour) it belongs to, so the car matches its route's pins.
+  const driverRoute = useMemo(() => {
+    const m = new Map<string, MapRoute>();
+    routes.forEach(r => { if (r.driverId) m.set(r.driverId, r); });
+    return m;
+  }, [routes]);
+
+  const stopMarkers = useMemo(() => {
+    const out: JSX.Element[] = [];
+    routes.forEach(route => {
+      const color = routeColor(route.id);
+      const dim = !!focusedRouteId && focusedRouteId !== route.id;
+      route.stops.forEach((stop, i) => {
+        if (stop.stopType === 'PICKUP') return; // pins are delivery destinations
+        if (!stop.dropoffLat || !stop.dropoffLng) return;
+        out.push(
+          <Marker
+            key={`${route.id}-${stop.deliveryId ?? i}`}
+            position={[stop.dropoffLat, stop.dropoffLng]}
+            icon={makeStopIcon(color, stop.status, dim, focusedRouteId === route.id)}
+            eventHandlers={{ click: () => onFocusRoute?.(focusedRouteId === route.id ? null : route.id) }}
+          >
+            <Popup>
+              <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{route.name}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#09090B', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
+                {stop.deliveryCity && <div style={{ fontSize: 11, color: '#71717A' }}>{stop.deliveryCity}</div>}
+                <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 4, fontWeight: 600, textTransform: 'uppercase' }}>{stop.status}</div>
+              </div>
+            </Popup>
+          </Marker>
+        );
+      });
+    });
+    return out;
+  }, [routes, focusedRouteId, onFocusRoute, routeColor]);
+
+  const driverMarkers = useMemo(() => {
+    return visibleDrivers.map(driver => {
+      const r = driverRoute.get(driver.id);
+      const color = r ? routeColor(r.id) : '#71717A';
+      const dim = !!focusedRouteId && (!r || r.id !== focusedRouteId);
+      return (
         <Marker
-          key={stop.deliveryId}
-          position={[stop.dropoffLat, stop.dropoffLng]}
-          icon={makeStopIcon(stop.status, stop.deliveryId === selectedStopId)}
-          eventHandlers={{ click: () => onStopClick?.(stop.deliveryId) }}
+          key={driver.id}
+          position={[driver.currentLat!, driver.currentLng!]}
+          icon={makeDriverIcon(color, dim, !!r && r.id === focusedRouteId)}
+          eventHandlers={{ click: () => onFocusRoute?.(r ? (focusedRouteId === r.id ? null : r.id) : null) }}
         >
           <Popup>
-            <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
-              <div style={{ fontSize: 10, fontWeight: 800, color: STOP_COLOR[stop.status] ?? '#71717a', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>
-                {stop.status}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#09090B', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
-              {stop.city && <div style={{ fontSize: 11, color: '#71717A' }}>{stop.city}</div>}
+            <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
+              {r && <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 2 }}>{r.name}</div>}
+              <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 2 }}>{STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}</div>
             </div>
           </Popup>
         </Marker>
-      ));
-  }, [activeStops, selectedStopId, onStopClick]);
-
-  const driverMarkers = useMemo(() => {
-    return visibleDrivers.map(driver => (
-      <Marker
-        key={driver.id}
-        position={[driver.currentLat!, driver.currentLng!]}
-        icon={makeDriverIcon(driver.name, driver.onlineStatus ?? 'OFFLINE', driver.id === selectedDriverId)}
-        eventHandlers={{ click: () => onDriverClick?.(driver.id) }}
-      >
-        <Popup>
-          <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
-            <div style={{ fontSize: 10, color: STATUS_RING[driver.onlineStatus ?? 'OFFLINE'] ?? STATUS_RING.OFFLINE, fontWeight: 600, marginTop: 2 }}>
-              {STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}
-            </div>
-            <div style={{ fontSize: 9, color: '#A1A1AA', marginTop: 4 }}>
-              {driver.id === selectedDriverId ? 'Cliquer pour masquer la tournée' : 'Cliquer pour voir la tournée'}
-            </div>
-          </div>
-        </Popup>
-      </Marker>
-    ));
-  }, [visibleDrivers, selectedDriverId, onDriverClick]);
+      );
+    });
+  }, [visibleDrivers, driverRoute, focusedRouteId, onFocusRoute, routeColor]);
 
   if (!mounted) {
     return (
@@ -226,6 +219,7 @@ function DispatchLiveMapInner({
   }
 
   const center: [number, number] = [36.8065, 10.1815];
+  const stopCount = routes.reduce((n, r) => n + r.stops.filter(s => s.stopType !== 'PICKUP' && s.dropoffLat && s.dropoffLng).length, 0);
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', zIndex: 0, isolation: 'isolate' }}>
@@ -235,38 +229,28 @@ function DispatchLiveMapInner({
           url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
           maxZoom={19}
         />
-
-        <FitBounds stops={activeStops} drivers={visibleDrivers} />
-
-        {/* Selected driver route polyline */}
-        {selectedDriverRoute && selectedDriverRoute.length > 1 && (
-          <Polyline
-            positions={selectedDriverRoute}
-            pathOptions={{ color: 'var(--brand)', weight: 3, opacity: 0.72, dashArray: '10 6' }}
-          />
-        )}
-
-        {/* Active stop markers */}
-        {activeStopMarkers}
-
-        {/* Driver markers */}
+        <Camera routes={routes} drivers={visibleDrivers} focusedRouteId={focusedRouteId} />
+        {stopMarkers}
         {driverMarkers}
       </MapContainer>
 
-      {/* Map overlay badges */}
-      <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 800, display: 'flex', gap: 6, pointerEvents: 'none' }}>
-        <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981', boxShadow: '0 0 0 2px rgba(16,185,129,0.3)' }} />
+      {/* Overlay counts + a "reset focus" affordance */}
+      <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 800, display: 'flex', gap: 6 }}>
+        <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
+          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
           <span style={{ fontSize: 10, color: '#D4D4D8', fontWeight: 700, letterSpacing: '0.05em' }}>
-            {visibleDrivers.length} chauffeur{visibleDrivers.length !== 1 ? 's' : ''} actif{visibleDrivers.length !== 1 ? 's' : ''}
+            {routes.length} tournée{routes.length !== 1 ? 's' : ''} · {visibleDrivers.length} en ligne · {stopCount} arrêts
           </span>
         </div>
-        <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#f97316' }} />
-          <span style={{ fontSize: 10, color: '#D4D4D8', fontWeight: 700, letterSpacing: '0.05em' }}>
-            {activeStops.filter(s => s.dropoffLat && s.dropoffLng).length} arrêt{activeStops.length !== 1 ? 's' : ''} en cours
-          </span>
-        </div>
+        {focusedRouteId && (
+          <button
+            type="button"
+            onClick={() => onFocusRoute?.(null)}
+            style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', fontWeight: 700, letterSpacing: '0.05em', border: 'none', cursor: 'pointer' }}
+          >
+            Tout afficher
+          </button>
+        )}
       </div>
     </div>
   );

@@ -271,19 +271,6 @@ export default function DashboardPage() {
     : `${deliveredDelta >= 0 ? '+' : ''}${deliveredDelta.toFixed(0)}% ${vsPrev}`;
 
   // Flatten active deliveries from lanes for the table
-  const activeDeliveries = useMemo(() => {
-    const list = ops?.lanes?.flatMap(l => l.items || []) || [];
-    const unique = Array.from(new Map(list.map(item => [item.deliveryId || item.orderRef, item])).values());
-    return unique.slice(0, 8).map(d => {
-      const item = d as any;
-      return {
-        ...d,
-        dropoffLat: Number(item.dropoffLat) || 36.8065,
-        dropoffLng: Number(item.dropoffLng) || 10.1815,
-        status: item.status || 'UNSCHEDULED'
-      };
-    });
-  }, [ops]);
 
   const safeDrivers = useMemo(() => {
     return drivers.map(d => ({
@@ -581,8 +568,11 @@ export default function DashboardPage() {
               children: (
                 <div className="card h-full overflow-hidden flex flex-col relative">
                   <DispatchLiveMap
-                    activeStops={activeDeliveries as any}
+                    routes={activeRoutes as any}
                     drivers={safeDrivers as any}
+                    focusedRouteId={focusedRouteId}
+                    onFocusRoute={setFocusedRouteId}
+                    routeColor={routeColor}
                   />
                 </div>
               ),
