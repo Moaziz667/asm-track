@@ -53,6 +53,18 @@ public class ErpResyncService {
     @org.springframework.beans.factory.annotation.Value("${erp.reconcile.stuck-minutes:15}")
     private int stuckMinutes;
 
+    /**
+     * Self-reference so the scheduled sweep calls the @Transactional reEnqueueStuckOrder THROUGH the
+     * Spring proxy. A plain this.reEnqueueStuckOrder(...) would bypass the proxy, leaving no active
+     * transaction for the pessimistic findByIdForUpdate lock.
+     */
+    private ErpResyncService self;
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public void setSelf(@org.springframework.context.annotation.Lazy ErpResyncService self) {
+        this.self = self;
+    }
+
     public record ResyncResult(UUID orderId, String blNumber, String status, boolean queued, String reason) {
         public Map<String, Object> toMap() {
             Map<String, Object> m = new LinkedHashMap<>();
@@ -180,7 +192,7 @@ public class ErpResyncService {
             // Oldest-first: once we hit one inside the grace window, the rest are newer → stop.
             if (order.getUpdatedAt() != null && order.getUpdatedAt().isAfter(cutoff)) break;
             try {
-                if (reEnqueueStuckOrder(order.getId())) reconciled++;
+                if (self.reEnqueueStuckOrder(order.getId())) reconciled++;
             } catch (Exception e) {
                 log.warn("Reconcile sweep: failed to re-drive stuck orderId={}: {}", order.getId(), e.getMessage());
             }
