@@ -35,6 +35,7 @@ public class RouteExecutionService {
     private final DelayCalculationService delayCalculationService;
     private final com.asm.delivery.service.VehicleInspectionService inspectionService;
     private final RouteReportService routeReportService;
+    private final RouteAutoCloseService routeAutoCloseService;
     private final RouteWebSocketService routeWebSocketService;
     private final DepotRepository depotRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -57,13 +58,15 @@ public class RouteExecutionService {
             throw AppException.badRequest("Cannot close: stops still active — " + blockingStatuses);
         }
 
-        route.setStatus(RouteStatus.CLOSED);
+        // A route that never delivered anything (all stops removed) is cancelled, not "completed".
+        boolean anyDelivered = routeAutoCloseService.anyStopDelivered(stops);
+        route.setStatus(anyDelivered ? RouteStatus.CLOSED : RouteStatus.CANCELLED);
         route.setClosedAt(LocalDateTime.now());
         routeRepository.save(route);
-        auditLogService.logAction(null, "CLOSE_ROUTE", "ROUTE", routeId.toString(),
+        auditLogService.logAction(null, anyDelivered ? "CLOSE_ROUTE" : "CANCEL_ROUTE", "ROUTE", routeId.toString(),
                 java.util.Map.of("tournee", route.getName() != null ? route.getName() : routeId.toString(), "action", "Cloture manuelle par admin"));
-        // Snapshot the closure report — best effort, never blocks the close.
-        routeReportService.persistSnapshot(route);
+        // A closure report only makes sense for a route that actually ran.
+        if (anyDelivered) routeReportService.persistSnapshot(route);
         return routePlanningService.get(route.getId());
     }
 
@@ -303,7 +306,7 @@ public class RouteExecutionService {
             route.setRouteOnTimeCompletionRate(java.math.BigDecimal.valueOf(onTimeCompletionRate));
             routeRepository.save(route);
 
-            maybeAutoCloseRoute(route);
+            routeAutoCloseService.finalizeIfResolved(route);
         });
     }
 
@@ -369,26 +372,6 @@ public class RouteExecutionService {
 
     private RouteResponse toResponse(Route route) {
         return routePlanningService.get(route.getId());
-    }
-
-    private void maybeAutoCloseRoute(Route route) {
-        if (route.getStatus() != RouteStatus.VALIDATED && route.getStatus() != RouteStatus.IN_PROGRESS) {
-            return;
-        }
-
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        // A route with no stops at all (or all removed) auto-closes
-        boolean allDone = stops.stream()
-                .allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
-        if (!allDone) {
-            return;
-        }
-
-        route.setStatus(RouteStatus.CLOSED);
-        route.setClosedAt(LocalDateTime.now());
-        routeRepository.save(route);
-        // Snapshot the closure report — best effort, never blocks the close.
-        routeReportService.persistSnapshot(route);
     }
 
 }

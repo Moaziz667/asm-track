@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { IconEye as Eye, IconUserCheck as UserCheck, IconCircleX as XCircle, IconCircleCheck as CheckCircle, IconTrash as Trash2, IconFileText as FileText, IconChevronDown as ChevronDown, IconChevronRight as ChevronRight } from '@tabler/icons-react';
 import { colors, spacing, btn } from '@/lib/design-tokens';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import { formatMinutes } from '@/lib/utils';
 import type { RouteItem } from '../hooks/useRoutes';
 import { useT } from '@/lib/LocaleContext';
 
@@ -244,7 +245,7 @@ export function RouteRow({
             color: colors.danger,
             fontVariantNumeric: 'tabular-nums',
           }}>
-            +{route.cumulativeDelayMinutes}min
+            +{formatMinutes(route.cumulativeDelayMinutes)}
           </span>
         ) : null}
       </div>

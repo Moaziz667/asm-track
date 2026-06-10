@@ -57,6 +57,7 @@ public class RoutePlanningService {
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final PickupStopReconciler pickupStopReconciler;
+    private final RouteAutoCloseService routeAutoCloseService;
     private final RouteValidator routeValidator;
     private final RouteResponseMapper routeResponseMapper;
     private final EntityManager entityManager;
@@ -403,7 +404,7 @@ public class RoutePlanningService {
             eventPublisher.publishRouteStopRemoved(route, clientName, erpOrderId, cancelReason);
         }
 
-        maybeAutoCloseRoute(route);
+        routeAutoCloseService.finalizeIfResolved(route);
         return routeResponseMapper.toResponse(route);
     }
 
@@ -578,7 +579,7 @@ public class RoutePlanningService {
             });
         }
 
-        maybeAutoCloseRoute(route);
+        routeAutoCloseService.finalizeIfResolved(route);
         return routeResponseMapper.toResponse(route);
     }
 
@@ -786,33 +787,11 @@ public class RoutePlanningService {
     }
 
 
-    private static boolean isTerminalStopStatus(RouteStopStatus status) {
-        return status == RouteStopStatus.COMPLETED
-                || status == RouteStopStatus.FAILED
-                || status == RouteStopStatus.PARTIAL
-                || status == RouteStopStatus.FAILED_ATTEMPT;
-    }
-
     static boolean isRemovedStatus(RouteStopStatus status) {
         return status == RouteStopStatus.REMOVED_REPLANNED
                 || status == RouteStopStatus.REMOVED_CANCELLED;
     }
 
-    private void maybeAutoCloseRoute(Route route) {
-        if (route.getStatus() != RouteStatus.VALIDATED && route.getStatus() != RouteStatus.IN_PROGRESS) {
-            return;
-        }
-
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        if (!stops.isEmpty()) {
-            boolean allTerminal = stops.stream().allMatch(s -> isTerminalStopStatus(s.getStatus()) || isRemovedStatus(s.getStatus()));
-            if (!allTerminal) return;
-        }
-
-        route.setStatus(RouteStatus.CLOSED);
-        route.setClosedAt(LocalDateTime.now());
-        routeRepository.save(route);
-    }
     private static void validateScheduleWindow(LocalTime startTime, LocalTime endTime) {
         if (startTime == null || endTime == null) {
             throw AppException.badRequest("Route schedule window is required");
