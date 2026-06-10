@@ -103,7 +103,28 @@ export function QueueList() {
   const {
     t, allLoading, queueRows, drivers,
     selectedIds, toggleRow, selectedQueueId, setSelectedQueueId,
+    queueSort, setQueueSort,
   } = useDispatchDeskContext();
+
+  const dd = t.dispatchDeskPage;
+  const SortBar = (
+    <div className="flex items-center gap-2 px-3 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+        {dd.sortBy ?? 'Trier par'}
+      </span>
+      <select
+        value={queueSort}
+        onChange={(e) => setQueueSort(e.target.value as typeof queueSort)}
+        className="text-[11px] font-[500] rounded-md px-2 py-1 outline-none cursor-pointer"
+        style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+      >
+        <option value="route">{dd.sortRoute ?? 'Tournée'}</option>
+        <option value="severity">{dd.sortSeverity ?? 'Sévérité'}</option>
+        <option value="status">{dd.sortStatus ?? 'Statut'}</option>
+        <option value="date">{dd.sortDate ?? 'Date'}</option>
+      </select>
+    </div>
+  );
 
   if (allLoading) {
     return (
@@ -115,9 +136,40 @@ export function QueueList() {
 
   if (queueRows.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
-        <IconCheck size={20} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-        <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
+      <div className="flex-1 flex flex-col min-h-0">
+        {SortBar}
+        <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
+          <IconCheck size={20} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
+          <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const renderRow = (row: QueueRow) => {
+    const driver = drivers.find(dr => dr.id === row.delivery.driverId);
+    return (
+      <QueueListRow
+        key={row.id}
+        row={row}
+        active={row.id === selectedQueueId}
+        checked={selectedIds.has(row.id)}
+        driverOnlineStatus={driver?.onlineStatus}
+        onSelect={() => setSelectedQueueId(row.id)}
+        onToggle={() => toggleRow(row.id)}
+        t={t}
+      />
+    );
+  };
+
+  // Route-major sort → keep the route section headers; any other sort → flat list.
+  if (queueSort !== 'route') {
+    return (
+      <div className="flex-1 flex flex-col min-h-0">
+        {SortBar}
+        <ScrollArea className="flex-1 min-h-0">
+          {queueRows.map(renderRow)}
+        </ScrollArea>
       </div>
     );
   }
@@ -131,6 +183,8 @@ export function QueueList() {
   }
 
   return (
+    <div className="flex-1 flex flex-col min-h-0">
+    {SortBar}
     <ScrollArea className="flex-1 min-h-0">
       {groups.map((group, gi) => (
         <div key={`${group.routeName ?? 'none'}-${gi}`}>
@@ -151,23 +205,10 @@ export function QueueList() {
             )}
           </div>
 
-          {group.rows.map(row => {
-            const driver = drivers.find(dr => dr.id === row.delivery.driverId);
-            return (
-              <QueueListRow
-                key={row.id}
-                row={row}
-                active={row.id === selectedQueueId}
-                checked={selectedIds.has(row.id)}
-                driverOnlineStatus={driver?.onlineStatus}
-                onSelect={() => setSelectedQueueId(row.id)}
-                onToggle={() => toggleRow(row.id)}
-                t={t}
-              />
-            );
-          })}
+          {group.rows.map(renderRow)}
         </div>
       ))}
     </ScrollArea>
+    </div>
   );
 }

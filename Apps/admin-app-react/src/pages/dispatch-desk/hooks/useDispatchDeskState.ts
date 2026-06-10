@@ -12,7 +12,7 @@ import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTa
 import type { ReassignTarget } from '@/components/overlays/ReassignDrawer';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif, formatComment } from '../formatters';
-import { rowId, getWeekStart, getMonthStart, sortByRoute } from '../utils';
+import { rowId, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
   t: ReturnType<typeof useT>;
@@ -47,6 +47,8 @@ export interface DispatchDeskContextProps {
   setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
   routeFilter: string;
   setRouteFilter: React.Dispatch<React.SetStateAction<string>>;
+  queueSort: QueueSortMode;
+  setQueueSort: React.Dispatch<React.SetStateAction<QueueSortMode>>;
   clearFilters: () => void;
   
   // UI State
@@ -132,7 +134,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.dispatch?.title || 'Dispatch' }]);
   const isReadOnly = isReadOnlyRole(getCurrentRole());
-  const { filters: globalFilters, applyFilters, clearFilters, globalContext } = useGlobalFilters();
+  const { filters: globalFilters, applyFilters, clearFilters: clearGlobalFilters, globalContext } = useGlobalFilters();
 
   // ── Data ──────────────────────────────────────────────────────────────────
   const [rows, setRows]                   = useState<OpsException[]>([]);
@@ -149,6 +151,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [zoneFilter, setZoneFilter]   = useState(globalFilters.zone || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
+  const [queueSort, setQueueSort] = useState<QueueSortMode>('route');
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [dispatchTab, setDispatchTab]   = useState<DispatchTab>('queue');
@@ -250,7 +253,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   // Reset on leave: dispatch filters are per-visit. Clearing the shared operational-filter store on
   // unmount means returning to the desk — or arriving via a notification deep-link (?search=…) —
   // always starts from a clean state, and a notification's search never lingers as a stale filter.
-  useEffect(() => () => { clearFilters(); }, [clearFilters]);
+  useEffect(() => () => { clearGlobalFilters(); }, [clearGlobalFilters]);
 
   useEffect(() => {
     if (!globalContext || initialSyncRef.current) return;
@@ -357,10 +360,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       byId.set(r.deliveryId, { id: r.deliveryId, delivery: d, alert: r, routeId: r.routeId ?? d.routeId, routeName: r.routeName ?? d.routeName });
     });
 
-    return sortByRoute(Array.from(byId.values()), q =>
-      q.alert ? (q.alert.severity === 'CRITICAL' ? 0 : q.alert.severity === 'WARNING' ? 1 : 2) : 3
-    );
-  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, driverId, zoneFilter]);
+    return sortQueue(Array.from(byId.values()), queueSort);
+  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, driverId, zoneFilter, queueSort]);
 
   const selectedQueueRow = useMemo(
     () => queueRows.find(q => q.id === selectedQueueId) ?? null,
@@ -568,6 +569,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setStatusFilter,
     routeFilter,
     setRouteFilter,
+    queueSort,
+    setQueueSort,
     clearFilters,
     dispatchTab,
     setDispatchTab,

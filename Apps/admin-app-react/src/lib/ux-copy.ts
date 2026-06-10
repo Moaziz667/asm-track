@@ -866,6 +866,11 @@ export const FR_COPY = {
     tableHeaderCoordinates: 'Coordonnées',
     // Table content
     noActionRequired: 'Aucune action requise',
+    sortBy: 'Trier par',
+    sortRoute: 'Tournée',
+    sortSeverity: 'Sévérité',
+    sortStatus: 'Statut',
+    sortDate: 'Date',
     noOrdersFound: 'Aucune commande trouvée',
     unassigned: 'Non assigné',
     missingGps: 'GPS manquant',

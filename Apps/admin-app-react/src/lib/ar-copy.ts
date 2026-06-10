@@ -843,6 +843,11 @@ export const AR_COPY = {
     tableHeaderCoordinates: 'الإحداثيات',
     // Table content
     noActionRequired: 'لا يتطلب أي إجراء',
+    sortBy: 'ترتيب حسب',
+    sortRoute: 'الجولة',
+    sortSeverity: 'الأهمية',
+    sortStatus: 'الحالة',
+    sortDate: 'التاريخ',
     noOrdersFound: 'لم يتم العثور على طلبات',
     unassigned: 'غير معين',
     missingGps: 'GPS مفقود',

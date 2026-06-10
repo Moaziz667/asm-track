@@ -784,6 +784,11 @@ export const EN_COPY = {
     tableHeaderCoordinates: 'Coordinates',
     // Table content
     noActionRequired: 'No action required',
+    sortBy: 'Sort by',
+    sortRoute: 'Route',
+    sortSeverity: 'Severity',
+    sortStatus: 'Status',
+    sortDate: 'Date',
     noOrdersFound: 'No orders found',
     unassigned: 'Unassigned',
     missingGps: 'Missing GPS',
