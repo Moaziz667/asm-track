@@ -379,6 +379,16 @@ public class ExceptionResolutionService {
 
     @Transactional
     public void cancelDelivery(UUID deliveryId, String reason) {
+        cancelDelivery(deliveryId, reason, true);
+    }
+
+    /**
+     * @param syncToErp when false, do NOT push the cancellation back to the ERP. Used by the Odoo→ASM
+     *                  inbound reconciliation: Odoo already cancelled the order, so re-syncing would be
+     *                  a redundant round-trip / loop (V2 anti-loop).
+     */
+    @Transactional
+    public void cancelDelivery(UUID deliveryId, String reason, boolean syncToErp) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
@@ -425,7 +435,7 @@ public class ExceptionResolutionService {
         if (order != null) {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
-            if (order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
+            if (syncToErp && order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
                 // B4 — Carry the exact deliveryId being cancelled. An order can have several deliveries
                 // (multi-depot, backorder); the processor must cancel THIS shipment's picking, not an
                 // arbitrary first() one.
