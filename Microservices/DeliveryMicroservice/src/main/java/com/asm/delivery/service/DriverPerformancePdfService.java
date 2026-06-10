@@ -195,7 +195,9 @@ public class DriverPerformancePdfService extends BasePdfService {
                 String city    = d.getOrder() != null ? safe(d.getOrder().getDropoffCity()) : "-";
                 String statut  = statusFr(d.getStatus());
                 Integer delay = d.getId() != null ? delayByDelivery.get(d.getId()) : null;
-                String delayStr = delay != null && delay > 0 ? "RETARD +" + delay + " min" : "A L'HEURE";
+                String delayStr = delay != null && delay > 0
+                        ? "RETARD +" + (delay >= 60 ? (delay / 60) + "h " + (delay % 60) + "m" : delay + "m")
+                        : "A L'HEURE";
 
                 histTable.addCell(cellAlt(date, alt));
                 histTable.addCell(cellAlt(cmdId != null && !cmdId.isBlank() ? cmdId : "-", alt));

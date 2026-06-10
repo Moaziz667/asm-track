@@ -7,7 +7,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { apiWithToasts } from '@/lib/api-with-toasts';
-import { formatMoney } from '@/lib/utils';
+import { formatMoney, formatMinutes as fmtMins } from '@/lib/utils';
 import { useT, getCopy } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
@@ -194,13 +194,6 @@ function fmtLong(v?: string | null) {
   if (!v) return '—';
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? v : format(d, 'dd MMM yyyy HH:mm');
-}
-function fmtMins(mins?: number | null): string {
-  if (mins == null) return '0m';
-  const a = Math.abs(Math.round(mins));
-  const h = Math.floor(a / 60), m = a % 60;
-  const s = mins < 0 ? '-' : '';
-  return h > 0 ? `${s}${h}h ${m}m` : `${s}${m}m`;
 }
 function fmtDuration(sec?: number | null): string {
   if (!sec) return '—';
@@ -819,7 +812,7 @@ export default function RouteDetailsPage() {
                               </div>
                             ) : null}
                             {stop.routeDistanceKm != null && (
-                              <p className="text-[var(--text-muted)]">{stop.routeDistanceKm.toFixed(1)} km · {stop.routeDurationMinutes} min</p>
+                              <p className="text-[var(--text-muted)]">{stop.routeDistanceKm.toFixed(1)} km · {fmtMins(stop.routeDurationMinutes)}</p>
                             )}
                             {stop.sourceDepotLat && stop.sourceDepotLng && (
                               <a
@@ -972,7 +965,18 @@ export default function RouteDetailsPage() {
                                         const isPostPod  = item.quantityDone != null;
                                         const qtyDone    = item.quantityDone ?? item.quantity ?? 0;
                                         const qtyPlanned = item.quantity ?? 0;
-                                        const outcome    = item.outcome ?? (isPostPod ? (qtyDone > 0 ? 'DELIVERED' : 'REFUSED') : null);
+                                        let inferredOutcome = null;
+                                        if (isPostPod) {
+                                          if (displayStatus === 'DELIVERED' || displayStatus === 'PARTIALLY_DELIVERED') {
+                                            inferredOutcome = qtyDone > 0 ? 'DELIVERED' : 'REFUSED';
+                                          } else if (displayStatus === 'FAILED') {
+                                            const fCode = (delivery as any)?.failureCode || (delivery as any)?.failReason || (stop as any)?.failureCode || (stop as any)?.failReason;
+                                            if (fCode === 'REFUSED' || fCode === 'CLIENT_REJECTED') {
+                                              inferredOutcome = 'REFUSED';
+                                            }
+                                          }
+                                        }
+                                        const outcome    = item.outcome ?? inferredOutcome;
                                         const badgeConfig = outcome ? BadgeStatusMap[outcome as keyof typeof BadgeStatusMap] : null;
 
                                         return (

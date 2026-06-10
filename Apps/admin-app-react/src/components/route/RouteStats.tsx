@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { Progress } from '@/components/ui/progress';
-import { cn } from '@/lib/utils';
+import { cn, formatMinutes } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import styles from '@/styles/route-details.module.scss';
 
@@ -82,14 +82,7 @@ export function RouteStats({
   vehicleCapacityKg,
 }: RouteStatsProps) {
   const t = useT();
-  const formatMins = (mins?: number | null) => {
-    if (mins == null) return '0m';
-    const a = Math.abs(Math.round(mins));
-    const h = Math.floor(a / 60);
-    const m = a % 60;
-    const s = mins < 0 ? '-' : '';
-    return h > 0 ? `${s}${h}h ${m}m` : `${s}${m}m`;
-  };
+  const formatMins = formatMinutes;
 
   return (
     <div className={styles.kpiStrip}>

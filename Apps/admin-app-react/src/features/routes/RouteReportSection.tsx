@@ -13,6 +13,7 @@ import type { RouteReport, StopClassification } from './report-types';
 import { toast } from '@/lib/toast';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { messages } from '@/lib/toast-messages';
+import { formatMinutes } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -164,7 +165,7 @@ function HeaderCard({ report }: { report: RouteReport }) {
       {item(<IconBuildingWarehouse size={18} />, REPORT_LABELS.header.depot,     h.depotName)}
       {item(<IconClockHour4 size={18} />,        REPORT_LABELS.header.startedAt, fmtTime(h.startedAt))}
       {item(<IconClockHour4 size={18} />,        REPORT_LABELS.header.closedAt,  fmtTime(h.closedAt))}
-      {item(<IconClockHour4 size={18} />,        REPORT_LABELS.header.duration,  h.durationMinutes != null ? h.durationMinutes + ' min' : '—')}
+      {item(<IconClockHour4 size={18} />,        REPORT_LABELS.header.duration,  h.durationMinutes != null ? formatMinutes(h.durationMinutes) : '—')}
     </div>
   );
 }
@@ -195,13 +196,13 @@ function KpiStrip({ report }: { report: RouteReport }) {
         REPORT_LABELS.kpis.onTimeFootnote,
         k.onTimeRate >= 85 ? 'good' : k.onTimeRate >= 60 ? 'warn' : 'bad')}
       {tile(REPORT_LABELS.kpis.totalDistance, k.totalDistanceKm != null ? `${k.totalDistanceKm} km` : '—')}
-      {tile(REPORT_LABELS.kpis.activeDuration, k.activeDurationMinutes != null ? `${k.activeDurationMinutes} min` : '—')}
-      {tile(REPORT_LABELS.kpis.cumulativeDelay, k.cumulativeDelayMinutes != null ? `${k.cumulativeDelayMinutes} min` : '0 min',
+      {tile(REPORT_LABELS.kpis.activeDuration, k.activeDurationMinutes != null ? formatMinutes(k.activeDurationMinutes) : '—')}
+      {tile(REPORT_LABELS.kpis.cumulativeDelay, k.cumulativeDelayMinutes != null ? formatMinutes(k.cumulativeDelayMinutes) : '0m',
         undefined, k.cumulativeDelayMinutes && k.cumulativeDelayMinutes > 30 ? 'bad' : undefined)}
       {tile(REPORT_LABELS.kpis.failedStops, k.failedStops + k.failedAttemptStops,
         undefined, (k.failedStops + k.failedAttemptStops) > 0 ? 'bad' : 'good')}
       {tile(REPORT_LABELS.kpis.removedStops, k.replannedStops + k.cancelledStopsCount)}
-      {tile(REPORT_LABELS.kpis.startDelay, k.routeStartDelayMinutes != null ? `${k.routeStartDelayMinutes} min` : '—',
+      {tile(REPORT_LABELS.kpis.startDelay, k.routeStartDelayMinutes != null ? formatMinutes(k.routeStartDelayMinutes) : '—',
         undefined, k.routeStartDelayMinutes && k.routeStartDelayMinutes > 10 ? 'warn' : undefined)}
       {tile(REPORT_LABELS.kpis.attempted, `${k.attemptedStops} / ${k.totalStopsPlanned}`, REPORT_LABELS.kpis.planned)}
     </div>
@@ -324,7 +325,7 @@ function outcomePill(finalStatus: string) {
 function timingPill(finalStatus: string, delayMinutes: number | null) {
   if (!['COMPLETED', 'PARTIAL'].includes(finalStatus) || delayMinutes == null) return null;
   if (delayMinutes > 0)
-    return { label: `En retard · ${delayMinutes} min`, bg: '#FEF2F2', fg: '#B91C1C' };
+    return { label: `En retard · ${formatMinutes(delayMinutes)}`, bg: '#FEF2F2', fg: '#B91C1C' };
   if (delayMinutes > -5)
     return { label: 'À l\'heure', bg: '#F0FDF4', fg: '#15803D' };
   return { label: 'En avance', bg: '#EFF6FF', fg: '#1D4ED8' };
@@ -373,7 +374,7 @@ function StopsTable({ report }: { report: RouteReport }) {
                     color: s.delayMinutes == null ? undefined : s.delayMinutes > 10 ? '#B91C1C' : s.delayMinutes > 0 ? '#B45309' : '#15803D',
                     fontWeight: 600,
                   }}>
-                    {s.delayMinutes != null ? `${s.delayMinutes} min` : '—'}
+                    {s.delayMinutes != null ? formatMinutes(s.delayMinutes) : '—'}
                   </TableCell>
                   <TableCell>
                     <div className="flex flex-col gap-1">

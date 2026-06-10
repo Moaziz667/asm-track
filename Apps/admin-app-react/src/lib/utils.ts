@@ -34,3 +34,17 @@ export function formatMoney(
   });
   return `${formatted} ${currency}`;
 }
+
+/**
+ * Canonical duration/delay formatter: minutes → "5h 33m" / "33m" / "-12m".
+ * Signed (negative = early/ahead). Used by route KPIs, the route report card and anywhere a raw
+ * minute count would otherwise leak (e.g. "333 min").
+ */
+export function formatMinutes(mins?: number | null): string {
+  if (mins == null) return '0m';
+  const a = Math.abs(Math.round(mins));
+  const h = Math.floor(a / 60);
+  const m = a % 60;
+  const sign = mins < 0 ? '-' : '';
+  return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
+}

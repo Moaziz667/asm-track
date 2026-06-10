@@ -69,7 +69,7 @@ public class RouteReportPdfService extends BasePdfService {
                     {"Date",        r.getHeader().getDate() != null ? r.getHeader().getDate().format(DATE_FR) : "-"},
                     {"Démarrée à",  r.getHeader().getStartedAt() != null ? r.getHeader().getStartedAt().format(DT_FR) : "-"},
                     {"Clôturée à",  r.getHeader().getClosedAt() != null ? r.getHeader().getClosedAt().format(DT_FR) : "-"},
-                    {"Durée",       r.getHeader().getDurationMinutes() != null ? r.getHeader().getDurationMinutes() + " min" : "-"},
+                    {"Durée",       fmtMinutes(r.getHeader().getDurationMinutes())},
             }, brand));
 
             infoRow.addCell(infoBox("CHAUFFEUR & VÉHICULE", new String[][]{
@@ -97,11 +97,11 @@ public class RouteReportPdfService extends BasePdfService {
                     k.getTotalDistanceKm() != null ? fmt(k.getTotalDistanceKm()) + " km" : "-", brand));
 
             kpiTable.addCell(kpiBox("Durée active",
-                    k.getActiveDurationMinutes() != null ? k.getActiveDurationMinutes() + " min" : "-", brand));
+                    fmtMinutes(k.getActiveDurationMinutes()), brand));
             kpiTable.addCell(kpiBox("Retard cumulé",
-                    k.getCumulativeDelayMinutes() != null ? k.getCumulativeDelayMinutes() + " min" : "0 min", brand));
+                    k.getCumulativeDelayMinutes() != null ? fmtMinutes(k.getCumulativeDelayMinutes()) : "0m", brand));
             kpiTable.addCell(kpiBox("Retard démarrage",
-                    k.getRouteStartDelayMinutes() != null ? k.getRouteStartDelayMinutes() + " min" : "—", brand));
+                    fmtMinutes(k.getRouteStartDelayMinutes()), brand));
 
             kpiTable.addCell(kpiBox("Arrêts tentés",
                     k.getAttemptedStops() + " / " + k.getTotalStopsPlanned(), brand));
@@ -151,7 +151,7 @@ public class RouteReportPdfService extends BasePdfService {
                 stopsTbl.addCell(cellAlt(s.getCompletedAt() != null
                         ? s.getCompletedAt().format(TIME_FMT) : "—", alt));
                 stopsTbl.addCell(cellRAlt(s.getDelayMinutes() != null
-                        ? s.getDelayMinutes() + " min" : "—", alt));
+                        ? fmtMinutes(s.getDelayMinutes()) : "—", alt));
                 stopsTbl.addCell(cellAlt(outcomeLabel(s.getFinalStatus()), alt));
                 stopsTbl.addCell(cellAlt(timingLabel(s.getFinalStatus(), s.getClassification(), s.getDelayMinutes()), alt));
                 alt = !alt;
@@ -193,6 +193,15 @@ public class RouteReportPdfService extends BasePdfService {
 
     private static String fmt(java.math.BigDecimal n) {
         return n != null ? n.toPlainString() : "-";
+    }
+
+    /** Duration/delay in minutes → "5h 33m" / "33m" / "-12m" (signed: negative = early). */
+    private static String fmtMinutes(Integer mins) {
+        if (mins == null) return "-";
+        int a = Math.abs(mins);
+        int h = a / 60, m = a % 60;
+        String sign = mins < 0 ? "-" : "";
+        return h > 0 ? sign + h + "h " + m + "m" : sign + m + "m";
     }
 
     private static String buildWindow(RouteReportResponse.StopRow s) {
