@@ -602,25 +602,6 @@ public class ExceptionResolutionService {
         }
 
 
-        /**
-         * Generates a professional backorder reference.
-         * e.g. "S00001" → "S00001/BO", "S00001/BO" → "S00001/BO-2"
-         */
-        private String buildBackorderRef(String parentRef) {
-            if (parentRef == null || parentRef.isBlank()) return null;
-            // Already a backorder ref — increment the counter
-            if (parentRef.contains("/BO-")) {
-                int dashIdx = parentRef.lastIndexOf("-");
-                String base = parentRef.substring(0, dashIdx);
-                try {
-                    int n = Integer.parseInt(parentRef.substring(dashIdx + 1));
-                    return base + "-" + (n + 1);
-                } catch (NumberFormatException ignored) {}
-            }
-            if (parentRef.endsWith("/BO")) return parentRef + "-2";
-            return parentRef + "/BO";
-        }
-
         private String shortDeliveryId(UUID deliveryId) {
                 if (deliveryId == null) {
                         return "UNKNOWN";
@@ -649,7 +630,7 @@ public class ExceptionResolutionService {
 
         private void assertReplanAllowed(Delivery delivery) {
                 if (!REPLAN_ALLOWED_STATUSES.contains(delivery.getStatus())) {
-                        throw AppException.badRequest("Replan is allowed only for SCHEDULED, PICKED_UP, or FAILED deliveries");
+                        throw AppException.badRequest("Replan is allowed only for SCHEDULED, FAILED, or PARTIALLY_DELIVERED deliveries");
                 }
         }
 

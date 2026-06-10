@@ -4,7 +4,6 @@ import com.asm.delivery.dto.request.CreateRmaRequest;
 import com.asm.delivery.dto.response.RmaResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.RmaRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -33,9 +32,12 @@ public class RmaService {
 
     private final RmaRepository rmaRepository;
     private final DeliveryRepository deliveryRepository;
-    private final CompanyRepository companyRepository;
     private final OutboxProcessor outboxProcessor;
     private final AuditLogService auditLogService;
+
+    /** Statuses that count as an "open" return — used to block a duplicate RMA on the same delivery. */
+    private static final Set<RmaStatus> OPEN_STATUSES =
+            EnumSet.of(RmaStatus.REQUESTED, RmaStatus.APPROVED, RmaStatus.RECEIVED);
 
     @Transactional
     public RmaResponse create(CreateRmaRequest req, UserPrincipal principal) {
@@ -52,8 +54,16 @@ public class RmaService {
             throw AppException.badRequest("RMA_EMPTY", "Au moins un article doit être retourné.");
         }
 
+        // D5 — Idempotency: refuse a second open return for the same delivery (e.g. a double-click).
+        // A terminal return (RESTOCKED/REJECTED/CANCELLED) does not block raising a new one.
+        boolean alreadyOpen = rmaRepository.findByDeliveryIdOrderByCreatedAtDesc(delivery.getId()).stream()
+                .anyMatch(existing -> OPEN_STATUSES.contains(existing.getStatus()));
+        if (alreadyOpen) {
+            throw AppException.conflict("RMA_ALREADY_OPEN",
+                    "Un retour est déjà en cours pour cette livraison.");
+        }
+
         Rma rma = Rma.builder()
-                .companyId(companyRepository.findAllByActiveTrue().stream().findFirst().map(Company::getId).orElse(null))
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
                 .erpOrderId(order != null ? order.getErpOrderId() : null)
@@ -103,10 +113,24 @@ public class RmaService {
         Rma rma = load(id);
         assertTransition(rma.getStatus(), target);
 
+        // D4 — Rejecting or cancelling a return is an audit-sensitive decision: a reason is mandatory
+        // so the trail always records WHY a customer return was refused or dropped.
+        if ((target == RmaStatus.REJECTED || target == RmaStatus.CANCELLED) && (note == null || note.isBlank())) {
+            throw AppException.badRequest("RMA_REASON_REQUIRED",
+                    "Un motif est obligatoire pour rejeter ou annuler un retour.");
+        }
+
         rma.setStatus(target);
         if (note != null && !note.isBlank()) rma.setResolutionNote(note.trim());
         if (target == RmaStatus.RECEIVED) rma.setReceivedAt(LocalDateTime.now());
-        if (target == RmaStatus.RESTOCKED) rma.setRestockedAt(LocalDateTime.now());
+        if (target == RmaStatus.RESTOCKED) {
+            rma.setRestockedAt(LocalDateTime.now());
+            // D2 — Mark the reverse-move sync as pending BEFORE enqueueing, so the async ERP result
+            // can flip it to SYNCED / SYNC_FAILED. Without this the return would look "done" even if
+            // Odoo never accepted the stock move.
+            rma.setErpSyncStatus("PENDING_SYNC");
+            rma.setErpSyncError(null);
+        }
         Rma saved = rmaRepository.save(rma);
 
         auditLogService.logAction(principal, "RMA_" + target.name(), "RMA", id.toString(),
