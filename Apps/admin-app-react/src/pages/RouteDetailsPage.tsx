@@ -259,6 +259,7 @@ export default function RouteDetailsPage() {
 
   const [route, setRoute] = useState<RouteDetail | null>(null);
   const [driverOnlineStatus, setDriverOnlineStatus] = useState<string | null>(null);
+  const [driverLastSeen, setDriverLastSeen] = useState<string | null>(null);
   const [deliveryMap, setDeliveryMap] = useState<Record<string, Delivery>>({});
   const [timelineMap, setTimelineMap] = useState<Record<string, TimelineEvent[]>>({});
   const [podMap, setPodMap] = useState<Record<string, ProofOfDelivery | null>>({});
@@ -333,7 +334,10 @@ export default function RouteDetailsPage() {
   useEffect(() => {
     if (!route?.driver?.id) return;
     api.get(`/api/admin/fleet/drivers/${route.driver.id}`)
-      .then(res => setDriverOnlineStatus(res.data?.onlineStatus ?? null))
+      .then(res => {
+        setDriverOnlineStatus(res.data?.onlineStatus ?? null);
+        setDriverLastSeen(res.data?.lastLocationAt ?? null);
+      })
       .catch(() => {});
   }, [route?.driver?.id]);
 
@@ -378,6 +382,7 @@ export default function RouteDetailsPage() {
                 ...prev,
                 driver: { ...prev.driver!, currentLat: data.lat, currentLng: data.lng },
               } : prev);
+              setDriverLastSeen(data.timestamp ?? new Date().toISOString());
             }
           } catch { }
         });
@@ -679,6 +684,7 @@ export default function RouteDetailsPage() {
                 name: route.driver.name ?? '',
                 lat: route.driver.currentLat,
                 lng: route.driver.currentLng,
+                lastLocationAt: driverLastSeen,
               } : null}
               depot={route.depot?.latitude != null && route.depot?.longitude != null ? {
                 lat: route.depot.latitude,

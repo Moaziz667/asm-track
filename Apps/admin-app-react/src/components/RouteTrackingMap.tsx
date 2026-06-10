@@ -31,7 +31,23 @@ type DriverLocation = {
   name: string;
   lat?: number;
   lng?: number;
+  lastLocationAt?: string | null;
 };
+
+/** "Vu il y a 5 min" relative label for the driver's last GPS fix. */
+function lastSeenFr(iso?: string | null): string {
+  if (!iso) return 'Position inconnue';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "Vu à l'instant";
+  if (mins < 60) return `Vu il y a ${mins} min`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `Vu il y a ${h} h`;
+  return `Vu il y a ${Math.floor(h / 24)} j`;
+}
+function isGpsStaleIso(iso?: string | null): boolean {
+  if (!iso) return true;
+  return Date.now() - new Date(iso).getTime() > 10 * 60 * 1000;
+}
 
 type Props = {
   stops: RouteStop[];
@@ -358,6 +374,9 @@ function RouteTrackingMapInner({
               <div style={{ fontWeight: 700, fontSize: 13 }}>{driver.name}</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>
                 {driver.lat.toFixed(5)}, {driver.lng.toFixed(5)}
+              </div>
+              <div style={{ fontSize: 11, marginTop: 3, fontWeight: 600, color: isGpsStaleIso(driver.lastLocationAt) ? '#C7372F' : '#16a34a' }}>
+                {lastSeenFr(driver.lastLocationAt)}
               </div>
             </Popup>
           </Marker>

@@ -4,6 +4,18 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
+import voitureFourgon from '../../icons/voiture-fourgon.png';
+
+/** "Vu il y a 5 min" style relative label for a driver's last GPS fix (the map UI is FR). */
+function lastSeenFr(iso?: string | null): string {
+  if (!iso) return 'Position inconnue';
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return "Vu à l'instant";
+  if (mins < 60) return `Vu il y a ${mins} min`;
+  const h = Math.floor(mins / 60);
+  if (h < 24) return `Vu il y a ${h} h`;
+  return `Vu il y a ${Math.floor(h / 24)} j`;
+}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type LiveDriver = {
@@ -77,24 +89,17 @@ function makeStopIcon(color: string, status: string, dim: boolean, focused: bool
   });
 }
 
-// Driver van icon — same artwork as the per-route page, ring tinted by the route colour.
+// Driver van icon — the SAME artwork as the per-route page (voiture-fourgon.png), wrapped in a
+// ring tinted to the route colour so the car matches its route's pins. Stale GPS dims it.
 function makeDriverIcon(ring: string, dim: boolean, focused: boolean) {
-  const size = focused ? 40 : 34;
+  const size = focused ? 42 : 36;
   const opacity = dim ? 0.4 : 1;
   return L.divIcon({
     className: '',
-    iconSize: [size + 10, size + 10], iconAnchor: [(size + 10) / 2, (size + 10) / 2], popupAnchor: [0, -(size / 2) - 8],
-    html: `<div style="width:${size + 10}px;height:${size + 10}px;display:flex;align-items:center;justify-content:center;opacity:${opacity};filter:drop-shadow(0 2px 6px rgba(0,0,0,0.35));transition:opacity 0.15s;">
-  <div style="width:${size}px;height:${size}px;border-radius:50%;background:#111827;border:3px solid ${ring};box-shadow:0 0 0 2px ${ring}44;display:flex;align-items:center;justify-content:center;">
-    <svg width="${Math.round(size * 0.56)}" height="${Math.round(size * 0.56)}" viewBox="0 -2 20 20" xmlns="http://www.w3.org/2000/svg" fill="none">
-      <g transform="translate(-2 -4)">
-        <path fill="#F08734" d="M20.24,10.81,19,10.5l-.79-2.77a1,1,0,0,0-1-.73H13V17h2a2,2,0,0,1,4,0h1a1,1,0,0,0,1-1V11.78A1,1,0,0,0,20.24,10.81Z"/>
-        <path d="M9.17,17H13V6a1,1,0,0,0-1-1H5" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-        <path d="M3,13v3a1,1,0,0,0,1,1h.87" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-        <path d="M14.87,17H13V7h4.25a1,1,0,0,1,1,.73L19,10.5l1.24.31a1,1,0,0,1,.76,1V16a1,1,0,0,1-1,1h-.89" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-        <path d="M9,17a2,2,0,1,1-2-2A2,2,0,0,1,9,17Zm8-2a2,2,0,1,0,2,2A2,2,0,0,0,17,15ZM3,9H9" stroke="white" stroke-linecap="round" stroke-linejoin="round" stroke-width="2"/>
-      </g>
-    </svg>
+    iconSize: [size + 8, size + 8], iconAnchor: [(size + 8) / 2, (size + 8) / 2], popupAnchor: [0, -(size / 2) - 6],
+    html: `<div style="width:${size + 8}px;height:${size + 8}px;display:flex;align-items:center;justify-content:center;opacity:${opacity};transition:opacity 0.15s;">
+  <div style="width:${size + 8}px;height:${size + 8}px;border-radius:50%;background:#fff;border:2.5px solid ${ring};box-shadow:0 0 0 2px ${ring}33, 0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+    <img src="${voitureFourgon}" alt="" aria-hidden="true" style="width:${Math.round(size * 0.74)}px;height:${Math.round(size * 0.74)}px;object-fit:contain;display:block;" />
   </div>
 </div>`,
   });
@@ -143,10 +148,12 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
   const isDark = useIsDark();
   useEffect(() => { setMounted(true); }, []);
 
+  // Show every driver with a known position (last-known included); staleness only dims + labels.
   const visibleDrivers = useMemo(
-    () => drivers.filter(d => d.currentLat && d.currentLng && !isGpsStale(d.lastLocationAt)),
+    () => drivers.filter(d => d.currentLat && d.currentLng),
     [drivers]
   );
+  const onlineCount = useMemo(() => visibleDrivers.filter(d => !isGpsStale(d.lastLocationAt)).length, [visibleDrivers]);
   // driverId → the route (and colour) it belongs to, so the car matches its route's pins.
   const driverRoute = useMemo(() => {
     const m = new Map<string, MapRoute>();
@@ -188,7 +195,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
     return visibleDrivers.map(driver => {
       const r = driverRoute.get(driver.id);
       const color = r ? routeColor(r.id) : '#71717A';
-      const dim = !!focusedRouteId && (!r || r.id !== focusedRouteId);
+      const dim = isGpsStale(driver.lastLocationAt) || (!!focusedRouteId && (!r || r.id !== focusedRouteId));
       return (
         <Marker
           key={driver.id}
@@ -201,6 +208,9 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
               <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
               {r && <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 2 }}>{r.name}</div>}
               <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 2 }}>{STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}</div>
+              <div style={{ fontSize: 10, color: isGpsStale(driver.lastLocationAt) ? '#C7372F' : '#71717A', marginTop: 3, fontWeight: 600 }}>
+                {lastSeenFr(driver.lastLocationAt)}
+              </div>
             </div>
           </Popup>
         </Marker>
@@ -239,7 +249,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
         <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
           <span style={{ fontSize: 10, color: '#D4D4D8', fontWeight: 700, letterSpacing: '0.05em' }}>
-            {routes.length} tournée{routes.length !== 1 ? 's' : ''} · {visibleDrivers.length} en ligne · {stopCount} arrêts
+            {routes.length} tournée{routes.length !== 1 ? 's' : ''} · {onlineCount} en ligne · {stopCount} arrêts
           </span>
         </div>
         {focusedRouteId && (
