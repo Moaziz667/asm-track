@@ -12,7 +12,8 @@ import java.util.Map;
 /**
  * Declarative client for ErpAdapterService. Service auth + caller-identity headers are applied
  * globally by {@code ServiceClientConfig}'s Feign interceptor. The defensive fallback behaviour
- * (return false/null/empty on failure) lives in the {@link ErpAdapterClient} wrapper, not here.
+ * (return false/null/empty on failure) and provider selection live in the
+ * {@code com.asm.delivery.erp.port.OdooErpAdapter} implementation of {@code ErpPort}, not here.
  */
 @FeignClient(name = "erp-adapter", url = "${erp.adapter-url:http://erp-adapter:8088}")
 public interface ErpAdapterFeignClient {

@@ -64,8 +64,7 @@ public class ExceptionResolutionService {
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
     private final com.asm.delivery.service.HandoffService handoffService;
-    private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
-    private final com.asm.delivery.service.SlaMonitoringService slaMonitoringService;
+    private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private ExceptionResolutionService self;
 
@@ -293,9 +292,11 @@ public class ExceptionResolutionService {
 
                 deliveryRepo.save(delivery);
 
-                // New lifecycle: free the SLA alert keys so the replanned delivery can re-alert
-                // against its new scheduled date (the dedup set is otherwise never cleared).
-                slaMonitoringService.clearDeliveryAlerts(delivery.getId());
+                // E2 — Re-baseline the unified SLA against the NEW scheduled date and hold the planning
+                // alarm for a grace window, so the replanned delivery is not re-flagged "as if newly
+                // imported". Replaces the legacy in-memory clearDeliveryAlerts dedup set.
+                slaStateService.refresh(delivery);
+                slaStateService.applyReplanGrace(delivery.getId());
 
                 ActorInfo actor = resolveActor(principal);
                 String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";

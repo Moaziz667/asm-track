@@ -2,7 +2,7 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
-import com.asm.delivery.erp.client.ErpAdapterClient;
+import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.DepotRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -25,10 +25,11 @@ import java.util.Map;
 @Slf4j
 public class DepotSyncService {
 
-    private final ErpAdapterClient erpAdapterClient;
+    private final ErpPort erpPort;
     private final DepotRepository depotRepository;
     private final GeocodingService geocodingService;
 
+    /** Recorded on each depot as its origin provider (single-tenant: constant for the instance). */
     @Value("${erp.default-provider:odoo}")
     private String defaultProvider;
 
@@ -37,7 +38,7 @@ public class DepotSyncService {
 
     @Transactional
     public SyncResult syncFromErp() {
-        List<Map<String, Object>> warehouses = erpAdapterClient.getWarehouses(defaultProvider);
+        List<Map<String, Object>> warehouses = erpPort.getWarehouses();
         int created = 0, updated = 0, geocoded = 0, missingCoords = 0;
 
         for (Map<String, Object> w : warehouses) {

@@ -144,6 +144,14 @@ fcm:
 erp:
   adapter-url: ${ERP_ADAPTER_URL:http://erp-adapter:8088}
   default-provider: ${ERP_DEFAULT_PROVIDER:odoo}
+  # Which ErpPort implementation to wire (one ERP per instance). Selects OdooErpAdapter by default;
+  # a second ERP ships as another @ConditionalOnProperty adapter and a change to this value.
+  provider: ${ERP_PROVIDER:odoo}
+
+  # Reconciliation sweep: re-drives orders stuck in PENDING_SYNC when an async result was lost.
+  reconcile:
+    stuck-minutes: ${ERP_RECONCILE_STUCK_MINUTES:15}
+    fixed-delay-ms: ${ERP_RECONCILE_FIXED_DELAY_MS:300000}  # every 5 minutes
 
   sync:
     # Retry scheduler: exponential backoff, max 10 attempts before SYNC_FAILED
