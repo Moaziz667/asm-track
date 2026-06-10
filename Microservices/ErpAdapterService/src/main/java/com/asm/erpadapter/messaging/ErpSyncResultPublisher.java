@@ -24,6 +24,16 @@ public class ErpSyncResultPublisher {
 
     public void publishResult(String txId, String deliveryId, String orderId, String op, boolean success,
                               Integer pickingId, Integer backorderPickingId, String backorderBlNumber, String errorReason) {
+        publishResult(txId, deliveryId, orderId, op, success, pickingId, backorderPickingId, backorderBlNumber, errorReason, null);
+    }
+
+    /**
+     * Overload carrying {@code rmaId} for RETURN (RMA) results, so DeliveryService can close the
+     * reverse-stock-move loop on the right return. Echoed verbatim from the originating command.
+     */
+    public void publishResult(String txId, String deliveryId, String orderId, String op, boolean success,
+                              Integer pickingId, Integer backorderPickingId, String backorderBlNumber, String errorReason,
+                              String rmaId) {
         Map<String, Object> result = new HashMap<>();
         result.put("txId", txId);
         result.put("deliveryId", deliveryId);
@@ -34,6 +44,7 @@ public class ErpSyncResultPublisher {
         if (backorderPickingId != null) result.put("backorderPickingId", backorderPickingId);
         if (backorderBlNumber != null) result.put("backorderBlNumber", backorderBlNumber);
         if (errorReason != null) result.put("errorReason", errorReason);
+        if (rmaId != null) result.put("rmaId", rmaId);
         result.put("timestamp", Instant.now().toString());
         try {
             rabbitTemplate.convertAndSend(RabbitMQConfig.RESULT_EXCHANGE, RabbitMQConfig.RESULT_ROUTING_KEY, result);
