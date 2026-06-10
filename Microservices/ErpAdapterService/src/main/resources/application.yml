@@ -105,3 +105,8 @@ erp:
     poll:
       enabled: ${ERP_INBOUND_POLL_ENABLED:true}
       fixed-delay-ms: ${ERP_INBOUND_POLL_DELAY_MS:600000}   # 10 min safety net
+
+# POD photo fetch: map the public MinIO base (as stored on the URL) to the internal container base.
+minio:
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+  internal-url: ${MINIO_INTERNAL_URL:http://minio:9000}

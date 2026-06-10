@@ -42,6 +42,26 @@ public class OdooSyncAdapter implements ErpSyncPort {
      */
     private final org.springframework.web.client.RestClient podHttpClient = buildPodHttpClient();
 
+    /**
+     * MinIO is stored with its PUBLIC base URL (reachable from the browser, e.g. http://localhost:9000),
+     * but the adapter runs in another container where "localhost" is itself. These map the stored public
+     * base to the container-network base (e.g. http://minio:9000) so the fetch works inside Docker.
+     */
+    @org.springframework.beans.factory.annotation.Value("${minio.public-url:}")
+    private String minioPublicUrl;
+    @org.springframework.beans.factory.annotation.Value("${minio.internal-url:}")
+    private String minioInternalUrl;
+
+    /** Rewrites a public MinIO URL to the internal container URL when both are configured. */
+    private String internalMinioUrl(String url) {
+        if (url != null && minioPublicUrl != null && !minioPublicUrl.isBlank()
+                && minioInternalUrl != null && !minioInternalUrl.isBlank()
+                && url.startsWith(minioPublicUrl)) {
+            return minioInternalUrl + url.substring(minioPublicUrl.length());
+        }
+        return url;
+    }
+
     private static org.springframework.web.client.RestClient buildPodHttpClient() {
         org.springframework.http.client.SimpleClientHttpRequestFactory f =
                 new org.springframework.http.client.SimpleClientHttpRequestFactory();
@@ -397,7 +417,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private String resolvePhotoBase64(String url, String legacyBase64) {
         if (url != null && !url.isBlank()) {
             try {
-                byte[] bytes = podHttpClient.get().uri(url).retrieve().body(byte[].class);
+                byte[] bytes = podHttpClient.get().uri(internalMinioUrl(url)).retrieve().body(byte[].class);
                 if (bytes != null && bytes.length > 0) {
                     return java.util.Base64.getEncoder().encodeToString(bytes);
                 }
