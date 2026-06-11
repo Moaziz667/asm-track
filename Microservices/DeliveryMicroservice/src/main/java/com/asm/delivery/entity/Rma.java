@@ -67,7 +67,10 @@ public class Rma {
     @Column(name = "erp_sync_error", columnDefinition = "TEXT")
     private String erpSyncError;
 
-    @OneToMany(mappedBy = "rma", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    // LAZY: every read of an Rma's items happens inside a @Transactional method in RmaService
+    // (create/transition/list/get/kpi all map to RmaResponse within the session), so there is no
+    // LazyInitializationException risk — and we avoid eager-loading items on every Rma query (N+1).
+    @OneToMany(mappedBy = "rma", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     @Builder.Default
     private List<RmaItem> items = new ArrayList<>();
 
