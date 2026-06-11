@@ -210,6 +210,14 @@ spring:
           predicates:
             - Path=/api/public/**
 
+        # ERP webhook (Odoo -> ASM). Odoo cannot present a JWT, so this is the public entry point;
+        # the erp-adapter itself authenticates it with the shared X-Webhook-Secret header. The adapter
+        # is not exposed on the host (VPS security) — Odoo reaches it only through this gateway route.
+        - id: erp-inbound-webhook
+          uri: ${ERP_ADAPTER_URL:http://localhost:8088}
+          predicates:
+            - Path=/api/erp/inbound/**
+
 
 
 logging:

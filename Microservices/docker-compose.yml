@@ -457,6 +457,7 @@ services:
       APP_BACKEND_URL: http://app-backend:8080
       DELIVERY_SERVICE_URL: http://delivery-service:8082
       DRIVER_SERVICE_URL: http://driver-service:8086
+      ERP_ADAPTER_URL: http://erp-adapter:8088
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
     depends_on:

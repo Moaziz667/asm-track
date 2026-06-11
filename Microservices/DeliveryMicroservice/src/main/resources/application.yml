@@ -233,3 +233,12 @@ resilience4j:
         failureRateThreshold: 50
         waitDurationInOpenState: 15s
         permittedNumberOfCallsInHalfOpenState: 3
+  # With spring.cloud.openfeign.circuitbreaker.enabled=true, every Feign method is wrapped in a
+  # resilience4j TimeLimiter. Its DEFAULT is 1s — far too short for ERP calls that authenticate +
+  # look up a picking + render a PDF in Odoo. Raise the default so the BL download (and other ERP
+  # Feign calls) don't time out before Odoo responds. Adapter-side Odoo read timeout is 15s.
+  timelimiter:
+    configs:
+      default:
+        timeoutDuration: 30s
+        cancelRunningFuture: true

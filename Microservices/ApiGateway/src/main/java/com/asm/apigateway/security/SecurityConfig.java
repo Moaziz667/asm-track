@@ -33,7 +33,9 @@ public class SecurityConfig {
             .cors(ServerHttpSecurity.CorsSpec::disable)
             .authorizeExchange(auth -> auth
                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .pathMatchers("/api/auth/**", "/api/public/**", "/api/dev/**", "/ws/**").permitAll()
+                // /api/erp/inbound/** = Odoo webhook: no JWT (Odoo can't present one); the erp-adapter
+                // gates it with the shared X-Webhook-Secret header instead.
+                .pathMatchers("/api/auth/**", "/api/public/**", "/api/dev/**", "/ws/**", "/api/erp/inbound/**").permitAll()
                 .pathMatchers("/internal/**").denyAll()
                 .anyExchange().authenticated()
             )
