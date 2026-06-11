@@ -2218,6 +2218,13 @@ export const FR_COPY = {
     noErpDesc: 'Aucun fournisseur ERP n\'est actif. Les commandes devront être saisies manuellement ou via import.',
     erpOdooDesc: 'Connexion directe à Odoo via l\'interface JSON-RPC pour la synchronisation automatique des commandes.',
     erpDuxDesc: 'Connexion à Dux (En cours d\'intégration). Prise en charge complète prévue prochainement.',
+    erpLogin: 'Identifiant Odoo (login)',
+    erpApiKey: 'Clé API',
+    erpApiKeyHint: 'Générée dans Odoo : Préférences → Compte → Clés API. Recommandé (révocable).',
+    erpReportId: 'ID du rapport (bon de livraison)',
+    erpConnected: 'Connecté',
+    erpConnFailed: 'Échec de connexion',
+    erpTesting: 'Test en cours…',
   },
 
   // ── Deliveries Page ────────────────────────────────────────────────────

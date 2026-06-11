@@ -2116,6 +2116,13 @@ export const EN_COPY = {
     noErpDesc: 'No ERP provider is active. Orders must be entered manually or via import.',
     erpOdooDesc: 'Direct connection to Odoo via JSON-RPC interface for automatic order synchronization.',
     erpDuxDesc: 'Connection to Dux (Integration in progress). Full support coming soon.',
+    erpLogin: 'Odoo login',
+    erpApiKey: 'API key',
+    erpApiKeyHint: 'Generated in Odoo: Preferences → Account → API Keys. Recommended (revocable).',
+    erpReportId: 'Report ID (delivery slip)',
+    erpConnected: 'Connected',
+    erpConnFailed: 'Connection failed',
+    erpTesting: 'Testing…',
   },
 
   // ── Deliveries Page ────────────────────────────────────────────────────

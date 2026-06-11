@@ -3,260 +3,223 @@ import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
 import { canManageSettings, getCurrentRole } from '@/lib/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { IconDatabase } from '@tabler/icons-react';
+import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock } from '@tabler/icons-react';
+import { cn } from '@/lib/utils';
+import { tw } from '@/lib/typography';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { SectionCard } from '@/components/ui/section-card';
 
-function SurgicalSettingCard({ title, children, icon: Icon, description }: { title: string; children: React.ReactNode; icon?: any; description?: string }) {
-  return (
-    <div className="rounded-[16px] overflow-hidden animate-fade-in" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <div className="px-5 py-4 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-[11px] font-semibold text-[var(--text-primary)]">{title}</p>
-            {description && <p className="text-[11px] font-semibold text-[var(--text-muted)]">{description}</p>}
-          </div>
-          {Icon && <Icon size={16} className="text-[var(--border)]" />}
-        </div>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
+// ── Types ──────────────────────────────────────────────────────────────────
+type ErpProvider = 'NONE' | 'ODOO' | 'DUX';
+interface OdooConfig {
+  url?: string; db?: string; login?: string; apiKey?: string; reportId?: string;
+  // legacy fields tolerated for back-compat (not shown in the UI):
+  uid?: number; password?: string;
 }
+interface ErpSettings {
+  activeErpProvider: ErpProvider;
+  erpConfiguration: OdooConfig | null;
+}
+type ConnState = { status: 'idle' | 'ok' | 'fail'; uid?: string };
+
+const EMPTY_ODOO: OdooConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
 
 export default function ErpIntegrationPage() {
   const t = useT();
+  const sp = t.settingsPage as Record<string, string>;
   const [role, setRole] = useState<'ADMIN' | 'DISPATCHER' | 'MANAGER' | 'UNKNOWN'>('UNKNOWN');
+  const [erp, setErp] = useState<ErpSettings | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const [conn, setConn] = useState<ConnState>({ status: 'idle' });
 
-  // ERP Integration states
-  const [erpSettings, setErpSettings] = useState<any>(null);
-  const [erpLoading, setErpLoading] = useState(false);
-  const [erpSaving, setErpSaving] = useState(false);
-  const [erpTesting, setErpTesting] = useState(false);
+  const canManage = canManageSettings(role);
 
-  const fetchErpSettings = useCallback(async () => {
-    setErpLoading(true);
+  const fetchErp = useCallback(async () => {
+    setLoading(true);
     try {
       const res = await api.get('/api/settings/erp');
-      if (res.data) setErpSettings(res.data);
+      if (res.data) setErp(res.data);
     } catch { /* fail safe */ }
-    finally { setErpLoading(false); }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => {
     const r = getCurrentRole();
     setRole(r);
-    if (r === 'ADMIN') {
-      fetchErpSettings();
-    }
-  }, [fetchErpSettings]);
+    if (r === 'ADMIN') fetchErp();
+  }, [fetchErp]);
 
-  const handleSaveErp = async () => {
-    setErpSaving(true);
+  const patchConf = (patch: Partial<OdooConfig>) =>
+    setErp((prev) => prev ? { ...prev, erpConfiguration: { ...(prev.erpConfiguration ?? {}), ...patch } } : prev);
+
+  const setProvider = (p: ErpProvider) =>
+    setErp((prev) => prev ? {
+      ...prev,
+      activeErpProvider: p,
+      erpConfiguration: p === 'NONE' ? null : (prev.erpConfiguration ?? { ...EMPTY_ODOO }),
+    } : prev);
+
+  const handleSave = async () => {
+    if (!erp) return;
+    setSaving(true);
     try {
-      await api.put('/api/settings/erp', erpSettings);
+      await api.put('/api/settings/erp', erp);
       showSuccessToast('successErpUpdated');
-      fetchErpSettings();
+      fetchErp();
     } catch {
       showErrorToast(null, 'errorSaveFailed');
     } finally {
-      setErpSaving(false);
+      setSaving(false);
     }
   };
 
-  const handleTestConnection = async () => {
-    setErpTesting(true);
+  const handleTest = async () => {
+    setTesting(true);
+    setConn({ status: 'idle' });
     try {
-      await api.post('/api/settings/erp/test', erpSettings);
-      showSuccessToast(t.settingsPage.testSuccess);
+      const res = await api.post('/api/settings/erp/test', erp);
+      setConn({ status: 'ok', uid: res.data?.uid });
+      showSuccessToast(sp.testSuccess);
     } catch {
-      showErrorToast(new Error(t.settingsPage.testFailed));
+      setConn({ status: 'fail' });
+      showErrorToast(new Error(sp.testFailed));
     } finally {
-      setErpTesting(false);
+      setTesting(false);
     }
   };
 
-  const canManage = canManageSettings(role);
+  const provider = erp?.activeErpProvider ?? 'NONE';
+  const conf = erp?.erpConfiguration ?? null;
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-y-auto" style={{ background: 'var(--app-bg)' }}>
-      <div className="max-w-[800px] mx-auto flex flex-col gap-6 p-6">
-        {/* Compact action bar (replaces sticky header) */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            {!canManage && (
-              <span className="text-[11px] font-semibold px-2 py-1 rounded" style={{ color: 'var(--brand)', background: 'var(--hover-bg)', border: '1px solid var(--border-strong)' }}>
-                {t.settingsPage.readOnlyMode}
-              </span>
-            )}
+    <div className="h-[calc(100vh-64px)] overflow-y-auto bg-[var(--app-bg)]">
+      <div className="max-w-[820px] mx-auto p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-[var(--border)]">
+          <div>
+            <h1 className={tw.pageTitle}>{(t.sidebar.items as any).erpIntegration ?? 'Intégration ERP'}</h1>
+            <p className={cn(tw.subtitle, 'mt-0.5')}>
+              {provider === 'ODOO' ? sp.erpOdooDesc : provider === 'DUX' ? sp.erpDuxDesc : sp.noErpDesc}
+            </p>
           </div>
-          <div className="ml-auto flex items-center gap-2">
-            <Button size="sm" variant="outline" onClick={handleTestConnection} disabled={erpTesting || erpSaving || !erpSettings} className="rounded-full px-4">
-              {erpTesting && (
-                <svg className="animate-spin h-3 w-3 mr-2" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-              )}
-              {t.settingsPage.testConnection}
-            </Button>
-            {canManage && erpSettings && (
-              <Button size="sm" onClick={handleSaveErp} disabled={erpSaving || erpTesting} className="rounded-full px-4">
-                {erpSaving && (
-                  <svg className="animate-spin h-3 w-3 mr-2" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                  </svg>
-                )}
-                {t.settingsPage.saveConfig}
-              </Button>
+          <div className="flex items-center gap-2 shrink-0">
+            {!canManage && (
+              <Badge variant="outline" className="gap-1 text-[var(--warning)] border-[var(--warning)]/30">
+                <IconLock size={12} /> {sp.readOnlyMode}
+              </Badge>
+            )}
+            {conn.status === 'ok' && (
+              <Badge className="gap-1" style={{ background: 'color-mix(in srgb, var(--success) 14%, transparent)', color: 'var(--success)' }}>
+                <IconPlugConnected size={13} /> {sp.erpConnected}{conn.uid ? ` · uid ${conn.uid}` : ''}
+              </Badge>
+            )}
+            {conn.status === 'fail' && (
+              <Badge variant="destructive" className="gap-1">
+                <IconPlugConnectedX size={13} /> {sp.erpConnFailed}
+              </Badge>
             )}
           </div>
         </div>
-          {erpLoading && !erpSettings ? (
-            <div className="flex items-center justify-center p-20">
-              <svg className="animate-spin h-8 w-8 text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-              </svg>
-            </div>
-          ) : erpSettings ? (
-            <div className="flex flex-col gap-6">
-              <SurgicalSettingCard
-                title={t.settingsPage.erpProvider}
-                icon={IconDatabase}
-                description={erpSettings.activeErpProvider === 'ODOO' ? t.settingsPage.erpOdooDesc : (erpSettings.activeErpProvider === 'DUX' ? t.settingsPage.erpDuxDesc : t.settingsPage.noErpDesc)}
-              >
-                <div className="flex flex-col gap-6">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.erpProvider}</label>
-                    <select
-                      className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                      style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                      value={erpSettings.activeErpProvider || 'NONE'}
-                      onChange={e => {
-                        const newProv = e.target.value;
-                        setErpSettings({
-                          ...erpSettings,
-                          activeErpProvider: newProv,
-                          erpConfiguration: newProv !== 'NONE' ? (erpSettings.erpConfiguration || { url: '', db: '', uid: '', password: '', login: '', reportId: 'stock.report_deliveryslip', apiKey: '' }) : null
-                        });
-                      }}
+
+        {loading && !erp ? (
+          <div className="flex items-center justify-center p-20">
+            <div className="h-8 w-8 rounded-full border-2 border-[var(--brand)] border-t-transparent animate-spin" />
+          </div>
+        ) : erp ? (
+          <div className="flex flex-col gap-6">
+            <SectionCard title={sp.erpProvider}>
+              <div className="flex flex-col gap-5">
+                <FieldSelect
+                  label={sp.erpProvider}
+                  value={provider}
+                  onChange={(e) => setProvider(e.target.value as ErpProvider)}
+                  disabled={!canManage}
+                  options={[
+                    { value: 'NONE', label: 'NONE' },
+                    { value: 'ODOO', label: 'ODOO' },
+                    { value: 'DUX', label: 'DUX' },
+                  ]}
+                />
+
+                {/* ODOO config */}
+                {provider === 'ODOO' && conf && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
+                    <FieldInput
+                      wrapperClassName="md:col-span-2"
+                      label={sp.erpUrl}
+                      placeholder={sp.erpUrlDesc}
+                      value={conf.url ?? ''}
+                      onChange={(e) => patchConf({ url: e.target.value })}
                       disabled={!canManage}
-                    >
-                      <option value="NONE">NONE</option>
-                      <option value="ODOO">ODOO</option>
-                      <option value="DUX">DUX</option>
-                    </select>
+                    />
+                    <FieldInput label={sp.erpDb} value={conf.db ?? ''} onChange={(e) => patchConf({ db: e.target.value })} disabled={!canManage} />
+                    <FieldInput label={sp.erpLogin} value={conf.login ?? ''} onChange={(e) => patchConf({ login: e.target.value })} disabled={!canManage} />
+                    <FieldInput
+                      wrapperClassName="md:col-span-2"
+                      type="password"
+                      label={sp.erpApiKey}
+                      hint={sp.erpApiKeyHint}
+                      placeholder="••••••••"
+                      value={conf.apiKey ?? ''}
+                      onChange={(e) => patchConf({ apiKey: e.target.value })}
+                      disabled={!canManage}
+                    />
+                    <FieldInput
+                      wrapperClassName="md:col-span-2"
+                      label={sp.erpReportId}
+                      placeholder={t.erpIntegrationPage.reportIdPlaceholder}
+                      value={conf.reportId ?? ''}
+                      onChange={(e) => patchConf({ reportId: e.target.value })}
+                      disabled={!canManage}
+                    />
                   </div>
+                )}
 
-                  {erpSettings.activeErpProvider === 'ODOO' && erpSettings.erpConfiguration && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-2 p-5 rounded-[16px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUrl}</label>
-                        <input
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder={t.settingsPage.erpUrlDesc}
-                          value={erpSettings.erpConfiguration.url || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, url: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpDb}</label>
-                        <input
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          value={erpSettings.erpConfiguration.db || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, db: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">Login Odoo</label>
-                        <input
-                          type="text"
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          value={erpSettings.erpConfiguration.login || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, login: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUid}</label>
-                        <input
-                          type="number"
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          value={erpSettings.erpConfiguration.uid || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, uid: parseInt(e.target.value) || 0}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpPassword}</label>
-                        <input
-                          type="password"
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder="********"
-                          value={erpSettings.erpConfiguration.password || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, password: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">Report ID (Slip)</label>
-                        <input
-                          type="text"
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder={t.erpIntegrationPage.reportIdPlaceholder}
-                          value={erpSettings.erpConfiguration.reportId || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, reportId: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                    </div>
-                  )}
+                {/* DUX placeholder */}
+                {provider === 'DUX' && conf && (
+                  <div className="grid grid-cols-1 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
+                    <FieldInput
+                      label={sp.erpUrl}
+                      placeholder={t.erpIntegrationPage.apiUrlPlaceholder}
+                      value={conf.url ?? ''}
+                      onChange={(e) => patchConf({ url: e.target.value })}
+                      disabled={!canManage}
+                    />
+                    <FieldInput
+                      type="password"
+                      label={sp.erpApiKey}
+                      placeholder="••••••••"
+                      value={conf.apiKey ?? ''}
+                      onChange={(e) => patchConf({ apiKey: e.target.value })}
+                      disabled={!canManage}
+                    />
+                  </div>
+                )}
 
-                  {erpSettings.activeErpProvider === 'DUX' && erpSettings.erpConfiguration && (
-                    <div className="grid grid-cols-1 gap-5 mt-2 p-5 rounded-[16px]" style={{ background: 'var(--hover-bg)', border: '1px dashed var(--border)' }}>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.erpUrl}</label>
-                        <input
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder={t.erpIntegrationPage.apiUrlPlaceholder}
-                          value={erpSettings.erpConfiguration.url || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, url: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">API Key (Placeholder)</label>
-                        <input
-                          type="password"
-                          className="w-full h-9 px-3 text-sm rounded-[8px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                          style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                          placeholder="********"
-                          value={erpSettings.erpConfiguration.apiKey || ''}
-                          onChange={e => setErpSettings({...erpSettings, erpConfiguration: {...erpSettings.erpConfiguration, apiKey: e.target.value}})}
-                          disabled={!canManage}
-                        />
-                      </div>
-                    </div>
+                {/* Actions */}
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <Button variant="outline" size="sm" onClick={handleTest} disabled={testing || saving || provider === 'NONE'}>
+                    <IconPlugConnected size={15} /> {testing ? sp.erpTesting : sp.testConnection}
+                  </Button>
+                  {canManage && (
+                    <Button size="sm" onClick={handleSave} disabled={saving || testing}>
+                      <IconDatabase size={15} /> {saving ? (sp.savingLabel ?? 'Enregistrement…') : sp.saveConfig}
+                    </Button>
                   )}
                 </div>
-              </SurgicalSettingCard>
-            </div>
-          ) : (
-            <div className="text-center py-20 text-[var(--text-muted)] text-[12px]">
-              Aucune configuration ERP disponible ou impossible de charger les données.
-            </div>
-          )}
-        </div>
+              </div>
+            </SectionCard>
+          </div>
+        ) : (
+          <div className="text-center py-20 text-sm text-[var(--text-muted)]">
+            {t.erpIntegrationPage.loadError ?? 'Aucune configuration ERP disponible.'}
+          </div>
+        )}
       </div>
+    </div>
   );
 }

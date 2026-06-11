@@ -87,10 +87,100 @@ public class OdooJsonRpcClient {
         var cfg = settingsClient.getSettings().getErpConfiguration();
         return cfg != null && cfg.get(key) != null ? String.valueOf(cfg.get(key)) : "";
     }
-    
+
     private int getSettingInt(String key) {
         var cfg = settingsClient.getSettings().getErpConfiguration();
         return cfg != null && cfg.get(key) != null ? Integer.parseInt(String.valueOf(cfg.get(key))) : 0;
+    }
+
+    /**
+     * The secret sent to Odoo in {@code execute_kw}. Odoo accepts an API key anywhere a password is
+     * expected, so we prefer {@code apiKey} when configured and fall back to {@code password} for
+     * legacy configs. Using an API key (revocable, per-user) is the recommended integration credential.
+     */
+    private String getSecret() {
+        String apiKey = getSettingStr("apiKey");
+        return !apiKey.isBlank() ? apiKey : getSettingStr("password");
+    }
+
+    // ── uid resolution (login + API key → uid via common.authenticate) ──────────
+    // The admin configures login + apiKey, not the internal numeric uid. We resolve it once via Odoo's
+    // common.authenticate and cache it. Cache key = db|login|secret so a credential change re-resolves.
+
+    private final java.util.concurrent.atomic.AtomicReference<String> cachedUidKey =
+            new java.util.concurrent.atomic.AtomicReference<>();
+    private final java.util.concurrent.atomic.AtomicInteger cachedUid =
+            new java.util.concurrent.atomic.AtomicInteger(0);
+
+    /**
+     * Returns the Odoo uid for the current credentials. Order of resolution:
+     *   1. an explicitly configured {@code uid} (legacy/back-compat) — used as-is;
+     *   2. otherwise resolve from {@code login} + secret via {@code common.authenticate}, cached.
+     * Throws {@link ErpAdapterException} (retryable) if authentication fails so callers don't mistake
+     * an auth problem for "not found".
+     */
+    private int resolveUid() {
+        int configured = getSettingInt("uid");
+        if (configured > 0) return configured;
+
+        String db = getSettingStr("db");
+        String login = getSettingStr("login");
+        String secret = getSecret();
+        String key = db + "|" + login + "|" + secret.hashCode();
+        if (key.equals(cachedUidKey.get()) && cachedUid.get() > 0) {
+            return cachedUid.get();
+        }
+        int uid = authenticate(db, login, secret);
+        if (uid <= 0) {
+            throw new ErpAdapterException(
+                    "Odoo authentication failed — check login/API key in ERP settings (db=" + db + ", login=" + login + ")", 502);
+        }
+        cachedUid.set(uid);
+        cachedUidKey.set(key);
+        log.info("Odoo uid resolved via common.authenticate — db={} login={} uid={}", db, login, uid);
+        return uid;
+    }
+
+    /** Invalidate the cached uid (e.g. after a credential change). */
+    public void invalidateAuthCache() {
+        cachedUidKey.set(null);
+        cachedUid.set(0);
+    }
+
+    /**
+     * Calls Odoo's {@code common.authenticate(db, login, secret, {})} over JSON-RPC and returns the
+     * numeric uid (0/negative on failure). Pure API call — no DB access.
+     */
+    @SuppressWarnings("unchecked")
+    public int authenticate(String db, String login, String secret) {
+        if (db == null || db.isBlank() || login == null || login.isBlank()) return 0;
+        String url = getSettingStr("url");
+        if (url.isBlank()) return 0;
+        validateUrl(url);
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("service", "common");
+        params.put("method", "authenticate");
+        params.put("args", List.of(db, login, secret != null ? secret : "", Map.of()));
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("jsonrpc", "2.0");
+        body.put("method", "call");
+        body.put("params", params);
+
+        try {
+            Map<String, Object> resp = restClient.post().uri(url)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .body(Map.class);
+            if (resp == null) return 0;
+            Integer uid = asInt(resp.get("result"));   // Odoo returns false (→ null) on bad creds
+            return uid != null ? uid : 0;
+        } catch (Exception e) {
+            log.warn("Odoo common.authenticate transport error — db={} login={} reason={}", db, login, e.getMessage());
+            return 0;
+        }
     }
 
     // ── Core JSON-RPC call ──────────────────────────────────────────────────
@@ -154,7 +244,7 @@ public class OdooJsonRpcClient {
      * Build standard {@code execute_kw} args: {@code [db, uid, password, model, method, positionalArgs]}.
      */
     public List<Object> buildArgs(String model, String method, List<Object> positionalArgs) {
-        return List.of(getSettingStr("db"), getSettingInt("uid"), getSettingStr("password"),
+        return List.of(getSettingStr("db"), resolveUid(), getSecret(),
                 model, method, positionalArgs);
     }
 
@@ -163,7 +253,7 @@ public class OdooJsonRpcClient {
      */
     public List<Object> buildArgs(String model, String method, List<Object> positionalArgs,
                                   Map<String, Object> kwargs) {
-        return List.of(getSettingStr("db"), getSettingInt("uid"), getSettingStr("password"),
+        return List.of(getSettingStr("db"), resolveUid(), getSecret(),
                 model, method, positionalArgs, kwargs);
     }
 
