@@ -523,7 +523,7 @@ function ImportErpPageContent() {
                             {isImported ? (
                               <button
                                 type="button"
-                                className="h-7 px-3 text-xs font-bold rounded-md bg-[#4CAF82] hover:opacity-90 text-white transition-opacity border-none"
+                                className="h-7 px-3 text-xs font-bold rounded-md bg-[var(--success)] hover:opacity-90 text-white transition-opacity border-none"
                                 onClick={() => window.open('/deliveries', '_blank')}
                               >
                                 {t.importPage.buttonView}
@@ -722,9 +722,9 @@ function ImportErpPageContent() {
               {/* Action */}
               <div className="flex flex-col gap-3 mt-auto pt-4">
                 {preview.existingBackorderId && (
-                  <div className="p-3 rounded-xs flex items-center gap-2 bg-[#FEFCE8]" style={{ border: '1px solid #FEF08A' }}>
-                    <IconAlertCircle size={14} className="text-[#A16207]" />
-                    <p className="text-xs font-semibold text-[#A16207]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
+                  <div className="p-3 rounded-xs flex items-center gap-2 bg-[var(--warning-bg)]" style={{ border: '1px solid #FEF08A' }}>
+                    <IconAlertCircle size={14} className="text-[var(--warning)]" />
+                    <p className="text-xs font-semibold text-[var(--warning)]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
                   </div>
                 )}
                 <button
@@ -732,7 +732,7 @@ function ImportErpPageContent() {
                   className={cn(
                     "w-full h-12 flex items-center justify-center gap-2 font-[500] rounded-xs text-base border transition-all",
                     preview.alreadyImported
-                      ? "bg-[#4CAF82] hover:opacity-90 text-white border-[#4CAF82]"
+                      ? "bg-[var(--success)] hover:opacity-90 text-white border-[var(--success)]"
                       : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-sm"
                   )}
                   onClick={() => preview.alreadyImported ? window.open('/deliveries', '_blank') : doImport(preview.erpOrderId)}

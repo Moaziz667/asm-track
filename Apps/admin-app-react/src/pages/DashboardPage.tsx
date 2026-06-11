@@ -582,8 +582,8 @@ export default function DashboardPage() {
               defaultLayout: { w: 4, h: 8, x: 8, y: 4, minW: 3, minH: 6 },
               className: '',
               children: (
-                <div className="flex flex-col bg-[#FEF2F2] dark:bg-[#C7372F]/10 border border-[#C7372F]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
-                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#C7372F]" />
+                <div className="flex flex-col bg-[var(--danger-bg)] dark:bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
+                  <div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--danger)]" />
                   <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
                     <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
                     <button
@@ -942,7 +942,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
         if (bucket === 'overdue') {
           return (
             <div className="mb-2">
-              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--danger)] bg-[var(--danger-bg)] text-[var(--danger)] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> En retard (Planifié)
               </span>
             </div>
@@ -950,7 +950,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
         } else if (bucket === 'today') {
           return (
             <div className="mb-2">
-              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--warning)] bg-[var(--warning-bg)] text-[var(--warning)] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> Planifié Auj.
               </span>
             </div>
@@ -1043,7 +1043,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
         if (bucket === 'overdue') {
           return (
             <div className="mb-2">
-              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--danger)] bg-[var(--danger-bg)] text-[var(--danger)] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> En retard (Planifié)
               </span>
             </div>
@@ -1051,7 +1051,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
         } else if (bucket === 'today') {
           return (
             <div className="mb-2">
-              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--warning)] bg-[var(--warning-bg)] text-[var(--warning)] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> Planifié Auj.
               </span>
             </div>

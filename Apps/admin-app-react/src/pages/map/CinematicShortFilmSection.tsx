@@ -1161,7 +1161,7 @@ export function CinematicShortFilmSection() {
   }, []);
 
   return (
-    <section ref={containerRef} className="relative h-[550vh] bg-[#FAF7F2]">
+    <section ref={containerRef} className="relative h-[550vh] bg-[var(--hover-bg)]">
       <div className="sticky top-0 h-screen w-full overflow-hidden">
         
         {/* Real-time 3D WebGL Canvas Viewport */}

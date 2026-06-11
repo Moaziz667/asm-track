@@ -41,7 +41,7 @@ export default function ActivityTicker() {
           <span className="text-md font-bold text-[var(--text-primary)]">{titleLabel}</span>
         </div>
         <span
-          className={cn('inline-flex items-center gap-1 text-2xs font-bold', connected ? 'text-[#4CAF82]' : 'text-[var(--text-soft)]')}
+          className={cn('inline-flex items-center gap-1 text-2xs font-bold', connected ? 'text-[var(--success)]' : 'text-[var(--text-soft)]')}
           title={connected ? 'Connected' : 'Reconnecting…'}
         >
           <IconPointFilled size={12} className={connected ? 'animate-pulse' : ''} />

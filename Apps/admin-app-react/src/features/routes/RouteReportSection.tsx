@@ -177,9 +177,9 @@ function KpiStrip({ report }: { report: RouteReport }) {
     <div className="flex flex-col p-4 rounded" style={{ flex: '1 1 150px', minWidth: 150, border: '1px solid var(--border)', background: 'var(--surface)' }}>
       <p className="text-xs uppercase font-medium mb-1" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</p>
       <p className={`text-xl font-bold ${
-        tone === 'good' ? 'text-[#15803D]' :
-        tone === 'warn' ? 'text-[#B45309]' :
-        tone === 'bad'  ? 'text-[#B91C1C]' :
+        tone === 'good' ? 'text-[var(--success)]' :
+        tone === 'warn' ? 'text-[var(--warning)]' :
+        tone === 'bad'  ? 'text-[var(--danger)]' :
         ''
       }`} style={!tone ? { color: 'var(--text-primary)' } : {}}>
         {value}

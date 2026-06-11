@@ -202,7 +202,7 @@ export function ReassignModal({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[var(--text-primary)] truncate">{d.name ?? t.reassignCommandOverlay.unnamed}</span>
                     {d.todayRouteId && (
-                      <span className="text-2xs px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">{d.todayStopCount ?? 0} {t.reassignCommandOverlay.stops}</span>
+                      <span className="text-2xs px-1.5 py-0.5 rounded bg-[var(--info-bg)] text-[var(--info)]">{d.todayStopCount ?? 0} {t.reassignCommandOverlay.stops}</span>
                     )}
                   </div>
                   <p className="text-xs text-[var(--text-soft)] truncate">
@@ -259,7 +259,7 @@ export function ReassignModal({
         {capacityInfo && capacityInfo.capacity > 0 && (
           <div className={cn(
             'rounded border p-3 flex flex-col gap-2',
-            capacityInfo.over ? 'bg-[var(--danger-bg)] border-[#FECACA]' : capacityInfo.pct > 80 ? 'bg-[var(--warning-bg)] border-[#FDE68A]' : 'bg-[var(--success-bg)] border-[#A7F3D0]',
+            capacityInfo.over ? 'bg-[var(--danger-bg)] border-[var(--danger)]' : capacityInfo.pct > 80 ? 'bg-[var(--warning-bg)] border-[var(--warning)]' : 'bg-[var(--success-bg)] border-[var(--success)]',
           )}>
             <div className="flex items-center gap-2">
               {capacityInfo.over

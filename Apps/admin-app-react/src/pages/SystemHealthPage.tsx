@@ -287,7 +287,7 @@ export default function SystemHealthPage() {
               </div>
               <div className="flex flex-col gap-2">
                 {erpSync.failures.map(f => (
-                  <div key={f.orderId} className="card p-4 rounded-xl border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-start justify-between gap-3">
+                  <div key={f.orderId} className="card p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/5 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-base font-bold text-[var(--text-primary)] truncate">{f.blNumber || f.erpRef || f.orderId.slice(0, 8)}</span>
@@ -369,7 +369,7 @@ export default function SystemHealthPage() {
               <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.replaysTitle}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stuckQueues.map(([queue, depth]) => (
-                  <div key={queue} className="card p-4 rounded-xl border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-center justify-between gap-3">
+                  <div key={queue} className="card p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-base font-bold text-[var(--text-primary)] truncate">{getFriendlyQueue(queue)}</p>
                       <p className="text-xs text-[var(--text-muted)]">

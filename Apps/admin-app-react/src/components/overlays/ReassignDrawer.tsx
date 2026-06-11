@@ -671,7 +671,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                               <span className="text-2xs text-[var(--text-muted)]">{route.stops.length} arrêts total</span>
                             </div>
                             {activeCount > 0 && (
-                              <span className="text-2xs text-[#10B981] font-semibold">{activeCount} actifs</span>
+                              <span className="text-2xs text-[var(--success)] font-semibold">{activeCount} actifs</span>
                             )}
                             {doneCount > 0 && (
                               <span className="text-2xs text-[var(--text-soft)]">{doneCount} faits</span>
@@ -737,7 +737,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                   placeholder="08:00"
                   value={startTimeWindow}
                   onChange={e => setStartTimeWindow(e.currentTarget.value)}
-                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[#EF4444]' : ''} />}
+                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
                   type="time"
                   error={hasTimeConflict ? ' ' : undefined}
                 />
@@ -746,21 +746,21 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                   placeholder="18:00"
                   value={endTimeWindow}
                   onChange={e => setEndTimeWindow(e.currentTarget.value)}
-                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[#EF4444]' : ''} />}
+                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
                   type="time"
                   error={errStartGtEnd ? t.reassignDrawer.timeWindowError : undefined}
                 />
               </div>
               {errStartGtEnd && (
-                <div className="px-2.5 py-1.5 bg-[#FEF2F2] border border-[#FECACA] rounded">
-                  <span className="text-[9px] font-bold text-[#B91C1C]">
+                <div className="px-2.5 py-1.5 bg-[var(--danger-bg)] border border-[var(--danger)] rounded">
+                  <span className="text-[9px] font-bold text-[var(--danger)]">
                     ⚠ {t.reassignDrawer.timeWindowErrorDesc}
                   </span>
                 </div>
               )}
               {overlaps.length > 0 && (
-                <div className="px-2.5 py-1.5 bg-[#FFFBEB] border border-[#FDE68A] rounded flex flex-col gap-0.5">
-                  <span className="text-[9px] font-black text-[#B45309]">
+                <div className="px-2.5 py-1.5 bg-[var(--warning-bg)] border border-[var(--warning)] rounded flex flex-col gap-0.5">
+                  <span className="text-[9px] font-black text-[var(--warning)]">
                     ⚠ {locale === 'ar'
                       ? `تداخل مع ${overlaps.length} محطة`
                       : locale === 'en'
@@ -768,7 +768,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                         : `Chevauchement avec ${overlaps.length} arrêt${overlaps.length > 1 ? 's' : ''}`}
                   </span>
                   {overlaps.slice(0, 3).map(o => (
-                    <span key={o.stop.id} className="text-[9px] text-[#B45309]">
+                    <span key={o.stop.id} className="text-[9px] text-[var(--warning)]">
                       {locale === 'ar' ? '• محطة ' : locale === 'en' ? '• Stop ' : '• Arrêt '}{o.stopIdx + 1} — {o.stop.clientName || 'Client'} ({formatTime(o.stop.startTimeWindow)} → {formatTime(o.stop.endTimeWindow)})
                     </span>
                   ))}
@@ -800,8 +800,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                     <div className={cn(
                       'px-2.5 py-1.5 rounded flex items-center gap-1.5',
                       insertAfterStopId === '__start__'
-                        ? 'border-2 border-[var(--brand)] bg-[#FFF5F3]'
-                        : 'border-2 border-dashed border-[#E4E4E7] bg-transparent',
+                        ? 'border-2 border-[var(--brand)] bg-[var(--danger-bg)]'
+                        : 'border-2 border-dashed border-[var(--border)] bg-transparent',
                     )}>
                       {insertAfterStopId === '__start__'
                         ? <IconCheck size={10} className="text-[var(--brand)]" />
@@ -848,7 +848,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                             </div>
                           </div>
                           {hasWindow && (
-                            <div className="bg-[#F4F4F5] border border-[#E4E4E7] rounded px-1.5 py-0.5 shrink-0">
+                            <div className="bg-[var(--hover-bg)] border border-[var(--border)] rounded px-1.5 py-0.5 shrink-0">
                               <div className="flex items-center gap-0.5">
                                 <IconClock size={9} className="text-[var(--text-muted)]" />
                                 <span className="text-[9px] font-semibold text-[var(--text-primary)] font-mono whitespace-nowrap">
@@ -876,8 +876,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                           <div className={cn(
                             'px-2.5 py-1 rounded flex items-center gap-1.5',
                             insertAfterStopId === stop.id
-                              ? 'border-2 border-[var(--brand)] bg-[#FFF5F3]'
-                              : 'border-2 border-dashed border-[#E4E4E7] bg-transparent',
+                              ? 'border-2 border-[var(--brand)] bg-[var(--danger-bg)]'
+                              : 'border-2 border-dashed border-[var(--border)] bg-transparent',
                           )}>
                             {insertAfterStopId === stop.id
                               ? <IconCheck size={10} className="text-[var(--brand)]" />
@@ -896,7 +896,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 })}
 
                 {selectedRoute.status === 'IN_PROGRESS' && (
-                  <div className="px-2.5 py-1.5 rounded border-2 border-dashed border-[var(--brand)] bg-[#FFF5F3] flex items-center gap-1.5">
+                  <div className="px-2.5 py-1.5 rounded border-2 border-dashed border-[var(--brand)] bg-[var(--danger-bg)] flex items-center gap-1.5">
                     <IconCheck size={10} className="text-[var(--brand)]" />
                     <span className="text-[9px] font-bold text-[var(--brand)] uppercase tracking-[0.05em]">
                       Nouvel arrêt — ajouté en fin de tournée
@@ -909,13 +909,13 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
 
           {/* Notification info */}
           {(selectedRoute.status === 'VALIDATED' || selectedRoute.status === 'IN_PROGRESS') && (
-            <div className="p-3 rounded border border-[#A7F3D0] bg-[#ECFDF5] flex items-center gap-2">
-              <div className="w-5 h-5 rounded-full bg-[#D1FAE5] flex items-center justify-center shrink-0">
-                <IconCheck size={12} className="text-[#059669]" />
+            <div className="p-3 rounded border border-[var(--success)] bg-[var(--success-bg)] flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full bg-[var(--success-bg)] flex items-center justify-center shrink-0">
+                <IconCheck size={12} className="text-[var(--success)]" />
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-2xs font-bold text-[#065F46]">Notification automatique</span>
-                <span className="text-[9px] text-[#047857]">
+                <span className="text-2xs font-bold text-[var(--success)]">Notification automatique</span>
+                <span className="text-[9px] text-[var(--success)]">
                   Le chauffeur sera notifié en temps réel via l'application mobile.
                 </span>
               </div>

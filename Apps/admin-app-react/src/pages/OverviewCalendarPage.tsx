@@ -368,7 +368,7 @@ export default function OverviewCalendarPage() {
                         <span>{d.totalAmount ? formatMoney(d.totalAmount, d.currency ?? 'TND') : '—'}</span>
                       </div>
                       {d.status === 'FAILED' && d.failReason && (
-                        <p className="text-[9px] text-[#A52B24] font-medium bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mt-1">
+                        <p className="text-[9px] text-[var(--danger)] font-medium bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mt-1">
                           Motif: {d.failReason}
                         </p>
                       )}

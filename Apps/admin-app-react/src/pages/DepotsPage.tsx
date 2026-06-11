@@ -120,7 +120,7 @@ export default function DepotsPage() {
                     <div className="w-px h-5 bg-[var(--border)]" />
                     <div>
                       <p className="text-xs font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.operationalHubs}</p>
-                      <p className="text-base font-[600] font-mono text-[#2D8A5E]">{depots.filter(d => d.isActive).length}</p>
+                      <p className="text-base font-[600] font-mono text-[var(--success)]">{depots.filter(d => d.isActive).length}</p>
                     </div>
                   </div>
                 </div>

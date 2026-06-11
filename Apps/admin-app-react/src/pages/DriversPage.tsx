@@ -863,7 +863,7 @@ function DriversPageContent() {
                           {selected.suspendedReason && (
                             <div className="flex flex-col gap-2 pt-3">
                               <span className="text-xs text-[var(--text-muted)] font-medium">{t.driversPage.suspendReasonLabel}</span>
-                              <span className="text-xs font-medium text-[#A52B24] bg-[rgba(199,55,47,0.06)] border border-[rgba(199,55,47,0.15)] px-3 py-2.5 rounded">
+                              <span className="text-xs font-medium text-[var(--danger)] bg-[rgba(199,55,47,0.06)] border border-[rgba(199,55,47,0.15)] px-3 py-2.5 rounded">
                                 {selected.suspendedReason}
                               </span>
                             </div>
@@ -946,7 +946,7 @@ function DriversPageContent() {
                           </div>
                         ) : (
                           <div className="py-14 text-center pr-2 pl-2">
-                            <div className="p-3 bg-[rgba(76,175,130,0.06)] text-[#2D8A5E] rounded-full w-fit mx-auto mb-3 border border-[rgba(76,175,130,0.12)]">
+                            <div className="p-3 bg-[rgba(76,175,130,0.06)] text-[var(--success)] rounded-full w-fit mx-auto mb-3 border border-[rgba(76,175,130,0.12)]">
                               <SVGActivity size={20} />
                             </div>
                             <h4 className="text-xs font-bold text-[var(--text-primary)]">{t.driversPage.free}</h4>

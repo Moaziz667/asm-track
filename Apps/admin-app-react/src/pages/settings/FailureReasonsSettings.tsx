@@ -200,7 +200,7 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
                     <td key="status" className="px-4 align-middle">
                       <span className={cn(
                         "text-2xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1",
-                        r.active ? 'text-[#2D8A5E]' : 'text-[var(--text-muted)]'
+                        r.active ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'
                       )}
                             style={{ background: r.active ? 'rgba(76,175,130,0.10)' : 'var(--hover-bg)' }}>
                         {r.active ? <><IconCheck size={11} /> {t.failureReasonsSettings.active}</> : t.failureReasonsSettings.inactive}
@@ -218,12 +218,12 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
                       </button>
                       {r.active ? (
                         <button type="button" onClick={() => deactivate(r)}
-                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[#A52B24] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.deactivateTooltip}>
+                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.deactivateTooltip}>
                           <IconBan size={13} />
                         </button>
                       ) : (
                         <button type="button" onClick={() => reactivate(r)}
-                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[#2D8A5E] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.reactivateTooltip}>
+                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--success)] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.reactivateTooltip}>
                           <IconCheck size={13} />
                         </button>
                       )}

@@ -175,7 +175,7 @@ export function OptimizePreview({
               <div key={row.key} className="relative flex flex-col gap-1.5">
                 {/* Node dot — warehouse glyph for pickups, order number for deliveries */}
                 {isPickup ? (
-                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[#06B6D4] text-[#0891B2] flex items-center justify-center z-10">
+                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[var(--info)] text-[var(--info)] flex items-center justify-center z-10">
                     <IconBuildingWarehouse size={12} />
                   </div>
                 ) : (
@@ -187,7 +187,7 @@ export function OptimizePreview({
                 <div className="flex justify-between items-start gap-4">
                   <div className="flex flex-col gap-0.5 min-w-0">
                     {isPickup ? (
-                      <span className="text-xs font-semibold text-[#0891B2] truncate">
+                      <span className="text-xs font-semibold text-[var(--info)] truncate">
                         {t.routeBuilderPage.pickupLabel} · {row.clientName || row.sourceDepotName}
                       </span>
                     ) : (

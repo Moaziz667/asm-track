@@ -648,9 +648,9 @@ function DeliveriesPageContent() {
                                   const bucket = getDayBucket(item.scheduledAt);
                                   let colorClass = 'text-[var(--text-soft)] bg-[var(--surface)] border-[var(--border)]';
                                   if (isPending) {
-                                    if (bucket === 'overdue') colorClass = 'text-[#EF4444] bg-red-50 border-red-200';
-                                    else if (bucket === 'today') colorClass = 'text-[#F59E0B] bg-orange-50 border-orange-200';
-                                    else colorClass = 'text-[#3B82F6] bg-blue-50 border-blue-200';
+                                    if (bucket === 'overdue') colorClass = 'text-[var(--danger)] bg-red-50 border-red-200';
+                                    else if (bucket === 'today') colorClass = 'text-[var(--warning)] bg-orange-50 border-orange-200';
+                                    else colorClass = 'text-[var(--info)] bg-blue-50 border-blue-200';
                                   }
                                   return (
                                     <div className="inline-flex items-center gap-1">
@@ -791,7 +791,7 @@ function DeliveriesPageContent() {
                                       className="w-7 h-7 flex items-center justify-center rounded-xs border border-red-300 hover:bg-red-50 transition-colors"
                                       onClick={(e) => { e.stopPropagation(); setCancelTarget(item); setCancelReason(''); }}
                                     >
-                                      <IconX size={16} className="text-[#EF4444]" />
+                                      <IconX size={16} className="text-[var(--danger)]" />
                                     </button>
                                   </TooltipTrigger>
                                   <TooltipContent>{t.deliveriesPage.tooltipCancel}</TooltipContent>

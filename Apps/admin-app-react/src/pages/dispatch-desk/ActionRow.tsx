@@ -252,7 +252,7 @@ export function ActionRow({
                       {formatMotif(row.motif)}
                     </span>
                     {row.severity === 'CRITICAL' && (
-                      <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-[#dc2626]" style={{ color: '#dc2626' }}>
+                      <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-[var(--danger)]" style={{ color: '#dc2626' }}>
                         {t.dispatchDeskPage.criticalLabel}
                       </span>
                     )}
