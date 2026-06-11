@@ -154,7 +154,7 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
             onDensityChange={setDensity}
           />
           {canManage && (
-            <Button size="sm" onClick={openCreate} className="h-8 px-3 text-[11px] font-bold flex items-center gap-1.5">
+            <Button size="sm" onClick={openCreate} className="gap-1.5">
               <IconPlus size={14} /> {t.failureReasonsSettings.addButton}
             </Button>
           )}
@@ -273,7 +273,7 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <Button variant="outline" size="sm" onClick={() => setModalOpen(false)} className="h-8 px-3 text-[11px]">{t.failureReasonsSettings.cancelButton}</Button>
-            <Button size="sm" onClick={submit} disabled={submitting} className="h-8 px-4 text-[11px] font-bold">
+            <Button size="sm" onClick={submit} disabled={submitting} className="px-4">
               {submitting ? t.failureReasonsSettings.savingButton : t.failureReasonsSettings.saveButton}
             </Button>
           </div>

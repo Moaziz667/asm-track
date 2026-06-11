@@ -1,4 +1,5 @@
 import { IconPlus } from '@tabler/icons-react';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 interface AddButtonProps {
@@ -8,21 +9,17 @@ interface AddButtonProps {
   className?: string;
 }
 
+/**
+ * Primary "create" button used across list pages (New route / New vehicle / …).
+ * Thin wrapper over the shared <Button> so it inherits the exact same typography, sizing,
+ * focus/hover/active states and brand color as every other primary button (e.g. "Add reason").
+ * Keeping it as a wrapper avoids style drift between the two.
+ */
 export function AddButton({ label, onClick, disabled, className }: AddButtonProps) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={cn(
-        'h-7 px-3 flex items-center gap-1.5 text-[11px] font-bold rounded-md transition-colors hover:opacity-90 disabled:opacity-50 shrink-0',
-        'text-white dark:text-[#121212]',
-        className
-      )}
-      style={{ background: 'var(--brand)', border: 'none' }}
-    >
-      <IconPlus size={13} strokeWidth={2.5} />
+    <Button size="sm" onClick={onClick} disabled={disabled} className={cn('gap-1.5', className)}>
+      <IconPlus size={14} />
       {label}
-    </button>
+    </Button>
   );
 }
