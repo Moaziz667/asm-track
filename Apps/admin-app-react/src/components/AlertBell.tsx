@@ -169,7 +169,7 @@ export default function AlertBell() {
           <span
             className={cn(
               'absolute -top-1 -right-1 rtl:right-auto rtl:-left-1',
-              'min-w-[16px] h-4 rounded-full text-white text-[9px] font-bold',
+              'min-w-[16px] h-4 rounded-full text-white text-2xs font-bold',
               'flex items-center justify-center px-1 leading-none',
               'border-[1.5px] border-[var(--surface)] pointer-events-none',
               'font-mono tabular-nums select-none',

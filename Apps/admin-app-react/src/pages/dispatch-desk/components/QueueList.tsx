@@ -74,7 +74,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
           <span className="font-mono text-xs font-[600] shrink-0" style={{ color: 'var(--brand)' }}>
             {d.orderRef ?? d.erpOrderId ?? rowId(d).slice(0, 8)}
           </span>
-          <span className="text-[12.5px] font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
+          <span className="text-sm font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
             {d.clientName ?? '—'}
           </span>
         </div>
@@ -195,11 +195,11 @@ export function QueueList() {
             <span className="text-2xs font-[600] uppercase tracking-wide truncate" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.unassignedLabel}
             </span>
-            <span className="text-[9px] font-[500] px-1.5 rounded-full shrink-0" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
+            <span className="text-2xs font-[500] px-1.5 rounded-full shrink-0" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               {group.rows.length}
             </span>
             {group.routeId && (
-              <Link to={`/routes/${group.routeId}`} className="text-[9px] font-[500] hover:underline ms-auto shrink-0" style={{ color: 'var(--brand)' }}>
+              <Link to={`/routes/${group.routeId}`} className="text-2xs font-[500] hover:underline ms-auto shrink-0" style={{ color: 'var(--brand)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>
             )}

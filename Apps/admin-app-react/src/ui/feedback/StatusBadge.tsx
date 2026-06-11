@@ -100,7 +100,7 @@ export function StatusBadge({ status, className, size = 'sm' }: StatusBadgeProps
         style.bg,
         style.text,
         style.border,
-        size === 'xs' && 'px-1 py-0.5 text-[9px] h-4.5',
+        size === 'xs' && 'px-1 py-0.5 text-2xs h-4.5',
         size === 'sm' && 'px-2 py-0.5 text-2xs h-5',
         size === 'md' && 'px-2.5 py-1 text-xs h-6',
         className

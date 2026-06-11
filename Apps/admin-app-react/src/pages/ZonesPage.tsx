@@ -311,7 +311,7 @@ export default function ZonesPage() {
                                 <div className="w-3 h-3 rounded-full shrink-0" style={{ background: zone.color ?? 'var(--text-muted)' }} />
                                 <div>
                                   <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
-                                  {zone.description && <p className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
+                                  {zone.description && <p className="text-2xs italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
                                 </div>
                               </div>
                             </td>
@@ -320,7 +320,7 @@ export default function ZonesPage() {
                             <td key="coverage" className="px-4 py-2">
                               <div className="flex flex-wrap gap-1 max-w-[400px]">
                                 {displayed.map((pc) => (
-                                  <span key={pc} className="text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                                  <span key={pc} className="text-2xs font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                                     {pc}
                                   </span>
                                 ))}
@@ -553,7 +553,7 @@ export default function ZonesPage() {
                 <div className="max-h-[200px] overflow-y-auto">
                   <div className="flex flex-wrap gap-1">
                     {form.postalCodes.map(pc => (
-                      <span key={pc} className="inline-flex items-center gap-1 text-[9px] font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
+                      <span key={pc} className="inline-flex items-center gap-1 text-2xs font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                         {pc}
                         <button type="button" className="hover:text-red-500 transition-colors" onClick={() => togglePostalCode(pc)}>
                           <IconX size={8} />

@@ -308,7 +308,7 @@ export default function DashboardPage() {
       <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0 shadow-2xs">
         <div className="px-6 py-4 flex items-center justify-between gap-6 max-w-[1800px] mx-auto">
           <div className="flex flex-col text-start">
-            <h1 className="text-[13.5px] font-bold text-[var(--text-primary)] leading-tight tracking-tight">
+            <h1 className="text-base font-bold text-[var(--text-primary)] leading-tight tracking-tight">
               {t.dashboardPage?.title || 'Tableau de bord'}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -585,7 +585,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col bg-[var(--danger-bg)] dark:bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
                   <div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--danger)]" />
                   <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-                    <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
+                    <span className="text-xl font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
                     <button
                       onClick={() => navigate('/dispatch-desk?tab=queue')}
                       className="text-xs font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
@@ -623,7 +623,7 @@ export default function DashboardPage() {
                                 <StatusBadge status={exc.status} size="sm" />
                                 <SlaHealthBadge health={exc.slaHealth} />
                                 {exc.driverName && (
-                                  <span className="text-[10.5px] text-[var(--text-muted)] truncate">· {exc.driverName}</span>
+                                  <span className="text-2xs text-[var(--text-muted)] truncate">· {exc.driverName}</span>
                                 )}
                               </div>
                             </div>
@@ -781,7 +781,7 @@ export default function DashboardPage() {
             <button
               type="button"
               onClick={() => window.open('/route-builder', '_blank')}
-              className="group flex items-center gap-1 text-[11.5px] font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+              className="group flex items-center gap-1 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
             >
               {t.dashboardPage.plannerButton || 'Planificateur'} <IconArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
@@ -820,7 +820,7 @@ export default function DashboardPage() {
                         >
                           {config.label}
                         </span>
-                        <span className="text-[10.5px] font-mono font-bold text-[var(--text-soft)]">
+                        <span className="text-2xs font-mono font-bold text-[var(--text-soft)]">
                           {data.count}
                         </span>
                       </div>
@@ -867,7 +867,7 @@ export function KpiCard({ title, value, subtitle, Icon, color, trend }: { title:
         <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
         <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
       </div>
-      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{value}</div>
+      <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)]">{value}</div>
       <div className="text-xs text-[var(--text-soft)] mt-1.5 font-normal">{subtitle}</div>
     </div>
   );
@@ -914,7 +914,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
           {d.orderRef || d.deliveryId?.slice(0, 8)}
         </span>
         {d.scheduledAt && (
-          <span className="flex items-center gap-1 text-[9.5px] font-bold text-[var(--text-soft)]">
+          <span className="flex items-center gap-1 text-2xs font-bold text-[var(--text-soft)]">
             <IconCalendar size={10} stroke={2.5} />
             <span>{formatCardDate(d.scheduledAt)}</span>
           </span>
@@ -928,7 +928,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
 
       {/* Location / City Details */}
       {d.city && (
-        <div className="text-[10.5px] text-[var(--text-soft)] font-semibold mb-2.5 flex items-center gap-1">
+        <div className="text-2xs text-[var(--text-soft)] font-semibold mb-2.5 flex items-center gap-1">
           <IconMapPin size={11} stroke={2.5} className="text-primary shrink-0" />
           <span className="truncate">{d.city}</span>
         </div>
@@ -1015,7 +1015,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
           </span>
         </div>
         {d.scheduledAt && (
-          <span className="flex items-center gap-1 text-[9.5px] font-bold text-[var(--text-soft)]">
+          <span className="flex items-center gap-1 text-2xs font-bold text-[var(--text-soft)]">
             <IconCalendar size={10} stroke={2.5} />
             <span>{formatCardDate(d.scheduledAt)}</span>
           </span>
@@ -1029,7 +1029,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
           </p>
         ))}
         {deliveries.length > 2 && (
-          <p className="text-[10.5px] font-bold text-[var(--text-soft)] mt-0.5">
+          <p className="text-2xs font-bold text-[var(--text-soft)] mt-0.5">
             {t.dashboardPage.moreDeliveries.replace('{count}', String(deliveries.length - 2))}
           </p>
         )}
@@ -1079,7 +1079,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
 function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; muted?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2 py-0.5 rounded-sm border border-[var(--border)] bg-[var(--hover-bg)] leading-none select-none transition-all"
+      className="inline-flex items-center gap-1.5 text-2xs font-bold px-2 py-0.5 rounded-sm border border-[var(--border)] bg-[var(--hover-bg)] leading-none select-none transition-all"
       style={{ color: muted ? 'var(--text-soft)' : 'var(--text-muted)' }}
     >
       {icon}

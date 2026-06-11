@@ -603,7 +603,7 @@ function RoutesTablePageContent() {
                 <IconAlertTriangle size={15} className="text-[var(--danger)]" />
                 <p className="text-sm font-bold text-[var(--text-primary)]">{t.routesTablePage.cancelRouteWhatHappens || 'Ce qui va se passer'}</p>
               </div>
-              <ul className="flex flex-col gap-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary,var(--text-primary))]">
+              <ul className="flex flex-col gap-1.5 text-xs leading-relaxed text-[var(--text-secondary,var(--text-primary))]">
                 <li>• {t.routesTablePage.cancelConseqRepool || 'Les arrêts non livrés repassent en planification (les commandes ne sont PAS annulées).'}</li>
                 <li>• {t.routesTablePage.cancelConseqTerminal || 'Les arrêts déjà livrés / échoués gardent leur résultat.'}</li>
                 <li>• {t.routesTablePage.cancelConseqDriver || 'Le chauffeur est notifié et libéré pour une autre tournée.'}</li>

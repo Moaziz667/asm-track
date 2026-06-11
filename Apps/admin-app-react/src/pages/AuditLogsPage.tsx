@@ -162,15 +162,15 @@ function formatPayload(details: string | null, locale: string = 'fr'): React.Rea
       <div className="space-y-1">
         {Object.entries(parsed).map(([key, value]) => (
           <div key={key} className="flex items-start gap-2">
-            <span className="text-[9px] font-[600] text-[var(--text-muted)] min-w-fit">{getPayloadKeyLabel(key, locale)}:</span>
-            <span className="text-[9px] font-mono text-[var(--text-primary)] break-all">{String(value)}</span>
+            <span className="text-2xs font-[600] text-[var(--text-muted)] min-w-fit">{getPayloadKeyLabel(key, locale)}:</span>
+            <span className="text-2xs font-mono text-[var(--text-primary)] break-all">{String(value)}</span>
           </div>
         ))}
       </div>
     );
   } catch {
     return (
-      <pre className="text-[9px] font-mono text-[var(--text-muted)] whitespace-pre-wrap break-words">
+      <pre className="text-2xs font-mono text-[var(--text-muted)] whitespace-pre-wrap break-words">
         {details}
       </pre>
     );
@@ -413,16 +413,16 @@ export default function AuditLogsPage() {
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-[700] font-mono text-[var(--text-primary)]">{meta.label}</span>
                                   <span className="text-2xs font-[500] text-[var(--text-muted)]">{t.auditLogsPage.byActor} {log.actorName}</span>
-                                  <span className="text-[9px] font-[500] px-1.5 py-0.5 rounded-xs border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
+                                  <span className="text-2xs font-[500] px-1.5 py-0.5 rounded-xs border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
                                 </div>
                                 <div className="flex items-center gap-4 mb-1">
                                   <span className="text-2xs font-[500] font-mono text-[var(--text-muted)]">{formatTime(log.createdAt, locale)}</span>
                                   {log.resourceId && (
-                                    <span className="text-[9px] font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-xs" style={{ background: 'var(--app-bg)' }}>
+                                    <span className="text-2xs font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-xs" style={{ background: 'var(--app-bg)' }}>
                                       {log.resourceId.slice(0, 14)}
                                     </span>
                                   )}
-                                  <span className="text-[9px] font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
+                                  <span className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
                                 </div>
                                 <p className="text-2xs text-[var(--text-muted)]">{meta.label}</p>
                               </div>
@@ -440,7 +440,7 @@ export default function AuditLogsPage() {
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.eventId}</p>
                                     <p className="text-2xs font-mono text-[var(--text-primary)]" title={log.id}>{log.id.slice(0, 8)}</p>
-                                    <p className="text-[9px] text-[var(--text-muted)] mt-0.5">{t.auditLogsPage.fullId} {log.id}</p>
+                                    <p className="text-2xs text-[var(--text-muted)] mt-0.5">{t.auditLogsPage.fullId} {log.id}</p>
                                   </div>
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
@@ -452,7 +452,7 @@ export default function AuditLogsPage() {
                                 {log.details && (
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
-                                    <div className="text-[9px] p-2 rounded-xs bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
+                                    <div className="text-2xs p-2 rounded-xs bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
                                       {formatPayload(log.details, locale)}
                                     </div>
                                   </div>

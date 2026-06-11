@@ -9,7 +9,7 @@
     "build-keycloak-theme": "npm run build && keycloakify build",
     "start-keycloak": "keycloakify start-keycloak",
     "lint": "eslint .",
-    "check:design": "node scripts/check-design-tokens.mjs",
+    "check:design": "node scripts/check-design-tokens.mjs --max 0",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"

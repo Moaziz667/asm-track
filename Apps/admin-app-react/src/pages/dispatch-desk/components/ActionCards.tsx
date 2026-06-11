@@ -127,20 +127,20 @@ export function ActionCards() {
                         onChange={() => toggleRow(row.deliveryId)}
                       />
                       <div className="min-w-0 flex-1">
-                        <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-[12.5px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
+                        <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-sm font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
                           {row.orderRef ?? row.deliveryId.slice(0, 8)}
                         </Link>
                         <p className="text-md font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
                           {row.clientName ?? '—'}
                         </p>
                         {(row.city || row.zoneName) && (
-                          <p className="text-[11.5px] truncate" style={{ color: 'var(--text-muted)' }}>
+                          <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>
                             {row.city ?? row.zoneName}{row.zoneName && row.city ? ` · ${row.zoneName}` : ''}
                           </p>
                         )}
                       </div>
                       {formatMotif(row.motif, t) && (
-                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
+                        <span className="text-xs font-[600] px-1.5 py-0.5 rounded shrink-0" style={{ color: sev.chipColor, background: sev.chipBg }}>
                           {formatMotif(row.motif, t)}
                         </span>
                       )}
@@ -156,13 +156,13 @@ export function ActionCards() {
                             <TooltipTrigger asChild>
                               <div className="flex items-center gap-1.5 cursor-default">
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                                <span className="text-[12.5px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{row.driverName}</span>
+                                <span className="text-sm font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{row.driverName}</span>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>{getDriverStatusTip(driver?.onlineStatus, t)}</TooltipContent>
                           </Tooltip>
                         ) : (
-                          <span className="text-[11.5px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                          <span className="text-xs font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
                             {t.dispatchDeskPage.unassignedLabel}
                           </span>
                         )}
@@ -182,7 +182,7 @@ export function ActionCards() {
                         }
                         const formatted = new Date(d!.scheduledAt!).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + new Date(d!.scheduledAt!).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
                         return (
-                          <div className="flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color }}>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
                             <IconCalendar size={11} stroke={2.5} />
                             <span>{t.dispatchDeskPage.filterStatusScheduled}: {formatted}</span>
                           </div>
@@ -193,7 +193,7 @@ export function ActionCards() {
                       {d?.items && d.items.length > 0 && (
                         <div className="flex flex-col gap-1 mt-0.5 border-t border-[var(--border)]/20 pt-1.5">
                           {d.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-[11.5px] pl-0.5">
+                            <div key={idx} className="flex items-center justify-between text-xs pl-0.5">
                               <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
                               <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
                             </div>
@@ -202,7 +202,7 @@ export function ActionCards() {
                       )}
 
                       {slot && (
-                        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] select-none pl-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] select-none pl-0.5">
                           <IconCalendar size={11} stroke={2.5} />
                           <span>{slot}</span>
                         </div>
@@ -213,12 +213,12 @@ export function ActionCards() {
                     <div className="text-base leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
                       {formatComment(row, t)}
                     </div>
-                    {suggestion && <p className="text-[11.5px] font-semibold" style={{ color: 'var(--brand)' }}>{suggestion}</p>}
+                    {suggestion && <p className="text-xs font-semibold" style={{ color: 'var(--brand)' }}>{suggestion}</p>}
                   </div>
 
                   {/* Footer: age, amount + actions */}
                   <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }}>
-                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                       <span className="inline-flex items-center gap-1 font-mono font-medium" title={formatShortDate(row.createdAt)}>
                         <IconClock size={11} stroke={2.5} />
                         <span>{t.dispatchDeskPage.cardCreated.replace('{time}', created)}</span>

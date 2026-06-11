@@ -306,7 +306,7 @@ export default function OperationsPage() {
                       showValue={false}
                     />
                     <div className="absolute inset-0 flex items-center justify-center">
-                      <p className="text-[20px] font-bold text-[var(--text-primary)]">{todayStats.rate}%</p>
+                      <p className="text-2xl font-bold text-[var(--text-primary)]">{todayStats.rate}%</p>
                     </div>
                   </div>
                   <div className="flex flex-col gap-3 min-w-[160px]">
@@ -478,7 +478,7 @@ export default function OperationsPage() {
                         style={{ background: isToday ? 'var(--brand-soft)' : 'var(--surface)' }}
                       >
                         <div className="flex items-center justify-between px-2 py-1.5">
-                          <Badge variant={isToday ? 'default' : 'secondary'} className="text-[9px] h-4 px-1">
+                          <Badge variant={isToday ? 'default' : 'secondary'} className="text-2xs h-4 px-1">
                             {dayRoutes.length}
                           </Badge>
                           <p className="text-md font-bold" style={{ color: isToday ? 'var(--brand)' : 'var(--text-primary)' }}>
@@ -498,7 +498,7 @@ export default function OperationsPage() {
                                 style={{ borderColor: 'var(--border)', borderLeft: `3px solid ${dot}`, background: isToday ? 'var(--surface)' : 'var(--app-bg)' }}
                               >
                                 <p className="text-2xs font-bold text-[var(--text-primary)] truncate">{driverName(route.driverId)}</p>
-                                <p className="text-[9px] text-[var(--text-muted)] truncate mb-1">{route.name}</p>
+                                <p className="text-2xs text-[var(--text-muted)] truncate mb-1">{route.name}</p>
                                 <div className="h-[3px] rounded-full bg-[var(--border)]">
                                   <div className="h-[3px] rounded-full" style={{ width: `${total > 0 ? Math.round((done / total) * 100) : 0}%`, background: route.status === 'CLOSED' ? '#10B981' : '#F97316' }} />
                                 </div>

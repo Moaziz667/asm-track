@@ -542,7 +542,7 @@ function DeliveriesPageContent() {
                           <th key="ref" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setSortAsc(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.refHeader}
-                              <span className="text-[9px]">{sortAsc ? '▲' : '▼'}</span>
+                              <span className="text-2xs">{sortAsc ? '▲' : '▼'}</span>
                             </button>
                           </th>
                         );
@@ -550,7 +550,7 @@ function DeliveriesPageContent() {
                           <th key="client" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByClient(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}
-                              <span className="text-[9px]">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                              <span className="text-2xs">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
                             </button>
                           </th>
                         );
@@ -561,7 +561,7 @@ function DeliveriesPageContent() {
                           <th key="status" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByStatus(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.statusHeader}
-                              <span className="text-[9px]">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                              <span className="text-2xs">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
                             </button>
                           </th>
                         );
@@ -572,7 +572,7 @@ function DeliveriesPageContent() {
                           <th key="zone" className="h-10 px-6 text-center text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByZone(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.zoneHeader}
-                              <span className="text-[9px]">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
+                              <span className="text-2xs">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
                             </button>
                           </th>
                         );
@@ -662,7 +662,7 @@ function DeliveriesPageContent() {
                                       {item.rescheduledAt && (
                                         <span
                                           title={t.deliveryPage.rescheduledTooltip}
-                                          className="text-[9px] font-bold px-1 py-0.5 rounded-xs"
+                                          className="text-2xs font-bold px-1 py-0.5 rounded-xs"
                                           style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
                                         >
                                           {t.deliveryPage.rescheduledBadge}
@@ -686,7 +686,7 @@ function DeliveriesPageContent() {
                                 <div className="flex items-center gap-1.5 justify-center">
                                   {item.driverName ? (
                                     <>
-                                      <div className="size-5 rounded-xs bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
+                                      <div className="size-5 rounded-xs bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-2xs font-bold text-[var(--text-primary)] uppercase">
                                         {item.driverName.charAt(0)}
                                       </div>
                                       <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>

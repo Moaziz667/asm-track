@@ -129,7 +129,7 @@ export function CommandSurface() {
               >
                 <span className="text-xs font-semibold">{cmd.label}</span>
                 <span className={cn(
-                  'text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-dense-sm border',
+                  'text-2xs font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-dense-sm border',
                   i === activeIndex 
                     ? 'bg-state-active/15 border-state-active/30 text-state-active' 
                     : 'bg-neutral-800/10 border-[var(--border-grid)] text-[var(--text-muted)]'

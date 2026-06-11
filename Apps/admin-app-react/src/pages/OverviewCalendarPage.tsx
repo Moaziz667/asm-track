@@ -233,7 +233,7 @@ export default function OverviewCalendarPage() {
                       {format(day, 'd')}
                     </span>
                     {rts.length > 0 && (
-                      <span className="inline-flex items-center gap-0.5 text-[9px] font-bold text-[var(--text-muted)]">
+                      <span className="inline-flex items-center gap-0.5 text-2xs font-bold text-[var(--text-muted)]">
                         <IconRoute size={10} /> {rts.length}
                       </span>
                     )}
@@ -242,7 +242,7 @@ export default function OverviewCalendarPage() {
                     <>
                       <div className="flex flex-wrap gap-0.5 mt-1.5">
                         {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => (
-                          <span key={s} className="inline-flex items-center gap-0.5 text-[9px] font-bold px-1 rounded"
+                          <span key={s} className="inline-flex items-center gap-0.5 text-2xs font-bold px-1 rounded"
                                 style={{ background: `${STATUS_COLOR[s] ?? '#888'}1a`, color: STATUS_COLOR[s] ?? '#888' }}>
                             {n}
                           </span>
@@ -368,7 +368,7 @@ export default function OverviewCalendarPage() {
                         <span>{d.totalAmount ? formatMoney(d.totalAmount, d.currency ?? 'TND') : '—'}</span>
                       </div>
                       {d.status === 'FAILED' && d.failReason && (
-                        <p className="text-[9px] text-[var(--danger)] font-medium bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mt-1">
+                        <p className="text-2xs text-[var(--danger)] font-medium bg-red-50 px-1.5 py-0.5 rounded border border-red-100 mt-1">
                           Motif: {d.failReason}
                         </p>
                       )}

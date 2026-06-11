@@ -81,7 +81,7 @@ function SortableColumnRow({
 
       {col.pinned && (
         <span
-          className="text-[9px] font-medium px-1 py-0.5 rounded"
+          className="text-2xs font-medium px-1 py-0.5 rounded"
           style={{ color: 'var(--text-muted)', background: 'var(--hover-bg)' }}
         >
           {t.displaySettings.pinned}
@@ -176,7 +176,7 @@ export function DisplaySettingsDropdown({
           {density !== undefined && onDensityChange && (
             <div className="px-2.5 pb-2 mb-1" style={{ borderBottom: '1px solid var(--border)' }}>
               <p
-                className="text-[9px] font-bold uppercase tracking-widest mb-1.5"
+                className="text-2xs font-bold uppercase tracking-widest mb-1.5"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {t.displaySettings.density}
@@ -204,7 +204,7 @@ export function DisplaySettingsDropdown({
           {/* Columns */}
           <div className="px-2.5 flex items-center justify-between mb-1 mt-1">
             <p
-              className="text-[9px] font-bold uppercase tracking-widest"
+              className="text-2xs font-bold uppercase tracking-widest"
               style={{ color: 'var(--text-muted)' }}
             >
               {t.displaySettings.columns}

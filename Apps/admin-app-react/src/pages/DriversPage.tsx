@@ -599,7 +599,7 @@ function DriversPageContent() {
                           <div className="flex flex-col gap-0.5 truncate">
                             <span className="text-xs font-[700] text-[var(--text-primary)] truncate">{drv.name}</span>
                             {drv.email && (
-                              <span className="text-[9px] font-[500] text-[var(--text-muted)] truncate">{drv.email}</span>
+                              <span className="text-2xs font-[500] text-[var(--text-muted)] truncate">{drv.email}</span>
                             )}
                           </div>
                         </div>
@@ -618,14 +618,14 @@ function DriversPageContent() {
                               {drv.activeDeliveryId ? (
                                 <div className="flex items-center gap-1.5">
                                   <StatusBadge status="IN_TRANSIT" size="sm" label={t.driversPage.activeDelivery} />
-                                  <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                                  <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
                                     {drv.activeDeliveryId.slice(0, 8).toUpperCase()}
                                   </span>
                                 </div>
                               ) : drv.activeRouteId ? (
                                 <div className="flex items-center gap-1.5">
                                   <StatusBadge status="IN_PROGRESS" size="sm" label={t.driversPage.onRoute} />
-                                  <span className="font-mono text-[9px] font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
+                                  <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
                                     {drv.activeRouteId.slice(0, 8).toUpperCase()}
                                   </span>
                                 </div>
@@ -638,7 +638,7 @@ function DriversPageContent() {
                             <div key="status" className="text-start flex flex-col gap-0.5 items-start justify-center">
                               <DriverStatusBadge status={drv.accountStatus ?? 'PENDING_SETUP'} size="sm" />
                               {drv.accountStatus === 'ACTIVE' && (
-                                <span className="text-[8px] font-bold text-[var(--text-muted)] tracking-wider">
+                                <span className="text-2xs font-bold text-[var(--text-muted)] tracking-wider">
                                   {drv.onlineStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
                                 </span>
                               )}

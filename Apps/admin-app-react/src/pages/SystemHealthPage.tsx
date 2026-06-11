@@ -294,7 +294,7 @@ export default function SystemHealthPage() {
                         <span className="text-2xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${TONE_COLOR.idle}1a`, color: TONE_COLOR.idle }}>
                           {opLabel(f.lastSyncOp)}
                         </span>
-                        <span className="text-[10.5px] text-[var(--text-muted)]">
+                        <span className="text-2xs text-[var(--text-muted)]">
                           {t.systemHealthPage.stuckFor.replace('{duration}', formatAge(f.stuckSince, t))}
                           {f.retryCount > 0 && ` · ${t.systemHealthPage.attemptsLabel.replace('{count}', String(f.retryCount))}`}
                         </span>
@@ -334,7 +334,7 @@ export default function SystemHealthPage() {
                       </div>
                       <p className="text-xs text-[var(--text-muted)] leading-snug">{s.hint}</p>
                       {g.failureRate >= 0 && g.bufferedCalls > 0 && (
-                        <p className="text-[10.5px] text-[var(--text-soft)] mt-auto pt-1">
+                        <p className="text-2xs text-[var(--text-soft)] mt-auto pt-1">
                           {t.systemHealthPage.recentErrorRate} <span className="font-bold tabular-nums" style={{ color: g.failureRate > 50 ? TONE_COLOR.down : 'var(--text-secondary)' }}>{g.failureRate.toFixed(0)}%</span>
                         </p>
                       )}
@@ -403,7 +403,7 @@ export default function SystemHealthPage() {
               <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
                 <table className="w-full text-xs">
                   <thead>
-                    <tr className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
+                    <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
                       <th className="text-start font-bold px-4 py-2">{t.systemHealthPage.thCircuitBreaker}</th>
                       <th className="text-start font-bold px-4 py-2">{t.systemHealthPage.thState}</th>
                       <th className="text-start font-bold px-4 py-2">{t.systemHealthPage.thFailureRate}</th>
@@ -521,9 +521,9 @@ function SummaryCard({ icon: Icon, label, value, tone, foot }: {
     <div className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <Icon size={16} style={{ color: TONE_COLOR[tone] }} />
-        <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
+        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
       </div>
-      <p className="text-[20px] font-black text-[var(--text-primary)] leading-tight">{value}</p>
+      <p className="text-2xl font-black text-[var(--text-primary)] leading-tight">{value}</p>
       <p className="text-xs text-[var(--text-muted)]">{foot}</p>
     </div>
   );

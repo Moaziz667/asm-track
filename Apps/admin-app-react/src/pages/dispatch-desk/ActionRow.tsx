@@ -122,7 +122,7 @@ export function ActionRow({
             </Link>
             <p className="text-2xs font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>{formatElapsed(row.updatedAt ?? row.createdAt)}</p>
             {row.scheduledAt && (
-              <p className="text-[9px] font-bold mt-1" style={{ color: 'var(--brand)' }}>
+              <p className="text-2xs font-bold mt-1" style={{ color: 'var(--brand)' }}>
                 {t.dispatchDeskPage.scheduledDateLabel}: {formatShortDate(row.scheduledAt)}
               </p>
             )}

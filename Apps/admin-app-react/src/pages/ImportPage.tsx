@@ -390,7 +390,7 @@ function ImportErpPageContent() {
                                     {row.blNumber || row.erpOrderId}
                                   </p>
                                   {row.warehouseCode && (
-                                    <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-[9px] font-bold font-mono tracking-widest uppercase">
+                                    <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-2xs font-bold font-mono tracking-widest uppercase">
                                       {row.warehouseCode}
                                     </span>
                                   )}
@@ -704,7 +704,7 @@ function ImportErpPageContent() {
                         <tr key={idx} className="border-t border-[var(--border)]">
                           <td className="px-3 py-2">
                             <p className="text-xs font-semibold text-[var(--text-primary)]">{item.name}</p>
-                            <p className="text-[9px] text-[var(--text-muted)] font-mono">{item.unitWeightKg?.toFixed(2)} KG/U</p>
+                            <p className="text-2xs text-[var(--text-muted)] font-mono">{item.unitWeightKg?.toFixed(2)} KG/U</p>
                           </td>
                           <td className="px-3 py-2 text-right">
                             <p className="text-xs font-bold font-mono text-[var(--text-primary)]">{item.quantity}</p>

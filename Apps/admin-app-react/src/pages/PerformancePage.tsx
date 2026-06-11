@@ -219,7 +219,7 @@ export default function PerformancePage() {
                 <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.operationalVolume}</span>
                 <IconBolt size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{stats?.today?.total?.toString() ?? "0"}</div>
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)]">{stats?.today?.total?.toString() ?? "0"}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
             </div>
               )
@@ -234,7 +234,7 @@ export default function PerformancePage() {
                 <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.completionRate}</span>
                 <IconTrendingUp size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
             </div>
               )
@@ -249,7 +249,7 @@ export default function PerformancePage() {
                 <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.avgDelay}</span>
                 <IconClock size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
             </div>
               )
@@ -264,7 +264,7 @@ export default function PerformancePage() {
                 <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.lifeCycle}</span>
                 <IconActivity size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
-              <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(totalCycleMinutes)}</div>
+              <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(totalCycleMinutes)}</div>
               <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
             </div>
               )

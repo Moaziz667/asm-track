@@ -112,7 +112,7 @@ export function RouteTimelineItem({
             {/* Client + status badges */}
             <div className={styles.clientRow}>
               <div className={styles.clientName}>{clientName}</div>
-              <Badge variant="outline" className="text-[9px]">
+              <Badge variant="outline" className="text-2xs">
                 {status}
               </Badge>
               {priorityBadge}

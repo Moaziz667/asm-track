@@ -415,13 +415,13 @@ export function AppSidebar() {
           }}
         >
           <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-[var(--sb-bg-hover)] border border-[var(--sb-sep-h)] flex items-center justify-center shrink-0 font-bold text-[9px] text-[var(--sb-item-active)] shadow-2xs">
+            <div className="w-6 h-6 rounded-full bg-[var(--sb-bg-hover)] border border-[var(--sb-sep-h)] flex items-center justify-center shrink-0 font-bold text-2xs text-[var(--sb-item-active)] shadow-2xs">
               SU
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
                 <span className="font-semibold text-xs text-[var(--sb-item-active)] truncate leading-tight">Super Admin</span>
-                <span className="text-[9px] text-[var(--sb-label)] tracking-wider leading-none mt-0.5">Admin</span>
+                <span className="text-2xs text-[var(--sb-label)] tracking-wider leading-none mt-0.5">Admin</span>
               </div>
             )}
           </div>

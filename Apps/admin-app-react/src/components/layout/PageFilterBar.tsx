@@ -373,7 +373,7 @@ export function PageFilterBar({
                 {qf.label}
                 {qf.count !== undefined && (
                   <span
-                    className="text-[9px] font-bold px-1 rounded-full"
+                    className="text-2xs font-bold px-1 rounded-full"
                     style={{ background: active ? 'var(--brand-blue)' : 'var(--hover-bg)', color: active ? '#fff' : 'var(--text-muted)' }}
                   >
                     {qf.count}

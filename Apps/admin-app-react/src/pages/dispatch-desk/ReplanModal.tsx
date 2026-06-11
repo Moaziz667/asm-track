@@ -78,15 +78,15 @@ export function ReplanModal({
           <div className="p-3 rounded-sm" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', borderRadius: 2 }}>
             <div className="flex gap-6">
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelOrder}</span>
+                <span className="text-2xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelOrder}</span>
                 <span className="text-md font-extrabold font-mono">{row.orderRef || '—'}</span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelProblem}</span>
+                <span className="text-2xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelProblem}</span>
                 <span className="text-sm font-bold" style={{ color: '#c2410c' }}>{formatMotif(row.motif)}</span>
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelClient}</span>
+                <span className="text-2xs font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelClient}</span>
                 <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</span>
               </div>
             </div>

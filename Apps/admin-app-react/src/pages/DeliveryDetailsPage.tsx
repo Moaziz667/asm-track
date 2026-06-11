@@ -173,7 +173,7 @@ export default function DeliveryDetailPage() {
                 </div>
 
                 {/* Client name */}
-                <h1 className="font-semibold text-[28px] leading-[1.2] text-[var(--text-primary)] tracking-[-0.01em]">
+                <h1 className="font-semibold text-3xl leading-[1.2] text-[var(--text-primary)] tracking-[-0.01em]">
                   {delivery.clientName ?? t.deliveryPage.unknownClient}
                 </h1>
 
@@ -335,7 +335,7 @@ export default function DeliveryDetailPage() {
                           <span className="text-sm font-semibold text-[var(--text-primary)]">{delivery.driverName ?? '—'}</span>
                           {assignedDriverStatus && (() => {
                             const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
-                            return <span className="text-[9px] font-medium" style={{ color: cfg.text }}>{cfg.label}</span>;
+                            return <span className="text-2xs font-medium" style={{ color: cfg.text }}>{cfg.label}</span>;
                           })()}
                         </div>
                         {delivery.driverPhone && (
@@ -507,7 +507,7 @@ function ProofPlaceholder({ icon, label }: { icon: React.ReactNode; label: strin
       style={{ width: 160, height: 120 }}
     >
       <span className="text-[var(--text-muted)] opacity-40">{icon}</span>
-      <span className="text-[9px] text-[var(--text-muted)] font-medium">{label}</span>
+      <span className="text-2xs text-[var(--text-muted)] font-medium">{label}</span>
     </div>
   );
 }

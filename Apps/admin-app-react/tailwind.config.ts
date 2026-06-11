@@ -27,6 +27,7 @@ const config: Config = {
         lg:    ["15px", { lineHeight: "22px" }],
         xl:    ["18px", { lineHeight: "26px" }],
         "2xl": ["22px", { lineHeight: "30px" }],
+        "3xl": ["28px", { lineHeight: "34px" }],
       },
       fontWeight: {
         normal:     "400",

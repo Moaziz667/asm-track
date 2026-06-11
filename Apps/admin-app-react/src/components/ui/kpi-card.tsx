@@ -68,7 +68,7 @@ export function KPICard({ label, value, sub, icon, tone = 'default', className, 
           {tone !== 'default' && <span className={cn('w-2 h-2 rounded-full', TONE_DOT[tone])} />}
         </div>
       </div>
-      <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
+      <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
         {value}
       </div>
       {sub && (

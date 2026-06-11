@@ -257,7 +257,7 @@ export default function GlobalSearch() {
       description: t.globalSearch.system.themeDesc,
       group: t.globalSearch.groups.systemActions,
       icon: <IconSun size={14} className="dark:hidden text-amber-500" />,
-      badge: <kbd className="font-mono text-[9px] px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--hover-bg)] select-none">⌘K</kbd>,
+      badge: <kbd className="font-mono text-2xs px-1 py-0.5 rounded border border-[var(--border)] bg-[var(--hover-bg)] select-none">⌘K</kbd>,
       onClick: toggleDarkTheme,
     },
     {
@@ -458,7 +458,7 @@ export default function GlobalSearch() {
           className="w-full h-9 pl-9 pr-3 text-left text-sm font-normal bg-[var(--app-bg)] border border-[var(--border)] rounded-full text-[var(--text-soft)] hover:border-[var(--brand)] hover:shadow-sm transition-all flex items-center cursor-pointer justify-between outline-none gap-2"
         >
           <span className="truncate text-[var(--text-soft)]/85">{t.globalSearch.triggerPlaceholder}</span>
-          <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] select-none leading-none shadow-[0_1px_0_rgba(0,0,0,0.05)] shrink-0">⌘K</kbd>
+          <kbd className="font-mono text-2xs px-1.5 py-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] select-none leading-none shadow-[0_1px_0_rgba(0,0,0,0.05)] shrink-0">⌘K</kbd>
         </button>
       </div>
 
@@ -528,7 +528,7 @@ export default function GlobalSearch() {
                 return (
                   <div key={groupName} className="mb-2 last:mb-0">
                     <p className="text-2xs font-extrabold uppercase tracking-[0.10em] text-[var(--text-soft)] px-4 py-1.5 sticky top-0 bg-[var(--surface)] z-10 select-none">
-                      {groupName} · <span className="font-mono text-[9px] font-bold text-[var(--text-soft)]/75">{items.length}</span>
+                      {groupName} · <span className="font-mono text-2xs font-bold text-[var(--text-soft)]/75">{items.length}</span>
                     </p>
                     <div className="flex flex-col gap-0.5 px-2">
                       {items.map((action, i) => {
@@ -591,12 +591,12 @@ export default function GlobalSearch() {
                     ['Esc', t.globalSearch.shortcuts.close],
                   ].map(([key, label]) => (
                     <span key={key} className="text-2xs font-semibold text-[var(--text-soft)] select-none flex items-center gap-1">
-                      <kbd className="font-mono bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-soft)] text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.05)]">{key}</kbd>
+                      <kbd className="font-mono bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-soft)] text-2xs shadow-[0_1px_0_rgba(0,0,0,0.05)]">{key}</kbd>
                       {label}
                     </span>
                   ))}
                 </div>
-                <span className="text-[9px] font-mono font-bold text-[var(--text-muted)] select-none tracking-wider uppercase opacity-75">
+                <span className="text-2xs font-mono font-bold text-[var(--text-muted)] select-none tracking-wider uppercase opacity-75">
                   ASM Track Omnibox
                 </span>
               </div>

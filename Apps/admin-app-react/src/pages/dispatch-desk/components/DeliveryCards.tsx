@@ -164,7 +164,7 @@ export function DeliveryCards() {
                         <Link
                           to={`/deliveries/${id}`}
                           onClick={e => e.stopPropagation()}
-                          className="font-mono text-[12.5px] font-[600] hover:underline"
+                          className="font-mono text-sm font-[600] hover:underline"
                           style={{ color: 'var(--brand)' }}
                         >
                           {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
@@ -173,19 +173,19 @@ export function DeliveryCards() {
                         {(d.dropoffAddress || d.dropoffCity || d.zoneName) && (
                           <div className="flex items-center gap-1 min-w-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
                             <IconMapPin size={10} stroke={2.5} className="shrink-0" />
-                            <span className="text-[11.5px] truncate">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+                            <span className="text-xs truncate">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
                           </div>
                         )}
                       </div>
                       {/* Per-tab right chip */}
                       {isAssignTab && alert && formatMotif(alert.motif, t) && (
-                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0"
+                        <span className="text-xs font-[600] px-1.5 py-0.5 rounded shrink-0"
                           style={{ color: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].text, background: SEVERITY_CHIP[alert.severity === 'CRITICAL' ? 'CRITICAL' : 'WARNING'].bg }}>
                           {formatMotif(alert.motif, t)}
                         </span>
                       )}
                       {isGpsTab && (
-                        <span className="text-[11.5px] font-[600] px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1"
+                        <span className="text-xs font-[600] px-1.5 py-0.5 rounded shrink-0 inline-flex items-center gap-1"
                           style={{ color: SEVERITY_CHIP.CRITICAL.text, background: SEVERITY_CHIP.CRITICAL.bg }}>
                           <IconMapPinOff size={11} stroke={2.5} /> {t.dispatchDeskPage.missingGps}
                         </span>
@@ -202,13 +202,13 @@ export function DeliveryCards() {
                             <TooltipTrigger asChild>
                               <div className="flex items-center gap-1.5 cursor-default">
                                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                                <span className="text-[12.5px] font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
+                                <span className="text-sm font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
                               </div>
                             </TooltipTrigger>
                             <TooltipContent>{getDriverStatusTip(driver?.onlineStatus, t)}</TooltipContent>
                           </Tooltip>
                         ) : (
-                          <span className="text-[11.5px] font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
+                          <span className="text-xs font-[500] px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)' }}>
                             {t.dispatchDeskPage.unassignedLabel}
                           </span>
                         )}
@@ -228,7 +228,7 @@ export function DeliveryCards() {
                         }
                         const formatted = new Date(d.scheduledAt!).toLocaleDateString(undefined, { day: '2-digit', month: 'short' }) + ' ' + new Date(d.scheduledAt!).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false });
                         return (
-                          <div className="flex items-center gap-1.5 text-[11.5px] font-semibold" style={{ color }}>
+                          <div className="flex items-center gap-1.5 text-xs font-semibold" style={{ color }}>
                             <IconCalendar size={11} stroke={2.5} />
                             <span>{t.dispatchDeskPage.filterStatusScheduled}: {formatted}</span>
                           </div>
@@ -239,7 +239,7 @@ export function DeliveryCards() {
                       {d.items && d.items.length > 0 && (
                         <div className="flex flex-col gap-1 mt-0.5 border-t border-[var(--border)]/20 pt-1.5">
                           {d.items.map((item, idx) => (
-                            <div key={idx} className="flex items-center justify-between text-[11.5px] pl-0.5">
+                            <div key={idx} className="flex items-center justify-between text-xs pl-0.5">
                               <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
                               <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
                             </div>
@@ -248,7 +248,7 @@ export function DeliveryCards() {
                       )}
 
                       {slot && (
-                        <div className="flex items-center gap-1.5 text-[11.5px] text-[var(--text-muted)] select-none pl-0.5">
+                        <div className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] select-none pl-0.5">
                           <IconCalendar size={11} stroke={2.5} />
                           <span>{slot}</span>
                         </div>
@@ -265,7 +265,7 @@ export function DeliveryCards() {
  
                   {/* Footer: age, amount + actions */}
                   <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }} onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-[11.5px]" style={{ color: 'var(--text-muted)' }}>
+                    <div className="flex items-center flex-wrap gap-x-2 gap-y-0.5 text-xs" style={{ color: 'var(--text-muted)' }}>
                       <span className="inline-flex items-center gap-1 font-mono font-medium" title={formatShortDate(d.createdAt)}>
                         <IconClock size={11} stroke={2.5} />
                         <span>{t.dispatchDeskPage.cardCreated.replace('{time}', created)}</span>

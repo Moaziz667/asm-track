@@ -17,7 +17,7 @@ export function KeyboardHint({ shortcuts }: KeyboardHintProps) {
       {shortcuts.map(({ key, description }) => (
         <div key={key} className="flex items-center gap-1.5">
           <kbd
-            className="inline-flex items-center justify-center px-1.5 py-0.5 rounded border font-mono text-[9px] font-bold"
+            className="inline-flex items-center justify-center px-1.5 py-0.5 rounded border font-mono text-2xs font-bold"
             style={{
               background: 'var(--surface)',
               borderColor: 'var(--border)',

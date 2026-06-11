@@ -196,7 +196,7 @@ export default function CompaniesPage() {
                 <div key={s.label} className="p-3 rounded-xs relative overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                   <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: s.color }} />
                   <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
-                  <p className="text-[20px] font-[600] font-mono" style={{ color: s.color }}>{s.value}</p>
+                  <p className="text-2xl font-[600] font-mono" style={{ color: s.color }}>{s.value}</p>
                 </div>
               ))}
             </div>

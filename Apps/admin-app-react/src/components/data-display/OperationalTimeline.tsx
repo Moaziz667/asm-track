@@ -288,14 +288,14 @@ export default function OperationalTimeline({ events, className }: OperationalTi
 
               {/* Actor Tagging Details */}
               <div className="flex items-center gap-1.5">
-                <span className="text-[9px] font-medium text-[var(--text-muted)]">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
                   {locale === 'ar' ? 'بواسطة:' : (locale === 'en' ? 'By:' : 'Par :')}
                 </span>
-                <span className="text-[9px] font-bold text-[var(--text-secondary)]">
+                <span className="text-2xs font-bold text-[var(--text-secondary)]">
                   {actorName}
                 </span>
                 <span className={cn(
-                  'text-[8px] font-extrabold px-1.5 py-0.5 rounded-xs border uppercase scale-90 origin-left rtl:origin-right shrink-0',
+                  'text-2xs font-extrabold px-1.5 py-0.5 rounded-xs border uppercase scale-90 origin-left rtl:origin-right shrink-0',
                   colorClasses
                 )}>
                   {t.actors[actorRole] || actorRole}

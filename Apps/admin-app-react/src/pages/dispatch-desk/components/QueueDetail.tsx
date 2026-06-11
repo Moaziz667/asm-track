@@ -31,7 +31,7 @@ export function QueueDetail() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
         <IconInbox size={28} stroke={1.5} style={{ color: 'var(--text-soft)' }} />
-        <p className="text-[12.5px] font-[500]" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>
           {t.dispatchDeskPage.queueSelectPrompt}
         </p>
       </div>
@@ -82,10 +82,10 @@ export function QueueDetail() {
                 {(d.clientName ?? '?').slice(0, 1).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="text-[17px] font-bold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-xl font-bold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {d.clientName ?? '—'}
                 </p>
-                <Link to={`/deliveries/${id}`} className="font-mono text-[11.5px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
+                <Link to={`/deliveries/${id}`} className="font-mono text-xs font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
                   {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
                 </Link>
               </div>
@@ -144,7 +144,7 @@ export function QueueDetail() {
                   </span>
                 </div>
               ) : (
-                <span className="text-[12.5px] font-[500]" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>
                   {t.dispatchDeskPage.unassignedLabel}
                 </span>
               )}
@@ -158,10 +158,10 @@ export function QueueDetail() {
               {(d.dropoffAddress || d.dropoffCity || d.zoneName) ? (
                 <div className="flex items-start gap-1.5" style={{ color: 'var(--text-secondary)' }}>
                   <IconMapPin size={13} stroke={2.5} className="mt-0.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
-                  <span className="text-[12.5px] leading-snug">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+                  <span className="text-sm leading-snug">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
                 </div>
               ) : (
-                <span className="text-[12.5px] font-[500]" style={{ color: 'var(--text-muted)' }}>—</span>
+                <span className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>—</span>
               )}
               {d.clientPhone && (
                 <p className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{d.clientPhone}</p>
@@ -170,7 +170,7 @@ export function QueueDetail() {
           </div>
 
           {/* Schedule / slot / amount — subtle meta pills */}
-          <div className="flex flex-wrap items-center gap-2 text-[11.5px]">
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }} title={formatShortDate(d.createdAt)}>
               <IconClock size={12} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(alert?.updatedAt ?? d.createdAt, t))}
             </span>
@@ -207,14 +207,14 @@ export function QueueDetail() {
       {!isReadOnly && (
         <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
           {canReassign && (
-            <Button size="sm" className="h-8 px-3 text-[11.5px] font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
+            <Button size="sm" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
               {d.driverId ? <IconReassign size={14} /> : <IconAssign size={14} />}
               {d.driverId ? t.dispatchDeskPage.buttonReassign : t.dispatchDeskPage.buttonAssign}
             </Button>
           )}
           {canReplan && (
             <Button
-              size="sm" variant="outline" className="h-8 px-3 text-[11.5px] font-bold rounded-md gap-1.5"
+              size="sm" variant="outline" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"
               onClick={() => openActionModal('replan', alert ?? exceptionFromDelivery())}
             >
               <IconReplan size={14} />
@@ -224,7 +224,7 @@ export function QueueDetail() {
           {needsClientContact(motif) && d.clientPhone && (
             <a
               href={`tel:${d.clientPhone}`}
-              className="h-8 px-3 inline-flex items-center gap-1.5 text-[11.5px] font-bold rounded-md border transition-colors hover:opacity-80"
+              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
               style={{ color: '#059669', borderColor: '#059669' }}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallClient}
@@ -233,14 +233,14 @@ export function QueueDetail() {
           {needsDriverContact(motif) && d.driverId && (d.driverPhone ?? driver?.phone) && (
             <a
               href={`tel:${d.driverPhone ?? driver?.phone}`}
-              className="h-8 px-3 inline-flex items-center gap-1.5 text-[11.5px] font-bold rounded-md border transition-colors hover:opacity-80"
+              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
               style={{ color: '#6366F1', borderColor: '#6366F1' }}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>
           )}
           {alert && needsReturnToDepot(motif) && (
-            <Button size="sm" variant="outline" className="h-8 px-3 text-[11.5px] font-bold rounded-md gap-1.5" onClick={() => setReturnTarget(alert)}>
+            <Button size="sm" variant="outline" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setReturnTarget(alert)}>
               <IconArrowBack size={14} stroke={2.5} />
               {t.dispatchDeskPage.buttonReturnToDepot}
             </Button>

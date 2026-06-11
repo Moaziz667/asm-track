@@ -123,7 +123,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
               >
                 {done
                   ? <IconCheck size={11} color="white" stroke={2.5} />
-                  : <span className="text-[8px] font-bold text-white">{idx}</span>
+                  : <span className="text-2xs font-bold text-white">{idx}</span>
                 }
               </div>
               <span className={cn(
@@ -496,7 +496,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                       <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{driver.name}</span>
                         {dimmed && (
-                          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-xs" style={{ background: statusCfg.bg, color: statusCfg.text }}>
+                          <span className="text-2xs font-medium px-1.5 py-0.5 rounded-xs" style={{ background: statusCfg.bg, color: statusCfg.text }}>
                             {statusCfg.label}
                           </span>
                         )}
@@ -704,7 +704,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                     <div className="w-[5px] h-[5px] rounded-full bg-[var(--brand)] shrink-0" />
                     <span className="text-2xs text-[var(--text-primary)] font-semibold">{t.clientName ?? '—'}</span>
                     <span className="text-2xs text-[var(--text-muted)]">{t.city}</span>
-                    {t.orderRef && <span className="text-[9px] text-[var(--text-soft)] font-mono">{t.orderRef}</span>}
+                    {t.orderRef && <span className="text-2xs text-[var(--text-soft)] font-mono">{t.orderRef}</span>}
                   </div>
                 ))}
                 {allTargets.length > 5 && (
@@ -720,7 +720,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                   <span className="text-xs font-medium text-[var(--text-primary)]">{target?.clientName}</span>
                   <span className="text-2xs text-[var(--text-muted)]">{target?.city} • {target?.orderRef}</span>
                 </div>
-                <span className="text-[9px] font-bold text-[var(--text-soft)] uppercase">{target?.status}</span>
+                <span className="text-2xs font-bold text-[var(--text-soft)] uppercase">{target?.status}</span>
               </div>
             </div>
           )}
@@ -753,14 +753,14 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               </div>
               {errStartGtEnd && (
                 <div className="px-2.5 py-1.5 bg-[var(--danger-bg)] border border-[var(--danger)] rounded">
-                  <span className="text-[9px] font-bold text-[var(--danger)]">
+                  <span className="text-2xs font-bold text-[var(--danger)]">
                     ⚠ {t.reassignDrawer.timeWindowErrorDesc}
                   </span>
                 </div>
               )}
               {overlaps.length > 0 && (
                 <div className="px-2.5 py-1.5 bg-[var(--warning-bg)] border border-[var(--warning)] rounded flex flex-col gap-0.5">
-                  <span className="text-[9px] font-black text-[var(--warning)]">
+                  <span className="text-2xs font-black text-[var(--warning)]">
                     ⚠ {locale === 'ar'
                       ? `تداخل مع ${overlaps.length} محطة`
                       : locale === 'en'
@@ -768,7 +768,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                         : `Chevauchement avec ${overlaps.length} arrêt${overlaps.length > 1 ? 's' : ''}`}
                   </span>
                   {overlaps.slice(0, 3).map(o => (
-                    <span key={o.stop.id} className="text-[9px] text-[var(--warning)]">
+                    <span key={o.stop.id} className="text-2xs text-[var(--warning)]">
                       {locale === 'ar' ? '• محطة ' : locale === 'en' ? '• Stop ' : '• Arrêt '}{o.stopIdx + 1} — {o.stop.clientName || 'Client'} ({formatTime(o.stop.startTimeWindow)} → {formatTime(o.stop.endTimeWindow)})
                     </span>
                   ))}
@@ -807,7 +807,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                         ? <IconCheck size={10} className="text-[var(--brand)]" />
                         : <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-[var(--brand)] opacity-40" />}
                       <span className={cn(
-                        'text-[9px] font-bold uppercase tracking-[0.05em]',
+                        'text-2xs font-bold uppercase tracking-[0.05em]',
                         insertAfterStopId === '__start__' ? 'text-[var(--brand)]' : 'text-[var(--text-soft)]',
                       )}>
                         Insérer en premier
@@ -838,20 +838,20 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                                 border: isOverlap ? '1px solid #EF4444' : 'none',
                               }}
                             >
-                              <span className="text-[8px] font-black" style={{ color: isOverlap ? '#EF4444' : '#71717A' }}>{i + 1}</span>
+                              <span className="text-2xs font-black" style={{ color: isOverlap ? '#EF4444' : '#71717A' }}>{i + 1}</span>
                             </div>
                             <div className="min-w-0 flex flex-col gap-0.5">
                               <span className="text-2xs font-bold text-[var(--text-primary)] truncate">
                                 {stop.clientName || 'Client'}
                               </span>
-                              <span className="text-[9px] text-[var(--text-soft)]">{stop.deliveryCity || stop.deliveryAddress}</span>
+                              <span className="text-2xs text-[var(--text-soft)]">{stop.deliveryCity || stop.deliveryAddress}</span>
                             </div>
                           </div>
                           {hasWindow && (
                             <div className="bg-[var(--hover-bg)] border border-[var(--border)] rounded px-1.5 py-0.5 shrink-0">
                               <div className="flex items-center gap-0.5">
                                 <IconClock size={9} className="text-[var(--text-muted)]" />
-                                <span className="text-[9px] font-semibold text-[var(--text-primary)] font-mono whitespace-nowrap">
+                                <span className="text-2xs font-semibold text-[var(--text-primary)] font-mono whitespace-nowrap">
                                   {formatTime(stop.startTimeWindow) ?? '??:??'}
                                   {stop.endTimeWindow ? ` → ${formatTime(stop.endTimeWindow)}` : ''}
                                 </span>
@@ -861,7 +861,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                           {!hasWindow && stop.etaAt && (
                             <div className="flex items-center gap-0.5 shrink-0">
                               <IconClock size={9} className="text-[var(--text-soft)]" />
-                              <span className="text-[9px] text-[var(--text-soft)] font-mono">ETA {stop.etaAt.slice(11, 16)}</span>
+                              <span className="text-2xs text-[var(--text-soft)] font-mono">ETA {stop.etaAt.slice(11, 16)}</span>
                             </div>
                           )}
                         </div>
@@ -883,7 +883,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                               ? <IconCheck size={10} className="text-[var(--brand)]" />
                               : <div className="w-2.5 h-2.5 rounded-full border-2 border-dashed border-[var(--brand)] opacity-40" />}
                             <span className={cn(
-                              'text-[9px] font-bold uppercase tracking-[0.05em]',
+                              'text-2xs font-bold uppercase tracking-[0.05em]',
                               insertAfterStopId === stop.id ? 'text-[var(--brand)]' : 'text-[var(--text-soft)]',
                             )}>
                               Insérer après l'arrêt {i + 1}
@@ -898,7 +898,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 {selectedRoute.status === 'IN_PROGRESS' && (
                   <div className="px-2.5 py-1.5 rounded border-2 border-dashed border-[var(--brand)] bg-[var(--danger-bg)] flex items-center gap-1.5">
                     <IconCheck size={10} className="text-[var(--brand)]" />
-                    <span className="text-[9px] font-bold text-[var(--brand)] uppercase tracking-[0.05em]">
+                    <span className="text-2xs font-bold text-[var(--brand)] uppercase tracking-[0.05em]">
                       Nouvel arrêt — ajouté en fin de tournée
                     </span>
                   </div>
@@ -915,7 +915,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-2xs font-bold text-[var(--success)]">Notification automatique</span>
-                <span className="text-[9px] text-[var(--success)]">
+                <span className="text-2xs text-[var(--success)]">
                   Le chauffeur sera notifié en temps réel via l'application mobile.
                 </span>
               </div>

@@ -149,7 +149,7 @@ export function TimelineGantt() {
                 }}
                 className="pl-1 border-l border-[var(--border)] flex items-center"
               >
-                <span className="font-mono text-[9px] text-[var(--text-soft)] font-medium">
+                <span className="font-mono text-2xs text-[var(--text-soft)] font-medium">
                   {minutesToLabel(m)}
                 </span>
               </div>
@@ -232,7 +232,7 @@ export function TimelineGantt() {
                                 ? '0 0 0 1.5px var(--brand-orange)'
                                 : 'none',
                             }}
-                            className="rounded-xs flex items-center justify-center text-white text-[9px] font-bold font-mono cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis px-0.5 select-none"
+                            className="rounded-xs flex items-center justify-center text-white text-2xs font-bold font-mono cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis px-0.5 select-none"
                           >
                             {w >= 22 ? String(stop.stopOrder ?? '').padStart(2, '0') : ''}
                           </div>

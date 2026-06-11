@@ -22,7 +22,7 @@ export function FailureInfo({
   if (!code && !reason) return null;
 
   const label = code ? ((t.failureCodes as any)?.[code] ?? code) : null;
-  const badgeText = size === 'xs' ? 'text-[9px]' : 'text-2xs';
+  const badgeText = size === 'xs' ? 'text-2xs' : 'text-2xs';
   const reasonText = size === 'xs' ? 'text-2xs' : 'text-xs';
 
   return (
