@@ -9,6 +9,12 @@ const _en_fmtEta = (iso: string): string => {
 };
 const _en_ref = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
 const _en_stops = (n: number): string => `${n} stop${n > 1 ? 's' : ''}`;
+// Human label for a failure CODE in notifications (backend sends the bare code in p.motif).
+const _EN_FAILURE_LABEL: Record<string, string> = {
+  CLIENT_ABSENT: 'Customer absent', REFUSED: 'Refused', DAMAGED: 'Damaged',
+  WRONG_ADDRESS: 'Wrong address', POSTPONED: 'Postponed', OTHER: 'Other reason',
+};
+const _en_motif = (p: any): string => (p?.motif ? (_EN_FAILURE_LABEL[p.motif] ?? p.motif) : '');
 const _en_money = (amount: any, currency?: string): string => {
   if (amount == null || amount === '') return '';
   const n = Number(amount);
@@ -2485,8 +2491,9 @@ export const EN_COPY = {
       title: 'Delivery Failed',
       message: (p: any) => {
         const parts = [`${p.clientName || 'Client'} — failed`];
-        const detail = p.reason || p.motif;
-        if (detail) parts.push(detail);
+        const motif = _en_motif(p);
+        if (motif) parts.push(motif);
+        if (p.reason) parts.push(p.reason);
         if (p.driverName) parts.push(p.driverName);
         return `${_en_ref(p)}${parts.join(' · ')}`;
       },
@@ -2627,6 +2634,46 @@ export const EN_COPY = {
     'delivery.backorder_created': {
       title: 'Backorder Created',
       message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — backorder created${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
+    'delivery.redelivery_scheduled': {
+      title: 'Re-delivery Scheduled',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — refused (defect) · re-delivery scheduled`,
+    },
+    'sla.alert': {
+      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA Breached' : 'SLA At Risk',
+      message: (p: any) => {
+        const phase = ({ WAITING: 'awaiting assignment', ASSIGNMENT: 'start', PICKUP: 'loading', TRANSIT: 'delivery' } as Record<string, string>)[p.motif] || 'deadline';
+        const verb = (p.health === 'BREACHED') ? 'breached' : 'at risk';
+        return `${_en_ref(p)}${p.clientName || 'Client'} — ${phase}: deadline ${verb}`;
+      },
+    },
+    'erp.conflict': {
+      title: 'Odoo Conflict',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Order'} — changed in Odoo after the delivery had already left${p.field ? ` (${p.field})` : ''}. Please review.`,
+    },
+    'route.cancelled': {
+      title: 'Route Cancelled',
+      message: (p: any) => `"${p.routeName || 'Route'}" cancelled${p.reason ? ` · ${p.reason}` : ''}`,
+    },
+    'handoff.requested': {
+      title: 'Handoff Requested',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff requested${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'handoff.confirmed': {
+      title: 'Handoff Confirmed',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff confirmed`,
+    },
+    'handoff.incoming': {
+      title: 'Incoming Handoff',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to receive${p.driverName ? ` · from ${p.driverName}` : ''}`,
+    },
+    'handoff.outgoing': {
+      title: 'Outgoing Handoff',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to hand over${p.driverName ? ` · to ${p.driverName}` : ''}`,
+    },
+    'handoff.code_ready': {
+      title: 'Handoff Code',
+      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff code ready`,
     },
   },
   landingPage: {

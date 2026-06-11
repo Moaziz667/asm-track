@@ -270,10 +270,15 @@ public class DriverDeliveryService {
                 : DeliveryStatus.DELIVERED;
         // C3 — Nothing was actually delivered: this is a failed visit, not a "partial". Delegate to
         // fail() so the full failure path runs (failure code, driver release, ERP_SYNC_FAILURE) instead
-        // of pushing an empty partial picking to Odoo.
+        // of pushing an empty partial picking to Odoo. The failure CODE is derived from the lines
+        // (REFUSED when the customer rejected goods, else OTHER) — no debug text in the comment, so the
+        // notification reads cleanly ("Refusé" / "Échec") instead of an internal explanation.
         if (finalStatus == DeliveryStatus.FAILED) {
-            return fail(deliveryId, driverId, null, FailureCode.OTHER,
-                    "Aucun article livré (tournée marquée partielle sans quantité)", principal);
+            boolean anyRefused = delivery.getOrder() != null && delivery.getOrder().getItems() != null
+                    && delivery.getOrder().getItems().stream()
+                        .anyMatch(it -> it != null && "REFUSED".equalsIgnoreCase(it.getOutcome()));
+            FailureCode code = anyRefused ? FailureCode.REFUSED : FailureCode.OTHER;
+            return fail(deliveryId, driverId, null, code, null, principal);
         }
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;

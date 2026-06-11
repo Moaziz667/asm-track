@@ -44,6 +44,13 @@ const fmtWindow = (start: any, end: any): string => {
 };
 // Prefix a notification body with the ERP order ref when present.
 const refTag = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+// Human label for a failure CODE in notifications (the backend now sends the bare code in p.motif,
+// never a raw "CODE — comment" string). Keep in sync with the failureCodes map below.
+const FR_FAILURE_LABEL: Record<string, string> = {
+  CLIENT_ABSENT: 'Client absent', REFUSED: 'Refusé', DAMAGED: 'Endommagé',
+  WRONG_ADDRESS: 'Adresse incorrecte', POSTPONED: 'Reporté', OTHER: 'Autre motif',
+};
+const motifLabelFr = (p: any): string => (p?.motif ? (FR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
 // Pluralize a stop count for FR/EN; AR is gender/number aware separately.
 const stopsFr = (n: number) => `${n} arrêt${n > 1 ? 's' : ''}`;
 const stopsEn = (n: number) => `${n} stop${n > 1 ? 's' : ''}`;
@@ -2737,8 +2744,9 @@ export const FR_COPY = {
       title: 'Échec livraison',
       message: (p: any) => {
         const parts = [`${p.clientName || 'Client'} — échouée`];
-        const detail = p.reason || p.motif;
-        if (detail) parts.push(detail);
+        const motif = motifLabelFr(p);           // translated label, never a raw enum code
+        if (motif) parts.push(motif);
+        if (p.reason) parts.push(p.reason);       // driver's free-text comment, if any
         if (p.driverName) parts.push(p.driverName);
         return `${refTag(p)}${parts.join(' · ')}`;
       },
@@ -2879,6 +2887,46 @@ export const FR_COPY = {
     'delivery.backorder_created': {
       title: 'Reliquat créé',
       message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — reliquat créé${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
+    'delivery.redelivery_scheduled': {
+      title: 'Re-livraison programmée',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — refusé (défaut) · re-livraison programmée`,
+    },
+    'sla.alert': {
+      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA dépassé' : 'SLA à risque',
+      message: (p: any) => {
+        const phase = ({ WAITING: "en attente d'affectation", ASSIGNMENT: 'démarrage', PICKUP: 'chargement', TRANSIT: 'livraison' } as Record<string, string>)[p.motif] || 'délai';
+        const verb = (p.health === 'BREACHED') ? 'dépassé' : 'à risque';
+        return `${refTag(p)}${p.clientName || 'Client'} — ${phase} : délai ${verb}`;
+      },
+    },
+    'erp.conflict': {
+      title: 'Conflit Odoo',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Commande'} — modifiée dans Odoo alors que la livraison était déjà partie${p.field ? ` (${p.field})` : ''}. À vérifier.`,
+    },
+    'route.cancelled': {
+      title: 'Tournée annulée',
+      message: (p: any) => `«${p.routeName || 'Tournée'}» annulée${p.reason ? ` · ${p.reason}` : ''}`,
+    },
+    'handoff.requested': {
+      title: 'Passation demandée',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — passation demandée${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'handoff.confirmed': {
+      title: 'Passation confirmée',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — passation confirmée`,
+    },
+    'handoff.incoming': {
+      title: 'Passation entrante',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — colis à recevoir${p.driverName ? ` · de ${p.driverName}` : ''}`,
+    },
+    'handoff.outgoing': {
+      title: 'Passation sortante',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — colis à remettre${p.driverName ? ` · à ${p.driverName}` : ''}`,
+    },
+    'handoff.code_ready': {
+      title: 'Code de passation',
+      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — code de passation prêt`,
     },
   },
   landingPage: {

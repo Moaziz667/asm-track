@@ -569,7 +569,8 @@ public class ExceptionResolutionService {
 				Map.of("sourceDeliveryId", sourceDeliveryId != null ? sourceDeliveryId.toString() : "",
 						"reason", "REFUSED_DEFECT"));
 
-		eventPublisher.publishBackorderCreated(order, replacement.getId(), null);
+		// Single, clear notification for the re-delivery (not a failed+backorder pair).
+		eventPublisher.publishRedeliveryScheduled(order, replacement.getId());
 		log.info("Replacement shipment created (refused-defect re-delivery) — orderId={} replacementDeliveryId={}",
 				orderId, replacement.getId());
 		return replacement.getId();

@@ -9,6 +9,12 @@ const _ar_fmtEta = (iso: string): string => {
   return d.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
 const _ar_ref = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+// Human label for a failure CODE in notifications (backend sends the bare code in p.motif).
+const _AR_FAILURE_LABEL: Record<string, string> = {
+  CLIENT_ABSENT: 'العميل غائب', REFUSED: 'مرفوض', DAMAGED: 'تالف',
+  WRONG_ADDRESS: 'عنوان خاطئ', POSTPONED: 'مؤجل', OTHER: 'سبب آخر',
+};
+const _ar_motif = (p: any): string => (p?.motif ? (_AR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
 // Arabic stop counting: 1=محطة، 2=محطتان، 3-10=N محطات، 11+=N محطة
 const _ar_stops = (n: number): string => {
   if (n <= 0) return '';
@@ -2685,8 +2691,9 @@ export const AR_COPY = {
       title: 'فشل التوصيل',
       message: (p: any) => {
         const parts = [`${p.clientName || 'العميل'} — فشل`];
-        const detail = p.reason || p.motif;
-        if (detail) parts.push(detail);
+        const motif = _ar_motif(p);
+        if (motif) parts.push(motif);
+        if (p.reason) parts.push(p.reason);
         if (p.driverName) parts.push(p.driverName);
         return `${_ar_ref(p)}${parts.join(' · ')}`;
       },
@@ -2827,6 +2834,46 @@ export const AR_COPY = {
     'delivery.backorder_created': {
       title: 'تم إنشاء طلب متأخر',
       message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم إنشاء طلب متأخر${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+    },
+    'delivery.redelivery_scheduled': {
+      title: 'إعادة توصيل مُبرمجة',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — مرفوض (تلف) · إعادة توصيل مُبرمجة`,
+    },
+    'sla.alert': {
+      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'تجاوز اتفاقية الخدمة' : 'اتفاقية الخدمة في خطر',
+      message: (p: any) => {
+        const phase = ({ WAITING: 'في انتظار الإسناد', ASSIGNMENT: 'البدء', PICKUP: 'التحميل', TRANSIT: 'التوصيل' } as Record<string, string>)[p.motif] || 'المهلة';
+        const verb = (p.health === 'BREACHED') ? 'تم تجاوزها' : 'في خطر';
+        return `${_ar_ref(p)}${p.clientName || 'العميل'} — ${phase}: المهلة ${verb}`;
+      },
+    },
+    'erp.conflict': {
+      title: 'تعارض Odoo',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطلب'} — تم تعديله في Odoo بعد مغادرة الشحنة${p.field ? ` (${p.field})` : ''}. يرجى المراجعة.`,
+    },
+    'route.cancelled': {
+      title: 'تم إلغاء الجولة',
+      message: (p: any) => `«${p.routeName || 'الجولة'}» أُلغيت${p.reason ? ` · ${p.reason}` : ''}`,
+    },
+    'handoff.requested': {
+      title: 'طلب تسليم',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طُلب تسليمه${p.driverName ? ` · ${p.driverName}` : ''}`,
+    },
+    'handoff.confirmed': {
+      title: 'تأكيد التسليم',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — تم تأكيد التسليم`,
+    },
+    'handoff.incoming': {
+      title: 'تسليم وارد',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لاستلامه${p.driverName ? ` · من ${p.driverName}` : ''}`,
+    },
+    'handoff.outgoing': {
+      title: 'تسليم صادر',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لتسليمه${p.driverName ? ` · إلى ${p.driverName}` : ''}`,
+    },
+    'handoff.code_ready': {
+      title: 'رمز التسليم',
+      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — رمز التسليم جاهز`,
     },
   },
   landingPage: {
