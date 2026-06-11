@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
+import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { useT } from '@/lib/LocaleContext';
 import { IconPlus, IconPencil, IconBan, IconCheck } from '@tabler/icons-react';
 import { useDensity } from '@/hooks/useDensity';
@@ -238,34 +239,36 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
 
       <AppModal opened={modalOpen} onClose={() => setModalOpen(false)} title={form.id ? t.failureReasonsSettings.editTitle : t.failureReasonsSettings.createTitle} size="sm">
         <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formLabel}</label>
-            <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                   className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]"
-                   placeholder={t.failureReasonsSettings.formLabelPlaceholder} />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCategory}</label>
-            <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as Category }))}
-                    className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]">
-              {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
-            </select>
-          </div>
+          <FieldInput
+            label={t.failureReasonsSettings.formLabel}
+            value={form.label}
+            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            placeholder={t.failureReasonsSettings.formLabelPlaceholder}
+          />
+          <FieldSelect
+            label={t.failureReasonsSettings.formCategory}
+            value={form.category}
+            onChange={e => setForm(f => ({ ...f, category: e.target.value as Category }))}
+            options={CATEGORIES.map(c => ({ value: c, label: CATEGORY_LABELS[c] }))}
+          />
           {!form.id && (
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCode}</label>
-              <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
-                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base font-mono text-[var(--text-primary)]"
-                     placeholder={t.failureReasonsSettings.formCodePlaceholder} />
-            </div>
+            <FieldInput
+              label={t.failureReasonsSettings.formCode}
+              value={form.code}
+              onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
+              placeholder={t.failureReasonsSettings.formCodePlaceholder}
+              className="font-mono"
+            />
           )}
-          <div className="flex items-center gap-4">
-            <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formOrder}</label>
-              <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
-                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]" />
-            </div>
-            <label className="flex items-center gap-2 mt-5 cursor-pointer">
+          <div className="flex items-end gap-4">
+            <FieldInput
+              wrapperClassName="flex-1"
+              type="number"
+              label={t.failureReasonsSettings.formOrder}
+              value={form.sortOrder}
+              onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
+            />
+            <label className="flex items-center gap-2 h-9 cursor-pointer">
               <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
                      className="w-4 h-4 accent-[var(--brand)]" />
               <span className="text-sm font-semibold text-[var(--text-secondary)]">{t.failureReasonsSettings.formActive}</span>
