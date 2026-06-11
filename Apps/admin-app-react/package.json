@@ -9,6 +9,7 @@
     "build-keycloak-theme": "npm run build && keycloakify build",
     "start-keycloak": "keycloakify start-keycloak",
     "lint": "eslint .",
+    "check:design": "node scripts/check-design-tokens.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
@@ -77,6 +78,7 @@
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",
     "keycloakify": "^11.15.3",
+    "puppeteer-core": "^25.1.0",
     "tailwindcss": "^4.3.0",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
