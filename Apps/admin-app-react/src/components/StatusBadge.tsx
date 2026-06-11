@@ -12,7 +12,7 @@ export const STATUS_COLORS: Record<string, string> = {
   IN_TRANSIT:          '#D4772C',
   DELIVERED:           '#4CAF82',
   PARTIALLY_DELIVERED: '#7B6FCC',
-  PARTIAL:             '#7B6FCC',
+  PARTIAL:             '#7B6FCC', 
   CANCELLED:           '#8A8F98',
   FAILED:              '#C7372F',
   FAILED_ATTEMPT:      '#C7372F',

@@ -524,12 +524,83 @@ public class ExceptionResolutionService {
 	}
 
 	/**
+	 * Disposition-code re-delivery (enterprise model): when a visit fails because the customer refused
+	 * goods for a DEFECT (damaged / wrong item / postponed) — they still want the product, just not this
+	 * unit/timing — create a NEW replacement shipment to re-deliver a good unit. The failed visit stays
+	 * FAILED (the attempt truly didn't deliver); this is the "reship" task that follows it.
+	 *
+	 * <p>Unlike a backorder, this is ASM-driven (no Odoo backorder picking) — the goods were physically
+	 * brought back, so no new ERP stock move is implied here. Idempotent: skips if a pending replacement
+	 * already exists for the order. Returns the replacement delivery id, or null if not warranted.
+	 */
+	public UUID createReplacementShipment(UUID orderId, UUID sourceDeliveryId) {
+		return self.doCreateReplacementShipment(orderId, sourceDeliveryId);
+	}
+
+	@Transactional
+	public UUID doCreateReplacementShipment(UUID orderId, UUID sourceDeliveryId) {
+		Order order = orderRepo.findById(orderId).orElse(null);
+		if (order == null) return null;
+
+		// Only warranted when at least one line was explicitly REFUSED for a DEFECT (damaged / wrong
+		// item / postponed) — the customer wants a good unit re-delivered. A plain failure (client
+		// absent, no item outcomes) or an outright refusal must NOT spawn a replacement.
+		if (!hasRefusedDefectLine(order)) {
+			return null;
+		}
+		// Idempotency: don't stack replacement shipments — one open UNSCHEDULED sibling is enough.
+		boolean alreadyPending = deliveryRepo.findAllByOrderIdWithOrder(orderId).stream()
+				.anyMatch(d -> d.getStatus() == DeliveryStatus.UNSCHEDULED && !d.getId().equals(sourceDeliveryId));
+		if (alreadyPending) {
+			log.info("Replacement shipment skipped — a pending delivery already exists for orderId={}", orderId);
+			return null;
+		}
+
+		Delivery replacement = Delivery.builder()
+				.order(order)
+				.sourceDepotId(order.getSourceDepotId())
+				.status(DeliveryStatus.UNSCHEDULED)
+				.createdAt(LocalDateTime.now())
+				.build();
+		replacement = deliveryRepo.save(replacement);
+
+		appendHistory(replacement, DeliveryStatus.UNSCHEDULED, "SYSTEM", Role.SYSTEM,
+				"REPLACEMENT_CREATED",
+				Map.of("sourceDeliveryId", sourceDeliveryId != null ? sourceDeliveryId.toString() : "",
+						"reason", "REFUSED_DEFECT"));
+
+		// Single, clear notification for the re-delivery (not a failed+backorder pair).
+		eventPublisher.publishRedeliveryScheduled(order, replacement.getId());
+		log.info("Replacement shipment created (refused-defect re-delivery) — orderId={} replacementDeliveryId={}",
+				orderId, replacement.getId());
+		return replacement.getId();
+	}
+
+	/**
 	 * Reasons under which a REFUSED line still warrants a re-delivery: the customer wants the product,
 	 * just not THIS unit/timing (damaged, wrong item/size, postponed). A pure rejection ("don't want it
 	 * anymore", i.e. CLIENT_REJECTED or no reason) is NOT re-delivered.
 	 */
 	private static final java.util.Set<String> REDELIVERABLE_REFUSAL_REASONS =
 			java.util.Set.of("DAMAGED", "WRONG_ITEM", "POSTPONED");
+
+	/**
+	 * True if at least one line was explicitly REFUSED for a re-deliverable defect reason. Stricter than
+	 * {@link #hasBackorderEligibleRemainder} (which also accepts plain short-ships): used on the FAILED
+	 * path, where a client-absent failure has undelivered lines with no REFUSED outcome and must NOT
+	 * trigger a replacement.
+	 */
+	private boolean hasRefusedDefectLine(Order order) {
+		if (order.getItems() == null) return false;
+		for (OrderItem item : order.getItems()) {
+			if (item == null) continue;
+			boolean refused = "REFUSED".equalsIgnoreCase(item.getOutcome());
+			boolean defect = item.getReason() != null
+					&& REDELIVERABLE_REFUSAL_REASONS.contains(item.getReason().toUpperCase());
+			if (refused && defect) return true;
+		}
+		return false;
+	}
 
 	/**
 	 * V1.4 / C4 — Returns true if the order has at least one undelivered line that should be re-delivered

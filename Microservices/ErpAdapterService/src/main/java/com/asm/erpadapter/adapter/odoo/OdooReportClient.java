@@ -61,13 +61,16 @@ public class OdooReportClient {
         String baseUrl = getBaseUrl(urlStr);
         String authUrl = baseUrl + "/web/session/authenticate";
 
+        // Odoo accepts an API key wherever a password is expected — prefer it, fall back to password.
+        Object secret = conf.get("apiKey") != null && !String.valueOf(conf.get("apiKey")).isBlank()
+                ? conf.get("apiKey") : conf.get("password");
         Map<String, Object> body = Map.of(
                 "jsonrpc", "2.0",
                 "method", "call",
                 "params", Map.of(
                         "db", conf.get("db") != null ? conf.get("db") : "",
                         "login", login,
-                        "password", conf.get("password") != null ? conf.get("password") : ""
+                        "password", secret != null ? secret : ""
                 )
         );
 

@@ -149,14 +149,18 @@ public class SettingsController {
 
         try {
             Map<String, Object> config = objectMapper.convertValue(dto.getErpConfiguration(), new TypeReference<>() {});
-            
-            // If password is masked, we must retrieve the real one from DB to test it
-            if ("********".equals(config.get("password"))) {
+
+            // Masked secrets ("********") come from the UI when unchanged — restore the real values
+            // from the encrypted DB record so the test uses live credentials.
+            if ("********".equals(config.get("apiKey")) || "********".equals(config.get("password"))) {
                 SystemSettings settings = repository.findById("SINGLETON").orElse(null);
                 if (settings != null && settings.getErpConfiguration() != null) {
                     String decryptedOldJson = encryptionService.decrypt(settings.getErpConfiguration());
                     Map<String, Object> oldConfig = objectMapper.readValue(decryptedOldJson, new TypeReference<>() {});
-                    if (oldConfig.containsKey("password")) {
+                    if ("********".equals(config.get("apiKey")) && oldConfig.containsKey("apiKey")) {
+                        config.put("apiKey", oldConfig.get("apiKey"));
+                    }
+                    if ("********".equals(config.get("password")) && oldConfig.containsKey("password")) {
                         config.put("password", oldConfig.get("password"));
                     }
                 }
@@ -165,14 +169,18 @@ public class SettingsController {
             String url = String.valueOf(config.get("url"));
             validateUrl(url);
             String db = String.valueOf(config.get("db"));
-            Object rawUid = config.get("uid");
-            int uid = rawUid instanceof Number ? ((Number) rawUid).intValue() : Integer.parseInt(String.valueOf(rawUid));
-            String password = String.valueOf(config.get("password"));
+            String login = config.get("login") != null ? String.valueOf(config.get("login")) : "";
+            // Odoo accepts an API key wherever a password is expected — prefer it, fall back to password.
+            Object apiKey = config.get("apiKey");
+            String secret = (apiKey != null && !String.valueOf(apiKey).isBlank())
+                    ? String.valueOf(apiKey) : String.valueOf(config.get("password"));
 
+            // Validate by authenticating: common.authenticate returns the numeric uid (or false on
+            // bad credentials). A uid > 0 proves the login + API key pair is valid. Pure JSON-RPC.
             Map<String, Object> params = new HashMap<>();
-            params.put("service", "object");
-            params.put("method", "execute_kw");
-            params.put("args", List.of(db, uid, password, "res.users", "read", List.of(List.of(uid))));
+            params.put("service", "common");
+            params.put("method", "authenticate");
+            params.put("args", List.of(db, login, secret, Map.of()));
 
             Map<String, Object> body = new HashMap<>();
             body.put("jsonrpc", "2.0");
@@ -185,12 +193,13 @@ public class SettingsController {
                     .body(body)
                     .retrieve()
                     .body(Map.class);
-            
-            if (response != null && response.containsKey("result")) {
-                return ResponseEntity.ok(Map.of("status", "success"));
-            } else {
-                return ResponseEntity.badRequest().body(Map.of("error", "Connection failed or unauthorized"));
+
+            Object result = response != null ? response.get("result") : null;
+            int uid = result instanceof Number ? ((Number) result).intValue() : -1;
+            if (uid > 0) {
+                return ResponseEntity.ok(Map.of("status", "success", "uid", String.valueOf(uid)));
             }
+            return ResponseEntity.badRequest().body(Map.of("error", "Connection failed or unauthorized (check login / API key)"));
 
         } catch (Exception e) {
             log.warn("ERP Test Connection failed: {}", e.getMessage());

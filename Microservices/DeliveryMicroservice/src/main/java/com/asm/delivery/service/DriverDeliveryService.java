@@ -55,6 +55,11 @@ public class DriverDeliveryService {
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
 
+    /** Lazy to avoid any construction-time cycle; used to create a refused-defect replacement shipment. */
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.asm.delivery.service.dispatch.ExceptionResolutionService exceptionResolutionService;
+
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
@@ -265,10 +270,15 @@ public class DriverDeliveryService {
                 : DeliveryStatus.DELIVERED;
         // C3 — Nothing was actually delivered: this is a failed visit, not a "partial". Delegate to
         // fail() so the full failure path runs (failure code, driver release, ERP_SYNC_FAILURE) instead
-        // of pushing an empty partial picking to Odoo.
+        // of pushing an empty partial picking to Odoo. The failure CODE is derived from the lines
+        // (REFUSED when the customer rejected goods, else OTHER) — no debug text in the comment, so the
+        // notification reads cleanly ("Refusé" / "Échec") instead of an internal explanation.
         if (finalStatus == DeliveryStatus.FAILED) {
-            return fail(deliveryId, driverId, null, FailureCode.OTHER,
-                    "Aucun article livré (tournée marquée partielle sans quantité)", principal);
+            boolean anyRefused = delivery.getOrder() != null && delivery.getOrder().getItems() != null
+                    && delivery.getOrder().getItems().stream()
+                        .anyMatch(it -> it != null && "REFUSED".equalsIgnoreCase(it.getOutcome()));
+            FailureCode code = anyRefused ? FailureCode.REFUSED : FailureCode.OTHER;
+            return fail(deliveryId, driverId, null, code, null, principal);
         }
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
@@ -640,7 +650,12 @@ public class DriverDeliveryService {
             "comment", failureComment != null ? failureComment : ""
         ));
 
-
+        // Disposition-code re-delivery: if this failed visit was a refusal for a DEFECT (damaged /
+        // wrong item / postponed), the customer still wants the product — create a replacement shipment
+        // to re-deliver a good unit. No-op for a plain failure (client absent, outright refusal).
+        if (delivery.getOrder() != null) {
+            exceptionResolutionService.createReplacementShipment(delivery.getOrder().getId(), deliveryId);
+        }
 
         return toDriverDeliveryResponse(delivery);
     }

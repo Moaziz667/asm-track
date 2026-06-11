@@ -541,14 +541,19 @@ public class EventPublisher {
 
     public void publishDeliveryFailed(Order order, Delivery delivery, String reason) {
         final DeliveryEventPayload p = deliveryPayload("delivery.failed", order, delivery);
+        // motif = the failure CODE only (CLIENT_ABSENT, REFUSED…); the front translates it via
+        // `failureCodes`. reason = the driver's free-text comment only — never the collapsed
+        // "LABEL — comment" string (that one lives on delivery.failReason for ERP/audit), so the UI
+        // shows a clean, localized label instead of a raw enum.
         p.setMotif(delivery.getFailureCode() != null ? delivery.getFailureCode().name() : null);
-        p.setReason(delivery.getFailReason() != null && !delivery.getFailReason().isBlank()
-                ? delivery.getFailReason() : reason);
+        p.setReason(reason != null && !reason.isBlank() ? reason.trim() : null);
         executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.failed orderId={} deliveryId={} reason={}", order != null ? order.getId() : null, delivery.getId(), reason);
+            log.info("EVENT delivery.failed orderId={} deliveryId={} code={}", order != null ? order.getId() : null, delivery.getId(), p.getMotif());
             sendDelivery("delivery.failed", p);
-            
+
             String clientName = order != null ? order.getClientName() : null;
+            // Backend message is a localized-FR FALLBACK only; the front renders a translated template
+            // from (motif, reason). Keep it human — no enum code, no debug text.
             String detail = p.getReason();
             String msg = (clientName != null ? clientName : "Client") + " — échouée"
                     + (detail != null ? " · " + detail : "");
@@ -808,6 +813,42 @@ public class EventPublisher {
                             + (orderRef != null ? orderRef : "order") + " — schedule re-delivery"
                             + (backorderBlNumber != null ? " (" + backorderBlNumber + ")" : ""))
                     .orderRef(orderRef).deliveryId(boId).clientName(client)
+                    .payload(persisted)
+                    .build());
+        });
+    }
+
+    /**
+     * Refused-defect re-delivery: the customer refused goods for a defect (damaged / wrong item /
+     * postponed) but still wants the product, so a replacement shipment was created. Emits a SINGLE
+     * clear notification (instead of a confusing failed + backorder pair) — the failed visit already
+     * has its own delivery.failed; this one is the "re-delivery scheduled" follow-up.
+     */
+    public void publishRedeliveryScheduled(Order order, UUID replacementDeliveryId) {
+        if (order == null) return;
+        final String orderRef = order.resolveRef();
+        final String client = order.getClientName();
+        final String rid = replacementDeliveryId != null ? replacementDeliveryId.toString() : null;
+        executeAfterCommitAsync(() -> {
+            log.info("EVENT delivery.redelivery_scheduled orderRef={} replacementDeliveryId={}", orderRef, rid);
+            Map<String, Object> p = new HashMap<>();
+            p.put("deliveryId", rid);
+            p.put("erpOrderId", orderRef);
+            p.put("clientName", client);
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                    .source("/delivery-service")
+                    .type("delivery.redelivery_scheduled")
+                    .data(p)
+                    .build();
+            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+            Map<String, Object> persisted = new HashMap<>();
+            persisted.put("erpOrderId", orderRef != null ? orderRef : "");
+            persisted.put("clientName", client != null ? client : "");
+            notificationGateway.record(Notification.builder()
+                    .eventType("delivery.redelivery_scheduled").severity("warning")
+                    .title("Re-livraison programmée")
+                    .message((client != null ? client + " — " : "") + "refusé (défaut) — re-livraison programmée")
+                    .orderRef(orderRef).deliveryId(rid).clientName(client)
                     .payload(persisted)
                     .build());
         });

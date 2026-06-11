@@ -1,88 +1,71 @@
 import { useEffect, useState, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '@/lib/api';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import { canManageSettings, getCurrentRole } from '@/lib/auth';
 import { AdminUser } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { formatDate } from '@/lib/date';
 import {
-  IconSettings, IconPlus, IconLock,
-  IconMail, IconUser, IconCheck, IconClock, IconX, IconShield,
-  IconCpu, IconRouter, IconShieldCheck, IconChevronRight, IconCommand,
+  IconPlus, IconLock, IconClock, IconShieldCheck, IconChevronRight,
   IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
-  IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle
+  IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle, IconRouter,
+  IconBuildingStore, IconDatabase, IconCheck, IconSettings,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { tw } from '@/lib/typography';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { SectionCard } from '@/components/ui/section-card';
+import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
-// ── Types & Constants ────────────────────────────────────────────────────────
+// ── Types ──────────────────────────────────────────────────────────────────
+type SettingSection = 'COMPANY' | 'SLA' | 'IAM';
 
-type SettingSection = 'GENERAL' | 'SLA' | 'IAM';
+// SLA threshold cards — each maps a settings key to its label/description/default + icon.
+const SLA_CARDS: { key: string; icon: typeof IconClock; def: string;
+  label: keyof TSettings; desc: keyof TSettings }[] = [
+  { key: 'ops.sla.assign-leadtime-minutes', icon: IconClock,        def: '120', label: 'waitingTime',     desc: 'waitingTimeDesc' },
+  { key: 'ops.sla.assign-limit-minutes',    icon: IconChevronRight,  def: '0',   label: 'assignmentDelay', desc: 'assignmentDelayDesc' },
+  { key: 'ops.sla.pickup-limit-minutes',    icon: IconRouter,        def: '0',   label: 'transitDelay',    desc: 'transitDelayDesc' },
+  { key: 'ops.sla.waiting-limit-minutes',   icon: IconHourglass,     def: '15',  label: 'waitingLimit',    desc: 'waitingLimitDesc' },
+  { key: 'ops.sla.at-risk-window-minutes',  icon: IconAlertTriangle, def: '30',  label: 'atRiskWindow',    desc: 'atRiskWindowDesc' },
+  { key: 'ops.sla.replan-grace-minutes',    icon: IconArrowBackUp,   def: '60',  label: 'replanGrace',     desc: 'replanGraceDesc' },
+];
+// Per-SLA recommendation copy key (shown in the edit modal).
+const SLA_REC: Record<string, keyof TSettings> = {
+  'ops.sla.assign-leadtime-minutes': 'waitingRec',
+  'ops.sla.assign-limit-minutes': 'assignmentRec',
+  'ops.sla.pickup-limit-minutes': 'pickupRec',
+  'ops.sla.waiting-limit-minutes': 'waitingLimitRec',
+  'ops.sla.at-risk-window-minutes': 'atRiskWindowRec',
+  'ops.sla.replan-grace-minutes': 'replanGraceRec',
+};
+type TSettings = Record<string, string>;
 
-// ── Sub-components ──────────────────────────────────────────────────────────
-
-function SurgicalSettingCard({ title, children, icon: Icon, description }: { title: string; children: React.ReactNode; icon?: any; description?: string }) {
-  return (
-    <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <div className="px-5 py-4 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
-        <div className="flex items-center justify-between">
-          <div className="flex flex-col gap-0.5">
-            <p className="text-[11px] font-semibold text-[var(--text-primary)]">{title}</p>
-            {description && <p className="text-[11px] font-semibold text-[var(--text-muted)]">{description}</p>}
-          </div>
-          {Icon && <Icon size={16} className="text-[var(--border)]" />}
-        </div>
-      </div>
-      <div className="p-5">{children}</div>
-    </div>
-  );
-}
-
-function TechParam({ label, description, value, unit, onEdit, disabled }: { label: string; description?: string; value: string; unit: string; onEdit?: () => void; disabled?: boolean }) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-[var(--border)] last:border-0 group">
-      <div className="flex-1">
-        <p className="text-[11px] font-semibold text-[var(--text-primary)]">{label}</p>
-        {description && <p className="text-[10px] text-[var(--text-muted)] mt-0.5">{description}</p>}
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="flex items-center gap-1 px-2 py-1 rounded-md" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
-          <p className="text-[14px] font-black font-mono text-[var(--text-primary)]">{value}</p>
-          <p className="text-[11px] font-semibold text-[var(--text-muted)]">{unit}</p>
-        </div>
-        {!disabled && onEdit && (
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] opacity-0 group-hover:opacity-100 transition-all"
-            onClick={onEdit}
-          >
-            <IconSettings size={14} />
-          </button>
-        )}
-      </div>
-    </div>
-  );
-}
+const ROLE_TONE: Record<string, string> = {
+  ADMIN: 'var(--danger)', DISPATCHER: 'var(--brand)', MANAGER: 'var(--info)',
+};
 
 export default function SettingsPage() {
   const t = useT();
-  const locale = useLocaleStore(state => state.locale);
-  const [section, setSection] = useState<SettingSection>('GENERAL');
+  const navigate = useNavigate();
+  const sp = t.settingsPage as TSettings;
+  const [section, setSection] = useState<SettingSection>('COMPANY');
   const [role, setRole] = useState<'ADMIN' | 'DISPATCHER' | 'MANAGER' | 'UNKNOWN'>('UNKNOWN');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
   const [slaSettings, setSlaSettings] = useState<Record<string, string>>({});
-  const [loadingSla, setLoadingSla] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
 
-  // SLA Modal state
+  // SLA edit modal
   const [slaEditOpen, setSlaEditOpen] = useState(false);
-  const [editingSla, setEditingSla] = useState<{ key: string, label: string, value: string } | null>(null);
+  const [editingSla, setEditingSla] = useState<{ key: string; label: string; value: string } | null>(null);
   const [newSlaValue, setNewSlaValue] = useState('');
 
-  // Modal Form
+  // Add-user form
   const [formName, setFormName] = useState('');
   const [formEmail, setFormEmail] = useState('');
   const [formPassword, setFormPassword] = useState('');
@@ -90,7 +73,7 @@ export default function SettingsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [showAdminPass, setShowAdminPass] = useState(false);
 
-  // Edit User Modal state
+  // Edit-user form
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
   const [editName, setEditName] = useState('');
@@ -109,22 +92,18 @@ export default function SettingsPage() {
   }, []);
 
   const fetchSlaSettings = useCallback(async () => {
-    setLoadingSla(true);
     try {
       const res = await api.get('/api/admin/reports/settings');
       setSlaSettings(res.data);
     } catch { /* fail safe */ }
-    finally { setLoadingSla(false); }
   }, []);
 
   const fetchCompany = useCallback(async () => {
     try {
       const res = await api.get('/api/admin/companies/me');
       if (res.data) setCompany({
-        name: res.data.name,
-        supportEmail: res.data.supportEmail,
-        address: res.data.address,
-        primaryColor: res.data.primaryColor
+        name: res.data.name, supportEmail: res.data.supportEmail,
+        address: res.data.address, primaryColor: res.data.primaryColor,
       });
     } catch { /* fail safe */ }
   }, []);
@@ -136,10 +115,8 @@ export default function SettingsPage() {
       const res = await api.put('/api/admin/companies/me', company);
       showSuccessToast('successCompanyUpdated');
       if (res.data) setCompany({
-        name: res.data.name,
-        supportEmail: res.data.supportEmail,
-        address: res.data.address,
-        primaryColor: res.data.primaryColor
+        name: res.data.name, supportEmail: res.data.supportEmail,
+        address: res.data.address, primaryColor: res.data.primaryColor,
       });
     } catch (err) {
       showErrorToast(err, 'errorCompanyUpdateFailed');
@@ -153,10 +130,8 @@ export default function SettingsPage() {
     try {
       const res = await api.post('/api/admin/companies/me/sync-erp');
       if (res.data) setCompany({
-        name: res.data.name,
-        supportEmail: res.data.supportEmail,
-        address: res.data.address,
-        primaryColor: res.data.primaryColor
+        name: res.data.name, supportEmail: res.data.supportEmail,
+        address: res.data.address, primaryColor: res.data.primaryColor,
       });
       showSuccessToast('successCompanySynced');
     } catch (err) {
@@ -169,9 +144,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const r = getCurrentRole();
     setRole(r);
-    if (r === 'ADMIN') {
-      fetchAdminUsers();
-    }
+    if (r === 'ADMIN') fetchAdminUsers();
     fetchSlaSettings();
     fetchCompany();
   }, [fetchAdminUsers, fetchSlaSettings, fetchCompany]);
@@ -190,9 +163,7 @@ export default function SettingsPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await api.post('/api/admin/users', {
-        name: formName, email: formEmail, password: formPassword, role: formRole,
-      });
+      await api.post('/api/admin/users', { name: formName, email: formEmail, password: formPassword, role: formRole });
       showSuccessToast('successUserCreated');
       setAddOpen(false);
       setFormName(''); setFormEmail(''); setFormPassword('');
@@ -209,11 +180,7 @@ export default function SettingsPage() {
     if (!editingUser) return;
     setSubmitting(true);
     try {
-      await api.put(`/api/admin/users/${editingUser.id}`, {
-        name: editName,
-        email: editEmail,
-        role: editRole,
-      });
+      await api.put(`/api/admin/users/${editingUser.id}`, { name: editName, email: editEmail, role: editRole });
       showSuccessToast('successUserUpdated');
       setEditOpen(false);
       setEditingUser(null);
@@ -227,9 +194,7 @@ export default function SettingsPage() {
 
   const handleToggleStatus = async (user: AdminUser) => {
     try {
-      await api.patch(`/api/admin/users/${user.id}/status`, {
-        active: !user.active,
-      });
+      await api.patch(`/api/admin/users/${user.id}/status`, { active: !user.active });
       showSuccessToast('successUserUpdated');
       fetchAdminUsers();
     } catch (err: any) {
@@ -259,795 +224,438 @@ export default function SettingsPage() {
   const [mobileTab, setMobileTab] = useState<'nav' | 'content'>('content');
 
   const navSections = [
-    { id: 'GENERAL', label: t.settingsPage.generalConfig, icon: IconCommand },
-    { id: 'SLA', label: t.settingsPage.slaParameters, icon: IconClock },
-    { id: 'IAM', label: t.settingsPage.identitiesAccess, icon: IconShieldCheck },
+    { id: 'COMPANY', label: sp.companyBranding, icon: IconBuildingStore },
+    { id: 'SLA', label: sp.slaParameters, icon: IconClock },
+    { id: 'IAM', label: sp.identitiesAccess, icon: IconShieldCheck },
   ];
 
+  const sectionMeta: Record<SettingSection, { title: string; subtitle: string }> = {
+    COMPANY: { title: sp.companyBranding, subtitle: sp.companyBrandingDesc ?? '' },
+    SLA: { title: sp.slaagreement, subtitle: sp.slaDesc },
+    IAM: { title: sp.identitiesAccess, subtitle: sp.accessControl },
+  };
+
   return (
-    <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
-      {/* Mobile Tab Bar */}
+    <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col bg-[var(--app-bg)]">
+      {/* Mobile tab bar */}
       <div className="lg:hidden flex shrink-0 border-b border-[var(--border)] bg-[var(--surface)]">
-        {([['nav', t.settingsPage.tabSections], ['content', t.settingsPage.tabParameters]] as const).map(([tab, label]) => (
+        {([['nav', sp.tabSections], ['content', sp.tabParameters]] as const).map(([tab, label]) => (
           <button
             key={tab}
             onClick={() => setMobileTab(tab)}
-            className={`flex-1 h-10 text-[11px] font-semibold transition-colors ${
-              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]'
-            }`}
+            className={cn('flex-1 h-10 text-xs font-semibold transition-colors',
+              mobileTab === tab ? 'text-[var(--brand)] border-b-2 border-[var(--brand)]' : 'text-[var(--text-muted)]')}
           >
             {label}
           </button>
         ))}
       </div>
 
-      <div className="flex flex-1 gap-0" style={{ minHeight: 0, overflow: 'hidden' }}>
-        {/* ── Navigation Rail ────────────────── */}
-        <div className={`lg:w-[240px] border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col ${mobileTab === 'nav' ? 'flex w-full' : 'hidden lg:flex'}`}>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        {/* ── Navigation rail ── */}
+        <div className={cn('lg:w-[240px] border-r border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col',
+          mobileTab === 'nav' ? 'flex w-full' : 'hidden lg:flex')}>
           <div className="flex flex-col gap-1 p-3 flex-1">
-            {navSections.map(s => (
+            {navSections.map((s) => (
               <button
                 key={s.id}
                 type="button"
                 onClick={() => { setSection(s.id as SettingSection); setMobileTab('content'); }}
                 className={cn(
-                  "px-3 py-2 rounded-md transition-all flex items-center gap-3 group text-left text-[11px] font-[500] border",
+                  'px-3 py-2 rounded-md transition-all flex items-center gap-3 text-left text-sm border',
                   section === s.id
-                    ? "bg-[var(--hover-bg)] text-[var(--text-primary)] border-[var(--border)] font-[500]"
-                    : "hover:bg-[var(--hover-bg)]/50 border-transparent text-[var(--text-muted)] hover:border-[var(--border)]"
+                    ? 'bg-[var(--hover-bg)] text-[var(--text-primary)] border-[var(--border)] font-semibold'
+                    : 'border-transparent text-[var(--text-muted)] hover:bg-[var(--hover-bg)]/50 hover:border-[var(--border)]',
                 )}
               >
-                <s.icon
-                  size={16}
-                  className={cn(
-                    section === s.id ? "text-[var(--brand)]" : "text-[var(--text-muted)] group-hover:text-[var(--text-primary)]",
-                    "transition-colors"
-                  )}
-                />
-                <span className="text-[11px] font-bold tracking-tight">{s.label}</span>
+                <s.icon size={16} className={cn(section === s.id ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]')} />
+                <span>{s.label}</span>
               </button>
             ))}
+
+            {/* Link to the dedicated ERP integration page (not duplicated here). */}
+            <button
+              type="button"
+              onClick={() => navigate('/settings/erp')}
+              className="px-3 py-2 rounded-md transition-all flex items-center gap-3 text-left text-sm border border-transparent text-[var(--text-muted)] hover:bg-[var(--hover-bg)]/50 hover:border-[var(--border)]"
+            >
+              <IconDatabase size={16} className="text-[var(--text-muted)]" />
+              <span className="flex-1">{(t.sidebar.items as any).erpIntegration ?? 'Intégration ERP'}</span>
+              <IconChevronRight size={14} className="text-[var(--text-soft)]" />
+            </button>
           </div>
 
-          <div className="p-5 border-t border-[var(--border)]">
+          <div className="p-4 border-t border-[var(--border)]">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-md flex items-center justify-center border border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
+              <div className="w-8 h-8 rounded-md flex items-center justify-center border border-[var(--border)] bg-[var(--app-bg)]">
                 <IconFingerprint size={16} className="text-[var(--text-muted)]" />
               </div>
-              <p className="text-[10px] font-extrabold text-[var(--text-primary)]">{role}</p>
+              <p className="text-xs font-bold text-[var(--text-primary)]">{role}</p>
             </div>
           </div>
         </div>
 
-        {/* ── Main Config Slab ────────────────────────── */}
-        <div className={`flex-1 flex flex-col overflow-hidden min-w-0 ${mobileTab === 'content' ? 'flex' : 'hidden lg:flex'}`} style={{ background: 'var(--app-bg)' }}>
-          {/* Compact access bar (title removed) */}
-          {!canManage && (
-            <div className="flex items-center px-4 h-9 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-              <span className="text-[11px] font-semibold inline-flex items-center gap-1" style={{ color: '#B05A18', background: 'rgba(212,119,44,0.09)', borderColor: 'rgba(212,119,44,0.15)', border: '1px solid', borderRadius: 4, padding: '1px 8px' }}>
-                <IconLock size={11} />
-                {t.settingsPage.readOnlyMode}
-              </span>
-            </div>
-          )}
-
+        {/* ── Content ── */}
+        <div className={cn('flex-1 flex flex-col overflow-hidden min-w-0 bg-[var(--app-bg)]',
+          mobileTab === 'content' ? 'flex' : 'hidden lg:flex')}>
           <div className="overflow-y-auto flex-1 p-6">
-            <div className="max-w-[1000px] mx-auto flex flex-col gap-10">
-
-              {/* SECTION: GENERAL */}
-              {section === 'GENERAL' && (
-                <div className="flex flex-col gap-8 animate-fade-in">
-                  <SurgicalSettingCard title={t.settingsPage.coreService} icon={IconCommand} description={t.settingsPage.coreServiceDesc}>
-                    <div className="flex flex-col gap-6">
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.systemNotifications}</p>
-                          <p className="text-[10px] text-[var(--text-muted)]">{t.settingsPage.systemNotificationsDesc}</p>
-                        </div>
-                        <input type="checkbox" role="switch" defaultChecked className="w-9 h-5 rounded-full cursor-pointer accent-[var(--text-primary)]" />
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <div className="flex flex-col gap-1">
-                          <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.autoArchiving}</p>
-                          <p className="text-[10px] text-[var(--text-muted)]">{t.settingsPage.autoArchivingDesc}</p>
-                        </div>
-                        <input type="checkbox" role="switch" defaultChecked className="w-9 h-5 rounded-full cursor-pointer accent-[var(--text-primary)]" />
-                      </div>
-                    </div>
-                  </SurgicalSettingCard>
-
-                  <SurgicalSettingCard title={t.settingsPage.companyBranding} icon={IconFingerprint}>
-                    <div className="flex flex-col gap-6">
-                      <div className="grid grid-cols-2 gap-5">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.instanceName}</label>
-                          <input
-                            className="w-full h-9 px-3 text-sm rounded-md outline-none"
-                            style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                            value={company?.name ?? ''}
-                            onChange={(e) => setCompany(prev => prev ? { ...prev, name: e.target.value } : null)}
-                            disabled={!canManage || companySaving}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.supportContact}</label>
-                          <input
-                            className="w-full h-9 px-3 text-sm rounded-md outline-none"
-                            style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                            value={company?.supportEmail ?? ''}
-                            onChange={(e) => setCompany(prev => prev ? { ...prev, supportEmail: e.target.value } : null)}
-                            disabled={!canManage || companySaving}
-                          />
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-5">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.companyAddress}</label>
-                          <input
-                            className="w-full h-9 px-3 text-sm rounded-md outline-none"
-                            style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                            value={company?.address ?? ''}
-                            onChange={(e) => setCompany(prev => prev ? { ...prev, address: e.target.value } : null)}
-                            disabled={!canManage || companySaving}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.primaryColor}</label>
-                          <div className="flex gap-2 items-center">
-                            <input
-                              type="color"
-                              className="w-9 h-9 border-0 rounded-md cursor-pointer"
-                              value={company?.primaryColor ?? '#F08734'}
-                              onChange={(e) => setCompany(prev => prev ? { ...prev, primaryColor: e.target.value } : null)}
-                              disabled={!canManage || companySaving}
-                            />
-                            <input
-                              className="flex-1 h-9 px-3 text-sm rounded-md outline-none"
-                              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                              value={company?.primaryColor ?? '#F08734'}
-                              onChange={(e) => setCompany(prev => prev ? { ...prev, primaryColor: e.target.value } : null)}
-                              disabled={!canManage || companySaving}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      {canManage && (
-                        <div className="flex justify-between items-center pt-2 gap-2">
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={handleSyncCompanyFromErp}
-                            disabled={companySaving}
-                            className="rounded-md"
-                            title={t.settingsPage.syncFromErpHint}
-                          >
-                            {t.settingsPage.syncFromErp || 'Synchroniser depuis l\'ERP'}
-                          </Button>
-                          <Button
-                            size="sm"
-                            onClick={handleSaveCompany}
-                            disabled={companySaving}
-                            className="rounded-md"
-                          >
-                            {companySaving ? "Enregistrement..." : (t.settingsPage.saveConfig || "Enregistrer")}
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </SurgicalSettingCard>
+            <div className="max-w-[1000px] mx-auto">
+              {/* Header */}
+              <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-[var(--border)]">
+                <div>
+                  <h1 className={tw.pageTitle}>{sectionMeta[section].title}</h1>
+                  {sectionMeta[section].subtitle && <p className={cn(tw.subtitle, 'mt-0.5')}>{sectionMeta[section].subtitle}</p>}
                 </div>
+                {!canManage && (
+                  <Badge variant="outline" className="gap-1 text-[var(--warning)] border-[var(--warning)]/30 shrink-0">
+                    <IconLock size={12} /> {sp.readOnlyMode}
+                  </Badge>
+                )}
+              </div>
+
+              {/* SECTION: COMPANY */}
+              {section === 'COMPANY' && (
+                <SectionCard>
+                  <div className="flex flex-col gap-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FieldInput
+                        label={sp.instanceName}
+                        value={company?.name ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, name: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                      <FieldInput
+                        label={sp.supportContact}
+                        value={company?.supportEmail ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, supportEmail: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FieldInput
+                        label={sp.companyAddress}
+                        value={company?.address ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, address: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                      <div>
+                        <label className={cn(tw.label, 'block mb-1.5')}>{sp.primaryColor}</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="color"
+                            className="w-10 h-9 border border-[var(--border)] rounded-md cursor-pointer bg-[var(--app-bg)]"
+                            value={company?.primaryColor ?? '#F08734'}
+                            onChange={(e) => setCompany((p) => p ? { ...p, primaryColor: e.target.value } : null)}
+                            disabled={!canManage || companySaving}
+                          />
+                          <FieldInput
+                            wrapperClassName="flex-1"
+                            value={company?.primaryColor ?? '#F08734'}
+                            onChange={(e) => setCompany((p) => p ? { ...p, primaryColor: e.target.value } : null)}
+                            disabled={!canManage || companySaving}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {canManage && (
+                      <div className="flex justify-between items-center pt-1 gap-2">
+                        <Button size="sm" variant="outline" onClick={handleSyncCompanyFromErp} disabled={companySaving} title={sp.syncFromErpHint}>
+                          {sp.syncFromErp ?? "Synchroniser depuis l'ERP"}
+                        </Button>
+                        <Button size="sm" onClick={handleSaveCompany} disabled={companySaving}>
+                          {companySaving ? (sp.savingLabel ?? 'Enregistrement…') : (sp.saveConfig ?? 'Enregistrer')}
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </SectionCard>
               )}
 
               {/* SECTION: SLA */}
               {section === 'SLA' && (
-                <div className="flex flex-col gap-8 animate-fade-in">
-                  <div>
-                    <h2 className="text-[14px] font-bold text-[var(--text-primary)] mb-1">{t.settingsPage.slaagreement}</h2>
-                    <p className="text-[11px] text-[var(--text-muted)] mb-6">{t.settingsPage.slaDesc}</p>
-                  </div>
-
-                  {/* SLA Guide / Explainer */}
-                  <div className="rounded-lg p-5" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                <div className="flex flex-col gap-6">
+                  {/* Guide */}
+                  <SectionCard padding contentClassName="p-5">
                     <div className="flex items-center gap-2 mb-2">
                       <IconInfoCircle size={16} className="text-[var(--brand)]" />
-                      <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.slaGuideTitle}</p>
+                      <p className={tw.cardTitle}>{sp.slaGuideTitle}</p>
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mb-4">{t.settingsPage.slaGuideIntro}</p>
-
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed mb-4">{sp.slaGuideIntro}</p>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{t.settingsPage.slaGuidePhasesHeading}</p>
-                        <ul className="flex flex-col gap-1.5 text-[11px] leading-relaxed text-[var(--text-primary)]">
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhasePlanning}</span> — {t.settingsPage.slaPhasePlanningD}</li>
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseAssignment}</span> — {t.settingsPage.slaPhaseAssignmentD}</li>
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseDeparture}</span> — {t.settingsPage.slaPhaseDepartureD}</li>
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseDelivery}</span> — {t.settingsPage.slaPhaseDeliveryD}</li>
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseHandoff}</span> — {t.settingsPage.slaPhaseHandoffD}</li>
-                          <li><span className="font-semibold text-[var(--text-primary)]">{t.settingsPage.slaPhaseTerminal}</span> — {t.settingsPage.slaPhaseTerminalD}</li>
+                        <p className={cn(tw.labelSm, 'mb-2')}>{sp.slaGuidePhasesHeading}</p>
+                        <ul className="flex flex-col gap-1.5 text-xs leading-relaxed text-[var(--text-primary)]">
+                          {[['slaPhasePlanning', 'slaPhasePlanningD'], ['slaPhaseAssignment', 'slaPhaseAssignmentD'],
+                            ['slaPhaseDeparture', 'slaPhaseDepartureD'], ['slaPhaseDelivery', 'slaPhaseDeliveryD'],
+                            ['slaPhaseHandoff', 'slaPhaseHandoffD'], ['slaPhaseTerminal', 'slaPhaseTerminalD']].map(([k, d]) => (
+                            <li key={k}><span className="font-semibold">{sp[k]}</span> — {sp[d]}</li>
+                          ))}
                         </ul>
                       </div>
                       <div>
-                        <p className="text-[10px] font-bold uppercase tracking-wide text-[var(--text-muted)] mb-2">{t.settingsPage.slaHealthHeading}</p>
-                        <ul className="flex flex-col gap-1.5 text-[11px] leading-relaxed text-[var(--text-primary)]">
-                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#16a34a' }} />{t.settingsPage.slaHealthOnTrack}</li>
-                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#d97706' }} />{t.settingsPage.slaHealthAtRisk}</li>
-                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#dc2626' }} />{t.settingsPage.slaHealthBreached}</li>
-                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#2563eb' }} />{t.settingsPage.slaHealthMet}</li>
-                          <li className="flex items-start gap-2"><span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: '#b45309' }} />{t.settingsPage.slaHealthLate}</li>
+                        <p className={cn(tw.labelSm, 'mb-2')}>{sp.slaHealthHeading}</p>
+                        <ul className="flex flex-col gap-1.5 text-xs leading-relaxed text-[var(--text-primary)]">
+                          {[['var(--success)', 'slaHealthOnTrack'], ['var(--warning)', 'slaHealthAtRisk'],
+                            ['var(--danger)', 'slaHealthBreached'], ['var(--info)', 'slaHealthMet'],
+                            ['var(--warning)', 'slaHealthLate']].map(([c, k]) => (
+                            <li key={k} className="flex items-start gap-2">
+                              <span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: c }} />{sp[k]}
+                            </li>
+                          ))}
                         </ul>
                       </div>
                     </div>
-                    <p className="text-[10px] text-[var(--text-muted)] leading-relaxed mt-4 pt-3" style={{ borderTop: '1px dashed var(--border)' }}>{t.settingsPage.slaGuideNote}</p>
-                  </div>
+                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-4 pt-3 border-t border-dashed border-[var(--border)]">{sp.slaGuideNote}</p>
+                  </SectionCard>
 
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {/* Waiting Time Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconClock size={16} className="text-[var(--brand)]" />
+                  {/* Threshold cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {SLA_CARDS.map((c) => (
+                      <div key={c.key} className="card p-5">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-8 h-8 rounded-md flex items-center justify-center bg-[var(--app-bg)]">
+                              <c.icon size={16} className="text-[var(--brand)]" />
+                            </div>
+                            <p className={tw.cardTitle}>{sp[c.label]}</p>
                           </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.waitingTime}</p>
-                          </div>
+                          {canManage && (
+                            <Button
+                              variant="ghost" size="sm"
+                              className="h-7 px-2 text-xs text-[var(--brand)]"
+                              onClick={() => {
+                                const v = slaSettings[c.key] ?? c.def;
+                                setEditingSla({ key: c.key, label: sp[c.label], value: v });
+                                setNewSlaValue(v);
+                                setSlaEditOpen(true);
+                              }}
+                            >
+                              <IconSettings size={13} /> {t.actions.edit}
+                            </Button>
+                          )}
                         </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.assign-leadtime-minutes', label: t.settingsPage.waitingTime, value: slaSettings['ops.sla.assign-leadtime-minutes'] || '0' });
-                              setNewSlaValue(slaSettings['ops.sla.assign-leadtime-minutes'] || '0');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.waitingTimeDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.assign-leadtime-minutes'] || '120'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
-
-                    {/* Assignment Delay Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconChevronRight size={16} className="text-[var(--brand)]" />
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.assignmentDelay}</p>
-                          </div>
+                        <p className="text-[11px] text-[var(--text-muted)] mb-4 leading-relaxed">{sp[c.desc]}</p>
+                        <div className="flex items-baseline gap-1">
+                          <p className="font-mono text-3xl font-semibold tabular-nums text-[var(--text-primary)]">{slaSettings[c.key] ?? c.def}</p>
+                          <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
                         </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.assign-limit-minutes', label: t.settingsPage.assignmentDelay, value: slaSettings['ops.sla.assign-limit-minutes'] || '0' });
-                              setNewSlaValue(slaSettings['ops.sla.assign-limit-minutes'] || '0');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
                       </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.assignmentDelayDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.assign-limit-minutes'] || '0'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
-
-                    {/* Transit Delay Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconRouter size={16} className="text-[var(--brand)]" />
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.transitDelay}</p>
-                          </div>
-                        </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.pickup-limit-minutes', label: t.settingsPage.transitDelay, value: slaSettings['ops.sla.pickup-limit-minutes'] || '0' });
-                              setNewSlaValue(slaSettings['ops.sla.pickup-limit-minutes'] || '0');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.transitDelayDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.pickup-limit-minutes'] || '0'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
-
-                    {/* Planning Wait Limit Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconHourglass size={16} className="text-[var(--brand)]" />
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.waitingLimit}</p>
-                          </div>
-                        </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.waiting-limit-minutes', label: t.settingsPage.waitingLimit, value: slaSettings['ops.sla.waiting-limit-minutes'] || '15' });
-                              setNewSlaValue(slaSettings['ops.sla.waiting-limit-minutes'] || '15');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.waitingLimitDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.waiting-limit-minutes'] || '15'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
-
-                    {/* At-Risk Warning Window Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconAlertTriangle size={16} className="text-[var(--brand)]" />
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.atRiskWindow}</p>
-                          </div>
-                        </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.at-risk-window-minutes', label: t.settingsPage.atRiskWindow, value: slaSettings['ops.sla.at-risk-window-minutes'] || '30' });
-                              setNewSlaValue(slaSettings['ops.sla.at-risk-window-minutes'] || '30');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.atRiskWindowDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.at-risk-window-minutes'] || '30'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
-
-                    {/* Replan Grace Period Card */}
-                    <div className="rounded-lg overflow-hidden p-5" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
-                            <IconArrowBackUp size={16} className="text-[var(--brand)]" />
-                          </div>
-                          <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.settingsPage.replanGrace}</p>
-                          </div>
-                        </div>
-                        {canManage && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setEditingSla({ key: 'ops.sla.replan-grace-minutes', label: t.settingsPage.replanGrace, value: slaSettings['ops.sla.replan-grace-minutes'] || '60' });
-                              setNewSlaValue(slaSettings['ops.sla.replan-grace-minutes'] || '60');
-                              setSlaEditOpen(true);
-                            }}
-                            className="text-[11px] font-semibold px-2 py-1 rounded-md text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                          >
-                            {t.actions.edit}
-                          </button>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-[var(--text-muted)] mb-4 leading-relaxed">{t.settingsPage.replanGraceDesc}</p>
-                      <div className="flex items-baseline gap-1">
-                        <p className="text-[28px] font-black text-[var(--text-primary)]">{slaSettings['ops.sla.replan-grace-minutes'] || '60'}</p>
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </div>
               )}
 
               {/* SECTION: IAM */}
               {section === 'IAM' && (
-                <div className="flex flex-col gap-6 animate-fade-in">
-                  <div className="flex items-center justify-between">
-                    <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.settingsPage.accessControl}</p>
+                <div className="flex flex-col gap-4">
+                  <div className="flex items-center justify-end">
                     {canManage && (
-                      <Button size="sm" onClick={() => setAddOpen(true)} className="rounded-md">
-                        <IconPlus size={14} className="mr-1" />
-                        {t.settingsPage.newUser}
+                      <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+                        <IconPlus size={15} /> {sp.newUser}
                       </Button>
                     )}
                   </div>
-
-                  <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-                    <table className="w-full border-collapse text-[11px]">
-                      <thead style={{ background: 'var(--app-bg)' }}>
-                        <tr>
-                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.actor}</th>
-                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.authorization}</th>
-                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.statusLabel}</th>
-                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-left">{t.settingsPage.creationDate}</th>
-                          <th className="text-[11px] font-semibold text-[var(--text-muted)] py-3 px-4 text-right">{t.settingsPage.actionsLabel}</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {adminUsers.map(u => (
-                          <tr key={u.id} className="border-t border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors">
-                            <td className="py-3 px-4">
-                              <p className="text-[11px] font-bold text-[var(--text-primary)]">{u.name}</p>
-                              <p className="text-[10px] text-[var(--text-muted)]">{u.email}</p>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
-                                style={{
-                                  color: u.role === 'ADMIN' ? '#A52B24' : u.role === 'DISPATCHER' ? '#4C56B8' : '#1A7A9A',
-                                  background: u.role === 'ADMIN' ? 'rgba(199,55,47,0.09)' : u.role === 'DISPATCHER' ? 'rgba(94,106,210,0.09)' : 'rgba(37,148,184,0.09)',
-                                  borderColor: u.role === 'ADMIN' ? 'rgba(199,55,47,0.15)' : u.role === 'DISPATCHER' ? 'rgba(94,106,210,0.15)' : 'rgba(37,148,184,0.15)',
-                                }}
-                              >
-                                <span
-                                  className="inline-block w-1 h-1 rounded-full"
-                                  style={{
-                                    background: u.role === 'ADMIN' ? '#A52B24' : u.role === 'DISPATCHER' ? '#4C56B8' : '#1A7A9A'
-                                  }}
-                                />
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)]">
+                          <TableHead className={tw.labelSm}>{sp.actor}</TableHead>
+                          <TableHead className={tw.labelSm}>{sp.authorization}</TableHead>
+                          <TableHead className={tw.labelSm}>{sp.statusLabel}</TableHead>
+                          <TableHead className={tw.labelSm}>{sp.creationDate}</TableHead>
+                          <TableHead className="text-end" />
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {adminUsers.map((u) => (
+                          <TableRow key={u.id}>
+                            <TableCell>
+                              <p className="text-sm font-semibold text-[var(--text-primary)]">{u.name}</p>
+                              <p className="text-xs text-[var(--text-muted)]">{u.email}</p>
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                    style={{ color: ROLE_TONE[u.role] ?? 'var(--text-muted)', background: `color-mix(in srgb, ${ROLE_TONE[u.role] ?? 'var(--text-soft)'} 12%, transparent)` }}>
+                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: ROLE_TONE[u.role] ?? 'var(--text-soft)' }} />
                                 {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
                               </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span
-                                className="text-[10px] font-semibold px-2 py-0.5 rounded-full inline-flex items-center gap-1.5"
-                                style={{
-                                  color: u.active ? '#2D8A5E' : '#A52B24',
-                                  background: u.active ? 'rgba(76,175,130,0.09)' : 'rgba(199,55,47,0.09)',
-                                }}
-                              >
-                                <span
-                                  className="inline-block w-1 h-1 rounded-full"
-                                  style={{
-                                    background: u.active ? '#4CAF82' : '#C7372F'
-                                  }}
-                                />
-                                {u.active ? (t.driversPage.statusActive || 'Active') : (t.driversPage.statusInactive || 'Inactive')}
+                            </TableCell>
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                                    style={{ color: u.active ? 'var(--success)' : 'var(--danger)', background: `color-mix(in srgb, ${u.active ? 'var(--success)' : 'var(--danger)'} 12%, transparent)` }}>
+                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: u.active ? 'var(--success)' : 'var(--danger)' }} />
+                                {u.active ? (t.driversPage.statusActive ?? 'Active') : (t.driversPage.statusInactive ?? 'Inactive')}
                               </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <p className="text-[11px] text-[var(--text-muted)]">{u.createdAt ? formatDate(u.createdAt) : '--/--/--'}</p>
-                            </td>
-                            <td className="py-2 px-4 text-right">
+                            </TableCell>
+                            <TableCell className="text-xs text-[var(--text-muted)]">{u.createdAt ? formatDate(u.createdAt) : '—'}</TableCell>
+                            <TableCell className="text-end">
                               {canManage && (
                                 <DropdownMenu>
                                   <DropdownMenuTrigger asChild>
-                                    <button
-                                      type="button"
-                                      className="w-7 h-7 inline-flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--text-primary)] transition-all shrink-0"
-                                    >
+                                    <button type="button" className="w-7 h-7 inline-flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--text-primary)] transition-all">
                                       <IconDotsVertical size={14} />
                                     </button>
                                   </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-sm p-1">
+                                  <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-md p-1">
                                     <DropdownMenuItem
-                                      onClick={() => {
-                                        setEditingUser(u);
-                                        setEditName(u.name);
-                                        setEditEmail(u.email);
-                                        setEditRole(u.role);
-                                        setEditOpen(true);
-                                      }}
-                                      className="text-[11px] font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                    >
-                                      <IconPencil size={13} className="text-[var(--text-muted)]" />
-                                      {t.driversPage.modifyButton || 'Edit'}
+                                      onClick={() => { setEditingUser(u); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role); setEditOpen(true); }}
+                                      className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                      <IconPencil size={13} /> {t.driversPage.modifyButton ?? 'Edit'}
                                     </DropdownMenuItem>
-
                                     <DropdownMenuItem
                                       onClick={() => handleToggleStatus(u)}
-                                      className={cn(
-                                        "text-[11px] font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5",
-                                        u.active
-                                          ? "text-red-600 hover:text-red-800 hover:bg-red-50/50"
-                                          : "text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50"
-                                      )}
-                                    >
-                                      {u.active ? (
-                                        <>
-                                          <IconBan size={13} className="text-red-500" />
-                                          {t.driversPage.suspendDriverButton || 'Suspend'}
-                                        </>
-                                      ) : (
-                                        <>
-                                          <IconCheck size={13} className="text-emerald-500" />
-                                          {t.driversPage.activateTooltip || 'Activate'}
-                                        </>
-                                      )}
+                                      className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                      style={{ color: u.active ? 'var(--danger)' : 'var(--success)' }}>
+                                      {u.active ? <><IconBan size={13} /> {t.driversPage.suspendDriverButton ?? 'Suspend'}</>
+                                                : <><IconCheck size={13} /> {t.driversPage.activateTooltip ?? 'Activate'}</>}
                                     </DropdownMenuItem>
-
                                     <DropdownMenuItem
                                       onClick={() => handleResetPassword(u)}
-                                      className="text-[11px] font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                    >
-                                      <IconLock size={13} className="text-amber-500" />
-                                      {t.settingsPage.resetPassword}
+                                      className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                      style={{ color: 'var(--warning)' }}>
+                                      <IconLock size={13} /> {sp.resetPassword}
                                     </DropdownMenuItem>
-
                                     {u.active && (
                                       <DropdownMenuItem
                                         onClick={() => handleForceLogout(u)}
-                                        className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                      >
-                                        <IconLogout size={13} className="text-red-500" />
-                                        {t.driversPage.forceLogoutButton || 'Force Logout'}
+                                        className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                        style={{ color: 'var(--danger)' }}>
+                                        <IconLogout size={13} /> {t.driversPage.forceLogoutButton ?? 'Force Logout'}
                                       </DropdownMenuItem>
                                     )}
                                   </DropdownMenuContent>
                                 </DropdownMenu>
                               )}
-                            </td>
-                          </tr>
+                            </TableCell>
+                          </TableRow>
                         ))}
-                      </tbody>
-                    </table>
+                      </TableBody>
+                    </Table>
                   </div>
                 </div>
               )}
-
             </div>
           </div>
         </div>
       </div>
 
-      {/* ── Add User Modal ─────────────────────────────────────── */}
+      {/* ── Add User Modal ── */}
       <AppModal
         open={addOpen && canManage}
         onClose={() => setAddOpen(false)}
-        title={t.settingsPage.iamGovernance}
+        title={sp.iamGovernance}
         size="sm"
         footer={
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setAddOpen(false)} disabled={submitting}>
-              {t.settingsPage.cancelButton}
-            </Button>
-            <Button size="sm" form="add-user-form" type="submit" disabled={submitting}>
-              {submitting && (
-                <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-              )}
-              {t.settingsPage.initializeAccess}
-            </Button>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setAddOpen(false)} disabled={submitting}>{sp.cancelButton}</Button>
+            <Button size="sm" form="add-user-form" type="submit" disabled={submitting}>{sp.initializeAccess}</Button>
           </div>
         }
       >
         <form id="add-user-form" onSubmit={handleAddUser} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.fullName}</label>
-            <input
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              placeholder={t.settingsPage.fullNameExample}
-              value={formName}
-              onChange={e => setFormName(e.currentTarget.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.loginEmail}</label>
-            <input
-              type="email"
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              placeholder={t.settingsPage.loginEmailExample}
-              value={formEmail}
-              onChange={e => setFormEmail(e.currentTarget.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.temporaryPassword}</label>
-            <div className="relative">
-              <input
-                type={showAdminPass ? 'text' : 'password'}
-                className="w-full h-9 px-3 pr-9 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                value={formPassword}
-                onChange={e => setFormPassword(e.currentTarget.value)}
-                required
-              />
-              <button
-                type="button"
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--text-primary)]"
-                onClick={() => setShowAdminPass(!showAdminPass)}
-              >
+          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} value={formName} onChange={(e) => setFormName(e.target.value)} required />
+          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} required />
+          <FieldInput
+            type={showAdminPass ? 'text' : 'password'}
+            label={sp.temporaryPassword}
+            value={formPassword}
+            onChange={(e) => setFormPassword(e.target.value)}
+            required
+            rightSection={
+              <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]" onClick={() => setShowAdminPass(!showAdminPass)}>
                 {showAdminPass ? <IconEyeOff size={14} /> : <IconEye size={14} />}
               </button>
-            </div>
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.profilePrivileges}</label>
-            <select
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              value={formRole}
-              onChange={e => setFormRole(e.currentTarget.value)}
-              disabled={submitting}
-            >
-              <option value="ADMIN">Admin</option>
-              <option value="DISPATCHER">Dispatcher</option>
-              <option value="MANAGER">Manager</option>
-            </select>
-          </div>
+            }
+          />
+          <FieldSelect
+            label={sp.profilePrivileges}
+            value={formRole}
+            onChange={(e) => setFormRole(e.target.value)}
+            disabled={submitting}
+            options={[{ value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' }, { value: 'MANAGER', label: 'Manager' }]}
+          />
         </form>
       </AppModal>
 
-      {/* ── Edit User Modal ────────────────────────────────────── */}
+      {/* ── Edit User Modal ── */}
       <AppModal
         open={editOpen && canManage}
         onClose={() => setEditOpen(false)}
-        title={t.settingsPage.modifyUserTitle || 'Edit User'}
+        title={sp.modifyUserTitle ?? 'Edit User'}
         size="sm"
         footer={
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setEditOpen(false)} disabled={submitting}>
-              {t.settingsPage.cancelButton}
-            </Button>
-            <Button size="sm" form="edit-user-form" type="submit" disabled={submitting}>
-              {submitting && (
-                <svg className="animate-spin h-3 w-3 mr-1" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
-                </svg>
-              )}
-              {t.settingsPage.updateAccess || 'Update Access'}
-            </Button>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setEditOpen(false)} disabled={submitting}>{sp.cancelButton}</Button>
+            <Button size="sm" form="edit-user-form" type="submit" disabled={submitting}>{sp.updateAccess ?? 'Update Access'}</Button>
           </div>
         }
       >
         <form id="edit-user-form" onSubmit={handleEditUser} className="flex flex-col gap-4">
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.fullName}</label>
-            <input
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              placeholder={t.settingsPage.fullNameExample}
-              value={editName}
-              onChange={e => setEditName(e.currentTarget.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.loginEmail}</label>
-            <input
-              type="email"
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              placeholder={t.settingsPage.loginEmailExample}
-              value={editEmail}
-              onChange={e => setEditEmail(e.currentTarget.value)}
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1">{t.settingsPage.profilePrivileges}</label>
-            <select
-              className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-              style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-              value={editRole}
-              onChange={e => setEditRole(e.currentTarget.value)}
-              disabled={submitting}
-            >
-              <option value="ADMIN">Admin</option>
-              <option value="DISPATCHER">Dispatcher</option>
-              <option value="MANAGER">Manager</option>
-            </select>
-          </div>
+          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} value={editName} onChange={(e) => setEditName(e.target.value)} required />
+          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required />
+          <FieldSelect
+            label={sp.profilePrivileges}
+            value={editRole}
+            onChange={(e) => setEditRole(e.target.value)}
+            disabled={submitting}
+            options={[{ value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' }, { value: 'MANAGER', label: 'Manager' }]}
+          />
         </form>
       </AppModal>
 
-      {/* ── Edit SLA Modal ─────────────────────────────────────── */}
+      {/* ── Edit SLA Modal ── */}
       <AppModal
         open={slaEditOpen}
         onClose={() => setSlaEditOpen(false)}
-        title={t.settingsPage.slaThresholdCert}
+        title={sp.slaThresholdCert}
         size="sm"
         footer={
-          <div className="flex gap-2">
-            <Button variant="ghost" size="sm" onClick={() => setSlaEditOpen(false)}>{t.settingsPage.cancelButton}</Button>
-            <Button size="sm" onClick={() => {
-              if (editingSla) updateSetting(editingSla.key, newSlaValue);
-              setSlaEditOpen(false);
-            }}>
-              {t.settingsPage.applyButton}
-            </Button>
+          <div className="flex gap-2 justify-end">
+            <Button variant="ghost" size="sm" onClick={() => setSlaEditOpen(false)}>{sp.cancelButton}</Button>
+            <Button size="sm" onClick={() => { if (editingSla) updateSetting(editingSla.key, newSlaValue); setSlaEditOpen(false); }}>{sp.applyButton}</Button>
           </div>
         }
       >
-        <div className="flex flex-col gap-6">
-          {/* Description Section */}
-          <div className="rounded-lg p-4" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.whatMeasure}</p>
-            <p className="text-[12px] text-[var(--text-primary)] leading-relaxed">
-              {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingTimeDesc}
-              {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentDelayDesc}
-              {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.transitDelayDesc}
-              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingLimitDesc}
-              {editingSla?.key === 'ops.sla.at-risk-window-minutes' && t.settingsPage.atRiskWindowDesc}
-              {editingSla?.key === 'ops.sla.replan-grace-minutes' && t.settingsPage.replanGraceDesc}
+        <div className="flex flex-col gap-5">
+          <div className="rounded-lg p-4 bg-[var(--app-bg)] border border-[var(--border)]">
+            <p className={cn(tw.label, 'mb-2')}>{sp.whatMeasure}</p>
+            <p className="text-sm text-[var(--text-primary)] leading-relaxed">
+              {editingSla && SLA_CARDS.find((c) => c.key === editingSla.key) && sp[SLA_CARDS.find((c) => c.key === editingSla.key)!.desc]}
             </p>
           </div>
 
-          {/* Current Value Section */}
           <div>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-3">{t.settingsPage.currentThreshold}</p>
-            <div className="flex items-baseline gap-2 px-4 py-3 rounded-md" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
-              <p className="text-[28px] font-black text-[var(--text-primary)]">{editingSla?.value}</p>
-              <p className="text-[12px] font-semibold text-[var(--text-muted)]">MIN</p>
+            <p className={cn(tw.label, 'mb-2')}>{sp.currentThreshold}</p>
+            <div className="flex items-baseline gap-2 px-4 py-3 rounded-md bg-[var(--app-bg)] border border-[var(--border)]">
+              <p className="font-mono text-3xl font-semibold tabular-nums text-[var(--text-primary)]">{editingSla?.value}</p>
+              <p className="text-xs font-semibold text-[var(--text-muted)]">MIN</p>
             </div>
           </div>
 
-          {/* Input Section */}
           <div>
-            <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.setNewThreshold}</label>
+            <label className={cn(tw.label, 'block mb-2')}>{sp.setNewThreshold}</label>
             <div className="flex gap-2">
-              <input
+              <FieldInput
                 type="number"
-                className="flex-1 h-12 px-3 text-[18px] font-black font-mono rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+                wrapperClassName="flex-1"
+                className="h-12 text-lg font-mono font-semibold"
                 value={newSlaValue}
-                onChange={(e) => setNewSlaValue(e.currentTarget.value)}
-                min="0"
+                onChange={(e) => setNewSlaValue(e.target.value)}
+                min={0}
                 placeholder="0"
               />
-              <div className="flex items-center px-3 rounded-md" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
-                <p className="text-[12px] font-semibold text-[var(--text-muted)]">MIN</p>
+              <div className="flex items-center px-3 rounded-md border border-[var(--border)] bg-[var(--app-bg)] h-12">
+                <p className="text-xs font-semibold text-[var(--text-muted)]">MIN</p>
               </div>
             </div>
-            <p className="text-[10px] text-[var(--text-muted)] mt-2">{t.settingsPage.slaBreachWarning}</p>
+            <p className="text-[11px] text-[var(--text-muted)] mt-2">{sp.slaBreachWarning}</p>
           </div>
 
-          {/* Recommendation Section */}
-          <div className="rounded-lg p-4" style={{ background: 'var(--app-bg)', border: '1px dashed var(--border)' }}>
-            <p className="text-[11px] font-semibold text-[var(--text-muted)] mb-2">{t.settingsPage.recommendation}</p>
-            <p className="text-[10px] text-[var(--text-muted)] leading-relaxed">
-              {editingSla?.key === 'ops.sla.assign-leadtime-minutes' && t.settingsPage.waitingRec}
-              {editingSla?.key === 'ops.sla.assign-limit-minutes' && t.settingsPage.assignmentRec}
-              {editingSla?.key === 'ops.sla.pickup-limit-minutes' && t.settingsPage.pickupRec}
-              {editingSla?.key === 'ops.sla.waiting-limit-minutes' && t.settingsPage.waitingLimitRec}
-              {editingSla?.key === 'ops.sla.at-risk-window-minutes' && t.settingsPage.atRiskWindowRec}
-              {editingSla?.key === 'ops.sla.replan-grace-minutes' && t.settingsPage.replanGraceRec}
+          <div className="rounded-lg p-4 bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
+            <p className={cn(tw.label, 'mb-2')}>{sp.recommendation}</p>
+            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+              {editingSla && SLA_REC[editingSla.key] && sp[SLA_REC[editingSla.key]]}
             </p>
           </div>
         </div>
