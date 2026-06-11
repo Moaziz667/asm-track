@@ -582,7 +582,7 @@ export default function DashboardPage() {
               defaultLayout: { w: 4, h: 8, x: 8, y: 4, minW: 3, minH: 6 },
               className: '',
               children: (
-                <div className="flex flex-col bg-[#FEF2F2] dark:bg-[#C7372F]/10 border border-[#C7372F]/30 rounded-[12px] h-full shadow-sm overflow-hidden relative">
+                <div className="flex flex-col bg-[#FEF2F2] dark:bg-[#C7372F]/10 border border-[#C7372F]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
                   <div className="absolute top-0 left-0 right-0 h-[3px] bg-[#C7372F]" />
                   <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
                     <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
@@ -605,7 +605,7 @@ export default function DashboardPage() {
                           <div
                             key={idx}
                             onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))}
-                            className="flex items-stretch rounded-[10px] border bg-[var(--surface)] hover:shadow-sm transition-all cursor-pointer overflow-hidden group"
+                            className="flex items-stretch rounded-lg border bg-[var(--surface)] hover:shadow-sm transition-all cursor-pointer overflow-hidden group"
                             style={{ borderColor: 'var(--border)' }}
                           >
                             <span className="w-[3px] shrink-0" style={{ background: accent }} />
@@ -655,7 +655,7 @@ export default function DashboardPage() {
                         key={path}
                         type="button"
                         onClick={() => navigate(path)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
                       >
                         <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
                         <span className="text-base font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
@@ -1079,7 +1079,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
 function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; muted?: boolean }) {
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2 py-0.5 rounded-[4px] border border-[var(--border)] bg-[var(--hover-bg)] leading-none select-none transition-all"
+      className="inline-flex items-center gap-1.5 text-[10.5px] font-bold px-2 py-0.5 rounded-sm border border-[var(--border)] bg-[var(--hover-bg)] leading-none select-none transition-all"
       style={{ color: muted ? 'var(--text-soft)' : 'var(--text-muted)' }}
     >
       {icon}

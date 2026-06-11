@@ -662,7 +662,7 @@ function DeliveriesPageContent() {
                                       {item.rescheduledAt && (
                                         <span
                                           title={t.deliveryPage.rescheduledTooltip}
-                                          className="text-[9px] font-bold px-1 py-0.5 rounded-[2px]"
+                                          className="text-[9px] font-bold px-1 py-0.5 rounded-xs"
                                           style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
                                         >
                                           {t.deliveryPage.rescheduledBadge}
@@ -686,7 +686,7 @@ function DeliveriesPageContent() {
                                 <div className="flex items-center gap-1.5 justify-center">
                                   {item.driverName ? (
                                     <>
-                                      <div className="size-5 rounded-[1px] bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
+                                      <div className="size-5 rounded-xs bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
                                         {item.driverName.charAt(0)}
                                       </div>
                                       <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
@@ -741,7 +741,7 @@ function DeliveriesPageContent() {
                                         <TooltipTrigger asChild>
                                           <button
                                             type="button"
-                                            className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                                            className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
                                             style={{ color: 'var(--brand)' }}
                                             onClick={(e) => { e.stopPropagation(); void openPinModal(item); }}
                                           >
@@ -758,7 +758,7 @@ function DeliveriesPageContent() {
                                         <TooltipTrigger asChild>
                                           <button
                                             type="button"
-                                            className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
+                                            className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
                                             style={{ color: 'var(--brand)' }}
                                             onClick={(e) => { e.stopPropagation(); window.open(`/api/admin/deliveries/${item.id}/bon-livraison`, '_blank'); }}
                                           >
@@ -773,7 +773,7 @@ function DeliveriesPageContent() {
                                     {item.routeName && (
                                       <button
                                         type="button"
-                                        className="h-7 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-[2px] flex items-center gap-2 hover:bg-[var(--hover-bg)] hover:border-[var(--border-strong)] transition-all text-[var(--text-primary)] font-[500]"
+                                        className="h-7 px-3 bg-[var(--surface)] border border-[var(--border)] rounded-xs flex items-center gap-2 hover:bg-[var(--hover-bg)] hover:border-[var(--border-strong)] transition-all text-[var(--text-primary)] font-[500]"
                                         onClick={(e) => { e.stopPropagation(); void openRoute(item); }}
                                       >
                                         <IconRoute size={12} />
@@ -788,7 +788,7 @@ function DeliveriesPageContent() {
                                   <TooltipTrigger asChild>
                                     <button
                                       type="button"
-                                      className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-red-300 hover:bg-red-50 transition-colors"
+                                      className="w-7 h-7 flex items-center justify-center rounded-xs border border-red-300 hover:bg-red-50 transition-colors"
                                       onClick={(e) => { e.stopPropagation(); setCancelTarget(item); setCancelReason(''); }}
                                     >
                                       <IconX size={16} className="text-[#EF4444]" />
@@ -801,7 +801,7 @@ function DeliveriesPageContent() {
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
-                                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-50"
+                                    className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-50"
                                     disabled={downloadingBl.has(item.rowId)}
                                     onClick={(e) => {
                                       e.stopPropagation();
@@ -817,7 +817,7 @@ function DeliveriesPageContent() {
                                 <TooltipTrigger asChild>
                                   <button
                                     type="button"
-                                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)] transition-colors"
+                                    className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)] transition-colors"
                                     onClick={(e) => {
                                       e.stopPropagation();
                                       const url = `${window.location.origin}/track/${item.rowId}`;
@@ -938,7 +938,7 @@ function DeliveriesPageContent() {
               />
               {reverseGeocoding && (
                 <div className="absolute inset-0 bg-white/40 backdrop-blur-sm flex items-center justify-center z-50">
-                  <div className="flex items-center gap-2 bg-[var(--surface)] px-6 py-2 rounded-[2px] shadow-xl border border-[var(--border)]">
+                  <div className="flex items-center gap-2 bg-[var(--surface)] px-6 py-2 rounded-xs shadow-xl border border-[var(--border)]">
                     <AppLoader size="sm" />
                     <span className="text-sm font-[500] text-[var(--text-primary)]">{t.deliveriesPage.analyzeInProgress}</span>
                   </div>
@@ -975,7 +975,7 @@ function DeliveriesPageContent() {
                   </button>
                   <button
                     type="button"
-                    className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[500] text-sm rounded-[2px] flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+                    className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[500] text-sm rounded-xs flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
                     onClick={confirmPin}
                     disabled={pinLat == null || pinSaving}
                   >

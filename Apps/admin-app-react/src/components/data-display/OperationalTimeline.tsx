@@ -295,7 +295,7 @@ export default function OperationalTimeline({ events, className }: OperationalTi
                   {actorName}
                 </span>
                 <span className={cn(
-                  'text-[8px] font-extrabold px-1.5 py-0.5 rounded-[3px] border uppercase scale-90 origin-left rtl:origin-right shrink-0',
+                  'text-[8px] font-extrabold px-1.5 py-0.5 rounded-xs border uppercase scale-90 origin-left rtl:origin-right shrink-0',
                   colorClasses
                 )}>
                   {t.actors[actorRole] || actorRole}

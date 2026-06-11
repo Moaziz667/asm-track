@@ -405,7 +405,7 @@ export function ReassignCommandOverlay({
                     {capacityInfo.over && (
                       <label className="flex items-center gap-3 cursor-pointer mt-3 p-2 rounded-md hover:bg-destructive/10 transition-colors group select-none">
                         <div className={cn(
-                          "w-5 h-5 rounded-[4px] border flex items-center justify-center transition-colors shadow-sm",
+                          "w-5 h-5 rounded-sm border flex items-center justify-center transition-colors shadow-sm",
                           acknowledgeWarnings ? "bg-destructive border-destructive text-destructive-foreground" : "border-destructive bg-background group-hover:border-destructive/80"
                         )}>
                           {acknowledgeWarnings && <IconCheck size={14} stroke={3} />}

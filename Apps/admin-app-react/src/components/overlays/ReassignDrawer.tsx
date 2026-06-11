@@ -488,7 +488,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               className="w-full text-left"
               style={{ opacity: dimmed ? 0.6 : 1 }}
             >
-              <div className="p-3 rounded-[4px] border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
+              <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ background: statusCfg.dot }} />
@@ -496,7 +496,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                       <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{driver.name}</span>
                         {dimmed && (
-                          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-[2px]" style={{ background: statusCfg.bg, color: statusCfg.text }}>
+                          <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-xs" style={{ background: statusCfg.bg, color: statusCfg.text }}>
                             {statusCfg.label}
                           </span>
                         )}
@@ -561,7 +561,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             {onlineWithoutRoute.length > 0 && (
               <>
                 <TierLabel label={t.reassignDrawer.onlineNoRoute} />
-                <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
+                <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-xs bg-[var(--app-bg)]">
                   {t.reassignDrawer.autoRouteCreated}
                 </p>
                 {onlineWithoutRoute.map(d => <DriverCard key={d.id} driver={d} />)}
@@ -594,7 +594,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 </button>
                 {offlineExpanded && offline.map(d => <DriverCard key={d.id} driver={d} dimmed />)}
                 {offlineExpanded && (
-                  <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
+                  <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-xs bg-[var(--app-bg)]">
                     {t.reassignDrawer.offlineWarning}
                   </p>
                 )}
@@ -653,7 +653,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                     onClick={() => selectRoute(route)}
                     className="w-full text-left"
                   >
-                    <div className="p-3 rounded-[4px] border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
+                    <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
                       <div className="flex items-start justify-between">
                         <div className="flex flex-col gap-1 flex-1 min-w-0">
                           <div className="flex items-center gap-2">
@@ -694,7 +694,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         <div className="flex flex-col gap-4 px-5 pb-4">
           {/* Delivery info recap */}
           {isBatch ? (
-            <div className="p-3 rounded-[4px] border border-[var(--border)] bg-transparent">
+            <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent">
               <div className="flex flex-col gap-1">
                 <span className="text-xs font-medium text-[var(--text-primary)]">
                   {allTargets.length} livraisons
@@ -713,7 +713,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               </div>
             </div>
           ) : (
-            <div className="p-3 rounded-[4px] border border-[var(--border)] bg-transparent">
+            <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent">
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0">

@@ -598,7 +598,7 @@ function ImportErpPageContent() {
                     type="button"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
+                    className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
                   >‹</button>
                   {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                     const pg = i + 1;
@@ -608,7 +608,7 @@ function ImportErpPageContent() {
                         type="button"
                         onClick={() => setCurrentPage(pg)}
                         className={cn(
-                          "w-7 h-7 flex items-center justify-center rounded-[2px] border text-2xs font-[500] transition-colors",
+                          "w-7 h-7 flex items-center justify-center rounded-xs border text-2xs font-[500] transition-colors",
                           currentPage === pg ? "border-[var(--border-strong)] bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
                         )}
                       >{pg}</button>
@@ -618,7 +618,7 @@ function ImportErpPageContent() {
                     type="button"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
+                    className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
                   >›</button>
                 </div>
               )}
@@ -651,7 +651,7 @@ function ImportErpPageContent() {
           ) : (
             <div className="flex flex-col gap-6">
               {/* Client info */}
-              <div className="p-4 rounded-[2px]" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+              <div className="p-4 rounded-xs" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.previewRefERP}</p>
@@ -680,7 +680,7 @@ function ImportErpPageContent() {
                   { label: t.importPage.metricsWeight, value: `${preview.totalWeightKg?.toFixed(2)} KG` },
                   { label: t.importPage.metricsTotal, value: money(preview.totalAmount || 0, preview.currency) },
                 ].map((stat, i) => (
-                  <div key={i} className="p-3 rounded-[2px] text-center" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                  <div key={i} className="p-3 rounded-xs text-center" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                     <p className="text-xs font-semibold text-[var(--text-muted)]">{stat.label}</p>
                     <p className="text-md font-bold font-mono text-[var(--text-primary)] mt-1">{stat.value}</p>
                   </div>
@@ -690,7 +690,7 @@ function ImportErpPageContent() {
               {/* Items list */}
               <div className="flex flex-col gap-2">
                 <p className="text-xs font-semibold text-[var(--text-primary)]">{t.importPage.itemsListTitle}</p>
-                <div className="rounded-[2px] overflow-hidden" style={{ border: '1px solid var(--border)' }}>
+                <div className="rounded-xs overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                   <table className="w-full border-collapse">
                     <thead style={{ background: 'var(--app-bg)' }}>
                       <tr>
@@ -722,7 +722,7 @@ function ImportErpPageContent() {
               {/* Action */}
               <div className="flex flex-col gap-3 mt-auto pt-4">
                 {preview.existingBackorderId && (
-                  <div className="p-3 rounded-[2px] flex items-center gap-2 bg-[#FEFCE8]" style={{ border: '1px solid #FEF08A' }}>
+                  <div className="p-3 rounded-xs flex items-center gap-2 bg-[#FEFCE8]" style={{ border: '1px solid #FEF08A' }}>
                     <IconAlertCircle size={14} className="text-[#A16207]" />
                     <p className="text-xs font-semibold text-[#A16207]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
                   </div>
@@ -730,7 +730,7 @@ function ImportErpPageContent() {
                 <button
                   type="button"
                   className={cn(
-                    "w-full h-12 flex items-center justify-center gap-2 font-[500] rounded-[2px] text-base border transition-all",
+                    "w-full h-12 flex items-center justify-center gap-2 font-[500] rounded-xs text-base border transition-all",
                     preview.alreadyImported
                       ? "bg-[#4CAF82] hover:opacity-90 text-white border-[#4CAF82]"
                       : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-sm"

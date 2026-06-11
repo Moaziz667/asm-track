@@ -196,7 +196,7 @@ export function StopRow({
         </span>
         {depotChipLabel && (
           <span
-            className="mt-0.5 inline-flex items-center gap-1 self-start rounded-[2px] px-1.5 py-0.5 text-2xs font-semibold"
+            className="mt-0.5 inline-flex items-center gap-1 self-start rounded-xs px-1.5 py-0.5 text-2xs font-semibold"
             style={{ color: PICKUP_COLOR, background: 'color-mix(in srgb, ' + PICKUP_COLOR + ' 10%, transparent)' }}
           >
             <IconBuildingWarehouse size={10} />

@@ -494,7 +494,7 @@ function RouteBuilderPageInner() {
                     >
                       <IconList size={13} />
                       <span>{t.routeBuilderPage.tabOrders}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-2xs font-bold ${
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
                         bottomTab === 'orders'
                           ? 'bg-[var(--brand-soft)] text-[var(--brand-orange)]'
                           : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
@@ -516,7 +516,7 @@ function RouteBuilderPageInner() {
                     >
                       <IconMapPlus size={13} className="shrink-0" />
                       <span>{t.routeBuilderPage.tabRoutes}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-2xs font-bold ${
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
                         bottomTab === 'routes'
                           ? 'bg-[var(--surface-2)] text-[var(--text-soft)]'
                           : 'bg-[var(--surface-2)] text-[var(--text-soft)]'

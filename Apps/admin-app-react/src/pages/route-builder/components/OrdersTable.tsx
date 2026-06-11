@@ -89,7 +89,7 @@ function DraggableOrderRow({
             <Tooltip>
               <TooltipTrigger asChild>
                 <span
-                  className="inline-flex items-center gap-1 shrink-0 rounded-[2px] px-1 py-0.5 text-[9px] font-bold cursor-help"
+                  className="inline-flex items-center gap-1 shrink-0 rounded-xs px-1 py-0.5 text-[9px] font-bold cursor-help"
                   style={{ color: '#B45309', background: 'rgba(217,119,6,0.12)' }}
                 >
                   <IconAlertTriangle size={10} />

@@ -158,7 +158,7 @@ export default function CompaniesPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-bold rounded-[2px] transition-colors text-white"
+              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-bold rounded-xs transition-colors text-white"
               style={{ background: 'var(--brand)' }}
             >
               <IconPlus size={14} />
@@ -167,7 +167,7 @@ export default function CompaniesPage() {
             <div className="relative">
               <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand)' }} />
               <input
-                className="w-full h-9 pl-9 pr-3 text-xs rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                className="w-full h-9 pl-9 pr-3 text-xs rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 placeholder="Rechercher..."
                 value={searchTerm}
@@ -178,7 +178,7 @@ export default function CompaniesPage() {
               type="button"
               onClick={fetchCompanies}
               disabled={loading}
-              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-semibold rounded-[2px] border hover:bg-[var(--hover-bg)] transition-colors"
+              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-semibold rounded-xs border hover:bg-[var(--hover-bg)] transition-colors"
               style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
             >
               <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
@@ -193,7 +193,7 @@ export default function CompaniesPage() {
                 { label: 'Total', value: stats.total, color: 'var(--text-primary)' },
                 { label: 'Actives', value: stats.active, color: '#10B981' },
               ].map(s => (
-                <div key={s.label} className="p-3 rounded-[2px] relative overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
+                <div key={s.label} className="p-3 rounded-xs relative overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                   <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: s.color }} />
                   <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
                   <p className="text-[20px] font-[600] font-mono" style={{ color: s.color }}>{s.value}</p>
@@ -279,7 +279,7 @@ export default function CompaniesPage() {
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn(
-                          'text-xs font-bold px-1.5 py-0.5 rounded-[2px]',
+                          'text-xs font-bold px-1.5 py-0.5 rounded-xs',
                           c.active ? 'text-teal-700 bg-teal-50 border border-teal-200' : 'text-red-600 bg-red-50 border border-red-200'
                         )}>
                           {c.active ? 'Active' : 'Inactive'}
@@ -345,7 +345,7 @@ export default function CompaniesPage() {
             <div>
               <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Nom de l'entreprise *</label>
               <input
-                className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 placeholder="Société XYZ"
                 value={form.name}
@@ -356,7 +356,7 @@ export default function CompaniesPage() {
             <div>
               <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Email support</label>
               <input
-                className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 placeholder="support@entreprise.com"
                 value={form.supportEmail}
@@ -367,7 +367,7 @@ export default function CompaniesPage() {
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Adresse</label>
             <input
-              className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+              className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               placeholder="123 Rue de la Livraison, Tunis"
               value={form.address}
@@ -381,7 +381,7 @@ export default function CompaniesPage() {
           <div>
             <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Type ERP</label>
             <select
-              className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+              className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
               value={form.erpType}
               onChange={(e) => setForm({ ...form, erpType: e.target.value })}
@@ -395,7 +395,7 @@ export default function CompaniesPage() {
               <div>
                 <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>URL API ERP</label>
                 <input
-                  className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                   style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                   placeholder="https://erp.entreprise.com"
                   value={form.erpApiUrl}
@@ -406,7 +406,7 @@ export default function CompaniesPage() {
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Base de données</label>
                   <input
-                    className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                    className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                     style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                     placeholder="nom_db"
                     value={form.erpDbName}
@@ -416,7 +416,7 @@ export default function CompaniesPage() {
                 <div>
                   <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Utilisateur ERP</label>
                   <input
-                    className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                    className="w-full h-9 px-3 text-sm rounded-xs outline-none focus:ring-1 focus:ring-[var(--brand)]"
                     style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                     placeholder="admin@entreprise.com"
                     value={form.erpUsername}

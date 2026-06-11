@@ -293,7 +293,7 @@ export default function AuditLogsPage() {
     setFilterTo('');
   };
 
-  const inputCls = "h-8 w-full px-2 text-xs rounded-[2px] border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]";
+  const inputCls = "h-8 w-full px-2 text-xs rounded-xs border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]";
   const labelCls = "block text-2xs font-[600] text-[var(--text-muted)] mb-1";
 
   // Group logs by date
@@ -413,12 +413,12 @@ export default function AuditLogsPage() {
                                 <div className="flex items-center gap-2 mb-1">
                                   <span className="text-xs font-[700] font-mono text-[var(--text-primary)]">{meta.label}</span>
                                   <span className="text-2xs font-[500] text-[var(--text-muted)]">{t.auditLogsPage.byActor} {log.actorName}</span>
-                                  <span className="text-[9px] font-[500] px-1.5 py-0.5 rounded-[2px] border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
+                                  <span className="text-[9px] font-[500] px-1.5 py-0.5 rounded-xs border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
                                 </div>
                                 <div className="flex items-center gap-4 mb-1">
                                   <span className="text-2xs font-[500] font-mono text-[var(--text-muted)]">{formatTime(log.createdAt, locale)}</span>
                                   {log.resourceId && (
-                                    <span className="text-[9px] font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-[2px]" style={{ background: 'var(--app-bg)' }}>
+                                    <span className="text-[9px] font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-xs" style={{ background: 'var(--app-bg)' }}>
                                       {log.resourceId.slice(0, 14)}
                                     </span>
                                   )}
@@ -444,7 +444,7 @@ export default function AuditLogsPage() {
                                   </div>
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
-                                    <span className="text-2xs font-[600] px-2 py-1 rounded-[2px] inline-block" style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}>
+                                    <span className="text-2xs font-[600] px-2 py-1 rounded-xs inline-block" style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}>
                                       {meta.label}
                                     </span>
                                   </div>
@@ -452,7 +452,7 @@ export default function AuditLogsPage() {
                                 {log.details && (
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
-                                    <div className="text-[9px] p-2 rounded-[2px] bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
+                                    <div className="text-[9px] p-2 rounded-xs bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
                                       {formatPayload(log.details, locale)}
                                     </div>
                                   </div>

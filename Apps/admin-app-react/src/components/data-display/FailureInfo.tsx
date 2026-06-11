@@ -28,7 +28,7 @@ export function FailureInfo({
   return (
     <span className={cn('inline-flex items-center gap-1.5 flex-wrap', className)}>
       {label && (
-        <span className={cn(badgeText, 'font-bold px-2 py-0.5 rounded-[3px] bg-red-50 text-red-700 border border-red-200 whitespace-nowrap')}>
+        <span className={cn(badgeText, 'font-bold px-2 py-0.5 rounded-xs bg-red-50 text-red-700 border border-red-200 whitespace-nowrap')}>
           {label}
         </span>
       )}

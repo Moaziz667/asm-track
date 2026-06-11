@@ -16,7 +16,7 @@ export function Toaster() {
       toastOptions={{
         classNames: {
           toast:
-            'group toast flex items-start gap-3 w-full rounded-[12px] border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] font-medium text-base pl-4 pr-10 py-3.5 shadow-md select-none transition-colors duration-150 relative',
+            'group toast flex items-start gap-3 w-full rounded-xl border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] font-medium text-base pl-4 pr-10 py-3.5 shadow-md select-none transition-colors duration-150 relative',
           description: 'text-[var(--text-muted)] font-normal text-sm mt-0.5',
           closeButton:
             '!absolute !left-auto !right-2 !top-3 !transform-none !bg-transparent hover:!bg-[var(--hover-bg)] !border-none !text-[var(--text-muted)] hover:!text-[var(--text-primary)] !transition-colors !rounded-full',
@@ -25,13 +25,13 @@ export function Toaster() {
           cancelButton:
             'bg-transparent hover:bg-black/5 dark:hover:bg-white/5 text-[var(--text-muted)] font-medium rounded-full h-7 px-3 text-sm transition-colors',
           error:
-            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--danger)] !rounded-[12px]',
+            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--danger)] !rounded-xl',
           success:
-            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--success)] !rounded-[12px]',
+            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--success)] !rounded-xl',
           warning:
-            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--warning)] !rounded-[12px]',
+            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--warning)] !rounded-xl',
           info:
-            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--info)] !rounded-[12px]',
+            '!bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !border-l-[4px] !border-l-[var(--info)] !rounded-xl',
         },
       }}
     />

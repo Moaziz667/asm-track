@@ -69,7 +69,7 @@ export default function ActivityTicker() {
                   onClick={() => navigate(dispatchDeskQueueLink({
                     orderRef: n.orderId, orderId: n.orderId, deliveryId: n.deliveryId,
                   }))}
-                  className="flex items-start gap-2.5 px-2 py-2 rounded-[8px] hover:bg-[var(--hover-bg)] transition-colors text-left"
+                  className="flex items-start gap-2.5 px-2 py-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors text-left"
                 >
                   <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                   <Icon size={14} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />

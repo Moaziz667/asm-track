@@ -10,6 +10,7 @@ const config: Config = {
         mono: ['"JetBrains Mono"', '"IBM Plex Mono"', "ui-monospace", "monospace"],
       },
       borderRadius: {
+        xs:  "2px",
         sm:  "4px",
         DEFAULT: "6px",
         md:  "6px",

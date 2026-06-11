@@ -232,7 +232,7 @@ export function TimelineGantt() {
                                 ? '0 0 0 1.5px var(--brand-orange)'
                                 : 'none',
                             }}
-                            className="rounded-[2px] flex items-center justify-center text-white text-[9px] font-bold font-mono cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis px-0.5 select-none"
+                            className="rounded-xs flex items-center justify-center text-white text-[9px] font-bold font-mono cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis px-0.5 select-none"
                           >
                             {w >= 22 ? String(stop.stopOrder ?? '').padStart(2, '0') : ''}
                           </div>

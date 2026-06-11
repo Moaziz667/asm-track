@@ -52,7 +52,7 @@ export function AppModal({
         showCloseButton={false}
         style={{ boxShadow: 'var(--shadow-lg)' }}
         className={cn(
-          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)] rounded-[16px]',
+          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)] rounded-2xl',
           'max-h-[90dvh]',
           SIZE[size],
           className,

@@ -168,7 +168,7 @@ export default function DeliveryDetailPage() {
                     />
                   )}
                   {isCancelled && (
-                    <span className="text-2xs font-medium px-2 py-1 rounded-[3px] bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>
+                    <span className="text-2xs font-medium px-2 py-1 rounded-xs bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>
                   )}
                 </div>
 
@@ -202,7 +202,7 @@ export default function DeliveryDetailPage() {
 
               <button
                 type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-[4px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
+                className="w-7 h-7 flex items-center justify-center rounded-sm border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
                 onClick={() => fetchAll(true)}
                 title={t.deliveryPage.refresh}
                 disabled={refreshing}
@@ -238,7 +238,7 @@ export default function DeliveryDetailPage() {
             {/* Failure motif already shown at the top (FailureInfo) + in the SLA timeline history;
                 only the cancellation notice stays here. */}
             {isCancelled && (delivery as any).cancelReason && (
-              <div className="px-3 py-2 rounded-[3px] border border-gray-200 bg-gray-50 flex items-start gap-2">
+              <div className="px-3 py-2 rounded-xs border border-gray-200 bg-gray-50 flex items-start gap-2">
                 <IconX size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
                 <span className="text-xs text-[var(--text-muted)]">{(delivery as any).cancelReason}</span>
               </div>
@@ -310,7 +310,7 @@ export default function DeliveryDetailPage() {
                       showErrorToast(null);
                     }
                   }}
-                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[4px]"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-sm"
                   style={{ background: 'var(--brand)', color: '#fff' }}
                 >
                   <IconFileText size={13} /> {t.deliveryPage.viewBL}
@@ -429,7 +429,7 @@ export default function DeliveryDetailPage() {
                 <div className="flex flex-wrap items-start gap-6">
                   {(pod.photoUrl || pod.photoBase64) ? (
                     <div
-                      className="overflow-hidden border border-[var(--border)] rounded-[4px] bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
+                      className="overflow-hidden border border-[var(--border)] rounded-sm bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
                       onClick={() => { setViewerTitle(t.deliveryPage.proofPhoto); setViewerImage(pod.photoUrl ?? `data:image/jpeg;base64,${pod.photoBase64}`); }}
                     >
                       <img
@@ -443,7 +443,7 @@ export default function DeliveryDetailPage() {
                   )}
                   {(pod.signatureUrl || pod.signatureBase64) ? (
                     <div
-                      className="overflow-hidden border border-[var(--border)] rounded-[4px] bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
+                      className="overflow-hidden border border-[var(--border)] rounded-sm bg-[var(--app-bg)] cursor-zoom-in hover:opacity-80 transition-opacity"
                       onClick={() => { setViewerTitle(t.deliveryPage.proofSignedBL); setViewerImage(pod.signatureUrl ?? `data:image/png;base64,${pod.signatureBase64}`); }}
                     >
                       <img
@@ -503,7 +503,7 @@ export default function DeliveryDetailPage() {
 function ProofPlaceholder({ icon, label }: { icon: React.ReactNode; label: string }) {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-2 rounded-[4px] border border-[var(--border)] border-dashed"
+      className="flex flex-col items-center justify-center gap-2 rounded-sm border border-[var(--border)] border-dashed"
       style={{ width: 160, height: 120 }}
     >
       <span className="text-[var(--text-muted)] opacity-40">{icon}</span>

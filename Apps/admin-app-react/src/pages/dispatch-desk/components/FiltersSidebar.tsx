@@ -91,7 +91,7 @@ export function FiltersSidebar() {
                     type="button"
                     onClick={() => setPeriod(v)}
                     className={cn(
-                      'px-3 py-1.5 text-xs font-medium rounded-[4px] transition-all cursor-pointer',
+                      'px-3 py-1.5 text-xs font-medium rounded-sm transition-all cursor-pointer',
                       period === v
                         ? 'bg-[var(--app-bg)] text-[var(--brand)] border border-[var(--brand)]'
                         : 'bg-transparent text-[var(--text-muted)] border border-transparent hover:bg-[var(--app-bg)]',
@@ -170,7 +170,7 @@ export function FiltersSidebar() {
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 h-9 rounded-[2px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] font-[500] text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+                className="flex-1 h-9 rounded-xs border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] font-[500] text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
                 onClick={doRefresh}
                 disabled={refreshing}
               >
@@ -178,7 +178,7 @@ export function FiltersSidebar() {
               </button>
               <button
                 type="button"
-                className="w-9 h-9 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--brand)] transition-colors"
+                className="w-9 h-9 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-muted)] hover:border-[var(--brand)] transition-colors"
                 onClick={clearFilters}
               >
                 <IconX size={14} stroke={2.5} />

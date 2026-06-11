@@ -209,7 +209,7 @@ export default function SystemHealthPage() {
           {/* ── Disconnected / stale strip ── */}
           {isStale && (
             <div
-              className="rounded-[12px] px-4 py-3 flex items-center gap-3 border"
+              className="rounded-xl px-4 py-3 flex items-center gap-3 border"
               style={{ background: `${TONE_COLOR.warn}12`, borderColor: `${TONE_COLOR.warn}40` }}
             >
               <IconWifiOff size={18} style={{ color: TONE_COLOR.warn }} />
@@ -222,7 +222,7 @@ export default function SystemHealthPage() {
 
           {/* ── Headline status banner ── */}
           <div
-            className="rounded-[14px] p-5 flex items-center gap-4 border"
+            className="rounded-xl p-5 flex items-center gap-4 border"
             style={{ background: `${TONE_COLOR[banner.tone]}12`, borderColor: `${TONE_COLOR[banner.tone]}40` }}
           >
             <BannerIcon size={34} style={{ color: TONE_COLOR[banner.tone] }} className={banner.tone === 'warn' ? 'animate-pulse' : ''} />
@@ -287,7 +287,7 @@ export default function SystemHealthPage() {
               </div>
               <div className="flex flex-col gap-2">
                 {erpSync.failures.map(f => (
-                  <div key={f.orderId} className="card p-4 rounded-[12px] border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-start justify-between gap-3">
+                  <div key={f.orderId} className="card p-4 rounded-xl border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <span className="text-base font-bold text-[var(--text-primary)] truncate">{f.blNumber || f.erpRef || f.orderId.slice(0, 8)}</span>
@@ -327,7 +327,7 @@ export default function SystemHealthPage() {
                 {groupServices(breakers, getFriendlyService).map(g => {
                   const s = g.reachableDown ? statusFor('OPEN') : statusFor(g.state);
                   return (
-                    <div key={g.label} className="card p-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
+                    <div key={g.label} className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-base font-bold text-[var(--text-primary)] truncate">{g.label}</span>
                         <StatusPill tone={s.tone} label={s.label} />
@@ -343,7 +343,7 @@ export default function SystemHealthPage() {
                 })}
                 {/* Database health card */}
                 {data?.db && (
-                  <div className="card p-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
+                  <div className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
                       <span className="text-base font-bold text-[var(--text-primary)] inline-flex items-center gap-1.5 truncate">
                         <IconDatabase size={14} className="text-[var(--text-muted)]" />
@@ -369,7 +369,7 @@ export default function SystemHealthPage() {
               <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.replaysTitle}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stuckQueues.map(([queue, depth]) => (
-                  <div key={queue} className="card p-4 rounded-[12px] border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-center justify-between gap-3">
+                  <div key={queue} className="card p-4 rounded-xl border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-base font-bold text-[var(--text-primary)] truncate">{getFriendlyQueue(queue)}</p>
                       <p className="text-xs text-[var(--text-muted)]">
@@ -518,7 +518,7 @@ function SummaryCard({ icon: Icon, label, value, tone, foot }: {
   icon: any; label: string; value: string; tone: Tone; foot: string;
 }) {
   return (
-    <div className="card p-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-1.5">
+    <div className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-1.5">
       <div className="flex items-center gap-2">
         <Icon size={16} style={{ color: TONE_COLOR[tone] }} />
         <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>

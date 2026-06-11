@@ -817,7 +817,7 @@ function DriversPageContent() {
                       <div className="space-y-6">
                         {/* Simple Header */}
                         <div className="flex items-center gap-4 pb-4 border-b border-[var(--border)]/60">
-                          <div className="h-12 w-12 rounded-[2px] border border-[var(--border)] bg-[var(--hover-bg)] flex items-center justify-center font-mono text-sm font-bold text-[var(--brand)] shrink-0 select-none">
+                          <div className="h-12 w-12 rounded-xs border border-[var(--border)] bg-[var(--hover-bg)] flex items-center justify-center font-mono text-sm font-bold text-[var(--brand)] shrink-0 select-none">
                             {selected.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                           </div>
                           <div className="flex-1 min-w-0">

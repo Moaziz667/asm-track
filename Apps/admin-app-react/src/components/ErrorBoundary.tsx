@@ -42,7 +42,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       const t = getCopy(useLocaleStore.getState().locale || 'fr');
       return (
-        <div className="flex flex-col items-center justify-center p-10 min-h-[400px] text-center bg-[var(--surface)] border border-[var(--border)] rounded-[2px] animate-fade-in max-w-[600px] mx-auto my-10">
+        <div className="flex flex-col items-center justify-center p-10 min-h-[400px] text-center bg-[var(--surface)] border border-[var(--border)] rounded-xs animate-fade-in max-w-[600px] mx-auto my-10">
           <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-50 text-red-600 mb-4 shadow-sm border border-red-100">
             <IconX size={24} />
           </div>
@@ -53,14 +53,14 @@ export class ErrorBoundary extends Component<Props, State> {
             {t.errorBoundary?.description}
           </p>
           {this.state.error && (
-            <div className="w-full text-left p-4 mb-6 rounded-[2px] border border-[var(--border)] bg-[var(--app-bg)] max-h-[150px] overflow-auto">
+            <div className="w-full text-left p-4 mb-6 rounded-xs border border-[var(--border)] bg-[var(--app-bg)] max-h-[150px] overflow-auto">
               <p className="text-2xs font-mono text-red-500 font-bold leading-tight">
                 {this.state.error.name}: {this.state.error.message}
               </p>
             </div>
           )}
           <div className="flex gap-2">
-            <Button size="sm" onClick={this.handleReset} className="rounded-[2px]">
+            <Button size="sm" onClick={this.handleReset} className="rounded-xs">
               {t.errorBoundary?.resetButton}
             </Button>
           </div>
