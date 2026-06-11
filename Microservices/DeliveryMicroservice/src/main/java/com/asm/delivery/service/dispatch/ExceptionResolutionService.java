@@ -294,10 +294,9 @@ public class ExceptionResolutionService {
 
                 deliveryRepo.save(delivery);
 
-                // V3.3 — Push the new commitment date to the ERP so Odoo's promised date matches ASM's
-                // (otherwise the two diverge after a replan). ODOO orders only; routed through the outbox.
-                if (rescheduled && delivery.getOrder() != null
-                                && delivery.getOrder().getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
+                // V3.3 — Push the new commitment date to the ERP so the promised date matches ASM's
+                // (otherwise the two diverge after a replan). Any ERP order; routed through the outbox.
+                if (rescheduled && delivery.getOrder() != null && delivery.getOrder().isFromErp()) {
                         delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
                         orderRepo.save(delivery.getOrder());
                         outboxProcessor.enqueue("ERP_SYNC_RESCHEDULE", Map.of(
@@ -435,7 +434,7 @@ public class ExceptionResolutionService {
         if (order != null) {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
-            if (syncToErp && order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
+            if (syncToErp && order.isFromErp()) {
                 // B4 — Carry the exact deliveryId being cancelled. An order can have several deliveries
                 // (multi-depot, backorder); the processor must cancel THIS shipment's picking, not an
                 // arbitrary first() one.

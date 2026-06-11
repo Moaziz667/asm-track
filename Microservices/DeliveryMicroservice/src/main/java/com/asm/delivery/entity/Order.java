@@ -133,6 +133,14 @@ public class Order {
         return rescheduledAt != null ? rescheduledAt : scheduledAt;
     }
 
+    /**
+     * Every order originates from an ERP (ODOO or DUX) — provider-agnostic gate for ERP sync, so a
+     * change of provider never needs new conditionals here.
+     */
+    public boolean isFromErp() {
+        return source != null;
+    }
+
     @Enumerated(EnumType.STRING)
     @Column(name = "priority", nullable = false, length = 10)
     @Builder.Default

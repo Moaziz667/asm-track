@@ -17,8 +17,16 @@ import java.util.Map;
  * asks Odoo for sale orders whose {@code write_date} is newer than the last cursor and forwards each to
  * ASM (which de-duplicates via write_date vs lastSyncedAt). Idempotent with the webhook — same payload,
  * same handler.
+ *
+ * <p><b>Pluggability note:</b> this fallback is Odoo-specific (it queries the {@code sale.order} model
+ * via {@link OdooJsonRpcClient}). The webhook channel (ErpWebhookController) is already
+ * provider-agnostic. When a second ERP (DUX) implements outbound changes, extract an
+ * {@code ErpChangePort} with per-provider pollers selected like {@code ErpSyncPort}. Until DUX is
+ * implemented this single Odoo poller is sufficient.
  */
 @Component
+@org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(
+        name = "erp.default-provider", havingValue = "odoo", matchIfMissing = true)
 @RequiredArgsConstructor
 @Slf4j
 public class ErpChangePoller {
