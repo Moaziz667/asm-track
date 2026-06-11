@@ -11,7 +11,8 @@ export function Toaster() {
       theme={colorScheme}
       position="bottom-left"
       closeButton
-      className="toaster group"
+      className="toaster group !z-[9999]"
+      style={{ zIndex: 99999 }}
       toastOptions={{
         classNames: {
           toast:
