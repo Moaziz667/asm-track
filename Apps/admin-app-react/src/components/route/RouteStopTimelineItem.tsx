@@ -2,7 +2,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { formatMoney } from '@/lib/utils';
-import { ChevronDown } from 'lucide-react';
+import { IconChevronDown } from '@tabler/icons-react';
 
 interface RouteStopTimelineItemProps {
   stopOrder: number;
@@ -54,7 +54,7 @@ export function RouteStopTimelineItem({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           <StatusBadge status={status} size="sm" />
-          <ChevronDown size={16} className={`text-[var(--text-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
+          <IconChevronDown size={16} className={`text-[var(--text-muted)] transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
         </div>
       </div>
 

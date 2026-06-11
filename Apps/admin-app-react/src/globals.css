@@ -155,14 +155,15 @@
         --text-primary:   #171A20; /* Carbon Dark */
         --text-secondary: #393C41; /* Graphite */
         --text-muted:     #5C5E62; /* Pewter */
-        --text-soft:      #8E8E8E; /* Silver Fog */
-        --text-faded:     #8E8E8E;
+        --text-soft:      #6B6E73; /* Silver Fog — darkened to meet WCAG AA (4.5:1) on white */
+        --text-faded:     #767880;
 
-        /* Status */
-        --success:    #16A34A;  --success-bg: #F4F4F4;
-        --warning:    #D97706;  --warning-bg: #F4F4F4;
-        --danger:     #DC2626;  --danger-bg:  #F4F4F4;
-        --info:       #3E6AE1;  --info-bg:    #F4F4F4;
+        /* Status — tinted backgrounds (derived from each hue) so a success/warning/danger badge is
+           distinguishable at a glance, not all the same neutral grey. */
+        --success:    #16A34A;  --success-bg: color-mix(in srgb, #16A34A 10%, #FFFFFF);
+        --warning:    #D97706;  --warning-bg: color-mix(in srgb, #D97706 10%, #FFFFFF);
+        --danger:     #DC2626;  --danger-bg:  color-mix(in srgb, #DC2626 10%, #FFFFFF);
+        --info:       #3E6AE1;  --info-bg:    color-mix(in srgb, #3E6AE1 10%, #FFFFFF);
 
         /* shadcn compatibility */
         --background:          var(--app-bg);
@@ -248,12 +249,12 @@
         --text-primary:   #F3F3F7;
         --text-secondary: #DEDEE3;
         --text-muted:     #A4A4AD;
-        --text-soft:      #72747E;
+        --text-soft:      #8A8C95; /* lifted for clearer AA contrast on dark surfaces */
 
-        --success:    #22C55E;  --success-bg: #121419;
-        --warning:    #F59E0B;  --warning-bg: #121419;
-        --danger:     #EF4444;  --danger-bg:  #121419;
-        --info:       #3E6AE1;  --info-bg:    #121419;
+        --success:    #22C55E;  --success-bg: color-mix(in srgb, #22C55E 18%, #121419);
+        --warning:    #F59E0B;  --warning-bg: color-mix(in srgb, #F59E0B 18%, #121419);
+        --danger:     #EF4444;  --danger-bg:  color-mix(in srgb, #EF4444 18%, #121419);
+        --info:       #3E6AE1;  --info-bg:    color-mix(in srgb, #3E6AE1 18%, #121419);
 
         --brand-orange-dark: #2B52C3;
         --brand-orange-soft: rgba(62, 106, 225, 0.15);
@@ -328,10 +329,10 @@
         --text-strong: var(--text-primary);
         --text:        var(--text-secondary);
         --hover-bg:    var(--hover-bg);
-        --success:    #22C55E;  --success-bg: #121419;
-        --warning:    #F59E0B;  --warning-bg: #121419;
-        --danger:     #EF4444;  --danger-bg:  #121419;
-        --info:       #3E6AE1;  --info-bg:    #121419;
+        --success:    #22C55E;  --success-bg: color-mix(in srgb, #22C55E 18%, #121419);
+        --warning:    #F59E0B;  --warning-bg: color-mix(in srgb, #F59E0B 18%, #121419);
+        --danger:     #EF4444;  --danger-bg:  color-mix(in srgb, #EF4444 18%, #121419);
+        --info:       #3E6AE1;  --info-bg:    color-mix(in srgb, #3E6AE1 18%, #121419);
       }
 
       /* ── Base ───────────────────────────────────────────────────────────────────── */
@@ -376,9 +377,11 @@
           @apply font-sans;
         }
 
-        /* Tesla Design System weight restraint: Only 400 and 500 weights */
-        strong, b, .font-semibold, .font-bold, h1, h2, h3, h4, h5, h6 {
-          font-weight: 500 !important;
+        /* Weight scale — sober (Tesla-like) but with a light hierarchy restored:
+           body 400 · emphasis/labels 500 · headings & strong 600. No !important so component-level
+           weights (e.g. shadcn) still win where intended. */
+        h1, h2, h3, h4, h5, h6, strong, b {
+          font-weight: 600;
         }
 
         /* Universal 0.33s cubic-bezier transitions for interactive state changes */
