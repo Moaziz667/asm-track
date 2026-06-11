@@ -1,6 +1,6 @@
 package com.asm.delivery.erp;
 
-import com.asm.delivery.erp.client.ErpAdapterClient;
+import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.service.EventPublisher;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +23,7 @@ import java.util.Set;
 public class ErpAutoImportNotifier {
 
     private final OrderRepository   orderRepository;
-    private final ErpAdapterClient  erpAdapterClient;
+    private final ErpPort           erpPort;
     private final EventPublisher    eventPublisher;
 
     private int lastKnownCount = 0;
@@ -33,7 +33,7 @@ public class ErpAutoImportNotifier {
         Set<String> alreadyImported = orderRepository.findAllErpOrderIds();
 
         try {
-            List<Map<String, Object>> pending = erpAdapterClient.getPendingOrders(200, "odoo");
+            List<Map<String, Object>> pending = erpPort.getPendingOrders(200);
 
             int newCount = (int) pending.stream()
                     .map(m -> String.valueOf(m.getOrDefault("name", "")))

@@ -64,8 +64,7 @@ public class ExceptionResolutionService {
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
     private final com.asm.delivery.service.HandoffService handoffService;
-    private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
-    private final com.asm.delivery.service.SlaMonitoringService slaMonitoringService;
+    private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private ExceptionResolutionService self;
 
@@ -286,16 +285,31 @@ public class ExceptionResolutionService {
                 // failedAt and failureCode are kept for historical reporting
 
                 // New commitment: SLAs must measure against this date, not the stale ERP one.
+                boolean rescheduled = false;
                 if (request.getScheduledAt() != null && delivery.getOrder() != null) {
                         delivery.getOrder().setRescheduledAt(request.getScheduledAt());
                         orderRepo.save(delivery.getOrder());
+                        rescheduled = true;
                 }
 
                 deliveryRepo.save(delivery);
 
-                // New lifecycle: free the SLA alert keys so the replanned delivery can re-alert
-                // against its new scheduled date (the dedup set is otherwise never cleared).
-                slaMonitoringService.clearDeliveryAlerts(delivery.getId());
+                // V3.3 — Push the new commitment date to the ERP so the promised date matches ASM's
+                // (otherwise the two diverge after a replan). Any ERP order; routed through the outbox.
+                if (rescheduled && delivery.getOrder() != null && delivery.getOrder().isFromErp()) {
+                        delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+                        orderRepo.save(delivery.getOrder());
+                        outboxProcessor.enqueue("ERP_SYNC_RESCHEDULE", Map.of(
+                                        "deliveryId", delivery.getId().toString(),
+                                        "orderId", delivery.getOrder().getId().toString(),
+                                        "scheduledAt", request.getScheduledAt().toString()));
+                }
+
+                // E2 — Re-baseline the unified SLA against the NEW scheduled date and hold the planning
+                // alarm for a grace window, so the replanned delivery is not re-flagged "as if newly
+                // imported". Replaces the legacy in-memory clearDeliveryAlerts dedup set.
+                slaStateService.refresh(delivery);
+                slaStateService.applyReplanGrace(delivery.getId());
 
                 ActorInfo actor = resolveActor(principal);
                 String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";
@@ -364,6 +378,16 @@ public class ExceptionResolutionService {
 
     @Transactional
     public void cancelDelivery(UUID deliveryId, String reason) {
+        cancelDelivery(deliveryId, reason, true);
+    }
+
+    /**
+     * @param syncToErp when false, do NOT push the cancellation back to the ERP. Used by the Odoo→ASM
+     *                  inbound reconciliation: Odoo already cancelled the order, so re-syncing would be
+     *                  a redundant round-trip / loop (V2 anti-loop).
+     */
+    @Transactional
+    public void cancelDelivery(UUID deliveryId, String reason, boolean syncToErp) {
         Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
                 .orElseThrow(() -> AppException.notFound("Delivery not found"));
 
@@ -410,8 +434,13 @@ public class ExceptionResolutionService {
         if (order != null) {
             order.setStatus(OrderStatus.CANCELLED);
             orderRepo.save(order);
-            if (order.getSource() == com.asm.delivery.entity.OrderSource.ODOO) {
-                outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
+            if (syncToErp && order.isFromErp()) {
+                // B4 — Carry the exact deliveryId being cancelled. An order can have several deliveries
+                // (multi-depot, backorder); the processor must cancel THIS shipment's picking, not an
+                // arbitrary first() one.
+                outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of(
+                        "orderId", order.getId().toString(),
+                        "deliveryId", delivery.getId().toString()));
             }
         }
     }
@@ -459,6 +488,16 @@ public class ExceptionResolutionService {
 		Order order = orderRepo.findById(orderId)
 				.orElseThrow(() -> AppException.notFound("Order not found: " + orderId));
 
+		// C4 — REFUSED ≠ backorder. A backorder re-delivers the *remainder*, which only makes sense
+		// for lines the customer still wants but didn't get (short-shipped / out of stock). A line the
+		// customer REFUSED at the door must NOT be re-delivered. If every undelivered unit on the order
+		// is refused (no genuine short-ship remains), we skip the backorder entirely — even though Odoo
+		// produced a backorder picking — and leave it for the dispatcher to handle as a return if needed.
+		if (!hasBackorderEligibleRemainder(order)) {
+			log.info("Skipping backorder for orderId={} — the undelivered remainder is entirely REFUSED (no short-ship to re-deliver)", orderId);
+			return null;
+		}
+
 		// The remainder ships from the same depot; items stay on the order (remaining = ordered − delivered).
 		Delivery backorder = Delivery.builder()
 				.order(order)
@@ -482,6 +521,47 @@ public class ExceptionResolutionService {
 		log.info("Backorder shipment created — orderId={} backorderDeliveryId={} odooBackorderId={} bl={}",
 				orderId, backorder.getId(), backorderPickingId, backorderBlNumber);
 		return backorder.getId();
+	}
+
+	/**
+	 * Reasons under which a REFUSED line still warrants a re-delivery: the customer wants the product,
+	 * just not THIS unit/timing (damaged, wrong item/size, postponed). A pure rejection ("don't want it
+	 * anymore", i.e. CLIENT_REJECTED or no reason) is NOT re-delivered.
+	 */
+	private static final java.util.Set<String> REDELIVERABLE_REFUSAL_REASONS =
+			java.util.Set.of("DAMAGED", "WRONG_ITEM", "POSTPONED");
+
+	/**
+	 * V1.4 / C4 — Returns true if the order has at least one undelivered line that should be re-delivered
+	 * (a backorder is warranted). A line qualifies when {@code quantityDone < quantity} AND it is not a
+	 * pure refusal:
+	 * <ul>
+	 *   <li>short-ship / out-of-stock (not refused)        → re-deliver;</li>
+	 *   <li>refused for a defect/timing (DAMAGED/WRONG_ITEM/POSTPONED) → re-deliver a good unit;</li>
+	 *   <li>refused outright (CLIENT_REJECTED or no reason) → do NOT re-deliver.</li>
+	 * </ul>
+	 * If no line qualifies, no backorder is created (even if Odoo produced a backorder picking).
+	 */
+	static boolean hasBackorderEligibleRemainder(Order order) {
+		if (order.getItems() == null || order.getItems().isEmpty()) {
+			// No line detail to reason about → keep the legacy behavior (allow the backorder).
+			return true;
+		}
+		for (OrderItem item : order.getItems()) {
+			if (item == null) continue;
+			int planned = item.getQuantity() != null ? item.getQuantity() : 0;
+			int done = item.getQuantityDone() != null ? item.getQuantityDone() : 0;
+			if (done >= planned) continue; // fully delivered → nothing to re-deliver
+
+			boolean refused = "REFUSED".equalsIgnoreCase(item.getOutcome());
+			boolean wantsReplacement = item.getReason() != null
+					&& REDELIVERABLE_REFUSAL_REASONS.contains(item.getReason().toUpperCase());
+			// Re-deliver unless it is a pure refusal (refused with no replacement-worthy reason).
+			if (!refused || wantsReplacement) {
+				return true;
+			}
+		}
+		return false;
 	}
     private Map<UUID, RouteInfo> loadRouteInfoMap(List<Delivery> deliveries) {
         List<UUID> deliveryIds = deliveries.stream()
@@ -569,25 +649,6 @@ public class ExceptionResolutionService {
         }
 
 
-        /**
-         * Generates a professional backorder reference.
-         * e.g. "S00001" → "S00001/BO", "S00001/BO" → "S00001/BO-2"
-         */
-        private String buildBackorderRef(String parentRef) {
-            if (parentRef == null || parentRef.isBlank()) return null;
-            // Already a backorder ref — increment the counter
-            if (parentRef.contains("/BO-")) {
-                int dashIdx = parentRef.lastIndexOf("-");
-                String base = parentRef.substring(0, dashIdx);
-                try {
-                    int n = Integer.parseInt(parentRef.substring(dashIdx + 1));
-                    return base + "-" + (n + 1);
-                } catch (NumberFormatException ignored) {}
-            }
-            if (parentRef.endsWith("/BO")) return parentRef + "-2";
-            return parentRef + "/BO";
-        }
-
         private String shortDeliveryId(UUID deliveryId) {
                 if (deliveryId == null) {
                         return "UNKNOWN";
@@ -616,7 +677,7 @@ public class ExceptionResolutionService {
 
         private void assertReplanAllowed(Delivery delivery) {
                 if (!REPLAN_ALLOWED_STATUSES.contains(delivery.getStatus())) {
-                        throw AppException.badRequest("Replan is allowed only for SCHEDULED, PICKED_UP, or FAILED deliveries");
+                        throw AppException.badRequest("Replan is allowed only for SCHEDULED, FAILED, or PARTIALLY_DELIVERED deliveries");
                 }
         }
 

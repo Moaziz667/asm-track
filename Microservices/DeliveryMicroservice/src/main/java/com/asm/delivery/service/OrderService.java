@@ -2,8 +2,6 @@ package com.asm.delivery.service;
 
 
 import com.asm.delivery.dto.canonical.CanonicalDelivery;
-import com.asm.delivery.dto.request.CreateOrderRequest;
-import com.asm.delivery.dto.response.CancellableResponse;
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.erp.ErpLookupService;
@@ -12,7 +10,6 @@ import com.asm.delivery.erp.ErpSyncService;
 import com.asm.delivery.repository.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,21 +42,6 @@ public class OrderService {
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
-    @Value("${app.origin.name:Main Warehouse}")
-    private String originName;
-    @Value("${app.origin.address:123 Logistics Street}")
-    private String originAddress;
-    @Value("${app.origin.city:Tunis}")
-    private String originCity;
-    @Value("${app.origin.postal-code:1000}")
-    private String originPostalCode;
-    @Value("${app.origin.country-code:TN}")
-    private String originCountryCode;
-
-    private static final List<OrderStatus> TERMINAL = List.of(OrderStatus.CANCELLED, OrderStatus.DELIVERED, OrderStatus.PARTIALLY_DELIVERED);
-
-    // ── Client REST entry point ───────────────────────────────────────────────
-
     /** Trigger async geocoding once the create transaction has committed (so the row is visible). */
     private void scheduleGeocode(UUID orderId) {
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
@@ -72,71 +54,7 @@ public class OrderService {
         }
     }
 
-    @Transactional
-    public OrderResponse createFromApp(CreateOrderRequest req, String clientId, String clientName, String clientPhone) {
-        // Build items and calculate totals
-        List<OrderItem> items = req.getItems() != null ? req.getItems() : List.of();
-        int totalQty = items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
-        BigDecimal totalWeight = items.stream()
-                .map(i -> {
-                    BigDecimal w = i.getUnitWeightKg() != null ? i.getUnitWeightKg() : BigDecimal.ZERO;
-                    int q = i.getQuantity() != null ? i.getQuantity() : 0;
-                    return w.multiply(BigDecimal.valueOf(q));
-                })
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        // Assign IDs to items that lack them
-        items.forEach(item -> {
-            if (!StringUtils.hasText(item.getId())) item.setId(UUID.randomUUID().toString());
-            if (item.getQuantityDone() == null) item.setQuantityDone(0);
-        });
-
-
-        Order order = Order.builder()
-            .source(OrderSource.APP)
-                .clientId(clientId)
-                .clientName(clientName)
-                .clientPhone(clientPhone)
-                .originName(originName)
-                .originAddress(originAddress)
-                .originCity(originCity)
-                .originPostalCode(originPostalCode)
-                .originCountryCode(originCountryCode)
-                .dropoffAddress(req.getDropoffAddress())
-                .dropoffCity(req.getDropoffCity())
-                .dropoffPostalCode(req.getDropoffPostalCode())
-                .dropoffCountryCode("TN")
-                .dropoffLat(req.getDropoffLat())
-                .dropoffLng(req.getDropoffLng())
-                .deliveryInstructions(req.getDeliveryInstructions())
-                .totalAmount(req.getTotalAmount())
-                .currency("TND")
-                .scheduledAt(parseDateTime(req.getScheduledAt()))
-                .priority(req.getPriority() != null ? req.getPriority() : OrderPriority.NORMAL)
-                .items(items)
-                .totalQuantity(totalQty)
-                .totalWeightKg(totalWeight)
-                .status(OrderStatus.PENDING)
-
-                .build();
-
-        order = orderRepo.save(order);
-
-        auditLogService.logAction(null, "APP_ORDER_CREATED", "DELIVERY", order.getId().toString(),
-            java.util.Map.of("client", clientName != null ? clientName : "N/A", "source", "Application", "action", "Nouvelle commande"));
-
-        Delivery delivery = createDeliveryTask(order, "SYSTEM", "DELIVERY_CREATED", Map.of());
-        eventPublisher.publishDeliveryCreated(order, delivery);
-        erpLookupService.invalidateCache();
-
-        // Auto-geocode + zone-detect the dropoff (same enrichment as ERP-imported orders).
-        // Runs after commit so the order row is visible to the async worker.
-        scheduleGeocode(order.getId());
-
-        return toOrderResponse(order, delivery);
-    }
-
-    // ── RabbitMQ / Odoo entry point ───────────────────────────────────────────
+    // ── ERP import entry point (RabbitMQ / Odoo) ──────────────────────────────
 
     @Transactional
     public void createFromCanonical(CanonicalDelivery canonical) {
@@ -175,79 +93,6 @@ public class OrderService {
     }
 
     // ── Query endpoints ───────────────────────────────────────────────────────
-
-    @Transactional(readOnly = true)
-    public List<OrderResponse> getOrdersByClient(String clientId) {
-        return orderRepo.findByClientIdOrderByCreatedAtDesc(clientId).stream()
-                .map(this::toOrderResponseWithDelivery)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public List<OrderResponse> getActiveOrdersByClient(String clientId) {
-        return orderRepo.findByClientIdAndStatusNotInOrderByCreatedAtDesc(clientId, TERMINAL).stream()
-                .map(this::toOrderResponseWithDelivery)
-                .collect(Collectors.toList());
-    }
-
-    @Transactional(readOnly = true)
-    public OrderResponse getOrderById(UUID orderId, String clientId) {
-        Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> AppException.notFound("Order not found"));
-
-        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
-            throw AppException.forbidden("Not your order");
-        }
-
-        return toOrderResponseWithDelivery(order);
-    }
-
-    // ── Cancel order ──────────────────────────────────────────────────────────
-
-    @Transactional
-    public void cancelOrder(UUID orderId, String clientId) {
-        Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> AppException.notFound("Order not found"));
-
-        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
-            throw AppException.forbidden("Not your order");
-        }
-
-        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
-                .orElse(null);
-
-        if (delivery != null) {
-            DeliveryStatus ds = delivery.getStatus();
-            if (ds == DeliveryStatus.PICKED_UP || ds == DeliveryStatus.IN_TRANSIT) {
-                throw AppException.forbidden("Cannot cancel order that is being delivered");
-            }
-            if (ds == DeliveryStatus.DELIVERED
-                    || ds == DeliveryStatus.PARTIALLY_DELIVERED
-                    || ds == DeliveryStatus.CANCELLED
-                    || ds == DeliveryStatus.FAILED) {
-                throw AppException.conflict("Order is already in terminal state");
-            }
-
-            // Release driver if assigned
-            if (ds == DeliveryStatus.SCHEDULED && delivery.getDriverId() != null) {
-                // driver will be released via event / workflow — for now just cancel
-            }
-
-            delivery.setStatus(DeliveryStatus.CANCELLED);
-            delivery.setCancelledAt(LocalDateTime.now());
-            delivery.setCancelledBy(Role.CLIENT);
-            delivery.setCancelReason("Cancelled by client");
-            deliveryRepo.save(delivery);
-
-            appendHistory(delivery, DeliveryStatus.CANCELLED, clientId, Role.CLIENT, "DELIVERY_CANCELLED_BY_CLIENT", Map.of("clientId", clientId));
-            eventPublisher.publishDeliveryCancelled(order, delivery, null);
-        }
-
-        order.setStatus(OrderStatus.CANCELLED);
-        orderRepo.save(order);
-
-        outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
-    }
 
     @Transactional
     public void adminCancelOrder(UUID orderId, UserPrincipal principal, String reason) {
@@ -311,73 +156,6 @@ public class OrderService {
         outboxProcessor.enqueue("ERP_SYNC_CANCELLATION", Map.of("orderId", order.getId().toString()));
     }
 
-    @Transactional(readOnly = true)
-    public CancellableResponse isCancellable(UUID orderId, String clientId) {
-        Order order = orderRepo.findById(orderId)
-                .orElseThrow(() -> AppException.notFound("Order not found"));
-
-        if (OrderSource.APP.equals(order.getSource()) && !clientId.equals(order.getClientId())) {
-            throw AppException.forbidden("Not your order");
-        }
-
-        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
-        if (delivery == null) {
-            return new CancellableResponse(order.getStatus() == OrderStatus.PENDING, null);
-        }
-
-        return switch (delivery.getStatus()) {
-            case UNSCHEDULED, SCHEDULED -> new CancellableResponse(true, null);
-            case PICKED_UP, IN_TRANSIT    -> new CancellableResponse(false, "Delivery is already in progress");
-            default -> new CancellableResponse(false, "Order is in terminal state");
-        };
-    }
-
-    // ── Reorder ───────────────────────────────────────────────────────────────
-
-    @Transactional
-    public OrderResponse reorder(UUID orderId, String clientId) {
-        Order original = orderRepo.findById(orderId)
-                .orElseThrow(() -> AppException.notFound("Order not found"));
-
-        if (OrderSource.APP.equals(original.getSource()) && !clientId.equals(original.getClientId())) {
-            throw AppException.forbidden("Not your order");
-        }
-
-        Order reorder = Order.builder()
-            .source(OrderSource.APP)
-                .clientId(original.getClientId())
-                .clientName(original.getClientName())
-                .clientPhone(original.getClientPhone())
-                .clientEmail(original.getClientEmail())
-                .originName(original.getOriginName())
-                .originAddress(original.getOriginAddress())
-                .originCity(original.getOriginCity())
-                .originPostalCode(original.getOriginPostalCode())
-                .originCountryCode(original.getOriginCountryCode())
-                .dropoffAddress(original.getDropoffAddress())
-                .dropoffCity(original.getDropoffCity())
-                .dropoffPostalCode(original.getDropoffPostalCode())
-                .dropoffCountryCode(original.getDropoffCountryCode())
-                .dropoffLat(original.getDropoffLat())
-                .dropoffLng(original.getDropoffLng())
-                .deliveryInstructions(original.getDeliveryInstructions())
-                .totalAmount(original.getTotalAmount())
-                .currency(original.getCurrency())
-                .priority(original.getPriority())
-                .items(original.getItems())
-                .totalQuantity(original.getTotalQuantity())
-                .totalWeightKg(original.getTotalWeightKg())
-                .status(OrderStatus.PENDING)
-
-                .build();
-
-        reorder = orderRepo.save(reorder);
-        Delivery delivery = createDeliveryTask(reorder, clientId, "DELIVERY_CREATED", Map.of("clientId", clientId, "reordered", true));
-        eventPublisher.publishDeliveryCreated(reorder, delivery);
-
-        return toOrderResponse(reorder, delivery);
-    }
-
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     private Delivery createDeliveryTask(Order order, String changedBy, String eventKey, Map<String, Object> params) {
@@ -406,11 +184,6 @@ public class OrderService {
                 .eventKey(eventKey)
                 .eventParams(jsonParams)
                 .build());
-    }
-
-    private OrderResponse toOrderResponseWithDelivery(Order order) {
-        Delivery delivery = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(order.getId()).orElse(null);
-        return toOrderResponse(order, delivery);
     }
 
     public OrderResponse toOrderResponse(Order order, Delivery delivery) {

@@ -162,13 +162,9 @@ public class DeliveryQueryService {
                     && delivery.getStatus() != DeliveryStatus.UNSCHEDULED) {
                 throw AppException.forbidden("Not your delivery");
             }
-        } else if ("CLIENT".equals(requesterRole)) {
-            Order order = delivery.getOrder();
-            if (OrderSource.APP.equals(order.getSource()) && !requesterId.equals(order.getClientId())) {
-                throw AppException.forbidden("Not your delivery");
-            }
         }
-        // DISPATCHER / ADMIN — no restriction
+        // DISPATCHER / ADMIN — no restriction. (Legacy CLIENT/APP self-service path removed: all
+        // orders are ERP-sourced now.)
     }
 
     public DeliveryResponse toDeliveryResponse(Delivery delivery, DriverDTO driver) {

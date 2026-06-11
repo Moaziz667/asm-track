@@ -253,34 +253,44 @@ public class DriverDeliveryService {
             }
         }
 
-        DeliveryStatus finalStatus = isPartial ? DeliveryStatus.PARTIALLY_DELIVERED : DeliveryStatus.DELIVERED;
+        // C3 — The final status is DERIVED from the line quantities now persisted on the order, not
+        // from the mobile `isPartial` flag (which can disagree with what the driver actually keyed):
+        //   nothing delivered  → FAILED  (a "partial" with 0 units is really a failed visit)
+        //   everything delivered → DELIVERED (a "partial" that covered every line is really complete)
+        //   some-but-not-all    → PARTIALLY_DELIVERED
+        // A full delivery (no partial items) is always DELIVERED. This keeps ASM and Odoo from ever
+        // recording an empty or already-complete "partial".
+        DeliveryStatus finalStatus = (isPartial && delivery.getOrder() != null)
+                ? deriveStatusFromQuantities(delivery.getOrder())
+                : DeliveryStatus.DELIVERED;
+        // C3 — Nothing was actually delivered: this is a failed visit, not a "partial". Delegate to
+        // fail() so the full failure path runs (failure code, driver release, ERP_SYNC_FAILURE) instead
+        // of pushing an empty partial picking to Odoo.
+        if (finalStatus == DeliveryStatus.FAILED) {
+            return fail(deliveryId, driverId, null, FailureCode.OTHER,
+                    "Aucun article livré (tournée marquée partielle sans quantité)", principal);
+        }
+
+        boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
-        // Mark the order as pending sync BEFORE saving and enqueueing.
-        // The Order default is "SYNCED", so without this the OutboxProcessor
-        // sees SYNCED and silently skips the event without ever calling Odoo.
-        if (delivery.getOrder() != null) {
-            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
-        }
         delivery = deliveryRepo.save(delivery);
 
-        // P1: Transactional Outbox Pattern
-        Map<String, Object> outboxPayload = new HashMap<>();
-        outboxPayload.put("deliveryId", deliveryId.toString());
-        outboxPayload.put("isPartial", isPartial);
-        if (isPartial && normalizedPartialItems != null) {
-            outboxPayload.put("partialItems", normalizedPartialItems);
-        }
-        outboxProcessor.enqueue("ERP_SYNC_STOCK", outboxPayload);
+        // P1: Transactional Outbox. enqueueErpStockSync atomically marks the order PENDING_SYNC and
+        // enqueues the event (B5), so we no longer reset the status by hand. `treatedAsPartial` is the
+        // SERVER-derived verdict (C3), not the raw mobile flag, so Odoo gets a full-delivery sync
+        // whenever every line was in fact delivered.
+        outboxProcessor.enqueueErpStockSync(deliveryId, treatedAsPartial,
+                treatedAsPartial ? normalizedPartialItems : null);
 
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";
-        
+
         auditLogService.logAction(principal, "DRIVER_COMPLETE", "DELIVERY", delivery.getId().toString(),
             Map.of("driver", driverName, "client", clientName, "status", finalStatus.name(),
-                   "action", isPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED"));
+                   "action", treatedAsPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED"));
 
-        String eventKey = isPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED";
+        String eventKey = treatedAsPartial ? "DELIVERY_PARTIALLY_DELIVERED" : "DELIVERY_COMPLETED";
         appendHistory(delivery, finalStatus, driverId.toString(), Role.DRIVER, eventKey, Map.of("driverId", driverId.toString()));
         routeExecutionService.syncStopFromDelivery(delivery.getId(), finalStatus, delivery.getCompletedAt(), eventKey);
         // Recompute the terminal SLA verdict NOW the stop's completedAt is stamped — otherwise the
@@ -341,7 +351,12 @@ public class DriverDeliveryService {
             String resolvedSku = (matched != null && matched.getSku() != null && !matched.getSku().isBlank())
                     ? matched.getSku().trim()
                     : (matched != null && matched.getName() != null ? matched.getName().trim() : raw);
-            int qtyDone = Math.max(input.getQuantityDone() != null ? input.getQuantityDone() : 0, 0);
+            // C2 — Clamp to [0, orderedQty] right here, so the items forwarded to Odoo can never carry
+            // an over-delivery (e.g. 12 done on a line of 10). The same clamp is applied again in
+            // applyPartialQuantities for the persisted order lines; this one guards the ERP payload.
+            int rawDone = Math.max(input.getQuantityDone() != null ? input.getQuantityDone() : 0, 0);
+            int orderedQty = (matched != null && matched.getQuantity() != null) ? Math.max(matched.getQuantity(), 0) : rawDone;
+            int qtyDone = Math.min(rawDone, orderedQty);
 
             com.asm.delivery.dto.request.PartialDeliveryItem normalizedItem =
                     new com.asm.delivery.dto.request.PartialDeliveryItem(resolvedSku, qtyDone);
@@ -401,6 +416,37 @@ public class DriverDeliveryService {
                 item.setOutcome("REFUSED");
             }
         });
+    }
+
+    /**
+     * C3 — Derives the real terminal status from the order line quantities the driver keyed in,
+     * independently of the mobile {@code isPartial} flag (which can be wrong).
+     * <ul>
+     *   <li>no line delivered (every {@code quantityDone == 0}) → {@link DeliveryStatus#FAILED}</li>
+     *   <li>every line delivered in full ({@code quantityDone == quantity}) → {@link DeliveryStatus#DELIVERED}</li>
+     *   <li>anything in between → {@link DeliveryStatus#PARTIALLY_DELIVERED}</li>
+     * </ul>
+     * An order with no line items can't be reasoned about per-line, so we trust the partial intent
+     * and return {@code PARTIALLY_DELIVERED}.
+     */
+    private DeliveryStatus deriveStatusFromQuantities(Order order) {
+        if (order.getItems() == null || order.getItems().isEmpty()) {
+            return DeliveryStatus.PARTIALLY_DELIVERED;
+        }
+        int totalPlanned = 0;
+        int totalDone = 0;
+        boolean everyLineComplete = true;
+        for (OrderItem item : order.getItems()) {
+            if (item == null) continue;
+            int planned = item.getQuantity() != null ? Math.max(item.getQuantity(), 0) : 0;
+            int done = item.getQuantityDone() != null ? Math.max(item.getQuantityDone(), 0) : 0;
+            totalPlanned += planned;
+            totalDone += done;
+            if (done < planned) everyLineComplete = false;
+        }
+        if (totalDone == 0) return DeliveryStatus.FAILED;
+        if (everyLineComplete && totalDone >= totalPlanned) return DeliveryStatus.DELIVERED;
+        return DeliveryStatus.PARTIALLY_DELIVERED;
     }
 
     // ── Submit Proof of Delivery (POD) ────────────────────────────────────────
@@ -469,18 +515,26 @@ public class DriverDeliveryService {
             }
         });
 
-        // Push the proof of delivery to the ERP (signature/photos + metadata) via the outbox.
+        // C1 — Order matters in Odoo: the stock move (picking validation) must reach the ERP
+        // BEFORE the proof of delivery, otherwise the POD attaches to a picking that is not yet
+        // validated. The outbox processes events in insertion order, so we complete() first
+        // (which enqueues ERP_SYNC_STOCK) and enqueue ERP_SYNC_POD only afterwards.
+        DriverDeliveryResponse response = complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+
+        // C5 — The images already live in MinIO (uploaded post-commit above). The ERP event carries
+        // their stable MinIO URLs, not the raw base64: the adapter fetches the bytes and uploads them
+        // to Odoo. This keeps large binaries out of the outbox table and off the RabbitMQ frames.
         Map<String, Object> podPayload = new HashMap<>();
         podPayload.put("deliveryId", deliveryId.toString());
         podPayload.put("deliveredAt", LocalDateTime.now().toString());
         if (req.getComment() != null) podPayload.put("comment", req.getComment());
         if (req.getLat() != null) podPayload.put("lat", req.getLat());
         if (req.getLng() != null) podPayload.put("lng", req.getLng());
-        if (blBase64 != null) podPayload.put("blPhotoBase64", blBase64);
-        if (pkgBase64 != null) podPayload.put("packagePhotoBase64", pkgBase64);
+        if (bonLivraisonPhotoUrl != null) podPayload.put("bonLivraisonPhotoUrl", bonLivraisonPhotoUrl);
+        if (packagePhotoUrl != null) podPayload.put("packagePhotoUrl", packagePhotoUrl);
         outboxProcessor.enqueue("ERP_SYNC_POD", podPayload);
 
-        return complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+        return response;
     }
 
     private void validateGeofence(Delivery delivery, BigDecimal driverLat, BigDecimal driverLng) {
@@ -554,6 +608,11 @@ public class DriverDeliveryService {
         delivery.setFailedAt(LocalDateTime.now());
         delivery.setFailReason(storedReason);
         delivery.setFailureCode(failureCode);
+        // B5 — A failure is also pushed to the ERP, so the order must be PENDING_SYNC for the
+        // reconciliation sweep to recover it if the ERP result is ever lost.
+        if (delivery.getOrder() != null) {
+            delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+        }
         delivery = deliveryRepo.save(delivery);
 
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);

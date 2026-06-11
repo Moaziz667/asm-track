@@ -35,6 +35,41 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private volatile Integer deliveryFailedTagId;
 
+    /**
+     * Small HTTP client used only to fetch POD photo bytes from MinIO URLs (V1.1). Short timeouts:
+     * MinIO is on the local docker network. The adapter has no MinIO SDK/credentials — the objects are
+     * served over plain HTTP via MINIO_PUBLIC_URL.
+     */
+    private final org.springframework.web.client.RestClient podHttpClient = buildPodHttpClient();
+
+    /**
+     * MinIO is stored with its PUBLIC base URL (reachable from the browser, e.g. http://localhost:9000),
+     * but the adapter runs in another container where "localhost" is itself. These map the stored public
+     * base to the container-network base (e.g. http://minio:9000) so the fetch works inside Docker.
+     */
+    @org.springframework.beans.factory.annotation.Value("${minio.public-url:}")
+    private String minioPublicUrl;
+    @org.springframework.beans.factory.annotation.Value("${minio.internal-url:}")
+    private String minioInternalUrl;
+
+    /** Rewrites a public MinIO URL to the internal container URL when both are configured. */
+    private String internalMinioUrl(String url) {
+        if (url != null && minioPublicUrl != null && !minioPublicUrl.isBlank()
+                && minioInternalUrl != null && !minioInternalUrl.isBlank()
+                && url.startsWith(minioPublicUrl)) {
+            return minioInternalUrl + url.substring(minioPublicUrl.length());
+        }
+        return url;
+    }
+
+    private static org.springframework.web.client.RestClient buildPodHttpClient() {
+        org.springframework.http.client.SimpleClientHttpRequestFactory f =
+                new org.springframework.http.client.SimpleClientHttpRequestFactory();
+        f.setConnectTimeout(3000);
+        f.setReadTimeout(10000);
+        return org.springframework.web.client.RestClient.builder().requestFactory(f).build();
+    }
+
     /** Per-picking in-flight key so two pickings of the same sale order don't block each other. */
     private static String inFlightKey(String erpOrderId, String pickingRef) {
         return (pickingRef != null && !pickingRef.isBlank()) ? erpOrderId + "|" + pickingRef : erpOrderId;
@@ -96,6 +131,16 @@ public class OdooSyncAdapter implements ErpSyncPort {
             String key = inFlightKey(erpOrderId, pickingRef);
             if (!inFlight.add(key)) return false;
             try { return doSyncReturn(erpOrderId, items, reason); }
+            finally { inFlight.remove(key); }
+        });
+    }
+
+    @Override
+    public boolean syncReschedule(String erpOrderId, String scheduledAt, String transactionId, String pickingRef) {
+        return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
+            String key = inFlightKey(erpOrderId, pickingRef);
+            if (!inFlight.add(key)) return false;
+            try { return doSyncReschedule(erpOrderId, scheduledAt); }
             finally { inFlight.remove(key); }
         });
     }
@@ -187,7 +232,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
         if (erpId == null) return ErpPartialDeliveryResultDTO.builder().success(false).build();
 
         try {
-            confirmOrder(erpId);
+            confirmOrderIfNeeded(erpId);
             // Multi-depot: target the exact delivery note by BL number when provided,
             // otherwise fall back to the single-picking resolution (legacy behaviour).
             Map<String, Object> picking = (pickingRef != null && !pickingRef.isBlank())
@@ -282,6 +327,40 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
     }
 
+    /**
+     * V3.3 — Writes the new committed delivery date onto the Odoo sale order ({@code commitment_date})
+     * so the ERP's promised date matches the platform after a re-plan. Best-effort: also posts a chatter
+     * note. {@code scheduledAt} is ISO-8601 ("2026-06-11T08:00[:00]"); Odoo wants "YYYY-MM-DD HH:MM:SS".
+     */
+    private boolean doSyncReschedule(String erpOrderId, String scheduledAt) {
+        Integer erpId = resolveErpId(erpOrderId);
+        if (erpId == null) return false;
+        String odooDt = toOdooDateTime(scheduledAt);
+        if (odooDt != null) {
+            Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "write",
+                    List.of(List.of(erpId), Map.of("commitment_date", odooDt))));
+            if (resp != null && resp.containsKey("error")) {
+                log.warn("ERP sync failed — provider=odoo operation=syncReschedule erpId={} odooError={} retryable=true",
+                        erpId, resp.get("error"));
+                return false;
+            }
+        }
+        addNoteToSaleOrder(erpId, "<b>ASM Track — Replanification</b><br/>Nouvelle date de livraison : "
+                + (scheduledAt != null ? scheduledAt : "—"));
+        log.info("provider=odoo operation=syncReschedule erpId={} commitment_date={}", erpId, odooDt);
+        return true;
+    }
+
+    /** Converts ISO-8601 ("2026-06-11T08:00[:00]") to Odoo's "YYYY-MM-DD HH:MM:SS". Null-safe. */
+    private String toOdooDateTime(String iso) {
+        if (iso == null || iso.isBlank()) return null;
+        String s = iso.trim().replace('T', ' ');
+        int dot = s.indexOf('.');
+        if (dot > 0) s = s.substring(0, dot);          // strip fractional seconds
+        if (s.length() == 16) s = s + ":00";            // add seconds if "YYYY-MM-DD HH:MM"
+        return s;
+    }
+
     private boolean doSyncFailure(String erpOrderId, String failureCode, String comment) {
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) return false;
@@ -320,13 +399,34 @@ public class OdooSyncAdapter implements ErpSyncPort {
         if (erpId == null) return false;
         if (pod == null) pod = ErpPodDTO.builder().build();
 
-        // Attach the photos (best-effort, tolerant of missing/invalid base64).
-        createPodAttachment(erpId, pod.getBlPhotoBase64(), "bon-livraison.png");
-        createPodAttachment(erpId, pod.getPackagePhotoBase64(), "package.png");
+        // Attach the photos (best-effort). Prefer the MinIO URL (fetch bytes over HTTP); fall back to
+        // inline base64 for legacy events. Tolerant of missing/invalid sources.
+        createPodAttachment(erpId, resolvePhotoBase64(pod.getBonLivraisonPhotoUrl(), pod.getBlPhotoBase64()), "bon-livraison.png");
+        createPodAttachment(erpId, resolvePhotoBase64(pod.getPackagePhotoUrl(), pod.getPackagePhotoBase64()), "package.png");
 
         // Post the metadata note to the chatter.
         addNoteToSaleOrder(erpId, buildPodNote(pod));
         return true;
+    }
+
+    /**
+     * Resolves a POD photo to base64. Prefers the MinIO {@code url} (fetched over HTTP and base64-encoded);
+     * falls back to {@code legacyBase64} when no URL is given. Returns null if neither yields bytes — the
+     * caller then simply skips that attachment (POD note + the other photo still go through).
+     */
+    private String resolvePhotoBase64(String url, String legacyBase64) {
+        if (url != null && !url.isBlank()) {
+            try {
+                byte[] bytes = podHttpClient.get().uri(internalMinioUrl(url)).retrieve().body(byte[].class);
+                if (bytes != null && bytes.length > 0) {
+                    return java.util.Base64.getEncoder().encodeToString(bytes);
+                }
+                log.warn("provider=odoo operation=syncPod action=fetch_empty url={}", url);
+            } catch (Exception e) {
+                log.warn("provider=odoo operation=syncPod action=fetch_failed url={} reason={}", url, e.getMessage());
+            }
+        }
+        return legacyBase64;
     }
 
     private void createPodAttachment(Integer erpId, String base64, String name) {
@@ -365,16 +465,19 @@ public class OdooSyncAdapter implements ErpSyncPort {
         return true;
     }
 
+    @SuppressWarnings("unchecked")
     private void createReturnPicking(Integer erpId, List<ErpReturnItemDTO> items) {
-        // Locate the validated outgoing picking for this order.
-        Map<String, Object> picking = findSinglePicking(erpId);
+        // V1.2 — A return must be taken against the DONE outgoing picking (the goods that were actually
+        // delivered), NOT a pending one. findSinglePicking excludes 'done', so it could never find it.
+        Map<String, Object> picking = findDonePicking(erpId);
         if (picking == null) {
             log.info("provider=odoo operation=syncReturn erpId={} action=no_done_picking", erpId);
             return;
         }
         Integer pickingId = ((Number) picking.get("id")).intValue();
-        // Create the return-picking wizard bound to the source picking; Odoo computes the
-        // returnable move lines via default_get. We confirm with create_returns.
+
+        // Create the return-picking wizard bound to the source picking; Odoo pre-fills the returnable
+        // move lines (stock.return.picking.line) via default_get.
         Map<String, Object> ctx = Map.of("active_id", pickingId, "active_model", "stock.picking", "active_ids", List.of(pickingId));
         Map<String, Object> wizardResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "create",
                 List.of(Map.of("picking_id", pickingId)), Map.of("context", ctx)));
@@ -384,8 +487,111 @@ public class OdooSyncAdapter implements ErpSyncPort {
             log.info("provider=odoo operation=syncReturn erpId={} pickingId={} action=wizard_unavailable", erpId, pickingId);
             return;
         }
+
+        // V1.3 — Respect the RMA quantities per line instead of returning the whole picking, and route
+        // DAMAGED units to scrap. We read the wizard's pre-filled lines, match each to an RMA item by the
+        // product's default_code, set its return quantity, and zero out lines not in the RMA.
+        applyReturnQuantities(wizardId, items);
+
         rpc.callRpc(rpc.buildArgs("stock.return.picking", "create_returns", List.of(List.of(wizardId)), Map.of("context", ctx)));
-        log.info("provider=odoo operation=syncReturn erpId={} pickingId={} action=return_created", erpId, pickingId);
+        log.info("provider=odoo operation=syncReturn erpId={} pickingId={} wizardId={} action=return_created", erpId, pickingId, wizardId);
+
+        // DAMAGED units must not re-enter sellable stock: once the return picking is created and its
+        // goods are back, scrap the damaged quantities so they leave the on-hand inventory.
+        scrapDamagedReturnedItems(erpId, items);
+    }
+
+    /** Finds the most recent DONE outgoing picking for a sale order — the one a return is taken against. */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findDonePicking(Integer erpOrderId) {
+        // V3.1: throw on transport error so a timeout isn't mistaken for "no done picking to return".
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
+                List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "=", "done"))),
+                Map.of("fields", List.of("id", "state"), "limit", 1, "order", "id desc")));
+        List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
+        return (result != null && !result.isEmpty()) ? result.get(0) : null;
+    }
+
+    /**
+     * Sets the return quantity on each {@code stock.return.picking.line} from the RMA items (matched by
+     * the product's {@code default_code}). Lines not present in the RMA are set to 0 so only the
+     * customer's actual returned quantities are reversed — not the whole picking.
+     */
+    @SuppressWarnings("unchecked")
+    private void applyReturnQuantities(Integer wizardId, List<ErpReturnItemDTO> items) {
+        if (items == null || items.isEmpty()) return;
+        // Build sku -> qty from the RMA.
+        Map<String, Integer> skuToQty = new HashMap<>();
+        for (ErpReturnItemDTO it : items) {
+            if (it.getSku() != null && !it.getSku().isBlank() && it.getQuantity() != null) {
+                skuToQty.merge(it.getSku().trim(), it.getQuantity(), Integer::sum);
+            }
+        }
+        if (skuToQty.isEmpty()) return;
+
+        // Read the wizard's pre-filled return lines + their products.
+        Map<String, Object> linesResp = rpc.callRpc(rpc.buildArgs("stock.return.picking.line", "search_read",
+                List.of(List.of(List.of("wizard_id", "=", wizardId))),
+                Map.of("fields", List.of("id", "product_id", "quantity"))));
+        List<Map<String, Object>> lines = linesResp != null ? (List<Map<String, Object>>) linesResp.get("result") : null;
+        if (lines == null || lines.isEmpty()) {
+            log.info("provider=odoo operation=applyReturnQuantities wizardId={} action=no_lines", wizardId);
+            return;
+        }
+        // Resolve default_code for the products on these lines.
+        List<Integer> productIds = lines.stream().map(l -> asRelId(l.get("product_id")))
+                .filter(java.util.Objects::nonNull).distinct().collect(java.util.stream.Collectors.toList());
+        Map<Integer, String> pidToSku = new HashMap<>();
+        if (!productIds.isEmpty()) {
+            Map<String, Object> prodResp = rpc.callRpc(rpc.buildArgs("product.product", "search_read",
+                    List.of(List.of(List.of("id", "in", productIds))),
+                    Map.of("fields", List.of("id", "default_code"))));
+            List<Map<String, Object>> prods = prodResp != null ? (List<Map<String, Object>>) prodResp.get("result") : null;
+            if (prods != null) for (Map<String, Object> p : prods) {
+                Integer pid = asInt(p.get("id"));
+                Object dc = p.get("default_code");
+                if (pid != null && dc instanceof String s && !s.isBlank()) pidToSku.put(pid, s.trim());
+            }
+        }
+        // Write the RMA quantity onto each line (0 when not in the RMA).
+        for (Map<String, Object> line : lines) {
+            Integer pid = asRelId(line.get("product_id"));
+            String sku = pid != null ? pidToSku.get(pid) : null;
+            int qty = (sku != null && skuToQty.containsKey(sku)) ? skuToQty.get(sku) : 0;
+            rpc.callRpc(rpc.buildArgs("stock.return.picking.line", "write",
+                    List.of(List.of(line.get("id")), Map.of("quantity", qty))));
+        }
+        log.info("provider=odoo operation=applyReturnQuantities wizardId={} lines={} skuToQty={}", wizardId, lines.size(), skuToQty);
+    }
+
+    /**
+     * Scraps the DAMAGED returned units so they leave sellable inventory. Best-effort: creates a
+     * {@code stock.scrap} record per damaged line and validates it. Tolerant of Odoo config differences
+     * (the return note already records the damaged condition as the authoritative trace).
+     */
+    private void scrapDamagedReturnedItems(Integer erpId, List<ErpReturnItemDTO> items) {
+        if (items == null) return;
+        for (ErpReturnItemDTO it : items) {
+            if (it == null || !"DAMAGED".equalsIgnoreCase(it.getCondition())) continue;
+            if (it.getQuantity() == null || it.getQuantity() <= 0) continue;
+            Integer productId = resolveProductId(it.getSku(), it.getName());
+            if (productId == null) {
+                log.info("provider=odoo operation=scrapDamaged erpId={} sku={} action=skip reason=product_not_found", erpId, it.getSku());
+                continue;
+            }
+            try {
+                Map<String, Object> scrapResp = rpc.callRpc(rpc.buildArgs("stock.scrap", "create",
+                        List.of(Map.of("product_id", productId, "scrap_qty", it.getQuantity()))));
+                Integer scrapId = asInt(scrapResp != null ? scrapResp.get("result") : null);
+                if (scrapId != null) {
+                    rpc.callRpc(rpc.buildArgs("stock.scrap", "action_validate", List.of(List.of(scrapId))));
+                    log.info("provider=odoo operation=scrapDamaged erpId={} sku={} qty={} scrapId={} action=scrapped",
+                            erpId, it.getSku(), it.getQuantity(), scrapId);
+                }
+            } catch (Exception e) {
+                log.warn("provider=odoo operation=scrapDamaged erpId={} sku={} action=skip reason={}", erpId, it.getSku(), e.getMessage());
+            }
+        }
     }
 
     private String buildReturnNote(List<ErpReturnItemDTO> items, String reason) {
@@ -430,6 +636,18 @@ public class OdooSyncAdapter implements ErpSyncPort {
         rpc.callRpc(rpc.buildArgs("sale.order", "action_confirm", List.of(List.of(erpOrderId))));
     }
 
+    /**
+     * V4.1 — Confirm the sale order only when it is still a draft/sent quotation. Re-running
+     * action_confirm on an already-confirmed order is at best a no-op and at worst throws on some Odoo
+     * versions, so we read the state first.
+     */
+    private void confirmOrderIfNeeded(Integer erpOrderId) {
+        String state = readSaleOrderState(erpOrderId);
+        if ("draft".equalsIgnoreCase(state) || "sent".equalsIgnoreCase(state)) {
+            confirmOrder(erpOrderId);
+        }
+    }
+
     private boolean cancelSaleOrder(Integer erpOrderId) {
         // Odoo 19 auto-locks confirmed orders — unlock before cancelling.
         rpc.callRpc(rpc.buildArgs("sale.order", "action_unlock", List.of(List.of(erpOrderId))));
@@ -448,7 +666,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
 
     private boolean validateTransfer(Integer erpOrderId, Integer explicitPickingId) {
-        confirmOrder(erpOrderId);
+        confirmOrderIfNeeded(erpOrderId);
         Map<String, Object> picking = (explicitPickingId != null)
                 ? findPickingById(explicitPickingId)
                 : findSinglePicking(erpOrderId);
@@ -560,7 +778,8 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private boolean hasDonePicking(Integer erpOrderId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+        // V3.1: throw on transport error so we never report "no done picking" because of a timeout.
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
                 List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "=", "done"))),
                 Map.of("fields", List.of("id"), "limit", 1)));
         List<?> result = (List<?>) response.get("result");
@@ -690,8 +909,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
     private Map<String, Object> findSinglePicking(Integer erpOrderId) {
-        // order by id asc to always get the oldest pending picking — deterministic on backorder chains
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+        // order by id asc to always get the oldest pending picking — deterministic on backorder chains.
+        // V3.1: callRpcOrThrow so a transport timeout is a retryable error, not a false "no picking".
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
                 List.of(List.of(List.of("sale_id", "=", erpOrderId), List.of("state", "not in", List.of("done", "cancel")))), Map.of("fields", List.of("id", "state"), "limit", 1, "order", "id asc")));
         List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
         return (result != null && !result.isEmpty()) ? result.get(0) : null;

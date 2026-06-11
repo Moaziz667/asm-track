@@ -29,9 +29,6 @@ public class Rma {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(name = "company_id")
-    private UUID companyId;
-
     @Column(name = "delivery_id", nullable = false)
     private UUID deliveryId;
 
@@ -57,6 +54,18 @@ public class Rma {
 
     @Column(name = "resolution_note", columnDefinition = "TEXT")
     private String resolutionNote;
+
+    /**
+     * State of the reverse stock-move sync to the ERP. Null until the return is RESTOCKED, then
+     * PENDING_SYNC → SYNCED / SYNC_FAILED (set asynchronously by the ERP result consumer). Mirrors
+     * the order-level {@code odooSyncStatus} so a failed reverse move never hides behind RESTOCKED.
+     */
+    @Column(name = "erp_sync_status", length = 40)
+    private String erpSyncStatus;
+
+    /** Last ERP reverse-move error, for operator triage when {@code erpSyncStatus = SYNC_FAILED}. */
+    @Column(name = "erp_sync_error", columnDefinition = "TEXT")
+    private String erpSyncError;
 
     @OneToMany(mappedBy = "rma", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     @Builder.Default

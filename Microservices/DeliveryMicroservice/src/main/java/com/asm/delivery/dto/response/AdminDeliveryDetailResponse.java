@@ -50,7 +50,7 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Assigned driver phone")
     private String driverPhone;
 
-    @Schema(description = "Order source", example = "APP")
+    @Schema(description = "Order source", example = "ODOO")
     private OrderSource source;
 
     @Schema(description = "External ERP order id")

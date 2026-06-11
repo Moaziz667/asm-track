@@ -96,3 +96,17 @@ management:
       probes:
         enabled: true
       show-details: when_authorized
+
+# V2 — Odoo→ASM inbound sync (webhook + polling fallback)
+erp:
+  webhook:
+    secret: ${ERP_WEBHOOK_SECRET:}        # shared secret Odoo must send as X-Webhook-Secret
+  inbound:
+    poll:
+      enabled: ${ERP_INBOUND_POLL_ENABLED:true}
+      fixed-delay-ms: ${ERP_INBOUND_POLL_DELAY_MS:600000}   # 10 min safety net
+
+# POD photo fetch: map the public MinIO base (as stored on the URL) to the internal container base.
+minio:
+  public-url: ${MINIO_PUBLIC_URL:http://localhost:9000}
+  internal-url: ${MINIO_INTERNAL_URL:http://minio:9000}

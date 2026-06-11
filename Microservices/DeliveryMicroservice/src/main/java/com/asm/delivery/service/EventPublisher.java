@@ -746,6 +746,33 @@ public class EventPublisher {
     }
 
     /**
+     * V2 — Odoo changed an order whose delivery had already departed (PICKED_UP+). ASM kept the field
+     * reality and did NOT apply the change; this alert tells a dispatcher to resolve it manually
+     * (e.g. credit note, return) since the two systems intentionally diverge for this case.
+     */
+    public void publishErpConflict(Order order, UUID deliveryId, String changeType) {
+        if (order == null) return;
+        final String dId = deliveryId != null ? deliveryId.toString() : order.getId().toString();
+        final String erpId = order.getErpOrderId();
+        final String client = order.getClientName();
+        executeAfterCommitAsync(() -> {
+            log.warn("EVENT erp.conflict deliveryId={} erpOrderId={} changeType={}", dId, erpId, changeType);
+            DeliveryEventPayload p = DeliveryEventPayload.builder()
+                    .deliveryId(dId).erpOrderId(erpId).clientName(client).motif(changeType).build();
+            sendErp("erp.conflict", p);
+            notificationGateway.record(Notification.builder()
+                    .eventType("erp.conflict").severity("warning")
+                    .title("Conflit Odoo — livraison déjà partie")
+                    .message((client != null ? client + " — " : "") + "Commande " + (erpId != null ? erpId : dId)
+                            + " modifiée dans Odoo (" + (changeType != null ? changeType : "CHANGE")
+                            + ") alors que la livraison est déjà partie. À traiter manuellement.")
+                    .orderRef(erpId).deliveryId(dId).clientName(client)
+                    .payload(new HashMap<>(Map.of("changeType", changeType != null ? changeType : "CHANGE")))
+                    .build());
+        });
+    }
+
+    /**
      * A backorder shipment was created automatically (remaining items from a partial delivery).
      * Surfaces on the admin dashboard so a dispatcher can schedule the re-delivery.
      */

@@ -168,6 +168,7 @@ public class OutboxProcessor {
             case "ERP_SYNC_CANCELLATION" -> "CANCELLATION";
             case "ERP_SYNC_POD"          -> "POD";
             case "ERP_SYNC_RETURN"       -> "RETURN";
+            case "ERP_SYNC_RESCHEDULE"   -> "RESCHEDULE";
             default                      -> "SYNC";
         };
     }
@@ -201,6 +202,9 @@ public class OutboxProcessor {
             case "ERP_SYNC_RETURN":
                 processErpReturn(payload, transactionId);
                 break;
+            case "ERP_SYNC_RESCHEDULE":
+                processErpReschedule(payload, transactionId);
+                break;
             case "INCREMENT_DRIVER_STAT":
                 String driverId = (String) payload.get("driverId");
                 String stat = (String) payload.get("stat");
@@ -215,9 +219,19 @@ public class OutboxProcessor {
         UUID orderId = UUID.fromString((String) payload.get("orderId"));
         // MUST use join-fetch variant: Order fields (erpOrderId, etc.) are accessed
         // by ErpSyncService outside a Hibernate session → LazyInitializationException otherwise.
-        Delivery delivery = deliveryRepo.findAllByOrderIdWithOrder(orderId).stream().findFirst().orElse(null);
+        Delivery delivery;
+        // B4 — Prefer the exact delivery that was cancelled; an order can have several deliveries and
+        // each maps to its own Odoo picking. Fall back to the first delivery only for legacy events
+        // enqueued before deliveryId was carried.
+        Object deliveryIdRaw = payload.get("deliveryId");
+        if (deliveryIdRaw != null) {
+            delivery = deliveryRepo.findByIdWithOrder(UUID.fromString((String) deliveryIdRaw)).orElse(null);
+        } else {
+            delivery = deliveryRepo.findAllByOrderIdWithOrder(orderId).stream().findFirst().orElse(null);
+        }
         if (delivery == null || delivery.getOrder() == null) {
-            log.warn("ERP_SYNC_CANCELLATION: no delivery/order found for orderId={}, skipping", orderId);
+            log.warn("ERP_SYNC_CANCELLATION: no delivery/order found for orderId={} deliveryId={}, skipping",
+                    orderId, deliveryIdRaw);
             return;
         }
         erpSyncService.syncOrderCancellation(delivery, txId);
@@ -229,16 +243,11 @@ public class OutboxProcessor {
                 .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
         
         if (delivery.getOrder() == null) return;
-        
-        // Guard: skip only if a previous successful sync already moved it to SYNCED.
-        // If it is still the default "SYNCED" (never set to PENDING_SYNC before enqueue),
-        // that means the enqueue site forgot to reset the status — warn and proceed anyway.
-        String syncStatus = delivery.getOrder().getOdooSyncStatus();
-        if ("SYNCED".equals(syncStatus)) {
-            log.warn("processErpSync: order {} is SYNCED — was odooSyncStatus reset to PENDING_SYNC before enqueue? Proceeding anyway to ensure Odoo consistency.", delivery.getOrder().getId());
-            // Do NOT return here — fall through and let ErpSyncService decide
-        }
 
+        // B5 — No status guard here. The order is guaranteed to be PENDING_SYNC because
+        // enqueueErpStockSync() sets it atomically when the event is created (see below). The
+        // processor always forwards the sync; the SYNCED/SYNC_FAILED verdict is owned by the
+        // async ERP result, not by a defensive check at processing time.
         Boolean isPartial = (Boolean) payload.get("isPartial");
         if (Boolean.TRUE.equals(isPartial)) {
             List<PartialDeliveryItem> items = objectMapper.convertValue(
@@ -255,9 +264,12 @@ public class OutboxProcessor {
                 .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
         if (delivery.getOrder() == null) return;
 
-        // Forward the POD fields (metadata + base64 photos) carried in the outbox payload.
+        // Forward the POD metadata + MinIO photo URLs carried in the outbox payload (C5). The image
+        // bytes are NOT inlined — the ERP adapter fetches them from these URLs and uploads to Odoo,
+        // so neither the outbox table nor the RabbitMQ frame carries the (large) base64 payload.
         Map<String, Object> pod = new java.util.HashMap<>();
-        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng", "blPhotoBase64", "packagePhotoBase64")) {
+        for (String k : List.of("recipientName", "comment", "deliveredAt", "lat", "lng",
+                                 "bonLivraisonPhotoUrl", "packagePhotoUrl")) {
             if (payload.get(k) != null) pod.put(k, payload.get(k));
         }
         erpSyncService.syncProofOfDelivery(delivery, pod, txId);
@@ -272,7 +284,19 @@ public class OutboxProcessor {
 
         List<Map<String, Object>> items = (List<Map<String, Object>>) payload.getOrDefault("items", List.of());
         String reason = (String) payload.get("reason");
-        erpSyncService.syncReturn(delivery, items, reason, txId);
+        // D2 — Carry rmaId so the adapter echoes it back on the result, letting the result consumer
+        // close the reverse-move loop on the right RMA.
+        String rmaId = (String) payload.get("rmaId");
+        erpSyncService.syncReturn(delivery, items, reason, rmaId, txId);
+    }
+
+    private void processErpReschedule(Map<String, Object> payload, String txId) throws Exception {
+        UUID deliveryId = UUID.fromString((String) payload.get("deliveryId"));
+        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
+                .orElseThrow(() -> new Exception("Delivery not found: " + deliveryId));
+        if (delivery.getOrder() == null) return;
+        String scheduledAt = (String) payload.get("scheduledAt");
+        erpSyncService.syncReschedule(delivery, scheduledAt, txId);
     }
 
     private void processErpFailure(Map<String, Object> payload, String txId) throws Exception {
@@ -285,6 +309,33 @@ public class OutboxProcessor {
         String code = (String) payload.get("failureCode");
         String comment = (String) payload.get("comment");
         erpSyncService.syncFailure(delivery, code, comment, txId);
+    }
+
+    /**
+     * B5 — Enqueue an ERP stock-sync event AND mark the owning order PENDING_SYNC in the same
+     * transaction. Centralizing the status reset here removes the old "did the caller remember to
+     * set PENDING_SYNC?" convention: any path that needs a stock sync calls this and the invariant
+     * (event enqueued ⇒ order pending) holds structurally.
+     *
+     * @param deliveryId   the shipment whose stock outcome must reach the ERP
+     * @param partial      true for a partial delivery (drives Odoo backorder creation)
+     * @param partialItems per-line outcome/quantities, required when {@code partial} is true
+     */
+    @Transactional(propagation = Propagation.MANDATORY)
+    public void enqueueErpStockSync(UUID deliveryId, boolean partial, List<PartialDeliveryItem> partialItems) {
+        deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
+            if (delivery.getOrder() != null) {
+                delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+                orderRepo.save(delivery.getOrder());
+            }
+        });
+        Map<String, Object> payload = new java.util.HashMap<>();
+        payload.put("deliveryId", deliveryId.toString());
+        payload.put("isPartial", partial);
+        if (partial && partialItems != null) {
+            payload.put("partialItems", partialItems);
+        }
+        enqueue("ERP_SYNC_STOCK", payload);
     }
 
     @Transactional(propagation = Propagation.MANDATORY)

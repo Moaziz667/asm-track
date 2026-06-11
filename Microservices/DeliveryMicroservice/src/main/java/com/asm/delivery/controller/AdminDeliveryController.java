@@ -89,7 +89,7 @@ public class AdminDeliveryController {
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date,
 
-            @Parameter(description = "Filter by order source", schema = @Schema(allowableValues = {"ODOO", "APP"}))
+            @Parameter(description = "Filter by order source", schema = @Schema(allowableValues = {"ODOO", "DUX"}))
             OrderSource source,
 
             @Parameter(description = "Filter by delivery zone ID")

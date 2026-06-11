@@ -2,9 +2,6 @@ package com.asm.delivery.erp;
 
 import com.asm.delivery.dto.response.OrderResponse;
 import com.asm.delivery.entity.Delivery;
-import com.asm.delivery.security.UserPrincipal;
-import org.springframework.security.core.Authentication;
-import org.springframework.security.core.context.SecurityContextHolder;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.DeliveryStatusHistory;
 import com.asm.delivery.entity.Order;
@@ -14,7 +11,7 @@ import com.asm.delivery.entity.OrderSource;
 import com.asm.delivery.entity.OrderStatus;
 import com.asm.delivery.entity.Role;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.erp.client.ErpAdapterClient;
+import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
 import com.asm.delivery.repository.OrderRepository;
@@ -42,7 +39,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ErpLookupService {
 
-    private final ErpAdapterClient erpAdapterClient;
+    private final ErpPort erpPort;
     private final OrderRepository orderRepository;
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
@@ -58,17 +55,16 @@ public class ErpLookupService {
 
     private static final long CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
 
-    private String companyKey() {
-        Authentication auth = SecurityContextHolder.getContext().getAuthentication();        return "global";
-    }
+    // Single-tenant: one instance = one ERP/company, so the lookup caches are global (no per-company key).
+    private static final String CACHE_SCOPE = "global";
 
     @Transactional(readOnly = true)
     public List<ErpClientDTO> searchClients(String search, int limit) {
-        String cacheKey = companyKey() + "-clients-" + search + "-" + limit;
+        String cacheKey = CACHE_SCOPE + "-clients-" + search + "-" + limit;
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
-        List<Map<String, Object>> res = erpAdapterClient.searchClients(search, limit, null);
+        List<Map<String, Object>> res = erpPort.searchClients(search, limit);
         List<ErpClientDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpClientDTO.class))
                 .collect(Collectors.toList());
@@ -78,11 +74,11 @@ public class ErpLookupService {
 
     @Transactional(readOnly = true)
     public List<ErpProductDTO> searchProducts(String search, int limit) {
-        String cacheKey = companyKey() + "-products-" + search + "-" + limit;
+        String cacheKey = CACHE_SCOPE + "-products-" + search + "-" + limit;
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
-        List<Map<String, Object>> res = erpAdapterClient.searchProducts(search, limit, null);
+        List<Map<String, Object>> res = erpPort.searchProducts(search, limit);
         List<ErpProductDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpProductDTO.class))
                 .collect(Collectors.toList());
@@ -92,7 +88,7 @@ public class ErpLookupService {
 
     @Transactional(readOnly = true)
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit, boolean forceRefresh) {
-        String cacheKey = companyKey() + "-pending-" + limit;
+        String cacheKey = CACHE_SCOPE + "-pending-" + limit;
         if (forceRefresh) pendingOrderCache.remove(cacheKey);
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
@@ -100,7 +96,7 @@ public class ErpLookupService {
         Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
         Set<String> importedBls = orderRepository.findAllBlNumbers();
 
-        List<Map<String, Object>> res = erpAdapterClient.getPendingOrders(limit, null);
+        List<Map<String, Object>> res = erpPort.getPendingOrders(limit);
         List<ErpPendingOrderSummaryDTO> dtos = res.stream()
                 .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
                 .filter(dto -> dto.getErpOrderId() != null)
@@ -121,7 +117,7 @@ public class ErpLookupService {
     }
 
     public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
-        Map<String, Object> preview = erpAdapterClient.getPendingOrderPreview(erpOrderId, null);
+        Map<String, Object> preview = erpPort.getPendingOrderPreview(erpOrderId);
         if (preview == null || preview.isEmpty()) {
             throw AppException.notFound("Pending order not found: " + erpOrderId);
         }

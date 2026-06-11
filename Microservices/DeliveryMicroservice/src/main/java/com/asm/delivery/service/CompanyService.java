@@ -22,7 +22,7 @@ public class CompanyService {
 
     private final CompanyRepository repo;
     private final MinioStorageService minioStorageService;
-    private final com.asm.delivery.erp.client.ErpAdapterClient erpAdapterClient;
+    private final com.asm.delivery.erp.port.ErpPort erpPort;
 
     public Optional<Company> findById(UUID id) {
         return repo.findById(id);
@@ -60,7 +60,7 @@ public class CompanyService {
         Company existing = repo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));
 
-        java.util.Map<String, Object> erp = erpAdapterClient.getCompany(null);
+        java.util.Map<String, Object> erp = erpPort.getCompany();
         if (erp == null || erp.isEmpty()) {
             throw AppException.badRequest("L'ERP n'a retourné aucune information d'entreprise. Vérifiez la configuration ERP.");
         }

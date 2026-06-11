@@ -24,6 +24,9 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     Optional<Order> findByErpOrderId(String erpOrderId);
 
+    /** Sale-order reference (e.g. "S00110") used by ERP sync + inbound reconciliation. */
+    Optional<Order> findByErpExternalRef(String erpExternalRef);
+
     boolean existsByErpOrderId(String erpOrderId);
 
     /** Idempotency key for per-delivery-note (bon de livraison) imports. */

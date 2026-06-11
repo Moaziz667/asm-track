@@ -132,4 +132,46 @@ class ErpResyncServiceTest {
         assertThat(result.queued()).isFalse();
         assertThat(result.reason()).contains("ERP reference");
     }
+
+    // ── B1: reconciliation sweep for orders stuck in PENDING_SYNC ────────────────
+
+    @Test
+    void reEnqueuesAnOrderStuckInPendingSync() {
+        order.setOdooSyncStatus("PENDING_SYNC");
+        order.setLastSyncOp("STOCK_FULL");
+        when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
+        when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
+
+        boolean requeued = service.reEnqueueStuckOrder(orderId);
+
+        assertThat(requeued).isTrue();
+        // The lost result is recovered by re-driving the sync through the outbox (idempotent downstream).
+        verify(outboxProcessor).enqueue(eq("ERP_SYNC_STOCK"), any());
+    }
+
+    @Test
+    void doesNotReEnqueueAnOrderThatIsNoLongerPending() {
+        order.setOdooSyncStatus("SYNCED"); // the result arrived after all
+        when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
+
+        boolean requeued = service.reEnqueueStuckOrder(orderId);
+
+        assertThat(requeued).isFalse();
+        verifyNoInteractions(outboxProcessor);
+    }
+
+    @Test
+    void reEnqueueChoosesPartialSyncWhenLastOpWasPartial() {
+        order.setOdooSyncStatus("PENDING_SYNC");
+        order.setLastSyncOp("STOCK_PARTIAL");
+        when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
+        when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
+
+        service.reEnqueueStuckOrder(orderId);
+
+        org.mockito.ArgumentCaptor<java.util.Map<String, Object>> captor =
+                org.mockito.ArgumentCaptor.forClass(java.util.Map.class);
+        verify(outboxProcessor).enqueue(eq("ERP_SYNC_STOCK"), captor.capture());
+        assertThat(captor.getValue()).containsEntry("isPartial", true);
+    }
 }

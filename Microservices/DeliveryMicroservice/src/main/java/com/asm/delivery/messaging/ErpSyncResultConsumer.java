@@ -28,10 +28,21 @@ public class ErpSyncResultConsumer {
     private final OrderRepository orderRepo;
     private final EventPublisher eventPublisher;
     private final ExceptionResolutionService exceptionResolutionService;
+    private final com.asm.delivery.repository.RmaRepository rmaRepo;
 
     @RabbitListener(queues = RabbitMQConfig.ERP_SYNC_RESULT_QUEUE)
     @Transactional
     public void onResult(Map<String, Object> result) {
+        String op = str(result.get("op"));
+        boolean ok = Boolean.TRUE.equals(result.get("success"));
+
+        // D2 — A RETURN (RMA) result is about a return, not an order: route it to the RMA branch and
+        // close the reverse-stock-move loop. Idempotent: re-applying the same terminal state is a no-op.
+        if ("RETURN".equals(op)) {
+            applyReturnResult(result, ok);
+            return;
+        }
+
         String orderIdStr = str(result.get("orderId"));
         if (orderIdStr == null) {
             log.warn("ErpSyncResultConsumer: result missing orderId, dropping: {}", result);
@@ -39,8 +50,6 @@ public class ErpSyncResultConsumer {
         }
         UUID orderId = UUID.fromString(orderIdStr);
         UUID deliveryId = result.get("deliveryId") != null ? UUID.fromString(str(result.get("deliveryId"))) : null;
-        String op = str(result.get("op"));
-        boolean success = Boolean.TRUE.equals(result.get("success"));
 
         Order order = orderRepo.findById(orderId).orElse(null);
         if (order == null) {
@@ -48,7 +57,7 @@ public class ErpSyncResultConsumer {
             return;
         }
 
-        if (success) {
+        if (ok) {
             order.setOdooSyncStatus("SYNCED");
             order.setSyncRetryCount(0);
             order.setNextSyncRetryAt(null);
@@ -57,6 +66,8 @@ public class ErpSyncResultConsumer {
 
             // A partial delivery that left a remainder → Odoo created a backorder picking.
             // Auto-create the backorder shipment (new delivery under the same order) + notify.
+            // B3 — Idempotent on replay: createBackorderShipment short-circuits if a shipment already
+            // exists for this odooBackorderId, so a redelivered result never creates a second one.
             Integer backorderPickingId = asInt(result.get("backorderPickingId"));
             if ("STOCK_PARTIAL".equals(op) && backorderPickingId != null) {
                 try {
@@ -79,6 +90,33 @@ public class ErpSyncResultConsumer {
                 log.warn("Could not publish erp.sync_failed notification for orderId={}: {}", orderId, e.getMessage());
             }
         }
+    }
+
+    /**
+     * D2 — Closes the RMA reverse-stock-move loop. The RETURN result carries the {@code rmaId};
+     * we flip the return's {@code erpSyncStatus} to SYNCED or SYNC_FAILED so a rejected reverse move
+     * never stays silently RESTOCKED. Idempotent: applying the same terminal state twice is a no-op,
+     * and an unknown/missing rmaId is logged and dropped rather than throwing (avoids a poison message).
+     */
+    private void applyReturnResult(Map<String, Object> result, boolean ok) {
+        String rmaIdStr = str(result.get("rmaId"));
+        if (rmaIdStr == null) {
+            log.warn("ErpSyncResultConsumer: RETURN result missing rmaId, dropping: {}", result);
+            return;
+        }
+        UUID rmaId = UUID.fromString(rmaIdStr);
+        rmaRepo.findById(rmaId).ifPresentOrElse(rma -> {
+            if (ok) {
+                rma.setErpSyncStatus("SYNCED");
+                rma.setErpSyncError(null);
+                log.info("RMA reverse move SYNCED — rmaId={}", rmaId);
+            } else {
+                rma.setErpSyncStatus("SYNC_FAILED");
+                rma.setErpSyncError(truncate(str(result.get("errorReason"))));
+                log.error("RMA reverse move SYNC_FAILED — rmaId={} reason={}", rmaId, result.get("errorReason"));
+            }
+            rmaRepo.save(rma);
+        }, () -> log.warn("ErpSyncResultConsumer: RETURN result for unknown rmaId={}, dropping", rmaId));
     }
 
     private String erpOperationCode(String op) {

@@ -137,6 +137,20 @@ public class OdooJsonRpcClient {
     }
 
     /**
+     * V3.1 — Like {@link #callRpc} but THROWS on a transport/timeout error instead of returning null.
+     * Use this for reads that gate a success/failure decision (e.g. "does a picking exist?"), so a
+     * network timeout is never mistaken for "not found → nothing to do → success". The empty-but-valid
+     * Odoo response ({@code result: []}) is still returned normally; only transport failures throw.
+     */
+    public Map<String, Object> callRpcOrThrow(List<Object> executeKwArgs) {
+        Map<String, Object> resp = callRpc(executeKwArgs);
+        if (resp == null) {
+            throw new ErpAdapterException("Odoo RPC transport error (null response) — treat as retryable", 503);
+        }
+        return resp;
+    }
+
+    /**
      * Build standard {@code execute_kw} args: {@code [db, uid, password, model, method, positionalArgs]}.
      */
     public List<Object> buildArgs(String model, String method, List<Object> positionalArgs) {

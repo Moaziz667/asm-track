@@ -5,8 +5,11 @@ import lombok.Data;
 
 /**
  * Proof-of-delivery payload pushed to the ERP after a successful delivery.
- * Photos are carried as base64 (PNG) so the adapter can create ir.attachment
- * records without needing access to the delivery platform's object storage.
+ *
+ * <p>Photos are normally carried as <b>MinIO URLs</b> (the delivery platform stores them and the
+ * adapter fetches the bytes over plain HTTP) — this keeps large binaries out of the outbox table and
+ * the RabbitMQ frames. The legacy base64 fields are kept for backward compatibility; when a URL is
+ * present it wins.
  */
 @Data
 @Builder
@@ -16,6 +19,12 @@ public class ErpPodDTO {
     private String deliveredAt;   // ISO-8601 timestamp
     private Double lat;
     private Double lng;
-    private String blPhotoBase64;       // signed delivery note photo
-    private String packagePhotoBase64;  // handover/package photo
+
+    // Preferred: MinIO object URLs (adapter fetches the bytes via HTTP GET).
+    private String bonLivraisonPhotoUrl; // signed delivery note photo
+    private String packagePhotoUrl;      // handover/package photo
+
+    // Legacy fallback: inline base64 (PNG). Used only when the URL is absent.
+    private String blPhotoBase64;
+    private String packagePhotoBase64;
 }

@@ -4,7 +4,7 @@ import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
-import com.asm.delivery.erp.client.ErpAdapterClient;
+import com.asm.delivery.erp.port.ErpPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -17,7 +17,7 @@ import java.util.UUID;
 public class BonLivraisonPdfService {
 
     private final DeliveryRepository deliveryRepository;
-    private final ErpAdapterClient erpAdapterClient;
+    private final ErpPort erpPort;
 
     public byte[] generate(UUID deliveryId) {
         Delivery delivery = deliveryRepository.findByIdWithOrder(deliveryId)
@@ -28,9 +28,7 @@ public class BonLivraisonPdfService {
             throw AppException.notFound("BL pas encore disponible (non synchronisé)");
         }
 
-        // We use "odoo" provider as default for now, matching sync service patterns
-        String provider = "odoo";
-        byte[] pdf = erpAdapterClient.getDeliveryNotePdf(order.getBlNumber(), provider);
+        byte[] pdf = erpPort.getDeliveryNotePdf(order.getBlNumber());
         
         if (pdf == null) {
             throw AppException.notFound("Impossible de récupérer le PDF du BL depuis l'ERP (BL: " + order.getBlNumber() + ")");

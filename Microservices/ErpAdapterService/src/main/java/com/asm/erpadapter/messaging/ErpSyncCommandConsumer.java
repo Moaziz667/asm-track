@@ -81,11 +81,19 @@ public class ErpSyncCommandConsumer {
                         .deliveredAt(str(cmd.get("deliveredAt")))
                         .lat(asDouble(cmd.get("lat")))
                         .lng(asDouble(cmd.get("lng")))
+                        // Preferred: MinIO URLs (adapter fetches the bytes); base64 kept as legacy fallback.
+                        .bonLivraisonPhotoUrl(str(cmd.get("bonLivraisonPhotoUrl")))
+                        .packagePhotoUrl(str(cmd.get("packagePhotoUrl")))
                         .blPhotoBase64(str(cmd.get("blPhotoBase64")))
                         .packagePhotoBase64(str(cmd.get("packagePhotoBase64")))
                         .build();
                 boolean ok = sync.syncProofOfDelivery(erpOrderId, pod, txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncProofOfDelivery returned false for erpOrderId=" + erpOrderId);
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+            }
+            case "RESCHEDULE" -> {
+                boolean ok = sync.syncReschedule(erpOrderId, str(cmd.get("scheduledAt")), txId, pickingRef);
+                if (!ok) throw new IllegalStateException("syncReschedule returned false for erpOrderId=" + erpOrderId);
                 resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
             }
             case "RETURN" -> {
@@ -94,7 +102,8 @@ public class ErpSyncCommandConsumer {
                                 new TypeReference<List<com.asm.erpadapter.dto.ErpReturnItemDTO>>() {});
                 boolean ok = sync.syncReturn(erpOrderId, returnItems, str(cmd.get("reason")), txId, pickingRef);
                 if (!ok) throw new IllegalStateException("syncReturn returned false for erpOrderId=" + erpOrderId);
-                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null);
+                // Echo rmaId so DeliveryService can close the RMA reverse-move loop on the right return.
+                resultPublisher.publishResult(txId, deliveryId, orderId, op, true, null, null, null, null, str(cmd.get("rmaId")));
             }
             default -> log.warn("ErpSyncCommandConsumer: unknown op={}, dropping", op);
         }
@@ -106,7 +115,7 @@ public class ErpSyncCommandConsumer {
         log.error("ERP sync command dead-lettered after retries — op={} erpOrderId={} txId={}",
                 cmd.get("op"), cmd.get("erpOrderId"), cmd.get("txId"));
         resultPublisher.publishResult(str(cmd.get("txId")), str(cmd.get("deliveryId")), str(cmd.get("orderId")),
-                str(cmd.get("op")), false, null, null, null, "ERP sync failed after retries");
+                str(cmd.get("op")), false, null, null, null, "ERP sync failed after retries", str(cmd.get("rmaId")));
     }
 
     private List<ErpPartialItemDTO> parseItems(Object raw) {
