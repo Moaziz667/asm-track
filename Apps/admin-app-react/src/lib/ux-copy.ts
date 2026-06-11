@@ -2123,6 +2123,8 @@ export const FR_COPY = {
     autoArchiving: 'Auto-Archivage',
     autoArchivingDesc: 'Déplacer les routes terminées vers l\'historique après 24h.',
     companyBranding: 'Informations sur l\'Entreprise',
+    companyBrandingDesc: 'Identité de votre organisation — nom, contact, adresse et couleur d\'accent.',
+    savingLabel: 'Enregistrement…',
     syncFromErp: 'Synchroniser depuis l\'ERP',
     syncFromErpHint: 'Récupère le nom, l\'adresse et l\'e-mail depuis votre ERP (Odoo)',
     instanceName: 'Nom de l\'Instance',

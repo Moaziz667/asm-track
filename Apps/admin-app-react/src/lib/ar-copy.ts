@@ -2080,6 +2080,8 @@ export const AR_COPY = {
     autoArchiving: 'الأرشفة التلقائية',
     autoArchivingDesc: 'نقل المسارات المنتهية إلى السجل بعد 24 ساعة.',
     companyBranding: 'معلومات الشركة',
+    companyBrandingDesc: 'هوية مؤسستك — الاسم وجهة الاتصال والعنوان واللون المميّز.',
+    savingLabel: 'جارٍ الحفظ…',
     syncFromErp: 'المزامنة من ERP',
     syncFromErpHint: 'يستخرج الاسم والعنوان والبريد الإلكتروني من نظام ERP الخاص بك (Odoo)',
     instanceName: 'اسم المثيل',
