@@ -11,13 +11,13 @@ export function FormField({ label, error, children, className, ...props }: FormF
   return (
     <div className={cn('flex flex-col gap-dense-1', className)} {...props}>
       {label && (
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] select-none">
+        <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] select-none">
           {label}
         </span>
       )}
       {children}
       {error && (
-        <span className="text-[10px] font-semibold text-state-critical">
+        <span className="text-2xs font-semibold text-state-critical">
           {error}
         </span>
       )}

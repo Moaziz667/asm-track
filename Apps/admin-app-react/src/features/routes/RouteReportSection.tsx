@@ -84,10 +84,10 @@ export default function RouteReportSection({ routeId }: { routeId: string }) {
         <div className="flex items-center gap-3">
           <div style={{ width: 3, height: 28, background: 'var(--brand)', borderRadius: 2, flexShrink: 0 }} />
           <div>
-            <p className="text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: 'var(--text-primary)' }}>
+            <p className="text-base font-bold uppercase tracking-[0.06em]" style={{ color: 'var(--text-primary)' }}>
               {REPORT_LABELS.title}
             </p>
-            <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>
               {REPORT_LABELS.generatedAt} {new Date(data.generatedAt ?? '').toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' })}
             </p>
           </div>
@@ -151,7 +151,7 @@ function HeaderCard({ report }: { report: RouteReport }) {
     <div className="flex items-center gap-2">
       <div style={{ color: 'var(--text-muted)', flexShrink: 0 }}>{icon}</div>
       <div>
-        <p className="text-[11px] uppercase font-medium" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</p>
+        <p className="text-xs uppercase font-medium" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</p>
         <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{value ?? '—'}</p>
       </div>
     </div>
@@ -175,7 +175,7 @@ function KpiStrip({ report }: { report: RouteReport }) {
   const k = report.kpis;
   const tile = (label: string, value: React.ReactNode, foot?: string, tone?: 'good' | 'warn' | 'bad') => (
     <div className="flex flex-col p-4 rounded" style={{ flex: '1 1 150px', minWidth: 150, border: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <p className="text-[11px] uppercase font-medium mb-1" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</p>
+      <p className="text-xs uppercase font-medium mb-1" style={{ letterSpacing: '0.06em', color: 'var(--text-muted)' }}>{label}</p>
       <p className={`text-xl font-bold ${
         tone === 'good' ? 'text-[#15803D]' :
         tone === 'warn' ? 'text-[#B45309]' :
@@ -456,7 +456,7 @@ function PodGallery({ report }: { report: RouteReport }) {
               <img src={c.url} alt={c.title} className="w-full h-full object-cover" />
               <div className="absolute bottom-0 left-0 right-0 px-2 py-1 flex items-center gap-1" style={{ background: 'rgba(0,0,0,0.6)' }}>
                 <IconCamera size={10} color="#fff" />
-                <span className="text-[10px] text-white truncate">#{c.stopOrder} · {c.client}</span>
+                <span className="text-2xs text-white truncate">#{c.stopOrder} · {c.client}</span>
               </div>
             </button>
           ))}
@@ -502,7 +502,7 @@ function AuditTrailList({ report }: { report: RouteReport }) {
 // ── Section title ─────────────────────────────────────────────────────────────
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
-    <p className="text-[11px] font-bold uppercase mb-2" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
+    <p className="text-xs font-bold uppercase mb-2" style={{ color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
       {children}
     </p>
   );

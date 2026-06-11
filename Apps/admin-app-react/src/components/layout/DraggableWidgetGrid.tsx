@@ -148,7 +148,7 @@ export function DraggableWidgetGrid({
       <div className="flex justify-end px-2 mb-2">
         <button 
           onClick={handleReset} 
-          className="flex items-center gap-1 text-[11px] font-medium text-[var(--text-soft)] hover:text-[var(--text-primary)] transition-colors opacity-60 hover:opacity-100"
+          className="flex items-center gap-1 text-xs font-medium text-[var(--text-soft)] hover:text-[var(--text-primary)] transition-colors opacity-60 hover:opacity-100"
         >
           <IconLayoutDashboard size={12} />
           {t.displaySettings?.resetLayout ?? 'Reset default layout'}

@@ -312,7 +312,7 @@ export default function DashboardPage() {
               {t.dashboardPage?.title || 'Tableau de bord'}
             </h1>
             <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <span className="text-[11px] text-[var(--text-muted)] font-medium">
+              <span className="text-xs text-[var(--text-muted)] font-medium">
                 {t.dashboardPage?.subtitle || 'Supervision administrative et indicateurs opérationnels'}
               </span>
               {overdueCount > 0 && (
@@ -323,7 +323,7 @@ export default function DashboardPage() {
                     color: isDark ? '#F87171' : '#FFFFFF',
                     borderColor: isDark ? 'rgba(239, 68, 68, 0.3)' : '#B91C1C',
                   }}
-                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold border transition-all cursor-pointer shadow-2xs"
+                  className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-2xs font-bold border transition-all cursor-pointer shadow-2xs"
                 >
                   <IconAlertTriangle size={11} className="animate-pulse" style={{ color: isDark ? '#F87171' : '#FFFFFF' }} />
                   <span>
@@ -343,7 +343,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => handleViewChange('office')}
                 className={cn(
-                  "px-3 py-1 text-[11px] font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]",
+                  "px-3 py-1 text-xs font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]",
                   viewMode === 'office'
                     ? "bg-background text-foreground border border-border shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground bg-transparent"
@@ -356,7 +356,7 @@ export default function DashboardPage() {
                 type="button"
                 onClick={() => handleViewChange('kanban')}
                 className={cn(
-                  "px-3 py-1 text-[11px] font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]",
+                  "px-3 py-1 text-xs font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]",
                   viewMode === 'kanban'
                     ? "bg-background text-foreground border border-border shadow-2xs font-semibold"
                     : "text-muted-foreground hover:text-foreground bg-transparent"
@@ -383,7 +383,7 @@ export default function DashboardPage() {
                     type="button"
                     onClick={() => setPeriod(p)}
                     className={cn(
-                      "px-3 py-1 text-[11px] font-bold transition-all rounded-full cursor-pointer h-7 flex items-center justify-center active:scale-[0.95]",
+                      "px-3 py-1 text-xs font-bold transition-all rounded-full cursor-pointer h-7 flex items-center justify-center active:scale-[0.95]",
                       active
                         ? "bg-background text-foreground border border-border shadow-2xs font-semibold"
                         : "text-muted-foreground hover:text-foreground bg-transparent"
@@ -502,11 +502,11 @@ export default function DashboardPage() {
                   <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
                     <div className="flex items-center gap-2">
                       <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
-                      <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                      <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                         {t.performancePage.volumeCurve}
                       </span>
                     </div>
-                    <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                    <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                       {t.performancePage.lastSevenDays}
                     </span>
                   </div>
@@ -514,7 +514,7 @@ export default function DashboardPage() {
                   <div className="p-4 flex-1 min-h-0 w-full">
                     {trend.length === 0 ? (
                       <div className="flex items-center justify-center h-full opacity-40">
-                        <span className="text-[11px]">{t.dashboardPage.noData || "Aucune donnée disponible"}</span>
+                        <span className="text-xs">{t.dashboardPage.noData || "Aucune donnée disponible"}</span>
                       </div>
                     ) : (
                       <ResponsiveContainer width="100%" height="100%">
@@ -588,7 +588,7 @@ export default function DashboardPage() {
                     <span className="text-[16px] font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
                     <button
                       onClick={() => navigate('/dispatch-desk?tab=queue')}
-                      className="text-[11px] font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
+                      className="text-xs font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"
                     >
                       {t.dashboardPage.needsAttentionViewAll || "View all"} <IconArrowUpRight size={11} />
                     </button>
@@ -611,12 +611,12 @@ export default function DashboardPage() {
                             <span className="w-[3px] shrink-0" style={{ background: accent }} />
                             <div className="flex flex-col min-w-0 flex-1 gap-1.5 p-2.5">
                               <div className="flex items-center justify-between gap-2">
-                                <span className="font-mono text-[11px] font-bold" style={{ color: 'var(--brand)' }}>
+                                <span className="font-mono text-xs font-bold" style={{ color: 'var(--brand)' }}>
                                   {exc.orderRef || exc.deliveryId?.slice(0, 8) || 'Alert'}
                                 </span>
-                                <span className="text-[10px] font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
+                                <span className="text-2xs font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
                               </div>
-                              <span className="text-[13px] font-semibold text-[var(--text-primary)] truncate leading-tight">
+                              <span className="text-base font-semibold text-[var(--text-primary)] truncate leading-tight">
                                 {exc.clientName || '—'}{exc.city ? <span className="font-normal text-[var(--text-muted)]"> · {exc.city}</span> : null}
                               </span>
                               <div className="flex items-center gap-1.5 flex-wrap">
@@ -641,7 +641,7 @@ export default function DashboardPage() {
               className: '',
               children: (
                 <div className="card p-4 h-full flex flex-col">
-                  <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
+                  <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
                     {t.dashboardPage.quickActions || 'Quick Actions'}
                   </span>
                   <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
@@ -658,7 +658,7 @@ export default function DashboardPage() {
                         className="flex items-center gap-3 px-4 py-3 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
                       >
                         <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
-                        <span className="text-[13px] font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
+                        <span className="text-base font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
                       </button>
                     ))}
                   </div>
@@ -671,7 +671,7 @@ export default function DashboardPage() {
               className: '',
               children: (
                 <div className="card p-4 h-full flex flex-col">
-                  <span className="text-[14px] font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.driverAvailability || "Fleet Status"}</span>
+                  <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.driverAvailability || "Fleet Status"}</span>
                   <div className="flex flex-col gap-3 overflow-y-auto pl-2">
                     {[
                       { group: driverGroups.online, label: "Online", dotColor: '#4CAF82' },
@@ -681,18 +681,18 @@ export default function DashboardPage() {
                       <div key={label} className="flex items-start gap-3">
                         <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: dotColor }} />
                         <div className="flex flex-col min-w-0 flex-1">
-                          <span className="text-[13px] font-bold text-[var(--text-secondary)]">
+                          <span className="text-base font-bold text-[var(--text-secondary)]">
                             {label} <span className="font-mono text-[var(--text-muted)] ml-1">({group.length})</span>
                           </span>
                           {group.length > 0 && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               {group.slice(0, 8).map((d: any, i: number) => (
-                                <span key={i} className="text-[11px] font-medium px-2 py-1 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">
+                                <span key={i} className="text-xs font-medium px-2 py-1 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">
                                   {d.name || d.driverName || '?'}
                                 </span>
                               ))}
                               {group.length > 8 && (
-                                <span className="text-[11px] font-bold text-[var(--text-soft)] px-1 py-1">+{group.length - 8}</span>
+                                <span className="text-xs font-bold text-[var(--text-soft)] px-1 py-1">+{group.length - 8}</span>
                               )}
                             </div>
                           )}
@@ -719,7 +719,7 @@ export default function DashboardPage() {
                   {activeRoutes.length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
                       <IconRoute size={24} stroke={1.5} className="text-[var(--text-muted)]" />
-                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || "Aucune tournée active"}</p>
+                      <p className="text-xs font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || "Aucune tournée active"}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1 pr-1">
@@ -739,10 +739,10 @@ export default function DashboardPage() {
                             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
                             <div className="min-w-0 flex-1">
                               <div className="flex items-center gap-1.5">
-                                <p className="text-[12px] font-bold text-[var(--text-primary)] truncate">{route.name}</p>
+                                <p className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</p>
                                 <StatusBadge status={route.status} size="sm" />
                               </div>
-                              <p className="text-[11px] text-[var(--text-muted)] truncate">
+                              <p className="text-xs text-[var(--text-muted)] truncate">
                                 {driverName(route.driverId)} · {stopCount} {t.dashboardPage?.stopsLabel || 'arrêts'}
                               </p>
                             </div>
@@ -775,7 +775,7 @@ export default function DashboardPage() {
         /* ── KANBAN VIEW ── */
         <div className="px-6 pb-6 w-full max-w-[1800px] mx-auto flex flex-col flex-1 min-h-0 overflow-hidden animate-fadeIn">
           <div className="pt-4 pb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
               {t.dashboardPage.dispatchFlowTitle || 'Flux de Dispatch'}
             </span>
             <button
@@ -812,7 +812,7 @@ export default function DashboardPage() {
                     <div className="flex-none px-3 py-2.5 flex items-center justify-between border-b border-[var(--border)] bg-[var(--surface)]">
                       <div className="flex items-center gap-1.5 min-w-0">
                         <span
-                          className="px-2 py-0.5 rounded-full text-[10px] font-bold leading-none tracking-tight"
+                          className="px-2 py-0.5 rounded-full text-2xs font-bold leading-none tracking-tight"
                           style={{
                             backgroundColor: `${config.color}15`,
                             color: config.color,
@@ -837,7 +837,7 @@ export default function DashboardPage() {
                       {items.length === 0 ? (
                         <div className="flex flex-col items-center justify-center flex-1 py-12 gap-2 opacity-45">
                           <IconInbox size={18} stroke={1.2} className="text-[var(--text-soft)]" />
-                          <span className="text-[10px] font-bold text-[var(--text-soft)]">{t.dashboardPage.emptyState || 'Vide'}</span>
+                          <span className="text-2xs font-bold text-[var(--text-soft)]">{t.dashboardPage.emptyState || 'Vide'}</span>
                         </div>
                       ) : (
                         items.map((d: any, idx: number) => {
@@ -864,11 +864,11 @@ export function KpiCard({ title, value, subtitle, Icon, color, trend }: { title:
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between mb-3">
-        <span className="text-[12px] font-medium text-[var(--text-secondary)]">{title}</span>
+        <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
         <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />
       </div>
       <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{value}</div>
-      <div className="text-[11px] text-[var(--text-soft)] mt-1.5 font-normal">{subtitle}</div>
+      <div className="text-xs text-[var(--text-soft)] mt-1.5 font-normal">{subtitle}</div>
     </div>
   );
 }
@@ -910,7 +910,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
     >
       {/* Card Header: Order ref + Creation Time */}
       <div className="mb-2 flex items-center justify-between border-b border-[var(--border)]/30 pb-1.5">
-        <span className="font-mono text-[10px] font-bold tracking-tight" style={{ color }}>
+        <span className="font-mono text-2xs font-bold tracking-tight" style={{ color }}>
           {d.orderRef || d.deliveryId?.slice(0, 8)}
         </span>
         {d.scheduledAt && (
@@ -922,7 +922,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
       </div>
 
       {/* Main Client info */}
-      <p className="text-[13px] font-bold text-[var(--text-primary)] leading-snug mb-1.5 truncate">
+      <p className="text-base font-bold text-[var(--text-primary)] leading-snug mb-1.5 truncate">
         {d.clientName || t.dashboardPage.unknownClient}
       </p>
 
@@ -942,7 +942,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
         if (bucket === 'overdue') {
           return (
             <div className="mb-2">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> En retard (Planifié)
               </span>
             </div>
@@ -950,7 +950,7 @@ function DeliveryCard({ d, status, color }: { d: any; status: DeliveryStatus; co
         } else if (bucket === 'today') {
           return (
             <div className="mb-2">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> Planifié Auj.
               </span>
             </div>
@@ -1010,7 +1010,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
       <div className="mb-2 flex items-center justify-between border-b border-[var(--border)]/30 pb-1.5">
         <div className="flex items-center gap-1">
           <IconPackage size={10.5} style={{ color }} stroke={2.5} />
-          <span className="font-mono text-[10px] font-bold tracking-tight" style={{ color }}>
+          <span className="font-mono text-2xs font-bold tracking-tight" style={{ color }}>
             {d.orderRef || 'LOT'}
           </span>
         </div>
@@ -1024,7 +1024,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
 
       <div className="flex flex-col gap-1 mb-2.5 min-w-0">
         {deliveries.slice(0, 2).map((x: any, i: number) => (
-          <p key={i} className="text-[13px] font-bold text-[var(--text-primary)] leading-snug truncate">
+          <p key={i} className="text-base font-bold text-[var(--text-primary)] leading-snug truncate">
             {x.clientName}
           </p>
         ))}
@@ -1043,7 +1043,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
         if (bucket === 'overdue') {
           return (
             <div className="mb-2">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fecaca] bg-[#fef2f2] text-[#b91c1c] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> En retard (Planifié)
               </span>
             </div>
@@ -1051,7 +1051,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
         } else if (bucket === 'today') {
           return (
             <div className="mb-2">
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
+              <span className="text-2xs font-bold px-1.5 py-0.5 rounded border border-[#fef08a] bg-[#fffbeb] text-[#b45309] inline-flex items-center gap-1">
                 <IconClock size={11} stroke={2.5} /> Planifié Auj.
               </span>
             </div>
@@ -1067,7 +1067,7 @@ function LotCard({ d, status, color }: { d: any; status: DeliveryStatus; color: 
               style={{ width: `${progress}%`, backgroundColor: color }}
           />
         </div>
-        <span className="text-[10px] font-bold font-mono tabular-nums shrink-0" style={{ color }}>
+        <span className="text-2xs font-bold font-mono tabular-nums shrink-0" style={{ color }}>
           {completedCount}/{totalCount}
         </span>
       </div>

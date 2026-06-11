@@ -135,10 +135,10 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
           <div className="flex items-center gap-2.5">
             <IconMapPin size={16} style={{ color: 'var(--brand)' }} />
             <div>
-              <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+              <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                 {depot.name}
               </p>
-              <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>Modifier la localisation</p>
+              <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>Modifier la localisation</p>
             </div>
           </div>
           <button
@@ -165,7 +165,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
             {recenter && <MapCenterer position={mapCenter} />}
           </MapContainer>
           <div
-            className="absolute bottom-3 left-3 z-[1000] px-2.5 py-1.5 rounded-md text-[10px] font-medium"
+            className="absolute bottom-3 left-3 z-[1000] px-2.5 py-1.5 rounded-md text-2xs font-medium"
             style={{ background: 'var(--surface)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
           >
             Cliquez sur la carte ou déplacez le marqueur
@@ -177,7 +177,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
           {/* Lat / Lng row */}
           <div className="flex gap-3">
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              <label className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
                 Latitude
               </label>
               <input
@@ -185,7 +185,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
                 step="0.000001"
                 value={lat}
                 onChange={(e) => setLat(e.target.value)}
-                className="w-full px-3 py-2 rounded-md text-[12px] font-mono outline-none transition-colors"
+                className="w-full px-3 py-2 rounded-md text-sm font-mono outline-none transition-colors"
                 style={{
                   background: 'var(--app-bg)',
                   border: '1px solid var(--border)',
@@ -194,7 +194,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
               />
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              <label className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+              <label className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
                 Longitude
               </label>
               <input
@@ -202,7 +202,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
                 step="0.000001"
                 value={lng}
                 onChange={(e) => setLng(e.target.value)}
-                className="w-full px-3 py-2 rounded-md text-[12px] font-mono outline-none transition-colors"
+                className="w-full px-3 py-2 rounded-md text-sm font-mono outline-none transition-colors"
                 style={{
                   background: 'var(--app-bg)',
                   border: '1px solid var(--border)',
@@ -224,7 +224,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
 
           {/* Address */}
           <div className="flex flex-col gap-1">
-            <label className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+            <label className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
               Adresse
             </label>
             <input
@@ -233,7 +233,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
               onChange={(e) => setAddress(e.target.value)}
               disabled={reverseGeocoding}
               placeholder="Adresse du dépôt…"
-              className="w-full px-3 py-2 rounded-md text-[12px] outline-none transition-colors disabled:opacity-60"
+              className="w-full px-3 py-2 rounded-md text-sm outline-none transition-colors disabled:opacity-60"
               style={{
                 background: 'var(--app-bg)',
                 border: '1px solid var(--border)',
@@ -246,7 +246,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
           <div className="flex items-center justify-end gap-2 pt-1">
             <button
               onClick={onClose}
-              className="px-4 py-2 rounded-md text-[11px] font-bold transition-colors"
+              className="px-4 py-2 rounded-md text-xs font-bold transition-colors"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
             >
               Annuler
@@ -254,7 +254,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
             <button
               onClick={handleSave}
               disabled={patch.isPending}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-[11px] font-bold transition-opacity disabled:opacity-60"
+              className="flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-bold transition-opacity disabled:opacity-60"
               style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}
             >
               {patch.isPending ? (

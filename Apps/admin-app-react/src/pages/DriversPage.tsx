@@ -491,7 +491,7 @@ function DriversPageContent() {
           <div className="flex items-center gap-1.5">
             <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => importCsv(e.target.files?.[0] ?? null)} />
             <AddButton label={t.driversPage.newDriverButton} onClick={openCreate} />
-            <button type="button" className="h-7 px-2.5 flex items-center gap-1.5 text-[11px] font-[500] rounded-md border transition-colors hover:bg-[var(--hover-bg)] shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }} onClick={() => csvInputRef.current?.click()}>
+            <button type="button" className="h-7 px-2.5 flex items-center gap-1.5 text-xs font-[500] rounded-md border transition-colors hover:bg-[var(--hover-bg)] shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }} onClick={() => csvInputRef.current?.click()}>
               <SVGUpload size={13} /> {t.driversPage.importCsvButton}
             </button>
           </div>
@@ -503,7 +503,7 @@ function DriversPageContent() {
         <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               {filtered.length} chauffeur{filtered.length !== 1 ? 's' : ''}
             </span>
             <DisplaySettingsDropdown
@@ -534,15 +534,15 @@ function DriversPageContent() {
                     style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
                   >
                     <div className="w-[8px]" />
-                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
+                    <span className="text-xs font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
                     {orderedColumns.filter(c => !c.pinned).map(col => !visibleIds.has(col.id) ? null : (
-                      <span key={col.id} className="text-[11px] font-semibold text-[var(--text-muted)] text-start">
+                      <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
                         {col.id === 'contact' ? t.driversPage.tableHeaderContact
                          : col.id === 'activity' ? t.driversPage.tableHeaderActivity
                          : t.driversPage.statusActive || 'Statut'}
                       </span>
                     ))}
-                    <span className="text-[11px] font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
+                    <span className="text-xs font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
                   </div>
                 );
               })()}
@@ -584,7 +584,7 @@ function DriversPageContent() {
                         {/* Driver info — always shown (pinned) */}
                         <div className="flex items-center gap-3 overflow-hidden text-start">
                           <div className="relative shrink-0 select-none">
-                            <div className="h-8 w-8 rounded-full border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center font-mono text-[10px] font-bold text-[var(--brand)]">
+                            <div className="h-8 w-8 rounded-full border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center font-mono text-2xs font-bold text-[var(--brand)]">
                               {drv.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
                             </div>
                             {drv.accountStatus === 'ACTIVE' && (
@@ -597,7 +597,7 @@ function DriversPageContent() {
                             )}
                           </div>
                           <div className="flex flex-col gap-0.5 truncate">
-                            <span className="text-[11px] font-[700] text-[var(--text-primary)] truncate">{drv.name}</span>
+                            <span className="text-xs font-[700] text-[var(--text-primary)] truncate">{drv.name}</span>
                             {drv.email && (
                               <span className="text-[9px] font-[500] text-[var(--text-muted)] truncate">{drv.email}</span>
                             )}
@@ -610,7 +610,7 @@ function DriversPageContent() {
                           if (col.id === 'contact') return (
                             <div key="contact" className="flex items-center gap-1.5 text-start">
                               <SVGPhone size={10} className="text-[var(--text-muted)]" />
-                              <span className="text-[11px] font-[600] text-[var(--text-soft)] font-mono tracking-wide">{drv.phone}</span>
+                              <span className="text-xs font-[600] text-[var(--text-soft)] font-mono tracking-wide">{drv.phone}</span>
                             </div>
                           );
                           if (col.id === 'activity') return (
@@ -661,7 +661,7 @@ function DriversPageContent() {
                             <DropdownMenuContent align="end" className="w-40 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-sm p-1">
                               <DropdownMenuItem
                                 onClick={() => { setSelectedId(drv.id); setDetailsOpen(true); }}
-                                className="text-[11px] font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
                               >
                                 <SVGUser size={13} className="text-[var(--text-muted)]" />
                                 {t.driversPage.profileModalTitle}
@@ -670,7 +670,7 @@ function DriversPageContent() {
                               {drv.accountStatus !== 'PENDING_SETUP' && !readOnly && (
                                 <DropdownMenuItem
                                   onClick={() => openEdit(drv)}
-                                  className="text-[11px] font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                  className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
                                 >
                                   <SVGPencil size={13} className="text-[var(--text-muted)]" />
                                   {t.driversPage.modifyButton}
@@ -682,14 +682,14 @@ function DriversPageContent() {
                                   <DropdownMenuItem
                                     onClick={() => handleResendInvite(drv)}
                                     disabled={resendCooldown > 0}
-                                    className="text-[11px] font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                    className="text-xs font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
                                   >
                                     <SVGSend size={13} className="text-amber-500" />
                                     {resendCooldown > 0 ? `${resendCooldown}s` : t.driversPage.resendInviteButton}
                                   </DropdownMenuItem>
                                   <DropdownMenuItem
                                     onClick={() => openCancelInvite(drv)}
-                                    className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                    className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5"
                                   >
                                     <SVGX size={13} className="text-red-500" />
                                     {t.driversPage.cancelInviteButton}
@@ -698,18 +698,18 @@ function DriversPageContent() {
                               )}
                               {drv.accountStatus === 'ACTIVE' && !readOnly && (
                                 <>
-                                  <DropdownMenuItem onClick={() => openSuspend(drv)} className="text-[11px] font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                  <DropdownMenuItem onClick={() => openSuspend(drv)} className="text-xs font-semibold text-red-600 hover:text-red-800 hover:bg-red-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
                                     <SVGBan size={13} className="text-red-500" />
                                     {t.driversPage.suspendDriverButton}
                                   </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleForceLogout(drv.id)} className="text-[11px] font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                  <DropdownMenuItem onClick={() => handleForceLogout(drv.id)} className="text-xs font-semibold text-amber-600 hover:text-amber-800 hover:bg-amber-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
                                     <SVGLogout size={13} className="text-amber-500" />
                                     {t.driversPage.forceLogoutButton}
                                   </DropdownMenuItem>
                                 </>
                               )}
                               {drv.accountStatus === 'SUSPENDED' && !readOnly && (
-                                <DropdownMenuItem onClick={() => toggleActive(drv)} className="text-[11px] font-semibold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                <DropdownMenuItem onClick={() => toggleActive(drv)} className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 hover:bg-emerald-50/50 gap-2 cursor-pointer rounded px-2.5 py-1.5">
                                   <SVGActivity size={13} className="text-emerald-500" />
                                   {t.driversPage.activateTooltip}
                                 </DropdownMenuItem>
@@ -749,7 +749,7 @@ function DriversPageContent() {
             <Button
               size="sm"
               onClick={() => setDetailsOpen(false)}
-              className="h-7 px-3 text-[11px] font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
+              className="h-7 px-3 text-xs font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
             >
               {t.driversPage.cancelButton || 'Fermer'}
             </Button>
@@ -834,7 +834,7 @@ function DriversPageContent() {
 
                         {/* Contact Details List */}
                         <div className="flex flex-col gap-1 pr-2 pl-2">
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 block">
+                          <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 block">
                             {t.driversPage.tableHeaderContact || 'Coordonnées'}
                           </span>
                           
@@ -906,7 +906,7 @@ function DriversPageContent() {
                         {isDriverEnLivraison(selected) ? (
                           <div className="space-y-5 pr-2 pl-2">
                             <div className="flex flex-col gap-1">
-                              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 block">
+                              <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-3 block">
                                 {t.driversPage.fleetStatusLabel || 'Mission en cours'}
                               </span>
 
@@ -1006,12 +1006,12 @@ function DriversPageContent() {
         size="sm"
         footer={
           <div className="flex items-center justify-end gap-2 w-full mt-2">
-            <Button variant="ghost" size="sm" className="h-7 px-3 text-[11px] font-bold rounded-md" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
+            <Button variant="ghost" size="sm" className="h-7 px-3 text-xs font-bold rounded-md" onClick={() => setCrudOpen(false)}>{t.driversPage.cancelButton}</Button>
             <Button
               size="sm"
               onClick={saveDriver}
               disabled={saving}
-              className="h-7 px-3 text-[11px] font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
+              className="h-7 px-3 text-xs font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
             >
               {saving ? t.driversPage.resendInProgress : editingDriver ? t.driversPage.saveButton : t.driversPage.createButton}
             </Button>

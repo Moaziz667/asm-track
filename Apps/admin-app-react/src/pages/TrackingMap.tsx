@@ -115,8 +115,8 @@ export default function TrackingMap(props: { data: TrackingData }) {
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[350px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-[2px] p-6 text-center">
         <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Suivi Temps Réel Indisponible</p>
-        <p className="text-[10px] text-[var(--text-muted)] mb-4">Le service de cartographie n'a pas pu s'initialiser correctement.</p>
-        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-[10px] rounded-[2px] font-medium hover:opacity-90 transition">
+        <p className="text-2xs text-[var(--text-muted)] mb-4">Le service de cartographie n'a pas pu s'initialiser correctement.</p>
+        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-[2px] font-medium hover:opacity-90 transition">
           Actualiser la page
         </button>
       </div>

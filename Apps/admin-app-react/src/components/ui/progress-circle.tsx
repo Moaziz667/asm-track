@@ -56,12 +56,12 @@ export function ProgressCircle({
           />
         </svg>
         {showValue && (
-          <div className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-muted-foreground">
+          <div className="absolute inset-0 flex items-center justify-center text-2xs font-bold text-muted-foreground">
             {Math.round(value)}%
           </div>
         )}
       </div>
-      {label && <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>}
+      {label && <span className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>}
     </div>
   )
 }

@@ -76,7 +76,7 @@ export function QueueDetail() {
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold shrink-0"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0"
                 style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
               >
                 {(d.clientName ?? '?').slice(0, 1).toUpperCase()}
@@ -95,7 +95,7 @@ export function QueueDetail() {
                 <StatusBadge status={d.status} size="sm" />
                 <SlaHealthBadge health={d.slaHealth ?? alert?.slaHealth} size="md" />
               </div>
-              <Link to={`/deliveries/${id}`} className="text-[11px] font-[500] hover:underline" style={{ color: 'var(--text-secondary)' }}>
+              <Link to={`/deliveries/${id}`} className="text-xs font-[500] hover:underline" style={{ color: 'var(--text-secondary)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>
             </div>
@@ -116,7 +116,7 @@ export function QueueDetail() {
             ? <SlaTimeline deliveryId={id} variant="compact" />
             : (
               <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
-                <p className="text-[13px] leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
+                <p className="text-base leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
                   {t.dispatchDeskPage.queueNoAlerts}
                 </p>
               </div>
@@ -127,19 +127,19 @@ export function QueueDetail() {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Driver */}
             <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
                 {t.dispatchDeskPage.driverLabel}
               </span>
               {d.driverName ? (
                 <div className="flex items-center gap-2">
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
                   <div className="min-w-0">
-                    <p className="text-[13px] font-[600]" style={{ color: 'var(--text-primary)' }}>{d.driverName}</p>
+                    <p className="text-base font-[600]" style={{ color: 'var(--text-primary)' }}>{d.driverName}</p>
                     {(d.driverPhone || driver?.phone) && (
-                      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{d.driverPhone ?? driver?.phone}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d.driverPhone ?? driver?.phone}</p>
                     )}
                   </div>
-                  <span className="ms-auto text-[10px] font-[500] shrink-0" style={{ color: 'var(--text-muted)' }}>
+                  <span className="ms-auto text-2xs font-[500] shrink-0" style={{ color: 'var(--text-muted)' }}>
                     {getDriverStatusTip(driver?.onlineStatus, t)}
                   </span>
                 </div>
@@ -152,7 +152,7 @@ export function QueueDetail() {
 
             {/* Address / client */}
             <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
                 {t.dispatchDeskPage.orderLabel}
               </span>
               {(d.dropoffAddress || d.dropoffCity || d.zoneName) ? (
@@ -164,7 +164,7 @@ export function QueueDetail() {
                 <span className="text-[12.5px] font-[500]" style={{ color: 'var(--text-muted)' }}>—</span>
               )}
               {d.clientPhone && (
-                <p className="text-[12px] font-mono" style={{ color: 'var(--text-muted)' }}>{d.clientPhone}</p>
+                <p className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{d.clientPhone}</p>
               )}
             </div>
           </div>
@@ -187,12 +187,12 @@ export function QueueDetail() {
           {/* Items */}
           {d.items && d.items.length > 0 && (
             <div className="flex flex-col gap-1.5">
-              <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
                 {t.dispatchDeskPage.queueItemsLabel}
               </span>
               <div className="rounded-[var(--radius)] divide-y overflow-hidden border" style={{ background: 'var(--hover-bg)', borderColor: 'var(--border)' }}>
                 {d.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-[12px] px-3 py-2" style={{ borderColor: 'var(--border)' }}>
+                  <div key={idx} className="flex items-center justify-between text-sm px-3 py-2" style={{ borderColor: 'var(--border)' }}>
                     <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
                     <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
                   </div>

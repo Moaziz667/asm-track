@@ -26,7 +26,7 @@ export function Panel({ title, subtitle, headerActions, children, className, ...
               </span>
             )}
             {subtitle && (
-              <span className="text-[10px] font-semibold text-[var(--text-muted)] truncate">
+              <span className="text-2xs font-semibold text-[var(--text-muted)] truncate">
                 {subtitle}
               </span>
             )}

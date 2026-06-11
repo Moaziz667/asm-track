@@ -18,7 +18,7 @@ export default function NotFound() {
         <IconCompass size={30} className="text-[var(--text-muted)]" />
       </div>
       <div className="flex flex-col gap-1">
-        <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">{c.code}</span>
+        <span className="text-xs font-bold uppercase tracking-[0.18em] text-[var(--text-muted)]">{c.code}</span>
         <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)]">{c.title}</h1>
         <p className="mt-1 max-w-md text-sm text-[var(--text-muted)]">{c.body}</p>
       </div>

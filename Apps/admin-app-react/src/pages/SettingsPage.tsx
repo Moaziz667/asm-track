@@ -406,7 +406,7 @@ export default function SettingsPage() {
                         </ul>
                       </div>
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] leading-relaxed mt-4 pt-3 border-t border-dashed border-[var(--border)]">{sp.slaGuideNote}</p>
+                    <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-4 pt-3 border-t border-dashed border-[var(--border)]">{sp.slaGuideNote}</p>
                   </SectionCard>
 
                   {/* Threshold cards */}
@@ -435,10 +435,10 @@ export default function SettingsPage() {
                             </Button>
                           )}
                         </div>
-                        <p className="text-[11px] text-[var(--text-muted)] mb-4 leading-relaxed">{sp[c.desc]}</p>
+                        <p className="text-xs text-[var(--text-muted)] mb-4 leading-relaxed">{sp[c.desc]}</p>
                         <div className="flex items-baseline gap-1">
                           <p className="font-mono text-3xl font-semibold tabular-nums text-[var(--text-primary)]">{slaSettings[c.key] ?? c.def}</p>
-                          <p className="text-[11px] font-semibold text-[var(--text-muted)]">MIN</p>
+                          <p className="text-xs font-semibold text-[var(--text-muted)]">MIN</p>
                         </div>
                       </div>
                     ))}
@@ -475,14 +475,14 @@ export default function SettingsPage() {
                               <p className="text-xs text-[var(--text-muted)]">{u.email}</p>
                             </TableCell>
                             <TableCell>
-                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
                                     style={{ color: ROLE_TONE[u.role] ?? 'var(--text-muted)', background: `color-mix(in srgb, ${ROLE_TONE[u.role] ?? 'var(--text-soft)'} 12%, transparent)` }}>
                                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: ROLE_TONE[u.role] ?? 'var(--text-soft)' }} />
                                 {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
                               </span>
                             </TableCell>
                             <TableCell>
-                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
                                     style={{ color: u.active ? 'var(--success)' : 'var(--danger)', background: `color-mix(in srgb, ${u.active ? 'var(--success)' : 'var(--danger)'} 12%, transparent)` }}>
                                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: u.active ? 'var(--success)' : 'var(--danger)' }} />
                                 {u.active ? (t.driversPage.statusActive ?? 'Active') : (t.driversPage.statusInactive ?? 'Inactive')}
@@ -649,12 +649,12 @@ export default function SettingsPage() {
                 <p className="text-xs font-semibold text-[var(--text-muted)]">MIN</p>
               </div>
             </div>
-            <p className="text-[11px] text-[var(--text-muted)] mt-2">{sp.slaBreachWarning}</p>
+            <p className="text-xs text-[var(--text-muted)] mt-2">{sp.slaBreachWarning}</p>
           </div>
 
           <div className="rounded-lg p-4 bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
             <p className={cn(tw.label, 'mb-2')}>{sp.recommendation}</p>
-            <p className="text-[11px] text-[var(--text-muted)] leading-relaxed">
+            <p className="text-xs text-[var(--text-muted)] leading-relaxed">
               {editingSla && SLA_REC[editingSla.key] && sp[SLA_REC[editingSla.key]]}
             </p>
           </div>

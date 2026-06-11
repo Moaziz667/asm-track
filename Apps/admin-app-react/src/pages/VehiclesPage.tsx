@@ -132,7 +132,7 @@ function VehicleTechnicalCard({
 
         {/* Type badge */}
         <div className="absolute top-3 left-6">
-          <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md border bg-background text-foreground shadow-sm">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-md border bg-background text-foreground shadow-sm">
             {typeLabel[vehicle.type]}
           </span>
         </div>
@@ -140,7 +140,7 @@ function VehicleTechnicalCard({
         {/* Retired badge */}
         {isRetired && (
           <div className="absolute top-3 right-3">
-            <span className="text-[10px] font-bold px-2 py-1 rounded-md bg-red-500/10 text-red-600 border border-red-500/20">
+            <span className="text-2xs font-bold px-2 py-1 rounded-md bg-red-500/10 text-red-600 border border-red-500/20">
               {t.vehiclesPage.statusRetired}
             </span>
           </div>
@@ -157,7 +157,7 @@ function VehicleTechnicalCard({
               </span>
             </h3>
             <span
-              className="text-[11px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 whitespace-nowrap border"
+              className="text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 whitespace-nowrap border"
               style={{
                 color: dotColor,
                 background: isRetired ? 'rgba(199,55,47,0.09)' : (isBusy ? 'rgba(94,106,210,0.09)' : 'rgba(76,175,130,0.09)'),
@@ -218,7 +218,7 @@ function VehicleTechnicalCard({
 
       <CardFooter className="bg-muted/30 border-t p-3 px-4 flex justify-between items-center mt-auto rounded-b-xl pb-3">
         <div>
-          <p className="text-[11px] font-medium text-muted-foreground mb-0.5">
+          <p className="text-xs font-medium text-muted-foreground mb-0.5">
             {t.vehiclesPage.assignedDriver}
           </p>
           <p className="text-xs font-semibold">
@@ -233,7 +233,7 @@ function VehicleTechnicalCard({
                   type="button"
                   variant="ghost"
                   size="sm"
-                  className="h-8 px-3 text-[10px] font-bold text-emerald-600 hover:bg-emerald-500/10"
+                  className="h-8 px-3 text-2xs font-bold text-emerald-600 hover:bg-emerald-500/10"
                   onClick={() => onReactivate(vehicle)}
                 >
                   <IconRefresh size={14} className="mr-1" />
@@ -472,7 +472,7 @@ function VehiclesPageContent() {
             className="flex items-center justify-between px-4 h-11 shrink-0"
             style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
           >
-            <p className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               {t.vehiclesPage.displayedCount.replace('{count}', filtered.length.toString())}
             </p>
             <DisplaySettingsDropdown
@@ -493,7 +493,7 @@ function VehiclesPageContent() {
             ) : filtered.length === 0 ? (
               <div className="flex flex-col items-center py-[120px] gap-2">
                 <IconTruck size={48} style={{ color: 'var(--border)' }} />
-                <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.vehiclesPage.noVehiclesFound}</p>
+                <p className="text-xs font-semibold text-[var(--text-muted)]">{t.vehiclesPage.noVehiclesFound}</p>
               </div>
             ) : (
               <table className="w-full border-collapse">
@@ -502,7 +502,7 @@ function VehiclesPageContent() {
                     {/* Thumbnail always first */}
                     <th className="px-4 py-2.5" style={{ color: 'var(--text-muted)', width: 56 }} />
                     {orderedColumns.map(col => visibleIds.has(col.id) && (
-                      <th key={col.id} className="px-4 py-2.5 text-left text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                      <th key={col.id} className="px-4 py-2.5 text-left text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
                         {col.label}
                       </th>
                     ))}
@@ -544,25 +544,25 @@ function VehiclesPageContent() {
                           if (!visibleIds.has(col.id)) return null;
                           if (col.id === 'vehicle') return (
                             <td key="vehicle" className="px-4">
-                              <p className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{v.make} <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{v.model}</span></p>
-                              <p className="text-[10px] font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>{vTypeLabel[v.type] ?? v.type}{v.manufactureYear ? ` · ${v.manufactureYear}` : ''}</p>
+                              <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{v.make} <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{v.model}</span></p>
+                              <p className="text-2xs font-medium mt-0.5" style={{ color: 'var(--text-muted)' }}>{vTypeLabel[v.type] ?? v.type}{v.manufactureYear ? ` · ${v.manufactureYear}` : ''}</p>
                             </td>
                           );
                           if (col.id === 'plate') return (
                             <td key="plate" className="px-4">
-                              <span className="font-mono text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{v.plate}</span>
+                              <span className="font-mono text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{v.plate}</span>
                             </td>
                           );
                           if (col.id === 'payload') return (
                             <td key="payload" className="px-4">
-                              <span className="text-[12px] font-mono" style={{ color: 'var(--text-secondary)' }}>
+                              <span className="text-sm font-mono" style={{ color: 'var(--text-secondary)' }}>
                                 {v.payloadKg ? `${(v.payloadKg / 1000).toFixed(1)} T` : '—'}
                               </span>
                             </td>
                           );
                           if (col.id === 'driver') return (
                             <td key="driver" className="px-4">
-                              <span className="text-[12px]" style={{ color: driverName ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
+                              <span className="text-sm" style={{ color: driverName ? 'var(--text-secondary)' : 'var(--text-muted)' }}>
                                 {driverName ?? '—'}
                               </span>
                             </td>
@@ -570,7 +570,7 @@ function VehiclesPageContent() {
                           if (col.id === 'status') return (
                             <td key="status" className="px-4">
                               <span
-                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold border"
+                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-2xs font-bold border"
                                 style={{ color: statusColor, background: `${statusColor}10`, borderColor: `${statusColor}25` }}
                               >
                                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor }} />
@@ -636,14 +636,14 @@ function VehiclesPageContent() {
         subtitle={editingId ? t.vehiclesPage.editSubtitle : t.vehiclesPage.createSubtitle}
         footer={
           <>
-            <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 px-3 text-[11px] font-bold rounded-md">
+            <Button variant="ghost" size="sm" onClick={resetForm} className="h-7 px-3 text-xs font-bold rounded-md">
               {t.vehiclesPage.cancelButton}
             </Button>
             <Button
               size="sm"
               onClick={saveVehicle}
               disabled={saving}
-              className="h-7 px-3 text-[11px] font-bold rounded-md"
+              className="h-7 px-3 text-xs font-bold rounded-md"
               style={{ background: 'var(--brand)', color: '#fff', border: 'none' }}
             >
               {saving && <Spinner size={12} className="mr-1.5" />}
@@ -656,7 +656,7 @@ function VehiclesPageContent() {
           <div className="grid grid-cols-[1fr_2fr] gap-4">
             {/* Image upload */}
             <div>
-              <p className="text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
+              <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>
                 {t.vehiclesPage.modalImageLabel}
               </p>
               <div
@@ -683,7 +683,7 @@ function VehiclesPageContent() {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="text-[10px] font-bold px-2 py-1 rounded-md shadow-sm border border-[var(--border)]"
+                    className="text-2xs font-bold px-2 py-1 rounded-md shadow-sm border border-[var(--border)]"
                     style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                   >
                     {form.imagePreviewUrl ? t.vehiclesPage.imageChangeButton : t.vehiclesPage.imageUploadButton}

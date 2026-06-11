@@ -112,7 +112,7 @@ export function CommandSurface() {
         {/* Suggestion list */}
         <div className="flex-1 min-h-0 overflow-y-auto py-dense-2">
           {filteredCommands.length === 0 ? (
-            <div className="px-dense-4 py-dense-3 text-center text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wide">
+            <div className="px-dense-4 py-dense-3 text-center text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wide">
               {t.commandSurface.noResults}
             </div>
           ) : (

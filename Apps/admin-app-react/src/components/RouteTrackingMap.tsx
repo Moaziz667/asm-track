@@ -429,8 +429,8 @@ export default function RouteTrackingMap(props: Props) {
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[300px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-[2px] p-6 text-center">
         <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Suivi Cartographique Indisponible (Crash)</p>
-        <p className="text-[10px] text-[var(--text-muted)] mb-4">Une exception s'est produite lors de l'affichage du suivi de tournée.</p>
-        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-[10px] rounded-[2px] font-medium hover:opacity-90 transition">
+        <p className="text-2xs text-[var(--text-muted)] mb-4">Une exception s'est produite lors de l'affichage du suivi de tournée.</p>
+        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-[2px] font-medium hover:opacity-90 transition">
           Actualiser la page
         </button>
       </div>

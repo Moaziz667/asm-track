@@ -127,7 +127,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
                 }
               </div>
               <span className={cn(
-                'text-[11px] font-medium',
+                'text-xs font-medium',
                 active ? 'font-semibold text-[var(--text-primary)]' : done ? 'text-[var(--text-muted)]' : 'text-[var(--text-muted)]',
               )}>
                 {label}
@@ -363,7 +363,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
 
   const drawerTitle = (
     <div className="flex flex-col gap-1">
-      <span className="text-[14px] font-semibold text-[var(--text-primary)]">
+      <span className="text-md font-semibold text-[var(--text-primary)]">
         {isAssignMode
           ? isBatch
             ? t.reassignDrawer.assignBatchTitle.replace('{count}', String(allTargets.length))
@@ -372,7 +372,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             ? t.reassignDrawer.batchTitle.replace('{count}', String(allTargets.length))
             : t.reassignDrawer.reassignTitle}
       </span>
-      <span className="text-[11px] font-normal text-[var(--text-muted)]">
+      <span className="text-xs font-normal text-[var(--text-muted)]">
         {isBatch
           ? allTargets.map(t => t.city ?? t.clientName).filter(Boolean).slice(0, 3).join(', ')
           : `${target?.orderRef || target?.deliveryId?.slice(0, 8).toUpperCase()} • ${target?.clientName}`}
@@ -411,7 +411,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
       <div className="mb-5 px-5">
         <StepIndicator step={step} />
         {step > 1 && selectedDriver && (
-          <div className="flex items-center gap-1 mt-2 text-[11px]">
+          <div className="flex items-center gap-1 mt-2 text-xs">
             <button
               type="button"
               onClick={() => { setStep(1); setSelectedDriverId(''); setRoutes([]); setSelectedRoute(null); }}
@@ -494,7 +494,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                     <div className="w-2 h-2 rounded-full shrink-0" style={{ background: statusCfg.dot }} />
                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                       <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-[12px] font-semibold text-[var(--text-primary)]">{driver.name}</span>
+                        <span className="text-sm font-semibold text-[var(--text-primary)]">{driver.name}</span>
                         {dimmed && (
                           <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-[2px]" style={{ background: statusCfg.bg, color: statusCfg.text }}>
                             {statusCfg.label}
@@ -505,30 +505,30 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                         <div className="flex items-center gap-2 flex-wrap">
                           {routes.slice(0, 1).map(r => (
                             <div key={r.id} className="flex items-center gap-1.5">
-                              <span className="text-[10px] font-medium text-[var(--text-muted)]">
+                              <span className="text-2xs font-medium text-[var(--text-muted)]">
                                 {ROUTE_STATUS_LABEL[r.status] ?? r.status}
                               </span>
-                              <span className="text-[10px] font-mono text-[var(--text-muted)]">
+                              <span className="text-2xs font-mono text-[var(--text-muted)]">
                                 {r.stops.filter(s => STOP_STATUS_DONE.has(s.status)).length}/{r.stops.length}
                               </span>
                             </div>
                           ))}
                           {activeStopCount > 0 && (
-                            <span className="text-[10px] text-[var(--text-muted)]">
+                            <span className="text-2xs text-[var(--text-muted)]">
                               {activeStopCount} arrêt{activeStopCount !== 1 ? 's' : ''} {t.reassignDrawer.stopFree}
                             </span>
                           )}
                         </div>
                       ) : prefetching ? (
-                        <span className="text-[10px] text-[var(--text-muted)]">{t.reassignDrawer.loadingRoutes}</span>
+                        <span className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.loadingRoutes}</span>
                       ) : (
-                        <span className="text-[10px] text-[var(--text-muted)]">{t.reassignDrawer.noRoutes}</span>
+                        <span className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.noRoutes}</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
                     {dist != null && (
-                      <span className="text-[11px] font-medium text-[var(--text-primary)] font-mono">{dist.toFixed(1)} km</span>
+                      <span className="text-xs font-medium text-[var(--text-primary)] font-mono">{dist.toFixed(1)} km</span>
                     )}
                     <IconChevronRight size={14} className="text-[var(--text-muted)] opacity-50" />
                   </div>
@@ -539,7 +539,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         };
 
         const TierLabel = ({ label }: { label: string }) => (
-          <span className="text-[10px] font-medium text-[var(--text-muted)] pt-2">{label}</span>
+          <span className="text-2xs font-medium text-[var(--text-muted)] pt-2">{label}</span>
         );
 
         return (
@@ -561,7 +561,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             {onlineWithoutRoute.length > 0 && (
               <>
                 <TierLabel label={t.reassignDrawer.onlineNoRoute} />
-                <p className="text-[10px] text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
+                <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
                   {t.reassignDrawer.autoRouteCreated}
                 </p>
                 {onlineWithoutRoute.map(d => <DriverCard key={d.id} driver={d} />)}
@@ -580,7 +580,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 <button
                   type="button"
                   onClick={() => setOfflineExpanded(v => !v)}
-                  className="flex items-center gap-1.5 py-2 w-full text-[10px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                  className="flex items-center gap-1.5 py-2 w-full text-2xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   <span className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-40" />
                   <span>
@@ -594,7 +594,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 </button>
                 {offlineExpanded && offline.map(d => <DriverCard key={d.id} driver={d} dimmed />)}
                 {offlineExpanded && (
-                  <p className="text-[10px] text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
+                  <p className="text-2xs text-[var(--text-muted)] px-3 py-2 rounded-[3px] bg-[var(--app-bg)]">
                     {t.reassignDrawer.offlineWarning}
                   </p>
                 )}
@@ -602,7 +602,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             )}
 
             {online.length === 0 && onBreak.length === 0 && !offlineExpanded && offline.length === 0 && (
-              <p className="text-[12px] text-[var(--text-soft)] text-center py-6">{t.reassignDrawer.noDriver}</p>
+              <p className="text-sm text-[var(--text-soft)] text-center py-6">{t.reassignDrawer.noDriver}</p>
             )}
           </div>
         );
@@ -617,17 +617,17 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
-              <span className="text-[11px] text-[var(--text-muted)]">{t.reassignDrawer.loadingRoutesStep2}</span>
+              <span className="text-xs text-[var(--text-muted)]">{t.reassignDrawer.loadingRoutesStep2}</span>
             </div>
           )}
 
           {!loadingRoutes && routes.length === 0 && (
             <div className="p-6 rounded border border-[var(--border)] text-center flex flex-col items-center gap-2">
               <IconCalendar size={32} className="text-[var(--border)]" />
-              <p className="text-[12px] font-semibold text-[var(--text-muted)]">
+              <p className="text-sm font-semibold text-[var(--text-muted)]">
                 {t.reassignDrawer.noActiveRoutes}
               </p>
-              <p className="text-[10px] text-[var(--text-soft)]">
+              <p className="text-2xs text-[var(--text-soft)]">
                 {t.reassignDrawer.noActiveRoutesDesc}
               </p>
             </div>
@@ -636,11 +636,11 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           {!loadingRoutes && dateGroups.map(([date, dayRoutes]) => (
             <div key={date} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
-                <span className="text-[10px] font-medium text-[var(--text-muted)]">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
                   {formatDate(date)}
                 </span>
-                <span className="text-[10px] text-[var(--text-muted)]">•</span>
-                <span className="text-[10px] text-[var(--text-muted)]">{t.reassignDrawer.routeCount.replace('{count}', String(dayRoutes.length)).replace('{plural}', dayRoutes.length > 1 ? 's' : '')}</span>
+                <span className="text-2xs text-[var(--text-muted)]">•</span>
+                <span className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.routeCount.replace('{count}', String(dayRoutes.length)).replace('{plural}', dayRoutes.length > 1 ? 's' : '')}</span>
               </div>
 
               {dayRoutes.map(route => {
@@ -657,9 +657,9 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                       <div className="flex items-start justify-between">
                         <div className="flex flex-col gap-1 flex-1 min-w-0">
                           <div className="flex items-center gap-2">
-                            <span className="text-[12px] font-bold text-[var(--text-primary)] truncate">{route.name}</span>
+                            <span className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</span>
                             <span
-                              className="text-[10px] px-1.5 py-0.5 rounded shrink-0"
+                              className="text-2xs px-1.5 py-0.5 rounded shrink-0"
                               style={{ background: `${ROUTE_STATUS_COLOR[route.status]}20`, color: ROUTE_STATUS_COLOR[route.status] }}
                             >
                               {ROUTE_STATUS_LABEL[route.status] ?? route.status}
@@ -668,13 +668,13 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                           <div className="flex items-center gap-2">
                             <div className="flex items-center gap-0.5">
                               <IconMapPin size={10} className="text-[var(--text-soft)]" />
-                              <span className="text-[10px] text-[var(--text-muted)]">{route.stops.length} arrêts total</span>
+                              <span className="text-2xs text-[var(--text-muted)]">{route.stops.length} arrêts total</span>
                             </div>
                             {activeCount > 0 && (
-                              <span className="text-[10px] text-[#10B981] font-semibold">{activeCount} actifs</span>
+                              <span className="text-2xs text-[#10B981] font-semibold">{activeCount} actifs</span>
                             )}
                             {doneCount > 0 && (
-                              <span className="text-[10px] text-[var(--text-soft)]">{doneCount} faits</span>
+                              <span className="text-2xs text-[var(--text-soft)]">{doneCount} faits</span>
                             )}
                           </div>
                         </div>
@@ -696,19 +696,19 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           {isBatch ? (
             <div className="p-3 rounded-[4px] border border-[var(--border)] bg-transparent">
               <div className="flex flex-col gap-1">
-                <span className="text-[11px] font-medium text-[var(--text-primary)]">
+                <span className="text-xs font-medium text-[var(--text-primary)]">
                   {allTargets.length} livraisons
                 </span>
                 {allTargets.slice(0, 5).map(t => (
                   <div key={t.deliveryId} className="flex items-center gap-2">
                     <div className="w-[5px] h-[5px] rounded-full bg-[var(--brand)] shrink-0" />
-                    <span className="text-[10px] text-[var(--text-primary)] font-semibold">{t.clientName ?? '—'}</span>
-                    <span className="text-[10px] text-[var(--text-muted)]">{t.city}</span>
+                    <span className="text-2xs text-[var(--text-primary)] font-semibold">{t.clientName ?? '—'}</span>
+                    <span className="text-2xs text-[var(--text-muted)]">{t.city}</span>
                     {t.orderRef && <span className="text-[9px] text-[var(--text-soft)] font-mono">{t.orderRef}</span>}
                   </div>
                 ))}
                 {allTargets.length > 5 && (
-                  <span className="text-[10px] text-[var(--text-soft)]">+{allTargets.length - 5} de plus…</span>
+                  <span className="text-2xs text-[var(--text-soft)]">+{allTargets.length - 5} de plus…</span>
                 )}
               </div>
             </div>
@@ -717,8 +717,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               <div className="flex items-center gap-2">
                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0">
-                  <span className="text-[11px] font-medium text-[var(--text-primary)]">{target?.clientName}</span>
-                  <span className="text-[10px] text-[var(--text-muted)]">{target?.city} • {target?.orderRef}</span>
+                  <span className="text-xs font-medium text-[var(--text-primary)]">{target?.clientName}</span>
+                  <span className="text-2xs text-[var(--text-muted)]">{target?.city} • {target?.orderRef}</span>
                 </div>
                 <span className="text-[9px] font-bold text-[var(--text-soft)] uppercase">{target?.status}</span>
               </div>
@@ -728,7 +728,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           {/* Time windows */}
           {!isBatch && (
             <div className="flex flex-col gap-2">
-              <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
+              <span className="text-2xs font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
                 {t.reassignDrawer.timeWindowLabel}
               </span>
               <div className="grid grid-cols-2 gap-2">
@@ -782,10 +782,10 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             const canPickPosition = selectedRoute.status === 'DRAFT' || selectedRoute.status === 'VALIDATED';
             return (
               <div className="flex flex-col gap-2">
-                <span className="text-[10px] font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
+                <span className="text-2xs font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
                   Arrêts de la tournée
                 </span>
-                <p className="text-[10px] text-[var(--text-muted)]">
+                <p className="text-2xs text-[var(--text-muted)]">
                   {canPickPosition
                     ? 'Cliquez sur un emplacement pour positionner le nouvel arrêt.'
                     : 'Tournée en cours — le nouvel arrêt sera ajouté en fin de tournée.'}
@@ -841,7 +841,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                               <span className="text-[8px] font-black" style={{ color: isOverlap ? '#EF4444' : '#71717A' }}>{i + 1}</span>
                             </div>
                             <div className="min-w-0 flex flex-col gap-0.5">
-                              <span className="text-[10px] font-bold text-[var(--text-primary)] truncate">
+                              <span className="text-2xs font-bold text-[var(--text-primary)] truncate">
                                 {stop.clientName || 'Client'}
                               </span>
                               <span className="text-[9px] text-[var(--text-soft)]">{stop.deliveryCity || stop.deliveryAddress}</span>
@@ -914,7 +914,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 <IconCheck size={12} className="text-[#059669]" />
               </div>
               <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] font-bold text-[#065F46]">Notification automatique</span>
+                <span className="text-2xs font-bold text-[#065F46]">Notification automatique</span>
                 <span className="text-[9px] text-[#047857]">
                   Le chauffeur sera notifié en temps réel via l'application mobile.
                 </span>

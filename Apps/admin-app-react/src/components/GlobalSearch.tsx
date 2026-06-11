@@ -51,7 +51,7 @@ interface RecentItem {
 
 function StatusPill({ label, color, bg }: { label: string; color: string; bg: string }) {
   return (
-    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded shrink-0 select-none" style={{ color, background: bg }}>
+    <span className="text-2xs font-semibold px-1.5 py-0.5 rounded shrink-0 select-none" style={{ color, background: bg }}>
       {label}
     </span>
   )
@@ -455,7 +455,7 @@ export default function GlobalSearch() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full h-9 pl-9 pr-3 text-left text-[12px] font-normal bg-[var(--app-bg)] border border-[var(--border)] rounded-full text-[var(--text-soft)] hover:border-[var(--brand)] hover:shadow-sm transition-all flex items-center cursor-pointer justify-between outline-none gap-2"
+          className="w-full h-9 pl-9 pr-3 text-left text-sm font-normal bg-[var(--app-bg)] border border-[var(--border)] rounded-full text-[var(--text-soft)] hover:border-[var(--brand)] hover:shadow-sm transition-all flex items-center cursor-pointer justify-between outline-none gap-2"
         >
           <span className="truncate text-[var(--text-soft)]/85">{t.globalSearch.triggerPlaceholder}</span>
           <kbd className="font-mono text-[9px] px-1.5 py-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] select-none leading-none shadow-[0_1px_0_rgba(0,0,0,0.05)] shrink-0">⌘K</kbd>
@@ -495,13 +495,13 @@ export default function GlobalSearch() {
                 onChange={e => setQuery(e.currentTarget.value)}
                 onKeyDown={handleKeyDown}
                 placeholder={t.globalSearch.inputPlaceholder}
-                className="flex-1 bg-transparent text-[13px] font-[500] text-[var(--text-primary)] placeholder:text-[var(--text-soft)] outline-none h-full w-full"
+                className="flex-1 bg-transparent text-base font-[500] text-[var(--text-primary)] placeholder:text-[var(--text-soft)] outline-none h-full w-full"
                 dir={locale === 'ar' ? 'rtl' : 'ltr'}
               />
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-[10px] font-mono font-bold text-[var(--text-soft)] hover:text-[var(--text-primary)] border border-[var(--border)] px-2 py-0.5 rounded transition-all cursor-pointer bg-[var(--app-bg)] shadow-sm"
+                className="text-2xs font-mono font-bold text-[var(--text-soft)] hover:text-[var(--text-primary)] border border-[var(--border)] px-2 py-0.5 rounded transition-all cursor-pointer bg-[var(--app-bg)] shadow-sm"
               >
                 ESC
               </button>
@@ -512,7 +512,7 @@ export default function GlobalSearch() {
               {groups.length === 0 && (
                 <div className="text-center py-10 flex flex-col items-center gap-1.5 opacity-55">
                   <IconSearch size={22} className="text-[var(--text-soft)]" />
-                  <p className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
                     {loading
                       ? t.globalSearch.searching
                       : query.trim().length < 2
@@ -527,7 +527,7 @@ export default function GlobalSearch() {
                 idx += items.length
                 return (
                   <div key={groupName} className="mb-2 last:mb-0">
-                    <p className="text-[10px] font-extrabold uppercase tracking-[0.10em] text-[var(--text-soft)] px-4 py-1.5 sticky top-0 bg-[var(--surface)] z-10 select-none">
+                    <p className="text-2xs font-extrabold uppercase tracking-[0.10em] text-[var(--text-soft)] px-4 py-1.5 sticky top-0 bg-[var(--surface)] z-10 select-none">
                       {groupName} · <span className="font-mono text-[9px] font-bold text-[var(--text-soft)]/75">{items.length}</span>
                     </p>
                     <div className="flex flex-col gap-0.5 px-2">
@@ -551,13 +551,13 @@ export default function GlobalSearch() {
                             </span>
                             <div className="flex-1 min-w-0">
                               <p
-                                className="text-[12px] font-[600] truncate leading-tight transition-colors"
+                                className="text-sm font-[600] truncate leading-tight transition-colors"
                                 style={{ color: isFocused ? 'var(--text-primary)' : 'var(--text-secondary)' }}
                               >
                                 <Highlight text={action.label} query={query.trim()} />
                               </p>
                               {action.description && (
-                                <p className="text-[10px] font-semibold text-[var(--text-muted)] truncate leading-tight mt-0.5">
+                                <p className="text-2xs font-semibold text-[var(--text-muted)] truncate leading-tight mt-0.5">
                                   <Highlight text={action.description} query={query.trim()} />
                                 </p>
                               )}
@@ -567,7 +567,7 @@ export default function GlobalSearch() {
                             <div className="flex items-center gap-1.5 shrink-0">
                               {action.badge && <span className="shrink-0 leading-none">{action.badge}</span>}
                               {isFocused && (
-                                <span className="font-mono text-[10px] font-bold text-[var(--brand)] select-none opacity-85 shrink-0">
+                                <span className="font-mono text-2xs font-bold text-[var(--brand)] select-none opacity-85 shrink-0">
                                   ↵
                                 </span>
                               )}
@@ -590,7 +590,7 @@ export default function GlobalSearch() {
                     ['↵ Enter', t.globalSearch.shortcuts.open],
                     ['Esc', t.globalSearch.shortcuts.close],
                   ].map(([key, label]) => (
-                    <span key={key} className="text-[10px] font-semibold text-[var(--text-soft)] select-none flex items-center gap-1">
+                    <span key={key} className="text-2xs font-semibold text-[var(--text-soft)] select-none flex items-center gap-1">
                       <kbd className="font-mono bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-soft)] text-[9px] shadow-[0_1px_0_rgba(0,0,0,0.05)]">{key}</kbd>
                       {label}
                     </span>

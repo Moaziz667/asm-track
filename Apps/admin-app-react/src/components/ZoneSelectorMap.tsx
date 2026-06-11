@@ -246,7 +246,7 @@ function SearchControl() {
     <div style={{ position: 'absolute', top: 10, left: 50, zIndex: 1000, width: 260 }}>
       <div className="flex items-center gap-1 px-2 py-1.5 rounded-lg border shadow-md" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
         <input
-          className="flex-1 text-[13px] outline-none bg-transparent placeholder:text-[var(--text-soft)] text-[var(--text-primary)]"
+          className="flex-1 text-base outline-none bg-transparent placeholder:text-[var(--text-soft)] text-[var(--text-primary)]"
           placeholder={t.placeholders.city}
           value={query}
           onChange={e => setQuery(e.target.value)}
@@ -349,8 +349,8 @@ function ZoneSelectorMapInner({
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
             </svg>
-            <p className="text-[13px] font-bold text-[var(--text-primary)]">{progressMsg}</p>
-            <p className="text-[11px] text-[var(--text-muted)]">{progress}%</p>
+            <p className="text-base font-bold text-[var(--text-primary)]">{progressMsg}</p>
+            <p className="text-xs text-[var(--text-muted)]">{progress}%</p>
           </div>
         </div>
       )}
@@ -401,11 +401,11 @@ function ZoneSelectorMapInner({
                 >
                   <Popup>
                     {resolved.name && (
-                      <p className="text-[13px] font-bold mb-0.5">{resolved.name}</p>
+                      <p className="text-base font-bold mb-0.5">{resolved.name}</p>
                     )}
-                    <p className="text-[12px] text-gray-500">Code postal : <strong>{c}</strong></p>
+                    <p className="text-sm text-gray-500">Code postal : <strong>{c}</strong></p>
                     {zoneName && (
-                      <p className="text-[12px] text-gray-500 mt-1">Zone : {zoneName}</p>
+                      <p className="text-sm text-gray-500 mt-1">Zone : {zoneName}</p>
                     )}
                   </Popup>
                 </CircleMarker>
@@ -422,8 +422,8 @@ export default function ZoneSelectorMap(props: ZoneSelectorMapProps) {
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[400px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-[2px] p-6 text-center">
         <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Interface Zone-Orchestrateur Indisponible</p>
-        <p className="text-[10px] text-[var(--text-muted)] mb-4">Le module de sectorisation géographique n'a pas pu être chargé.</p>
-        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-[10px] rounded-[2px] font-medium hover:opacity-90 transition">
+        <p className="text-2xs text-[var(--text-muted)] mb-4">Le module de sectorisation géographique n'a pas pu être chargé.</p>
+        <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-[2px] font-medium hover:opacity-90 transition">
           Actualiser la page
         </button>
       </div>

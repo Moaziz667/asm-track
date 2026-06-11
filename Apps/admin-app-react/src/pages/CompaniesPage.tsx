@@ -148,8 +148,8 @@ export default function CompaniesPage() {
         {/* ── Left Rail ────────────────── */}
         <div className="w-[300px] shrink-0 overflow-y-auto flex flex-col" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}>
           <div className="p-5 border-b border-[var(--border)]">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">Ressources humaines</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
+            <span className="text-xs font-[500] text-[var(--text-muted)] mb-0.5 block">Ressources humaines</span>
+            <h1 className="text-xl font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
               Gestion des <span className="text-[var(--brand)]">entreprises</span>
             </h1>
           </div>
@@ -158,7 +158,7 @@ export default function CompaniesPage() {
             <button
               type="button"
               onClick={openCreate}
-              className="flex items-center justify-center gap-2 h-9 w-full text-[11px] font-bold rounded-[2px] transition-colors text-white"
+              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-bold rounded-[2px] transition-colors text-white"
               style={{ background: 'var(--brand)' }}
             >
               <IconPlus size={14} />
@@ -167,7 +167,7 @@ export default function CompaniesPage() {
             <div className="relative">
               <IconSearch size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--brand)' }} />
               <input
-                className="w-full h-9 pl-9 pr-3 text-[11px] rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                className="w-full h-9 pl-9 pr-3 text-xs rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
                 placeholder="Rechercher..."
                 value={searchTerm}
@@ -178,7 +178,7 @@ export default function CompaniesPage() {
               type="button"
               onClick={fetchCompanies}
               disabled={loading}
-              className="flex items-center justify-center gap-2 h-9 w-full text-[11px] font-semibold rounded-[2px] border hover:bg-[var(--hover-bg)] transition-colors"
+              className="flex items-center justify-center gap-2 h-9 w-full text-xs font-semibold rounded-[2px] border hover:bg-[var(--hover-bg)] transition-colors"
               style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}
             >
               <IconRefresh size={14} className={loading ? 'animate-spin' : ''} />
@@ -187,7 +187,7 @@ export default function CompaniesPage() {
           </div>
 
           <div className="p-5">
-            <p className="text-[11px] font-bold mb-3" style={{ color: 'var(--text-muted)' }}>Vue d'ensemble</p>
+            <p className="text-xs font-bold mb-3" style={{ color: 'var(--text-muted)' }}>Vue d'ensemble</p>
             <div className="grid grid-cols-2 gap-2">
               {[
                 { label: 'Total', value: stats.total, color: 'var(--text-primary)' },
@@ -195,7 +195,7 @@ export default function CompaniesPage() {
               ].map(s => (
                 <div key={s.label} className="p-3 rounded-[2px] relative overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                   <div className="absolute top-0 left-0 w-[3px] h-full" style={{ background: s.color }} />
-                  <p className="text-[11px] font-bold mb-1" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
+                  <p className="text-xs font-bold mb-1" style={{ color: 'var(--text-muted)' }}>{s.label}</p>
                   <p className="text-[20px] font-[600] font-mono" style={{ color: s.color }}>{s.value}</p>
                 </div>
               ))}
@@ -206,7 +206,7 @@ export default function CompaniesPage() {
         {/* ── Main Table ────────────────────────────────────────── */}
         <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
           <div className="flex items-center justify-between px-6 h-14 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-            <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+            <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
               <span style={{ color: 'var(--brand)' }}>{filtered.length}</span> entreprise(s)
             </p>
           </div>
@@ -217,7 +217,7 @@ export default function CompaniesPage() {
                 <thead className="sticky top-0 z-20" style={{ background: 'var(--surface)', borderBottom: '1px solid var(--border)' }}>
                   <tr>
                     {['Entreprise', 'ERP', 'Support', 'Statut', ''].map(h => (
-                      <th key={h} className="text-left text-[11px] font-bold px-4 py-3" style={{ color: 'var(--text-muted)' }}>{h}</th>
+                      <th key={h} className="text-left text-xs font-bold px-4 py-3" style={{ color: 'var(--text-muted)' }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
@@ -235,7 +235,7 @@ export default function CompaniesPage() {
                       <td colSpan={5} className="text-center py-20 opacity-40">
                         <div className="flex flex-col items-center gap-2">
                           <IconBuilding size={36} style={{ color: 'var(--text-muted)' }} />
-                          <p className="text-[12px] font-semibold" style={{ color: 'var(--text-muted)' }}>Aucune entreprise</p>
+                          <p className="text-sm font-semibold" style={{ color: 'var(--text-muted)' }}>Aucune entreprise</p>
                         </div>
                       </td>
                     </tr>
@@ -252,13 +252,13 @@ export default function CompaniesPage() {
                             className="w-8 h-8 flex items-center justify-center rounded-[var(--radius)] flex-shrink-0"
                             style={{ background: c.primaryColor ?? 'var(--brand)' }}
                           >
-                            <span className="text-[12px] font-[600] text-white font-mono">
+                            <span className="text-sm font-[600] text-white font-mono">
                               {c.name.slice(0, 2).toUpperCase()}
                             </span>
                           </div>
                           <div>
-                            <p className="text-[12px] font-bold" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
-                            {c.address && <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{c.address}</p>}
+                            <p className="text-sm font-bold" style={{ color: 'var(--text-primary)' }}>{c.name}</p>
+                            {c.address && <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{c.address}</p>}
                           </div>
                         </div>
                       </td>
@@ -266,20 +266,20 @@ export default function CompaniesPage() {
                         {hasErp(c) ? (
                           <div className="flex items-center gap-1.5">
                             <IconDatabase size={12} style={{ color: '#60A5FA' }} />
-                            <span className="text-[11px] font-semibold" style={{ color: '#60A5FA' }}>{c.erpType}</span>
+                            <span className="text-xs font-semibold" style={{ color: '#60A5FA' }}>{c.erpType}</span>
                           </div>
                         ) : (
-                          <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>—</span>
+                          <span className="text-xs" style={{ color: 'var(--text-muted)' }}>—</span>
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <span className="text-[11px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                        <span className="text-xs font-mono" style={{ color: 'var(--text-muted)' }}>
                           {c.supportEmail || '—'}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <span className={cn(
-                          'text-[11px] font-bold px-1.5 py-0.5 rounded-[2px]',
+                          'text-xs font-bold px-1.5 py-0.5 rounded-[2px]',
                           c.active ? 'text-teal-700 bg-teal-50 border border-teal-200' : 'text-red-600 bg-red-50 border border-red-200'
                         )}>
                           {c.active ? 'Active' : 'Inactive'}
@@ -340,10 +340,10 @@ export default function CompaniesPage() {
         }
       >
         <div className="flex flex-col gap-4">
-          <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>Identité</p>
+          <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Identité</p>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Nom de l'entreprise *</label>
+              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Nom de l'entreprise *</label>
               <input
                 className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -354,7 +354,7 @@ export default function CompaniesPage() {
               />
             </div>
             <div>
-              <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Email support</label>
+              <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Email support</label>
               <input
                 className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                 style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -365,7 +365,7 @@ export default function CompaniesPage() {
             </div>
           </div>
           <div>
-            <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Adresse</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Adresse</label>
             <input
               className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -376,10 +376,10 @@ export default function CompaniesPage() {
           </div>
 
           <div className="h-px" style={{ background: 'var(--border)' }} />
-          <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>Intégration ERP</p>
+          <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>Intégration ERP</p>
 
           <div>
-            <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Type ERP</label>
+            <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Type ERP</label>
             <select
               className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -393,7 +393,7 @@ export default function CompaniesPage() {
           {form.erpType !== 'NONE' && (
             <div className="flex flex-col gap-3">
               <div>
-                <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>URL API ERP</label>
+                <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>URL API ERP</label>
                 <input
                   className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                   style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -404,7 +404,7 @@ export default function CompaniesPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Base de données</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Base de données</label>
                   <input
                     className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                     style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -414,7 +414,7 @@ export default function CompaniesPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[11px] font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Utilisateur ERP</label>
+                  <label className="block text-xs font-semibold mb-1" style={{ color: 'var(--text-muted)' }}>Utilisateur ERP</label>
                   <input
                     className="w-full h-9 px-3 text-sm rounded-[2px] outline-none focus:ring-1 focus:ring-[var(--brand)]"
                     style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}

@@ -102,17 +102,17 @@ function RouteCard({
                 {route.name}
               </span>
             </div>
-            <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
+            <span className="font-mono text-2xs text-[var(--text-muted)] shrink-0">
               {route.date}
             </span>
           </div>
 
-          <div className="flex justify-between items-center gap-2 text-[11px] text-[var(--text-soft)]">
+          <div className="flex justify-between items-center gap-2 text-xs text-[var(--text-soft)]">
             <span className="truncate flex-1">
               {driverName || t.routeBuilderPage.noDriver}
               {vehicle?.name ? ` · ${vehicle.name}` : ''}
             </span>
-            <span className="font-mono text-[10px] text-[var(--text-muted)] shrink-0">
+            <span className="font-mono text-2xs text-[var(--text-muted)] shrink-0">
               {stopsCount === 1 ? t.routeBuilderPage.stopsCountLabelSingular.replace('{count}', '1') : t.routeBuilderPage.stopsCountLabelPlural.replace('{count}', String(stopsCount))} · {totalWeight.toFixed(1)} kg
             </span>
           </div>
@@ -212,7 +212,7 @@ export function RouteSidebar() {
             {eligibleSelectionCount < selectionCount && (
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <span className="text-[10px] text-[var(--text-muted)] cursor-help truncate">
+                  <span className="text-2xs text-[var(--text-muted)] cursor-help truncate">
                     {t.routeBuilderPage.eligibleRoutes.replace('{count}', String(eligibleSelectionCount))}
                   </span>
                 </TooltipTrigger>
@@ -228,7 +228,7 @@ export function RouteSidebar() {
               loading={batchOptimizing}
               disabled={eligibleSelectionCount === 0}
               onClick={() => void batchOptimizeRoutes(batchSelectedRouteIds)}
-              className="bg-[var(--brand-orange)] border-transparent text-white hover:opacity-90 h-6 px-2 text-[10px] font-semibold"
+              className="bg-[var(--brand-orange)] border-transparent text-white hover:opacity-90 h-6 px-2 text-2xs font-semibold"
             >
               <IconBolt size={11} className="mr-0.5" />
               {t.routeBuilderPage.batchOptimizeButton}

@@ -55,7 +55,7 @@ export function RouteFilterBar({
             }`}
           >
             {filter.label}
-            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+            <span className={`text-2xs font-bold px-1.5 py-0.5 rounded ${
               filters.status === filter.statusValue
                 ? 'bg-white/20'
                 : 'bg-slate-200 text-slate-600'

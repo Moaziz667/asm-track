@@ -27,7 +27,7 @@ export function KeyboardHint({ shortcuts }: KeyboardHintProps) {
           >
             {key}
           </kbd>
-          <span className="text-[10px] text-[var(--text-muted)]">{description}</span>
+          <span className="text-2xs text-[var(--text-muted)]">{description}</span>
         </div>
       ))}
     </div>

@@ -112,11 +112,11 @@ export function StopRow({
 
         {pickListOpen && pickList.length > 0 && (
           <div className="ps-12 pe-3 pb-2 flex flex-col gap-1">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--text-muted)]">
+            <span className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-muted)]">
               {t.routeBuilderPage.pickListLabel}
             </span>
             {pickList.map((p) => (
-              <span key={p.id} className="text-[11px] text-[var(--text-muted)] truncate">• {p.label}</span>
+              <span key={p.id} className="text-xs text-[var(--text-muted)] truncate">• {p.label}</span>
             ))}
           </div>
         )}
@@ -181,7 +181,7 @@ export function StopRow({
               e.stopPropagation();
               globalThis.open?.(`/deliveries/${stop.deliveryId}`, '_blank');
             }}
-            className="font-mono text-[10px] font-bold text-[var(--brand-orange)] cursor-pointer tracking-wide truncate max-w-full hover:underline"
+            className="font-mono text-2xs font-bold text-[var(--brand-orange)] cursor-pointer tracking-wide truncate max-w-full hover:underline"
           >
             {resolveOrderRef(delivery)}
             <span className="opacity-50 ml-1">#{shortId(stop.deliveryId)}</span>
@@ -190,13 +190,13 @@ export function StopRow({
         <span className="text-xs font-semibold text-[var(--text-strong)] truncate max-w-full leading-tight">
           {delivery?.clientName || shortId(stop.deliveryId)}
         </span>
-        <span className="text-[11px] text-[var(--text-muted)] truncate max-w-full leading-none">
+        <span className="text-xs text-[var(--text-muted)] truncate max-w-full leading-none">
           {delivery?.dropoffAddress || delivery?.dropoffCity || '—'}
           {(delivery?.totalWeightKg ?? 0) > 0 ? ` · ${delivery!.totalWeightKg!.toFixed(1)} kg` : ''}
         </span>
         {depotChipLabel && (
           <span
-            className="mt-0.5 inline-flex items-center gap-1 self-start rounded-[2px] px-1.5 py-0.5 text-[10px] font-semibold"
+            className="mt-0.5 inline-flex items-center gap-1 self-start rounded-[2px] px-1.5 py-0.5 text-2xs font-semibold"
             style={{ color: PICKUP_COLOR, background: 'color-mix(in srgb, ' + PICKUP_COLOR + ' 10%, transparent)' }}
           >
             <IconBuildingWarehouse size={10} />

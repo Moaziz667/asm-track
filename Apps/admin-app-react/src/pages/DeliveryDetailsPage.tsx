@@ -26,7 +26,7 @@ function StatChip({ icon, label, highlight }: { icon: React.ReactNode; label: st
   return (
     <div className="flex items-center gap-[6px] shrink-0 px-2 py-1">
       <span style={{ color: highlight ? 'var(--brand)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', opacity: highlight ? 1 : 0.7 }}>{icon}</span>
-      <span className="text-[10px] font-medium" style={{ color: highlight ? 'var(--brand)' : 'var(--text-primary)' }}>{label}</span>
+      <span className="text-2xs font-medium" style={{ color: highlight ? 'var(--brand)' : 'var(--text-primary)' }}>{label}</span>
     </div>
   );
 }
@@ -36,7 +36,7 @@ function Section({ title, icon, children }: { title: string; icon?: React.ReactN
     <div className="border-b border-[var(--border)] pb-6">
       <div className="flex items-center gap-2 mb-4">
         {icon && <span className="text-[var(--text-muted)] flex items-center opacity-60">{icon}</span>}
-        <h3 className="text-[11px] font-medium text-[var(--text-muted)] tracking-wide">{title}</h3>
+        <h3 className="text-xs font-medium text-[var(--text-muted)] tracking-wide">{title}</h3>
       </div>
       <div>{children}</div>
     </div>
@@ -47,9 +47,9 @@ function InfoRow({ label, value, mono }: { label: string; value?: string | null;
   if (!value) return null;
   return (
     <div className="flex items-center justify-between py-2 border-b border-[var(--border)]/30">
-      <span className="text-[10px] font-normal text-[var(--text-muted)] shrink-0">{label}</span>
+      <span className="text-2xs font-normal text-[var(--text-muted)] shrink-0">{label}</span>
       <span
-        className="text-[11px] font-medium text-[var(--text-primary)] text-right ml-4"
+        className="text-xs font-medium text-[var(--text-primary)] text-right ml-4"
         style={{ fontFamily: mono ? 'monospace' : undefined }}
       >
         {value}
@@ -168,7 +168,7 @@ export default function DeliveryDetailPage() {
                     />
                   )}
                   {isCancelled && (
-                    <span className="text-[10px] font-medium px-2 py-1 rounded-[3px] bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>
+                    <span className="text-2xs font-medium px-2 py-1 rounded-[3px] bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>
                   )}
                 </div>
 
@@ -178,7 +178,7 @@ export default function DeliveryDetailPage() {
                 </h1>
 
                 {/* Meta line */}
-                <div className="flex flex-wrap items-center gap-2 text-[11px]">
+                <div className="flex flex-wrap items-center gap-2 text-xs">
                   <code className="font-mono font-semibold text-[var(--brand)]">{orderRef}</code>
                   {delivery.clientPhone && (
                     <>
@@ -240,7 +240,7 @@ export default function DeliveryDetailPage() {
             {isCancelled && (delivery as any).cancelReason && (
               <div className="px-3 py-2 rounded-[3px] border border-gray-200 bg-gray-50 flex items-start gap-2">
                 <IconX size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
-                <span className="text-[11px] text-[var(--text-muted)]">{(delivery as any).cancelReason}</span>
+                <span className="text-xs text-[var(--text-muted)]">{(delivery as any).cancelReason}</span>
               </div>
             )}
           </div>
@@ -310,7 +310,7 @@ export default function DeliveryDetailPage() {
                       showErrorToast(null);
                     }
                   }}
-                  className="mt-3 inline-flex items-center gap-1.5 text-[11px] font-semibold px-3 py-1.5 rounded-[4px]"
+                  className="mt-3 inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-[4px]"
                   style={{ background: 'var(--brand)', color: '#fff' }}
                 >
                   <IconFileText size={13} /> {t.deliveryPage.viewBL}
@@ -326,20 +326,20 @@ export default function DeliveryDetailPage() {
                     <div className="flex items-start gap-3">
                       <IconTruck size={14} style={{ color: 'var(--text-muted)', marginTop: 2, opacity: 0.6, flexShrink: 0 }} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelDriver}</span>
+                        <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelDriver}</span>
                         <div className="flex items-center gap-2">
                           {assignedDriverStatus && (() => {
                             const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
                             return <div style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />;
                           })()}
-                          <span className="text-[12px] font-semibold text-[var(--text-primary)]">{delivery.driverName ?? '—'}</span>
+                          <span className="text-sm font-semibold text-[var(--text-primary)]">{delivery.driverName ?? '—'}</span>
                           {assignedDriverStatus && (() => {
                             const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
                             return <span className="text-[9px] font-medium" style={{ color: cfg.text }}>{cfg.label}</span>;
                           })()}
                         </div>
                         {delivery.driverPhone && (
-                          <span className="text-[10px] text-[var(--text-muted)]">{delivery.driverPhone}</span>
+                          <span className="text-2xs text-[var(--text-muted)]">{delivery.driverPhone}</span>
                         )}
                       </div>
                     </div>
@@ -351,9 +351,9 @@ export default function DeliveryDetailPage() {
                     <div className="flex items-start gap-3">
                       <IconRoute size={14} style={{ color: 'var(--text-muted)', marginTop: 2, opacity: 0.6, flexShrink: 0 }} />
                       <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelRoute}</span>
+                        <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelRoute}</span>
                         <Link to={`/routes/${delivery.routeId}`} style={{ textDecoration: 'none' }}>
-                          <span className="text-[12px] font-semibold text-[var(--brand)] hover:underline cursor-pointer">
+                          <span className="text-sm font-semibold text-[var(--brand)] hover:underline cursor-pointer">
                             {delivery.routeName ?? delivery.routeId.slice(0, 8).toUpperCase()}
                           </span>
                         </Link>
@@ -383,24 +383,24 @@ export default function DeliveryDetailPage() {
                       {items.map((item, i) => (
                         <tr key={i} style={{ borderBottom: '1px solid var(--border)/30' }} className="hover:bg-[var(--app-bg)]/40 transition-colors">
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[12px] font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
+                            <span className="text-sm font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
                           </td>
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[10px] font-mono text-[var(--text-muted)]">{item.sku ?? '—'}</span>
+                            <span className="text-2xs font-mono text-[var(--text-muted)]">{item.sku ?? '—'}</span>
                           </td>
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[12px] text-[var(--text-primary)]">{item.quantity ?? '—'}</span>
+                            <span className="text-sm text-[var(--text-primary)]">{item.quantity ?? '—'}</span>
                           </td>
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[12px] font-medium" style={{ color: item.quantityDone != null && item.quantityDone < (item.quantity ?? 0) ? '#EF4444' : '#10B981' }}>
+                            <span className="text-sm font-medium" style={{ color: item.quantityDone != null && item.quantityDone < (item.quantity ?? 0) ? '#EF4444' : '#10B981' }}>
                               {item.quantityDone ?? '—'}
                             </span>
                           </td>
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[11px] text-[var(--text-primary)]">{formatMoney(item.unitPrice, (delivery as any).currency)}</span>
+                            <span className="text-xs text-[var(--text-primary)]">{formatMoney(item.unitPrice, (delivery as any).currency)}</span>
                           </td>
                           <td style={{ padding: '10px 12px', border: 'none' }}>
-                            <span className="text-[11px] font-semibold text-[var(--text-primary)]">
+                            <span className="text-xs font-semibold text-[var(--text-primary)]">
                               {item.unitPrice != null && item.quantity != null
                                 ? formatMoney(item.unitPrice * item.quantity, (delivery as any).currency) : '—'}
                             </span>
@@ -458,19 +458,19 @@ export default function DeliveryDetailPage() {
                   {pod.comment && (
                     <div className="flex flex-col gap-2 flex-1 min-w-[200px]">
                       <div>
-                        <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.commentLabel}</span>
-                        <p className="text-[11px] text-[var(--text-primary)] mt-1">{pod.comment}</p>
+                        <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.commentLabel}</span>
+                        <p className="text-xs text-[var(--text-primary)] mt-1">{pod.comment}</p>
                       </div>
                       {(pod.collectedAt ?? pod.timestamp) && (
                         <div>
-                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.collectedAtLabel}</span>
-                          <p className="text-[11px] text-[var(--text-primary)] mt-1">{new Date(pod.collectedAt ?? pod.timestamp!).toLocaleString('fr-FR')}</p>
+                          <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.collectedAtLabel}</span>
+                          <p className="text-xs text-[var(--text-primary)] mt-1">{new Date(pod.collectedAt ?? pod.timestamp!).toLocaleString('fr-FR')}</p>
                         </div>
                       )}
                       {(pod.lat ?? pod.latitude) != null && (
                         <div>
-                          <span className="text-[10px] font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.coordinatesLabel}</span>
-                          <p className="text-[11px] font-mono text-[var(--text-primary)] mt-1">{(pod.lat ?? pod.latitude)?.toFixed(5)}, {(pod.lng ?? pod.longitude)?.toFixed(5)}</p>
+                          <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.coordinatesLabel}</span>
+                          <p className="text-xs font-mono text-[var(--text-primary)] mt-1">{(pod.lat ?? pod.latitude)?.toFixed(5)}, {(pod.lng ?? pod.longitude)?.toFixed(5)}</p>
                         </div>
                       )}
                     </div>

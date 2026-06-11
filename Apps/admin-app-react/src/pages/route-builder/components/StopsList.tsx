@@ -125,7 +125,7 @@ export function StopsList({
               variant="destructive"
               loading={batchRemoving}
               onClick={() => void onBatchRemove(selectedStopIds)}
-              className="h-6 px-2 text-[10px] font-semibold border-transparent"
+              className="h-6 px-2 text-2xs font-semibold border-transparent"
             >
               <IconTrash size={11} className="mr-0.5" />
               {t.routeBuilderPage.removeButton.replace('{count}', String(selectedStopIds.length))}

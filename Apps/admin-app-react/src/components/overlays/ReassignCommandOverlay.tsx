@@ -236,7 +236,7 @@ export function ReassignCommandOverlay({
                           </div>
                           {d.todayRouteId && (
                             <div className="shrink-0 ml-3 flex flex-col items-end">
-                              <Badge variant="outline" className="text-[10px] tracking-wider bg-background">
+                              <Badge variant="outline" className="text-2xs tracking-wider bg-background">
                                 {d.todayRouteName || copy.activeRoute}
                               </Badge>
                               <span className="text-xs font-medium text-primary mt-1">
@@ -285,7 +285,7 @@ export function ReassignCommandOverlay({
                                 )}>
                                   {r.name}
                                 </span>
-                                <Badge variant="secondary" className="text-[10px] h-5 px-1.5 font-mono">
+                                <Badge variant="secondary" className="text-2xs h-5 px-1.5 font-mono">
                                   {r.status}
                                 </Badge>
                               </div>

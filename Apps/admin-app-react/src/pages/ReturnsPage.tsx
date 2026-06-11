@@ -65,7 +65,7 @@ function StatusPill({ status, label }: { status: RmaStatus; label: string }) {
   const tk = STATUS_TOKENS[status];
   return (
     <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
       style={{ background: tk.bg, color: tk.text }}
     >
       <span className="h-1.5 w-1.5 rounded-full" style={{ background: tk.dot }} />
@@ -75,11 +75,11 @@ function StatusPill({ status, label }: { status: RmaStatus; label: string }) {
 }
 
 function SyncPill({ status }: { status?: string }) {
-  if (!status) return <span className="text-[11px] text-[var(--text-soft)]">—</span>;
+  if (!status) return <span className="text-xs text-[var(--text-soft)]">—</span>;
   const ok = status === 'SYNCED';
   const failed = status === 'SYNC_FAILED';
   return (
-    <Badge variant={failed ? 'destructive' : ok ? 'secondary' : 'outline'} className="font-mono text-[10px]">
+    <Badge variant={failed ? 'destructive' : ok ? 'secondary' : 'outline'} className="font-mono text-2xs">
       {status}
     </Badge>
   );
@@ -173,7 +173,7 @@ export default function ReturnsPage() {
         activeQuickFilter={filter}
         onQuickFilterChange={(v) => setFilter(v as RmaStatus | 'ALL')}
         extraActions={
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-[11px] font-bold">
+          <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-xs font-bold">
             <IconPlus size={14} /> Nouveau retour
           </Button>
         }
@@ -183,14 +183,14 @@ export default function ReturnsPage() {
         {/* Compact toolbar — label + mini KPIs */}
         <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="flex items-center gap-8">
-            <span className="text-[13px] font-[600] text-[var(--text-primary)]">
+            <span className="text-base font-[600] text-[var(--text-primary)]">
               Retours <span className="font-mono text-[var(--brand)]">{filter === 'ALL' ? 'TOUS' : statusLabel(filter).toUpperCase()}</span>
             </span>
-            <span className="text-[11px] font-[500] text-[var(--text-muted)]">
+            <span className="text-xs font-[500] text-[var(--text-muted)]">
               {visibleRows.length} retour{visibleRows.length > 1 ? 's' : ''}
             </span>
           </div>
-          <div className="flex items-center gap-5 text-[11px] font-[500]">
+          <div className="flex items-center gap-5 text-xs font-[500]">
             <span className="text-[var(--text-muted)]">Total <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.total ?? 0}</b></span>
             <span className="text-[var(--text-muted)]">
               <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--warning)' }} />
@@ -208,12 +208,12 @@ export default function ReturnsPage() {
           <Table>
             <TableHeader>
               <TableRow className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)]">
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Client</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">BL / Réf ERP</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Articles</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Statut</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Sync ERP</TableHead>
-                <TableHead className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Motif</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Client</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">BL / Réf ERP</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Articles</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Statut</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Sync ERP</TableHead>
+                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Motif</TableHead>
                 <TableHead className="text-end" />
               </TableRow>
             </TableHeader>
@@ -241,7 +241,7 @@ export default function ReturnsPage() {
                 visibleRows.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-semibold text-[var(--text-primary)]">{r.clientName ?? '—'}</TableCell>
-                    <TableCell className="font-mono text-[11px] text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</TableCell>
+                    <TableCell className="font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</TableCell>
                     <TableCell className="text-[var(--text-secondary)]">
                       <span className="tabular-nums">{r.totalUnits}</span> u.
                       <span className="text-[var(--text-soft)]"> · {r.items.length} lignes</span>
@@ -252,7 +252,7 @@ export default function ReturnsPage() {
                     <TableCell className="text-end">
                       <div className="flex items-center justify-end gap-1.5">
                         {NEXT[r.status].length === 0 ? (
-                          <span className="text-[11px] text-[var(--text-soft)]">—</span>
+                          <span className="text-xs text-[var(--text-soft)]">—</span>
                         ) : (
                           NEXT[r.status].map((target) => {
                             const Icon = TRANSITION_ICON[target] ?? IconArrowRight;
@@ -264,7 +264,7 @@ export default function ReturnsPage() {
                                 size="sm"
                                 disabled={busyId === r.id}
                                 onClick={() => transition(r, target)}
-                                className="h-7 gap-1 px-2 text-[11px] font-semibold"
+                                className="h-7 gap-1 px-2 text-xs font-semibold"
                                 style={{ color: tk.text }}
                               >
                                 <Icon size={12} /> {statusLabel(target)}
@@ -367,7 +367,7 @@ function CreateReturnModal({ open, onClose, onCreated }: { open: boolean; onClos
             </div>
             <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto">
               {results.length === 0 ? (
-                <p className="py-8 text-center text-[12px] text-[var(--text-soft)]">
+                <p className="py-8 text-center text-sm text-[var(--text-soft)]">
                   {searching ? 'Recherche…' : 'Aucune livraison — lancez une recherche.'}
                 </p>
               ) : results.map((d) => (
@@ -377,8 +377,8 @@ function CreateReturnModal({ open, onClose, onCreated }: { open: boolean; onClos
                   className="flex items-center justify-between rounded-lg border border-[var(--border)] p-3 text-left transition-colors hover:bg-[var(--hover-bg)]"
                 >
                   <div className="min-w-0">
-                    <p className="truncate text-[12px] font-bold text-[var(--text-primary)]">{d.clientName ?? d.orderRef}</p>
-                    <p className="truncate text-[11px] text-[var(--text-muted)]">{d.blNumber ?? d.erpOrderId} · {d.dropoffCity}</p>
+                    <p className="truncate text-sm font-bold text-[var(--text-primary)]">{d.clientName ?? d.orderRef}</p>
+                    <p className="truncate text-xs text-[var(--text-muted)]">{d.blNumber ?? d.erpOrderId} · {d.dropoffCity}</p>
                   </div>
                   <IconArrowRight size={14} className="text-[var(--text-soft)]" />
                 </button>
@@ -389,16 +389,16 @@ function CreateReturnModal({ open, onClose, onCreated }: { open: boolean; onClos
           <>
             <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--app-bg)] p-3">
               <div className="min-w-0">
-                <p className="truncate text-[13px] font-bold text-[var(--text-primary)]">{selected.clientName ?? selected.orderRef}</p>
-                <p className="truncate text-[11px] text-[var(--text-muted)]">{selected.blNumber ?? selected.erpOrderId}</p>
+                <p className="truncate text-base font-bold text-[var(--text-primary)]">{selected.clientName ?? selected.orderRef}</p>
+                <p className="truncate text-xs text-[var(--text-muted)]">{selected.blNumber ?? selected.erpOrderId}</p>
               </div>
               <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setItems([]); }}>Changer</Button>
             </div>
 
             <div className="flex flex-col gap-2">
               <div className="flex items-center justify-between">
-                <label className="text-[11px] font-bold text-[var(--text-secondary)]">Articles retournés</label>
-                <Button variant="ghost" size="sm" onClick={addItem} className="h-7 gap-1 px-2 text-[11px]"><IconPlus size={12} /> Ajouter</Button>
+                <label className="text-xs font-bold text-[var(--text-secondary)]">Articles retournés</label>
+                <Button variant="ghost" size="sm" onClick={addItem} className="h-7 gap-1 px-2 text-xs"><IconPlus size={12} /> Ajouter</Button>
               </div>
               {items.map((it, i) => (
                 <div key={i} className="flex items-center gap-2">
@@ -430,7 +430,7 @@ function CreateReturnModal({ open, onClose, onCreated }: { open: boolean; onClos
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-[var(--text-secondary)]">Motif du retour</label>
+              <label className="text-xs font-bold text-[var(--text-secondary)]">Motif du retour</label>
               <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Ex. produit défectueux, erreur de commande…" />
             </div>
 

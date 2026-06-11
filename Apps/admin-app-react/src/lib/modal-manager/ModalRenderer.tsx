@@ -132,7 +132,7 @@ function ConfirmContent({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <h2 className={`text-[15px] font-bold leading-snug ${isDanger ? 'text-red-700' : 'text-slate-900'}`}>
+          <h2 className={`text-lg font-bold leading-snug ${isDanger ? 'text-red-700' : 'text-slate-900'}`}>
             {config.title}
           </h2>
           {config.body && (
@@ -151,7 +151,7 @@ function ConfirmContent({
       {/* Champ raison optionnel */}
       {config.reasonLabel && (
         <div className="mb-4">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+          <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
             {config.reasonLabel}
           </label>
           <input
@@ -165,7 +165,7 @@ function ConfirmContent({
 
       {/* Actions */}
       <div className="flex items-center justify-between gap-3 mt-5">
-        <p className="text-[10px] text-slate-400 font-mono">{t.actions.cancel} · {t.actions.confirm}</p>
+        <p className="text-2xs text-slate-400 font-mono">{t.actions.cancel} · {t.actions.confirm}</p>
         <div className="flex gap-2">
           <button
             onClick={close}
@@ -238,7 +238,7 @@ function ReassignContent({
             <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-blue-50 border border-blue-100">
               <UserCheck size={14} className="text-blue-600" />
             </div>
-            <h2 className="text-[15px] font-bold text-slate-900">
+            <h2 className="text-lg font-bold text-slate-900">
               {t.reassignCommandOverlay.title} {(config.entityLabel ?? t.reassignDrawer.assignTitle).toLowerCase()}
             </h2>
           </div>
@@ -284,7 +284,7 @@ function ReassignContent({
                 } ${isSelected ? 'bg-blue-50 border-l-2 border-l-blue-500' : 'hover:bg-slate-50'}`}
               >
                 {/* Avatar */}
-                <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-lg text-[10px] font-black ${
+                <div className={`shrink-0 flex items-center justify-center w-8 h-8 rounded-lg text-2xs font-black ${
                   isSelected ? 'bg-blue-600 text-white' : 'bg-slate-200 text-slate-600'
                 }`}>
                   {(driver.name ?? driver.id).substring(0, 2).toUpperCase()}
@@ -299,7 +299,7 @@ function ReassignContent({
                 </div>
                 {/* Badge disponibilité */}
                 {driver.isAvailable !== undefined && (
-                  <span className={`shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                  <span className={`shrink-0 text-2xs font-bold px-2 py-0.5 rounded-full ${
                     driver.isAvailable
                       ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                       : 'bg-amber-50 text-amber-700 border border-amber-200'

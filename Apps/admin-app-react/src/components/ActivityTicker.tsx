@@ -38,10 +38,10 @@ export default function ActivityTicker() {
       <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
           <IconActivity size={16} style={{ color: 'var(--brand)' }} />
-          <span className="text-[14px] font-bold text-[var(--text-primary)]">{titleLabel}</span>
+          <span className="text-md font-bold text-[var(--text-primary)]">{titleLabel}</span>
         </div>
         <span
-          className={cn('inline-flex items-center gap-1 text-[10px] font-bold', connected ? 'text-[#4CAF82]' : 'text-[var(--text-soft)]')}
+          className={cn('inline-flex items-center gap-1 text-2xs font-bold', connected ? 'text-[#4CAF82]' : 'text-[var(--text-soft)]')}
           title={connected ? 'Connected' : 'Reconnecting…'}
         >
           <IconPointFilled size={12} className={connected ? 'animate-pulse' : ''} />
@@ -53,7 +53,7 @@ export default function ActivityTicker() {
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40 py-10">
             <IconActivity size={22} stroke={1.5} className="text-[var(--text-muted)]" />
-            <span className="text-[11px] font-medium text-[var(--text-muted)]">{emptyLabel}</span>
+            <span className="text-xs font-medium text-[var(--text-muted)]">{emptyLabel}</span>
           </div>
         ) : (
           <div className="flex flex-col">
@@ -74,14 +74,14 @@ export default function ActivityTicker() {
                   <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot }} />
                   <Icon size={14} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
                   <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-[12px] font-semibold text-[var(--text-primary)] leading-tight truncate">
+                    <span className="text-sm font-semibold text-[var(--text-primary)] leading-tight truncate">
                       {loc.title}
                     </span>
-                    <span className="text-[11px] text-[var(--text-muted)] truncate">
+                    <span className="text-xs text-[var(--text-muted)] truncate">
                       {subtitle || loc.message || '—'}
                     </span>
                   </div>
-                  <span className="text-[10px] font-mono text-[var(--text-soft)] shrink-0 mt-0.5">
+                  <span className="text-2xs font-mono text-[var(--text-soft)] shrink-0 mt-0.5">
                     {formatElapsed(new Date(n.timestamp).toISOString(), locale)}
                   </span>
                 </button>

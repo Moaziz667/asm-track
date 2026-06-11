@@ -73,7 +73,7 @@ function SortableColumnRow({
       </div>
 
       <span
-        className="text-[11px] flex-1 select-none truncate"
+        className="text-xs flex-1 select-none truncate"
         style={{ color: col.pinned ? 'var(--text-muted)' : 'var(--text-primary)' }}
       >
         {col.label}
@@ -187,7 +187,7 @@ export function DisplaySettingsDropdown({
                     key={d}
                     type="button"
                     onClick={() => onDensityChange(d)}
-                    className="flex-1 h-6 text-[10px] font-bold rounded transition-colors"
+                    className="flex-1 h-6 text-2xs font-bold rounded transition-colors"
                     style={{
                       border: density === d ? '1.5px solid var(--brand)' : '1px solid var(--border)',
                       color: density === d ? 'var(--brand)' : 'var(--text-muted)',
@@ -213,7 +213,7 @@ export function DisplaySettingsDropdown({
               <button
                 type="button"
                 onClick={onReset}
-                className="flex items-center gap-0.5 text-[10px] transition-colors"
+                className="flex items-center gap-0.5 text-2xs transition-colors"
                 style={{ color: 'var(--text-muted)' }}
                 onMouseEnter={e => (e.currentTarget.style.color = 'var(--text-primary)')}
                 onMouseLeave={e => (e.currentTarget.style.color = 'var(--text-muted)')}

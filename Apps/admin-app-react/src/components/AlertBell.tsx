@@ -91,17 +91,17 @@ function NotifRow({
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between gap-2">
           <p className={cn(
-            'text-[13px] leading-tight truncate text-[var(--text-primary)]',
+            'text-base leading-tight truncate text-[var(--text-primary)]',
             n.read ? 'font-medium' : 'font-semibold',
           )}>
             {localized.title}
           </p>
-          <span className="text-[11px] text-[var(--text-soft)] font-mono shrink-0 tabular-nums">
+          <span className="text-xs text-[var(--text-soft)] font-mono shrink-0 tabular-nums">
             {relativeTime(n.timestamp, copy)}
           </span>
         </div>
 
-        <p className="text-[12px] text-[var(--text-muted)] truncate mt-0.5 leading-snug">
+        <p className="text-sm text-[var(--text-muted)] truncate mt-0.5 leading-snug">
           {localized.message}
         </p>
       </div>
@@ -187,14 +187,14 @@ export default function AlertBell() {
 
           {/* Header — title + mark all read */}
           <div className="px-4 py-3 flex items-center justify-between border-b border-[var(--border)]">
-            <span className="text-[13px] font-semibold text-[var(--text-primary)] select-none">
+            <span className="text-base font-semibold text-[var(--text-primary)] select-none">
               {copy.title}
             </span>
             {unreadCount > 0 && (
               <button
                 type="button"
                 onClick={markAllRead}
-                className="inline-flex items-center gap-1 text-[12px] font-medium text-[var(--brand)] hover:underline transition-colors outline-none"
+                className="inline-flex items-center gap-1 text-sm font-medium text-[var(--brand)] hover:underline transition-colors outline-none"
               >
                 <IconCheck size={12} stroke={2} />
                 {copy.markAllRead}
@@ -206,7 +206,7 @@ export default function AlertBell() {
           <div className="max-h-[400px] overflow-y-auto">
             {preview.length === 0 ? (
               <div className="py-12 px-4 text-center select-none">
-                <p className="text-[13px] text-[var(--text-muted)]">{copy.noNotifications}</p>
+                <p className="text-base text-[var(--text-muted)]">{copy.noNotifications}</p>
               </div>
             ) : (
               <div className="flex flex-col">
@@ -221,7 +221,7 @@ export default function AlertBell() {
           <button
             type="button"
             onClick={() => { setOpen(false); router('/notifications'); }}
-            className="w-full py-2.5 text-center text-[12px] font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] border-t border-[var(--border)] transition-colors outline-none"
+            className="w-full py-2.5 text-center text-sm font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] border-t border-[var(--border)] transition-colors outline-none"
           >
             {copy.viewAll}
           </button>

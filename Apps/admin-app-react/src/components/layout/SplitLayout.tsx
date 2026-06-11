@@ -30,7 +30,7 @@ export function SplitLayout({
             key={tab}
             onClick={() => setMobileTab(tab)}
             className={cn(
-              'flex-1 h-10 text-[12px] font-bold tracking-wide transition-colors',
+              'flex-1 h-10 text-sm font-bold tracking-wide transition-colors',
               mobileTab === tab
                 ? 'text-[var(--brand-orange)] border-b-2 border-[var(--brand-orange)]'
                 : 'text-[var(--text-muted)] hover:text-[var(--text-strong)]',

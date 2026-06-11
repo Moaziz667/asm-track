@@ -117,10 +117,10 @@ export function ActionRow({
 
           {/* Order ref */}
           <td style={{ padding: '8px 10px', borderLeft: `3px solid ${ribbonColor}` }}>
-            <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-[11px] font-[500] hover:underline" style={{ color: '#C4881A' }}>
+            <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-xs font-[500] hover:underline" style={{ color: '#C4881A' }}>
               {row.orderRef ?? row.deliveryId.slice(0, 8)}
             </Link>
-            <p className="text-[10px] font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>{formatElapsed(row.updatedAt ?? row.createdAt)}</p>
+            <p className="text-2xs font-mono mt-0.5" style={{ color: 'var(--text-muted)' }}>{formatElapsed(row.updatedAt ?? row.createdAt)}</p>
             {row.scheduledAt && (
               <p className="text-[9px] font-bold mt-1" style={{ color: 'var(--brand)' }}>
                 {t.dispatchDeskPage.scheduledDateLabel}: {formatShortDate(row.scheduledAt)}
@@ -135,8 +135,8 @@ export function ActionRow({
 
           {/* Client */}
           <td style={{ padding: '8px 12px' }}>
-            <p className="text-[12px] font-semibold truncate" style={{ maxWidth: 140, color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</p>
-            {row.city && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{row.city}</p>}
+            <p className="text-sm font-semibold truncate" style={{ maxWidth: 140, color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</p>
+            {row.city && <p className="text-2xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{row.city}</p>}
           </td>
 
           {/* Driver */}
@@ -146,17 +146,17 @@ export function ActionRow({
                 <TooltipTrigger asChild>
                   <div className="flex items-center gap-1.5 cursor-default">
                     <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                    <span className="text-[11px] font-semibold truncate" style={{ maxWidth: 110, color: 'var(--text-primary)' }}>{row.driverName}</span>
+                    <span className="text-xs font-semibold truncate" style={{ maxWidth: 110, color: 'var(--text-primary)' }}>{row.driverName}</span>
                   </div>
                 </TooltipTrigger>
                 <TooltipContent>{getDriverStatusTip(driver?.onlineStatus, t)}</TooltipContent>
               </Tooltip>
             ) : (
-              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'transparent' }}>
+              <span className="text-2xs font-medium px-1.5 py-0.5 rounded border" style={{ color: 'var(--text-muted)', borderColor: 'var(--border)', background: 'transparent' }}>
                 {t.dispatchDeskPage.unassignedLabel}
               </span>
             )}
-            {row.routeName && <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{row.routeName}</p>}
+            {row.routeName && <p className="text-2xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{row.routeName}</p>}
           </td>
 
           {/* Motif — SLA lateness shown via the unified health badge; genuine exceptions as a chip */}
@@ -165,7 +165,7 @@ export function ActionRow({
               <SlaHealthBadge health={(row as any).slaHealth} />
             ) : formatMotif(row.motif) ? (
               <span
-                className="text-[10px] font-semibold px-1.5 py-0.5 rounded"
+                className="text-2xs font-semibold px-1.5 py-0.5 rounded"
                 style={{
                   color: row.severity === 'CRITICAL' ? '#dc2626' : row.severity === 'WARNING' ? '#ea580c' : 'var(--text-muted)',
                   background: row.severity === 'CRITICAL' ? 'rgba(220,38,38,0.10)' : row.severity === 'WARNING' ? 'rgba(234,88,12,0.10)' : 'var(--hover-bg)',
@@ -240,10 +240,10 @@ export function ActionRow({
 
                 {/* Col 1 — Incident */}
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.incidentLabel}</span>
+                  <span className="text-2xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.incidentLabel}</span>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <span
-                      className="text-[11px] font-semibold px-1.5 py-0.5 rounded"
+                      className="text-xs font-semibold px-1.5 py-0.5 rounded"
                       style={{
                         color: row.severity === 'CRITICAL' ? '#fff' : row.severity === 'WARNING' ? '#fff' : '#fff',
                         background: row.severity === 'CRITICAL' ? '#dc2626' : row.severity === 'WARNING' ? '#ea580c' : '#71717a',
@@ -252,30 +252,30 @@ export function ActionRow({
                       {formatMotif(row.motif)}
                     </span>
                     {row.severity === 'CRITICAL' && (
-                      <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[#dc2626]" style={{ color: '#dc2626' }}>
+                      <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-[#dc2626]" style={{ color: '#dc2626' }}>
                         {t.dispatchDeskPage.criticalLabel}
                       </span>
                     )}
                   </div>
-                  <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>{formatComment(row)}</p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{formatComment(row)}</p>
                   {formatSuggestion(row) && (
-                    <p className="text-[11px] font-bold" style={{ color: '#C4881A' }}>{formatSuggestion(row)}</p>
+                    <p className="text-xs font-bold" style={{ color: '#C4881A' }}>{formatSuggestion(row)}</p>
                   )}
                   <div className="flex gap-3 mt-0.5">
                     <div>
-                      <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.reportedLabel}</p>
-                      <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.createdAt)}</p>
+                      <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.reportedLabel}</p>
+                      <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.createdAt)}</p>
                     </div>
                     {row.updatedAt && row.updatedAt !== row.createdAt && (
                       <div>
-                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.updatedLabel}</p>
-                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.updatedAt)}</p>
+                        <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.updatedLabel}</p>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.updatedAt)}</p>
                       </div>
                     )}
                     {row.scheduledAt && (
                       <div>
-                        <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.scheduledDateLabel}</p>
-                        <p className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.scheduledAt)}</p>
+                        <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.scheduledDateLabel}</p>
+                        <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{formatShortDate(row.scheduledAt)}</p>
                       </div>
                     )}
                   </div>
@@ -284,43 +284,43 @@ export function ActionRow({
                 {/* Col 2 — Client + Driver */}
                 <div className="flex flex-col gap-2.5">
                   <div>
-                    <p className="text-[10px] font-[500] mb-1" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.clientLabel}</p>
-                    <p className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</p>
+                    <p className="text-2xs font-[500] mb-1" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.clientLabel}</p>
+                    <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</p>
                     {row.city && (
-                      <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{row.city}{row.zoneName ? ` · ${row.zoneName}` : ''}</p>
+                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{row.city}{row.zoneName ? ` · ${row.zoneName}` : ''}</p>
                     )}
                     {clientPhone && (
-                      <p className="text-[11px] mt-0.5 font-semibold" style={{ color: '#C4881A' }}>{clientPhone}</p>
+                      <p className="text-xs mt-0.5 font-semibold" style={{ color: '#C4881A' }}>{clientPhone}</p>
                     )}
                   </div>
                   {row.driverName && (
                     <div>
-                      <p className="text-[10px] font-[500] mb-1" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.driverLabel}</p>
+                      <p className="text-2xs font-[500] mb-1" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.driverLabel}</p>
                       <div className="flex items-center gap-1.5">
                         <div style={{ width: 7, height: 7, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                        <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{row.driverName}</span>
+                        <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{row.driverName}</span>
                       </div>
                       {driverPhone && (
-                        <p className="text-[11px] mt-0.5 font-semibold" style={{ color: '#C4881A' }}>{driverPhone}</p>
+                        <p className="text-xs mt-0.5 font-semibold" style={{ color: '#C4881A' }}>{driverPhone}</p>
                       )}
-                      <p className="text-[10px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{getDriverStatusTip(driver?.onlineStatus, t)}</p>
+                      <p className="text-2xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{getDriverStatusTip(driver?.onlineStatus, t)}</p>
                     </div>
                   )}
                 </div>
 
                 {/* Col 3 — Route */}
                 <div className="flex flex-col gap-1.5">
-                  <span className="text-[10px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.routeLabel}</span>
+                  <span className="text-2xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.routeLabel}</span>
                   {row.routeId ? (
                     <>
                       <Link to={`/routes/${row.routeId}`} style={{ textDecoration: 'none' }}>
-                        <span className="text-[12px] font-bold" style={{ color: '#C4881A' }}>
+                        <span className="text-sm font-bold" style={{ color: '#C4881A' }}>
                           {row.routeName ?? row.routeId.slice(0, 8)}
                         </span>
                       </Link>
                       {row.routeStatus && (
                         <span
-                          className="text-[10px] font-semibold px-1.5 py-0.5 rounded w-fit"
+                          className="text-2xs font-semibold px-1.5 py-0.5 rounded w-fit"
                           style={{
                             color: row.routeStatus === 'IN_PROGRESS' ? '#059669' : row.routeStatus === 'VALIDATED' ? '#2563eb' : '#ca8a04',
                             background: row.routeStatus === 'IN_PROGRESS' ? 'rgba(5,150,105,0.12)' : row.routeStatus === 'VALIDATED' ? 'rgba(37,99,235,0.12)' : 'rgba(202,138,4,0.12)',
@@ -331,7 +331,7 @@ export function ActionRow({
                       )}
                     </>
                   ) : (
-                    <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noRouteAssigned}</span>
+                    <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noRouteAssigned}</span>
                   )}
                 </div>
 

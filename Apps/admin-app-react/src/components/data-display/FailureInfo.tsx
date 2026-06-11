@@ -22,8 +22,8 @@ export function FailureInfo({
   if (!code && !reason) return null;
 
   const label = code ? ((t.failureCodes as any)?.[code] ?? code) : null;
-  const badgeText = size === 'xs' ? 'text-[9px]' : 'text-[10px]';
-  const reasonText = size === 'xs' ? 'text-[10px]' : 'text-[11px]';
+  const badgeText = size === 'xs' ? 'text-[9px]' : 'text-2xs';
+  const reasonText = size === 'xs' ? 'text-2xs' : 'text-xs';
 
   return (
     <span className={cn('inline-flex items-center gap-1.5 flex-wrap', className)}>

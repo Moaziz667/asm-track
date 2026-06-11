@@ -90,7 +90,7 @@ export function TimelineGantt() {
       <div className="w-[220px] shrink-0 border-r border-[var(--border)] bg-[var(--surface-2)] flex flex-col overflow-hidden">
         {/* Header spacer */}
         <div className="h-7 px-3 border-b border-[var(--border)] shrink-0 flex items-center bg-[var(--surface-2)]">
-          <span className="text-[11px] font-bold text-[var(--text-soft)] uppercase tracking-wider">
+          <span className="text-xs font-bold text-[var(--text-soft)] uppercase tracking-wider">
             {t.routeBuilderPage.headerDriver}
           </span>
         </div>
@@ -119,12 +119,12 @@ export function TimelineGantt() {
                   <span className="text-xs font-semibold text-[var(--text-strong)] truncate">
                     {driverName}
                   </span>
-                  <span className="text-[10px] text-[var(--text-muted)] truncate">
+                  <span className="text-2xs text-[var(--text-muted)] truncate">
                     {route.name}
                     {vehicle?.name ? ` · ${vehicle.name}` : ''}
                   </span>
                 </div>
-                <span className="font-mono text-[10px] text-[var(--text-muted)] font-medium shrink-0">
+                <span className="font-mono text-2xs text-[var(--text-muted)] font-medium shrink-0">
                   {route.stops?.length ?? 0}
                 </span>
               </button>
@@ -242,7 +242,7 @@ export function TimelineGantt() {
                             <span className="font-semibold text-xs text-[var(--text-strong)]">
                               #{stop.stopOrder ?? ''} · {route.name}
                             </span>
-                            <span className="font-mono text-[10px] text-[var(--text-soft)] font-medium mt-0.5">
+                            <span className="font-mono text-2xs text-[var(--text-soft)] font-medium mt-0.5">
                               {stop.startTimeWindow} → {stop.endTimeWindow}
                             </span>
                           </div>

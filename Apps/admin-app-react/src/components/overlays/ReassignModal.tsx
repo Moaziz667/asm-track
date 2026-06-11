@@ -139,7 +139,7 @@ export function ReassignModal({
         <div className="flex items-center gap-2">
           <span>{t.reassignCommandOverlay.title}</span>
           {entityName && (
-            <span className="text-[11px] font-medium px-2 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand)]">
+            <span className="text-xs font-medium px-2 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand)]">
               {entityLabel} · {entityName}
             </span>
           )}
@@ -202,7 +202,7 @@ export function ReassignModal({
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[var(--text-primary)] truncate">{d.name ?? t.reassignCommandOverlay.unnamed}</span>
                     {d.todayRouteId && (
-                      <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">{d.todayStopCount ?? 0} {t.reassignCommandOverlay.stops}</span>
+                      <span className="text-2xs px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#2563EB]">{d.todayStopCount ?? 0} {t.reassignCommandOverlay.stops}</span>
                     )}
                   </div>
                   <p className="text-xs text-[var(--text-soft)] truncate">
@@ -226,7 +226,7 @@ export function ReassignModal({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-medium text-[var(--text-primary)] truncate">{r.name}</span>
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-[var(--sidebar-bg)] text-[var(--text-muted)]">{r.status}</span>
+                    <span className="text-2xs px-1.5 py-0.5 rounded bg-[var(--sidebar-bg)] text-[var(--text-muted)]">{r.status}</span>
                   </div>
                   <p className="text-xs text-[var(--text-soft)] truncate">
                     {r.driverName ?? t.reassignCommandOverlay.noDriver} · {r.stopCount} {t.reassignCommandOverlay.stops}{r.city ? ` · ${r.city}` : ''}

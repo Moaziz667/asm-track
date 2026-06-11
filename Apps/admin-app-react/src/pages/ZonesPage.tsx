@@ -223,11 +223,11 @@ export default function ZonesPage() {
         style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
       >
         <div className="flex items-center gap-3">
-          <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
             {t.zonesPage.activeSectors}: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{stats.active}/{stats.total}</span>
           </span>
           <span className="w-px h-3 bg-[var(--border)]" />
-          <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
             {t.zonesPage.postalPoints}: <span className="font-mono font-bold" style={{ color: 'var(--text-primary)' }}>{stats.codes}</span>
           </span>
         </div>
@@ -287,7 +287,7 @@ export default function ZonesPage() {
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th className="w-2 p-0" style={{ background: 'var(--app-bg)' }}></th>
                     {orderedColumns.map(col => visibleIds.has(col.id) && (
-                      <th key={col.id} className="text-[11px] font-semibold py-3 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>
+                      <th key={col.id} className="text-xs font-semibold py-3 text-left px-4" style={{ color: 'var(--text-muted)', background: 'var(--app-bg)' }}>
                         {col.label}
                       </th>
                     ))}
@@ -310,7 +310,7 @@ export default function ZonesPage() {
                               <div className="flex items-center gap-3">
                                 <div className="w-3 h-3 rounded-full shrink-0" style={{ background: zone.color ?? 'var(--text-muted)' }} />
                                 <div>
-                                  <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
+                                  <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{zone.name}</p>
                                   {zone.description && <p className="text-[9px] italic truncate max-w-[200px]" style={{ color: 'var(--text-muted)' }}>{zone.description}</p>}
                                 </div>
                               </div>
@@ -324,19 +324,19 @@ export default function ZonesPage() {
                                     {pc}
                                   </span>
                                 ))}
-                                {extra > 0 && <span className="text-[11px] font-semibold font-mono" style={{ color: 'var(--brand)' }}>{t.zonesPage.extraCodes.replace('{count}', extra.toString())}</span>}
+                                {extra > 0 && <span className="text-xs font-semibold font-mono" style={{ color: 'var(--brand)' }}>{t.zonesPage.extraCodes.replace('{count}', extra.toString())}</span>}
                               </div>
                             </td>
                           );
                           if (col.id === 'density') return (
                             <td key="density" className="px-4 py-2 text-center">
-                              <p className="text-[11px] font-extrabold font-mono" style={{ color: 'var(--text-primary)' }}>{zone.postalCodes?.length || 0}</p>
+                              <p className="text-xs font-extrabold font-mono" style={{ color: 'var(--text-primary)' }}>{zone.postalCodes?.length || 0}</p>
                             </td>
                           );
                           if (col.id === 'status') return (
                             <td key="status" className="px-4 py-2 text-center">
                               <span
-                                className="text-[11px] font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
+                                className="text-xs font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
                                 style={{
                                   color: zone.isActive ? '#2D8A5E' : '#6B7280',
                                   background: zone.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
@@ -405,14 +405,14 @@ export default function ZonesPage() {
           <div className="flex items-center justify-end gap-2">
             <button
               type="button"
-              className="px-4 h-8 text-[11px] font-semibold rounded-md hover:bg-[var(--hover-bg)] transition-colors"
+              className="px-4 h-8 text-xs font-semibold rounded-md hover:bg-[var(--hover-bg)] transition-colors"
               style={{ color: 'var(--text-muted)' }}
               onClick={() => setEditorOpen(false)}
             >
               {t.zonesPage.cancelButton}
             </button>
             <Button
-              className="min-w-[100px] h-8 font-semibold text-[11px] rounded-md"
+              className="min-w-[100px] h-8 font-semibold text-xs rounded-md"
               onClick={save}
               disabled={saving}
             >
@@ -433,7 +433,7 @@ export default function ZonesPage() {
             <div className="p-6 flex flex-col gap-6">
               {/* Name */}
               <div>
-                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.sectorNameLabel}</label>
+                <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.sectorNameLabel}</label>
                 <input
                   className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
                   style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
@@ -446,7 +446,7 @@ export default function ZonesPage() {
 
               {/* Color picker */}
               <div>
-                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.zoneColorLabel}</label>
+                <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.zoneColorLabel}</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {ZONE_COLORS.map(c => (
                     <button
@@ -469,7 +469,7 @@ export default function ZonesPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-[11px] font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.operationalNotesLabel}</label>
+                <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.operationalNotesLabel}</label>
                 <textarea
                   rows={3}
                   className="w-full px-3 py-2 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
@@ -482,7 +482,7 @@ export default function ZonesPage() {
 
               {/* Active toggle */}
               <div className="flex items-center justify-between p-3 rounded-lg" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
-                <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{t.zonesPage.dispatchAvailability}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{t.zonesPage.dispatchAvailability}</p>
                 <input
                   type="checkbox"
                   role="switch"
@@ -497,7 +497,7 @@ export default function ZonesPage() {
 
               {/* Postal codes */}
               <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.postalCoverageLabel}</p>
+                <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.postalCoverageLabel}</p>
                 <div className="flex gap-2">
                   <input
                     className="flex-1 h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
@@ -521,11 +521,11 @@ export default function ZonesPage() {
 
                 {conflictCodes.length > 0 && (
                   <div className="p-2 rounded-lg" style={{ border: '1px solid rgba(255,87,34,0.3)', background: 'var(--app-bg)' }}>
-                    <p className="text-[11px] font-semibold mb-1" style={{ color: 'var(--brand)' }}>{t.zonesPage.conflictsDetected}</p>
-                    <p className="text-[10px] mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.conflictWarning}</p>
+                    <p className="text-xs font-semibold mb-1" style={{ color: 'var(--brand)' }}>{t.zonesPage.conflictsDetected}</p>
+                    <p className="text-2xs mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.conflictWarning}</p>
                     <button
                       type="button"
-                      className="w-full h-6 text-[11px] font-semibold rounded-md bg-[var(--brand)] text-white"
+                      className="w-full h-6 text-xs font-semibold rounded-md bg-[var(--brand)] text-white"
                       onClick={() => setForm(p => ({ ...p, postalCodes: p.postalCodes.filter(c => !conflictCodes.includes(c)) }))}
                     >
                       {t.zonesPage.removeConflicts}
@@ -534,16 +534,16 @@ export default function ZonesPage() {
                 )}
 
                 <div className="p-3 rounded-lg flex items-center justify-between" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
-                  <p className="text-[18px] font-black font-mono" style={{ color: 'var(--text-primary)' }}>{form.postalCodes.length}</p>
+                  <p className="text-xl font-black font-mono" style={{ color: 'var(--text-primary)' }}>{form.postalCodes.length}</p>
                   <IconScan size={18} style={{ color: 'var(--brand)' }} />
                 </div>
                 <div className="flex items-center justify-between">
-                  <p className="text-[10px]" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activePostalPoints}</p>
+                  <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.activePostalPoints}</p>
                   {form.postalCodes.length > 0 && (
                     <button
                       type="button"
                       onClick={() => setForm(p => ({ ...p, postalCodes: [] }))}
-                      className="text-[10px] font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
+                      className="text-2xs font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
                     >
                       Désélectionner tout
                     </button>
@@ -576,7 +576,7 @@ export default function ZonesPage() {
                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
                   </svg>
-                  <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>
+                  <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
                     {getCopy(locale).zonesPage.mapInitializing}
                   </span>
                 </div>

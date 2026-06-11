@@ -78,7 +78,7 @@ function DraggableOrderRow({
         </span>
       </TableCell>
       <TableCell>
-        <span className="font-mono text-[10px] text-[var(--text-muted)]">
+        <span className="font-mono text-2xs text-[var(--text-muted)]">
           #{shortId(delivery.id)}
         </span>
       </TableCell>
@@ -199,7 +199,7 @@ export function OrdersTable({
               <button
                 key={key}
                 onClick={() => setOrderQuickView(key)}
-                className={`px-1.5 py-1 text-[11px] font-semibold rounded transition-colors ${
+                className={`px-1.5 py-1 text-xs font-semibold rounded transition-colors ${
                   orderQuickView === key
                     ? 'bg-[var(--brand-orange)] text-white'
                     : 'text-[var(--text-soft)] hover:text-[var(--text-strong)] hover:bg-[var(--surface-2)]'
@@ -258,12 +258,12 @@ export function OrdersTable({
                       />
                     </div>
                   </TableHead>
-                  <TableHead className="w-[100px] text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerIdErp}</TableHead>
-                  <TableHead className="w-[100px] text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerIdAsm}</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerClient}</TableHead>
-                  <TableHead className="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerArticles}</TableHead>
-                  <TableHead className="w-24 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerWeight}</TableHead>
-                  <TableHead className="w-24 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDate}</TableHead>
+                  <TableHead className="w-[100px] text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerIdErp}</TableHead>
+                  <TableHead className="w-[100px] text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerIdAsm}</TableHead>
+                  <TableHead className="text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerClient}</TableHead>
+                  <TableHead className="text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerArticles}</TableHead>
+                  <TableHead className="w-24 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerWeight}</TableHead>
+                  <TableHead className="w-24 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDate}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

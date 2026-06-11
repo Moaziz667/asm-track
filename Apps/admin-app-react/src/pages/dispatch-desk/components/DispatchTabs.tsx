@@ -80,7 +80,7 @@ export function DispatchTabs() {
         <div className="flex items-center justify-between px-4 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
           <div className="flex items-center gap-2">
             <IconAlertCircle size={13} stroke={2.5} style={{ color: 'var(--text-secondary)' }} />
-            <span className="text-[11px] font-[500]" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-xs font-[500]" style={{ color: 'var(--text-secondary)' }}>
               {newSinceLoad} {newSinceLoad > 1 ? t.dispatchDeskPage.newAlertPlural : t.dispatchDeskPage.newAlertSingular}
             </span>
           </div>
@@ -88,7 +88,7 @@ export function DispatchTabs() {
             <button
               type="button"
               onClick={() => { setNewSinceLoad(0); doRefresh(); }}
-              className="text-[11px] font-[500] h-6 px-2 rounded-[var(--radius)] border transition-colors hover:bg-[var(--hover-bg)]"
+              className="text-xs font-[500] h-6 px-2 rounded-[var(--radius)] border transition-colors hover:bg-[var(--hover-bg)]"
               style={{ borderColor: 'var(--border)', color: 'var(--text-secondary)' }}
             >
               {t.dispatchDeskPage.newAlertBannerRefresh}
@@ -108,16 +108,16 @@ export function DispatchTabs() {
       {/* Batch bar — shared selection works across Queue/Failed/GPS */}
       {!isHandoffTab && selectedIds.size > 0 && (
         <div className="flex items-center gap-3 px-4 h-10 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--brand-soft)' }}>
-          <span className="text-[12px] font-[500]" style={{ color: 'var(--text-primary)' }}>
+          <span className="text-sm font-[500]" style={{ color: 'var(--text-primary)' }}>
             {t.dispatchDeskPage.batchCount.replace('{count}', String(selectedIds.size)).replace('{plural}', selectedIds.size > 1 ? 's' : '')}
           </span>
           {batchType === 'mixed' ? (
-            <span className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
+            <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.batchMixedWarning}</span>
           ) : (
             batchType !== 'none' && (
               <button
                 type="button"
-                className="text-[11px] font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors"
+                className="text-xs font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors"
                 style={{ background: 'var(--brand)', borderColor: 'var(--brand)', color: '#fff' }}
                 onClick={() => setDrawerTargets(selectedTargets)}
                 disabled={isReadOnly}
@@ -130,7 +130,7 @@ export function DispatchTabs() {
           <button
             type="button"
             onClick={() => setSelectedIds(new Set())}
-            className="text-[11px] h-6 px-2 rounded-[var(--radius)] transition-colors hover:bg-[var(--hover-bg)]"
+            className="text-xs h-6 px-2 rounded-[var(--radius)] transition-colors hover:bg-[var(--hover-bg)]"
             style={{ color: 'var(--text-muted)' }}
           >
             {t.dispatchDeskPage.batchCancel}

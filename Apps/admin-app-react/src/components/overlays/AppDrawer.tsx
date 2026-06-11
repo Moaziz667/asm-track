@@ -44,7 +44,7 @@ export function AppDrawer({
         {/* Header */}
         <SheetHeader className="px-5 py-4 border-b border-[var(--border)] shrink-0">
           {subtitle && (
-            <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--text-soft)] mb-0.5">
+            <p className="text-2xs font-medium uppercase tracking-widest text-[var(--text-soft)] mb-0.5">
               {subtitle}
             </p>
           )}

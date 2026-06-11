@@ -68,7 +68,7 @@ export default function DepotPinMap({ lat, lng, onPick, height = 300 }: DepotPin
       
       {/* Overlay instruction */}
       <div className="absolute top-3 right-3 z-[1000] px-3 py-1.5 bg-[var(--surface)]/90 backdrop-blur-sm border border-[var(--border)] rounded-lg shadow-sm pointer-events-none">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--text-primary)]">
+        <span className="text-2xs font-bold uppercase tracking-widest text-[var(--text-primary)]">
           Cliquez pour positionner
         </span>
       </div>

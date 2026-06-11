@@ -71,7 +71,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
               title={dotTip}
             />
           )}
-          <span className="font-mono text-[11px] font-[600] shrink-0" style={{ color: 'var(--brand)' }}>
+          <span className="font-mono text-xs font-[600] shrink-0" style={{ color: 'var(--brand)' }}>
             {d.orderRef ?? d.erpOrderId ?? rowId(d).slice(0, 8)}
           </span>
           <span className="text-[12.5px] font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
@@ -80,7 +80,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
         </div>
 
         {/* Bottom line: status · driver · elapsed · amount */}
-        <div className="flex items-center gap-1.5 min-w-0 text-[11px]" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex items-center gap-1.5 min-w-0 text-xs" style={{ color: 'var(--text-muted)' }}>
           <StatusBadge status={d.status} size="sm" />
           <SlaHealthBadge health={d.slaHealth} />
           {d.driverName ? (
@@ -109,13 +109,13 @@ export function QueueList() {
   const dd = t.dispatchDeskPage;
   const SortBar = (
     <div className="flex items-center gap-2 px-3 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <span className="text-[10px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+      <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
         {dd.sortBy ?? 'Trier par'}
       </span>
       <select
         value={queueSort}
         onChange={(e) => setQueueSort(e.target.value as typeof queueSort)}
-        className="text-[11px] font-[500] rounded-md px-2 py-1 outline-none cursor-pointer"
+        className="text-xs font-[500] rounded-md px-2 py-1 outline-none cursor-pointer"
         style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
       >
         <option value="route">{dd.sortRoute ?? 'Tournée'}</option>
@@ -140,7 +140,7 @@ export function QueueList() {
         {SortBar}
         <div className="flex-1 flex flex-col items-center justify-center px-4 text-center">
           <IconCheck size={20} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-          <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
+          <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
         </div>
       </div>
     );
@@ -192,7 +192,7 @@ export function QueueList() {
             className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5"
             style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}
           >
-            <span className="text-[10px] font-[600] uppercase tracking-wide truncate" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-2xs font-[600] uppercase tracking-wide truncate" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.unassignedLabel}
             </span>
             <span className="text-[9px] font-[500] px-1.5 rounded-full shrink-0" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.6 }}>

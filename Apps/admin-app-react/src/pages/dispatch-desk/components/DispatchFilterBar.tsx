@@ -94,7 +94,7 @@ function FilterDropdown({
             <IconChevronLeft size={13} stroke={2.5} />
           </button>
         )}
-        <span className="text-[11px] font-[600] text-[var(--text-muted)] uppercase tracking-wide">
+        <span className="text-xs font-[600] text-[var(--text-muted)] uppercase tracking-wide">
           {step === 'attrs'
             ? 'Filter by attribute'
             : attrs.find(a => a.key === step)?.label}
@@ -109,7 +109,7 @@ function FilterDropdown({
               <button
                 type="button"
                 onClick={() => setStep(key)}
-                className="w-full flex items-center justify-between px-3 py-2 text-[13px] text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
+                className="w-full flex items-center justify-between px-3 py-2 text-base text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
               >
                 <span>{label}</span>
                 {active && (
@@ -130,7 +130,7 @@ function FilterDropdown({
                 type="button"
                 onClick={() => { setStatusFilter(v); onClose(); }}
                 className={cn(
-                  'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                  'w-full flex items-center px-3 py-2 text-base transition-colors',
                   statusFilter === v
                     ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                     : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -159,7 +159,7 @@ function FilterDropdown({
               type="button"
               onClick={() => { setDriverId(''); onClose(); }}
               className={cn(
-                'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                'w-full flex items-center px-3 py-2 text-base transition-colors',
                 !driverId
                   ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                   : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -180,7 +180,7 @@ function FilterDropdown({
                 type="button"
                 onClick={() => { setDriverId(d.id); onClose(); }}
                 className={cn(
-                  'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                  'w-full flex items-center px-3 py-2 text-base transition-colors',
                   driverId === d.id
                     ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                     : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -207,7 +207,7 @@ function FilterDropdown({
               type="button"
               onClick={() => { setZoneFilter(''); onClose(); }}
               className={cn(
-                'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                'w-full flex items-center px-3 py-2 text-base transition-colors',
                 !zoneFilter
                   ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                   : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -228,7 +228,7 @@ function FilterDropdown({
                 type="button"
                 onClick={() => { setZoneFilter(z.name); onClose(); }}
                 className={cn(
-                  'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                  'w-full flex items-center px-3 py-2 text-base transition-colors',
                   zoneFilter === z.name
                     ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                     : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -257,7 +257,7 @@ function FilterDropdown({
                   type="button"
                   onClick={() => { setPeriod(v); if (v !== 'custom') onClose(); }}
                   className={cn(
-                    'w-full flex items-center px-3 py-2 text-[13px] transition-colors',
+                    'w-full flex items-center px-3 py-2 text-base transition-colors',
                     period === v
                       ? 'text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                       : 'text-[var(--text-primary)] hover:bg-[var(--hover-bg)]',
@@ -277,31 +277,31 @@ function FilterDropdown({
           {period === 'custom' && (
             <div className="px-3 pb-3 pt-1 flex flex-col gap-2 border-t border-[var(--border)] mt-1">
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-[500] text-[var(--text-muted)]">
+                <label className="text-xs font-[500] text-[var(--text-muted)]">
                   {t.dispatchDeskPage.dateFrom}
                 </label>
                 <input
                   type="date"
                   value={customFrom}
                   onChange={e => setCustomFrom(e.currentTarget.value)}
-                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-[12px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
+                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
                 />
               </div>
               <div className="flex flex-col gap-1">
-                <label className="text-[11px] font-[500] text-[var(--text-muted)]">
+                <label className="text-xs font-[500] text-[var(--text-muted)]">
                   {t.dispatchDeskPage.dateTo}
                 </label>
                 <input
                   type="date"
                   value={customTo}
                   onChange={e => setCustomTo(e.currentTarget.value)}
-                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-[12px] text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
+                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
                 />
               </div>
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-1 h-7 rounded bg-[var(--brand-blue)] text-white text-[12px] font-[600] hover:opacity-90 transition-opacity"
+                className="mt-1 h-7 rounded bg-[var(--brand-blue)] text-white text-sm font-[600] hover:opacity-90 transition-opacity"
               >
                 Apply
               </button>
@@ -317,7 +317,7 @@ function FilterDropdown({
 
 function FilterToken({ label, onRemove }: { label: string; onRemove: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 h-6 px-2 rounded border border-[var(--brand-blue)] bg-[var(--brand-blue-soft)] text-[var(--brand-blue)] text-[11px] font-[500]">
+    <span className="inline-flex items-center gap-1 h-6 px-2 rounded border border-[var(--brand-blue)] bg-[var(--brand-blue-soft)] text-[var(--brand-blue)] text-xs font-[500]">
       {label}
       <button
         type="button"
@@ -402,7 +402,7 @@ export function DispatchFilterBar() {
             placeholder={t.dispatchDeskPage.filterQuickSearchPlaceholder}
             className={cn(
               'w-full h-8 pl-8 pr-3 border border-[var(--border)] bg-[var(--app-bg)]',
-              'text-[13px] text-[var(--text-primary)] placeholder:text-[var(--text-muted)]',
+              'text-base text-[var(--text-primary)] placeholder:text-[var(--text-muted)]',
               'focus:outline-none focus:border-[var(--brand-blue)] focus:ring-1 focus:ring-[var(--brand-blue)] focus:ring-opacity-30',
               'rounded-[var(--radius-xs)] transition-colors',
             )}
@@ -416,7 +416,7 @@ export function DispatchFilterBar() {
             type="button"
             onClick={() => setDropdownOpen(o => !o)}
             className={cn(
-              'h-8 px-3 flex items-center gap-1.5 border rounded-[var(--radius-xs)] text-[13px] font-[500] transition-colors',
+              'h-8 px-3 flex items-center gap-1.5 border rounded-[var(--radius-xs)] text-base font-[500] transition-colors',
               dropdownOpen
                 ? 'border-[var(--brand-blue)] text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                 : 'border-[var(--border)] text-[var(--text-primary)] bg-[var(--surface)] hover:border-[var(--border-strong)]',
@@ -424,7 +424,7 @@ export function DispatchFilterBar() {
           >
             Filter by attribute
             {activeTokens.length > 0 && (
-              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--brand-blue)] text-white text-[10px] font-[700] leading-none">
+              <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--brand-blue)] text-white text-2xs font-[700] leading-none">
                 {activeTokens.length}
               </span>
             )}
@@ -447,7 +447,7 @@ export function DispatchFilterBar() {
             <button
               type="button"
               onClick={clearFilters}
-              className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded-[var(--radius-xs)] text-[12px] font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+              className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded-[var(--radius-xs)] text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
             >
               <IconX size={12} stroke={2.5} />
               Clear

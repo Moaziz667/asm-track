@@ -21,7 +21,7 @@ export const RefreshButton = React.forwardRef<HTMLButtonElement, RefreshButtonPr
         className={cn(
           "flex items-center justify-center border border-[var(--border)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-all cursor-pointer disabled:opacity-50 focus:outline-none rounded-md shrink-0",
           showText 
-            ? "h-8 px-3 gap-1.5 text-[11px] font-[500]" 
+            ? "h-8 px-3 gap-1.5 text-xs font-[500]" 
             : "w-8 h-8",
           className
         )}

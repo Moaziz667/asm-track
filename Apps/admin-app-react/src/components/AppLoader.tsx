@@ -33,7 +33,7 @@ export function AppLoader({ size = 'sm', centered = false, label, height }: AppL
         <div className="flex flex-col items-center gap-2">
           {spinner}
           {label && (
-            <p className="text-[11px] font-bold uppercase tracking-widest text-[var(--text-muted)]">
+            <p className="text-xs font-bold uppercase tracking-widest text-[var(--text-muted)]">
               {label}
             </p>
           )}

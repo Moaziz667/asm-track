@@ -420,7 +420,7 @@ export function AppSidebar() {
             </div>
             {!isCollapsed && (
               <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-[11px] text-[var(--sb-item-active)] truncate leading-tight">Super Admin</span>
+                <span className="font-semibold text-xs text-[var(--sb-item-active)] truncate leading-tight">Super Admin</span>
                 <span className="text-[9px] text-[var(--sb-label)] tracking-wider leading-none mt-0.5">Admin</span>
               </div>
             )}

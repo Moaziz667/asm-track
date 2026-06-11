@@ -388,7 +388,7 @@ function RouteBuilderPageInner() {
                       key={opt.value}
                       type="button"
                       onClick={() => setMapLayer(opt.value)}
-                      className={`px-2.5 py-1 text-[10px] font-semibold rounded-sm transition-all cursor-pointer ${
+                      className={`px-2.5 py-1 text-2xs font-semibold rounded-sm transition-all cursor-pointer ${
                         mapLayer === opt.value
                           ? 'bg-[var(--surface-1)] text-[var(--text-strong)] shadow-sm'
                           : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
@@ -406,7 +406,7 @@ function RouteBuilderPageInner() {
                     onChange={(e) => setShowDepot(e.target.checked)}
                     className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
                   />
-                  <span className="text-[11px] font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerDepots}</span>
+                  <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerDepots}</span>
                 </label>
 
                 <label className="flex items-center gap-2 cursor-pointer select-none">
@@ -416,7 +416,7 @@ function RouteBuilderPageInner() {
                     onChange={(e) => rb.setShowRouteTrajet(e.target.checked)}
                     className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
                   />
-                  <span className="text-[11px] font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerTraces}</span>
+                  <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerTraces}</span>
                 </label>
               </div>
 
@@ -430,7 +430,7 @@ function RouteBuilderPageInner() {
                     <MapPinnedIcon size={14} />
                   </div>
                   <div className="flex flex-col leading-tight">
-                    <span className="text-[10px] text-[var(--text-muted)] font-medium">{t.routeBuilderPage.activeZoneLabel}</span>
+                    <span className="text-2xs text-[var(--text-muted)] font-medium">{t.routeBuilderPage.activeZoneLabel}</span>
                     <span className="text-xs font-semibold text-[var(--text-strong)]">
                       {rb.selectedRouteZoneLabel || t.routeBuilderPage.activeZoneNone}
                     </span>
@@ -494,7 +494,7 @@ function RouteBuilderPageInner() {
                     >
                       <IconList size={13} />
                       <span>{t.routeBuilderPage.tabOrders}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold ${
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-2xs font-bold ${
                         bottomTab === 'orders'
                           ? 'bg-[var(--brand-soft)] text-[var(--brand-orange)]'
                           : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
@@ -516,7 +516,7 @@ function RouteBuilderPageInner() {
                     >
                       <IconMapPlus size={13} className="shrink-0" />
                       <span>{t.routeBuilderPage.tabRoutes}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-[10px] font-bold ${
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-[3px] text-2xs font-bold ${
                         bottomTab === 'routes'
                           ? 'bg-[var(--surface-2)] text-[var(--text-soft)]'
                           : 'bg-[var(--surface-2)] text-[var(--text-soft)]'

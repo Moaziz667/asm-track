@@ -64,7 +64,7 @@ export function FilterChip({ label, active, count, onClick }: FilterChipProps) {
       {label}
       {count !== undefined && (
         <span className={cn(
-          'text-[10px] font-semibold tabular-nums',
+          'text-2xs font-semibold tabular-nums',
           active ? 'text-[var(--brand)]' : 'text-[var(--text-soft)]',
         )}>
           {count}

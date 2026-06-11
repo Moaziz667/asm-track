@@ -86,16 +86,16 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
       "grid grid-cols-[30px_1fr_1.5fr_1fr_80px_100px] gap-4 items-center px-6 py-2 border-b border-[var(--border)]",
       isDone ? "bg-[var(--surface)] opacity-60" : "bg-[var(--surface)]"
     )}>
-      <span className="text-[10px] font-[700] text-[var(--text-muted)]">{index + 1}</span>
+      <span className="text-2xs font-[700] text-[var(--text-muted)]">{index + 1}</span>
 
       <div className="flex flex-col gap-0">
-        <span className="text-[11px] font-[600] text-[var(--text-primary)] truncate">{stop.clientName || '—'}</span>
-        <span className="text-[11px] font-[700] font-mono text-[var(--text-muted)]">#{shortId}</span>
+        <span className="text-xs font-[600] text-[var(--text-primary)] truncate">{stop.clientName || '—'}</span>
+        <span className="text-xs font-[700] font-mono text-[var(--text-muted)]">#{shortId}</span>
       </div>
 
       <div className="flex items-center gap-1 flex-nowrap">
         <IconMapPin size={10} className="text-[var(--text-muted)] shrink-0" />
-        <span className="text-[10px] font-[500] text-[var(--text-soft)] truncate">
+        <span className="text-2xs font-[500] text-[var(--text-soft)] truncate">
           {[stop.dropoffAddress, stop.dropoffCity]
             .filter(Boolean)
             .join(', ')
@@ -106,13 +106,13 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
       <div>
         {odooRef && (
           <div className="flex items-center gap-1">
-            <span className="text-[11px] font-[600] text-[var(--brand)] tracking-tighter">ERP</span>
-            <span className="text-[10px] font-[700] font-mono text-[var(--text-primary)]">{odooRef}</span>
+            <span className="text-xs font-[600] text-[var(--brand)] tracking-tighter">ERP</span>
+            <span className="text-2xs font-[700] font-mono text-[var(--text-primary)]">{odooRef}</span>
           </div>
         )}
       </div>
 
-      <span className="text-[10px] font-[600] text-[var(--text-soft)] text-right tabular-nums">
+      <span className="text-2xs font-[600] text-[var(--text-soft)] text-right tabular-nums">
         {stop.totalWeightKg != null ? `${stop.totalWeightKg.toFixed(1)}kg` : '—'}
       </span>
 
@@ -157,35 +157,35 @@ function RouteRow({
 
         {/* Tournée */}
         <div className="flex flex-col gap-0">
-          <span className="text-[11px] font-[700] text-[var(--text-primary)] tracking-tight">{route.name}</span>
-          <span className="text-[11px] font-[600] text-[var(--text-muted)]">ID: {route.id?.slice(0, 8) ?? 'N/A'}</span>
+          <span className="text-xs font-[700] text-[var(--text-primary)] tracking-tight">{route.name}</span>
+          <span className="text-xs font-[600] text-[var(--text-muted)]">ID: {route.id?.slice(0, 8) ?? 'N/A'}</span>
         </div>
 
         {/* Date */}
         <div className="flex items-center gap-1">
           <IconCalendar size={12} className="text-[var(--text-muted)]" />
-          <span className="text-[11px] font-[600] text-[var(--text-soft)]">{route.date}</span>
+          <span className="text-xs font-[600] text-[var(--text-soft)]">{route.date}</span>
         </div>
 
         {/* Zone & Depot */}
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] uppercase tracking-widest font-bold">
+          <span className="text-2xs font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] uppercase tracking-widest font-bold">
             {route.zoneLabel || 'Zone ?'}
           </span>
-          <span className="text-[10px] font-[600] text-[var(--text-muted)] truncate italic">{depotName}</span>
+          <span className="text-2xs font-[600] text-[var(--text-muted)] truncate italic">{depotName}</span>
         </div>
 
         {/* Chauffeur */}
         <div className="flex items-center gap-1.5">
           <div className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
-          <span className="text-[11px] font-[600] text-[var(--text-primary)] truncate max-w-[120px]">{driverName || t.routesTablePage.notAssigned}</span>
+          <span className="text-xs font-[600] text-[var(--text-primary)] truncate max-w-[120px]">{driverName || t.routesTablePage.notAssigned}</span>
         </div>
 
         {/* Progression */}
         <div className="flex flex-col gap-1 w-[100px]">
           <div className="flex items-center justify-between gap-1">
-            <span className="text-[11px] font-[700] font-mono text-[var(--text-soft)]">{done}/{total}</span>
-            <span className="text-[11px] font-[700] text-[var(--text-muted)]">{pct}%</span>
+            <span className="text-xs font-[700] font-mono text-[var(--text-soft)]">{done}/{total}</span>
+            <span className="text-xs font-[700] text-[var(--text-muted)]">{pct}%</span>
           </div>
           <div className="h-[2px] w-full bg-[var(--surface)] rounded overflow-hidden">
             <div
@@ -262,7 +262,7 @@ function RouteRow({
               t.routesTablePage.headerWeight,
               t.routesTablePage.headerDeliveryStatus,
             ].map((h) => (
-              <span key={h} className="text-[11px] font-[600] text-[var(--text-muted)]">{h}</span>
+              <span key={h} className="text-xs font-[600] text-[var(--text-muted)]">{h}</span>
             ))}
           </div>
           {route.stops.length === 0 ? (
@@ -519,13 +519,13 @@ function RoutesTablePageContent() {
                 {/* Table header */}
                 <div className="sticky top-0 bg-[var(--surface)] z-10 grid grid-cols-[8px_200px_100px_1fr_150px_120px_110px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
                   <div className="w-[8px]" />
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerRoute}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerScheduled}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerZoneDepot}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerDriver}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStops}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStatus}</span>
-                  <span className="text-[11px] font-[600] text-[var(--text-muted)] text-right pr-6">{t.routesTablePage.headerActions}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerRoute}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerScheduled}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerZoneDepot}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerDriver}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStops}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStatus}</span>
+                  <span className="text-xs font-[600] text-[var(--text-muted)] text-right pr-6">{t.routesTablePage.headerActions}</span>
                 </div>
 
                 {loading ? (
@@ -540,8 +540,8 @@ function RoutesTablePageContent() {
                       <div className="py-0.5 px-1.5 bg-[var(--surface)] border-b border-[var(--border)]">
                         <div className="flex items-center gap-1.5">
                           <IconCalendar size={10} className="text-[var(--text-muted)]" />
-                          <span className="text-[11px] font-[600] text-[var(--text-soft)]">{date}</span>
-                          <span className="text-[10px] font-[600] text-[var(--text-muted)]">· {dateRoutes.length} {t.routesTablePage.movementLabel}{dateRoutes.length > 1 ? 's' : ''}</span>
+                          <span className="text-xs font-[600] text-[var(--text-soft)]">{date}</span>
+                          <span className="text-2xs font-[600] text-[var(--text-muted)]">· {dateRoutes.length} {t.routesTablePage.movementLabel}{dateRoutes.length > 1 ? 's' : ''}</span>
                         </div>
                       </div>
                       {dateRoutes.map((route) => (
@@ -601,7 +601,7 @@ function RoutesTablePageContent() {
             <div className="rounded-lg p-3" style={{ background: 'var(--danger-bg, rgba(199,55,47,0.08))', border: '1px solid rgba(199,55,47,0.25)' }}>
               <div className="flex items-center gap-2 mb-2">
                 <IconAlertTriangle size={15} className="text-[var(--danger)]" />
-                <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.routesTablePage.cancelRouteWhatHappens || 'Ce qui va se passer'}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)]">{t.routesTablePage.cancelRouteWhatHappens || 'Ce qui va se passer'}</p>
               </div>
               <ul className="flex flex-col gap-1.5 text-[11.5px] leading-relaxed text-[var(--text-secondary,var(--text-primary))]">
                 <li>• {t.routesTablePage.cancelConseqRepool || 'Les arrêts non livrés repassent en planification (les commandes ne sont PAS annulées).'}</li>
@@ -614,7 +614,7 @@ function RoutesTablePageContent() {
 
             {/* Reason (required) */}
             <div>
-              <label className="block text-[11px] font-semibold text-[var(--text-muted)] mb-1.5">
+              <label className="block text-xs font-semibold text-[var(--text-muted)] mb-1.5">
                 {t.routesTablePage.cancelRouteReasonLabel || 'Motif d’annulation'} <span className="text-[var(--danger)]">*</span>
               </label>
               <textarea
@@ -623,7 +623,7 @@ function RoutesTablePageContent() {
                 rows={3}
                 maxLength={500}
                 placeholder={t.routesTablePage.cancelRouteReasonPlaceholder || 'Expliquez pourquoi cette tournée est annulée…'}
-                className="w-full text-[12px] rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
+                className="w-full text-sm rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
                 style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
               />
             </div>

@@ -50,7 +50,7 @@ export function ActionCards() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-        <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
+        <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noActionRequired}</p>
       </div>
     );
   }
@@ -69,17 +69,17 @@ export function ActionCards() {
         <section key={`${group.routeName ?? 'none'}-${gi}`} className="mb-4 last:mb-0">
           {/* Route header — AWS resource-group style, subtle */}
           <div className="flex items-center gap-2 px-1 mb-2">
-            <span className="text-[11px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.noRouteAssigned}
             </span>
             <span
-              className="text-[10px] font-[500] px-1.5 rounded-full"
+              className="text-2xs font-[500] px-1.5 rounded-full"
               style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.7 }}
             >
               {group.rows.length}
             </span>
             {group.routeId && (
-              <Link to={`/routes/${group.routeId}`} className="text-[10px] font-[500] hover:underline ml-auto" style={{ color: 'var(--brand)' }}>
+              <Link to={`/routes/${group.routeId}`} className="text-2xs font-[500] hover:underline ml-auto" style={{ color: 'var(--brand)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>
             )}
@@ -130,7 +130,7 @@ export function ActionCards() {
                         <Link to={`/deliveries/${row.deliveryId}`} className="font-mono text-[12.5px] font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
                           {row.orderRef ?? row.deliveryId.slice(0, 8)}
                         </Link>
-                        <p className="text-[14px] font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                        <p className="text-md font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
                           {row.clientName ?? '—'}
                         </p>
                         {(row.city || row.zoneName) && (
@@ -210,7 +210,7 @@ export function ActionCards() {
                     </div>
 
                     {/* Incident detail Callout */}
-                    <div className="text-[13px] leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
+                    <div className="text-base leading-relaxed font-semibold text-blue-700 dark:text-blue-300 bg-blue-50/70 dark:bg-blue-950/30 border-l-2 border-blue-500 px-2.5 py-2 rounded-r">
                       {formatComment(row, t)}
                     </div>
                     {suggestion && <p className="text-[11.5px] font-semibold" style={{ color: 'var(--brand)' }}>{suggestion}</p>}

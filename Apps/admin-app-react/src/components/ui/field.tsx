@@ -23,8 +23,8 @@ export function FieldWrapper({ label, error, hint, required, children, className
         </label>
       )}
       {children}
-      {error && <p className="text-[11px] text-[var(--danger)]">{error}</p>}
-      {hint && !error && <p className="text-[11px] text-[var(--text-soft)]">{hint}</p>}
+      {error && <p className="text-xs text-[var(--danger)]">{error}</p>}
+      {hint && !error && <p className="text-xs text-[var(--text-soft)]">{hint}</p>}
     </div>
   );
 }

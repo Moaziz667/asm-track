@@ -98,19 +98,19 @@ export function ValidationModal() {
           <Table>
             <TableHeader className="bg-[var(--surface-2)]">
               <TableRow>
-                <TableHead className="w-12 font-semibold text-[10px] text-[var(--text-soft)] uppercase tracking-wider">
+                <TableHead className="w-12 font-semibold text-2xs text-[var(--text-soft)] uppercase tracking-wider">
                   {t.routeBuilderPage.headerIndex}
                 </TableHead>
-                <TableHead className="font-semibold text-[10px] text-[var(--text-soft)] uppercase tracking-wider">
+                <TableHead className="font-semibold text-2xs text-[var(--text-soft)] uppercase tracking-wider">
                   {t.routeBuilderPage.headerClientDestination}
                 </TableHead>
-                <TableHead className="w-24 font-semibold text-[10px] text-[var(--text-soft)] uppercase tracking-wider">
+                <TableHead className="w-24 font-semibold text-2xs text-[var(--text-soft)] uppercase tracking-wider">
                   {t.routeBuilderPage.headerStart}
                 </TableHead>
-                <TableHead className="w-24 font-semibold text-[10px] text-[var(--text-soft)] uppercase tracking-wider">
+                <TableHead className="w-24 font-semibold text-2xs text-[var(--text-soft)] uppercase tracking-wider">
                   {t.routeBuilderPage.headerEnd}
                 </TableHead>
-                <TableHead className="w-16 text-center font-semibold text-[10px] text-[var(--text-soft)] uppercase tracking-wider">
+                <TableHead className="w-16 text-center font-semibold text-2xs text-[var(--text-soft)] uppercase tracking-wider">
                   {t.routeBuilderPage.headerStatus}
                 </TableHead>
               </TableRow>
@@ -134,7 +134,7 @@ export function ValidationModal() {
                           {stop.clientName?.trim() || stop.deliveryId.slice(0, 8).toUpperCase()}
                         </span>
                         {violation && (
-                          <span className="text-[10px] text-red-500 dark:text-red-400 font-bold uppercase tracking-wide">
+                          <span className="text-2xs text-red-500 dark:text-red-400 font-bold uppercase tracking-wide">
                             {violation}
                           </span>
                         )}

@@ -192,9 +192,9 @@ export default function SystemHealthPage() {
         <div className="px-6 py-4 flex items-center justify-between max-w-[1400px] mx-auto">
           <div className="flex items-center gap-3">
             <IconHeartbeat size={18} className="text-[var(--brand)]" />
-            <h1 className="text-[15px] font-bold text-[var(--text-primary)]">{t.systemHealthPage.title}</h1>
+            <h1 className="text-lg font-bold text-[var(--text-primary)]">{t.systemHealthPage.title}</h1>
             {agoSeconds != null && !isStale && (
-              <span className="text-[11px] text-[var(--text-muted)]">
+              <span className="text-xs text-[var(--text-muted)]">
                 {t.systemHealthPage.updatedAgo.replace('{n}', String(agoSeconds))}
               </span>
             )}
@@ -214,8 +214,8 @@ export default function SystemHealthPage() {
             >
               <IconWifiOff size={18} style={{ color: TONE_COLOR.warn }} />
               <div>
-                <p className="text-[12px] font-bold text-[var(--text-primary)]">{t.systemHealthPage.disconnectedTitle}</p>
-                <p className="text-[11px] text-[var(--text-secondary)]">{t.systemHealthPage.disconnectedSub}</p>
+                <p className="text-sm font-bold text-[var(--text-primary)]">{t.systemHealthPage.disconnectedTitle}</p>
+                <p className="text-xs text-[var(--text-secondary)]">{t.systemHealthPage.disconnectedSub}</p>
               </div>
             </div>
           )}
@@ -227,8 +227,8 @@ export default function SystemHealthPage() {
           >
             <BannerIcon size={34} style={{ color: TONE_COLOR[banner.tone] }} className={banner.tone === 'warn' ? 'animate-pulse' : ''} />
             <div>
-              <p className="text-[18px] font-black text-[var(--text-primary)] leading-tight">{banner.title}</p>
-              <p className="text-[12px] text-[var(--text-secondary)] mt-0.5">{banner.sub}</p>
+              <p className="text-xl font-black text-[var(--text-primary)] leading-tight">{banner.title}</p>
+              <p className="text-sm text-[var(--text-secondary)] mt-0.5">{banner.sub}</p>
             </div>
             <HeartbeatLine color={TONE_COLOR[banner.tone]} paused={banner.tone === 'down'} />
           </div>
@@ -271,14 +271,14 @@ export default function SystemHealthPage() {
             <div>
               <div className="flex items-center justify-between mb-2.5">
                 <div>
-                  <h2 className="text-[13px] font-bold text-[var(--text-primary)]">{t.systemHealthPage.failuresTitle}</h2>
-                  <p className="text-[11px] text-[var(--text-muted)]">{t.systemHealthPage.failuresSubNeedsAttention}</p>
+                  <h2 className="text-base font-bold text-[var(--text-primary)]">{t.systemHealthPage.failuresTitle}</h2>
+                  <p className="text-xs text-[var(--text-muted)]">{t.systemHealthPage.failuresSubNeedsAttention}</p>
                 </div>
                 {erpSync.failures.length > 1 && (
                   <button
                     onClick={resyncAll}
                     disabled={resyncing != null}
-                    className="shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                    className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
                   >
                     <IconReload size={13} className={resyncing === '__all__' ? 'animate-spin' : ''} />
                     {t.systemHealthPage.resync.resyncAllButton}
@@ -290,8 +290,8 @@ export default function SystemHealthPage() {
                   <div key={f.orderId} className="card p-4 rounded-[12px] border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-[13px] font-bold text-[var(--text-primary)] truncate">{f.blNumber || f.erpRef || f.orderId.slice(0, 8)}</span>
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: `${TONE_COLOR.idle}1a`, color: TONE_COLOR.idle }}>
+                        <span className="text-base font-bold text-[var(--text-primary)] truncate">{f.blNumber || f.erpRef || f.orderId.slice(0, 8)}</span>
+                        <span className="text-2xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${TONE_COLOR.idle}1a`, color: TONE_COLOR.idle }}>
                           {opLabel(f.lastSyncOp)}
                         </span>
                         <span className="text-[10.5px] text-[var(--text-muted)]">
@@ -300,13 +300,13 @@ export default function SystemHealthPage() {
                         </span>
                       </div>
                       {f.lastSyncError && (
-                        <p className="text-[11px] text-[var(--text-muted)] mt-1 line-clamp-2 break-words">{f.lastSyncError}</p>
+                        <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-2 break-words">{f.lastSyncError}</p>
                       )}
                     </div>
                     <button
                       onClick={() => resync(f.orderId, f.blNumber)}
                       disabled={resyncing != null}
-                      className="shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <IconReload size={13} className={resyncing === f.orderId ? 'animate-spin' : ''} />
                       {resyncing === f.orderId ? t.systemHealthPage.resync.resyncingButton : t.systemHealthPage.resync.resyncButton}
@@ -319,7 +319,7 @@ export default function SystemHealthPage() {
 
           {/* ── Services grid ── */}
           <div>
-            <h2 className="text-[13px] font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.statusTitle}</h2>
+            <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.statusTitle}</h2>
             {breakers.length === 0 && !data?.db ? (
               <EmptyHint text={t.systemHealthPage.noServices} />
             ) : (
@@ -329,10 +329,10 @@ export default function SystemHealthPage() {
                   return (
                     <div key={g.label} className="card p-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-[13px] font-bold text-[var(--text-primary)] truncate">{g.label}</span>
+                        <span className="text-base font-bold text-[var(--text-primary)] truncate">{g.label}</span>
                         <StatusPill tone={s.tone} label={s.label} />
                       </div>
-                      <p className="text-[11px] text-[var(--text-muted)] leading-snug">{s.hint}</p>
+                      <p className="text-xs text-[var(--text-muted)] leading-snug">{s.hint}</p>
                       {g.failureRate >= 0 && g.bufferedCalls > 0 && (
                         <p className="text-[10.5px] text-[var(--text-soft)] mt-auto pt-1">
                           {t.systemHealthPage.recentErrorRate} <span className="font-bold tabular-nums" style={{ color: g.failureRate > 50 ? TONE_COLOR.down : 'var(--text-secondary)' }}>{g.failureRate.toFixed(0)}%</span>
@@ -345,7 +345,7 @@ export default function SystemHealthPage() {
                 {data?.db && (
                   <div className="card p-4 rounded-[12px] border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-[13px] font-bold text-[var(--text-primary)] inline-flex items-center gap-1.5 truncate">
+                      <span className="text-base font-bold text-[var(--text-primary)] inline-flex items-center gap-1.5 truncate">
                         <IconDatabase size={14} className="text-[var(--text-muted)]" />
                         {t.systemHealthPage.services.database}
                       </span>
@@ -354,7 +354,7 @@ export default function SystemHealthPage() {
                         label={dbReachable ? statusFor('CLOSED').label : statusFor('OPEN').label}
                       />
                     </div>
-                    <p className="text-[11px] text-[var(--text-muted)] leading-snug">
+                    <p className="text-xs text-[var(--text-muted)] leading-snug">
                       {dbReachable ? t.systemHealthPage.dbOk : t.systemHealthPage.dbDown}
                     </p>
                   </div>
@@ -366,20 +366,20 @@ export default function SystemHealthPage() {
           {/* ── Operations to replay (only when something is stuck) ── */}
           {stuckQueues.length > 0 && (
             <div>
-              <h2 className="text-[13px] font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.replaysTitle}</h2>
+              <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.replaysTitle}</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stuckQueues.map(([queue, depth]) => (
                   <div key={queue} className="card p-4 rounded-[12px] border border-[#C7372F]/30 bg-[#C7372F]/5 flex items-center justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-[13px] font-bold text-[var(--text-primary)] truncate">{getFriendlyQueue(queue)}</p>
-                      <p className="text-[11px] text-[var(--text-muted)]">
+                      <p className="text-base font-bold text-[var(--text-primary)] truncate">{getFriendlyQueue(queue)}</p>
+                      <p className="text-xs text-[var(--text-muted)]">
                         {t.systemHealthPage.replaysAwaiting.replace('{count}', String(depth))}
                       </p>
                     </div>
                     <button
                       onClick={() => replay(queue)}
                       disabled={replaying === queue}
-                      className="shrink-0 text-[12px] font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+                      className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
                     >
                       <IconReload size={13} className={replaying === queue ? 'animate-spin' : ''} />
                       {replaying === queue ? t.systemHealthPage.replayingButton : t.systemHealthPage.replayButton}
@@ -394,14 +394,14 @@ export default function SystemHealthPage() {
           <div className="mt-1">
             <button
               onClick={() => setShowTech(v => !v)}
-              className="text-[12px] font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] inline-flex items-center gap-1.5 transition-colors"
+              className="text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] inline-flex items-center gap-1.5 transition-colors"
             >
               <IconChevronDown size={14} className={cn('transition-transform', showTech && 'rotate-180')} />
               {t.systemHealthPage.techDetailsToggle}
             </button>
             {showTech && (
               <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-                <table className="w-full text-[11px]">
+                <table className="w-full text-xs">
                   <thead>
                     <tr className="text-[9px] uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
                       <th className="text-start font-bold px-4 py-2">{t.systemHealthPage.thCircuitBreaker}</th>
@@ -452,14 +452,14 @@ export default function SystemHealthPage() {
           title={t.systemHealthPage.descriptions[infoKey].title}
           size="sm"
         >
-          <p className="text-[13px] text-[var(--text-secondary)] leading-relaxed">
+          <p className="text-base text-[var(--text-secondary)] leading-relaxed">
             {t.systemHealthPage.descriptions[infoKey].body}
           </p>
           <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--app-bg)] px-3 py-2.5">
-            <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
+            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-1">
               {t.systemHealthPage.descriptionsTipLabel}
             </p>
-            <p className="text-[12px] text-[var(--text-secondary)] leading-relaxed">
+            <p className="text-sm text-[var(--text-secondary)] leading-relaxed">
               {t.systemHealthPage.descriptions[infoKey].tip}
             </p>
           </div>
@@ -524,7 +524,7 @@ function SummaryCard({ icon: Icon, label, value, tone, foot }: {
         <p className="text-[10.5px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
       </div>
       <p className="text-[20px] font-black text-[var(--text-primary)] leading-tight">{value}</p>
-      <p className="text-[11px] text-[var(--text-muted)]">{foot}</p>
+      <p className="text-xs text-[var(--text-muted)]">{foot}</p>
     </div>
   );
 }
@@ -532,7 +532,7 @@ function SummaryCard({ icon: Icon, label, value, tone, foot }: {
 function StatusPill({ tone, label }: { tone: Tone; label: string }) {
   return (
     <span
-      className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap"
+      className="shrink-0 text-2xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap"
       style={{ background: `${TONE_COLOR[tone]}1a`, color: TONE_COLOR[tone] }}
     >
       <span className="w-1.5 h-1.5 rounded-full" style={{ background: TONE_COLOR[tone] }} />
@@ -544,7 +544,7 @@ function StatusPill({ tone, label }: { tone: Tone; label: string }) {
 function EmptyHint({ text }: { text: string }) {
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center">
-      <span className="text-[12px] text-[var(--text-muted)]">{text}</span>
+      <span className="text-sm text-[var(--text-muted)]">{text}</span>
     </div>
   );
 }

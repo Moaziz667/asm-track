@@ -79,15 +79,15 @@ export function ReplanModal({
             <div className="flex gap-6">
               <div className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelOrder}</span>
-                <span className="text-[14px] font-extrabold font-mono">{row.orderRef || '—'}</span>
+                <span className="text-md font-extrabold font-mono">{row.orderRef || '—'}</span>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelProblem}</span>
-                <span className="text-[12px] font-bold" style={{ color: '#c2410c' }}>{formatMotif(row.motif)}</span>
+                <span className="text-sm font-bold" style={{ color: '#c2410c' }}>{formatMotif(row.motif)}</span>
               </div>
               <div className="flex flex-col gap-0.5">
                 <span className="text-[9px] font-extrabold uppercase tracking-widest" style={{ color: 'var(--text-soft)' }}>{t.dispatchDeskPage.replanModalLabelClient}</span>
-                <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</span>
+                <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{row.clientName ?? '—'}</span>
               </div>
             </div>
           </div>
@@ -97,8 +97,8 @@ export function ReplanModal({
             <div className="p-3 flex gap-2 items-start" style={{ background: 'var(--brand-soft)', border: '1px solid rgba(255,87,34,0.25)', borderRadius: 2 }}>
               <IconRotateClockwise2 size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--brand)' }} />
               <div className="flex flex-col gap-1">
-                <span className="text-[12px] font-bold" style={{ color: 'var(--brand)' }}>{t.dispatchDeskPage.replanModalWhatWillHappen}</span>
-                <span className="text-[11px] leading-relaxed" style={{ color: 'var(--text-muted)' }}>
+                <span className="text-sm font-bold" style={{ color: 'var(--brand)' }}>{t.dispatchDeskPage.replanModalWhatWillHappen}</span>
+                <span className="text-xs leading-relaxed" style={{ color: 'var(--text-muted)' }}>
                   {t.dispatchDeskPage.replanModalDescription.replace('{routeName}', row.routeName ? ` (${row.routeName})` : '')}
                 </span>
               </div>

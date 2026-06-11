@@ -733,12 +733,12 @@ export default function RouteDetailsPage() {
           <div className="px-4 h-11 flex items-center justify-between border-b border-[var(--border-color)] shrink-0">
             <div className="flex items-center gap-2">
               <p className="text-xs font-semibold text-[var(--text-primary)]">{t.routeBuilderPage.stopSequence}</p>
-              <Badge variant="secondary" className="text-[10px] font-mono">{orderedStops.length}</Badge>
+              <Badge variant="secondary" className="text-2xs font-mono">{orderedStops.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
               <p className="text-xs font-mono font-semibold text-[var(--text-muted)]">{completed}/{total}</p>
               {failed > 0 && (
-                <Badge variant="destructive" className="text-[10px]">
+                <Badge variant="destructive" className="text-2xs">
                   {failed}
                 </Badge>
               )}

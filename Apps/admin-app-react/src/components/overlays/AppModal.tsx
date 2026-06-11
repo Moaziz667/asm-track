@@ -63,7 +63,7 @@ export function AppModal({
           <div className="flex flex-col gap-0.5 min-w-0">
             {subtitle && (
               <p className={cn(
-                'text-[10px] font-semibold tracking-wider text-[var(--text-muted)]',
+                'text-2xs font-semibold tracking-wider text-[var(--text-muted)]',
                 variant === 'danger' && 'text-[var(--danger)]',
               )}>
                 {subtitle}

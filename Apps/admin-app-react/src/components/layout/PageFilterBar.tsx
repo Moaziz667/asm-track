@@ -94,7 +94,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
       {/* Step 1 — attribute list */}
       {step === 'attrs' && (
         <div className="py-1">
-          <div className="px-3 py-1.5 text-[10px] font-semibold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
+          <div className="px-3 py-1.5 text-2xs font-semibold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
             Filtrer par
           </div>
           {attributes.map(attr => {
@@ -103,7 +103,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
               <button
                 key={attr.key}
                 type="button"
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-[12px] hover:bg-[var(--hover-bg)] transition-colors"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 text-sm hover:bg-[var(--hover-bg)] transition-colors"
                 style={{ color: hasValue ? 'var(--brand)' : 'var(--text-primary)' }}
                 onClick={() => {
                   if (attr.type === 'date') {
@@ -131,21 +131,21 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
           <div className="flex items-center gap-2 px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
             <button
               type="button"
-              className="flex items-center gap-1 text-[11px] font-medium hover:opacity-70 transition-opacity"
+              className="flex items-center gap-1 text-xs font-medium hover:opacity-70 transition-opacity"
               style={{ color: 'var(--text-muted)' }}
               onClick={() => setStep('attrs')}
             >
               <IconChevronLeft size={12} />
               Retour
             </button>
-            <span className="text-[12px] font-semibold" style={{ color: 'var(--text-primary)' }}>{activeAttr.label}</span>
+            <span className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{activeAttr.label}</span>
           </div>
 
           {activeAttr.type === 'date' ? (
             <div className="p-3">
               <input
                 type="date"
-                className="w-full h-8 px-2.5 rounded text-[12px] border"
+                className="w-full h-8 px-2.5 rounded text-sm border"
                 style={{ background: 'var(--app-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
                 value={activeFilters[activeAttr.key] ?? ''}
                 onChange={e => { onFilterChange(activeAttr.key, e.target.value || null); }}
@@ -153,7 +153,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
               {activeFilters[activeAttr.key] && (
                 <button
                   type="button"
-                  className="mt-2 w-full text-[11px] font-medium text-center hover:opacity-70"
+                  className="mt-2 w-full text-xs font-medium text-center hover:opacity-70"
                   style={{ color: 'var(--brand)' }}
                   onClick={() => { onFilterChange(activeAttr.key, null); setStep('attrs'); }}
                 >
@@ -169,7 +169,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
                   <button
                     key={opt.value}
                     type="button"
-                    className="w-full flex items-center gap-2.5 px-3 py-2 text-[12px] hover:bg-[var(--hover-bg)] transition-colors"
+                    className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--hover-bg)] transition-colors"
                     style={{ color: 'var(--text-primary)' }}
                     onClick={() => {
                       onFilterChange(activeAttr.key, isActive ? null : opt.value);
@@ -206,7 +206,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
 function FilterToken({ attrLabel, valueLabel, onRemove }: { attrLabel: string; valueLabel: string; onRemove: () => void }) {
   return (
     <span
-      className="inline-flex items-center gap-1 text-[11px] font-[500] px-2 py-0.5 rounded border shrink-0"
+      className="inline-flex items-center gap-1 text-xs font-[500] px-2 py-0.5 rounded border shrink-0"
       style={{ color: 'var(--brand-blue)', borderColor: 'var(--brand-blue)', background: 'var(--brand-blue-soft)' }}
     >
       <span style={{ color: 'var(--text-soft)' }}>{attrLabel}:</span>
@@ -276,7 +276,7 @@ export function PageFilterBar({
               value={search}
               onChange={e => onSearch(e.target.value)}
               placeholder={searchPlaceholder}
-              className="w-full h-8 pl-7 pr-3 rounded-full text-[12px] border outline-none focus:ring-2 focus:ring-[var(--brand-blue)] focus:ring-offset-0 transition"
+              className="w-full h-8 pl-7 pr-3 rounded-full text-sm border outline-none focus:ring-2 focus:ring-[var(--brand-blue)] focus:ring-offset-0 transition"
               style={{
                 background: 'var(--app-bg)',
                 borderColor: 'var(--border)',
@@ -292,7 +292,7 @@ export function PageFilterBar({
             ref={filterBtnRef}
             type="button"
             onClick={() => setDropdownOpen(o => !o)}
-            className="flex items-center gap-1.5 h-8 px-3 rounded-full text-[12px] font-[500] border transition-colors hover:bg-[var(--hover-bg)] shrink-0"
+            className="flex items-center gap-1.5 h-8 px-3 rounded-full text-sm font-[500] border transition-colors hover:bg-[var(--hover-bg)] shrink-0"
             style={{
               borderColor: dropdownOpen ? 'var(--brand-blue)' : 'var(--border)',
               background: dropdownOpen ? 'var(--brand-blue-soft)' : 'var(--app-bg)',
@@ -302,7 +302,7 @@ export function PageFilterBar({
             Filtrer
             {activeCount > 0 && (
               <span
-                className="text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center"
+                className="text-2xs font-bold w-4 h-4 rounded-full flex items-center justify-center"
                 style={{ background: 'var(--brand-blue)', color: '#fff' }}
               >
                 {activeCount}
@@ -322,7 +322,7 @@ export function PageFilterBar({
           <button
             type="button"
             onClick={handleClearAll}
-            className="text-[11px] font-[500] shrink-0 hover:opacity-70 transition-opacity"
+            className="text-xs font-[500] shrink-0 hover:opacity-70 transition-opacity"
             style={{ color: 'var(--text-muted)' }}
           >
             Effacer tout
@@ -363,7 +363,7 @@ export function PageFilterBar({
                 key={qf.value}
                 type="button"
                 onClick={() => onQuickFilterChange?.(qf.value)}
-                className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-[11px] font-[500] transition-colors border"
+                className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full text-xs font-[500] transition-colors border"
                 style={{
                   borderColor: active ? 'var(--brand-blue)' : 'var(--border)',
                   background: active ? 'var(--brand-blue-soft)' : 'transparent',

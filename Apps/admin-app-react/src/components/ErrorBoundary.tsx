@@ -46,15 +46,15 @@ export class ErrorBoundary extends Component<Props, State> {
           <div className="w-12 h-12 rounded-full flex items-center justify-center bg-red-50 text-red-600 mb-4 shadow-sm border border-red-100">
             <IconX size={24} />
           </div>
-          <h2 className="text-[14px] font-bold text-[var(--text-primary)] uppercase tracking-tight mb-2">
+          <h2 className="text-md font-bold text-[var(--text-primary)] uppercase tracking-tight mb-2">
             {t.errorBoundary?.title}
           </h2>
-          <p className="text-[11px] text-[var(--text-muted)] max-w-sm mb-6 leading-relaxed">
+          <p className="text-xs text-[var(--text-muted)] max-w-sm mb-6 leading-relaxed">
             {t.errorBoundary?.description}
           </p>
           {this.state.error && (
             <div className="w-full text-left p-4 mb-6 rounded-[2px] border border-[var(--border)] bg-[var(--app-bg)] max-h-[150px] overflow-auto">
-              <p className="text-[10px] font-mono text-red-500 font-bold leading-tight">
+              <p className="text-2xs font-mono text-red-500 font-bold leading-tight">
                 {this.state.error.name}: {this.state.error.message}
               </p>
             </div>

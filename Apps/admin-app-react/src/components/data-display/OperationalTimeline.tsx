@@ -278,10 +278,10 @@ export default function OperationalTimeline({ events, className }: OperationalTi
             {/* Event Panel */}
             <div className="p-3.5 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:shadow-sm transition-all duration-200">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-1.5 mb-1.5">
-                <span className="text-[12px] font-semibold tracking-tight text-[var(--text-primary)]">
+                <span className="text-sm font-semibold tracking-tight text-[var(--text-primary)]">
                   {renderEventDescription(evt)}
                 </span>
-                <span className="text-[10px] font-medium text-[var(--text-soft)] shrink-0">
+                <span className="text-2xs font-medium text-[var(--text-soft)] shrink-0">
                   {formatEventTime(timeVal)}
                 </span>
               </div>

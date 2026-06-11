@@ -88,11 +88,11 @@ export function OptimizePreview({
               <h4 className="text-sm font-semibold text-[var(--text-strong)] leading-none">{t.routeBuilderPage.optimizePreviewTitle}</h4>
               {hasGain ? (
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)]">
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)]">
                     {t.routeBuilderPage.gainLabel} {formatDistance(distanceSavedMeters)}
                   </span>
                   {(durationSavedSeconds ?? 0) > 0 && (
-                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)]">
+                    <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)]">
                       − {formatDuration(durationSavedSeconds)}
                     </span>
                   )}
@@ -130,7 +130,7 @@ export function OptimizePreview({
 
         <div className="grid grid-cols-3 gap-3">
           <div className="flex flex-col gap-1">
-            <label className="text-[11px] font-medium text-[var(--text-soft)]">{t.routeBuilderPage.departureTimeLabel}</label>
+            <label className="text-xs font-medium text-[var(--text-soft)]">{t.routeBuilderPage.departureTimeLabel}</label>
             <input
               type="time"
               value={optimizationStartTime}
@@ -140,14 +140,14 @@ export function OptimizePreview({
             />
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-[var(--text-soft)]">{t.routeBuilderPage.headerDistance}</span>
+            <span className="text-xs font-medium text-[var(--text-soft)]">{t.routeBuilderPage.headerDistance}</span>
             <div className="h-8 px-2 flex items-center gap-1.5 rounded bg-[var(--surface-2)] border border-[var(--border)] font-mono text-xs font-semibold text-[var(--text-strong)]">
               <IconRoute size={13} className="text-[var(--text-muted)]" />
               <span>{formatDistance(totalDistanceMeters)}</span>
             </div>
           </div>
           <div className="flex flex-col gap-1">
-            <span className="text-[11px] font-medium text-[var(--text-soft)]">{t.routeBuilderPage.headerDuration}</span>
+            <span className="text-xs font-medium text-[var(--text-soft)]">{t.routeBuilderPage.headerDuration}</span>
             <div className="h-8 px-2 flex items-center gap-1.5 rounded bg-[var(--surface-2)] border border-[var(--border)] font-mono text-xs font-semibold text-[var(--text-strong)]">
               <IconClock size={13} className="text-[var(--text-muted)]" />
               <span>
@@ -179,7 +179,7 @@ export function OptimizePreview({
                     <IconBuildingWarehouse size={12} />
                   </div>
                 ) : (
-                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[var(--brand-orange)] text-[var(--brand-orange)] text-[10px] font-bold flex items-center justify-center font-mono z-10">
+                  <div className="absolute -left-[45px] top-0 w-6 h-6 rounded-full bg-[var(--surface-1)] border-2 border-[var(--brand-orange)] text-[var(--brand-orange)] text-2xs font-bold flex items-center justify-center font-mono z-10">
                     {String(row.sequenceOrder).padStart(2, '0')}
                   </div>
                 )}
@@ -196,7 +196,7 @@ export function OptimizePreview({
                       </span>
                     )}
                     {!isPickup && (row.dropoffAddress || row.dropoffCity) && (
-                      <div className="flex items-center gap-1 text-[11px] text-[var(--text-soft)] truncate">
+                      <div className="flex items-center gap-1 text-xs text-[var(--text-soft)] truncate">
                         <IconMapPin size={11} className="text-[var(--text-muted)]" />
                         <span className="truncate">
                           {[row.dropoffAddress, row.dropoffCity].filter(Boolean).join(', ')}
@@ -209,7 +209,7 @@ export function OptimizePreview({
                     <span className="font-mono text-xs font-bold text-[var(--text-strong)] leading-none">
                       {row.suggestedStart}
                     </span>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)] text-[10px] font-mono font-semibold">
+                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--brand-soft)] text-[var(--brand-orange)] border border-[var(--brand-soft)] text-2xs font-mono font-semibold">
                       <span>{row.suggestedStart}</span>
                       <IconArrowRight size={8} />
                       <span>{row.suggestedEnd}</span>
@@ -218,7 +218,7 @@ export function OptimizePreview({
                 </div>
 
                 {(row.driveDurationSeconds ?? 0) > 0 && (
-                  <div className="flex items-center gap-2 text-[10px] text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] rounded px-2 py-1 w-fit mt-0.5">
+                  <div className="flex items-center gap-2 text-2xs text-[var(--text-muted)] bg-[var(--surface-2)] border border-[var(--border)] rounded px-2 py-1 w-fit mt-0.5">
                     <div className="flex items-center gap-1 font-mono">
                       <IconClock size={11} />
                       <span>{formatDuration(row.driveDurationSeconds)}</span>

@@ -178,14 +178,14 @@ export default function PerformancePage() {
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
       {/* ── Period bar (replaces title bar) ── */}
       <div className="flex items-center gap-3 px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
+        <span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
         <div className="flex items-center gap-1">
           {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
             <button
               key={p}
               onClick={() => setPeriod(p)}
               className={cn(
-                'px-2.5 py-1 text-[11px] font-[500] transition-colors rounded-md cursor-pointer',
+                'px-2.5 py-1 text-xs font-[500] transition-colors rounded-md cursor-pointer',
                 period === p
                   ? 'bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]'
                   : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50'
@@ -196,7 +196,7 @@ export default function PerformancePage() {
           ))}
         </div>
         {lastUpdated && (
-          <span className="text-[10px] font-mono ml-auto" style={{ color: 'var(--text-muted)' }}>
+          <span className="text-2xs font-mono ml-auto" style={{ color: 'var(--text-muted)' }}>
             {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
           </span>
         )}
@@ -216,11 +216,11 @@ export default function PerformancePage() {
               children: (
             <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.operationalVolume}</span>
+                <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.operationalVolume}</span>
                 <IconBolt size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
               <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{stats?.today?.total?.toString() ?? "0"}</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{`${stats?.today?.delivered ?? 0} ${t.performancePage.successSlash} / ${stats?.today?.failed ?? 0} ${t.performancePage.failureSlash}`}</div>
             </div>
               )
             },
@@ -231,11 +231,11 @@ export default function PerformancePage() {
               children: (
             <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.completionRate}</span>
+                <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.completionRate}</span>
                 <IconTrendingUp size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
               <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{`${normRate(stats?.today?.successRate).toFixed(1)}%`}</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.deliveryPerformance}</div>
             </div>
               )
             },
@@ -246,11 +246,11 @@ export default function PerformancePage() {
               children: (
             <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.avgDelay}</span>
+                <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.avgDelay}</span>
                 <IconClock size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
               <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(kpi?.avgDelayMinutes)}</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.basedOnTarget}</div>
             </div>
               )
             },
@@ -261,11 +261,11 @@ export default function PerformancePage() {
               children: (
             <div className="flex-1 w-full flex flex-col h-full card pl-10 pr-4 py-4">
               <div className="flex items-start justify-between mb-3 shrink-0">
-                <span className="text-[12px] font-medium text-[var(--text-muted)]">{t.performancePage.lifeCycle}</span>
+                <span className="text-sm font-medium text-[var(--text-muted)]">{t.performancePage.lifeCycle}</span>
                 <IconActivity size={16} strokeWidth={1.5} className="text-[var(--text-muted)]" />
               </div>
               <div className="font-mono text-[28px] font-semibold leading-none tabular-nums text-[var(--text-primary)]">{fmtMinutes(totalCycleMinutes)}</div>
-              <div className="text-[11px] text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
+              <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal">{t.performancePage.assignmentToDestination}</div>
             </div>
               )
             },
@@ -278,11 +278,11 @@ export default function PerformancePage() {
                <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
-                   <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                   <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                      {t.performancePage.volumeCurve}
                    </span>
                  </div>
-                 <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                 <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                    {t.performancePage.lastSevenDays}
                  </span>
                </div>
@@ -331,11 +331,11 @@ export default function PerformancePage() {
                <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconActivity size={16} style={{ color: 'var(--brand)' }} />
-                   <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                   <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                      {t.performancePage.temporalFragmentation}
                    </span>
                  </div>
-                 <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+                 <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
                    {t.performancePage.efficiencyByPhase}
                  </span>
                </div>
@@ -349,17 +349,17 @@ export default function PerformancePage() {
                     <div key={i} className="flex flex-col gap-1.5">
                        <div className="flex items-center justify-between leading-none">
                           <div className="flex flex-col gap-0.5">
-                             <span className="text-[11px] font-[500] text-[var(--text-primary)]">{phase.label}</span>
-                             <span className="text-[10px] text-[var(--text-muted)]">{phase.sub}</span>
+                             <span className="text-xs font-[500] text-[var(--text-primary)]">{phase.label}</span>
+                             <span className="text-2xs text-[var(--text-muted)]">{phase.sub}</span>
                           </div>
-                          <span className="text-[13px] font-[500] font-mono text-[var(--text-primary)]">{fmtMinutes(phase.m)}</span>
+                          <span className="text-base font-[500] font-mono text-[var(--text-primary)]">{fmtMinutes(phase.m)}</span>
                        </div>
                        <ProgressBar value={totalCycleMinutes > 0 ? ((phase.m || 0) / totalCycleMinutes) * 100 : 0} color={phase.color} />
                     </div>
                   ))}
                   <div className="mt-1 p-2.5 bg-[var(--hover-bg)] border border-[var(--border)] rounded-md flex justify-between items-center leading-none">
-                     <span className="text-[11px] font-[600] text-[var(--text-secondary)]">{t.performancePage.totalCycleIndex}</span>
-                     <span className="text-[14px] font-[600] font-mono text-[var(--brand)]">{fmtMinutes(totalCycleMinutes)}</span>
+                     <span className="text-xs font-[600] text-[var(--text-secondary)]">{t.performancePage.totalCycleIndex}</span>
+                     <span className="text-md font-[600] font-mono text-[var(--brand)]">{fmtMinutes(totalCycleMinutes)}</span>
                   </div>
                </div>
              </div>
@@ -372,7 +372,7 @@ export default function PerformancePage() {
               children: (
              <div className="card overflow-hidden flex flex-col h-full">
                <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
-                 <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                 <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                    {t.performancePage.densityByZone}
                  </span>
                </div>
@@ -382,10 +382,10 @@ export default function PerformancePage() {
                      <div key={zone} className="flex flex-col gap-1.5">
                         <div className="flex items-center justify-between">
                            <div className="flex items-center gap-2">
-                              <span className="bg-[var(--hover-bg)] border border-[var(--border)] text-[var(--text-secondary)] w-4 h-4 flex items-center justify-center rounded-md font-mono text-[10px] font-[500]">{i+1}</span>
-                              <span className="text-[11px] font-[500] text-[var(--text-secondary)] truncate max-w-[120px]">{zone}</span>
+                              <span className="bg-[var(--hover-bg)] border border-[var(--border)] text-[var(--text-secondary)] w-4 h-4 flex items-center justify-center rounded-md font-mono text-2xs font-[500]">{i+1}</span>
+                              <span className="text-xs font-[500] text-[var(--text-secondary)] truncate max-w-[120px]">{zone}</span>
                            </div>
-                           <span className="text-[11px] font-[500] font-mono text-[var(--text-primary)]">{count}</span>
+                           <span className="text-xs font-[500] font-mono text-[var(--text-primary)]">{count}</span>
                         </div>
                         <ProgressBar value={(count / (stats?.today?.total || 1)) * 100} color="var(--brand)" />
                      </div>
@@ -403,7 +403,7 @@ export default function PerformancePage() {
                <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)]">
                  <div className="flex items-center gap-2">
                    <IconUsers size={16} style={{ color: 'var(--brand)' }} />
-                   <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                   <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                      {t.performancePage.driverPerformanceRanking}
                    </span>
                  </div>
@@ -420,7 +420,7 @@ export default function PerformancePage() {
                        <div
                          key={i}
                          className={cn(
-                           'text-[11px] font-[600]',
+                           'text-xs font-[600]',
                            i === 1 || i === 2 || i === 3 ? 'text-center' : '',
                            i === 4 ? 'text-right' : ''
                          )}
@@ -447,24 +447,24 @@ export default function PerformancePage() {
                               className="w-[30px] h-[30px] flex items-center justify-center rounded-md"
                               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}
                             >
-                              <span className="text-[10px] font-mono font-bold text-[var(--text-secondary)]">
+                              <span className="text-2xs font-mono font-bold text-[var(--text-secondary)]">
                                 {d.driverName ? d.driverName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : "D"}
                               </span>
                             </div>
-                            <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>
+                            <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                               {d.driverName || t.performancePage.notAssigned}
                             </p>
                          </div>
 
                          {/* Volume */}
-                         <p className="text-[11px] font-semibold text-center font-mono" style={{ color: 'var(--text-primary)' }}>
+                         <p className="text-xs font-semibold text-center font-mono" style={{ color: 'var(--text-primary)' }}>
                            {d.total}
                          </p>
 
                          {/* Success rate */}
                          <div className="flex justify-center">
                             <span 
-                              className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-[600] border font-mono leading-none" 
+                              className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-[600] border font-mono leading-none" 
                               style={{ color: badgeColor, borderColor: `${badgeColor}30`, backgroundColor: `${badgeColor}08` }}
                             >
                                {successRateValue.toFixed(1)}%
@@ -472,7 +472,7 @@ export default function PerformancePage() {
                          </div>
 
                          {/* Delay */}
-                         <p className="text-[11px] font-medium text-center font-mono" style={{ color: 'var(--text-muted)' }}>
+                         <p className="text-xs font-medium text-center font-mono" style={{ color: 'var(--text-muted)' }}>
                            {fmtMinutes(d.avgDelayMinutes)}
                          </p>
 

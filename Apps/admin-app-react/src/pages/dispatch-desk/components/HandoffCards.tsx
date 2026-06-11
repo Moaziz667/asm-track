@@ -37,12 +37,12 @@ function DriverChip({ name }: { name?: string }) {
   return (
     <div className="flex items-center gap-1.5 min-w-0">
       <div
-        className="flex items-center justify-center rounded-full shrink-0 text-[10px] font-[600]"
+        className="flex items-center justify-center rounded-full shrink-0 text-2xs font-[600]"
         style={{ width: 24, height: 24, background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}
       >
         {initials(name)}
       </div>
-      <span className="text-[11px] font-[500] truncate" style={{ maxWidth: 92, color: 'var(--text-primary)' }}>
+      <span className="text-xs font-[500] truncate" style={{ maxWidth: 92, color: 'var(--text-primary)' }}>
         {name ?? '—'}
       </span>
     </div>
@@ -77,7 +77,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-        <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.handoffEmpty}</p>
+        <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.handoffEmpty}</p>
       </div>
     );
   }
@@ -100,17 +100,17 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                   <div className="min-w-0">
                     <Link
                       to={h.deliveryId ? `/deliveries/${h.deliveryId}` : '/dispatch-desk'}
-                      className="font-mono text-[11px] font-[600] hover:underline"
+                      className="font-mono text-xs font-[600] hover:underline"
                       style={{ color: 'var(--brand)' }}
                     >
                       {ref}
                     </Link>
-                    <p className="text-[12px] font-[600] truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
+                    <p className="text-sm font-[600] truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
                       {h.clientName ?? '—'}
                     </p>
                   </div>
                   <span
-                    className="text-[10px] font-[600] px-1.5 py-0.5 rounded shrink-0"
+                    className="text-2xs font-[600] px-1.5 py-0.5 rounded shrink-0"
                     style={{ color: chip.color, background: chip.bg }}
                   >
                     {chip.label}
@@ -129,7 +129,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
 
                 {/* Address */}
                 {h.dropoffAddress && (
-                  <p className="text-[11px] truncate" style={{ color: 'var(--text-muted)' }}>{h.dropoffAddress}</p>
+                  <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{h.dropoffAddress}</p>
                 )}
               </div>
 
@@ -138,7 +138,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                 className="flex items-center justify-between px-3 py-2 mt-auto border-t"
                 style={{ borderColor: 'var(--border)' }}
               >
-                <div className="flex items-center gap-1 text-[10px] font-mono" style={{ color: 'var(--text-muted)' }}>
+                <div className="flex items-center gap-1 text-2xs font-mono" style={{ color: 'var(--text-muted)' }}>
                   <IconClock size={12} stroke={2.5} />
                   {formatElapsed(h.requestedAt, t)}
                 </div>
@@ -147,7 +147,7 @@ export function HandoffCards({ open, loading, isReadOnly, cancellingId, onCancel
                     type="button"
                     onClick={() => { setCancelTarget(h); setReason(''); }}
                     disabled={cancellingId === h.id}
-                    className="text-[11px] font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50"
+                    className="text-xs font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50"
                     style={{ borderColor: 'var(--border)', color: 'var(--danger)' }}
                   >
                     <IconArrowsExchange size={12} stroke={2.5} />

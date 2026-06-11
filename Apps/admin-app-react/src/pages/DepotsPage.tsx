@@ -49,13 +49,13 @@ export default function DepotsPage() {
         className="flex items-center gap-3 px-4 h-11 shrink-0"
         style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}
       >
-        <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
           {t.depotsPage.depotsCount.replace('{count}', depots.length.toString())}
         </span>
         <div className="ml-auto flex items-center gap-2">
           {!readOnly && (
             <Button
-              className="h-7 px-3 text-[11px] font-bold rounded-md"
+              className="h-7 px-3 text-xs font-bold rounded-md"
               style={{ background: 'var(--brand)', color: 'white', border: 'none' }}
               onClick={() => syncMutation.mutate()}
               disabled={syncMutation.isPending}
@@ -81,7 +81,7 @@ export default function DepotsPage() {
 
           {/* ── ERP read-only note ── */}
           <div
-            className="px-4 py-2.5 rounded-md text-[11px] font-medium flex items-center gap-2"
+            className="px-4 py-2.5 rounded-md text-xs font-medium flex items-center gap-2"
             style={{ background: 'var(--brand-soft)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}
           >
             <IconCloudDownload size={14} style={{ color: 'var(--brand)' }} />
@@ -99,7 +99,7 @@ export default function DepotsPage() {
             >
               <div className="flex items-center gap-2">
                 <IconWorld size={16} style={{ color: 'var(--brand)' }} />
-                <span className="text-[11px] font-[600]" style={{ color: 'var(--text-primary)' }}>
+                <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
                   {t.depotsPage.mapTitle}
                 </span>
               </div>
@@ -114,13 +114,13 @@ export default function DepotsPage() {
                 >
                   <div className="flex items-center gap-4">
                     <div>
-                      <p className="text-[11px] font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.totalHubs}</p>
-                      <p className="text-[13px] font-[600] font-mono" style={{ color: 'var(--text-primary)' }}>{depots.length}</p>
+                      <p className="text-xs font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.totalHubs}</p>
+                      <p className="text-base font-[600] font-mono" style={{ color: 'var(--text-primary)' }}>{depots.length}</p>
                     </div>
                     <div className="w-px h-5 bg-[var(--border)]" />
                     <div>
-                      <p className="text-[11px] font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.operationalHubs}</p>
-                      <p className="text-[13px] font-[600] font-mono text-[#2D8A5E]">{depots.filter(d => d.isActive).length}</p>
+                      <p className="text-xs font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.operationalHubs}</p>
+                      <p className="text-base font-[600] font-mono text-[#2D8A5E]">{depots.filter(d => d.isActive).length}</p>
                     </div>
                   </div>
                 </div>
@@ -132,7 +132,7 @@ export default function DepotsPage() {
           <div className="flex flex-col gap-3">
             <div className="flex items-center gap-2 mb-1">
               <IconLayoutDashboard size={14} style={{ color: 'var(--brand)' }} />
-              <span className="text-[11px] font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.registryTitle}</span>
+              <span className="text-xs font-[600]" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.registryTitle}</span>
             </div>
 
             {loading ? (
@@ -143,7 +143,7 @@ export default function DepotsPage() {
                 style={{ border: '1px dashed var(--border)', background: 'var(--surface)' }}
               >
                 <IconBuildingWarehouse size={40} style={{ color: 'var(--border)' }} />
-                <p className="text-[11px] font-bold" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.noDepots}</p>
+                <p className="text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{t.depotsPage.noDepots}</p>
               </div>
             ) : (
               <div
@@ -160,7 +160,7 @@ export default function DepotsPage() {
                       {[t.depotsPage.headerDesignation, t.depotsPage.headerWarehouseCode, t.depotsPage.headerLocation, t.depotsPage.headerCoordinates, t.depotsPage.headerStatus, ''].map((h, i) => (
                         <div
                           key={i}
-                          className={cn('text-[11px] font-[600]', i === 3 || i === 4 ? 'text-center' : '')}
+                          className={cn('text-xs font-[600]', i === 3 || i === 4 ? 'text-center' : '')}
                           style={{ color: 'var(--text-muted)' }}
                         >
                           {h}
@@ -183,13 +183,13 @@ export default function DepotsPage() {
                           >
                             <IconBuildingWarehouse size={14} style={{ color: 'var(--brand)' }} />
                           </div>
-                          <p className="text-[11px] font-bold" style={{ color: 'var(--text-primary)' }}>{depot.name}</p>
+                          <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>{depot.name}</p>
                         </div>
 
                         {/* Warehouse code */}
                         <div>
                           <span
-                            className="text-[11px] font-bold font-mono px-2 py-1 rounded-md inline-block"
+                            className="text-xs font-bold font-mono px-2 py-1 rounded-md inline-block"
                             style={{ color: 'var(--text-secondary)', background: 'var(--app-bg)' }}
                           >
                             {depot.warehouseCode || '—'}
@@ -197,7 +197,7 @@ export default function DepotsPage() {
                         </div>
 
                         {/* Address */}
-                        <p className="text-[11px] max-w-[300px] truncate" style={{ color: 'var(--text-muted)' }}>
+                        <p className="text-xs max-w-[300px] truncate" style={{ color: 'var(--text-muted)' }}>
                           {depot.address || '—'}
                         </p>
 
@@ -205,13 +205,13 @@ export default function DepotsPage() {
                         <div className="flex justify-center items-center gap-2">
                           {depot.latitude != null && depot.longitude != null && !isNaN(Number(depot.latitude)) && !isNaN(Number(depot.longitude)) ? (
                             <span
-                              className="text-[11px] font-bold font-mono px-2 py-1 rounded-md inline-block"
+                              className="text-xs font-bold font-mono px-2 py-1 rounded-md inline-block"
                               style={{ color: 'var(--text-primary)', background: 'var(--app-bg)' }}
                             >
                               {Number(depot.latitude).toFixed(5)}, {Number(depot.longitude).toFixed(5)}
                             </span>
                           ) : (
-                            <span className="text-[11px] font-semibold" style={{ color: 'var(--danger)' }}>
+                            <span className="text-xs font-semibold" style={{ color: 'var(--danger)' }}>
                               {t.depotsPage.coordsMissing}
                             </span>
                           )}
@@ -234,7 +234,7 @@ export default function DepotsPage() {
                         {/* Status badge */}
                         <div className="flex justify-center">
                           <span
-                            className="text-[11px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1.5 border"
+                            className="text-xs font-bold px-2 py-0.5 rounded-md flex items-center gap-1.5 border"
                             style={{
                               color: depot.isActive ? '#2D8A5E' : '#6B7280',
                               background: depot.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',

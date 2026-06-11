@@ -43,14 +43,14 @@ export function RoutesTable() {
         <TableHeader className="bg-[var(--surface-2)] sticky top-0 z-10">
           <TableRow className="border-b border-[var(--border)]">
             <TableHead className="w-10 p-0" />
-            <TableHead className="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerRoute}</TableHead>
-            <TableHead className="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDriver}</TableHead>
-            <TableHead className="text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerVehicle}</TableHead>
-            <TableHead className="w-20 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerStops}</TableHead>
-            <TableHead className="w-24 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerWeight}</TableHead>
-            <TableHead className="w-24 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDistance}</TableHead>
-            <TableHead className="w-24 text-right text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDuration}</TableHead>
-            <TableHead className="w-24 text-center text-[10px] font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerStatus}</TableHead>
+            <TableHead className="text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerRoute}</TableHead>
+            <TableHead className="text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDriver}</TableHead>
+            <TableHead className="text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerVehicle}</TableHead>
+            <TableHead className="w-20 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerStops}</TableHead>
+            <TableHead className="w-24 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerWeight}</TableHead>
+            <TableHead className="w-24 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDistance}</TableHead>
+            <TableHead className="w-24 text-right text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerDuration}</TableHead>
+            <TableHead className="w-24 text-center text-2xs font-bold text-[var(--text-soft)] uppercase tracking-wider">{t.routeBuilderPage.headerStatus}</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -98,7 +98,7 @@ export function RoutesTable() {
                     <span className="text-xs font-semibold text-[var(--text-strong)]">
                       {route.name}
                     </span>
-                    <span className="font-mono text-[10px] text-[var(--text-soft)]">
+                    <span className="font-mono text-2xs text-[var(--text-soft)]">
                       {route.date}
                     </span>
                   </div>
@@ -124,11 +124,11 @@ export function RoutesTable() {
                 <TableCell className="text-center py-2 shrink-0">
                   <div className="flex items-center justify-center">
                     {route.status === 'VALIDATED' ? (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                         {t.statusLabels.VALIDATED}
                       </span>
                     ) : (
-                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                      <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
                         {t.statusLabels.DRAFT}
                       </span>
                     )}

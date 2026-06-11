@@ -109,7 +109,7 @@ function DispatchPageFilterBar() {
           <button
             type="button"
             onClick={clearFilters}
-            className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-[12px] font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
+            className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
           >
             ✕ Clear
           </button>
@@ -241,7 +241,7 @@ function DispatchDeskContentInner() {
           onClose={() => setFailedModalRow(null)}
           title={
             <div className="flex items-center gap-2">
-              <span className="text-[14px] font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dispatchDeskPage.detailTitle}</span>
+              <span className="text-md font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dispatchDeskPage.detailTitle}</span>
               {failedModalRow && <StatusBadge status={failedModalRow.status} size="sm" />}
             </div>
           }
@@ -261,30 +261,30 @@ function DispatchDeskContentInner() {
                 {/* Order summary */}
                 <div className="rounded p-3" style={{ background: 'var(--app-bg)' }}>
                   <div className="flex items-center justify-between mb-1">
-                    <span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.orderLabel}</span>
+                    <span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.orderLabel}</span>
                     <Link to={`/deliveries/${id}`} onClick={() => setFailedModalRow(null)}>
-                      <span className="text-[11px] font-[500] hover:underline" style={{ color: 'var(--text-primary)' }}>{t.dispatchDeskPage.openLink}</span>
+                      <span className="text-xs font-[500] hover:underline" style={{ color: 'var(--text-primary)' }}>{t.dispatchDeskPage.openLink}</span>
                     </Link>
                   </div>
-                  <p className="text-[13px] font-[600]" style={{ color: 'var(--text-primary)' }}>{r.orderRef ?? r.erpOrderId ?? id.slice(0, 8)}</p>
-                  <p className="text-[12px] font-[500] mt-0.5" style={{ color: 'var(--text-primary)' }}>{r.clientName ?? '—'}</p>
-                  {r.clientPhone && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{r.clientPhone}</p>}
+                  <p className="text-base font-[600]" style={{ color: 'var(--text-primary)' }}>{r.orderRef ?? r.erpOrderId ?? id.slice(0, 8)}</p>
+                  <p className="text-sm font-[500] mt-0.5" style={{ color: 'var(--text-primary)' }}>{r.clientName ?? '—'}</p>
+                  {r.clientPhone && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.clientPhone}</p>}
                   {(r.dropoffAddress || r.dropoffCity) && (
-                    <p className="text-[11px] mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.dropoffAddress ?? r.dropoffCity}</p>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-muted)' }}>{r.dropoffAddress ?? r.dropoffCity}</p>
                   )}
                 </div>
 
                 {/* Driver */}
                 {r.driverName && (
                   <div className="rounded p-3" style={{ background: 'var(--app-bg)' }}>
-                    <p className="text-[11px] font-[500] mb-1.5" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.driverLabel}</p>
+                    <p className="text-xs font-[500] mb-1.5" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.driverLabel}</p>
                     <div className="flex items-center gap-2">
                       <div style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
                       <div className="flex-1">
-                        <p className="text-[12px] font-[500]" style={{ color: 'var(--text-primary)' }}>{r.driverName}</p>
-                        {r.driverPhone && <p className="text-[11px]" style={{ color: 'var(--text-muted)' }}>{r.driverPhone}</p>}
+                        <p className="text-sm font-[500]" style={{ color: 'var(--text-primary)' }}>{r.driverName}</p>
+                        {r.driverPhone && <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{r.driverPhone}</p>}
                       </div>
-                      <span className="text-[10px] font-[500] ml-auto" style={{ color: 'var(--text-muted)' }}>
+                      <span className="text-2xs font-[500] ml-auto" style={{ color: 'var(--text-muted)' }}>
                         {getDriverStatusTip(driver?.onlineStatus, t)}
                       </span>
                     </div>
@@ -301,7 +301,7 @@ function DispatchDeskContentInner() {
                 >
                   <div className="mb-1.5">
                     <span
-                      className="text-[11px] font-semibold px-1.5 py-0.5 rounded"
+                      className="text-xs font-semibold px-1.5 py-0.5 rounded"
                       style={{
                         color: 'var(--text-primary)',
                         background: r.status === 'CANCELLED' ? 'var(--danger-bg)' : 'var(--warning-bg)',
@@ -310,8 +310,8 @@ function DispatchDeskContentInner() {
                       {formatMotif(failureMotif, t)}
                     </span>
                   </div>
-                  <p className="text-[12px] leading-relaxed" style={{ color: 'var(--text-primary)' }}>{failureComment}</p>
-                  {suggestion && <p className="text-[11px] font-[500] mt-2" style={{ color: 'var(--text-muted)' }}>{suggestion}</p>}
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{failureComment}</p>
+                  {suggestion && <p className="text-xs font-[500] mt-2" style={{ color: 'var(--text-muted)' }}>{suggestion}</p>}
                 </div>
 
                 {/* Actions */}
@@ -321,7 +321,7 @@ function DispatchDeskContentInner() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="h-7 px-3 text-[11px] font-bold rounded-md flex items-center gap-1.5"
+                        className="h-7 px-3 text-xs font-bold rounded-md flex items-center gap-1.5"
                         onClick={() => {
                           setFailedModalRow(null);
                           const exc: OpsException = {
@@ -352,7 +352,7 @@ function DispatchDeskContentInner() {
                     {REASSIGNABLE_STATUSES.includes(r.status) && (
                       <Button
                         size="sm"
-                        className="h-7 px-3 text-[11px] font-bold rounded-md flex items-center gap-1.5"
+                        className="h-7 px-3 text-xs font-bold rounded-md flex items-center gap-1.5"
                         onClick={() => {
                           setFailedModalRow(null);
                           setDrawerTargets([{

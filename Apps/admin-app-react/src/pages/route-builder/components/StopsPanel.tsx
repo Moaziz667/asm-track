@@ -124,12 +124,12 @@ export function StopsPanel() {
                 {selectedRoute.name}
               </h3>
               {selectedRoute.status === 'VALIDATED' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
                   {t.statusLabels.VALIDATED}
                 </span>
               )}
               {selectedRoute.status === 'DRAFT' && (
-                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-blue-500/10 text-blue-605 dark:text-blue-400 border border-blue-500/20">
+                <span className="inline-flex items-center px-1.5 py-0.5 rounded text-2xs font-semibold bg-blue-500/10 text-blue-605 dark:text-blue-400 border border-blue-500/20">
                   {t.statusLabels.DRAFT}
                 </span>
               )}
@@ -212,7 +212,7 @@ export function StopsPanel() {
               />
             </div>
             {overloaded && (
-              <div className="flex items-center gap-1 text-[11px] text-red-500 font-medium">
+              <div className="flex items-center gap-1 text-xs text-red-500 font-medium">
                 <IconAlertTriangle size={12} className="shrink-0" />
                 <span>{t.routeBuilderPage.overloadLabel.replace('{amount}', overloadKg.toFixed(1))}</span>
               </div>

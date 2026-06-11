@@ -59,7 +59,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
         type="button"
         onClick={() => setOpen(o => !o)}
         title={t.displaySettings.title}
-        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full text-[12px] font-[500] border transition-colors hover:bg-[var(--hover-bg)] shrink-0"
+        className="flex items-center gap-1.5 h-8 px-2.5 rounded-full text-sm font-[500] border transition-colors hover:bg-[var(--hover-bg)] shrink-0"
         style={{
           borderColor: open ? 'var(--brand-blue)' : 'var(--border)',
           background: open ? 'var(--brand-blue-soft)' : 'var(--app-bg)',
@@ -84,7 +84,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
           }}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b" style={{ borderColor: 'var(--border)' }}>
-            <span className="text-[11px] font-semibold" style={{ color: 'var(--text-primary)' }}>{t.displaySettings.title}</span>
+            <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.displaySettings.title}</span>
             <button type="button" onClick={() => setOpen(false)} className="hover:opacity-70 transition-opacity">
               <IconX size={12} style={{ color: 'var(--text-muted)' }} />
             </button>
@@ -92,7 +92,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
 
           {/* Density */}
           <div className="p-3">
-            <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.density}</p>
+            <p className="text-2xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.density}</p>
             <div className="flex flex-col gap-1">
               {DENSITIES.map(d => (
                 <button
@@ -100,7 +100,7 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
                   type="button"
                   onClick={() => { config.onDensityChange(d.value); }}
                   className={cn(
-                    'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[12px] transition-colors',
+                    'flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-colors',
                     config.density === d.value
                       ? 'bg-[var(--brand-blue-soft)] text-[var(--brand-blue)] font-[500]'
                       : 'hover:bg-[var(--hover-bg)] text-[var(--text-muted)]'
@@ -123,14 +123,14 @@ export function DisplaySettingsDropdown({ config }: { config: DisplaySettingsCon
           {/* Columns */}
           {config.columns && config.columns.length > 0 && (
             <div className="p-3 border-t" style={{ borderColor: 'var(--border)' }}>
-              <p className="text-[10px] font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.visibleColumns}</p>
+              <p className="text-2xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--text-muted)' }}>{t.displaySettings.visibleColumns}</p>
               <div className="flex flex-col gap-1">
                 {config.columns.map(col => (
                   <button
                     key={col.key}
                     type="button"
                     onClick={() => config.onColumnToggle?.(col.key)}
-                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-[12px] transition-colors hover:bg-[var(--hover-bg)]"
+                    className="flex items-center gap-2.5 px-2.5 py-1.5 rounded text-sm transition-colors hover:bg-[var(--hover-bg)]"
                     style={{ color: 'var(--text-primary)' }}
                   >
                     <div

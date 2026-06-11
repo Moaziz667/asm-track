@@ -189,20 +189,20 @@ function SimplePagination({ total, value, onChange }: { total: number; value: nu
         type="button"
         onClick={() => onChange(value - 1)}
         disabled={value === 1}
-        className="w-7 h-7 flex items-center justify-center rounded border text-[11px] font-bold disabled:opacity-30 hover:bg-[var(--hover-bg)] border-[var(--border)] text-[var(--text-muted)]"
+        className="w-7 h-7 flex items-center justify-center rounded border text-xs font-bold disabled:opacity-30 hover:bg-[var(--hover-bg)] border-[var(--border)] text-[var(--text-muted)]"
       >
         ‹
       </button>
       {visible.map((p, idx, arr) => (
         <React.Fragment key={p}>
           {idx > 0 && arr[idx - 1] !== p - 1 && (
-            <span className="text-[11px] text-[var(--text-muted)] px-1">…</span>
+            <span className="text-xs text-[var(--text-muted)] px-1">…</span>
           )}
           <button
             type="button"
             onClick={() => onChange(p)}
             className={cn(
-              'w-7 h-7 flex items-center justify-center rounded border text-[11px] font-bold',
+              'w-7 h-7 flex items-center justify-center rounded border text-xs font-bold',
               p === value
                 ? 'bg-[var(--brand)] text-white border-[var(--brand)]'
                 : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'
@@ -216,7 +216,7 @@ function SimplePagination({ total, value, onChange }: { total: number; value: nu
         type="button"
         onClick={() => onChange(value + 1)}
         disabled={value === total}
-        className="w-7 h-7 flex items-center justify-center rounded border text-[11px] font-bold disabled:opacity-30 hover:bg-[var(--hover-bg)] border-[var(--border)] text-[var(--text-muted)]"
+        className="w-7 h-7 flex items-center justify-center rounded border text-xs font-bold disabled:opacity-30 hover:bg-[var(--hover-bg)] border-[var(--border)] text-[var(--text-muted)]"
       >
         ›
       </button>
@@ -293,8 +293,8 @@ export default function AuditLogsPage() {
     setFilterTo('');
   };
 
-  const inputCls = "h-8 w-full px-2 text-[11px] rounded-[2px] border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]";
-  const labelCls = "block text-[10px] font-[600] text-[var(--text-muted)] mb-1";
+  const inputCls = "h-8 w-full px-2 text-xs rounded-[2px] border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]";
+  const labelCls = "block text-2xs font-[600] text-[var(--text-muted)] mb-1";
 
   // Group logs by date
   const groupedLogs = useMemo(() => {
@@ -325,7 +325,7 @@ export default function AuditLogsPage() {
       {/* Filter bar (title removed) */}
       <div className="px-4 py-2.5 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flex items-center gap-3 mb-2">
-          <span className="text-[11px] font-semibold" style={{ color: 'var(--text-muted)' }}>{totalElements} {t.auditLogsPage.eventsRecorded}</span>
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{totalElements} {t.auditLogsPage.eventsRecorded}</span>
           <button
             type="button"
             onClick={() => fetchLogs(page)}
@@ -363,7 +363,7 @@ export default function AuditLogsPage() {
             <input type="date" className={inputCls} value={filterTo} onChange={e => setFilterTo(e.target.value)} />
           </div>
           <div>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-red-600 hover:text-red-600 hover:bg-red-50 text-[10px] font-bold w-full">
+            <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-red-600 hover:text-red-600 hover:bg-red-50 text-2xs font-bold w-full">
               {t.auditLogsPage.resetButton}
             </Button>
           </div>
@@ -378,7 +378,7 @@ export default function AuditLogsPage() {
           </div>
         ) : logs.length === 0 ? (
           <div className="flex items-center justify-center h-64">
-            <p className="text-[11px] font-bold text-[var(--text-muted)]">{t.auditLogsPage.noLogs}</p>
+            <p className="text-xs font-bold text-[var(--text-muted)]">{t.auditLogsPage.noLogs}</p>
           </div>
         ) : (
           <div className="px-6 py-4">
@@ -387,7 +387,7 @@ export default function AuditLogsPage() {
               if (!items) return null;
               return (
                 <div key={dateGroup} className="mb-6">
-                  <p className="text-[10px] font-[700] text-[var(--text-muted)] uppercase tracking-wide mb-3">{getDateGroupLabel(dateGroup)}</p>
+                  <p className="text-2xs font-[700] text-[var(--text-muted)] uppercase tracking-wide mb-3">{getDateGroupLabel(dateGroup)}</p>
                   <div className="space-y-0 border-l border-[var(--border)]">
                     {items.map((log, idx) => {
                       const meta = getActionStyle(log.action, locale, t);
@@ -411,12 +411,12 @@ export default function AuditLogsPage() {
                               {/* Content */}
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-[11px] font-[700] font-mono text-[var(--text-primary)]">{meta.label}</span>
-                                  <span className="text-[10px] font-[500] text-[var(--text-muted)]">{t.auditLogsPage.byActor} {log.actorName}</span>
+                                  <span className="text-xs font-[700] font-mono text-[var(--text-primary)]">{meta.label}</span>
+                                  <span className="text-2xs font-[500] text-[var(--text-muted)]">{t.auditLogsPage.byActor} {log.actorName}</span>
                                   <span className="text-[9px] font-[500] px-1.5 py-0.5 rounded-[2px] border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
                                 </div>
                                 <div className="flex items-center gap-4 mb-1">
-                                  <span className="text-[10px] font-[500] font-mono text-[var(--text-muted)]">{formatTime(log.createdAt, locale)}</span>
+                                  <span className="text-2xs font-[500] font-mono text-[var(--text-muted)]">{formatTime(log.createdAt, locale)}</span>
                                   {log.resourceId && (
                                     <span className="text-[9px] font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-[2px]" style={{ background: 'var(--app-bg)' }}>
                                       {log.resourceId.slice(0, 14)}
@@ -424,7 +424,7 @@ export default function AuditLogsPage() {
                                   )}
                                   <span className="text-[9px] font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
                                 </div>
-                                <p className="text-[10px] text-[var(--text-muted)]">{meta.label}</p>
+                                <p className="text-2xs text-[var(--text-muted)]">{meta.label}</p>
                               </div>
 
                               {/* Expand indicator */}
@@ -438,20 +438,20 @@ export default function AuditLogsPage() {
                               <div className="mt-3 pt-3 border-t border-[var(--border)] ml-3">
                                 <div className="grid grid-cols-2 gap-4 mb-3">
                                   <div>
-                                    <p className="text-[10px] font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.eventId}</p>
-                                    <p className="text-[10px] font-mono text-[var(--text-primary)]" title={log.id}>{log.id.slice(0, 8)}</p>
+                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.eventId}</p>
+                                    <p className="text-2xs font-mono text-[var(--text-primary)]" title={log.id}>{log.id.slice(0, 8)}</p>
                                     <p className="text-[9px] text-[var(--text-muted)] mt-0.5">{t.auditLogsPage.fullId} {log.id}</p>
                                   </div>
                                   <div>
-                                    <p className="text-[10px] font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
-                                    <span className="text-[10px] font-[600] px-2 py-1 rounded-[2px] inline-block" style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}>
+                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
+                                    <span className="text-2xs font-[600] px-2 py-1 rounded-[2px] inline-block" style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}>
                                       {meta.label}
                                     </span>
                                   </div>
                                 </div>
                                 {log.details && (
                                   <div>
-                                    <p className="text-[10px] font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
+                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
                                     <div className="text-[9px] p-2 rounded-[2px] bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
                                       {formatPayload(log.details, locale)}
                                     </div>

@@ -129,7 +129,7 @@ export default function NotificationsPage() {
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">{copy.title}</h1>
-            <p className="mt-0.5 text-[13px] text-[var(--text-muted)]">{x.subtitle}</p>
+            <p className="mt-0.5 text-base text-[var(--text-muted)]">{x.subtitle}</p>
           </div>
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
@@ -170,7 +170,7 @@ export default function NotificationsPage() {
                   )}
                 >
                   {f.label}
-                  <span className={cn('rounded px-1 text-[10px] font-bold tabular-nums', activeF ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]')}>{c}</span>
+                  <span className={cn('rounded px-1 text-2xs font-bold tabular-nums', activeF ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]')}>{c}</span>
                 </button>
               );
             })}
@@ -204,8 +204,8 @@ export default function NotificationsPage() {
             {groups.map(group => (
               <section key={group.key} className="mb-6">
                 <div className="mb-2 flex items-center justify-between px-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</span>
-                  <span className="text-[11px] font-medium text-[var(--text-muted)]">
+                  <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{group.label}</span>
+                  <span className="text-xs font-medium text-[var(--text-muted)]">
                     {group.items.length} {group.items.length === 1 ? copy.eventSingular : copy.eventPlural}
                   </span>
                 </div>
@@ -237,13 +237,13 @@ export default function NotificationsPage() {
                           {chips.length > 0 && (
                             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
                               {chips.map((c, idx) => (
-                                <span key={idx} className="rounded border border-[var(--border)] bg-[var(--app-bg)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)]">{c}</span>
+                                <span key={idx} className="rounded border border-[var(--border)] bg-[var(--app-bg)] px-1.5 py-0.5 text-2xs font-medium text-[var(--text-muted)]">{c}</span>
                               ))}
                             </div>
                           )}
                         </div>
                         <div className="flex shrink-0 items-center gap-2 pt-0.5">
-                          <span className="text-[11px] font-medium text-[var(--text-muted)]">{relTime(n.timestamp)}</span>
+                          <span className="text-xs font-medium text-[var(--text-muted)]">{relTime(n.timestamp)}</span>
                           <IconChevronRight size={15} className="text-[var(--text-muted)]" />
                         </div>
                       </button>

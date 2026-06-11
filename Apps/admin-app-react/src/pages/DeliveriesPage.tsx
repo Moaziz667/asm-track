@@ -502,10 +502,10 @@ function DeliveriesPageContent() {
             {/* Internal Toolbar */}
             <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center gap-8">
-                <span className="text-[13px] font-[600] text-[var(--text-primary)]">
+                <span className="text-base font-[600] text-[var(--text-primary)]">
                   {t.deliveriesPage.displayLabel} <span className="font-mono text-[var(--brand)]">{quickView.toUpperCase()}</span>
                 </span>
-                <span className="text-[11px] font-[500] text-[var(--text-muted)]">
+                <span className="text-xs font-[500] text-[var(--text-muted)]">
                   {totalElements} {t.deliveriesPage.entityDetected}
                 </span>
               </div>
@@ -515,7 +515,7 @@ function DeliveriesPageContent() {
                   value={String(size)}
                   onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
                   options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
-                  className="h-7 text-[11px] font-[700] w-[100px]"
+                  className="h-7 text-xs font-[700] w-[100px]"
                 />
                 <DisplaySettingsDropdown
                   columns={orderedColumns}
@@ -539,7 +539,7 @@ function DeliveriesPageContent() {
                       {orderedColumns.map(col => {
                         if (!visibleIds.has(col.id)) return null;
                         if (col.id === 'ref') return (
-                          <th key="ref" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                          <th key="ref" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setSortAsc(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.refHeader}
                               <span className="text-[9px]">{sortAsc ? '▲' : '▼'}</span>
@@ -547,7 +547,7 @@ function DeliveriesPageContent() {
                           </th>
                         );
                         if (col.id === 'client') return (
-                          <th key="client" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                          <th key="client" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByClient(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.clientHeader} · {t.deliveriesPage.addressHeader}
                               <span className="text-[9px]">{groupByClient ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
@@ -555,10 +555,10 @@ function DeliveriesPageContent() {
                           </th>
                         );
                         if (col.id === 'scheduled') return (
-                          <th key="scheduled" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.scheduledHeader}</th>
+                          <th key="scheduled" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.scheduledHeader}</th>
                         );
                         if (col.id === 'status') return (
-                          <th key="status" className="h-10 px-6 text-left text-[11px] font-[450] text-[var(--text-muted)]">
+                          <th key="status" className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByStatus(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.statusHeader}
                               <span className="text-[9px]">{groupByStatus ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
@@ -566,10 +566,10 @@ function DeliveriesPageContent() {
                           </th>
                         );
                         if (col.id === 'driver') return (
-                          <th key="driver" className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</th>
+                          <th key="driver" className="h-10 px-6 text-center text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.driverHeader}</th>
                         );
                         if (col.id === 'zone') return (
-                          <th key="zone" className="h-10 px-6 text-center text-[11px] font-[450] text-[var(--text-muted)]">
+                          <th key="zone" className="h-10 px-6 text-center text-xs font-[450] text-[var(--text-muted)]">
                             <button onClick={() => setGroupByZone(v => !v)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                               {t.deliveriesPage.zoneHeader}
                               <span className="text-[9px]">{groupByZone ? (sortAsc ? '▲' : '▼') : '⇅'}</span>
@@ -578,7 +578,7 @@ function DeliveriesPageContent() {
                         );
                         return null;
                       })}
-                      <th className="h-10 px-6 text-right text-[11px] font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
+                      <th className="h-10 px-6 text-right text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)]">
@@ -615,11 +615,11 @@ function DeliveriesPageContent() {
                               <td key="ref" className="px-6">
                                 <div className="flex flex-col gap-0">
                                   <Link to={`/deliveries/${item.rowId ?? item.id}`} onClick={(e) => e.stopPropagation()} style={{ textDecoration: 'none' }}>
-                                    <span className="text-[11px] font-[700] font-mono tabular-nums hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--brand)', cursor: 'pointer' }}>
+                                    <span className="text-xs font-[700] font-mono tabular-nums hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--brand)', cursor: 'pointer' }}>
                                       {resolveOrderRef(item)}
                                     </span>
                                   </Link>
-                                  <span className="text-[11px] font-[600] text-[var(--text-muted)] uppercase font-mono tracking-tighter opacity-70">
+                                  <span className="text-xs font-[600] text-[var(--text-muted)] uppercase font-mono tracking-tighter opacity-70">
                                     #{shortId(item.rowId)}
                                   </span>
                                 </div>
@@ -628,12 +628,12 @@ function DeliveriesPageContent() {
                             if (col.id === 'client') return (
                               <td key="client" className="px-6">
                                 <div className="flex flex-col gap-0.5 max-w-[400px]">
-                                  <span className="text-[11px] font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
+                                  <span className="text-xs font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
                                     {item.clientName || t.deliveriesPage.unknownDriver}
                                   </span>
                                   <div className="flex items-center gap-1 flex-nowrap">
                                     <IconMapPin size={10} className="text-[var(--text-muted)]" />
-                                    <span className="text-[10px] font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
+                                    <span className="text-2xs font-[500] text-[var(--text-soft)] truncate line-clamp-1">{item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}</span>
                                   </div>
                                 </div>
                               </td>
@@ -642,7 +642,7 @@ function DeliveriesPageContent() {
                               <td key="scheduled" className="px-6">
                                 {(() => {
                                   if (!item.scheduledAt) {
-                                    return <span className="text-[11px] text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
+                                    return <span className="text-xs text-[var(--text-muted)] italic">{t.deliveriesPage.unscheduled}</span>;
                                   }
                                   const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
                                   const bucket = getDayBucket(item.scheduledAt);
@@ -654,7 +654,7 @@ function DeliveriesPageContent() {
                                   }
                                   return (
                                     <div className="inline-flex items-center gap-1">
-                                      <span className={cn('text-[11px] font-bold', colorClass.split(' ')[0])}>
+                                      <span className={cn('text-xs font-bold', colorClass.split(' ')[0])}>
                                         {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
                                         <span className="mr-0.5">,</span>
                                         {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
@@ -689,10 +689,10 @@ function DeliveriesPageContent() {
                                       <div className="size-5 rounded-[1px] bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-[9px] font-bold text-[var(--text-primary)] uppercase">
                                         {item.driverName.charAt(0)}
                                       </div>
-                                      <span className="text-[11px] font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
+                                      <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
                                     </>
                                   ) : (
-                                    <span className="text-[11px] font-[400] text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
+                                    <span className="text-xs font-[400] text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
                                   )}
                                 </div>
                               </td>
@@ -701,7 +701,7 @@ function DeliveriesPageContent() {
                               <td key="zone" className="px-6">
                                 <div className="flex justify-center">
                                   <span
-                                    className="text-[11px] font-[500] px-2 py-0.5 rounded-full"
+                                    className="text-xs font-[500] px-2 py-0.5 rounded-full"
                                     style={{
                                       color: item.zoneColor || 'var(--text-muted)',
                                       backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
@@ -777,7 +777,7 @@ function DeliveriesPageContent() {
                                         onClick={(e) => { e.stopPropagation(); void openRoute(item); }}
                                       >
                                         <IconRoute size={12} />
-                                        <span className="text-[10px] truncate max-w-[80px]">{item.routeName}</span>
+                                        <span className="text-2xs truncate max-w-[80px]">{item.routeName}</span>
                                       </button>
                                     )}
                                   </>
@@ -843,7 +843,7 @@ function DeliveriesPageContent() {
             {/* Pagination footer */}
             {(rows.length >= size || page > 0 || totalPages > 1) && (
               <div className="flex items-center justify-between px-6 py-2.5 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
-                <span className="text-[11px] text-[var(--text-muted)]">
+                <span className="text-xs text-[var(--text-muted)]">
                   {t.deliveriesPage.pageLabel} {page + 1}{totalElements > rows.length ? ` · ${totalElements} ${t.deliveriesPage.resultsLabel}` : ''}
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -851,7 +851,7 @@ function DeliveriesPageContent() {
                     type="button"
                     disabled={page === 0}
                     onClick={() => setPage(p => p - 1)}
-                    className="h-7 px-3 text-[11px] font-[700] rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] disabled:opacity-40 transition-colors"
+                    className="h-7 px-3 text-xs font-[700] rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] disabled:opacity-40 transition-colors"
                   >
                     {t.deliveriesPage.prevButton}
                   </button>
@@ -859,7 +859,7 @@ function DeliveriesPageContent() {
                     type="button"
                     disabled={rows.length < size}
                     onClick={() => setPage(p => p + 1)}
-                    className="h-7 px-3 text-[11px] font-[700] rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] disabled:opacity-40 transition-colors"
+                    className="h-7 px-3 text-xs font-[700] rounded border border-[var(--border)] hover:bg-[var(--hover-bg)] disabled:opacity-40 transition-colors"
                   >
                     {t.deliveriesPage.nextButton}
                   </button>
@@ -891,7 +891,7 @@ function DeliveriesPageContent() {
                     onChange={(e) => handleAddressSearch(e.currentTarget.value)}
                     onFocus={() => addressResults.length > 0 && setShowAddressResults(true)}
                     onBlur={() => setTimeout(() => setShowAddressResults(false), 200)}
-                    className="h-8 text-[11px]"
+                    className="h-8 text-xs"
                   />
                   {showAddressResults && (
                     <div
@@ -940,7 +940,7 @@ function DeliveriesPageContent() {
                 <div className="absolute inset-0 bg-white/40 backdrop-blur-sm flex items-center justify-center z-50">
                   <div className="flex items-center gap-2 bg-[var(--surface)] px-6 py-2 rounded-[2px] shadow-xl border border-[var(--border)]">
                     <AppLoader size="sm" />
-                    <span className="text-[12px] font-[500] text-[var(--text-primary)]">{t.deliveriesPage.analyzeInProgress}</span>
+                    <span className="text-sm font-[500] text-[var(--text-primary)]">{t.deliveriesPage.analyzeInProgress}</span>
                   </div>
                 </div>
               )}
@@ -950,14 +950,14 @@ function DeliveriesPageContent() {
               <div className="p-6 bg-[var(--surface)] border-t border-[var(--border)]">
                 <div className="grid grid-cols-[1fr_auto] gap-3">
                   <FieldInput
-                    label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.addressTarget}</span>}
+                    label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.deliveriesPage.addressTarget}</span>}
                     placeholder={t.deliveriesPage.addressPlaceholder}
                     value={pinAddress}
                     onChange={(e) => setPinAddress(e.currentTarget.value)}
                     className="h-10 font-[600]"
                   />
                   <FieldInput
-                    label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.deliveriesPage.postalCodeLabel}</span>}
+                    label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.deliveriesPage.postalCodeLabel}</span>}
                     placeholder={t.deliveriesPage.postalCodePlaceholder}
                     value={pinPostalCode}
                     onChange={(e) => setPinPostalCode(e.currentTarget.value)}
@@ -968,14 +968,14 @@ function DeliveriesPageContent() {
                 <div className="flex items-center gap-3 mt-6">
                   <button
                     type="button"
-                    className="flex-1 h-10 font-[500] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] text-[12px] border border-[var(--border)] rounded transition-colors"
+                    className="flex-1 h-10 font-[500] hover:bg-[var(--hover-bg)] text-[var(--text-soft)] text-sm border border-[var(--border)] rounded transition-colors"
                     onClick={() => setPinModal(null)}
                   >
                     {t.actions.cancel}
                   </button>
                   <button
                     type="button"
-                    className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[500] text-[12px] rounded-[2px] flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+                    className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[500] text-sm rounded-[2px] flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
                     onClick={confirmPin}
                     disabled={pinLat == null || pinSaving}
                   >
@@ -988,7 +988,7 @@ function DeliveriesPageContent() {
               <div className="p-6 bg-[var(--surface)] border-t border-[var(--border)]">
                 <button
                   type="button"
-                  className="w-full h-10 border border-[var(--border)] text-[var(--text-primary)] font-[500] text-[12px] rounded hover:bg-[var(--hover-bg)] transition-colors"
+                  className="w-full h-10 border border-[var(--border)] text-[var(--text-primary)] font-[500] text-sm rounded hover:bg-[var(--hover-bg)] transition-colors"
                   onClick={() => setPinModal(null)}
                 >
                   {t.actions.close}

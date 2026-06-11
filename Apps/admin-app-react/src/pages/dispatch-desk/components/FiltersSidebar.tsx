@@ -46,8 +46,8 @@ export function FiltersSidebar() {
       <div className="p-4 border-b border-[var(--border)] flex items-center justify-between gap-2 shrink-0">
         {filtersOpen && (
           <div className="min-w-0">
-            <span className="text-[11px] font-[500] text-[var(--text-muted)] mb-0.5 block">{t.pages.dispatch.subtitle}</span>
-            <h1 className="text-[18px] font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
+            <span className="text-xs font-[500] text-[var(--text-muted)] mb-0.5 block">{t.pages.dispatch.subtitle}</span>
+            <h1 className="text-xl font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
               {t.pages.dispatch.title}
             </h1>
           </div>
@@ -67,17 +67,17 @@ export function FiltersSidebar() {
           {/* Filters */}
           <div className="flex flex-col gap-3 p-5 border-b border-[var(--border)]">
             <FieldInput
-              label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterQuickSearch}</span>}
+              label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterQuickSearch}</span>}
               placeholder={t.dispatchDeskPage.filterQuickSearchPlaceholder}
               leftSection={<IconSearch size={14} stroke={2.5} className="text-[var(--text-muted)]" />}
               value={search}
               onChange={e => setSearch(e.currentTarget.value)}
-              className="h-9 text-[12px]"
+              className="h-9 text-sm"
             />
 
             {/* Period pills */}
             <div>
-              <p className="text-[11px] font-medium text-[var(--text-muted)] mb-2">{t.dispatchDeskPage.filterPeriod}</p>
+              <p className="text-xs font-medium text-[var(--text-muted)] mb-2">{t.dispatchDeskPage.filterPeriod}</p>
               <div className="flex items-center gap-1.5 flex-wrap">
                 {([
                   ['day', t.dispatchDeskPage.periodDay],
@@ -91,7 +91,7 @@ export function FiltersSidebar() {
                     type="button"
                     onClick={() => setPeriod(v)}
                     className={cn(
-                      'px-3 py-1.5 text-[11px] font-medium rounded-[4px] transition-all cursor-pointer',
+                      'px-3 py-1.5 text-xs font-medium rounded-[4px] transition-all cursor-pointer',
                       period === v
                         ? 'bg-[var(--app-bg)] text-[var(--brand)] border border-[var(--brand)]'
                         : 'bg-transparent text-[var(--text-muted)] border border-transparent hover:bg-[var(--app-bg)]',
@@ -105,13 +105,13 @@ export function FiltersSidebar() {
                 <div className="flex flex-col gap-1.5 mt-2">
                   <FieldInput
                     type="date"
-                    label={<span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateFrom}</span>}
+                    label={<span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateFrom}</span>}
                     value={customFrom}
                     onChange={e => setCustomFrom(e.currentTarget.value)}
                   />
                   <FieldInput
                     type="date"
-                    label={<span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateTo}</span>}
+                    label={<span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateTo}</span>}
                     value={customTo}
                     onChange={e => setCustomTo(e.currentTarget.value)}
                   />
@@ -120,36 +120,36 @@ export function FiltersSidebar() {
             </div>
 
             <FieldSelect
-              label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterDriver}</span>}
+              label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterDriver}</span>}
               placeholder={t.dispatchDeskPage.filterDriverPlaceholder}
               value={driverId}
               onChange={e => setDriverId(e.currentTarget.value)}
               options={[{ value: '', label: t.dispatchDeskPage.filterDriverNoFilter }, ...drivers.map(d => ({ value: d.id, label: d.name }))]}
-              className="h-9 text-[12px]"
+              className="h-9 text-sm"
             />
 
             <FieldSelect
-              label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterZone}</span>}
+              label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterZone}</span>}
               placeholder={t.dispatchDeskPage.filterZonePlaceholder}
               value={zoneFilter}
               onChange={e => setZoneFilter(e.currentTarget.value)}
               options={[{ value: '', label: t.dispatchDeskPage.filterZoneGlobal }, ...zones.map(z => ({ value: z.name, label: z.name }))]}
-              className="h-9 text-[12px]"
+              className="h-9 text-sm"
             />
 
             {routeOptions.length > 0 && (
               <FieldSelect
-                label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterRoute}</span>}
+                label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterRoute}</span>}
                 placeholder={t.dispatchDeskPage.filterRoutePlaceholder}
                 value={routeFilter}
                 onChange={e => setRouteFilter(e.currentTarget.value)}
                 options={routeOptions}
-                className="h-9 text-[12px]"
+                className="h-9 text-sm"
               />
             )}
 
             <FieldSelect
-              label={<span className="text-[11px] font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterStatus}</span>}
+              label={<span className="text-xs font-[500] text-[var(--text-muted)]">{t.dispatchDeskPage.filterStatus}</span>}
               placeholder={t.dispatchDeskPage.filterStatusPlaceholder}
               value={statusFilter}
               onChange={e => setStatusFilter(e.currentTarget.value)}
@@ -164,13 +164,13 @@ export function FiltersSidebar() {
                 { value: 'CANCELLED',   label: t.dispatchDeskPage.filterStatusCancelled },
                 { value: 'FAILED',      label: t.dispatchDeskPage.filterStatusFailed },
               ]}
-              className="h-9 text-[12px]"
+              className="h-9 text-sm"
             />
 
             <div className="flex gap-2">
               <button
                 type="button"
-                className="flex-1 h-9 rounded-[2px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] font-[500] text-[12px] shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
+                className="flex-1 h-9 rounded-[2px] border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] font-[500] text-sm shadow-[0_1px_2px_rgba(0,0,0,0.05)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 active:scale-[0.98]"
                 onClick={doRefresh}
                 disabled={refreshing}
               >
@@ -192,15 +192,15 @@ export function FiltersSidebar() {
             if (active.length === 0) return null;
             return (
               <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border)' }}>
-                <p className="text-[11px] font-[500] mb-2" style={{ color: 'var(--text-muted)' }}>
+                <p className="text-xs font-[500] mb-2" style={{ color: 'var(--text-muted)' }}>
                   {t.dispatchDeskPage.activeDriversLabel} · {active.length}
                 </p>
                 <div className="flex flex-col gap-0.5">
                   {active.map(d => (
                     <div key={d.id} className="flex items-center gap-2 px-2 py-1 rounded-[var(--radius)] hover:bg-[var(--hover-bg)] transition-colors">
                       <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[d.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                      <span className="text-[12px] font-[500] truncate flex-1" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
-                      <span className="text-[10px] font-[500]" style={{ color: 'var(--text-muted)' }}>
+                      <span className="text-sm font-[500] truncate flex-1" style={{ color: 'var(--text-primary)' }}>{d.name}</span>
+                      <span className="text-2xs font-[500]" style={{ color: 'var(--text-muted)' }}>
                         {getDriverStatusTip(d.onlineStatus, t)}
                       </span>
                     </div>

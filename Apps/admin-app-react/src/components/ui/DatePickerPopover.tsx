@@ -59,7 +59,7 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
         )}
       >
         <IconCalendar size={13} className="text-[var(--text-soft)] shrink-0" />
-        <span className={cn('font-mono text-[11px]', !selected && 'text-[var(--text-soft)]')}>
+        <span className={cn('font-mono text-xs', !selected && 'text-[var(--text-soft)]')}>
           {selected ? format(selected, 'd MMM yyyy', { locale: fr }) : placeholder}
         </span>
       </button>
@@ -82,14 +82,14 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
               setOpen(false);
             }}
             locale={fr}
-            className="[--cell-size:28px] text-[11px]"
+            className="[--cell-size:28px] text-xs"
           />
           {selected && (
             <div className="border-t border-[var(--border)] px-3 py-1.5">
               <button
                 type="button"
                 onClick={() => { onChange(null); setOpen(false); }}
-                className="text-[11px] font-semibold text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
+                className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
               >
                 Effacer la date
               </button>

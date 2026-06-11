@@ -262,7 +262,7 @@ function ImportErpPageContent() {
         <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-            <span className="text-[11px] font-medium" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
               {filteredRows.length} commande{filteredRows.length !== 1 ? 's' : ''}
             </span>
             <div className="flex items-center gap-2">
@@ -270,7 +270,7 @@ function ImportErpPageContent() {
                 type="button"
                 onClick={() => loadPendingOrders(true, true)}
                 disabled={refreshing || loading}
-                className="h-7 px-3 flex items-center gap-1.5 text-[11px] font-bold rounded-md transition-colors hover:opacity-90 disabled:opacity-50 shrink-0 text-white"
+                className="h-7 px-3 flex items-center gap-1.5 text-xs font-bold rounded-md transition-colors hover:opacity-90 disabled:opacity-50 shrink-0 text-white"
                 style={{ background: 'var(--brand)', border: 'none' }}
               >
                 {refreshing
@@ -301,38 +301,38 @@ function ImportErpPageContent() {
                   {orderedColumns.map((col) => {
                     if (!visibleIds.has(col.id)) return null;
                     if (col.id === 'ref') return (
-                      <th key="ref" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                      <th key="ref" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
                         {t.importPage.headerReference}
                       </th>
                     );
                     if (col.id === 'customer') return (
-                      <th key="customer" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                      <th key="customer" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
                         {t.importPage.headerCustomer}
                       </th>
                     );
                     if (col.id === 'dest') return (
-                      <th key="dest" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                      <th key="dest" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
                         {t.importPage.headerDestination}
                       </th>
                     );
                     if (col.id === 'amount') return (
-                      <th key="amount" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
+                      <th key="amount" className={cn("text-xs font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
                         {t.importPage.headerAmount}
                       </th>
                     );
                     if (col.id === 'date') return (
-                      <th key="date" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                      <th key="date" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
                         Date Planifiée
                       </th>
                     );
                     if (col.id === 'status') return (
-                      <th key="status" className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
+                      <th key="status" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
                         {t.importPage.headerStatus}
                       </th>
                     );
                     return null;
                   })}
-                  <th className={cn("text-[11px] font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
+                  <th className={cn("text-xs font-semibold text-[var(--text-muted)] text-right px-3", thPaddingClass)}>
                     {t.importPage.headerActions}
                   </th>
                 </tr>
@@ -351,7 +351,7 @@ function ImportErpPageContent() {
                     <td colSpan={visibleIds.size + 3}>
                       <div className="flex flex-col items-center gap-2 py-20">
                         <IconPackage size={32} strokeWidth={1.5} className="text-[var(--border)]" />
-                        <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.emptyState}</p>
+                        <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.emptyState}</p>
                       </div>
                     </td>
                   </tr>
@@ -386,7 +386,7 @@ function ImportErpPageContent() {
                             <td key="ref" className={cn(CELL_PADDING[density])}>
                               <div className="flex flex-col gap-0.5">
                                 <div className="flex items-center gap-1.5">
-                                  <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tracking-tight">
+                                  <p className="text-xs font-bold font-mono text-[var(--text-primary)] tracking-tight">
                                     {row.blNumber || row.erpOrderId}
                                   </p>
                                   {row.warehouseCode && (
@@ -396,10 +396,10 @@ function ImportErpPageContent() {
                                   )}
                                 </div>
                                 {row.blNumber && row.erpOrderId && (
-                                  <p className="text-[10px] font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
+                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>
                                 )}
                                 {row.externalRef && (
-                                  <p className="text-[10px] font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
+                                  <p className="text-2xs font-semibold text-[var(--text-muted)]">REF: {row.externalRef}</p>
                                 )}
                               </div>
                             </td>
@@ -407,10 +407,10 @@ function ImportErpPageContent() {
                           if (col.id === 'customer') return (
                             <td key="customer" className={cn(CELL_PADDING[density])}>
                               <div>
-                                <p className="text-[11px] font-semibold text-[var(--text-primary)]">{row.customerName}</p>
+                                <p className="text-xs font-semibold text-[var(--text-primary)]">{row.customerName}</p>
                                 <div className="flex items-center gap-1">
                                   <IconPhone size={10} className="text-[var(--text-muted)]" />
-                                  <p className="text-[10px] font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
+                                  <p className="text-2xs font-medium text-[var(--text-muted)]">{row.customerPhone}</p>
                                 </div>
                               </div>
                             </td>
@@ -418,14 +418,14 @@ function ImportErpPageContent() {
                           if (col.id === 'dest') return (
                             <td key="dest" className={cn(CELL_PADDING[density])}>
                               <div className="max-w-[220px]">
-                                <p className="text-[11px] font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
-                                <p className="text-[11px] font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
+                                <p className="text-xs font-medium text-[var(--text-primary)] truncate">{row.deliveryAddress}</p>
+                                <p className="text-xs font-semibold text-[var(--text-muted)]">{row.deliveryCity}</p>
                               </div>
                             </td>
                           );
                           if (col.id === 'amount') return (
                             <td key="amount" className={cn(CELL_PADDING[density], "text-right")}>
-                              <p className="text-[11px] font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
+                              <p className="text-xs font-bold font-mono text-[var(--text-primary)] tabular-nums">{money(row.totalAmount, row.currency)}</p>
                             </td>
                           );
                           if (col.id === 'date') return (
@@ -444,7 +444,7 @@ function ImportErpPageContent() {
                                     <div className="flex items-center gap-1.5">
                                       <IconCalendarClock size={13} style={{ color: color ?? 'var(--text-muted)' }} />
                                       <span
-                                        className="text-[11px] font-bold tracking-tight"
+                                        className="text-xs font-bold tracking-tight"
                                         style={{ color: color ?? 'var(--text-primary)' }}
                                       >
                                         {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
@@ -452,7 +452,7 @@ function ImportErpPageContent() {
                                     </div>
                                     {tooltip && (
                                       <div
-                                        className="absolute bottom-full left-0 mb-1.5 z-50 hidden group-hover/datecell:block w-max max-w-[260px] px-2.5 py-1.5 rounded-md text-[10px] font-medium leading-snug pointer-events-none"
+                                        className="absolute bottom-full left-0 mb-1.5 z-50 hidden group-hover/datecell:block w-max max-w-[260px] px-2.5 py-1.5 rounded-md text-2xs font-medium leading-snug pointer-events-none"
                                         style={{ background: '#1c1c1e', color: '#f4f4f5', boxShadow: '0 4px 12px rgba(0,0,0,0.25)' }}
                                       >
                                         {tooltip}
@@ -523,7 +523,7 @@ function ImportErpPageContent() {
                             {isImported ? (
                               <button
                                 type="button"
-                                className="h-7 px-3 text-[11px] font-bold rounded-md bg-[#4CAF82] hover:opacity-90 text-white transition-opacity border-none"
+                                className="h-7 px-3 text-xs font-bold rounded-md bg-[#4CAF82] hover:opacity-90 text-white transition-opacity border-none"
                                 onClick={() => window.open('/deliveries', '_blank')}
                               >
                                 {t.importPage.buttonView}
@@ -532,7 +532,7 @@ function ImportErpPageContent() {
                               <button
                                 type="button"
                                 className={cn(
-                                  "h-7 px-3 text-[11px] font-bold rounded-md border transition-all",
+                                  "h-7 px-3 text-xs font-bold rounded-md border transition-all",
                                   confirmForId === row.erpOrderId
                                     ? "bg-amber-500 hover:bg-amber-600 text-white animate-pulse border-amber-600"
                                     : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-[0_1px_2px_rgba(0,0,0,0.05)]"
@@ -561,19 +561,19 @@ function ImportErpPageContent() {
           {/* Bulk Action Bar */}
           {selectedIds.size > 0 && (
             <div className="flex items-center gap-3 px-4 py-3 border-t border-[var(--border)]" style={{ background: 'var(--text-primary)' }}>
-              <span className="text-[11px] font-semibold text-[var(--surface)] flex-1">
+              <span className="text-xs font-semibold text-[var(--surface)] flex-1">
                 {selectedIds.size} {t.importPage.selectedMessage.replace('{plural}', selectedIds.size > 1 ? 's' : '')}
               </span>
               <button
                 type="button"
                 onClick={() => setSelectedIds(new Set())}
-                className="text-[11px] font-semibold text-[var(--surface)] opacity-60 hover:opacity-100 transition-opacity"
+                className="text-xs font-semibold text-[var(--surface)] opacity-60 hover:opacity-100 transition-opacity"
               >
                 {t.importPage.deselect}
               </button>
               <button
                 type="button"
-                className="flex items-center gap-1.5 h-7 px-3 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-[11px] rounded-md transition-opacity"
+                className="flex items-center gap-1.5 h-7 px-3 bg-[var(--brand)] hover:opacity-90 text-white font-bold text-xs rounded-md transition-opacity"
                 disabled={bulkImporting}
                 onClick={doBulkImport}
               >
@@ -589,7 +589,7 @@ function ImportErpPageContent() {
           <div className="h-px bg-[var(--border)]" />
           <div className="p-4 bg-[var(--surface)]">
             <div className="flex items-center justify-between">
-              <p className="text-[11px] font-semibold text-[var(--text-muted)]">
+              <p className="text-xs font-semibold text-[var(--text-muted)]">
                 {t.importPage.showing.replace('{showing}', paginatedRows.length.toString()).replace('{total}', filteredRows.length.toString())}
               </p>
               {totalPages > 1 && (
@@ -598,7 +598,7 @@ function ImportErpPageContent() {
                     type="button"
                     disabled={currentPage === 1}
                     onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-[10px] font-[500]"
+                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
                   >‹</button>
                   {Array.from({ length: Math.min(totalPages, 7) }, (_, i) => {
                     const pg = i + 1;
@@ -608,7 +608,7 @@ function ImportErpPageContent() {
                         type="button"
                         onClick={() => setCurrentPage(pg)}
                         className={cn(
-                          "w-7 h-7 flex items-center justify-center rounded-[2px] border text-[10px] font-[500] transition-colors",
+                          "w-7 h-7 flex items-center justify-center rounded-[2px] border text-2xs font-[500] transition-colors",
                           currentPage === pg ? "border-[var(--border-strong)] bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]" : "border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
                         )}
                       >{pg}</button>
@@ -618,7 +618,7 @@ function ImportErpPageContent() {
                     type="button"
                     disabled={currentPage === totalPages}
                     onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-[10px] font-[500]"
+                    className="w-7 h-7 flex items-center justify-center rounded-[2px] border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-40 text-2xs font-[500]"
                   >›</button>
                 </div>
               )}
@@ -646,7 +646,7 @@ function ImportErpPageContent() {
           ) : !preview ? (
             <div className="flex flex-col items-center gap-2 py-24">
               <IconAlertCircle size={32} color="#EF4444" />
-              <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.loadingError}</p>
+              <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.loadingError}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-6">
@@ -654,22 +654,22 @@ function ImportErpPageContent() {
               <div className="p-4 rounded-[2px]" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.previewRefERP}</p>
-                    <p className="text-[13px] font-bold font-mono text-[var(--text-primary)]">{preview.erpOrderId}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.previewRefERP}</p>
+                    <p className="text-base font-bold font-mono text-[var(--text-primary)]">{preview.erpOrderId}</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.previewCustomer}</p>
-                    <p className="text-[13px] font-bold text-[var(--text-primary)]">{preview.customerName}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.previewCustomer}</p>
+                    <p className="text-base font-bold text-[var(--text-primary)]">{preview.customerName}</p>
                   </div>
                 </div>
                 <div className="h-px bg-[var(--border)] my-4 border-dashed" />
                 <div>
-                  <p className="text-[11px] font-semibold text-[var(--text-muted)]">{t.importPage.previewLocation}</p>
+                  <p className="text-xs font-semibold text-[var(--text-muted)]">{t.importPage.previewLocation}</p>
                   <div className="flex items-start gap-1 mt-1">
                     <IconMapPin size={12} style={{ color: 'var(--brand)' }} className="mt-0.5 shrink-0" />
-                    <p className="text-[12px] font-bold text-[var(--text-primary)]">{preview.deliveryAddress}</p>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">{preview.deliveryAddress}</p>
                   </div>
-                  <p className="text-[11px] font-semibold pl-4 text-[var(--text-muted)]">{preview.deliveryCity}</p>
+                  <p className="text-xs font-semibold pl-4 text-[var(--text-muted)]">{preview.deliveryCity}</p>
                 </div>
               </div>
 
@@ -681,36 +681,36 @@ function ImportErpPageContent() {
                   { label: t.importPage.metricsTotal, value: money(preview.totalAmount || 0, preview.currency) },
                 ].map((stat, i) => (
                   <div key={i} className="p-3 rounded-[2px] text-center" style={{ border: '1px solid var(--border)', background: 'var(--app-bg)' }}>
-                    <p className="text-[11px] font-semibold text-[var(--text-muted)]">{stat.label}</p>
-                    <p className="text-[14px] font-bold font-mono text-[var(--text-primary)] mt-1">{stat.value}</p>
+                    <p className="text-xs font-semibold text-[var(--text-muted)]">{stat.label}</p>
+                    <p className="text-md font-bold font-mono text-[var(--text-primary)] mt-1">{stat.value}</p>
                   </div>
                 ))}
               </div>
 
               {/* Items list */}
               <div className="flex flex-col gap-2">
-                <p className="text-[11px] font-semibold text-[var(--text-primary)]">{t.importPage.itemsListTitle}</p>
+                <p className="text-xs font-semibold text-[var(--text-primary)]">{t.importPage.itemsListTitle}</p>
                 <div className="rounded-[2px] overflow-hidden" style={{ border: '1px solid var(--border)' }}>
                   <table className="w-full border-collapse">
                     <thead style={{ background: 'var(--app-bg)' }}>
                       <tr>
-                        <th className="text-[11px] font-semibold text-[var(--text-muted)] py-2 px-3 text-left">{t.importPage.itemsColArticle}</th>
-                        <th className="text-[11px] font-semibold text-[var(--text-muted)] py-2 px-3 text-right">{t.importPage.itemsColQty}</th>
-                        <th className="text-[11px] font-semibold text-[var(--text-muted)] py-2 px-3 text-right">{t.importPage.itemsColPrice}</th>
+                        <th className="text-xs font-semibold text-[var(--text-muted)] py-2 px-3 text-left">{t.importPage.itemsColArticle}</th>
+                        <th className="text-xs font-semibold text-[var(--text-muted)] py-2 px-3 text-right">{t.importPage.itemsColQty}</th>
+                        <th className="text-xs font-semibold text-[var(--text-muted)] py-2 px-3 text-right">{t.importPage.itemsColPrice}</th>
                       </tr>
                     </thead>
                     <tbody>
                       {preview.items?.map((item, idx) => (
                         <tr key={idx} className="border-t border-[var(--border)]">
                           <td className="px-3 py-2">
-                            <p className="text-[11px] font-semibold text-[var(--text-primary)]">{item.name}</p>
+                            <p className="text-xs font-semibold text-[var(--text-primary)]">{item.name}</p>
                             <p className="text-[9px] text-[var(--text-muted)] font-mono">{item.unitWeightKg?.toFixed(2)} KG/U</p>
                           </td>
                           <td className="px-3 py-2 text-right">
-                            <p className="text-[11px] font-bold font-mono text-[var(--text-primary)]">{item.quantity}</p>
+                            <p className="text-xs font-bold font-mono text-[var(--text-primary)]">{item.quantity}</p>
                           </td>
                           <td className="px-3 py-2 text-right">
-                            <p className="text-[11px] font-semibold font-mono text-[var(--text-primary)]">{money(item.unitPrice || 0, preview.currency)}</p>
+                            <p className="text-xs font-semibold font-mono text-[var(--text-primary)]">{money(item.unitPrice || 0, preview.currency)}</p>
                           </td>
                         </tr>
                       ))}
@@ -724,13 +724,13 @@ function ImportErpPageContent() {
                 {preview.existingBackorderId && (
                   <div className="p-3 rounded-[2px] flex items-center gap-2 bg-[#FEFCE8]" style={{ border: '1px solid #FEF08A' }}>
                     <IconAlertCircle size={14} className="text-[#A16207]" />
-                    <p className="text-[11px] font-semibold text-[#A16207]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
+                    <p className="text-xs font-semibold text-[#A16207]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
                   </div>
                 )}
                 <button
                   type="button"
                   className={cn(
-                    "w-full h-12 flex items-center justify-center gap-2 font-[500] rounded-[2px] text-[13px] border transition-all",
+                    "w-full h-12 flex items-center justify-center gap-2 font-[500] rounded-[2px] text-base border transition-all",
                     preview.alreadyImported
                       ? "bg-[#4CAF82] hover:opacity-90 text-white border-[#4CAF82]"
                       : "border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] text-[var(--text-primary)] shadow-sm"

@@ -137,8 +137,8 @@ export default function SchedulePage() {
       >
         <div className="px-4 shrink-0 flex items-center" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <TabsList variant="line" className="h-10 bg-transparent">
-            <TabsTrigger value="today" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabToday}</TabsTrigger>
-            <TabsTrigger value="week" className="text-[11px] font-[600] text-[var(--text-muted)]">{t.operationsPage.tabWeek}</TabsTrigger>
+            <TabsTrigger value="today" className="text-xs font-[600] text-[var(--text-muted)]">{t.operationsPage.tabToday}</TabsTrigger>
+            <TabsTrigger value="week" className="text-xs font-[600] text-[var(--text-muted)]">{t.operationsPage.tabWeek}</TabsTrigger>
           </TabsList>
           <div className="ml-auto">
             <RefreshButton refreshing={refreshing} onClick={handleRefresh} />
@@ -217,7 +217,7 @@ export default function SchedulePage() {
                   {todayRoutes.filter(r => r.status === 'VALIDATED').length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
                       <IconRoute size={24} stroke={1.5} className="text-[var(--text-muted)]" />
-                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.operationsPage.noRoutesWaiting}</p>
+                      <p className="text-xs font-[500] text-[var(--text-muted)]">{t.operationsPage.noRoutesWaiting}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col divide-y divide-[var(--border)]">
@@ -229,8 +229,8 @@ export default function SchedulePage() {
                           className="flex items-center justify-between py-2.5 hover:opacity-70 transition-opacity text-left"
                         >
                           <div>
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{route.name}</p>
-                            <p className="text-[11px] text-[var(--text-muted)]">{driverName(route.driverId)}</p>
+                            <p className="text-sm font-bold text-[var(--text-primary)]">{route.name}</p>
+                            <p className="text-xs text-[var(--text-muted)]">{driverName(route.driverId)}</p>
                           </div>
                           <IconChevronRight size={14} className="text-[var(--text-muted)] shrink-0" />
                         </button>
@@ -260,7 +260,7 @@ export default function SchedulePage() {
                   {todayRoutes.filter(r => r.status === 'IN_PROGRESS').length === 0 ? (
                     <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
                       <IconCheck size={24} stroke={1.5} className="text-[var(--text-muted)]" />
-                      <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.operationsPage.allUnderControl}</p>
+                      <p className="text-xs font-[500] text-[var(--text-muted)]">{t.operationsPage.allUnderControl}</p>
                     </div>
                   ) : (
                     <div className="flex flex-col gap-4">
@@ -278,8 +278,8 @@ export default function SchedulePage() {
                           return (
                             <div key={route.id}>
                               <div className="flex items-center justify-between mb-1.5">
-                                <p className="text-[12px] font-bold text-[var(--text-primary)]">{route.name}</p>
-                                <p className="text-[12px] font-bold" style={{ color }}>{pct}%</p>
+                                <p className="text-sm font-bold text-[var(--text-primary)]">{route.name}</p>
+                                <p className="text-sm font-bold" style={{ color }}>{pct}%</p>
                               </div>
                               <div className="h-1 rounded-full bg-[var(--border)]">
                                 <div className="h-1 rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
@@ -326,9 +326,9 @@ export default function SchedulePage() {
                       <div key={row.label} className="flex items-center justify-between gap-4">
                         <div className="flex items-center gap-2">
                           <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: row.color }} />
-                          <p className="text-[11px] font-[500] text-[var(--text-muted)]">{row.label}</p>
+                          <p className="text-xs font-[500] text-[var(--text-muted)]">{row.label}</p>
                         </div>
-                        <p className="text-[13px] font-bold text-[var(--text-primary)]">{row.value}</p>
+                        <p className="text-base font-bold text-[var(--text-primary)]">{row.value}</p>
                       </div>
                     ))}
                   </div>
@@ -350,10 +350,10 @@ export default function SchedulePage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="text-[10px] font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableRoute}</TableHead>
-                    <TableHead className="text-[10px] font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableDriver}</TableHead>
-                    <TableHead className="text-[10px] font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableStatus}</TableHead>
-                    <TableHead className="text-[10px] font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableProgress}</TableHead>
+                    <TableHead className="text-2xs font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableRoute}</TableHead>
+                    <TableHead className="text-2xs font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableDriver}</TableHead>
+                    <TableHead className="text-2xs font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableStatus}</TableHead>
+                    <TableHead className="text-2xs font-[600] text-[var(--text-muted)] px-5">{t.operationsPage.tableProgress}</TableHead>
                     <TableHead className="px-5" />
                   </TableRow>
                 </TableHeader>
@@ -373,7 +373,7 @@ export default function SchedulePage() {
                       <TableCell colSpan={5}>
                         <div className="flex flex-col items-center justify-center py-16 gap-2 opacity-40">
                           <IconInbox size={28} stroke={1.5} className="text-[var(--text-muted)]" />
-                          <p className="text-[11px] font-[500] text-[var(--text-muted)]">{t.operationsPage.noRoutes}</p>
+                          <p className="text-xs font-[500] text-[var(--text-muted)]">{t.operationsPage.noRoutes}</p>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -389,11 +389,11 @@ export default function SchedulePage() {
                           onClick={() => window.open(`/routes/${route.id}`, '_blank')}
                         >
                           <TableCell className="px-5 py-3">
-                            <p className="text-[12px] font-bold text-[var(--text-primary)]">{route.name}</p>
-                            <p className="text-[11px] text-[var(--text-muted)]">{route.city ?? '—'}</p>
+                            <p className="text-sm font-bold text-[var(--text-primary)]">{route.name}</p>
+                            <p className="text-xs text-[var(--text-muted)]">{route.city ?? '—'}</p>
                           </TableCell>
                           <TableCell className="px-5 py-3">
-                            <p className="text-[12px] font-semibold text-[var(--text-primary)]">{driverName(route.driverId)}</p>
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">{driverName(route.driverId)}</p>
                           </TableCell>
                           <TableCell className="px-5 py-3">
                             <StatusBadge status={route.status} size="sm" />
@@ -403,7 +403,7 @@ export default function SchedulePage() {
                               <div className="flex-1 h-1 rounded-full bg-[var(--border)]" style={{ minWidth: 80 }}>
                                 <div className="h-1 rounded-full" style={{ width: `${pct}%`, background: barColor }} />
                               </div>
-                              <span className="text-[11px] font-bold text-[var(--text-primary)] tabular-nums">{done}/{total}</span>
+                              <span className="text-xs font-bold text-[var(--text-primary)] tabular-nums">{done}/{total}</span>
                             </div>
                           </TableCell>
                           <TableCell className="px-5 py-3 text-right">
@@ -435,7 +435,7 @@ export default function SchedulePage() {
               >
                 <IconChevronLeft size={14} />
               </button>
-              <p className="text-[13px] font-bold font-mono text-[var(--text-primary)]">
+              <p className="text-base font-bold font-mono text-[var(--text-primary)]">
                 {weekDays[0].getDate()} {t.operationsPage.monthNames[weekDays[0].getMonth()]} — {weekDays[6].getDate()} {t.operationsPage.monthNames[weekDays[6].getMonth()]}
               </p>
               <button
@@ -446,15 +446,15 @@ export default function SchedulePage() {
                 <IconChevronRight size={14} />
               </button>
               {weekOffset !== 0 && (
-                <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)} className="h-7 text-[10px] font-[600] text-[var(--text-muted)]">
+                <Button variant="ghost" size="sm" onClick={() => setWeekOffset(0)} className="h-7 text-2xs font-[600] text-[var(--text-muted)]">
                   {t.operationsPage.thisWeek}
                 </Button>
               )}
             </div>
             <div className="flex items-center gap-4">
-              <span className="text-[10px] font-[600] text-[var(--text-muted)]">{weekStats.total} {t.operationsPage.routesCount}</span>
+              <span className="text-2xs font-[600] text-[var(--text-muted)]">{weekStats.total} {t.operationsPage.routesCount}</span>
               <span
-                className="text-[10px] font-bold font-mono"
+                className="text-2xs font-bold font-mono"
                 style={{ color: weekStats.rate >= 90 ? '#10B981' : weekStats.rate >= 70 ? '#F59E0B' : '#EF4444' }}
               >
                 {weekStats.rate}% {t.operationsPage.completion}
@@ -476,7 +476,7 @@ export default function SchedulePage() {
                 <div className="flex border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
                   {weekDays.map((_, idx) => (
                     <div key={idx} className={cn('flex-1 py-2.5 text-center', idx < 6 && 'border-r border-[var(--border)]')}>
-                      <p className="text-[10px] font-[600] text-[var(--text-muted)]">{t.operationsPage.dayNames[idx]}</p>
+                      <p className="text-2xs font-[600] text-[var(--text-muted)]">{t.operationsPage.dayNames[idx]}</p>
                     </div>
                   ))}
                 </div>
@@ -496,7 +496,7 @@ export default function SchedulePage() {
                           <Badge variant={isToday ? 'default' : 'secondary'} className="text-[9px] h-4 px-1">
                             {dayRoutes.length}
                           </Badge>
-                          <p className="text-[14px] font-bold" style={{ color: isToday ? 'var(--brand)' : 'var(--text-primary)' }}>
+                          <p className="text-md font-bold" style={{ color: isToday ? 'var(--brand)' : 'var(--text-primary)' }}>
                             {day.getDate()}
                           </p>
                         </div>
@@ -512,7 +512,7 @@ export default function SchedulePage() {
                                 className="w-full text-left p-1.5 rounded border hover:shadow-sm transition-all"
                                 style={{ borderColor: 'var(--border)', borderLeft: `3px solid ${dot}`, background: isToday ? 'var(--surface)' : 'var(--app-bg)' }}
                               >
-                                <p className="text-[10px] font-bold text-[var(--text-primary)] truncate">{driverName(route.driverId)}</p>
+                                <p className="text-2xs font-bold text-[var(--text-primary)] truncate">{driverName(route.driverId)}</p>
                                 <p className="text-[9px] text-[var(--text-muted)] truncate mb-1">{route.name}</p>
                                 <div className="h-[3px] rounded-full bg-[var(--border)]">
                                   <div className="h-[3px] rounded-full" style={{ width: `${total > 0 ? Math.round((done / total) * 100) : 0}%`, background: route.status === 'CLOSED' ? '#10B981' : '#F97316' }} />
@@ -538,7 +538,7 @@ export default function SchedulePage() {
             ].map(s => (
               <div key={s.label} className="flex items-center gap-1.5">
                 <div className="w-2 h-2 rounded-full" style={{ background: s.c }} />
-                <p className="text-[10px] font-[600] text-[var(--text-muted)]">{s.label}</p>
+                <p className="text-2xs font-[600] text-[var(--text-muted)]">{s.label}</p>
               </div>
             ))}
           </div>

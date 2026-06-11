@@ -32,7 +32,7 @@ function MetaLine({ d, t }: { d: Delivery; t: any }) {
     : null;
 
   return (
-    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-[10px]" style={{ color: 'var(--text-muted)' }}>
+    <div className="flex items-center flex-wrap gap-x-3 gap-y-1 text-2xs" style={{ color: 'var(--text-muted)' }}>
       {scheduled ? (
         <span className="inline-flex items-center gap-1 font-bold text-[var(--text-soft)]" title={d.scheduledAt}>
           <IconCalendar size={11} stroke={2.5} /> {t.dispatchDeskPage.filterStatusScheduled}: {scheduled}
@@ -72,7 +72,7 @@ export function DeliveryCards() {
     return (
       <div className="flex-1 flex flex-col items-center justify-center" style={{ background: 'var(--app-bg)' }}>
         <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-        <p className="text-[12px] font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noOrdersFound}</p>
+        <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.noOrdersFound}</p>
       </div>
     );
   }
@@ -94,14 +94,14 @@ export function DeliveryCards() {
       {groups.map((group, gi) => (
         <section key={`${group.routeName ?? 'none'}-${gi}`} className="mb-4 last:mb-0">
           <div className="flex items-center gap-2 px-1 mb-2">
-            <span className="text-[11px] font-[600] uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
+            <span className="text-xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.unassignedLabel}
             </span>
-            <span className="text-[10px] font-[500] px-1.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.7 }}>
+            <span className="text-2xs font-[500] px-1.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.7 }}>
               {group.rows.length}
             </span>
             {group.routeId && (
-              <Link to={`/routes/${group.routeId}`} className="text-[10px] font-[500] hover:underline ml-auto" style={{ color: 'var(--brand)' }}>
+              <Link to={`/routes/${group.routeId}`} className="text-2xs font-[500] hover:underline ml-auto" style={{ color: 'var(--brand)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>
             )}
@@ -169,7 +169,7 @@ export function DeliveryCards() {
                         >
                           {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
                         </Link>
-                        <p className="text-[14px] font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>{d.clientName ?? '—'}</p>
+                        <p className="text-md font-bold truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>{d.clientName ?? '—'}</p>
                         {(d.dropoffAddress || d.dropoffCity || d.zoneName) && (
                           <div className="flex items-center gap-1 min-w-0 mt-0.5" style={{ color: 'var(--text-muted)' }}>
                             <IconMapPin size={10} stroke={2.5} className="shrink-0" />
@@ -323,7 +323,7 @@ export function DeliveryCards() {
                           </Tooltip>
                         )}
                         {isGpsTab && (
-                          <Link to={`/deliveries/${id}`} className="text-[10px] font-[600] underline" style={{ color: '#6366F1' }}>
+                          <Link to={`/deliveries/${id}`} className="text-2xs font-[600] underline" style={{ color: '#6366F1' }}>
                             {t.dispatchDeskPage.fixGps}
                           </Link>
                         )}

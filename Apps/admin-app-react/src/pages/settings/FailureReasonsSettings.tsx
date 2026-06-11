@@ -138,8 +138,8 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
     <div className="flex flex-col gap-4 animate-fade-in">
       <div className="flex items-center justify-between">
         <div className="flex flex-col gap-0.5">
-          <h2 className="text-[14px] font-bold text-[var(--text-primary)]">{t.failureReasonsSettings.title}</h2>
-          <p className="text-[11px] text-[var(--text-muted)]">
+          <h2 className="text-md font-bold text-[var(--text-primary)]">{t.failureReasonsSettings.title}</h2>
+          <p className="text-xs text-[var(--text-muted)]">
             {t.failureReasonsSettings.subtitle}
           </p>
         </div>
@@ -162,9 +162,9 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
       </div>
 
       <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <table className="w-full text-[12px] border-collapse">
+        <table className="w-full text-sm border-collapse">
           <thead>
-            <tr className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
+            <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
               {orderedColumns.map(col => {
                 if (!visibleIds.has(col.id)) return null;
                 return (
@@ -187,11 +187,11 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
                     <td key="label" className="px-4 font-semibold text-[var(--text-primary)] align-middle">{r.label}</td>
                   );
                   if (col.id === 'code') return (
-                    <td key="code" className="px-4 font-mono text-[11px] text-[var(--text-muted)] align-middle">{r.code}</td>
+                    <td key="code" className="px-4 font-mono text-xs text-[var(--text-muted)] align-middle">{r.code}</td>
                   );
                   if (col.id === 'category') return (
                     <td key="category" className="px-4 align-middle">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
+                      <span className="text-2xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
                         {CATEGORY_LABELS[r.category] ?? r.category}
                       </span>
                     </td>
@@ -199,7 +199,7 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
                   if (col.id === 'status') return (
                     <td key="status" className="px-4 align-middle">
                       <span className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1",
+                        "text-2xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1",
                         r.active ? 'text-[#2D8A5E]' : 'text-[var(--text-muted)]'
                       )}
                             style={{ background: r.active ? 'rgba(76,175,130,0.10)' : 'var(--hover-bg)' }}>
@@ -239,40 +239,40 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
       <AppModal opened={modalOpen} onClose={() => setModalOpen(false)} title={form.id ? t.failureReasonsSettings.editTitle : t.failureReasonsSettings.createTitle} size="sm">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formLabel}</label>
+            <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formLabel}</label>
             <input value={form.label} onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-                   className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[13px] text-[var(--text-primary)]"
+                   className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]"
                    placeholder={t.failureReasonsSettings.formLabelPlaceholder} />
           </div>
           <div className="flex flex-col gap-1.5">
-            <label className="text-[11px] font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCategory}</label>
+            <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCategory}</label>
             <select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value as Category }))}
-                    className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[13px] text-[var(--text-primary)]">
+                    className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]">
               {CATEGORIES.map(c => <option key={c} value={c}>{CATEGORY_LABELS[c]}</option>)}
             </select>
           </div>
           {!form.id && (
             <div className="flex flex-col gap-1.5">
-              <label className="text-[11px] font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCode}</label>
+              <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formCode}</label>
               <input value={form.code} onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
-                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[13px] font-mono text-[var(--text-primary)]"
+                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base font-mono text-[var(--text-primary)]"
                      placeholder={t.failureReasonsSettings.formCodePlaceholder} />
             </div>
           )}
           <div className="flex items-center gap-4">
             <div className="flex flex-col gap-1.5 flex-1">
-              <label className="text-[11px] font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formOrder}</label>
+              <label className="text-xs font-bold text-[var(--text-secondary)]">{t.failureReasonsSettings.formOrder}</label>
               <input type="number" value={form.sortOrder} onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
-                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[13px] text-[var(--text-primary)]" />
+                     className="h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--surface)] text-base text-[var(--text-primary)]" />
             </div>
             <label className="flex items-center gap-2 mt-5 cursor-pointer">
               <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
                      className="w-4 h-4 accent-[var(--brand)]" />
-              <span className="text-[12px] font-semibold text-[var(--text-secondary)]">{t.failureReasonsSettings.formActive}</span>
+              <span className="text-sm font-semibold text-[var(--text-secondary)]">{t.failureReasonsSettings.formActive}</span>
             </label>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setModalOpen(false)} className="h-8 px-3 text-[11px]">{t.failureReasonsSettings.cancelButton}</Button>
+            <Button variant="outline" size="sm" onClick={() => setModalOpen(false)} className="h-8 px-3 text-xs">{t.failureReasonsSettings.cancelButton}</Button>
             <Button size="sm" onClick={submit} disabled={submitting} className="px-4">
               {submitting ? t.failureReasonsSettings.savingButton : t.failureReasonsSettings.saveButton}
             </Button>

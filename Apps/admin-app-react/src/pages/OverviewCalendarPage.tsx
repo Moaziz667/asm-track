@@ -179,7 +179,7 @@ export default function OverviewCalendarPage() {
         <div className="px-6 py-3 flex items-center justify-between max-w-[1800px] mx-auto">
           <div className="flex items-center gap-3">
             <IconCalendar size={18} className="text-[var(--brand)]" />
-            <h1 className="text-[15px] font-bold text-[var(--text-primary)] capitalize">
+            <h1 className="text-lg font-bold text-[var(--text-primary)] capitalize">
               {format(cursor, 'MMMM yyyy', { locale: fr })}
             </h1>
           </div>
@@ -193,7 +193,7 @@ export default function OverviewCalendarPage() {
         extraActions={
           <div className="ml-auto flex items-center gap-2">
             <button onClick={() => setCursor(c => addMonths(c, -1))} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronLeft size={16} /></button>
-            <button onClick={() => { setCursor(new Date()); setSelected(isoDay(new Date())); }} className="h-8 px-3 rounded-md border border-[var(--border)] text-[12px] font-bold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors">Aujourd'hui</button>
+            <button onClick={() => { setCursor(new Date()); setSelected(isoDay(new Date())); }} className="h-8 px-3 rounded-md border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors">Aujourd'hui</button>
             <button onClick={() => setCursor(c => addMonths(c, 1))} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronRight size={16} /></button>
           </div>
         }
@@ -204,7 +204,7 @@ export default function OverviewCalendarPage() {
         <div className="flex-1 flex flex-col p-4 min-w-0">
           <div className="grid grid-cols-7 gap-px mb-1">
             {weekdayLabels.map(w => (
-              <div key={w} className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] text-center py-1">{w}</div>
+              <div key={w} className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-center py-1">{w}</div>
             ))}
           </div>
           <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr">
@@ -229,7 +229,7 @@ export default function OverviewCalendarPage() {
                   style={{ background: isSelected ? undefined : 'var(--surface)' }}
                 >
                   <div className="flex items-center justify-between w-full">
-                    <span className={cn('text-[12px] font-bold', isToday ? 'text-[var(--brand)]' : 'text-[var(--text-primary)]')}>
+                    <span className={cn('text-sm font-bold', isToday ? 'text-[var(--brand)]' : 'text-[var(--text-primary)]')}>
                       {format(day, 'd')}
                     </span>
                     {rts.length > 0 && (
@@ -248,7 +248,7 @@ export default function OverviewCalendarPage() {
                           </span>
                         ))}
                       </div>
-                      <span className="mt-auto text-[10px] font-semibold text-[var(--text-muted)]">{dels.length} livr.</span>
+                      <span className="mt-auto text-2xs font-semibold text-[var(--text-muted)]">{dels.length} livr.</span>
                     </>
                   )}
                 </button>
@@ -260,10 +260,10 @@ export default function OverviewCalendarPage() {
         {/* Day detail panel */}
         <div className="w-[340px] border-l border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
-            <p className="text-[13px] font-bold text-[var(--text-primary)] capitalize">
+            <p className="text-base font-bold text-[var(--text-primary)] capitalize">
               {format(parseISO(selected), 'EEEE d MMMM', { locale: fr })}
             </p>
-            <p className="text-[11px] text-[var(--text-muted)]">{selectedDeliveries.length} livraison(s) · {selectedRoutes.length} tournée(s)</p>
+            <p className="text-xs text-[var(--text-muted)]">{selectedDeliveries.length} livraison(s) · {selectedRoutes.length} tournée(s)</p>
           </div>
 
           {/* KPI Dashboard Grid */}
@@ -303,18 +303,18 @@ export default function OverviewCalendarPage() {
           <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
             {selectedRoutes.length > 0 && (
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Tournées planifiées</p>
+                <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Tournées planifiées</p>
                 <div className="flex flex-col gap-1.5">
                   {selectedRoutes.map(r => (
                     <button key={r.id} onClick={() => navigate(`/routes/${r.id}`)}
                             className="flex items-center justify-between p-2.5 rounded-lg border border-[var(--border)] hover:bg-[var(--hover-bg)] text-left w-full transition-colors">
                       <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1.5 justify-between mb-1">
-                          <p className="text-[12px] font-bold text-[var(--text-primary)] truncate">{r.name}</p>
+                          <p className="text-sm font-bold text-[var(--text-primary)] truncate">{r.name}</p>
                           <StatusBadge status={r.status} size="sm" />
                         </div>
-                        <p className="text-[11px] text-[var(--text-muted)] truncate">{r.driverName ?? 'Non assigné'}</p>
-                        <div className="flex items-center gap-2 mt-1.5 text-[10px] text-[var(--text-muted)] font-medium">
+                        <p className="text-xs text-[var(--text-muted)] truncate">{r.driverName ?? 'Non assigné'}</p>
+                        <div className="flex items-center gap-2 mt-1.5 text-2xs text-[var(--text-muted)] font-medium">
                           <span>{r.stops?.length ?? 0} arrêts</span>
                           {r.totalDistanceMeters !== undefined && r.totalDistanceMeters > 0 && (
                             <>
@@ -336,10 +336,10 @@ export default function OverviewCalendarPage() {
               </div>
             )}
             <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Livraisons</p>
+              <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">Livraisons</p>
               {selectedDeliveries.length === 0 ? (
                 <div className="flex flex-col items-center py-8 gap-2 opacity-40">
-                  <IconPackage size={22} /><span className="text-[11px] font-semibold">Aucune livraison</span>
+                  <IconPackage size={22} /><span className="text-xs font-semibold">Aucune livraison</span>
                 </div>
               ) : (
                 <div className="flex flex-col gap-1.5">
@@ -348,22 +348,22 @@ export default function OverviewCalendarPage() {
                             className="flex flex-col p-2.5 rounded-lg border border-[var(--border)] hover:bg-[var(--hover-bg)] text-left w-full gap-1 transition-colors">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <p className="text-[12px] font-bold text-[var(--text-primary)] truncate">{d.clientName ?? d.orderRef ?? d.deliveryId.slice(0, 8)}</p>
+                          <p className="text-sm font-bold text-[var(--text-primary)] truncate">{d.clientName ?? d.orderRef ?? d.deliveryId.slice(0, 8)}</p>
                           {d.orderRef && (
-                            <p className="text-[10px] font-mono text-[var(--text-muted)]">{d.orderRef}</p>
+                            <p className="text-2xs font-mono text-[var(--text-muted)]">{d.orderRef}</p>
                           )}
                         </div>
                         <StatusBadge status={d.status} size="sm" />
                       </div>
-                      <p className="text-[11px] text-[var(--text-secondary)] truncate">
+                      <p className="text-xs text-[var(--text-secondary)] truncate">
                         {d.dropoffCity ?? '—'}{d.driverName ? ` · ${d.driverName}` : ''}
                       </p>
                       {d.itemsSummary && (
-                        <p className="text-[10px] text-[var(--text-muted)] italic truncate" title={d.itemsSummary}>
+                        <p className="text-2xs text-[var(--text-muted)] italic truncate" title={d.itemsSummary}>
                           {d.itemsSummary}
                         </p>
                       )}
-                      <div className="flex items-center justify-between mt-1 pt-1 border-t border-[var(--border)] border-dashed text-[10px] text-[var(--text-muted)] font-semibold">
+                      <div className="flex items-center justify-between mt-1 pt-1 border-t border-[var(--border)] border-dashed text-2xs text-[var(--text-muted)] font-semibold">
                         <span>{d.totalWeightKg ? `${d.totalWeightKg.toFixed(1)} kg` : '— kg'}</span>
                         <span>{d.totalAmount ? formatMoney(d.totalAmount, d.currency ?? 'TND') : '—'}</span>
                       </div>

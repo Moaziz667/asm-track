@@ -17,16 +17,16 @@ export function RouteGroupHeader({ routeId, routeName, count }: Props) {
           <IconRoute size={11} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
           {routeId ? (
             <Link to={`/routes/${routeId}`} style={{ textDecoration: 'none' }}>
-              <span className="text-[11px] font-[500]" style={{ color: 'var(--text-primary)' }}>
+              <span className="text-xs font-[500]" style={{ color: 'var(--text-primary)' }}>
                 {routeName}
               </span>
             </Link>
           ) : (
-            <span className="text-[11px] font-[500]" style={{ color: 'var(--text-muted)' }}>
+            <span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>
               {routeName}
             </span>
           )}
-          <span className="text-[10px]" style={{ color: 'var(--text-muted)' }}>· {count}</span>
+          <span className="text-2xs" style={{ color: 'var(--text-muted)' }}>· {count}</span>
         </div>
       </td>
     </tr>

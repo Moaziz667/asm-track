@@ -88,11 +88,11 @@ function Breadcrumb({ t }: { t: any }) {
                 <span className="text-[var(--text-muted)] flex items-center mr-1.5">{sectionEntry.icon}</span>
               )}
               {item.href && !isLast ? (
-                <Link to={item.href} className="text-[12px] font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
+                <Link to={item.href} className="text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
                   {currentLabel}
                 </Link>
               ) : (
-                <span className={`text-[12px] whitespace-nowrap truncate ${isLast ? 'font-bold text-[var(--text-primary)] font-semibold' : 'font-medium text-[var(--text-muted)]'}`}>
+                <span className={`text-sm whitespace-nowrap truncate ${isLast ? 'font-bold text-[var(--text-primary)] font-semibold' : 'font-medium text-[var(--text-muted)]'}`}>
                   {currentLabel}
                 </span>
               )}
@@ -110,13 +110,13 @@ function Breadcrumb({ t }: { t: any }) {
 
   if (!section) {
     const defaultLabel = segments[0] ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1) : t.breadcrumbs.home;
-    return <span className="text-[12px] font-bold text-[var(--text-primary)] font-semibold">{getPageLabel(segments[0] || '', defaultLabel)}</span>;
+    return <span className="text-sm font-bold text-[var(--text-primary)] font-semibold">{getPageLabel(segments[0] || '', defaultLabel)}</span>;
   }
 
   return (
     <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
       <span className="text-[var(--text-muted)] flex items-center">{section.icon}</span>
-      <span className="text-[12px] font-bold text-[var(--text-primary)] whitespace-nowrap font-semibold">{getPageLabel(segments[0], section.label)}</span>
+      <span className="text-sm font-bold text-[var(--text-primary)] whitespace-nowrap font-semibold">{getPageLabel(segments[0], section.label)}</span>
     </div>
   );
 }
@@ -230,7 +230,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
                   className="object-contain"
                 />
               </div>
-              <span className="hidden md:block text-[12px] font-bold text-[var(--text-secondary)] max-w-[120px] truncate">
+              <span className="hidden md:block text-sm font-bold text-[var(--text-secondary)] max-w-[120px] truncate">
                 {displayName}
               </span>
               <IconChevronDown size={10} className="text-[var(--text-soft)]" />
@@ -240,7 +240,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
           <DropdownMenuContent align="end" className="w-56">
             <div className="px-3 py-2.5">
               <p className="text-sm font-bold text-[var(--text-primary)]">{displayName}</p>
-              <span className="inline-block mt-1 text-[10px] font-bold px-1.5 py-0.5 rounded bg-[var(--text-primary)] text-[var(--surface)]">
+              <span className="inline-block mt-1 text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--text-primary)] text-[var(--surface)]">
                 {role}
               </span>
             </div>
