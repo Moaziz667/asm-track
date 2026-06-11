@@ -55,6 +55,11 @@ public class DriverDeliveryService {
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
 
+    /** Lazy to avoid any construction-time cycle; used to create a refused-defect replacement shipment. */
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.asm.delivery.service.dispatch.ExceptionResolutionService exceptionResolutionService;
+
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
@@ -640,7 +645,12 @@ public class DriverDeliveryService {
             "comment", failureComment != null ? failureComment : ""
         ));
 
-
+        // Disposition-code re-delivery: if this failed visit was a refusal for a DEFECT (damaged /
+        // wrong item / postponed), the customer still wants the product — create a replacement shipment
+        // to re-deliver a good unit. No-op for a plain failure (client absent, outright refusal).
+        if (delivery.getOrder() != null) {
+            exceptionResolutionService.createReplacementShipment(delivery.getOrder().getId(), deliveryId);
+        }
 
         return toDriverDeliveryResponse(delivery);
     }
