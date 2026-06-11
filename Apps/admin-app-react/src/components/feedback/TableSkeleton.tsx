@@ -1,6 +1,5 @@
 
 import { Skeleton } from '@/components/ui/skeleton';
-import { spacing } from '@/lib/design-tokens';
 
 interface TableSkeletonProps {
   rows?: number;
@@ -21,7 +20,7 @@ export function TableSkeleton({ rows = 8, columns = 5, colWidths }: TableSkeleto
         <div
           key={rowIdx}
           style={{
-            height: spacing.rowHeight,
+            height: 48,
             display: 'flex',
             alignItems: 'center',
             padding: '0 12px',
