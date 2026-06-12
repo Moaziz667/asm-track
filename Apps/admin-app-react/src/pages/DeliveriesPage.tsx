@@ -15,6 +15,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { AppLoader } from '@/components/AppLoader';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -513,6 +514,24 @@ function DeliveriesPageContent() {
           quickFilters={quickFilterList}
           activeQuickFilter={quickView}
           onQuickFilterChange={v => { setQuickView(v as QuickView); setPage(0); }}
+          extraActions={
+            <ExportCsvButton
+              baseName="livraisons"
+              rows={filteredRows}
+              columns={[
+                { header: 'Référence', accessor: r => resolveOrderRef(r) },
+                { header: 'Client', accessor: r => r.clientName },
+                { header: 'Adresse', accessor: r => r.dropoffAddress },
+                { header: 'Zone', accessor: r => r.zoneName },
+                { header: 'Chauffeur', accessor: r => r.driverName },
+                { header: 'Statut', accessor: r => r.status },
+                { header: 'SLA', accessor: r => (r as any).slaHealth },
+                { header: 'Planifié', accessor: r => (r as any).scheduledAt },
+                { header: 'Montant', accessor: r => (r as any).totalAmount },
+                { header: 'Créé le', accessor: r => r.createdAt },
+              ]}
+            />
+          }
         />
 
         <div className="flex flex-1 min-h-0 overflow-hidden">

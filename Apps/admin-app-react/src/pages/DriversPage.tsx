@@ -112,6 +112,7 @@ const SVGLogout = ({ size = 13, className = "" }: { size?: number; className?: s
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { AddButton } from '@/components/ui/AddButton';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
@@ -487,15 +488,29 @@ function DriversPageContent() {
         }}
         onRefresh={fetchDrivers}
         refreshing={loading}
-        extraActions={!readOnly ? (
+        extraActions={
           <div className="flex items-center gap-1.5">
-            <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => importCsv(e.target.files?.[0] ?? null)} />
-            <AddButton label={t.driversPage.newDriverButton} onClick={openCreate} />
-            <button type="button" className="h-7 px-2.5 flex items-center gap-1.5 text-xs font-[500] rounded-md border transition-colors hover:bg-[var(--hover-bg)] shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }} onClick={() => csvInputRef.current?.click()}>
-              <SVGUpload size={13} /> {t.driversPage.importCsvButton}
-            </button>
+            <ExportCsvButton
+              baseName="chauffeurs"
+              rows={filtered}
+              columns={[
+                { header: 'Nom', accessor: d => d.name },
+                { header: 'Téléphone', accessor: d => d.phone },
+                { header: 'Statut du compte', accessor: d => d.accountStatus },
+                { header: 'En ligne', accessor: d => d.onlineStatus },
+              ]}
+            />
+            {!readOnly && (
+              <>
+                <input ref={csvInputRef} type="file" accept=".csv" className="hidden" onChange={(e) => importCsv(e.target.files?.[0] ?? null)} />
+                <AddButton label={t.driversPage.newDriverButton} onClick={openCreate} />
+                <button type="button" className="h-7 px-2.5 flex items-center gap-1.5 text-xs font-[500] rounded-md border transition-colors hover:bg-[var(--hover-bg)] shrink-0" style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }} onClick={() => csvInputRef.current?.click()}>
+                  <SVGUpload size={13} /> {t.driversPage.importCsvButton}
+                </button>
+              </>
+            )}
           </div>
-        ) : undefined}
+        }
       />
 
       <div className="flex flex-1 min-h-0 overflow-hidden">

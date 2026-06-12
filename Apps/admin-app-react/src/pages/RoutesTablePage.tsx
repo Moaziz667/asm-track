@@ -20,6 +20,7 @@ import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { AddButton } from '@/components/ui/AddButton';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import StatusBadge from '@/components/StatusBadge';
@@ -507,7 +508,21 @@ function RoutesTablePageContent() {
           onRefresh={fetchData}
           refreshing={loading}
           extraActions={
-            <AddButton label={t.routesTablePage.newRouteButton} onClick={() => router('/route-builder')} />
+            <div className="flex items-center gap-1.5">
+              <ExportCsvButton
+                baseName="tournees"
+                rows={filteredRoutes}
+                columns={[
+                  { header: 'Tournée', accessor: r => r.name },
+                  { header: 'Chauffeur', accessor: r => drivers.find(d => d.id === r.driverId)?.name ?? '' },
+                  { header: 'Arrêts', accessor: r => r.stops?.length ?? 0 },
+                  { header: 'Statut', accessor: r => r.status },
+                  { header: 'Zone', accessor: r => (r as any).zoneLabel },
+                  { header: 'Date', accessor: r => r.date },
+                ]}
+              />
+              <AddButton label={t.routesTablePage.newRouteButton} onClick={() => router('/route-builder')} />
+            </div>
           }
         />
 
