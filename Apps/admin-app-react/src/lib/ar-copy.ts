@@ -811,6 +811,7 @@ export const AR_COPY = {
     queueNoAlerts: 'لا توجد تنبيهات نشطة — التوصيل يسير بشكل طبيعي',
     queueItemsLabel: 'العناصر',
     activityLabel: 'النشاط',
+    wasLateBy: 'تأخّر +{n} دقيقة',
     // شريط الإجراءات الجماعية
     batchCount: '{count} مختارة',
     batchMixedWarning: 'اختيار مختلط — اختر نوعًا واحدًا',
@@ -854,6 +855,7 @@ export const AR_COPY = {
     // Table content
     noActionRequired: 'لا يتطلب أي إجراء',
     sortBy: 'ترتيب حسب',
+    sortSla: 'مخاطر SLA',
     sortRoute: 'الجولة',
     sortSeverity: 'الأهمية',
     sortStatus: 'الحالة',

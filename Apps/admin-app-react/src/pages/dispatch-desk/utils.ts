@@ -3,16 +3,32 @@ export function rowId(d: { id?: string; deliveryId?: string }): string {
 }
 
 // ── Queue sorting ────────────────────────────────────────────────────────────
-export type QueueSortMode = 'route' | 'severity' | 'status' | 'date';
+export type QueueSortMode = 'sla' | 'route' | 'severity' | 'status' | 'date';
 
 type SortableRow = {
   routeId?: string;
   routeName?: string;
-  alert?: { severity?: string };
-  delivery: { status?: string; createdAt?: string | null };
+  alert?: { severity?: string; slaHealth?: string };
+  delivery: { status?: string; createdAt?: string | null; slaHealth?: string; slaWorstHealth?: string };
 };
 
 const sevRank = (s?: string) => (s === 'CRITICAL' ? 0 : s === 'WARNING' ? 1 : s ? 2 : 3);
+
+// SLA risk ranking — the dispatcher's first question is "what's about to breach?", so breached/
+// overdue sorts to the very top, then at-risk, then everything healthy. Falls back to the worst
+// PAST phase health (so a failed-but-was-late delivery still ranks as urgent), then the alert.
+const slaRank = (row: SortableRow): number => {
+  const h = row.delivery.slaHealth ?? row.alert?.slaHealth;
+  const worst = row.delivery.slaWorstHealth;
+  const pick = (h && h !== 'NONE') ? h : worst;
+  switch (pick) {
+    case 'BREACHED': case 'LATE': return 0;
+    case 'AT_RISK':               return 1;
+    case 'ON_TRACK':              return 2;
+    case 'MET':                   return 3;
+    default:                      return 4; // NONE / unknown
+  }
+};
 const STATUS_ORDER = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'PARTIALLY_DELIVERED', 'FAILED', 'DELIVERED', 'CANCELLED'];
 const statusRank = (s?: string) => { const i = STATUS_ORDER.indexOf(s ?? ''); return i < 0 ? 99 : i; };
 
@@ -20,6 +36,11 @@ const statusRank = (s?: string) => { const i = STATUS_ORDER.indexOf(s ?? ''); re
 export function sortQueue<T extends SortableRow>(items: T[], mode: QueueSortMode): T[] {
   const arr = [...items];
   switch (mode) {
+    case 'sla':
+      // SLA risk first (breached → at-risk → healthy), then severity, then route grouping.
+      return arr.sort((a, b) => slaRank(a) - slaRank(b)
+        || sevRank(a.alert?.severity) - sevRank(b.alert?.severity)
+        || (a.routeName ?? '').localeCompare(b.routeName ?? ''));
     case 'severity':
       return arr.sort((a, b) => sevRank(a.alert?.severity) - sevRank(b.alert?.severity)
         || (a.routeName ?? '').localeCompare(b.routeName ?? ''));

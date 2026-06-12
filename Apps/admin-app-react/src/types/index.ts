@@ -73,6 +73,10 @@ export interface Delivery {
   /** Unified SLA (source of truth) — set by the backend SlaState. */
   slaPhase?: 'PLANNING' | 'ASSIGNMENT' | 'DEPARTURE' | 'DELIVERY' | 'HANDOFF' | 'DELIVERED' | 'PARTIAL' | 'FAILED' | 'CANCELLED';
   slaHealth?: 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'MET' | 'LATE' | 'NONE';
+  /** Worst health any phase ever reached (persisted) — reveals lateness even after a delivery
+   *  failed (whose live slaHealth is NONE). Plus how late it ran, in minutes. */
+  slaWorstHealth?: 'ON_TRACK' | 'AT_RISK' | 'BREACHED' | 'MET' | 'LATE' | 'NONE';
+  slaLateMinutes?: number;
   routeEtaAt?: string;
   routeProvider?: string;
   odooSyncStatus?: string;

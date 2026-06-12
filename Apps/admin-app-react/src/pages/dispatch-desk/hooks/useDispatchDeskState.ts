@@ -151,7 +151,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [zoneFilter, setZoneFilter]   = useState(globalFilters.zone || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
-  const [queueSort, setQueueSort] = useState<QueueSortMode>('route');
+  const [queueSort, setQueueSort] = useState<QueueSortMode>('sla');
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [dispatchTab, setDispatchTab]   = useState<DispatchTab>('queue');

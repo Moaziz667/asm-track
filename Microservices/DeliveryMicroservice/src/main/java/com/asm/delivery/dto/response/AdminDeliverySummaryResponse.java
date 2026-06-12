@@ -123,6 +123,14 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Unified SLA health: ON_TRACK/AT_RISK/BREACHED/MET/LATE/NONE")
     private String slaHealth;
 
+    @Schema(description = "Worst SLA health any lifecycle phase ever reached (from persisted phaseHealth). "
+            + "For a FAILED/CANCELLED delivery whose live health is NONE, this still reveals it was BREACHED/LATE "
+            + "before it failed — so historical lateness isn't lost.")
+    private String slaWorstHealth;
+
+    @Schema(description = "How late the delivery was, in minutes (persisted), if any phase ran over its deadline.")
+    private Integer slaLateMinutes;
+
     @Schema(description = "Estimated time of arrival for route leg")
     private LocalDateTime routeEtaAt;
 

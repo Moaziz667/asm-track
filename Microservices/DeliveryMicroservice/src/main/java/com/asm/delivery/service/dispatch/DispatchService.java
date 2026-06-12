@@ -587,6 +587,28 @@ public class DispatchService {
                 ));
     }
 
+    /**
+     * Worst health any lifecycle phase ever reached, read from the persisted {@code phaseHealth} map.
+     * Lets a terminal delivery (whose live health is NONE for FAILED/CANCELLED, or MET/LATE for done)
+     * still report that an earlier phase was BREACHED/AT_RISK — i.e. "it was late before it failed".
+     * Returns null when no phase history was recorded or nothing exceeded ON_TRACK.
+     */
+    private String worstPhaseHealth(com.asm.delivery.sla.SlaState s) {
+        if (s == null || s.getPhaseHealth() == null || s.getPhaseHealth().isEmpty()) return null;
+        // Severity rank: BREACHED/LATE worst, then AT_RISK, then the rest (ignored).
+        String worst = null;
+        int worstRank = 0;
+        for (String h : s.getPhaseHealth().values()) {
+            int rank = switch (h == null ? "" : h) {
+                case "BREACHED", "LATE" -> 3;
+                case "AT_RISK"          -> 2;
+                default                 -> 0;
+            };
+            if (rank > worstRank) { worstRank = rank; worst = h; }
+        }
+        return worst; // null if every phase was ON_TRACK/MET/NONE
+    }
+
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
@@ -597,6 +619,8 @@ public class DispatchService {
         return AdminDeliverySummaryResponse.builder()
                 .slaPhase(slaState != null && slaState.getPhase() != null ? slaState.getPhase().name() : null)
                 .slaHealth(slaState != null && slaState.getHealth() != null ? slaState.getHealth().name() : null)
+                .slaWorstHealth(worstPhaseHealth(slaState))
+                .slaLateMinutes(slaState != null ? slaState.getLateMinutes() : null)
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
                 .orderRef(order != null ? order.resolveRef() : null)

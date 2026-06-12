@@ -751,6 +751,7 @@ export const EN_COPY = {
     queueNoAlerts: 'No active alerts — delivery is proceeding normally',
     queueItemsLabel: 'Items',
     activityLabel: 'Activity',
+    wasLateBy: 'was late +{n}min',
     // Batch action bar
     batchCount: '{count} selected',
     batchMixedWarning: 'Mixed selection — choose one type',
@@ -795,6 +796,7 @@ export const EN_COPY = {
     // Table content
     noActionRequired: 'No action required',
     sortBy: 'Sort by',
+    sortSla: 'SLA risk',
     sortRoute: 'Route',
     sortSeverity: 'Severity',
     sortStatus: 'Status',

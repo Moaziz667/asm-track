@@ -835,6 +835,7 @@ export const FR_COPY = {
     queueNoAlerts: 'Aucune alerte active — la livraison suit son cours normal',
     queueItemsLabel: 'Articles',
     activityLabel: 'Activité',
+    wasLateBy: 'était en retard +{n}min',
     // Batch action bar
     batchCount: '{count} sélectionnée{plural}',
     batchMixedWarning: 'Sélection mixte — choisissez un seul type',
@@ -878,6 +879,7 @@ export const FR_COPY = {
     // Table content
     noActionRequired: 'Aucune action requise',
     sortBy: 'Trier par',
+    sortSla: 'Risque SLA',
     sortRoute: 'Tournée',
     sortSeverity: 'Sévérité',
     sortStatus: 'Statut',

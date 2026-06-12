@@ -152,8 +152,9 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
         attributionCopy={c.driverAttributed}
       />
 
-      {/* Phase stepper */}
-      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, overflowX: 'auto', paddingBottom: 4 }}>
+      {/* Phase stepper — fills the available width without horizontal scroll. Each node flexes
+          to share the row evenly so 4–5 phases fit a narrow rail; connectors stay between them. */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, paddingBottom: 4, width: '100%' }}>
         {FLOW.map((p, i) => {
           const state = cur.phase === p ? 'current' : i < reachedIndex ? 'done' : 'pending';
           // A passed ('done') phase keeps the worst health it actually reached, so a late
@@ -238,11 +239,12 @@ function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDon
   pulse: boolean; connector: boolean; connectorDone: boolean;
 }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'flex-start', minWidth: 96 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, width: 96 }}>
+    // flex:1 so nodes share the row width evenly (no fixed 96px → no overflow/scroll).
+    <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
         <div style={{
           width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: tone.bg, border: `1.5px solid ${tone.dot}`,
+          background: tone.bg, border: `1.5px solid ${tone.dot}`, flexShrink: 0,
           animation: pulse ? 'asm-pulse 2s infinite' : undefined,
         }}>
           <Icon size={16} color={tone.fg} stroke={1.9} />
@@ -252,7 +254,7 @@ function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDon
       </div>
       {connector && (
         <div style={{
-          flex: '0 0 18px', height: 2, marginTop: 14,
+          flex: '0 0 12px', height: 2, marginTop: 14,
           background: connectorDone ? TONE.done.dot : 'var(--border, #e5e7eb)',
         }} />
       )}

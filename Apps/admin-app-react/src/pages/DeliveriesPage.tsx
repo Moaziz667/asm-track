@@ -281,6 +281,20 @@ function DeliveriesPageContent() {
     });
 
     // Sort layers: status → zone → client → createdAt (stacked group-by toggles)
+    // SLA risk rank — the dispatcher's first question. Pending overdue/breached first, then
+    // at-risk/today, then the rest. Skipped while an explicit grouping is active (grouping owns
+    // the primary order then). Failed-but-late uses worst past health so it still ranks urgent.
+    const riskRank = (d: DeliveryRow): number => {
+      const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status ?? '');
+      const bucket = getDayBucket((d as any).scheduledAt);
+      const h = ((d as any).slaHealth && (d as any).slaHealth !== 'NONE')
+        ? (d as any).slaHealth : (d as any).slaWorstHealth;
+      if (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) return 0;
+      if (h === 'AT_RISK' || (pending && bucket === 'today')) return 1;
+      return 2;
+    };
+    const grouped = groupByStatus || groupByZone || groupByClient;
+
     result.sort((a: DeliveryRow, b: DeliveryRow) => {
       if (groupByStatus) {
         const cmp = (a.status ?? '').localeCompare(b.status ?? '');
@@ -293,6 +307,11 @@ function DeliveriesPageContent() {
       if (groupByClient) {
         const cmp = (a.clientName ?? '').localeCompare(b.clientName ?? '');
         if (cmp !== 0) return cmp;
+      }
+      // Default (ungrouped) view leads with SLA risk so at-risk surfaces at the top.
+      if (!grouped) {
+        const r = riskRank(a) - riskRank(b);
+        if (r !== 0) return r;
       }
       const da = a.createdAt ?? '';
       const db = b.createdAt ?? '';
@@ -601,12 +620,20 @@ function DeliveriesPageContent() {
                           className={cn('hover:bg-[var(--hover-bg)] transition-all group cursor-pointer', DELIVERY_ROW_H[density])}
                           onClick={() => router(`/deliveries/${item.rowId}`)}
                         >
-                          {/* Status Vertical Ribbon */}
+                          {/* Vertical ribbon — SLA-dominant: overdue=red, at-risk=amber on a pending
+                              delivery; otherwise the status colour. So risk reads down the left edge. */}
                           <td className="p-0">
-                             <div
-                               className="w-[3px] h-10 rounded-r-[2px]"
-                               style={{ backgroundColor: STATUS_COLORS[(item.status ?? '').toUpperCase()] || 'var(--border)' }}
-                             />
+                             {(() => {
+                               const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes((item.status ?? '').toUpperCase());
+                               const bucket = getDayBucket((item as any).scheduledAt);
+                               const h = ((item as any).slaHealth && (item as any).slaHealth !== 'NONE')
+                                 ? (item as any).slaHealth : (item as any).slaWorstHealth;
+                               const ribbon =
+                                 (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) ? 'var(--danger)'
+                                 : (h === 'AT_RISK' || (pending && bucket === 'today')) ? 'var(--warning)'
+                                 : STATUS_COLORS[(item.status ?? '').toUpperCase()] || 'var(--border)';
+                               return <div className="w-[3px] h-10 rounded-r-[2px]" style={{ backgroundColor: ribbon }} />;
+                             })()}
                           </td>
 
                           {orderedColumns.map(col => {

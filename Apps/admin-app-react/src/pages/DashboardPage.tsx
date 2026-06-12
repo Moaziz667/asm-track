@@ -291,7 +291,15 @@ export default function DashboardPage() {
 
   const needsAttention = useMemo(() => {
     if (!ops?.exceptions) return [];
-    return ops.exceptions.slice(0, 8);
+    // Risk-first ordering: breached/late, then at-risk, then the rest — so the most urgent
+    // exceptions are the ones shown (the list is still capped; raising that cap is roadmap #2).
+    const rank = (e: any): number => {
+      const h = (e.slaHealth && e.slaHealth !== 'NONE') ? e.slaHealth : e.slaWorstHealth;
+      if (h === 'BREACHED' || h === 'LATE' || e.severity === 'CRITICAL') return 0;
+      if (h === 'AT_RISK' || e.severity === 'WARNING') return 1;
+      return 2;
+    };
+    return [...ops.exceptions].sort((a, b) => rank(a) - rank(b)).slice(0, 8);
   }, [ops]);
 
   const driverGroups = useMemo(() => {
@@ -596,7 +604,10 @@ export default function DashboardPage() {
                   <div className="flex-1 overflow-y-auto px-6 py-2" style={{ scrollbarWidth: 'thin' }}>
                     <div className="flex flex-col gap-3 py-2">
                       {needsAttention.map((exc: any, idx: number) => {
-                        const isCrit = exc.slaHealth === 'BREACHED' || exc.severity === 'CRITICAL';
+                        // Honor live health, then worst PAST phase health (so a failed-but-was-late
+                        // exception still reads red), then the classifier severity.
+                        const exHealth = (exc.slaHealth && exc.slaHealth !== 'NONE') ? exc.slaHealth : exc.slaWorstHealth;
+                        const isCrit = exHealth === 'BREACHED' || exHealth === 'LATE' || exc.severity === 'CRITICAL';
                         const accent = isCrit ? '#C7372F' : '#D4772C';
                         const timeRef = exc.scheduledAt || exc.createdAt;
                         const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';

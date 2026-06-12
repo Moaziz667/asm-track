@@ -46,6 +46,20 @@ export function QueueDetail() {
   const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
   const canReplan   = (REPLANNABLE_STATUSES as string[]).includes(d.status) && !canReassign;
 
+  // SLA slot for the header. Live health is NONE for FAILED/CANCELLED (no on-time verdict), which
+  // renders an empty badge. In that case fall back to the worst PAST phase health so a failed-but-
+  // also-late delivery still shows its lateness instead of going blank.
+  const liveHealth = d.slaHealth ?? alert?.slaHealth;
+  const worstHealth = d.slaWorstHealth;
+  const effectiveSlaHealth = (!liveHealth || liveHealth === 'NONE')
+    ? (worstHealth && worstHealth !== 'NONE' ? worstHealth : liveHealth)
+    : liveHealth;
+  // "était en retard +Xmin" — only when the delivery is terminal AND a phase actually breached/ran late.
+  const wasLatePastPhase = (worstHealth === 'BREACHED' || worstHealth === 'LATE');
+  const lateNote = (wasLatePastPhase && (liveHealth === 'NONE' || !liveHealth) && (d.slaLateMinutes ?? 0) > 0)
+    ? (t.dispatchDeskPage.wasLateBy ?? 'était en retard +{n}min').replace('{n}', String(d.slaLateMinutes))
+    : '';
+
   const target = {
     deliveryId: id, orderRef: d.orderRef, clientName: d.clientName,
     city: d.dropoffCity, status: d.status, driverName: d.driverName,
@@ -89,6 +103,9 @@ export function QueueDetail() {
                 {(d.clientName ?? '?').slice(0, 1).toUpperCase()}
               </div>
               <div className="min-w-0">
+                <span className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+                  {t.dispatchDeskPage.clientLabel ?? 'Client'}
+                </span>
                 <p className="text-xl font-bold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>
                   {d.clientName ?? '—'}
                 </p>
@@ -100,8 +117,14 @@ export function QueueDetail() {
             <div className="flex flex-col items-end gap-1.5 shrink-0">
               <div className="flex items-center gap-1.5">
                 <StatusBadge status={d.status} size="sm" />
-                <SlaHealthBadge health={d.slaHealth ?? alert?.slaHealth} size="md" />
+                {/* SLA slot. A FAILED/CANCELLED delivery has live health NONE (no on-time verdict),
+                    so instead of an empty badge we surface its worst PAST phase health — i.e. it
+                    was already late before it failed. Non-terminal rows show their live health. */}
+                <SlaHealthBadge health={effectiveSlaHealth} size="md" />
               </div>
+              {lateNote && (
+                <span className="text-2xs font-[600]" style={{ color: 'var(--danger)' }}>{lateNote}</span>
+              )}
               <Link to={`/deliveries/${id}`} className="text-xs font-[500] hover:underline" style={{ color: 'var(--text-secondary)' }}>
                 {t.dispatchDeskPage.openLink}
               </Link>

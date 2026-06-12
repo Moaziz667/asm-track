@@ -28,7 +28,10 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
   // The dot follows the unified SLA health (the same source as the detail SlaHealthBadge) so the
   // list dot and the badge can never disagree: BREACHED/LATE → red, AT_RISK → amber. Terminal or
   // failure exceptions (SLA health NONE/absent) fall back to the classifier severity.
-  const health = (d.slaHealth ?? '').toUpperCase();
+  // Live health, falling back to the worst PAST phase health so a failed-but-was-late delivery
+  // still reads as urgent (its live health is NONE).
+  const liveHealth = (d.slaHealth ?? '').toUpperCase();
+  const health = (liveHealth && liveHealth !== 'NONE') ? liveHealth : (d.slaWorstHealth ?? '').toUpperCase();
   const healthSev: 'CRITICAL' | 'WARNING' | null =
     health === 'BREACHED' || health === 'LATE' ? 'CRITICAL'
       : health === 'AT_RISK' ? 'WARNING'
@@ -49,8 +52,17 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
       className="w-full text-start flex items-start gap-2 px-3 py-2 border-b transition-colors"
       style={{
         borderColor: 'var(--border)',
-        background: active ? 'var(--brand-soft)' : 'transparent',
-        borderInlineStart: active ? '3px solid var(--brand)' : '3px solid transparent',
+        // SLA-dominant left rail: overdue = red, at-risk = amber, healthy = none. The active
+        // (selected) row still takes the brand rail so selection stays obvious.
+        background: active
+          ? 'var(--brand-soft)'
+          : sevKey === 'CRITICAL' ? 'color-mix(in srgb, var(--danger) 5%, transparent)'
+          : 'transparent',
+        borderInlineStart: active
+          ? '3px solid var(--brand)'
+          : sevKey === 'CRITICAL' ? '3px solid var(--danger)'
+          : sevKey === 'WARNING' ? '3px solid var(--warning)'
+          : '3px solid transparent',
       }}
     >
       <input
@@ -118,6 +130,7 @@ export function QueueList() {
         className="text-xs font-[500] rounded-md px-2 py-1 outline-none cursor-pointer"
         style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
       >
+        <option value="sla">{dd.sortSla ?? 'Risque SLA'}</option>
         <option value="route">{dd.sortRoute ?? 'Tournée'}</option>
         <option value="severity">{dd.sortSeverity ?? 'Sévérité'}</option>
         <option value="status">{dd.sortStatus ?? 'Statut'}</option>
