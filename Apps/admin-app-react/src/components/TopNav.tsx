@@ -43,10 +43,14 @@ type CrumbInfo = {
 };
 
 // Routes the sidebar doesn't list as primary nav items but that still need a breadcrumb.
+// The Settings section in the sidebar is titled "Paramètres" (t.sidebar.items.settings), with
+// its sub-pages "Configuration Générale" and "Intégration ERP" — the breadcrumb mirrors that:
+// Paramètres › <sub-page>. We reuse the *items* dict for the group label by pointing groupKey
+// at 'settings' and resolving the group through items when there's no matching groups[] entry.
 const EXTRA_PAGES: CrumbInfo[] = [
   { groupKey: 'operations', labelKey: 'overview',       href: '/schedule',      Icon: IconCalendarEvent },
-  { groupKey: 'platform',   labelKey: 'settings',       href: '/settings',      Icon: IconSettings },
-  { groupKey: 'platform',   labelKey: 'erpIntegration', href: '/settings/erp',  Icon: IconSettings },
+  { groupKey: 'settings',   labelKey: 'generalConfig',  href: '/settings',      Icon: IconSettings },
+  { groupKey: 'settings',   labelKey: 'erpIntegration', href: '/settings/erp',  Icon: IconSettings },
   { groupKey: 'platform',   labelKey: 'companies',      href: '/companies',     Icon: IconBuildingWarehouse },
 ];
 
@@ -71,11 +75,18 @@ function Breadcrumb({ t }: { t: any }) {
   const items = (t.sidebar?.items ?? {}) as Record<string, string>;
   const tx = (dict: Record<string, string>, key: string, fallback: string) => dict[key] || fallback;
 
-  // The page the current URL belongs to. Detail pages (/routes/:id) carry their parent's
-  // href in trail[0]; fall back to matching the base segment ("/" + seg).
-  const current = PAGE_BY_HREF[`/${seg}`] ?? (trail[0]?.href ? PAGE_BY_HREF[trail[0].href] : undefined);
+  // The page the current URL belongs to. Try the FULL path first (so /settings/erp resolves to
+  // the ERP sub-page, not /settings), then the base segment, then the page-supplied trail href.
+  const current =
+    PAGE_BY_HREF[pathname] ??
+    PAGE_BY_HREF[`/${seg}`] ??
+    (trail[0]?.href ? PAGE_BY_HREF[trail[0].href] : undefined);
 
-  const groupLabel = current ? tx(groups, current.groupKey, '') : '';
+  // Group label: most groups live in t.sidebar.groups, but the Settings section's title lives in
+  // t.sidebar.items.settings — fall back to items so "Paramètres" resolves.
+  const groupLabel = current
+    ? (groups[current.groupKey] || items[current.groupKey] || '')
+    : '';
   const pageLabel = current
     ? tx(items, current.labelKey, seg.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
     : (trail[0]?.label ?? seg.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
@@ -105,12 +116,14 @@ function Breadcrumb({ t }: { t: any }) {
         </>
       )}
 
-      {/* Page — bold/active when it's the last crumb, else a link to itself */}
+      {/* Page — bold/active when it's the last crumb, else a link to itself. The active page
+          title is the document's <h1> so every list page has a top-level heading (WCAG /
+          axe page-has-heading-one); the inline size keeps it visually a breadcrumb. */}
       {detailCrumbs.length === 0 ? (
-        <span className="flex items-center gap-1.5 text-sm font-bold font-semibold text-[var(--text-primary)] whitespace-nowrap truncate">
+        <h1 className="flex items-center gap-1.5 text-sm font-bold font-semibold text-[var(--text-primary)] whitespace-nowrap truncate m-0">
           {!groupLabel && PageIcon && <PageIcon size={13} />}
           {pageLabel}
-        </span>
+        </h1>
       ) : (
         <Link to={current?.href ?? '#'} className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
           {!groupLabel && PageIcon && <PageIcon size={13} />}
@@ -195,7 +208,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   return (
     <header className="sticky top-0 shrink-0 border-b border-[var(--border)] bg-[var(--surface)]/75 backdrop-blur-md z-40 h-14 flex items-center gap-4 md:gap-6 px-4 md:px-6 relative">
       {/* Sidebar toggle */}
-      <SidebarTrigger className="-ml-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]" />
+      <SidebarTrigger aria-label={t.topNav?.toggleSidebar ?? 'Toggle sidebar'} className="-ml-1 text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]" />
 
       {/* Breadcrumb */}
       <div className="hidden sm:flex shrink-0 min-w-0">

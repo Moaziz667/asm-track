@@ -32,6 +32,20 @@ async function bootstrapAdminApp() {
   const { default: App } = await import('./App.tsx');
   const { safeStorage } = await import('./lib/storage');
 
+  // Accessibility audit — DEV ONLY. axe scans the live DOM and logs WCAG violations to the
+  // console as you navigate, so a11y regressions surface immediately. import.meta.env.DEV is
+  // false in production builds, so this whole block (and the dep) is tree-shaken out.
+  if (import.meta.env.DEV) {
+    try {
+      const [{ default: axe }, React, ReactDOM] = await Promise.all([
+        import('@axe-core/react'),
+        import('react'),
+        import('react-dom'),
+      ]);
+      void axe(React, ReactDOM, 1000);
+    } catch { /* axe is optional tooling — never block the app */ }
+  }
+
   // One-time kill-switch for any stale service worker on this origin.
   if ('serviceWorker' in navigator) {
     const regs = await navigator.serviceWorker.getRegistrations();

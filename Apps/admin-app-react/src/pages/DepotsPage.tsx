@@ -9,6 +9,7 @@ import {
 import { isReadOnlyRole, getCurrentRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import type { Depot } from '@/types';
 
 // ─── Lazy components ──────────────────────────────────────────────────────────
@@ -233,20 +234,11 @@ export default function DepotsPage() {
 
                         {/* Status badge */}
                         <div className="flex justify-center">
-                          <span
-                            className="text-xs font-bold px-2 py-0.5 rounded-md flex items-center gap-1.5 border"
-                            style={{
-                              color: depot.isActive ? '#2D8A5E' : '#6B7280',
-                              background: depot.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
-                              borderColor: depot.isActive ? 'rgba(76,175,130,0.15)' : 'rgba(138,143,152,0.15)',
-                            }}
-                          >
-                            <span
-                              className="inline-block w-1.5 h-1.5 rounded-full"
-                              style={{ background: depot.isActive ? '#2D8A5E' : '#6B7280' }}
-                            />
-                            {depot.isActive ? t.depotsPage.statusOperational : t.depotsPage.statusInactive}
-                          </span>
+                          <StatusBadge
+                            status={depot.isActive ? 'ACTIVE' : 'INACTIVE'}
+                            label={depot.isActive ? t.depotsPage.statusOperational : t.depotsPage.statusInactive}
+                            size="sm"
+                          />
                         </div>
 
                         {/* Edit location */}

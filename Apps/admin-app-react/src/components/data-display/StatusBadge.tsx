@@ -39,6 +39,31 @@ const CONFIG: Record<string, StatusConfig> = {
   REMOVED_REPLANNED:   { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
   REMOVED_CANCELLED:   { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
   FAILED_ATTEMPT:      { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  // ── Returns (RMA) statuses ────────────────────────────────────────────
+  REQUESTED:           { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
+  APPROVED:            { dot: '#5E6AD2', bg: 'rgba(94,106,210,0.09)',  text: '#4C56B8' },
+  RECEIVED:            { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
+  RESTOCKED:           { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  REJECTED:            { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  // ── ERP sync statuses ─────────────────────────────────────────────────
+  SYNCED:              { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  SYNCING:             { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
+  PENDING:             { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
+  SYNC_FAILED:         { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  NOT_SYNCED:          { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
+  // ── Generic active/inactive (failure reasons, toggles…) ───────────────
+  ACTIVE:              { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  INACTIVE:            { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
+  // ── Vehicle statuses ──────────────────────────────────────────────────
+  AVAILABLE:           { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  ENGAGED:             { dot: '#5E6AD2', bg: 'rgba(94,106,210,0.09)',  text: '#4C56B8' },
+  RETIRED:             { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  // ── Failure categories ────────────────────────────────────────────────
+  CLIENT_ABSENT:       { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
+  REFUSED:             { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  WRONG_ADDRESS:       { dot: '#D4772C', bg: 'rgba(212,119,44,0.09)',  text: '#B05A18' },
+  DAMAGED:             { dot: '#7B6FCC', bg: 'rgba(123,111,204,0.09)', text: '#6055A8' },
+  OTHER:               { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
 };
 
 const PULSE_STATUSES = new Set(['IN_PROGRESS', 'IN_TRANSIT', 'PICKED_UP']);

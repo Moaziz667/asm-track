@@ -265,8 +265,8 @@
 
         --text-primary:   #F3F3F7;
         --text-secondary: #DEDEE3;
-        --text-muted:     #A4A4AD;
-        --text-soft:      #8A8C95; /* lifted for clearer AA contrast on dark surfaces */
+        --text-muted:     #B0B2BA; /* AA: ~5.6:1 on dark surfaces */
+        --text-soft:      #9CA0A8; /* AA: ~4.6:1 on dark surfaces (was #8A8C95 = 4.0) */
 
         --success:    #22C55E;  --success-bg: color-mix(in srgb, #22C55E 18%, #121419);
         --warning:    #F59E0B;  --warning-bg: color-mix(in srgb, #F59E0B 18%, #121419);
@@ -334,8 +334,8 @@
         --border-strong:rgba(255, 255, 255, 0.16);
         --text-primary: #F3F3F7;
         --text-secondary:#DEDEE3;
-        --text-muted:  #A4A4AD;
-        --text-soft:   #72747E;
+        --text-muted:  #B0B2BA; /* AA: ~5.6:1 on #171A20 */
+        --text-soft:   #9CA0A8; /* AA: ~4.6:1 on #171A20 (was #72747E = 3.7) */
         --brand-orange-dark: #2B52C3;
         --brand-orange-soft: rgba(62, 106, 225, 0.15);
         --surface-1:   var(--surface);

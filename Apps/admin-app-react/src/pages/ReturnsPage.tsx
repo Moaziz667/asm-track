@@ -5,17 +5,14 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import {
   Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
 } from '@/components/ui/select';
-import {
-  Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
-} from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { AppModal } from '@/components/overlays/AppModal';
@@ -62,30 +59,6 @@ const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> = {
 };
 
 const FILTERS: (RmaStatus | 'ALL')[] = ['ALL', 'REQUESTED', 'APPROVED', 'RECEIVED', 'RESTOCKED', 'REJECTED'];
-
-function StatusPill({ status, label }: { status: RmaStatus; label: string }) {
-  const tk = STATUS_TOKENS[status];
-  return (
-    <span
-      className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
-      style={{ background: tk.bg, color: tk.text }}
-    >
-      <span className="h-1.5 w-1.5 rounded-full" style={{ background: tk.dot }} />
-      {label}
-    </span>
-  );
-}
-
-function SyncPill({ status }: { status?: string }) {
-  if (!status) return <span className="text-xs text-[var(--text-soft)]">—</span>;
-  const ok = status === 'SYNCED';
-  const failed = status === 'SYNC_FAILED';
-  return (
-    <Badge variant={failed ? 'destructive' : ok ? 'secondary' : 'outline'} className="font-mono text-2xs">
-      {status}
-    </Badge>
-  );
-}
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
@@ -183,7 +156,7 @@ export default function ReturnsPage() {
       <PageFilterBar
         search={query}
         onSearch={setQuery}
-        searchPlaceholder="Rechercher un retour (client, BL, réf ERP)…"
+        searchPlaceholder={t.returnsPage?.searchPlaceholder ?? 'Rechercher un retour (client, BL, réf ERP)…'}
         onRefresh={() => void fetchAll()}
         refreshing={loading}
         quickFilters={quickFilters}
@@ -205,7 +178,7 @@ export default function ReturnsPage() {
               ]}
             />
             <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-xs font-bold">
-              <IconPlus size={14} /> Nouveau retour
+              <IconPlus size={14} /> {t.returnsPage?.newReturn ?? 'Nouveau retour'}
             </Button>
           </>
         }
@@ -235,53 +208,65 @@ export default function ReturnsPage() {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table — styled to match the Deliveries data slab: status ribbon, sticky sunken
+            header, compact mono refs. Kept semantic (<table>) for a11y/screen readers. */}
         <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-          <Table>
-            <TableHeader>
-              <TableRow className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)]">
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Client</TableHead>
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">BL / Réf ERP</TableHead>
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Articles</TableHead>
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Statut</TableHead>
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Sync ERP</TableHead>
-                <TableHead className="text-2xs uppercase tracking-wider text-[var(--text-muted)]">Motif</TableHead>
-                <TableHead className="text-end" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
+          <div className="min-w-[900px] lg:min-w-0">
+          <table className="w-full border-collapse">
+            <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
+              <tr>
+                <th className="w-2 px-0" />
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colClient ?? 'Client'}</th>
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colBl ?? 'BL / Réf ERP'}</th>
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colItems ?? 'Articles'}</th>
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colStatus ?? 'Statut'}</th>
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colSync ?? 'Sync ERP'}</th>
+                <th className="h-10 px-6 text-left text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colReason ?? 'Motif'}</th>
+                <th className="h-10 px-6 text-end text-xs font-[450] text-[var(--text-muted)]">{t.returnsPage?.colActions ?? ''}</th>
+              </tr>
+            </thead>
+            <tbody>
               {loading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <TableRow key={i}>
-                    {Array.from({ length: 7 }).map((__, j) => (
-                      <TableCell key={j}><Skeleton className="h-4 w-full max-w-[120px]" /></TableCell>
+                  <tr key={i} className="border-b border-[var(--border)]">
+                    <td className="p-0" />
+                    {Array.from({ length: 6 }).map((__, j) => (
+                      <td key={j} className="px-6 py-3"><Skeleton className="h-4 w-full max-w-[120px]" /></td>
                     ))}
-                  </TableRow>
+                  </tr>
                 ))
               ) : visibleRows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={7} className="py-0">
+                <tr>
+                  <td colSpan={8} className="py-0">
                     <EmptyState
                       icon={<IconPackageExport size={26} />}
-                      message="Aucun retour"
-                      hint="Créez un retour depuis une livraison livrée."
-                      action={{ label: 'Nouveau retour', onClick: () => setCreateOpen(true) }}
+                      message={t.returnsPage?.emptyMessage ?? 'Aucun retour'}
+                      hint={t.returnsPage?.emptyHint ?? 'Créez un retour depuis une livraison livrée.'}
+                      action={{ label: t.returnsPage?.newReturn ?? 'Nouveau retour', onClick: () => setCreateOpen(true) }}
                     />
-                  </TableCell>
-                </TableRow>
+                  </td>
+                </tr>
               ) : (
                 visibleRows.map((r) => (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-semibold text-[var(--text-primary)]">{r.clientName ?? '—'}</TableCell>
-                    <TableCell className="font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</TableCell>
-                    <TableCell className="text-[var(--text-secondary)]">
-                      <span className="tabular-nums">{r.totalUnits}</span> u.
+                  <tr key={r.id} className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors group">
+                    {/* Status ribbon (same idiom as Deliveries) */}
+                    <td className="p-0">
+                      <div className="w-[3px] h-10 rounded-r-[2px]" style={{ backgroundColor: STATUS_TOKENS[r.status]?.dot ?? 'var(--border)' }} />
+                    </td>
+                    <td className="px-6 text-xs font-[600] text-[var(--text-primary)]">{r.clientName ?? '—'}</td>
+                    <td className="px-6 font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</td>
+                    <td className="px-6 text-xs text-[var(--text-secondary)]">
+                      <span className="tabular-nums font-[600]">{r.totalUnits}</span> u.
                       <span className="text-[var(--text-soft)]"> · {r.items.length} lignes</span>
-                    </TableCell>
-                    <TableCell><StatusPill status={r.status} label={statusLabel(r.status)} /></TableCell>
-                    <TableCell><SyncPill status={r.erpSyncStatus} /></TableCell>
-                    <TableCell className="max-w-[220px] truncate text-[var(--text-muted)]" title={r.reason ?? ''}>{r.reason ?? '—'}</TableCell>
-                    <TableCell className="text-end">
+                    </td>
+                    <td className="px-6"><StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" /></td>
+                    <td className="px-6">
+                      {r.erpSyncStatus
+                        ? <StatusBadge status={r.erpSyncStatus} label={t.returnsPage?.syncLabels?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
+                        : <span className="text-xs text-[var(--text-soft)]">—</span>}
+                    </td>
+                    <td className="px-6 max-w-[220px] truncate text-xs text-[var(--text-muted)]" title={r.reason ?? ''}>{r.reason ?? '—'}</td>
+                    <td className="px-6 text-end">
                       <div className="flex items-center justify-end gap-1.5">
                         {NEXT[r.status].length === 0 ? (
                           <span className="text-xs text-[var(--text-soft)]">—</span>
@@ -305,12 +290,13 @@ export default function ReturnsPage() {
                           })
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                  </tr>
                 ))
               )}
-            </TableBody>
-          </Table>
+            </tbody>
+          </table>
+          </div>
         </div>
       </div>
 

@@ -17,6 +17,7 @@ import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { AddButton } from '@/components/ui/AddButton';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -106,7 +107,6 @@ function VehicleTechnicalCard({
   const isBusy = vehicle.assigned ?? Boolean(vehicle.driverId);
   const statusColor = isRetired ? '#A52B24' : (isBusy ? '#4C56B8' : '#2D8A5E');
   const statusLabel = isRetired ? t.vehiclesPage.statusRetired : (isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable);
-  const dotColor = statusColor;
 
   return (
     <Card className={cn(
@@ -156,20 +156,11 @@ function VehicleTechnicalCard({
                 {vehicle.model}
               </span>
             </h3>
-            <span
-              className="text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1.5 whitespace-nowrap border"
-              style={{
-                color: dotColor,
-                background: isRetired ? 'rgba(199,55,47,0.09)' : (isBusy ? 'rgba(94,106,210,0.09)' : 'rgba(76,175,130,0.09)'),
-                borderColor: isRetired ? 'rgba(199,55,47,0.15)' : (isBusy ? 'rgba(94,106,210,0.15)' : 'rgba(76,175,130,0.15)'),
-              }}
-            >
-              <span
-                className="inline-block w-1.5 h-1.5 rounded-full"
-                style={{ background: dotColor }}
-              />
-              {statusLabel}
-            </span>
+            <StatusBadge
+              status={isRetired ? 'RETIRED' : isBusy ? 'ENGAGED' : 'AVAILABLE'}
+              label={statusLabel}
+              size="sm"
+            />
           </div>
           <p className="text-xs font-semibold font-mono tracking-tight text-primary">
             {vehicle.plate}
@@ -569,13 +560,11 @@ function VehiclesPageContent() {
                           );
                           if (col.id === 'status') return (
                             <td key="status" className="px-4">
-                              <span
-                                className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-2xs font-bold border"
-                                style={{ color: statusColor, background: `${statusColor}10`, borderColor: `${statusColor}25` }}
-                              >
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: statusColor }} />
-                                {statusLabel}
-                              </span>
+                              <StatusBadge
+                                status={isRetired ? 'RETIRED' : isBusy ? 'ENGAGED' : 'AVAILABLE'}
+                                label={statusLabel}
+                                size="sm"
+                              />
                             </td>
                           );
                           return null;

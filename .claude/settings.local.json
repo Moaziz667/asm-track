@@ -269,12 +269,46 @@
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); beans=[b for ctx in d['contexts'].values\\(\\) for b in ctx['beans']]; print\\('FCM-related beans:', [b for b in beans if 'cm' in b.lower\\(\\) and \\('fcm' in b.lower\\(\\) or 'Fcm' in b\\)]\\)\")",
       "Bash(python -c \"import json; d=json.load\\(open\\('/tmp/cond.json'\\)\\); [print\\(k,'=>',v\\) for ctx in d['contexts'].values\\(\\) for k,v in {**ctx.get\\('positiveMatches',{}\\),**ctx.get\\('negativeMatches',{}\\)}.items\\(\\) if 'fcm' in k.lower\\(\\)]\")",
       "Bash(python -c \"import json,sys; d=json.load\\(sys.stdin\\); beans=[b for ctx in d['contexts'].values\\(\\) for b in ctx['beans']]; print\\([b for b in beans if 'fcm' in b.lower\\(\\)]\\)\")",
-      "Bash(grep -iE \"\\\\.tsx$|\\\\.ts$\")"
+      "Bash(grep -iE \"\\\\.tsx$|\\\\.ts$\")",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"C:/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice:/workspace\" -w /workspace gradle:8.5-jdk17 gradle test --tests \"com.asm.delivery.sla.SlaEvaluatorTest\" --no-daemon)",
+      "Bash(grep -ivE \"build|//|fallback|failureCode|failReason|failedAt|return [a-z]\")",
+      "Bash(find . -iname \"*RouteStop*Response*.java\" -o -iname \"*RouteStop*Dto*.java\")",
+      "Bash(find . -iname \"*Exception*Row*.java\" -o -iname \"*Exception*Item*.java\")",
+      "Bash(cp service/route/RoutePlanningService.java /tmp/RPS.bak)",
+      "Bash(sed -i '787,800d; 838,1042d; 1044,1175d; 1177,1187d; 1202,1218d; 1220,1358d; 1360,1373d; 1375,1382d; 1437,1444d; 1463,1470d' service/route/RoutePlanningService.java)",
+      "Bash(awk 'NR>=508 && NR<=975 && /^    private AdminDeliverySummaryResponse toSummaryResponse|^    }/{print NR\": \"$0}' service/analytics/OpsAnalyticsService.java)",
+      "Bash(grep -nE \"class |static class|^    [A-Za-z].*\\\\{$\" service/analytics/OpsAnalyticsService.java)",
+      "Bash(awk -F: '$1>=506 && $1<=975')",
+      "Bash(cp service/analytics/OpsAnalyticsService.java /tmp/OAS.bak)",
+      "Bash(sed -i '565,574d; 621,886d; 1248d' service/analytics/OpsAnalyticsService.java)",
+      "Bash(echo \"EXIT: $?\")",
+      "Bash(./gradlew test *)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"/c/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice\":/work -w /work gradle:8.5-jdk17 gradle test --tests \"*SlaEvaluatorTest*\" --no-daemon)",
+      "Bash(grep -oE \"[A-Z_]{3,}\" Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/entity/FailureCode.java)",
+      "Bash(grep -vE \"^\\(enum|public|FailureCode\\)$\")",
+      "Bash(grep -nA3 \"assignRole\" DriverService/src/main/java/com/asm/driver/client/KeycloakAdminClient.java)",
+      "Bash(grep -nA6 \"isAlertable\" Microservices/DeliveryMicroservice/src/main/java/com/asm/delivery/sla/SlaHealth.java)",
+      "Bash(grep -oE \"[A-Z_]{3,}\" entity/RmaStatus.java)",
+      "Bash(grep -nB2 -A8 \"findActiveByDeliveryIdWithRoute\" repository/RouteStopRepository.java)",
+      "Bash(grep -nB1 -A4 \"findActiveStopsByDeliveryIdWithRoute\" repository/RouteStopRepository.java)",
+      "Bash(grep -nA28 \"calculateStrictStopDelayMinutes\" service/DelayCalculationService.java)",
+      "Bash(grep -nA4 \"minutesBetween\" service/DelayCalculationService.java)",
+      "Bash(grep -nB1 -A5 \"private.*minutesBetween\\\\|Integer minutesBetween\\\\|static.*minutesBetween\" service/DelayCalculationService.java)",
+      "Bash(grep -nA4 \" minutesBetween\\(LocalDateTime\" service/DelayCalculationService.java)",
+      "Bash(grep -nA20 \"syncStopFromDelivery\" service/RouteExecutionService.java)",
+      "Bash(grep -nB3 -A2 \"reasonParams\" sla/SlaState.java)",
+      "Bash(MSYS_NO_PATHCONV=1 docker run --rm -v \"/c/Users/M S I/OneDrive/Documents/PFE/Microservices/DeliveryMicroservice\":/work -w /work gradle:8.5-jdk17 gradle compileJava --no-daemon)",
+      "Bash(node -e \"try{require.resolve\\('playwright'\\);console.log\\('playwright module: yes'\\)}catch\\(e\\){try{require.resolve\\('@playwright/test'\\);console.log\\('@playwright/test: yes'\\)}catch\\(e2\\){console.log\\('playwright: NO'\\)}}\")",
+      "Bash(curl -s http://localhost:5173/)",
+      "Read(//c/Program Files/Google/Chrome/Application/**)",
+      "Bash(node -e \"try{require.resolve\\('puppeteer-core'\\);console.log\\('puppeteer-core: yes'\\)}catch\\(e\\){console.log\\('puppeteer-core: no'\\)}\")",
+      "Bash(npm i *)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",
       "C:\\Users\\M S I\\Pictures\\Screenshots",
-      "C:\\Users\\M S I\\Downloads"
+      "C:\\Users\\M S I\\Downloads",
+      "\\tmp"
     ]
   }
 }

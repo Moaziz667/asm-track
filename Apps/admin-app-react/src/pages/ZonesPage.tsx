@@ -6,6 +6,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT, getCopy } from '@/lib/LocaleContext';
 import { AddButton } from '@/components/ui/AddButton';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -335,17 +336,11 @@ export default function ZonesPage() {
                           );
                           if (col.id === 'status') return (
                             <td key="status" className="px-4 py-2 text-center">
-                              <span
-                                className="text-xs font-semibold px-2 py-0.5 rounded-md inline-flex items-center gap-1.5 border"
-                                style={{
-                                  color: zone.isActive ? '#2D8A5E' : '#6B7280',
-                                  background: zone.isActive ? 'rgba(76,175,130,0.09)' : 'rgba(138,143,152,0.08)',
-                                  borderColor: zone.isActive ? 'rgba(76,175,130,0.15)' : 'rgba(138,143,152,0.15)',
-                                }}
-                              >
-                                <IconPoint size={10} />
-                                {zone.isActive ? t.zonesPage.statusOperational : t.zonesPage.statusInactive}
-                              </span>
+                              <StatusBadge
+                                status={zone.isActive ? 'ACTIVE' : 'INACTIVE'}
+                                label={zone.isActive ? t.zonesPage.statusOperational : t.zonesPage.statusInactive}
+                                size="sm"
+                              />
                             </td>
                           );
                           return null;

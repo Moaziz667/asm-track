@@ -21,11 +21,52 @@ type AuditLog = {
   actorName: string;
   actorRole: string;
   action: string;
+  targetEntity?: string | null;
   resourceId: string | null;
   details: string | null;
   ipAddress: string;
   createdAt: string;
 };
+
+// ── Human-readable rendering helpers ──────────────────────────────────────────
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Clean the actor for display: a raw UUID becomes "Système", an email keeps its local part,
+ *  otherwise the name as-is. So the actor column never shows machine garbage. */
+function displayActor(name: string | undefined, role: string): string {
+  const n = (name ?? '').trim();
+  if (!n) return role || 'Système';
+  if (UUID_RE.test(n)) return role === 'SYSTEM' ? 'Système' : (role || 'Système');
+  if (n.includes('@')) return n.split('@')[0]; // email → local part
+  return n;
+}
+
+/** Verb phrase for an action code, e.g. "a activé un compte". Falls back to a humanized code
+ *  ("a effectué TOGGLE_ADMIN_USER_STATUS") rather than a meaningless "Audit Système". */
+function actionVerb(action: string, t: any): string {
+  const verbs = t.auditLogsPage?.verbs ?? {};
+  if (verbs[action]) return verbs[action];
+  // Humanize the raw code as a last resort.
+  const human = action.replace(/_/g, ' ').toLowerCase();
+  return `${t.auditLogsPage?.didAction ?? 'a effectué'} ${human}`;
+}
+
+/** A short, human resource label — prefers a name from the payload, else "ENTITY a1b2c3c4". */
+function resourceLabel(log: AuditLog, t: any): string | null {
+  // Try to pull a friendly name/ref out of the JSON details.
+  if (log.details) {
+    try {
+      const p = JSON.parse(log.details);
+      const named = p.name || p.label || p.ref || p.orderRef || p.email || p.plate;
+      if (named) return String(named);
+    } catch { /* not JSON */ }
+  }
+  if (!log.resourceId) return null;
+  const ent = log.targetEntity ? (t.auditLogsPage?.entities?.[log.targetEntity] ?? log.targetEntity) : '';
+  const shortId = log.resourceId.slice(0, 8);
+  return ent ? `${ent} ${shortId}` : shortId;
+}
 
 type Page<T> = {
   content: T[];
@@ -110,6 +151,20 @@ function formatTime(ts: string, locale: string = 'fr') {
   return d.toLocaleString(getLocaleFormat(locale), {
     hour: '2-digit', minute: '2-digit', second: '2-digit',
   });
+}
+
+/** Human relative time: "à l'instant", "il y a 5 min", "il y a 2 h", "il y a 3 j", else a date. */
+function relativeTime(ts: string, t: any): string {
+  const r = t.auditLogsPage?.relative ?? {};
+  const diffMs = Date.now() - new Date(ts).getTime();
+  const mins = Math.floor(diffMs / 60000);
+  if (mins < 1) return r.now ?? "à l'instant";
+  if (mins < 60) return (r.minutes ?? 'il y a {n} min').replace('{n}', String(mins));
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return (r.hours ?? 'il y a {n} h').replace('{n}', String(hrs));
+  const days = Math.floor(hrs / 24);
+  if (days < 7) return (r.days ?? 'il y a {n} j').replace('{n}', String(days));
+  return new Date(ts).toLocaleDateString();
 }
 
 function getPayloadKeyLabel(key: string, locale: string): string {
@@ -399,7 +454,7 @@ export default function AuditLogsPage() {
               <tr className="border-b border-[var(--border)]">
                 <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] ps-6 pe-3 py-2.5">{t.auditLogsPage.actorLabel}</th>
                 <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5">{t.auditLogsPage.actionLabel}</th>
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden md:table-cell">{t.auditLogsPage.colResource}</th>
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden md:table-cell">{t.auditLogsPage.colCategory ?? 'Catégorie'}</th>
                 <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 whitespace-nowrap">{t.auditLogsPage.colTime}</th>
                 <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden lg:table-cell">{t.auditLogsPage.colIp}</th>
                 <th className="w-8 pe-4" />
@@ -421,7 +476,10 @@ export default function AuditLogsPage() {
                       const meta = getActionStyle(log.action, locale, t);
                       const isExpanded = expandedId === log.id;
                       const roleColor = getRoleColor(log.actorRole);
-                      const initials = (log.actorName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+                      const actor = displayActor(log.actorName, log.actorRole);
+                      const initials = actor.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
+                      const verb = actionVerb(log.action, t);
+                      const resLabel = resourceLabel(log, t);
 
                       return (
                         <React.Fragment key={log.id}>
@@ -439,30 +497,31 @@ export default function AuditLogsPage() {
                                   {initials}
                                 </span>
                                 <div className="min-w-0">
-                                  <p className="text-xs font-[600] text-[var(--text-primary)] truncate leading-tight">{log.actorName}</p>
+                                  <p className="text-xs font-[600] text-[var(--text-primary)] truncate leading-tight" title={log.actorName}>{actor}</p>
                                   <span className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: roleColor }}>{log.actorRole}</span>
                                 </div>
                               </div>
                             </td>
 
-                            {/* Action — colored dot + category label */}
+                            {/* Action — a human sentence: "a activé · Compte X" */}
                             <td className="px-3 py-2.5 align-middle">
-                              <span className="inline-flex items-center gap-2">
+                              <span className="inline-flex items-center gap-2 min-w-0">
                                 <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.color }} />
-                                <span className="text-xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
+                                <span className="text-xs text-[var(--text-primary)] min-w-0 truncate">
+                                  <span className="font-[600]">{verb}</span>
+                                  {resLabel && <span className="text-[var(--text-muted)]"> · {resLabel}</span>}
+                                </span>
                               </span>
                             </td>
 
-                            {/* Resource */}
+                            {/* Category (the old engine label) — secondary context */}
                             <td className="px-3 py-2.5 align-middle hidden md:table-cell">
-                              {log.resourceId
-                                ? <span className="text-2xs font-mono text-[var(--text-muted)]" title={log.resourceId}>{log.resourceId.slice(0, 14)}</span>
-                                : <span className="text-2xs text-[var(--text-soft)]">—</span>}
+                              <span className="text-2xs font-[500] text-[var(--text-soft)]">{meta.label}</span>
                             </td>
 
-                            {/* Time */}
+                            {/* Time — relative, with absolute on hover */}
                             <td className="px-3 py-2.5 align-middle whitespace-nowrap">
-                              <span className="text-2xs font-mono text-[var(--text-muted)]" title={formatTs(log.createdAt, locale)}>{formatTime(log.createdAt, locale)}</span>
+                              <span className="text-2xs text-[var(--text-muted)]" title={formatTs(log.createdAt, locale)}>{relativeTime(log.createdAt, t)}</span>
                             </td>
 
                             {/* IP */}

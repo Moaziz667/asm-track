@@ -390,7 +390,7 @@ public class RoutePlanningService {
                     delivery.setAssignedAt(null);
                     delivery.setPickedUpAt(null);
                     deliveryRepository.save(delivery);
-                    appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_CANCELLED",
+                    appendHistory(delivery, DeliveryStatus.UNSCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(), "ROUTE_CANCELLED",
                             Map.of("reason", cancelReason, "routeName", route.getName() != null ? route.getName() : ""));
                     slaStateService.refresh(delivery);
                     slaStateService.applyReplanGrace(delivery.getId());
@@ -461,7 +461,7 @@ public class RoutePlanningService {
         delivery.setAssignedAt(null);
         delivery.setPickedUpAt(null);
         deliveryRepository.save(delivery);
-        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_CANCELLED", Map.of("reason", cancelReason));
+        appendHistory(delivery, DeliveryStatus.UNSCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(), "ROUTE_STOP_CANCELLED", Map.of("reason", cancelReason));
         slaStateService.refresh(delivery);
         slaStateService.applyReplanGrace(delivery.getId());
 
@@ -509,7 +509,7 @@ public class RoutePlanningService {
                 if (delivery.getStatus() == DeliveryStatus.SCHEDULED) {
                     delivery.setDriverId(newDriverId);
                     deliveryRepository.save(delivery);
-                    appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN,
+                    appendHistory(delivery, DeliveryStatus.SCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(),
                             "ROUTE_REASSIGNED", Map.of("driverId", newDriverId.toString()));
                 }
             }
@@ -556,7 +556,7 @@ public class RoutePlanningService {
                 delivery.setStatus(DeliveryStatus.SCHEDULED);
                 delivery.setAssignedAt(LocalDateTime.now());
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.SCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_ADDED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
+                appendHistory(delivery, DeliveryStatus.SCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(), "ROUTE_STOP_ADDED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
             }
         });
         route.setRouteVersion(route.getRouteVersion() != null ? route.getRouteVersion() + 1 : 2);
@@ -614,7 +614,7 @@ public class RoutePlanningService {
                 delivery.setDriverId(null);
                 delivery.setAssignedAt(null);
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, "ADMIN", Role.ADMIN, "ROUTE_STOP_REMOVED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
+                appendHistory(delivery, DeliveryStatus.UNSCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(), "ROUTE_STOP_REMOVED", Map.of("routeName", route.getName() != null ? route.getName() : ""));
                 // Re-planning U-turn: recompute SLA but suppress the planning alarm briefly so it is
                 // not re-flagged "as if newly imported" the instant it returns to the pool.
                 slaStateService.refresh(delivery);
@@ -758,7 +758,7 @@ public class RoutePlanningService {
                 delivery.setAssignedAt(LocalDateTime.now());
                 delivery.setWaitingSlaMinutes(delayCalculationService.calculateWaitingSlaMinutes(delivery));
                 deliveryRepository.save(delivery);
-                appendHistory(delivery, DeliveryStatus.SCHEDULED, "SYSTEM", Role.SYSTEM, "ROUTE_VALIDATED_ASSIGNED", Map.of("driverId", route.getDriverId().toString(), "routeName", route.getName() != null ? route.getName() : ""));
+                appendHistory(delivery, DeliveryStatus.SCHEDULED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(), "ROUTE_VALIDATED_ASSIGNED", Map.of("driverId", route.getDriverId().toString(), "routeName", route.getName() != null ? route.getName() : ""));
                 routeStopRepository.findByDeliveryId(delivery.getId()).ifPresent(routeStop -> {
                     routeStop.setStatus(RouteStopStatus.SCHEDULED);
                     routeStopRepository.save(routeStop);

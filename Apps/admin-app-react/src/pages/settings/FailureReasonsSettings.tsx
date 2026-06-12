@@ -4,6 +4,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { useT } from '@/lib/LocaleContext';
 import { IconPlus, IconPencil, IconBan, IconCheck } from '@tabler/icons-react';
 import { useDensity } from '@/hooks/useDensity';
@@ -192,20 +193,16 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
                   );
                   if (col.id === 'category') return (
                     <td key="category" className="px-4 align-middle">
-                      <span className="text-2xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
-                        {CATEGORY_LABELS[r.category] ?? r.category}
-                      </span>
+                      <StatusBadge status={r.category} label={CATEGORY_LABELS[r.category] ?? r.category} size="sm" />
                     </td>
                   );
                   if (col.id === 'status') return (
                     <td key="status" className="px-4 align-middle">
-                      <span className={cn(
-                        "text-2xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1",
-                        r.active ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'
-                      )}
-                            style={{ background: r.active ? 'rgba(76,175,130,0.10)' : 'var(--hover-bg)' }}>
-                        {r.active ? <><IconCheck size={11} /> {t.failureReasonsSettings.active}</> : t.failureReasonsSettings.inactive}
-                      </span>
+                      <StatusBadge
+                        status={r.active ? 'ACTIVE' : 'INACTIVE'}
+                        label={r.active ? t.failureReasonsSettings.active : t.failureReasonsSettings.inactive}
+                        size="sm"
+                      />
                     </td>
                   );
                   return null;

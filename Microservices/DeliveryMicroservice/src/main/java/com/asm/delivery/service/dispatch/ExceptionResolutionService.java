@@ -424,7 +424,7 @@ public class ExceptionResolutionService {
             }
         });
 
-        appendHistory(delivery, DeliveryStatus.CANCELLED, "ADMIN", Role.ADMIN,
+        appendHistory(delivery, DeliveryStatus.CANCELLED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(),
                 "DELIVERY_CANCELLED",
                 Map.of("wasPickedUp", wasPickedUp, "reason", reason != null ? reason : ""));
 
