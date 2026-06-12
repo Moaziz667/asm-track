@@ -834,6 +834,7 @@ export const FR_COPY = {
     queueSelectPrompt: 'Sélectionnez une commande pour voir le détail',
     queueNoAlerts: 'Aucune alerte active — la livraison suit son cours normal',
     queueItemsLabel: 'Articles',
+    activityLabel: 'Activité',
     // Batch action bar
     batchCount: '{count} sélectionnée{plural}',
     batchMixedWarning: 'Sélection mixte — choisissez un seul type',
@@ -1310,6 +1311,10 @@ export const FR_COPY = {
     pageSubtitle: 'Flux de données',
     pageTitle: 'Importation',
     pageTitleBrand: 'ERP',
+    // ERP connection health banner
+    erpUnhealthyError: 'La connexion ERP a échoué — les commandes ne sont pas synchronisées.',
+    erpUnhealthyUntested: 'La source ERP n’est pas vérifiée — testez la connexion pour garantir la synchronisation.',
+    erpFixLink: 'Configurer',
 
     // Mobile tabs
     tabFilters: 'Filtres',
@@ -1763,6 +1768,7 @@ export const FR_COPY = {
     tableHeaderDriver: 'Chauffeur',
     tableHeaderContact: 'Contact',
     tableHeaderActivity: 'Activité',
+    tableHeaderAccountStatus: 'Statut du compte',
     tableHeaderActions: 'Actions',
     displayedCount: '{count} chauffeur(s) affiché(s)',
     onMissionStatus: 'En mission',
@@ -1799,6 +1805,8 @@ export const FR_COPY = {
     deleteDriverDescription: 'Le profil de {driverName} sera supprimé du système. Cette action est irréversible.',
     deleteButton: 'Supprimer',
     statusActive: 'Actif',
+    statusOnline: 'En ligne',
+    statusOffline: 'Hors ligne',
     statusInactive: 'Inactif',
     // Account status pill labels (Enterprise standard)
     statusPending: 'En attente',
@@ -2065,6 +2073,9 @@ export const FR_COPY = {
     noLogs: 'Aucun log trouvé',
     eventId: 'ID Événement',
     engineCategory: 'Catégorie Moteur',
+    colResource: 'Ressource',
+    colTime: 'Heure',
+    colIp: 'Adresse IP',
     payloadDetails: 'Détails du Payload',
     noTechnicalDetails: 'Aucun détail technique consigné.',
     // Timeline date grouping
@@ -2225,6 +2236,23 @@ export const FR_COPY = {
     erpConnected: 'Connecté',
     erpConnFailed: 'Échec de connexion',
     erpTesting: 'Test en cours…',
+    // Connection lifecycle
+    statusConnected: 'Connecté',
+    statusError: 'Échec de connexion',
+    statusConfigured: 'Configuré · non testé',
+    statusStale: 'Modifié · à re-tester',
+    statusNotConfigured: 'Non configuré',
+    lifecycleConnected: 'Connexion vérifiée. Cette source est active sur la page Importation.',
+    lifecycleError: 'Le dernier test a échoué — corrigez les identifiants puis re-testez.',
+    lifecycleStale: 'Vous avez modifié la configuration. Testez à nouveau avant d’enregistrer.',
+    lifecycleConfigured: 'Configuration enregistrée mais jamais testée. Lancez un test pour confirmer.',
+    lifecycleNotConfigured: 'Aucune source configurée.',
+    lastTestedLabel: 'Dernier test',
+    saveAndTest: 'Enregistrer & tester',
+    savingTestingLabel: 'Enregistrement & test…',
+    savedAndTested: 'Enregistré et connexion vérifiée.',
+    savedTestFailed: 'Enregistré, mais le test de connexion a échoué.',
+    testDirtyHint: 'Enregistrez vos modifications pour les tester',
   },
 
   // ── Deliveries Page ────────────────────────────────────────────────────
