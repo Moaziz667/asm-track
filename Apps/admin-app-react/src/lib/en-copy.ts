@@ -40,6 +40,7 @@ export const EN_COPY = {
     exportCsv: 'Export CSV',
     exportToExcel: 'Export to Excel',
     nothingToExport: 'Nothing to export',
+    remove: 'Remove',
     cancelRoute: 'Cancel Route',
     validateRoute: 'Validate Route',
     reassignRoute: 'Reassign Route',

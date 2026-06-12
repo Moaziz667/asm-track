@@ -48,6 +48,7 @@ export const AR_COPY = {
     exportCsv: 'تصدير CSV',
     exportToExcel: 'تصدير إلى Excel',
     nothingToExport: 'لا شيء للتصدير',
+    remove: 'إزالة',
     cancelRoute: 'إلغاء الرحلة',
     validateRoute: 'تأكيد الرحلة',
     reassignRoute: 'إعادة تعيين الرحلة',

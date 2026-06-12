@@ -555,7 +555,7 @@ export default function ZonesPage() {
                     {form.postalCodes.map(pc => (
                       <span key={pc} className="inline-flex items-center gap-1 text-2xs font-bold px-1.5 py-0.5 rounded-md" style={{ border: '1px solid var(--border)', color: 'var(--text-muted)' }}>
                         {pc}
-                        <button type="button" className="hover:text-red-500 transition-colors" onClick={() => togglePostalCode(pc)}>
+                        <button type="button" aria-label={`${t.actions?.remove ?? 'Retirer'} ${pc}`} className="hover:text-red-500 transition-colors" onClick={() => togglePostalCode(pc)}>
                           <IconX size={8} />
                         </button>
                       </span>

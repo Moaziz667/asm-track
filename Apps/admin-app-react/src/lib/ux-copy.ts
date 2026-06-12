@@ -69,6 +69,7 @@ export const FR_COPY = {
     exportCsv: 'Export CSV',
     exportToExcel: 'Exporter vers Excel',
     nothingToExport: 'Rien à exporter',
+    remove: 'Retirer',
     cancelRoute: 'Annuler la tournée',
     validateRoute: 'Valider la tournée',
     reassignRoute: 'Réaffecter la tournée',

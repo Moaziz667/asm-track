@@ -40,7 +40,14 @@ export function RouteStopTimelineItem({
   children,
 }: RouteStopTimelineItemProps) {
   return (
-    <div className="mb-2 p-3 border border-[var(--border-color)] rounded bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-hover)] transition-colors" onClick={onToggle}>
+    <div
+      role="button"
+      tabIndex={0}
+      aria-expanded={isExpanded}
+      onClick={onToggle}
+      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle?.(); } }}
+      className="mb-2 p-3 border border-[var(--border-color)] rounded bg-[var(--surface)] cursor-pointer hover:bg-[var(--surface-hover)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)]"
+    >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">

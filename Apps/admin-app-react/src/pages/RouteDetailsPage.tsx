@@ -700,7 +700,13 @@ export default function RouteDetailsPage() {
             <div className="border-b border-[var(--border-color)] pb-3">
               <p className="text-xs font-semibold text-[var(--text-muted)] mb-2 uppercase">{t.routeBuilderPage.depotLabel}</p>
               {route.depot ? (
-                <div className="space-y-1 cursor-pointer" onClick={() => navigate('/depots')}>
+                <div
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate('/depots')}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); navigate('/depots'); } }}
+                  className="space-y-1 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded"
+                >
                   <p className="text-xs font-semibold text-[var(--text-primary)] hover:text-[var(--brand)] transition-colors">{route.depot.name ?? '—'}</p>
                   <p className="text-xs text-[var(--text-muted)]">{route.depot.address ?? route.depot.city ?? '—'}</p>
                   {route.departureTime && <p className="text-xs text-[var(--text-muted)] font-mono">{t.routeBuilderPage.departureLabel} {fmtLong(route.departureTime)}</p>}

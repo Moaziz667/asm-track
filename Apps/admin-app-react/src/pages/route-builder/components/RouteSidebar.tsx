@@ -90,7 +90,13 @@ function RouteCard({
         <TooltipContent>{isLocked ? t.routeBuilderPage.unlockRoute : t.routeBuilderPage.lockRoute}</TooltipContent>
       </Tooltip>
 
-      <div onClick={() => onSelect(route.id)} className="flex-1 min-w-0 select-none">
+      <div
+        role="button"
+        tabIndex={0}
+        onClick={() => onSelect(route.id)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(route.id); } }}
+        className="flex-1 min-w-0 select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--brand)] rounded"
+      >
         <div className="flex flex-col gap-0.5">
           <div className="flex justify-between items-center gap-2">
             <div className="flex items-center gap-1.5 min-w-0">
