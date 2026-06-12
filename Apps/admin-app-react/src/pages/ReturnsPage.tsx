@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -18,6 +19,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { AppModal } from '@/components/overlays/AppModal';
+import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import {
   IconPlus, IconTrash, IconRotateClockwise, IconPackageExport, IconSearch,
   IconArrowRight, IconBan, IconCircleCheck, IconArchive,
@@ -97,6 +99,9 @@ export default function ReturnsPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  // Reason modal for reject/cancel transitions (replaces window.prompt).
+  const [reasonModal, setReasonModal] = useState<{ rma: Rma; target: RmaStatus } | null>(null);
+  const [reasonText, setReasonText] = useState('');
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -116,15 +121,18 @@ export default function ReturnsPage() {
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
-  const transition = async (r: Rma, target: RmaStatus) => {
-    // Rejecting / cancelling requires a reason (enforced by the backend) — prompt for it.
-    let note: string | undefined;
+  // Entry point from the row actions. Reject/cancel need a reason → open the modal; other
+  // transitions run immediately.
+  const transition = (r: Rma, target: RmaStatus) => {
     if (target === 'REJECTED' || target === 'CANCELLED') {
-      const input = window.prompt(`Motif (${statusLabel(target)}) :`);
-      if (input == null) return;            // user cancelled the prompt
-      if (!input.trim()) { showErrorToast(null, 'Un motif est obligatoire'); return; }
-      note = input.trim();
+      setReasonText('');
+      setReasonModal({ rma: r, target });
+      return;
     }
+    void runTransition(r, target);
+  };
+
+  const runTransition = async (r: Rma, target: RmaStatus, note?: string) => {
     setBusyId(r.id);
     try {
       await api.post(`/api/admin/returns/${r.id}/transition`, null, {
@@ -137,6 +145,15 @@ export default function ReturnsPage() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  const confirmReason = async () => {
+    if (!reasonModal) return;
+    const note = reasonText.trim();
+    if (!note) return; // ConfirmModal enforces this via reasonRequired, but guard anyway
+    const { rma, target } = reasonModal;
+    setReasonModal(null);
+    await runTransition(rma, target, note);
   };
 
   // Client-side search over the loaded rows (server already filters by status).
@@ -173,9 +190,24 @@ export default function ReturnsPage() {
         activeQuickFilter={filter}
         onQuickFilterChange={(v) => setFilter(v as RmaStatus | 'ALL')}
         extraActions={
-          <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-xs font-bold">
-            <IconPlus size={14} /> Nouveau retour
-          </Button>
+          <>
+            <ExportCsvButton
+              baseName="retours"
+              rows={visibleRows}
+              columns={[
+                { header: 'Client', accessor: r => r.clientName },
+                { header: 'BL', accessor: r => r.blNumber },
+                { header: 'Réf ERP', accessor: r => r.erpOrderId },
+                { header: 'Statut', accessor: r => statusLabel(r.status) },
+                { header: 'Unités', accessor: r => r.totalUnits },
+                { header: 'Motif', accessor: r => r.reason },
+                { header: 'Créé le', accessor: r => r.createdAt },
+              ]}
+            />
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-xs font-bold">
+              <IconPlus size={14} /> Nouveau retour
+            </Button>
+          </>
         }
       />
 
@@ -286,6 +318,24 @@ export default function ReturnsPage() {
         open={createOpen}
         onClose={() => setCreateOpen(false)}
         onCreated={() => { setCreateOpen(false); void fetchAll(); }}
+      />
+
+      {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
+      <ConfirmModal
+        open={reasonModal !== null}
+        title={reasonModal ? `${statusLabel(reasonModal.target)} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
+        description={t.returnsPage?.reasonRequiredDesc ?? 'Un motif est obligatoire pour cette action.'}
+        variant="danger"
+        reasonLabel={t.returnsPage?.reasonLabel ?? 'Motif'}
+        reasonPlaceholder={t.returnsPage?.reasonPlaceholder ?? 'Expliquez la raison…'}
+        reason={reasonText}
+        onReasonChange={setReasonText}
+        reasonRequired
+        confirmLabel={reasonModal ? statusLabel(reasonModal.target) : ''}
+        cancelLabel={t.actions?.cancel ?? 'Annuler'}
+        loading={busyId === reasonModal?.rma.id}
+        onConfirm={() => void confirmReason()}
+        onCancel={() => setReasonModal(null)}
       />
     </div>
   );
