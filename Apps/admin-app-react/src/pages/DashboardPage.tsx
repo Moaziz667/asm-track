@@ -291,15 +291,15 @@ export default function DashboardPage() {
 
   const needsAttention = useMemo(() => {
     if (!ops?.exceptions) return [];
-    // Risk-first ordering: breached/late, then at-risk, then the rest — so the most urgent
-    // exceptions are the ones shown (the list is still capped; raising that cap is roadmap #2).
+    // Risk-first ordering: breached/late, then at-risk, then the rest. No cap — the panel is
+    // scrollable, so the dispatcher sees every exception, not an arbitrary first 8.
     const rank = (e: any): number => {
       const h = (e.slaHealth && e.slaHealth !== 'NONE') ? e.slaHealth : e.slaWorstHealth;
       if (h === 'BREACHED' || h === 'LATE' || e.severity === 'CRITICAL') return 0;
       if (h === 'AT_RISK' || e.severity === 'WARNING') return 1;
       return 2;
     };
-    return [...ops.exceptions].sort((a, b) => rank(a) - rank(b)).slice(0, 8);
+    return [...ops.exceptions].sort((a, b) => rank(a) - rank(b));
   }, [ops]);
 
   const driverGroups = useMemo(() => {
@@ -424,7 +424,7 @@ export default function DashboardPage() {
               children: <KPICard
                   label={t.dashboardPage.slaRateLabel}
                 value={`${slaPercent}%`}
-                sub={slaSub}
+                trend={slaDelta == null ? undefined : { delta: slaDelta, format: n => `${Math.abs(n).toFixed(1)} pts`, goodWhen: 'up', caption: vsPrev }}
                 sparklineData={completionSpark.length > 0 ? completionSpark : undefined}
                 tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
                 className="h-full"
@@ -437,7 +437,8 @@ export default function DashboardPage() {
               children: <KPICard
                 label={t.dashboardPage.kpiDelivered || 'Livrés'}
                 value={today?.delivered ?? 0}
-                sub={deliveredSub}
+                trend={deliveredDelta == null ? undefined : { delta: deliveredDelta, format: n => `${Math.abs(n).toFixed(0)}%`, goodWhen: 'up', caption: vsPrev }}
+                sub={deliveredDelta == null ? deliveredSub : undefined}
                 sparklineData={deliveredSpark.length > 0 ? deliveredSpark : undefined}
                 tone={(today?.delivered ?? 0) > 0 ? "info" : "default"}
                 className="h-full"
@@ -462,7 +463,7 @@ export default function DashboardPage() {
               children: <KPICard
                 label={t.dashboardPage.kpiDriversOnline || 'En ligne'}
                 value={driverGroups.online.length}
-                sub={`/ ${drivers.length}`}
+                sub={`/ ${drivers.length} ${t.dashboardPage.kpiDriversTotalSuffix || 'total'}`}
                 tone={driverGroups.online.length === 0 ? "danger" : "default"}
                 className="h-full"
               />
@@ -593,7 +594,12 @@ export default function DashboardPage() {
                 <div className="flex flex-col bg-[var(--danger-bg)] dark:bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
                   <div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--danger)]" />
                   <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-                    <span className="text-xl font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
+                    <span className="flex items-center gap-2">
+                      <span className="text-xl font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || "Needs Attention"}</span>
+                      <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--danger)', color: '#fff' }}>
+                        {needsAttention.length}
+                      </span>
+                    </span>
                     <button
                       onClick={() => navigate('/dispatch-desk?tab=queue')}
                       className="text-xs font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors"

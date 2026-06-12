@@ -66,6 +66,8 @@ export const notifHelpers = {
 export const FR_COPY = {
   // ── Actions (libellés boutons) ────────────────────────────────────────
   actions: {
+    exportCsv: 'Export CSV',
+    nothingToExport: 'Rien à exporter',
     cancelRoute: 'Annuler la tournée',
     validateRoute: 'Valider la tournée',
     reassignRoute: 'Réaffecter la tournée',
@@ -715,6 +717,7 @@ export const FR_COPY = {
     kpiDeliveredOf: 'sur',
     kpiVsPrevPeriod: 'vs période préc.',
     kpiActiveRoutesSub: 'en cours',
+    kpiDriversTotalSuffix: 'au total',
     noData: 'Aucune donnée disponible',
     sectionStart: 'Tournées à Démarrer',
     sectionActiveRoutes: 'Tournées actives',

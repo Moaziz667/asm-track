@@ -37,6 +37,8 @@ const _en_window = (start: any, end: any): string => {
 export const EN_COPY = {
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
+    exportCsv: 'Export CSV',
+    nothingToExport: 'Nothing to export',
     cancelRoute: 'Cancel Route',
     validateRoute: 'Validate Route',
     reassignRoute: 'Reassign Route',
@@ -632,6 +634,7 @@ export const EN_COPY = {
     kpiDeliveredOf: 'of',
     kpiVsPrevPeriod: 'vs prev. period',
     kpiActiveRoutesSub: 'in progress',
+    kpiDriversTotalSuffix: 'total',
     noData: 'No data available',
     sectionStart: 'Routes to Start',
     sectionActiveRoutes: 'Active Routes',

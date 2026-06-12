@@ -45,6 +45,8 @@ const _ar_window = (start: any, end: any): string => {
 export const AR_COPY = {
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
+    exportCsv: 'تصدير CSV',
+    nothingToExport: 'لا شيء للتصدير',
     cancelRoute: 'إلغاء الرحلة',
     validateRoute: 'تأكيد الرحلة',
     reassignRoute: 'إعادة تعيين الرحلة',
@@ -692,6 +694,7 @@ export const AR_COPY = {
     kpiDeliveredOf: 'من',
     kpiVsPrevPeriod: 'مقارنة بالفترة السابقة',
     kpiActiveRoutesSub: 'نشطة',
+    kpiDriversTotalSuffix: 'إجمالاً',
     noData: 'لا توجد بيانات متاحة',
     sectionStart: 'رحلات للبدء',
     sectionActiveRoutes: 'الجولات النشطة',
