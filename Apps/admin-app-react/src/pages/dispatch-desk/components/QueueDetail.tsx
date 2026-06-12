@@ -70,8 +70,15 @@ export function QueueDetail() {
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
+      {/* Two-column cockpit. LEFT = order/client/driver context (what & who).
+          RIGHT = the full activity timeline (what happened & why) — fills the
+          space a single 680px column used to leave empty on wide screens.
+          Stacks to one column below xl so it stays usable on laptops/tablets. */}
       <ScrollArea className="flex-1 min-h-0">
-        <div className="flex flex-col gap-5 p-5 max-w-[680px]">
+        <div className="flex flex-col xl:flex-row xl:items-stretch gap-5 xl:gap-6 p-5">
+
+          {/* ── LEFT: context ──────────────────────────────────────────────── */}
+          <div className="flex flex-col gap-5 min-w-0 xl:flex-1 xl:max-w-[620px]">
           {/* Header — client hero with avatar + grouped status/health */}
           <div className="flex items-start justify-between gap-3">
             <div className="flex items-center gap-3 min-w-0">
@@ -110,19 +117,6 @@ export function QueueDetail() {
               reason={alert?.comment ?? (d as any).failReason}
             />
           )}
-
-          {/* Unified SLA journey — single source of truth (phase + health), replaces the old narrative */}
-          {id
-            ? <SlaTimeline deliveryId={id} variant="compact" />
-            : (
-              <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
-                <p className="text-base leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
-                  {t.dispatchDeskPage.queueNoAlerts}
-                </p>
-              </div>
-            )}
-
-          <Separator />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Driver */}
@@ -200,6 +194,26 @@ export function QueueDetail() {
               </div>
             </div>
           )}
+          </div>
+
+          {/* Divider between the two columns — horizontal when stacked, vertical when side-by-side */}
+          <Separator className="xl:hidden" />
+
+          {/* ── RIGHT: activity rail (what happened & why) ─────────────────── */}
+          <div className="flex flex-col gap-2 min-w-0 xl:w-[420px] xl:shrink-0 xl:border-s xl:ps-6" style={{ borderColor: 'var(--border)' }}>
+            <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+              {t.dispatchDeskPage.activityLabel ?? 'Activité'}
+            </span>
+            {id
+              ? <SlaTimeline deliveryId={id} variant="detailed" />
+              : (
+                <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
+                  <p className="text-base leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
+                    {t.dispatchDeskPage.queueNoAlerts}
+                  </p>
+                </div>
+              )}
+          </div>
         </div>
       </ScrollArea>
 

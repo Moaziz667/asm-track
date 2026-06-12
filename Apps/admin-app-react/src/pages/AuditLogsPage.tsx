@@ -80,6 +80,18 @@ const getActionStyle = (action: string, locale: string, copy?: any) => {
   return { label: resolvedCopy.auditLogsPage[meta.labelKey as keyof typeof resolvedCopy.auditLogsPage] as string, color: meta.color };
 };
 
+// Stable per-role accent for the actor avatar/role label. Keeps the *person* who acted
+// visually distinct (admin vs dispatcher vs driver) — the headline of each audit row.
+const getRoleColor = (role: string): string => {
+  switch ((role || '').toUpperCase()) {
+    case 'ADMIN':      return '#3B82F6';
+    case 'DISPATCHER': return '#8B5CF6';
+    case 'DRIVER':     return '#10B981';
+    case 'SYSTEM':     return '#71717A';
+    default:           return '#6366F1';
+  }
+};
+
 const getLocaleFormat = (locale: string): string => {
   const map: Record<string, string> = { fr: 'fr-FR', en: 'en-US', ar: 'ar-SA' };
   return map[locale] || 'fr-FR';
@@ -370,7 +382,7 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Timeline */}
+      {/* Audit table — enterprise grid: actor-first, no card boxes. */}
       <div className="flex-1 overflow-auto" style={{ background: 'var(--surface)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
@@ -381,93 +393,125 @@ export default function AuditLogsPage() {
             <p className="text-xs font-bold text-[var(--text-muted)]">{t.auditLogsPage.noLogs}</p>
           </div>
         ) : (
-          <div className="px-6 py-4">
-            {dateGroupOrder.map(dateGroup => {
-              const items = groupedLogs[dateGroup];
-              if (!items) return null;
-              return (
-                <div key={dateGroup} className="mb-6">
-                  <p className="text-2xs font-[700] text-[var(--text-muted)] uppercase tracking-wide mb-3">{getDateGroupLabel(dateGroup)}</p>
-                  <div className="space-y-0 border-l border-[var(--border)]">
-                    {items.map((log, idx) => {
+          <table className="w-full border-collapse text-start">
+            {/* Sticky column header */}
+            <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
+              <tr className="border-b border-[var(--border)]">
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] ps-6 pe-3 py-2.5">{t.auditLogsPage.actorLabel}</th>
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5">{t.auditLogsPage.actionLabel}</th>
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden md:table-cell">{t.auditLogsPage.colResource}</th>
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 whitespace-nowrap">{t.auditLogsPage.colTime}</th>
+                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden lg:table-cell">{t.auditLogsPage.colIp}</th>
+                <th className="w-8 pe-4" />
+              </tr>
+            </thead>
+            <tbody>
+              {dateGroupOrder.map(dateGroup => {
+                const items = groupedLogs[dateGroup];
+                if (!items) return null;
+                return (
+                  <React.Fragment key={dateGroup}>
+                    {/* Date section row */}
+                    <tr>
+                      <td colSpan={6} className="ps-6 pe-3 pt-5 pb-2">
+                        <span className="text-2xs font-[700] uppercase tracking-wide text-[var(--text-soft)]">{getDateGroupLabel(dateGroup)}</span>
+                      </td>
+                    </tr>
+                    {items.map(log => {
                       const meta = getActionStyle(log.action, locale, t);
                       const isExpanded = expandedId === log.id;
-                      const isLast = idx === items.length - 1;
+                      const roleColor = getRoleColor(log.actorRole);
+                      const initials = (log.actorName || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
 
                       return (
-                        <div key={log.id}>
-                          {/* Timeline Item */}
-                          <div
-                            className="pl-4 py-2.5 pr-3 border-b border-[var(--border)] cursor-pointer transition-colors hover:bg-[var(--app-bg)] group"
+                        <React.Fragment key={log.id}>
+                          <tr
+                            className="border-b border-[var(--border)] cursor-pointer transition-colors hover:bg-[var(--app-bg)]"
                             onClick={() => setExpandedId(isExpanded ? null : log.id)}
                           >
-                            <div className="flex items-start gap-3">
-                              {/* Left semantic indicator */}
-                              <div className="flex flex-col items-center gap-2 pt-0.5">
-                                <div className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: meta.color }} />
-                                {!isLast && <div className="w-px h-8 bg-[var(--border)]" />}
-                              </div>
-
-                              {/* Content */}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <span className="text-xs font-[700] font-mono text-[var(--text-primary)]">{meta.label}</span>
-                                  <span className="text-2xs font-[500] text-[var(--text-muted)]">{t.auditLogsPage.byActor} {log.actorName}</span>
-                                  <span className="text-2xs font-[500] px-1.5 py-0.5 rounded-xs border border-[var(--border)] text-[var(--text-muted)]">{log.actorRole}</span>
+                            {/* Actor — primary: who performed the action */}
+                            <td className="ps-6 pe-3 py-2.5 align-middle">
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <span
+                                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
+                                  style={{ background: `${roleColor}1A`, color: roleColor }}
+                                >
+                                  {initials}
+                                </span>
+                                <div className="min-w-0">
+                                  <p className="text-xs font-[600] text-[var(--text-primary)] truncate leading-tight">{log.actorName}</p>
+                                  <span className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: roleColor }}>{log.actorRole}</span>
                                 </div>
-                                <div className="flex items-center gap-4 mb-1">
-                                  <span className="text-2xs font-[500] font-mono text-[var(--text-muted)]">{formatTime(log.createdAt, locale)}</span>
-                                  {log.resourceId && (
-                                    <span className="text-2xs font-mono text-[var(--text-muted)] px-1.5 py-0.5 rounded-xs" style={{ background: 'var(--app-bg)' }}>
-                                      {log.resourceId.slice(0, 14)}
-                                    </span>
-                                  )}
-                                  <span className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
-                                </div>
-                                <p className="text-2xs text-[var(--text-muted)]">{meta.label}</p>
                               </div>
+                            </td>
 
-                              {/* Expand indicator */}
-                              <div className={cn('flex-shrink-0 text-[var(--text-muted)] transition-transform', isExpanded && 'rotate-180')}>
-                                <IconChevronDown size={14} />
-                              </div>
-                            </div>
+                            {/* Action — colored dot + category label */}
+                            <td className="px-3 py-2.5 align-middle">
+                              <span className="inline-flex items-center gap-2">
+                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.color }} />
+                                <span className="text-xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
+                              </span>
+                            </td>
 
-                            {/* Expanded Details */}
-                            {isExpanded && (
-                              <div className="mt-3 pt-3 border-t border-[var(--border)] ml-3">
-                                <div className="grid grid-cols-2 gap-4 mb-3">
+                            {/* Resource */}
+                            <td className="px-3 py-2.5 align-middle hidden md:table-cell">
+                              {log.resourceId
+                                ? <span className="text-2xs font-mono text-[var(--text-muted)]" title={log.resourceId}>{log.resourceId.slice(0, 14)}</span>
+                                : <span className="text-2xs text-[var(--text-soft)]">—</span>}
+                            </td>
+
+                            {/* Time */}
+                            <td className="px-3 py-2.5 align-middle whitespace-nowrap">
+                              <span className="text-2xs font-mono text-[var(--text-muted)]" title={formatTs(log.createdAt, locale)}>{formatTime(log.createdAt, locale)}</span>
+                            </td>
+
+                            {/* IP */}
+                            <td className="px-3 py-2.5 align-middle hidden lg:table-cell">
+                              <span className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
+                            </td>
+
+                            {/* Expand chevron */}
+                            <td className="pe-4 py-2.5 align-middle text-end">
+                              <IconChevronDown size={14} className={cn('inline text-[var(--text-muted)] transition-transform', isExpanded && 'rotate-180')} />
+                            </td>
+                          </tr>
+
+                          {/* Expanded payload row */}
+                          {isExpanded && (
+                            <tr className="border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
+                              <td colSpan={6} className="ps-6 pe-4 py-3">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.eventId}</p>
-                                    <p className="text-2xs font-mono text-[var(--text-primary)]" title={log.id}>{log.id.slice(0, 8)}</p>
-                                    <p className="text-2xs text-[var(--text-muted)] mt-0.5">{t.auditLogsPage.fullId} {log.id}</p>
+                                    <p className="text-2xs font-mono text-[var(--text-primary)] break-all">{log.id}</p>
                                   </div>
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
-                                    <span className="text-2xs font-[600] px-2 py-1 rounded-xs inline-block" style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}>
-                                      {meta.label}
+                                    <span className="inline-flex items-center gap-1.5">
+                                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+                                      <span className="text-2xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
                                     </span>
                                   </div>
                                 </div>
                                 {log.details && (
                                   <div>
                                     <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
-                                    <div className="text-2xs p-2 rounded-xs bg-[var(--app-bg)] border border-[var(--border)] max-h-32 overflow-y-auto">
+                                    <div className="text-2xs p-2 rounded-xs bg-[var(--surface)] border border-[var(--border)] max-h-40 overflow-y-auto">
                                       {formatPayload(log.details, locale)}
                                     </div>
                                   </div>
                                 )}
-                              </div>
-                            )}
-                          </div>
-                        </div>
+                              </td>
+                            </tr>
+                          )}
+                        </React.Fragment>
                       );
                     })}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                  </React.Fragment>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </div>
 

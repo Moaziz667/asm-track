@@ -539,7 +539,7 @@ function DriversPageContent() {
                       <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
                         {col.id === 'contact' ? t.driversPage.tableHeaderContact
                          : col.id === 'activity' ? t.driversPage.tableHeaderActivity
-                         : t.driversPage.statusActive || 'Statut'}
+                         : t.driversPage.tableHeaderAccountStatus || 'Statut du compte'}
                       </span>
                     ))}
                     <span className="text-xs font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
@@ -589,9 +589,12 @@ function DriversPageContent() {
                             </div>
                             {drv.accountStatus === 'ACTIVE' && (
                               <span
+                                title={drv.onlineStatus === 'ONLINE'
+                                  ? (t.driversPage.statusOnline ?? 'En ligne')
+                                  : (t.driversPage.statusOffline ?? 'Hors ligne')}
                                 className={cn(
                                   "absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]",
-                                  drv.onlineStatus === 'ONLINE' ? "bg-emerald-500" : "bg-slate-400"
+                                  drv.onlineStatus === 'ONLINE' ? "bg-emerald-500" : "bg-[var(--text-soft)]"
                                 )}
                               />
                             )}
@@ -630,18 +633,17 @@ function DriversPageContent() {
                                   </span>
                                 </div>
                               ) : (
-                                <StatusBadge status="CLOSED" size="sm" label={t.driversPage.free} />
+                                /* "Libre" = idle/default — just quiet text, no badge. It's the resting
+                                   state, so it shouldn't compete visually with the green "Actif" badge. */
+                                <span className="text-xs text-[var(--text-soft)]">{t.driversPage.free}</span>
                               )}
                             </div>
                           );
                           if (col.id === 'status') return (
-                            <div key="status" className="text-start flex flex-col gap-0.5 items-start justify-center">
+                            <div key="status" className="text-start flex items-center">
+                              {/* Online/offline is already shown by the colored dot on the avatar —
+                                  showing it again here (big OFFLINE text) inverted the hierarchy. */}
                               <DriverStatusBadge status={drv.accountStatus ?? 'PENDING_SETUP'} size="sm" />
-                              {drv.accountStatus === 'ACTIVE' && (
-                                <span className="text-2xs font-bold text-[var(--text-muted)] tracking-wider">
-                                  {drv.onlineStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
-                                </span>
-                              )}
                             </div>
                           );
                           return null;
@@ -857,7 +859,13 @@ function DriversPageContent() {
 
                           <div className="flex items-center justify-between py-3 border-b border-[var(--border)]/40">
                             <span className="text-xs text-[var(--text-muted)] font-medium">{t.driversPage.tableHeaderActivity}</span>
-                            <span className="text-xs text-[var(--text-primary)] font-semibold">{selected.onlineStatus || 'OFFLINE'}</span>
+                            <span className="inline-flex items-center gap-1.5 text-xs text-[var(--text-primary)] font-semibold">
+                              <span className={cn("block h-1.5 w-1.5 rounded-full",
+                                selected.onlineStatus === 'ONLINE' ? "bg-emerald-500" : "bg-[var(--text-soft)]")} />
+                              {selected.onlineStatus === 'ONLINE'
+                                ? (t.driversPage.statusOnline ?? 'En ligne')
+                                : (t.driversPage.statusOffline ?? 'Hors ligne')}
+                            </span>
                           </div>
 
                           {selected.suspendedReason && (

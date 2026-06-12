@@ -1,6 +1,7 @@
 
 
 import { ReactNode } from 'react';
+import { IconTruck } from '@tabler/icons-react';
 import { Progress } from '@/components/ui/progress';
 import { cn, formatMinutes } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
@@ -25,6 +26,18 @@ function KpiCard({ label, value, sub, isAlert, icon, driverStatus }: KpiCardProp
             className={styles.dot}
             style={{ backgroundColor: driverStatus.dot }}
           />
+          <div className={cn(styles.value, isAlert && 'text-red-600')}>{value}</div>
+        </div>
+      ) : icon ? (
+        // Icon variant: a bordered tile holds the icon next to the value (e.g. the
+        // vehicle plate sits beside a framed car icon).
+        <div className="flex items-center gap-2">
+          <span
+            className="flex items-center justify-center w-7 h-7 rounded-[var(--radius-md)] border shrink-0"
+            style={{ borderColor: 'var(--border)', background: 'var(--app-bg)', color: 'var(--text-muted)' }}
+          >
+            {icon}
+          </span>
           <div className={cn(styles.value, isAlert && 'text-red-600')}>{value}</div>
         </div>
       ) : (
@@ -138,6 +151,7 @@ export function RouteStats({
           label={t.routeDetailPage?.labelVehicle || 'Véhicule'}
           value={vehiclePlate || '—'}
           sub={vehicleType}
+          icon={<IconTruck size={15} stroke={1.8} />}
         />
 
         {/* Charge totale */}
