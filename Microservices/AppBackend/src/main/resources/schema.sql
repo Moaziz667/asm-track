@@ -49,3 +49,22 @@ CREATE TABLE IF NOT EXISTS system_settings (
   erp_configuration   TEXT,
   updated_at          TIMESTAMP NOT NULL DEFAULT NOW()
 );
+
+-- ERP connection lifecycle: 'configured' (saved, untested) is NOT 'connected' (creds verified).
+-- These columns make the connection state persistent and visible across Config + Import pages.
+-- connection_status: NOT_CONFIGURED | CONFIGURED | CONNECTED | ERROR
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS connection_status VARCHAR(20) NOT NULL DEFAULT 'NOT_CONFIGURED';
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS last_tested_at    TIMESTAMP;
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS last_connected_at TIMESTAMP;
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS last_error        TEXT;
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS last_test_uid     VARCHAR(50);
+
+-- Backfill: a row that already has a provider + config existed BEFORE this column was added,
+-- so it wrongly defaulted to NOT_CONFIGURED. Mark it CONFIGURED (saved, awaiting a test) — it
+-- isn't proven CONNECTED, but it's certainly not unconfigured. Idempotent.
+UPDATE system_settings
+   SET connection_status = 'CONFIGURED'
+ WHERE connection_status = 'NOT_CONFIGURED'
+   AND active_erp_provider IS NOT NULL
+   AND active_erp_provider <> 'NONE'
+   AND erp_configuration IS NOT NULL;

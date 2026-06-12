@@ -88,7 +88,18 @@ public class SettingsController {
             }
         }
 
-        return ResponseEntity.ok(new SystemSettingsDto(settings.getActiveErpProvider(), configMap));
+        SystemSettingsDto out = new SystemSettingsDto(settings.getActiveErpProvider(), configMap);
+        applyStatus(out, settings);
+        return ResponseEntity.ok(out);
+    }
+
+    /** Copy the persisted connection-lifecycle fields onto an outgoing DTO. */
+    private void applyStatus(SystemSettingsDto dto, SystemSettings s) {
+        dto.setConnectionStatus(s.getConnectionStatus());
+        dto.setLastTestedAt(s.getLastTestedAt());
+        dto.setLastConnectedAt(s.getLastConnectedAt());
+        dto.setLastError(s.getLastError());
+        dto.setLastTestUid(s.getLastTestUid());
     }
 
     /**
@@ -100,17 +111,20 @@ public class SettingsController {
     public ResponseEntity<Void> updateErpSettings(@RequestBody SystemSettingsDto dto) {
         SystemSettings settings = repository.findById("SINGLETON").orElse(new SystemSettings());
         settings.setId("SINGLETON");
+
+        String oldProvider = settings.getActiveErpProvider();
+        String oldEncrypted = settings.getErpConfiguration();
         settings.setActiveErpProvider(dto.getActiveErpProvider());
 
         if (dto.getErpConfiguration() != null) {
             try {
                 // If the frontend sends masked passwords, we need to ignore them and keep the old password
                 Map<String, Object> newConfig = objectMapper.convertValue(dto.getErpConfiguration(), new TypeReference<Map<String, Object>>() {});
-                
-                if (settings.getErpConfiguration() != null) {
-                    String decryptedOldJson = encryptionService.decrypt(settings.getErpConfiguration());
+
+                if (oldEncrypted != null) {
+                    String decryptedOldJson = encryptionService.decrypt(oldEncrypted);
                     Map<String, Object> oldConfig = objectMapper.readValue(decryptedOldJson, new TypeReference<Map<String, Object>>() {});
-                    
+
                     // Restore original password if frontend sent mask
                     if ("********".equals(newConfig.get("password")) && oldConfig.containsKey("password")) {
                         newConfig.put("password", oldConfig.get("password"));
@@ -131,6 +145,29 @@ public class SettingsController {
             settings.setErpConfiguration(null);
         }
 
+        // ── Connection lifecycle on save ──────────────────────────────────────
+        // Saving config never proves it works. A CONNECTED status only comes from a passing
+        // Test. So: provider NONE → NOT_CONFIGURED; otherwise, if the provider or the
+        // credentials actually changed, drop back to CONFIGURED (untested) and clear the old
+        // green state — this is the "you changed it, re-test" invalidation. If nothing
+        // material changed, keep whatever status we had (e.g. stay CONNECTED).
+        String newProvider = settings.getActiveErpProvider();
+        boolean credsChanged = !java.util.Objects.equals(oldEncrypted, settings.getErpConfiguration());
+        boolean providerChanged = !java.util.Objects.equals(oldProvider, newProvider);
+
+        if (newProvider == null || "NONE".equalsIgnoreCase(newProvider) || settings.getErpConfiguration() == null) {
+            settings.setConnectionStatus("NOT_CONFIGURED");
+            settings.setLastError(null);
+            settings.setLastTestUid(null);
+            settings.setLastConnectedAt(null);
+        } else if (providerChanged || credsChanged || settings.getConnectionStatus() == null
+                || "NOT_CONFIGURED".equals(settings.getConnectionStatus())) {
+            settings.setConnectionStatus("CONFIGURED");
+            settings.setLastError(null);
+            settings.setLastTestUid(null);
+            settings.setLastConnectedAt(null);
+        }
+
         repository.save(settings);
         return ResponseEntity.ok().build();
     }
@@ -147,25 +184,60 @@ public class SettingsController {
             return ResponseEntity.badRequest().body(Map.of("error", "Unsupported or missing provider config"));
         }
 
+        Map<String, Object> config = objectMapper.convertValue(dto.getErpConfiguration(), new TypeReference<>() {});
+
+        // Masked secrets ("********") mean "unchanged" — restore the real value from the stored
+        // record, BUT only field-by-field. A typed (non-masked) secret is used as-is and never
+        // overwritten. This guarantees a wrong key the admin actually typed is what gets tested.
+        SystemSettings stored = repository.findById("SINGLETON").orElse(null);
+        Map<String, Object> oldConfig = decryptStoredConfig(stored);
+        restoreMaskedSecret(config, oldConfig, "apiKey");
+        restoreMaskedSecret(config, oldConfig, "password");
+
+        return runOdooTest(config);
+    }
+
+    /**
+     * Test the credentials EXACTLY as persisted in the DB — no client payload, so there is no
+     * mask/restore ambiguity. Used by the "Save & test" chain: the PUT has already written the
+     * admin's real values, so testing the stored config proves those exact values work (or not).
+     */
+    @PostMapping("/erp/test-stored")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> testStoredErpSettings() {
+        SystemSettings stored = repository.findById("SINGLETON").orElse(null);
+        if (stored == null || stored.getErpConfiguration() == null
+                || stored.getActiveErpProvider() == null || "NONE".equalsIgnoreCase(stored.getActiveErpProvider())) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No ERP configuration saved"));
+        }
+        if ("DUX".equalsIgnoreCase(stored.getActiveErpProvider())) {
+            return ResponseEntity.ok(Map.of("status", "success", "message", "DUX adapter testing will be implemented next week."));
+        }
+        return runOdooTest(decryptStoredConfig(stored));
+    }
+
+    /** Decrypt the stored ERP config JSON into a map (empty map if none). */
+    private Map<String, Object> decryptStoredConfig(SystemSettings stored) {
+        if (stored == null || stored.getErpConfiguration() == null) return new HashMap<>();
         try {
-            Map<String, Object> config = objectMapper.convertValue(dto.getErpConfiguration(), new TypeReference<>() {});
+            String json = encryptionService.decrypt(stored.getErpConfiguration());
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception e) {
+            log.warn("Could not decrypt stored ERP config: {}", e.getMessage());
+            return new HashMap<>();
+        }
+    }
 
-            // Masked secrets ("********") come from the UI when unchanged — restore the real values
-            // from the encrypted DB record so the test uses live credentials.
-            if ("********".equals(config.get("apiKey")) || "********".equals(config.get("password"))) {
-                SystemSettings settings = repository.findById("SINGLETON").orElse(null);
-                if (settings != null && settings.getErpConfiguration() != null) {
-                    String decryptedOldJson = encryptionService.decrypt(settings.getErpConfiguration());
-                    Map<String, Object> oldConfig = objectMapper.readValue(decryptedOldJson, new TypeReference<>() {});
-                    if ("********".equals(config.get("apiKey")) && oldConfig.containsKey("apiKey")) {
-                        config.put("apiKey", oldConfig.get("apiKey"));
-                    }
-                    if ("********".equals(config.get("password")) && oldConfig.containsKey("password")) {
-                        config.put("password", oldConfig.get("password"));
-                    }
-                }
-            }
+    /** Replace a masked ("********") secret with the stored value; leave a real typed value untouched. */
+    private void restoreMaskedSecret(Map<String, Object> config, Map<String, Object> oldConfig, String key) {
+        if ("********".equals(config.get(key)) && oldConfig.containsKey(key)) {
+            config.put(key, oldConfig.get(key));
+        }
+    }
 
+    /** Authenticate the given Odoo config and persist the CONNECTED/ERROR result. */
+    private ResponseEntity<Map<String, String>> runOdooTest(Map<String, Object> config) {
+        try {
             String url = String.valueOf(config.get("url"));
             validateUrl(url);
             String db = String.valueOf(config.get("db"));
@@ -176,7 +248,7 @@ public class SettingsController {
                     ? String.valueOf(apiKey) : String.valueOf(config.get("password"));
 
             // Validate by authenticating: common.authenticate returns the numeric uid (or false on
-            // bad credentials). A uid > 0 proves the login + API key pair is valid. Pure JSON-RPC.
+            // bad credentials). A uid > 0 proves the db + login + API key triple is valid. Pure JSON-RPC.
             Map<String, Object> params = new HashMap<>();
             params.put("service", "common");
             params.put("method", "authenticate");
@@ -194,16 +266,66 @@ public class SettingsController {
                     .retrieve()
                     .body(Map.class);
 
+            // Odoo returns {"result": <uid>} on success, {"result": false} on bad creds, or an
+            // {"error": ...} envelope on a server/db error. Treat anything but a positive uid as failure.
+            Object errorEnvelope = response != null ? response.get("error") : null;
             Object result = response != null ? response.get("result") : null;
             int uid = result instanceof Number ? ((Number) result).intValue() : -1;
-            if (uid > 0) {
+
+            if (errorEnvelope == null && uid > 0) {
+                persistTestResult(true, String.valueOf(uid), null);
                 return ResponseEntity.ok(Map.of("status", "success", "uid", String.valueOf(uid)));
             }
-            return ResponseEntity.badRequest().body(Map.of("error", "Connection failed or unauthorized (check login / API key)"));
+
+            String reason = errorEnvelope != null
+                    ? "Odoo error: " + extractOdooError(errorEnvelope)
+                    : "Authentication failed — wrong database, login, or API key.";
+            persistTestResult(false, null, reason);
+            return ResponseEntity.badRequest().body(Map.of("error", reason));
 
         } catch (Exception e) {
             log.warn("ERP Test Connection failed: {}", e.getMessage());
+            persistTestResult(false, null, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /** Pull a human message out of an Odoo JSON-RPC error envelope. */
+    @SuppressWarnings("unchecked")
+    private String extractOdooError(Object envelope) {
+        try {
+            if (envelope instanceof Map<?, ?> m) {
+                Object data = m.get("data");
+                if (data instanceof Map<?, ?> dm && dm.get("message") != null) return String.valueOf(dm.get("message"));
+                if (m.get("message") != null) return String.valueOf(m.get("message"));
+            }
+        } catch (Exception ignored) { /* fall through */ }
+        return "unauthorized or unreachable";
+    }
+
+    /**
+     * Record the outcome of a connection test on the singleton settings row, so the
+     * CONNECTED/ERROR state survives reloads and is visible to the Import page. Best-effort:
+     * a persistence hiccup must not change the HTTP result the admin sees.
+     */
+    private void persistTestResult(boolean ok, String uid, String error) {
+        try {
+            SystemSettings settings = repository.findById("SINGLETON").orElse(null);
+            if (settings == null) return; // nothing saved yet — a pure pre-save probe
+            java.time.LocalDateTime now = java.time.LocalDateTime.now();
+            settings.setLastTestedAt(now);
+            if (ok) {
+                settings.setConnectionStatus("CONNECTED");
+                settings.setLastConnectedAt(now);
+                settings.setLastTestUid(uid);
+                settings.setLastError(null);
+            } else {
+                settings.setConnectionStatus("ERROR");
+                settings.setLastError(error);
+            }
+            repository.save(settings);
+        } catch (Exception ex) {
+            log.warn("Could not persist ERP test result: {}", ex.getMessage());
         }
     }
 
@@ -230,6 +352,10 @@ public class SettingsController {
             }
         }
 
-        return ResponseEntity.ok(new SystemSettingsDto(settings.getActiveErpProvider(), configMap));
+        SystemSettingsDto out = new SystemSettingsDto(settings.getActiveErpProvider(), configMap);
+        // Propagate the verified connection status so the adapter can refuse to pull orders
+        // with credentials that aren't CONNECTED.
+        out.setConnectionStatus(settings.getConnectionStatus());
+        return ResponseEntity.ok(out);
     }
 }

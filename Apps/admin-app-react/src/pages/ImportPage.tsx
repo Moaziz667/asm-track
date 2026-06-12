@@ -88,6 +88,19 @@ function ImportErpPageContent() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkImporting, setBulkImporting] = useState(false);
 
+  // ERP connection health — so the Import page doesn't silently show an empty/stale list
+  // when the active source's credentials are wrong. Read-only; ADMIN-gated endpoint, so we
+  // fail quiet for non-admins (they simply see no banner).
+  const [erpConn, setErpConn] = useState<{ provider: string; status: string; error?: string | null } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    api.get('/api/settings/erp')
+      .then(res => { if (alive && res.data) setErpConn({ provider: res.data.activeErpProvider, status: res.data.connectionStatus, error: res.data.lastError }); })
+      .catch(() => { /* not admin / no settings — no banner */ });
+    return () => { alive = false; };
+  }, []);
+  const erpUnhealthy = erpConn && erpConn.provider !== 'NONE' && erpConn.status !== 'CONNECTED';
+
   const loadPendingOrders = useCallback(async (silent = false, forceRefresh = false) => {
     try {
       if (silent) setRefreshing(true);
@@ -256,6 +269,30 @@ function ImportErpPageContent() {
         activeQuickFilter={activeTab}
         onQuickFilterChange={v => setActiveTab(v as 'all' | 'ready' | 'done')}
       />
+
+      {/* ERP connection health banner — the active source's creds aren't verified, so this
+          list may be empty or stale. Sends the admin straight to the config page to fix it. */}
+      {erpUnhealthy && (
+        <div
+          className="flex items-center gap-2.5 px-4 py-2.5 shrink-0 text-xs"
+          style={{ background: 'color-mix(in srgb, var(--warning) 10%, transparent)', color: 'var(--warning)', borderBottom: '1px solid color-mix(in srgb, var(--warning) 25%, transparent)' }}
+        >
+          <IconAlertCircle size={15} className="shrink-0" />
+          <span className="font-[600] min-w-0">
+            {erpConn?.status === 'ERROR'
+              ? (t.importPage.erpUnhealthyError ?? 'La connexion ERP a échoué — les commandes ne sont pas synchronisées.')
+              : (t.importPage.erpUnhealthyUntested ?? 'La source ERP n’est pas vérifiée — testez la connexion pour garantir la synchronisation.')}
+            {erpConn?.error ? ` (${erpConn.error})` : ''}
+          </span>
+          <button
+            type="button"
+            onClick={() => router('/settings/erp')}
+            className="ms-auto shrink-0 font-bold underline hover:no-underline"
+          >
+            {t.importPage.erpFixLink ?? 'Configurer'}
+          </button>
+        </div>
+      )}
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── Main Table (full-width, sidebar removed) ── */}
