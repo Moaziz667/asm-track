@@ -16,6 +16,7 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { AppLoader } from '@/components/AppLoader';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
@@ -209,6 +210,21 @@ function DeliveriesPageContent() {
   }, [page, size, status, date, driverId, effectiveZoneId, quickView]);
 
   const { data: deliveriesResponse, isLoading: loading, isFetching: refreshing, refetch: fetchDeliveries } = useDeliveries(queryParams);
+
+  // Realtime: any delivery lifecycle change refetches the list (debounced), so statuses/SLA stay
+  // live instead of up to 30s stale. React Query already dedupes; no fallback poll needed here.
+  const delivRtTimer = useRef<number | null>(null);
+  useRealtimeEvent(
+    ['delivery.created', 'delivery.scheduled', 'delivery.reassigned', 'delivery.replanned',
+     'delivery.picked_up', 'delivery.in_transit', 'delivery.completed', 'delivery.failed',
+     'delivery.cancelled', 'delivery.backorder_created', 'delivery.redelivery_scheduled'],
+    () => {
+      if (delivRtTimer.current != null) return;
+      delivRtTimer.current = window.setTimeout(() => { delivRtTimer.current = null; void fetchDeliveries(); }, 1500);
+    },
+  );
+  useEffect(() => () => { if (delivRtTimer.current != null) window.clearTimeout(delivRtTimer.current); }, []);
+
   const pinDropoffMutation = usePinDropoff();
   const createBackorderMutation = useCreateBackorder();
   const cancelDeliveryMutation = useCancelDelivery();

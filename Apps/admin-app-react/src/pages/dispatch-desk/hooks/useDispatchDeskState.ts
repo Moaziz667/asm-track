@@ -7,6 +7,7 @@ import { useGlobalFilters } from '@/lib/global-filters';
 import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/auth';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { useT } from '@/lib/LocaleContext';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 
 import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction, QueueRow } from '../types';
 import type { ReassignTarget } from '@/components/overlays/ReassignDrawer';
@@ -245,10 +246,26 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   useEffect(() => { setCurrentUser(getCurrentUser()); fetchDrivers(); fetchZones(); }, [fetchDrivers, fetchZones]);
   useEffect(() => { void fetchExceptions(); }, [fetchExceptions]);
   useEffect(() => { void fetchAllDeliveries(); }, [fetchAllDeliveries]);
+
+  // Realtime: push beats the old 45s poll. Any delivery/assignment/departure lifecycle event
+  // triggers a debounced refetch (a burst of events → one refetch), so the queue reflects the
+  // field within ~1s. A slow 120s interval stays as a safety net if the socket drops.
+  const rtTimer = useRef<number | null>(null);
+  const refetchBoth = useCallback(() => { void fetchExceptions(true); void fetchAllDeliveries(); }, [fetchExceptions, fetchAllDeliveries]);
+  useRealtimeEvent(
+    ['delivery.created', 'delivery.scheduled', 'delivery.reassigned', 'delivery.reassigned_away',
+     'delivery.replanned', 'delivery.picked_up', 'delivery.in_transit', 'delivery.completed',
+     'delivery.failed', 'delivery.cancelled', 'delivery.awaiting', 'delivery.redelivery_scheduled',
+     'assignment.awaiting', 'departure.awaiting', 'departure.loading'],
+    () => {
+      if (rtTimer.current != null) return;
+      rtTimer.current = window.setTimeout(() => { rtTimer.current = null; refetchBoth(); }, 1500);
+    },
+  );
   useEffect(() => {
-    const id = setInterval(() => { void fetchExceptions(true); void fetchAllDeliveries(); }, 45_000);
-    return () => clearInterval(id);
-  }, [fetchExceptions, fetchAllDeliveries]);
+    const id = setInterval(refetchBoth, 120_000); // safety fallback only
+    return () => { clearInterval(id); if (rtTimer.current != null) window.clearTimeout(rtTimer.current); };
+  }, [refetchBoth]);
 
   // Reset on leave: dispatch filters are per-visit. Clearing the shared operational-filter store on
   // unmount means returning to the desk — or arriving via a notification deep-link (?search=…) —

@@ -113,6 +113,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { AddButton } from '@/components/ui/AddButton';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
 import { useDensity } from '@/hooks/useDensity';
@@ -228,6 +229,18 @@ function DriversPageContent() {
 
   // TanStack Query Hooks
   const { data: drivers = [], isLoading: loading, refetch: fetchDrivers } = useDrivers();
+
+  // Realtime: keep the online/offline + account status live (driver goes on/offline, gets
+  // suspended/activated) via a debounced refetch instead of waiting for a focus/mount refetch.
+  const driverRtTimer = useRef<number | null>(null);
+  useRealtimeEvent(
+    ['driver.status_changed', 'driver.events'],
+    () => {
+      if (driverRtTimer.current != null) return;
+      driverRtTimer.current = window.setTimeout(() => { driverRtTimer.current = null; void fetchDrivers(); }, 1500);
+    },
+  );
+
   const createDriverMutation = useCreateDriver();
   const updateDriverMutation = useUpdateDriver();
   const toggleStatusMutation = useToggleDriverStatus();
