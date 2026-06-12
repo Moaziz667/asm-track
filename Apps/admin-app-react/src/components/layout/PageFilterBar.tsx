@@ -262,7 +262,7 @@ export function PageFilterBar({
       style={{
         background: 'var(--surface)',
         boxShadow: 'var(--shadow-sm)',
-        fontFamily: "'Amazon Ember Display','Amazon Ember',system-ui,sans-serif",
+        fontFamily: "'Clear Sans',system-ui,sans-serif",
       }}
     >
       {/* Toolbar row */}

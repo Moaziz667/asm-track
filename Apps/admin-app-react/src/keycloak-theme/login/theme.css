@@ -1,4 +1,19 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@100..800&display=swap');
+/* Clear Sans (Intel, Apache-2.0) — self-hosted, mirrors globals.css. */
+@font-face {
+  font-family: 'Clear Sans';
+  src: url('../../assets/fonts/ClearSans-Regular.ttf') format('truetype');
+  font-weight: 400; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Clear Sans';
+  src: url('../../assets/fonts/ClearSans-Medium.ttf') format('truetype');
+  font-weight: 500; font-style: normal; font-display: swap;
+}
+@font-face {
+  font-family: 'Clear Sans';
+  src: url('../../assets/fonts/ClearSans-Bold.ttf') format('truetype');
+  font-weight: 700; font-style: normal; font-display: swap;
+}
 
 /* ── Design tokens — mirrors globals.css exactly ─────────────────────────── */
 :root {
@@ -35,7 +50,7 @@
   --radius-md: 4px;
   --radius-lg: 12px;
 
-  --font-sans: 'Sora', sans-serif;
+  --font-sans: 'Clear Sans', system-ui, sans-serif;
 }
 
 /* ── Reset ───────────────────────────────────────────────────────────────── */

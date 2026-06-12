@@ -89,7 +89,7 @@ export function StatusBadge({ status, label, size = 'md', pulse }: StatusBadgePr
       />
       <span
         style={{
-          fontFamily: "'Amazon Ember', 'Inter', system-ui, sans-serif",
+          fontFamily: "'Clear Sans', system-ui, sans-serif",
           fontSize,
           fontWeight: 500,
           color: cfg.text,

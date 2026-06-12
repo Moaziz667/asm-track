@@ -81,7 +81,7 @@ function FilterDropdown({
     <div
       ref={panelRef}
       className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[220px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
-      style={{ fontFamily: "'Amazon Ember Display', 'Amazon Ember', system-ui, sans-serif" }}
+      style={{ fontFamily: "'Clear Sans', system-ui, sans-serif" }}
     >
       {/* Header */}
       <div className="flex items-center gap-2 px-3 py-2.5 border-b border-[var(--border)]">
@@ -388,7 +388,7 @@ export function DispatchFilterBar() {
   return (
     <div
       className="shrink-0"
-      style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)', fontFamily: "'Amazon Ember Display', 'Amazon Ember', system-ui, sans-serif" }}
+      style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)', fontFamily: "'Clear Sans', system-ui, sans-serif" }}
     >
       {/* Toolbar row */}
       <div className="flex items-center gap-2 px-4 h-11">

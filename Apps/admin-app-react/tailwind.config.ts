@@ -6,8 +6,8 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'IBM Plex Sans'", "system-ui", "sans-serif"],
-        mono: ['"JetBrains Mono"', '"IBM Plex Mono"', "ui-monospace", "monospace"],
+        sans: ["'Clear Sans'", "system-ui", "-apple-system", "'Segoe UI'", "sans-serif"],
+        mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       borderRadius: {
         xs:  "2px",
