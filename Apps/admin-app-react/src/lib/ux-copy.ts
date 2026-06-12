@@ -67,6 +67,7 @@ export const FR_COPY = {
   // ── Actions (libellés boutons) ────────────────────────────────────────
   actions: {
     exportCsv: 'Export CSV',
+    exportToExcel: 'Exporter vers Excel',
     nothingToExport: 'Rien à exporter',
     cancelRoute: 'Annuler la tournée',
     validateRoute: 'Valider la tournée',

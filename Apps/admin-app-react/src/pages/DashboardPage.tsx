@@ -424,7 +424,7 @@ export default function DashboardPage() {
               children: <KPICard
                   label={t.dashboardPage.slaRateLabel}
                 value={`${slaPercent}%`}
-                trend={slaDelta == null ? undefined : { delta: slaDelta, format: n => `${Math.abs(n).toFixed(1)} pts`, goodWhen: 'up', caption: vsPrev }}
+                trend={slaDelta == null ? undefined : { delta: Math.round(slaDelta), format: n => `${Math.abs(n)} pts`, goodWhen: 'up', caption: vsPrev }}
                 sparklineData={completionSpark.length > 0 ? completionSpark : undefined}
                 tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
                 className="h-full"

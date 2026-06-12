@@ -1,10 +1,11 @@
-import { IconDownload } from '@tabler/icons-react';
+import { ExcelIcon } from '@/components/icons/ExcelIcon';
 import { exportCsv, type CsvColumn } from '@/lib/csv';
 import { useT } from '@/lib/LocaleContext';
 
 /**
  * Exports the rows it's given (the caller passes the already-filtered/visible list) to a CSV
- * download. Lives in PageFilterBar's extraActions slot. Disabled when there's nothing to export.
+ * download. Icon-only (Excel glyph) with a tooltip — keeps the toolbar clean. Lives in
+ * PageFilterBar's extraActions slot. Disabled when there's nothing to export.
  */
 export function ExportCsvButton<T>({
   baseName, rows, columns, className,
@@ -16,18 +17,22 @@ export function ExportCsvButton<T>({
 }) {
   const t = useT() as any;
   const disabled = rows.length === 0;
+  const tip = disabled
+    ? (t.actions?.nothingToExport ?? 'Rien à exporter')
+    : (t.actions?.exportToExcel ?? t.actions?.exportCsv ?? 'Exporter vers Excel');
   return (
     <button
       type="button"
       disabled={disabled}
       onClick={() => exportCsv(baseName, rows, columns)}
-      title={disabled ? (t.actions?.nothingToExport ?? 'Rien à exporter') : undefined}
+      title={tip}
+      aria-label={tip}
       className={
         className ??
-        'h-7 px-2.5 inline-flex items-center gap-1.5 border border-[var(--border)] rounded text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
+        'h-7 w-7 inline-flex items-center justify-center border border-[var(--border)] rounded hover:border-[var(--border-strong)] hover:bg-[var(--hover-bg)] transition-colors disabled:opacity-40 disabled:cursor-not-allowed'
       }
     >
-      <IconDownload size={14} /> {t.actions?.exportCsv ?? 'Export CSV'}
+      <ExcelIcon size={16} />
     </button>
   );
 }

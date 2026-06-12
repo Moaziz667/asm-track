@@ -46,6 +46,7 @@ export const AR_COPY = {
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
     exportCsv: 'تصدير CSV',
+    exportToExcel: 'تصدير إلى Excel',
     nothingToExport: 'لا شيء للتصدير',
     cancelRoute: 'إلغاء الرحلة',
     validateRoute: 'تأكيد الرحلة',

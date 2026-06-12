@@ -38,6 +38,7 @@ export const EN_COPY = {
   // ── Actions (button labels) ────────────────────────────────────────
   actions: {
     exportCsv: 'Export CSV',
+    exportToExcel: 'Export to Excel',
     nothingToExport: 'Nothing to export',
     cancelRoute: 'Cancel Route',
     validateRoute: 'Validate Route',
