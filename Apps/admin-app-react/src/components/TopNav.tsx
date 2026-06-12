@@ -1,17 +1,15 @@
 
 
 import { useLocation } from 'react-router-dom';
-import { useState, useEffect, type ReactNode } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
 
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
-  IconSun, IconMoon, IconLayoutDashboard, IconCommand,
-  IconCalendarEvent, IconPackage, IconUpload, IconRoute, IconGitBranch,
-  IconUsers, IconTruck, IconBuildingWarehouse, IconMap2, IconChartLine,
-  IconFileText, IconSettings, IconAlertTriangle, IconBell, IconChartBar,
+  IconSun, IconMoon, IconCalendarEvent,
+  IconBuildingWarehouse, IconSettings,
 } from '@tabler/icons-react';
 import { IconLayoutSidebar } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
@@ -25,98 +23,119 @@ import GlobalSearch from './GlobalSearch';
 import { getCurrentRole, getCurrentUser } from '@/lib/auth';
 import { AdminRole, AdminUser } from '@/types';
 import { useBreadcrumb } from '@/lib/breadcrumb';
+import { GROUP_DEFS } from './Sidebar';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import adminLogo from '../../icons/adminlogo.jpg';
 import LanguageSelector from './LanguageSelector';
 
-type PageEntry = { label: string; icon: ReactNode; href: string };
+// Breadcrumbs are derived from GROUP_DEFS — the SAME structure the sidebar renders — so
+// "Group › Page" always matches the nav and translates in all 3 languages. The only thing
+// not in GROUP_DEFS is the bottom Settings group and a couple of routes (schedule alias,
+// notifications); those are patched in via EXTRA_PAGES below. Nothing is hardcoded in a
+// language here: labels resolve through t.sidebar.groups / t.sidebar.items.
 
-const PAGE_MAP: Record<string, PageEntry> = {
-  dashboard:       { label: 'Tableau de bord',     icon: <IconLayoutDashboard size={13} />, href: '/dashboard' },
-  operations:      { label: "Planning",       icon: <IconCalendarEvent size={13} />,         href: '/schedule' },
-  'dispatch-desk': { label: 'Dispatch',             icon: <IconCommand size={13} />,        href: '/dispatch-desk' },
-  deliveries:      { label: 'Suivi des livraisons', icon: <IconPackage size={13} />,        href: '/deliveries' },
-  import:          { label: 'Importation',          icon: <IconUpload size={13} />,         href: '/import' },
-  'route-builder': { label: 'Créer une tournée',    icon: <IconGitBranch size={13} />,      href: '/route-builder' },
-  'routes-table':  { label: 'Tournées',             icon: <IconRoute size={13} />,          href: '/routes-table' },
-  routes:          { label: 'Tournées',             icon: <IconRoute size={13} />,          href: '/routes-table' },
-  drivers:         { label: 'Chauffeurs',           icon: <IconUsers size={13} />,          href: '/drivers' },
-  vehicles:        { label: 'Véhicules',            icon: <IconTruck size={13} />,          href: '/vehicles' },
-  depots:          { label: 'Dépôts',               icon: <IconBuildingWarehouse size={13} />, href: '/depots' },
-  zones:           { label: 'Zones',                icon: <IconMap2 size={13} />,           href: '/zones' },
-  performance:     { label: 'Performance',          icon: <IconChartLine size={13} />,      href: '/performance' },
-  'audit-logs':    { label: "Journal d'audit",      icon: <IconFileText size={13} />,       href: '/audit-logs' },
-  settings:        { label: 'Paramètres',           icon: <IconSettings size={13} />,       href: '/settings' },
-  exceptions:      { label: 'Exceptions',           icon: <IconAlertTriangle size={13} />,  href: '/exceptions' },
-  notifications:   { label: 'Notifications',        icon: <IconBell size={13} />,           href: '/notifications' },
-  reports:         { label: 'Rapports',             icon: <IconChartBar size={13} />,       href: '/reports' },
+type CrumbInfo = {
+  groupKey: string;          // → t.sidebar.groups[groupKey]
+  labelKey: string;          // → t.sidebar.items[labelKey] (page name)
+  href: string;
+  Icon: React.ComponentType<{ size?: number }>;
 };
+
+// Routes the sidebar doesn't list as primary nav items but that still need a breadcrumb.
+const EXTRA_PAGES: CrumbInfo[] = [
+  { groupKey: 'operations', labelKey: 'overview',       href: '/schedule',      Icon: IconCalendarEvent },
+  { groupKey: 'platform',   labelKey: 'settings',       href: '/settings',      Icon: IconSettings },
+  { groupKey: 'platform',   labelKey: 'erpIntegration', href: '/settings/erp',  Icon: IconSettings },
+  { groupKey: 'platform',   labelKey: 'companies',      href: '/companies',     Icon: IconBuildingWarehouse },
+];
+
+// Flat href → {group, page} lookup, built once from the nav definition + extras.
+const PAGE_BY_HREF: Record<string, CrumbInfo> = (() => {
+  const map: Record<string, CrumbInfo> = {};
+  for (const group of GROUP_DEFS) {
+    for (const item of group.items) {
+      map[item.href] = { groupKey: group.groupKey, labelKey: item.labelKey, href: item.href, Icon: item.Icon };
+    }
+  }
+  for (const p of EXTRA_PAGES) map[p.href] ??= p;
+  return map;
+})();
 
 function Breadcrumb({ t }: { t: any }) {
   const { pathname } = useLocation();
   const { trail } = useBreadcrumb();
-  const segments = pathname.split('/').filter(Boolean);
-  const section = PAGE_MAP[segments[0]];
+  const seg = pathname.split('/').filter(Boolean)[0] ?? '';
 
-  const getPageLabel = (seg: string, fallback: string) => {
-    const pagesDict = t.pages as any;
-    const camelKey = seg.replace(/-([a-z])/g, (g) => g[1].toUpperCase());
-    const keyMap: Record<string, string> = {
-      'dispatchDesk': 'dispatch',
-      'routesTable': 'routes',
-    };
-    const key = keyMap[camelKey] || camelKey || seg;
-    return pagesDict[key]?.title || pagesDict[seg]?.title || fallback;
-  };
+  const groups = (t.sidebar?.groups ?? {}) as Record<string, string>;
+  const items = (t.sidebar?.items ?? {}) as Record<string, string>;
+  const tx = (dict: Record<string, string>, key: string, fallback: string) => dict[key] || fallback;
 
-  // Only use trail if it has multiple items (means it's a detail page breadcrumb)
-  if (trail.length > 1) {
-    return (
-      <div className="flex items-center gap-0 min-w-0 flex-nowrap">
-        {trail.map((item, idx) => {
-          const isLast = idx === trail.length - 1;
-          const isFirst = idx === 0;
-          const sectionEntry = isFirst ? PAGE_MAP[segments[0]] : null;
-          const currentLabel = isFirst && sectionEntry
-            ? getPageLabel(segments[0], sectionEntry.label)
-            : item.label;
+  // The page the current URL belongs to. Detail pages (/routes/:id) carry their parent's
+  // href in trail[0]; fall back to matching the base segment ("/" + seg).
+  const current = PAGE_BY_HREF[`/${seg}`] ?? (trail[0]?.href ? PAGE_BY_HREF[trail[0].href] : undefined);
 
-          return (
-            <div key={idx} className="flex items-center gap-0 min-w-0 flex-nowrap">
-              {isFirst && sectionEntry && (
-                <span className="text-[var(--text-muted)] flex items-center mr-1.5">{sectionEntry.icon}</span>
-              )}
-              {item.href && !isLast ? (
-                <Link to={item.href} className="text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
-                  {currentLabel}
-                </Link>
-              ) : (
-                <span className={`text-sm whitespace-nowrap truncate ${isLast ? 'font-bold text-[var(--text-primary)] font-semibold' : 'font-medium text-[var(--text-muted)]'}`}>
-                  {currentLabel}
-                </span>
-              )}
-              {!isLast && (
-                <span className="px-1.5 text-[var(--border-strong)] flex items-center">
-                  <IconChevronRight size={10} />
-                </span>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }
+  const groupLabel = current ? tx(groups, current.groupKey, '') : '';
+  const pageLabel = current
+    ? tx(items, current.labelKey, seg.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+    : (trail[0]?.label ?? seg.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()));
+  const PageIcon = current?.Icon;
 
-  if (!section) {
-    const defaultLabel = segments[0] ? segments[0].charAt(0).toUpperCase() + segments[0].slice(1) : t.breadcrumbs.home;
-    return <span className="text-sm font-bold text-[var(--text-primary)] font-semibold">{getPageLabel(segments[0] || '', defaultLabel)}</span>;
-  }
+  // Extra crumbs the page appended after its own name (e.g. the route name on a detail
+  // page). trail[0] is the page itself (already represented by pageLabel), so we take the
+  // rest. Each keeps the page-supplied, already-localized label.
+  const detailCrumbs = trail.length > 1 ? trail.slice(1) : [];
+
+  const sep = (
+    <span className="px-1.5 text-[var(--border-strong)] flex items-center">
+      <IconChevronRight size={10} />
+    </span>
+  );
 
   return (
-    <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
-      <span className="text-[var(--text-muted)] flex items-center">{section.icon}</span>
-      <span className="text-sm font-bold text-[var(--text-primary)] whitespace-nowrap font-semibold">{getPageLabel(segments[0], section.label)}</span>
+    <div className="flex items-center gap-0 min-w-0 flex-nowrap">
+      {/* Group — plain muted text, not a link (groups have no landing page) */}
+      {groupLabel && (
+        <>
+          <span className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-muted)] whitespace-nowrap">
+            {PageIcon && <PageIcon size={13} />}
+            {groupLabel}
+          </span>
+          {sep}
+        </>
+      )}
+
+      {/* Page — bold/active when it's the last crumb, else a link to itself */}
+      {detailCrumbs.length === 0 ? (
+        <span className="flex items-center gap-1.5 text-sm font-bold font-semibold text-[var(--text-primary)] whitespace-nowrap truncate">
+          {!groupLabel && PageIcon && <PageIcon size={13} />}
+          {pageLabel}
+        </span>
+      ) : (
+        <Link to={current?.href ?? '#'} className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
+          {!groupLabel && PageIcon && <PageIcon size={13} />}
+          {pageLabel}
+        </Link>
+      )}
+
+      {/* Detail crumbs (route name, order ref…) — page-supplied, already localized */}
+      {detailCrumbs.map((item, idx) => {
+        const isLast = idx === detailCrumbs.length - 1;
+        return (
+          <div key={idx} className="flex items-center gap-0 min-w-0 flex-nowrap">
+            {sep}
+            {item.href && !isLast ? (
+              <Link to={item.href} className="text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
+                {item.label}
+              </Link>
+            ) : (
+              <span className="text-sm font-bold font-semibold text-[var(--text-primary)] whitespace-nowrap truncate">
+                {item.label}
+              </span>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

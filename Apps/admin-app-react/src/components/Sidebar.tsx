@@ -25,21 +25,22 @@ import { cn } from '@/lib/utils';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
-type NavItem = {
+export type NavItem = {
   labelKey: string;
   href: string;
   Icon: React.ComponentType<{ size?: number; stroke?: number; className?: string }>;
   roleCheck?: (role: AdminRole) => boolean;
 };
 
-type NavGroupDef = {
+export type NavGroupDef = {
   groupKey: string;
   Icon: React.ComponentType<{ size?: number; className?: string }>;
   items: NavItem[];
 };
 
-// Static structural definition
-const GROUP_DEFS: NavGroupDef[] = [
+// Static structural definition — the single source of truth for the nav AND for
+// breadcrumbs (TopNav derives "Group › Page" from this so the two never drift).
+export const GROUP_DEFS: NavGroupDef[] = [
   {
     groupKey: 'operations',
     Icon: IconCalendarEvent,
