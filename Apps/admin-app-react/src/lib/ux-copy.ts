@@ -651,6 +651,9 @@ export const FR_COPY = {
     kpiTotal: 'Total',
     kpiInTransit: 'En transit',
     kpiDelivered: 'Livrées',
+    kpiPartialDelivery: 'Livraisons partielles',
+    topItemsTitle: 'Top articles livrés',
+    failureCausesTitle: "Top causes d'échec",
     kpiExceptions: 'Exceptions',
     periodDay: 'Auj.',
     periodWeek: 'Sem.',
@@ -731,6 +734,22 @@ export const FR_COPY = {
     genericAlert: 'Un problème requiert votre attention',
     critiqueBadge: 'CRITIQUE',
     overdueChipLabel: '{count} non planifiée{plural} en retard',
+  },
+
+  // ── Global Floating Map ──────────────────────────────────────────────────
+  globalMap: {
+    title: 'Suivi Live',
+    bubbleTooltip: 'Suivi Live : {routes} tournées, {drivers} en ligne',
+    routesLabel: 'tournées',
+    onlineLabel: 'en ligne',
+    searchPlaceholder: 'Rechercher...',
+    hideList: 'Masquer la liste',
+    showList: 'Afficher la liste',
+    minimize: 'Réduire',
+    hideCompletely: 'Masquer complètement',
+    noDrivers: 'Aucun chauffeur',
+    offRoute: 'Hors tournée',
+    staleGps: 'Stale',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -1207,6 +1226,8 @@ export const FR_COPY = {
     enableLightMode: 'Activer le mode clair',
     enableDarkMode: 'Activer le mode sombre',
     user: 'Utilisateur',
+    showMap: 'Afficher la Carte Live',
+    hideMap: 'Masquer la Carte Live',
   },
 
   // ── Routes Detail Page ──────────────────────────────────────────────────
@@ -2142,6 +2163,8 @@ export const FR_COPY = {
     },
     payloadDetails: 'Détails du Payload',
     noTechnicalDetails: 'Aucun détail technique consigné.',
+    showDetails: 'Détails',
+    hideDetails: 'Masquer',
     // Timeline date grouping
     dateToday: 'Aujourd\'hui',
     dateYesterday: 'Hier',
@@ -2434,7 +2457,6 @@ export const FR_COPY = {
     successRouteValidated: 'Tournée validée',
     successRouteReassigned: 'Tournée réaffectée',
     successRouteClosed: 'Tournée clôturée',
-    successRouteCancelled: 'Tournée annulée',
     successRouteCancelled: 'Tournée annulée',
     successBackorderCreated: 'Commande supplémentaire créée',
     successDeliveryRescheduled: 'Livraison remise en file de planification',
@@ -3009,10 +3031,6 @@ export const FR_COPY = {
     'route.cancelled': {
       title: 'Tournée annulée',
       message: (p: any) => `«${p.routeName || 'Tournée'}» annulée${p.reason ? ` · ${p.reason}` : ''}`,
-    },
-    'handoff.requested': {
-      title: 'Passation demandée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — passation demandée${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'Passation confirmée',

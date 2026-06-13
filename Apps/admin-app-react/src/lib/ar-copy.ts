@@ -707,6 +707,25 @@ export const AR_COPY = {
     genericAlert: 'مشكلة تتطلب انتباهك',
     critiqueBadge: 'حرج',
     overdueChipLabel: '{count} غير مجدولة ومتأخرة',
+    kpiPartialDelivery: 'التسليمات الجزئية',
+    topItemsTitle: 'أهم المواد المسلمة',
+    failureCausesTitle: 'أهم أسباب الفشل',
+  },
+
+  // ── Global Floating Map ──────────────────────────────────────────────────
+  globalMap: {
+    title: 'تتبع مباشر',
+    bubbleTooltip: 'تتبع مباشر: {routes} رحلات، {drivers} متصل',
+    routesLabel: 'رحلات',
+    onlineLabel: 'متصل',
+    searchPlaceholder: 'بحث...',
+    hideList: 'إخفاء القائمة',
+    showList: 'عرض القائمة',
+    minimize: 'تصغير',
+    hideCompletely: 'إخفاء بالكامل',
+    noDrivers: 'لم يتم العثور على سائقين',
+    offRoute: 'خارج الرحلة',
+    staleGps: 'معلق',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -1171,6 +1190,8 @@ export const AR_COPY = {
     enableLightMode: 'تفعيل الوضع الفاتح',
     enableDarkMode: 'تفعيل الوضع المظلم',
     user: 'المستخدم',
+    showMap: 'عرض الخارطة المباشرة',
+    hideMap: 'إخفاء الخارطة المباشرة',
   },
 
   // ── Routes Detail Page ──────────────────────────────────────────────────
@@ -2097,6 +2118,8 @@ export const AR_COPY = {
     },
     payloadDetails: 'تفاصيل الحمولة',
     noTechnicalDetails: 'لا توجد تفاصيل تقنية مسجلة.',
+    showDetails: 'التفاصيل',
+    hideDetails: 'إخفاء',
     // Timeline date grouping
     dateToday: 'اليوم',
     dateYesterday: 'أمس',
@@ -2386,7 +2409,6 @@ export const AR_COPY = {
     successRouteValidated: 'تم تأكيد الرحلة',
     successRouteReassigned: 'تم إعادة تعيين الرحلة',
     successRouteClosed: 'تم إغلاق الرحلة',
-    successRouteCancelled: 'تم إلغاء الجولة',
     successRouteCancelled: 'تم إلغاء الرحلة',
     successBackorderCreated: 'تم إنشاء طلب إضافي',
     successDeliveryRescheduled: 'تمت إعادة جدولة الشحنة',
@@ -2952,10 +2974,6 @@ export const AR_COPY = {
     'route.cancelled': {
       title: 'تم إلغاء الجولة',
       message: (p: any) => `«${p.routeName || 'الجولة'}» أُلغيت${p.reason ? ` · ${p.reason}` : ''}`,
-    },
-    'handoff.requested': {
-      title: 'طلب تسليم',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طُلب تسليمه${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'تأكيد التسليم',

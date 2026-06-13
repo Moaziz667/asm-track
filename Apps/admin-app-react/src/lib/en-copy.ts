@@ -568,6 +568,9 @@ export const EN_COPY = {
     kpiTotal: 'Total',
     kpiInTransit: 'In Transit',
     kpiDelivered: 'Delivered',
+    kpiPartialDelivery: 'Partial Deliveries',
+    topItemsTitle: 'Top items delivered',
+    failureCausesTitle: 'Top causes of failure',
     kpiExceptions: 'Exceptions',
     periodDay: 'Today',
     periodWeek: 'Week',
@@ -647,6 +650,22 @@ export const EN_COPY = {
     genericAlert: 'An issue requires your attention',
     critiqueBadge: 'CRITICAL',
     overdueChipLabel: '{count} unscheduled overdue',
+  },
+
+  // ── Global Floating Map ──────────────────────────────────────────────────
+  globalMap: {
+    title: 'Live Tracking',
+    bubbleTooltip: 'Live Tracking: {routes} routes, {drivers} online',
+    routesLabel: 'routes',
+    onlineLabel: 'online',
+    searchPlaceholder: 'Search...',
+    hideList: 'Hide list',
+    showList: 'Show list',
+    minimize: 'Minimize',
+    hideCompletely: 'Hide completely',
+    noDrivers: 'No drivers found',
+    offRoute: 'Off route',
+    staleGps: 'Stale',
   },
 
   // ── Operations Page ─────────────────────────────────────────────────────
@@ -1112,6 +1131,8 @@ export const EN_COPY = {
     enableLightMode: 'Enable light mode',
     enableDarkMode: 'Enable dark mode',
     user: 'User',
+    showMap: 'Show Live Map',
+    hideMap: 'Hide Live Map',
   },
 
   // ── Routes Detail Page ──────────────────────────────────────────────────
@@ -2038,6 +2059,8 @@ export const EN_COPY = {
     },
     payloadDetails: 'Payload Details',
     noTechnicalDetails: 'No technical details recorded.',
+    showDetails: 'Details',
+    hideDetails: 'Hide',
     // Timeline date grouping
     dateToday: 'Today',
     dateYesterday: 'Yesterday',
@@ -2327,7 +2350,6 @@ export const EN_COPY = {
     successRouteValidated: 'Route validated',
     successRouteReassigned: 'Route reassigned',
     successRouteClosed: 'Route closed',
-    successRouteCancelled: 'Route cancelled',
     successRouteCancelled: 'Route cancelled',
     successBackorderCreated: 'Backorder created',
     successDeliveryRescheduled: 'Delivery rescheduled',
@@ -2754,10 +2776,6 @@ export const EN_COPY = {
     'route.cancelled': {
       title: 'Route Cancelled',
       message: (p: any) => `"${p.routeName || 'Route'}" cancelled${p.reason ? ` · ${p.reason}` : ''}`,
-    },
-    'handoff.requested': {
-      title: 'Handoff Requested',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff requested${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'Handoff Confirmed',
