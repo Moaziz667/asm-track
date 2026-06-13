@@ -104,7 +104,7 @@ function ProgressBar({ value, color = 'var(--brand)' }: { value: number; color?:
 
 export default function PerformancePage() {
   const t = useT();
-  const [period, setPeriod] = useState<Period>('day');
+  const [period, setPeriod] = useState<Period>('all');
   const [kpi, setKpi] = useState<DashboardKpi | null>(null);
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(true);
@@ -195,12 +195,9 @@ export default function PerformancePage() {
             </button>
           ))}
         </div>
-        {lastUpdated && (
-          <span className="text-2xs font-mono ml-auto" style={{ color: 'var(--text-muted)' }}>
-            {t.performancePage.lastUpdated} {lastUpdated.toLocaleTimeString()}
-          </span>
-        )}
-        <RefreshButton refreshing={loading} onClick={loadData} />
+        <div className="ml-auto">
+          <RefreshButton refreshing={loading} onClick={loadData} />
+        </div>
       </div>
 
       {/* ── Scrollable Body Content ── */}

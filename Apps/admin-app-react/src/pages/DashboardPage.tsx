@@ -3,12 +3,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AdminOpsOverview, DashboardStats, DeliveryStatus } from '@/types';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
-import { cn } from '@/lib/utils';
+import { cn, routeColor } from '@/lib/utils';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import { useIsDark } from '@/lib/theme';
 import {
   BarChart, Bar, AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
+  PieChart, Pie, Cell,
 } from 'recharts';
 import {
   IconPackage, IconChartBar, IconUser, IconRoute, IconRefresh, IconArrowUpRight, 
@@ -19,7 +20,6 @@ import {
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { useNavigate as useRouter } from 'react-router-dom';
-import DispatchLiveMap from '@/components/DispatchLiveMap';
 import ActivityTicker from '@/components/ActivityTicker';
 import StatusBadge from '@/components/StatusBadge';
 import { KPICard } from '@/components/ui/kpi-card';
@@ -30,18 +30,11 @@ import { getDayBucket, formatElapsed, getBusinessDayKey } from '@/lib/sla';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
 import { deriveHealthSummary } from '@/lib/system-health';
+import { useGlobalMapStore } from '@/lib/global-map-store';
 
 const capitalize = (s: string) => s ? s.charAt(0).toUpperCase() + s.slice(1).toLowerCase() : '';
 
-// Shared route palette — the same colour identifies a route's legend row, its stop pins and its
-// driver car on the live map, so a dispatcher can match them at a glance.
-const ROUTE_PALETTE = ['#5E6AD2', '#2D8A5E', '#D4772C', '#9333EA', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#15803D', '#B45309'];
-export function routeColor(routeId?: string | null): string {
-  if (!routeId) return '#71717A';
-  let h = 0;
-  for (let i = 0; i < routeId.length; i++) h = (h * 31 + routeId.charCodeAt(i)) >>> 0;
-  return ROUTE_PALETTE[h % ROUTE_PALETTE.length];
-}
+
 
 // Status colors for the Kanban cards
 const STATUS_COLOR_MAP: Record<DeliveryStatus, string> = {
@@ -205,7 +198,7 @@ export default function DashboardPage() {
     [todayRoutes]
   );
   // Shared focus between the Tournées legend widget and the live map (set on row/pin click).
-  const [focusedRouteId, setFocusedRouteId] = useState<string | null>(null);
+  const { focusedRouteId, setFocusedRouteId } = useGlobalMapStore();
 
   const driverName = useCallback((id: string | undefined) => {
     if (!id) return 'Non assigné';
@@ -415,11 +408,11 @@ export default function DashboardPage() {
         /* ── OFFICE DESK LAYOUT ── */
         <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
         <DraggableWidgetGrid
-          storageKey="dashboard-v3"
+          storageKey="dashboard-v5"
           items={[
             {
               id: 'kpi-sla',
-              defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 0, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                   label={t.dashboardPage.slaRateLabel}
@@ -432,7 +425,7 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-delivered',
-              defaultLayout: { w: 2, h: 2, x: 3, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 2, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiDelivered || 'Livrés'}
@@ -445,8 +438,22 @@ export default function DashboardPage() {
               />
             },
             {
+              id: 'kpi-partial-delivery',
+              defaultLayout: { w: 2, h: 2, x: 4, y: 0, minW: 2, minH: 2 },
+              className: '',
+              children: (
+                <KPICard
+                  label={t.dashboardPage.kpiPartialDelivery || 'Livrais. Partielles'}
+                  value={`${(stats?.today?.partialRate ?? 0).toFixed(1)}%`}
+                  sub={`${stats?.today?.partialCount ?? 0} livraisons`}
+                  tone={(stats?.today?.partialCount ?? 0) > 0 ? "warning" : "default"}
+                  className="h-full"
+                />
+              )
+            },
+            {
               id: 'kpi-routes',
-              defaultLayout: { w: 2, h: 2, x: 5, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 6, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiActiveRoutes || 'Tournées'}
@@ -458,7 +465,7 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-drivers',
-              defaultLayout: { w: 2, h: 2, x: 7, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 8, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.kpiDriversOnline || 'En ligne'}
@@ -470,7 +477,7 @@ export default function DashboardPage() {
             },
             {
               id: 'kpi-system-health',
-              defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 },
+              defaultLayout: { w: 2, h: 2, x: 10, y: 0, minW: 2, minH: 2 },
               className: '',
               children: <KPICard
                 label={t.dashboardPage.systemHealthLabel || 'Santé Système'}
@@ -504,7 +511,7 @@ export default function DashboardPage() {
             },
             {
               id: 'trend-chart',
-              defaultLayout: { w: 12, h: 3, x: 0, y: 2, minW: 8, minH: 3 },
+              defaultLayout: { w: 8, h: 6, x: 0, y: 2, minW: 6, minH: 4 },
               className: '',
               children: (
                 <div className="card overflow-hidden flex flex-col h-full">
@@ -570,25 +577,9 @@ export default function DashboardPage() {
                 </div>
               ),
             },
-            {
-              id: 'dispatch-live-map',
-              defaultLayout: { w: 8, h: 8, x: 0, y: 4, minW: 6, minH: 6 },
-              className: '',
-              children: (
-                <div className="card h-full overflow-hidden flex flex-col relative">
-                  <DispatchLiveMap
-                    routes={activeRoutes as any}
-                    drivers={safeDrivers as any}
-                    focusedRouteId={focusedRouteId}
-                    onFocusRoute={setFocusedRouteId}
-                    routeColor={routeColor}
-                  />
-                </div>
-              ),
-            },
             ...(needsAttention.length > 0 ? [{
               id: 'needs-attention',
-              defaultLayout: { w: 4, h: 8, x: 8, y: 4, minW: 3, minH: 6 },
+              defaultLayout: { w: 4, h: 6, x: 8, y: 2, minW: 3, minH: 4 },
               className: '',
               children: (
                 <div className="flex flex-col bg-[var(--danger-bg)] dark:bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
@@ -653,38 +644,142 @@ export default function DashboardPage() {
               ),
             }] : []),
             {
-              id: 'quick-actions',
-              defaultLayout: { w: 6, h: 5, x: 0, y: 12, minW: 4, minH: 4 },
+              id: 'top-items',
+              defaultLayout: { w: 4, h: 6, x: 0, y: 8, minW: 3, minH: 4 },
               className: '',
               children: (
-                <div className="card p-4 h-full flex flex-col">
-                  <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
-                    {t.dashboardPage.quickActions || 'Quick Actions'}
-                  </span>
-                  <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
-                    {[
-                      { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
-                      { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconRoute },
-                      { label: t.dashboardPage.actionGoToRoutes || 'Routes Table', path: '/routes-table', Icon: IconMapPin },
-                      { label: t.dashboardPage.actionGoToDeliveries || 'Deliveries Log', path: '/deliveries', Icon: IconPackage },
-                    ].map(({ label, path, Icon }) => (
-                      <button
-                        key={path}
-                        type="button"
-                        onClick={() => navigate(path)}
-                        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
-                      >
-                        <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
-                        <span className="text-base font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
-                      </button>
-                    ))}
+                <div className="card overflow-hidden flex flex-col h-full">
+                  <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+                    <div className="flex items-center gap-2">
+                      <IconPackage size={16} style={{ color: 'var(--brand)' }} />
+                      <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
+                        {t.dashboardPage.topItemsTitle || 'Top articles livrés'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-5 flex flex-col gap-3.5 flex-1 overflow-y-auto">
+                    {!stats?.topItems || stats.topItems.length === 0 ? (
+                      <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">
+                        {t.dashboardPage.noData || "Aucune donnée disponible"}
+                      </div>
+                    ) : (
+                      (() => {
+                        const maxCount = Math.max(...stats.topItems.map(item => item.count), 1);
+                        return stats.topItems.map((item, idx) => (
+                          <div key={item.sku} className="flex flex-col gap-1.5">
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 min-w-0">
+                                <span className="bg-[var(--hover-bg)] border border-[var(--border)] text-[var(--text-secondary)] w-4.5 h-4.5 flex items-center justify-center rounded-md font-mono text-2xs font-[500] shrink-0">{idx + 1}</span>
+                                <span className="text-xs font-[500] text-[var(--text-secondary)] truncate" title={item.name}>
+                                  {item.name} <span className="text-2xs text-[var(--text-muted)]">({item.sku})</span>
+                                </span>
+                              </div>
+                              <span className="text-xs font-[500] font-mono text-[var(--text-primary)] shrink-0">{item.count} u</span>
+                            </div>
+                            <div className="h-[3px] w-full bg-[var(--hover-bg)] overflow-hidden rounded-full">
+                              <div
+                                className="h-full transition-all duration-300 rounded-full bg-[var(--brand)]"
+                                style={{ width: `${(item.count / maxCount) * 100}%` }}
+                              />
+                            </div>
+                          </div>
+                        ));
+                      })()
+                    )}
                   </div>
                 </div>
               ),
             },
             {
+              id: 'failure-causes',
+              defaultLayout: { w: 4, h: 6, x: 4, y: 8, minW: 3, minH: 4 },
+              className: '',
+              children: (
+                <div className="card overflow-hidden flex flex-col h-full">
+                  <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+                    <div className="flex items-center gap-2">
+                      <IconAlertTriangle size={16} className="text-[var(--danger)]" />
+                      <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>
+                        {t.dashboardPage.failureCausesTitle || "Top causes d'échec"}
+                      </span>
+                    </div>
+                  </div>
+                  <div className="p-2 flex flex-col sm:flex-row gap-5 flex-1 overflow-hidden min-h-0">
+                    {!stats?.byFailureCode || stats.byFailureCode.length === 0 ? (
+                      <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">
+                        {t.dashboardPage.noData || "Aucune donnée disponible"}
+                      </div>
+                    ) : (
+                      (() => {
+                        const totalFailures = stats.byFailureCode.reduce((acc, curr) => acc + curr.count, 0) || 1;
+                        const data = stats.byFailureCode.map((fail) => ({
+                          name: t.failureCodes?.[fail.code] || fail.code,
+                          value: fail.count,
+                          pct: (fail.count / totalFailures) * 100,
+                        }));
+
+                        const COLORS = [
+                          '#EF4444',
+                          '#F97316',
+                          '#F59E0B',
+                          '#10B981',
+                          '#6366F1',
+                          '#8B5CF6',
+                        ];
+
+                        return (
+                          <div className="flex-1 min-w-0 h-full relative flex items-center justify-center">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                                <Pie
+                                  data={data}
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius="70%"
+                                  outerRadius="95%"
+                                  paddingAngle={2}
+                                  dataKey="value"
+                                >
+                                  {data.map((entry, index) => (
+                                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                                  ))}
+                                </Pie>
+                                <Tooltip
+                                  formatter={(value: any, name: any, props: any) => [
+                                    `${value} (${props.payload.pct.toFixed(0)}%)`,
+                                    name,
+                                  ]}
+                                  contentStyle={{
+                                    background: 'var(--surface)',
+                                    borderColor: 'var(--border-strong)',
+                                    borderRadius: '6px',
+                                    fontSize: '11px',
+                                    color: 'var(--text-primary)',
+                                  }}
+                                />
+                              </PieChart>
+                            </ResponsiveContainer>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                              <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--text-muted)] font-mono">Total</span>
+                              <span className="text-md font-bold text-[var(--text-primary)] font-mono">{totalFailures}</span>
+                            </div>
+                          </div>
+                        );
+                      })()
+                    )}
+                  </div>
+                </div>
+              ),
+            },
+            {
+              id: 'activity-ticker',
+              defaultLayout: { w: 4, h: 6, x: 8, y: 8, minW: 3, minH: 4 },
+              className: '',
+              children: <ActivityTicker />,
+            },
+            {
               id: 'driver-availability',
-              defaultLayout: { w: 6, h: 5, x: 6, y: 12, minW: 4, minH: 4 },
+              defaultLayout: { w: 4, h: 6, x: 0, y: 14, minW: 3, minH: 4 },
               className: '',
               children: (
                 <div className="card p-4 h-full flex flex-col">
@@ -722,7 +817,7 @@ export default function DashboardPage() {
             },
             {
               id: 'section-start',
-              defaultLayout: { w: 4, h: 6, x: 8, y: 12, minW: 3, minH: 4 },
+              defaultLayout: { w: 4, h: 6, x: 4, y: 14, minW: 3, minH: 4 },
               className: '',
               children: (
                 <SectionCard
@@ -780,10 +875,34 @@ export default function DashboardPage() {
               )
             },
             {
-              id: 'activity-ticker',
-              defaultLayout: { w: 4, h: 6, x: 0, y: 18, minW: 3, minH: 4 },
+              id: 'quick-actions',
+              defaultLayout: { w: 4, h: 6, x: 8, y: 14, minW: 3, minH: 4 },
               className: '',
-              children: <ActivityTicker />,
+              children: (
+                <div className="card p-4 h-full flex flex-col">
+                  <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">
+                    {t.dashboardPage.quickActions || 'Quick Actions'}
+                  </span>
+                  <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+                    {[
+                      { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
+                      { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconRoute },
+                      { label: t.dashboardPage.actionGoToRoutes || 'Routes Table', path: '/routes-table', Icon: IconMapPin },
+                      { label: t.dashboardPage.actionGoToDeliveries || 'Deliveries Log', path: '/deliveries', Icon: IconPackage },
+                    ].map(({ label, path, Icon }) => (
+                      <button
+                        key={path}
+                        type="button"
+                        onClick={() => navigate(path)}
+                        className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
+                      >
+                        <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
+                        <span className="text-base font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ),
             },
           ]}
         />

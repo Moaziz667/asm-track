@@ -18,6 +18,17 @@ public class AdminStatsResponse {
     private List<FailureStats> byFailureCode;
     private List<CityStats> byCity;
     private List<ClientStats> byClient;
+    private List<ItemStats> topItems;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class ItemStats {
+        private String sku;
+        private String name;
+        private long count;
+    }
 
     @Data
     @Builder
@@ -31,6 +42,8 @@ public class AdminStatsResponse {
         private long waiting;
         private long assigned;
         private double successRate;
+        private double partialRate;
+        private long partialCount;
         private double avgAssignToPickupMinutes;
         private double avgPickupToTransitMinutes;
         private double avgTransitToCompletionMinutes;

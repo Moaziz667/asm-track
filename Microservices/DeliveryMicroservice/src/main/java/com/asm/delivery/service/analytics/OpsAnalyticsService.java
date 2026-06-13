@@ -72,6 +72,7 @@ public class OpsAnalyticsService {
                 .byFailureCode(buildFailureStats(range.start(), range.end()))
                 .byCity(buildCityStats(range.start(), range.end()))
                 .byClient(buildClientStats(range.start(), range.end()))
+                .topItems(buildTopItems(range.start(), range.end(), 10))
                 .build();
     }
 
@@ -649,12 +650,16 @@ public class OpsAnalyticsService {
         long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end);
         long waiting   = countStatusWithin("createdAt", DeliveryStatus.UNSCHEDULED, start, end);
         long assigned  = countStatusWithin("assignedAt", DeliveryStatus.SCHEDULED, start, end);
+        long partial   = countStatusWithin("createdAt", DeliveryStatus.PARTIALLY_DELIVERED, start, end);
         double successRate = total > 0 ? ((double) delivered / total) * 100.0 : 0.0;
+        double partialRate = total > 0 ? ((double) partial / total) * 100.0 : 0.0;
 
         return AdminStatsResponse.TodayStats.builder()
                 .total(total).delivered(delivered).failed(failed)
                 .inTransit(inTransit).waiting(waiting).assigned(assigned)
                 .successRate(round2(successRate))
+                .partialRate(round2(partialRate))
+                .partialCount(partial)
                 .avgAssignToPickupMinutes(averageDurationMinutes("assignedAt", "pickedUpAt", start, end))
                 .avgPickupToTransitMinutes(averageDurationMinutes("pickedUpAt", "inTransitAt", start, end))
                 .avgTransitToCompletionMinutes(averageDurationMinutes("inTransitAt", "completedAt", start, end))
@@ -969,6 +974,35 @@ public class OpsAnalyticsService {
     }
 
 
+
+    @SuppressWarnings("unchecked")
+    private List<AdminStatsResponse.ItemStats> buildTopItems(LocalDateTime start, LocalDateTime end, int limit) {
+        String sql = "SELECT item->>'sku' AS sku, item->>'name' AS name, SUM((item->>'quantityDone')::int) AS total " +
+                     "FROM deliveries d " +
+                     "JOIN orders o ON d.order_id = o.id, " +
+                     "LATERAL jsonb_array_elements(o.items) AS item " +
+                     "WHERE d.status IN ('DELIVERED', 'PARTIALLY_DELIVERED') AND item->>'outcome' = 'DELIVERED' " +
+                     "AND d.completed_at BETWEEN :start AND :end " +
+                     "GROUP BY item->>'sku', item->>'name' " +
+                     "ORDER BY total DESC";
+        try {
+            List<Object[]> rows = entityManager.createNativeQuery(sql)
+                     .setParameter("start", start)
+                     .setParameter("end", end)
+                     .setMaxResults(limit)
+                     .getResultList();
+
+            return rows.stream()
+                    .map(row -> AdminStatsResponse.ItemStats.builder()
+                            .sku(row[0] != null ? row[0].toString() : "N/A")
+                            .name(row[1] != null ? row[1].toString() : "Unknown")
+                            .count(row[2] != null ? ((Number) row[2]).longValue() : 0)
+                            .build())
+                    .toList();
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
 
     private record ActorInfo(String name, Role role) {}
 }
