@@ -1,5 +1,8 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { getDayBucket, getBusinessDayKey } from './sla';
+import {
+  getDayBucket, getBusinessDayKey,
+  getScheduleSignal, getExceptionSignal, formatElapsed, humanizeMinutes, formatCountdown,
+} from './sla';
 
 // The business runs on Tunisia time (UTC+1, no DST). These helpers express
 // instants as Tunis wall-clock and convert to a FIXED UTC instant, so every
@@ -101,5 +104,87 @@ describe('getDayBucket', () => {
       expect(getDayBucket(tunis(2026, 6, 6, 23, 0))).toBe('overdue'); // earlier instant
       expect(getDayBucket(tunis(2026, 6, 8, 9, 0))).toBe('future');
     });
+  });
+});
+
+describe('getScheduleSignal', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('returns "none" without a date', () => {
+    expect(getScheduleSignal(null, 120)).toBe('none');
+    expect(getScheduleSignal(undefined, 120)).toBe('none');
+  });
+  it('late when the deadline is past, soon within the lead window, ok beyond it', () => {
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+    expect(getScheduleSignal('2026-06-07T11:00:00Z', 120)).toBe('late');  // 60m ago
+    expect(getScheduleSignal('2026-06-07T13:00:00Z', 120)).toBe('soon');  // in 60m, ≤120
+    expect(getScheduleSignal('2026-06-07T15:00:00Z', 120)).toBe('ok');    // in 180m
+  });
+  it('treats a date-only promise as end-of-business-day (18:00)', () => {
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+    // midnight-stamped → deadline shifts to 18:00 local, comfortably in the future
+    expect(getScheduleSignal('2026-06-07T00:00:00Z', 120)).not.toBe('late');
+  });
+});
+
+describe('getExceptionSignal', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('is ok with no date or non-positive limit', () => {
+    expect(getExceptionSignal(null, 15)).toBe('ok');
+    expect(getExceptionSignal('2026-06-07T11:00:00Z', 0)).toBe('ok');
+  });
+  it('warns past the limit and goes critical past 2×', () => {
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+    expect(getExceptionSignal('2026-06-07T11:55:00Z', 15)).toBe('ok');       // 5m
+    expect(getExceptionSignal('2026-06-07T11:40:00Z', 15)).toBe('warning');  // 20m ≥ 15
+    expect(getExceptionSignal('2026-06-07T11:25:00Z', 15)).toBe('critical'); // 35m ≥ 30
+  });
+});
+
+describe('formatElapsed', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('renders min / h / j per locale', () => {
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+    expect(formatElapsed('2026-06-07T11:45:00Z', 'fr')).toBe('15 min');
+    expect(formatElapsed('2026-06-07T11:45:00Z', 'en')).toBe('15m ago');
+    expect(formatElapsed('2026-06-07T09:05:00Z', 'fr')).toBe('2h55');
+    expect(formatElapsed('2026-06-04T12:00:00Z', 'en')).toBe('3d ago');
+  });
+  it('returns em-dash for missing', () => {
+    expect(formatElapsed(null, 'fr')).toBe('—');
+  });
+});
+
+describe('humanizeMinutes', () => {
+  it('formats minutes / hours / days per locale', () => {
+    expect(humanizeMinutes(45, 'fr')).toBe('45 min');
+    expect(humanizeMinutes(45, 'en')).toBe('45m');
+    expect(humanizeMinutes(125, 'en')).toBe('2h 05m');
+    expect(humanizeMinutes(45141, 'fr')).toMatch(/^31j/); // ~31 days
+  });
+  it('coerces nullish/string to 0', () => {
+    expect(humanizeMinutes(null, 'en')).toBe('0m');
+    expect(humanizeMinutes('90', 'en')).toBe('1h 30m');
+  });
+});
+
+describe('formatCountdown', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('counts down to a future deadline and reports overdue distance for a past one', () => {
+    vi.setSystemTime(new Date('2026-06-07T12:00:00Z'));
+    expect(formatCountdown('2026-06-07T12:30:00Z', 'en')).toBe('in 30m');
+    expect(formatCountdown('2026-06-07T15:00:00Z', 'fr')).toBe('dans 3h');
+    expect(formatCountdown('2026-06-07T11:30:00Z', 'en')).toBe('30m overdue');
+    expect(formatCountdown('2026-06-07T09:00:00Z', 'fr')).toBe('3h de retard');
+  });
+  it('returns em-dash for missing', () => {
+    expect(formatCountdown(undefined, 'fr')).toBe('—');
   });
 });
