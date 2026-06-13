@@ -59,10 +59,15 @@ const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   </Suspense>
 );
 
-/** Compose role gating + lazy Suspense for a protected page element. */
+/** Compose role gating + per-route crash isolation + lazy Suspense for a protected page element.
+ *  The ErrorBoundary is inside RoleRoute and around Suspense, so a crash (render OR lazy-load)
+ *  in one page shows the fallback card within the shell instead of white-screening the whole app;
+ *  the sidebar/topnav stay usable and the user can navigate away. */
 const guard = (allow: AdminRole[], element: React.ReactNode) => (
   <RoleRoute allow={allow}>
-    <LazyLoad>{element}</LazyLoad>
+    <ErrorBoundary>
+      <LazyLoad>{element}</LazyLoad>
+    </ErrorBoundary>
   </RoleRoute>
 );
 
