@@ -135,6 +135,8 @@ export interface DashboardStats {
     scheduled?: number;
     pickedUp?: number;
     successRate: number;
+    partialRate?: number;
+    partialCount?: number;
     avgAssignToPickupMinutes?: number;
     avgPickupToTransitMinutes?: number;
     avgTransitToCompletionMinutes?: number;
@@ -167,6 +169,11 @@ export interface DashboardStats {
     delivered: number;
     failed: number;
     successRate: number;
+  }>;
+  topItems?: Array<{
+    sku: string;
+    name: string;
+    count: number;
   }>;
 }
 

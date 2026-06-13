@@ -9,6 +9,7 @@ import TopNav from './TopNav';
 import { AppSidebar } from './Sidebar';
 import { BreadcrumbProvider } from '@/lib/breadcrumb';
 import { SidebarProvider, SidebarInset } from './ui/sidebar';
+import GlobalFloatingMap from './GlobalFloatingMap';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
@@ -50,6 +51,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
               </div>
             </div>
           </SidebarInset>
+
+          {/* Global floating live map */}
+          <GlobalFloatingMap />
         </AlertsProvider>
         </RealtimeProvider>
       </BreadcrumbProvider>

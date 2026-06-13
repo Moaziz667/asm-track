@@ -9,8 +9,9 @@ import { useAuth } from 'react-oidc-context';
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
   IconSun, IconMoon, IconCalendarEvent,
-  IconBuildingWarehouse, IconSettings,
+  IconBuildingWarehouse, IconSettings, IconMap,
 } from '@tabler/icons-react';
+import { useGlobalMapStore } from '@/lib/global-map-store';
 import { IconLayoutSidebar } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
@@ -162,6 +163,15 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const [isDark, setIsDark] = useState(false);
   const { locale: activeLocale, setLocale } = useLocaleStore();
 
+  const { mapMode, setMapMode } = useGlobalMapStore();
+  const toggleMap = () => {
+    if (mapMode === 'hidden') {
+      setMapMode('collapsed');
+    } else {
+      setMapMode('hidden');
+    }
+  };
+
   useEffect(() => {
     setIsClient(true);
     setRole(getCurrentRole());
@@ -245,6 +255,30 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
               {isDark ? <IconSun size={14} stroke={2.5} /> : <IconMoon size={14} stroke={2.5} />}
             </TooltipTrigger>
             <TooltipContent>{isDark ? t.topNav.lightMode : t.topNav.darkMode}</TooltipContent>
+          </Tooltip>
+        )}
+
+        {isClient && (
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={toggleMap}
+                  className={`w-7 h-7 flex items-center justify-center rounded border transition-colors ${
+                    mapMode !== 'hidden'
+                      ? 'bg-[var(--brand)]/10 border-[var(--brand)] text-[var(--brand)]'
+                      : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'
+                  }`}
+                  aria-label={mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}
+                />
+              }
+            >
+              <IconMap size={14} stroke={2.5} />
+            </TooltipTrigger>
+            <TooltipContent>
+              {mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}
+            </TooltipContent>
           </Tooltip>
         )}
 

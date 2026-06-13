@@ -535,16 +535,16 @@ function DeliveriesPageContent() {
               baseName="livraisons"
               rows={filteredRows}
               columns={[
-                { header: 'Référence', accessor: r => resolveOrderRef(r) },
-                { header: 'Client', accessor: r => r.clientName },
-                { header: 'Adresse', accessor: r => r.dropoffAddress },
-                { header: 'Zone', accessor: r => r.zoneName },
-                { header: 'Chauffeur', accessor: r => r.driverName },
-                { header: 'Statut', accessor: r => r.status },
-                { header: 'SLA', accessor: r => (r as any).slaHealth },
-                { header: 'Planifié', accessor: r => (r as any).scheduledAt },
-                { header: 'Montant', accessor: r => (r as any).totalAmount },
-                { header: 'Créé le', accessor: r => r.createdAt },
+                { header: 'Référence', accessor: (r: any) => resolveOrderRef(r) },
+                { header: 'Client', accessor: (r: any) => r.clientName },
+                { header: 'Adresse', accessor: (r: any) => r.dropoffAddress },
+                { header: 'Zone', accessor: (r: any) => r.zoneName },
+                { header: 'Chauffeur', accessor: (r: any) => r.driverName },
+                { header: 'Statut', accessor: (r: any) => r.status },
+                { header: 'SLA', accessor: (r: any) => (r as any).slaHealth },
+                { header: 'Planifié', accessor: (r: any) => (r as any).scheduledAt },
+                { header: 'Montant', accessor: (r: any) => (r as any).totalAmount },
+                { header: 'Créé le', accessor: (r: any) => r.createdAt },
               ]}
             />
           }

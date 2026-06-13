@@ -48,3 +48,13 @@ export function formatMinutes(mins?: number | null): string {
   const sign = mins < 0 ? '-' : '';
   return h > 0 ? `${sign}${h}h ${m}m` : `${sign}${m}m`;
 }
+
+// Shared route palette — the same colour identifies a route's legend row, its stop pins and its
+// driver car on the live map, so a dispatcher can match them at a glance.
+const ROUTE_PALETTE = ['#5E6AD2', '#2D8A5E', '#D4772C', '#9333EA', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#15803D', '#B45309'];
+export function routeColor(routeId?: string | null): string {
+  if (!routeId) return '#71717A';
+  let h = 0;
+  for (let i = 0; i < routeId.length; i++) h = (h * 31 + routeId.charCodeAt(i)) >>> 0;
+  return ROUTE_PALETTE[h % ROUTE_PALETTE.length];
+}

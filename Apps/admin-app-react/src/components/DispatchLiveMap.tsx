@@ -4,18 +4,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
+import { useLocaleContext } from '@/lib/LocaleContext';
 import voitureFourgon from '../../icons/voiture-fourgon.png';
-
-/** "Vu il y a 5 min" style relative label for a driver's last GPS fix (the map UI is FR). */
-function lastSeenFr(iso?: string | null): string {
-  if (!iso) return 'Position inconnue';
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return "Vu à l'instant";
-  if (mins < 60) return `Vu il y a ${mins} min`;
-  const h = Math.floor(mins / 60);
-  if (h < 24) return `Vu il y a ${h} h`;
-  return `Vu il y a ${Math.floor(h / 24)} j`;
-}
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type LiveDriver = {
@@ -49,13 +39,11 @@ interface Props {
   routes: MapRoute[];
   drivers: LiveDriver[];
   focusedRouteId?: string | null;
+  focusedDriverId?: string | null;
   onFocusRoute?: (routeId: string | null) => void;
+  onFocusDriver?: (driverId: string | null) => void;
   routeColor: (routeId?: string | null) => string;
 }
-
-const STATUS_LABEL: Record<string, string> = {
-  ONLINE: 'En service', ON_BREAK: 'En pause', OFFLINE: 'Hors ligne',
-};
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 function isGpsStale(lastLocationAt?: string | null): boolean {
@@ -106,7 +94,7 @@ function makeDriverIcon(ring: string, dim: boolean, focused: boolean) {
 }
 
 // ── Camera: fit everything on first load, fly to a route when focused ────────────
-function Camera({ routes, drivers, focusedRouteId }: { routes: MapRoute[]; drivers: LiveDriver[]; focusedRouteId?: string | null }) {
+function Camera({ routes, drivers, focusedRouteId, focusedDriverId }: { routes: MapRoute[]; drivers: LiveDriver[]; focusedRouteId?: string | null; focusedDriverId?: string | null }) {
   const map = useMap();
   const fitted = useRef(false);
 
@@ -139,14 +127,60 @@ function Camera({ routes, drivers, focusedRouteId }: { routes: MapRoute[]; drive
     } catch { /* ignore */ }
   }, [map, focusedRouteId, routes, drivers]);
 
+  // Fly to the focused driver.
+  useEffect(() => {
+    if (!focusedDriverId) return;
+    const drv = drivers.find(d => d.id === focusedDriverId);
+    if (drv?.currentLat && drv?.currentLng) {
+      map.setView([drv.currentLat, drv.currentLng], 15, { animate: true, duration: 0.6 });
+    }
+  }, [map, focusedDriverId, drivers]);
+
   return null;
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────────
-function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, routeColor }: Props) {
+function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId, onFocusRoute, routeColor }: Props) {
+  const { locale } = useLocaleContext();
   const [mounted, setMounted] = useState(false);
   const isDark = useIsDark();
   useEffect(() => { setMounted(true); }, []);
+
+  // Localized statuses
+  const statusLabels: Record<string, string> = {
+    ONLINE: locale === 'ar' ? 'متصل' : locale === 'en' ? 'Online' : 'En service',
+    ON_BREAK: locale === 'ar' ? 'في استراحة' : locale === 'en' ? 'On Break' : 'En pause',
+    OFFLINE: locale === 'ar' ? 'غير متصل' : locale === 'en' ? 'Offline' : 'Hors ligne',
+  };
+
+  // Localized relative time
+  const lastSeen = (iso?: string | null): string => {
+    if (!iso) {
+      return locale === 'ar' ? 'الموقع غير معروف' : locale === 'en' ? 'Unknown position' : 'Position inconnue';
+    }
+    const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (mins < 1) {
+      return locale === 'ar' ? 'شوهد الآن' : locale === 'en' ? 'Seen just now' : "Vu à l'instant";
+    }
+    if (mins < 60) {
+      if (locale === 'ar') return `شوهد منذ ${mins} دقيقة`;
+      if (locale === 'en') return `Seen ${mins}m ago`;
+      return `Vu il y a ${mins} min`;
+    }
+    const h = Math.floor(mins / 60);
+    if (h < 24) {
+      if (locale === 'ar') return `شوهد منذ ${h} ساعة`;
+      if (locale === 'en') return `Seen ${h}h ago`;
+      return `Vu il y a ${h} h`;
+    }
+    const days = Math.floor(h / 24);
+    if (locale === 'ar') return `شوهد منذ ${days} يوم`;
+    if (locale === 'en') return `Seen ${days}d ago`;
+    return `Vu il y a ${days} j`;
+  };
+
+  const loadingText = locale === 'ar' ? 'جاري تحميل الخريطة…' : locale === 'en' ? 'Loading map…' : 'Chargement de la carte…';
+  const showAllText = locale === 'ar' ? 'عرض الكل' : locale === 'en' ? 'Show All' : 'Tout afficher';
 
   // Show every driver with a known position (last-known included); staleness only dims + labels.
   const visibleDrivers = useMemo(
@@ -162,7 +196,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
   }, [routes]);
 
   const stopMarkers = useMemo(() => {
-    const out: JSX.Element[] = [];
+    const out: any[] = [];
     routes.forEach(route => {
       const color = routeColor(route.id);
       const dim = !!focusedRouteId && focusedRouteId !== route.id;
@@ -195,41 +229,53 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
     return visibleDrivers.map(driver => {
       const r = driverRoute.get(driver.id);
       const color = r ? routeColor(r.id) : '#71717A';
-      const dim = isGpsStale(driver.lastLocationAt) || (!!focusedRouteId && (!r || r.id !== focusedRouteId));
+      const isFocused = driver.id === focusedDriverId || (!!r && r.id === focusedRouteId);
+      const dim = !isFocused && (isGpsStale(driver.lastLocationAt) || !!focusedRouteId || !!focusedDriverId);
       return (
         <Marker
           key={driver.id}
           position={[driver.currentLat!, driver.currentLng!]}
-          icon={makeDriverIcon(color, dim, !!r && r.id === focusedRouteId)}
+          icon={makeDriverIcon(color, dim, isFocused)}
           eventHandlers={{ click: () => onFocusRoute?.(r ? (focusedRouteId === r.id ? null : r.id) : null) }}
         >
           <Popup>
             <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
               <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
               {r && <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 2 }}>{r.name}</div>}
-              <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 2 }}>{STATUS_LABEL[driver.onlineStatus ?? 'OFFLINE']}</div>
+              <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 2 }}>{statusLabels[driver.onlineStatus ?? 'OFFLINE']}</div>
               <div style={{ fontSize: 10, color: isGpsStale(driver.lastLocationAt) ? '#C7372F' : '#71717A', marginTop: 3, fontWeight: 600 }}>
-                {lastSeenFr(driver.lastLocationAt)}
+                {lastSeen(driver.lastLocationAt)}
               </div>
             </div>
           </Popup>
         </Marker>
       );
     });
-  }, [visibleDrivers, driverRoute, focusedRouteId, onFocusRoute, routeColor]);
+  }, [visibleDrivers, driverRoute, focusedRouteId, focusedDriverId, onFocusRoute, routeColor, locale]);
 
   if (!mounted) {
     return (
       <div style={{ width: '100%', height: '100%', background: '#F4F4F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
         <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid #E4E4E7', borderTopColor: 'var(--brand)', animation: 'spin 0.8s linear infinite' }} />
         <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <span style={{ fontSize: 11, color: '#A1A1AA', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>Chargement de la carte…</span>
+        <span style={{ fontSize: 11, color: '#A1A1AA', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{loadingText}</span>
       </div>
     );
   }
 
   const center: [number, number] = [36.8065, 10.1815];
   const stopCount = routes.reduce((n, r) => n + r.stops.filter(s => s.stopType !== 'PICKUP' && s.dropoffLat && s.dropoffLng).length, 0);
+
+  // Localized bottom overlay stats
+  const statsLabel = (() => {
+    if (locale === 'ar') {
+      return `${routes.length} رحلات · ${onlineCount} متصل · ${stopCount} محطات`;
+    }
+    if (locale === 'en') {
+      return `${routes.length} route${routes.length !== 1 ? 's' : ''} · ${onlineCount} online · ${stopCount} stop${stopCount !== 1 ? 's' : ''}`;
+    }
+    return `${routes.length} tournée${routes.length !== 1 ? 's' : ''} · ${onlineCount} en ligne · ${stopCount} arrêt${stopCount !== 1 ? 's' : ''}`;
+  })();
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', zIndex: 0, isolation: 'isolate' }}>
@@ -239,7 +285,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
           url={isDark ? 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png' : 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'}
           maxZoom={19}
         />
-        <Camera routes={routes} drivers={visibleDrivers} focusedRouteId={focusedRouteId} />
+        <Camera routes={routes} drivers={visibleDrivers} focusedRouteId={focusedRouteId} focusedDriverId={focusedDriverId} />
         {stopMarkers}
         {driverMarkers}
       </MapContainer>
@@ -249,7 +295,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
         <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
           <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
           <span style={{ fontSize: 10, color: '#D4D4D8', fontWeight: 700, letterSpacing: '0.05em' }}>
-            {routes.length} tournée{routes.length !== 1 ? 's' : ''} · {onlineCount} en ligne · {stopCount} arrêts
+            {statsLabel}
           </span>
         </div>
         {focusedRouteId && (
@@ -258,7 +304,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
             onClick={() => onFocusRoute?.(null)}
             style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', fontWeight: 700, letterSpacing: '0.05em', border: 'none', cursor: 'pointer' }}
           >
-            Tout afficher
+            {showAllText}
           </button>
         )}
       </div>
@@ -267,13 +313,19 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, onFocusRoute, r
 }
 
 export default function DispatchLiveMap(props: Props) {
+  const { locale } = useLocaleContext();
+
+  const errTitle = locale === 'ar' ? 'خارطة التوزيع المباشر غير متوفرة' : locale === 'en' ? 'Live Dispatch Map Unavailable' : 'Carte de Dispatch Live Indisponible';
+  const errDesc = locale === 'ar' ? 'حدث خطأ في عرض لوحة التوزيع.' : locale === 'en' ? 'A rendering error occurred on the dispatch board.' : "Une erreur d'affichage s'est produite sur le tableau de dispatch.";
+  const errRefresh = locale === 'ar' ? 'تحديث الصفحة' : locale === 'en' ? 'Refresh Page' : 'Actualiser la page';
+
   return (
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[350px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-xs p-6 text-center">
-        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Carte de Dispatch Live Indisponible</p>
-        <p className="text-2xs text-[var(--text-muted)] mb-4">Une erreur d'affichage s'est produite sur le tableau de dispatch.</p>
+        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">{errTitle}</p>
+        <p className="text-2xs text-[var(--text-muted)] mb-4">{errDesc}</p>
         <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-xs font-medium hover:opacity-90 transition">
-          Actualiser la page
+          {errRefresh}
         </button>
       </div>
     }>
