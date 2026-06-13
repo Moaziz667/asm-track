@@ -9,6 +9,7 @@ import {
 } from '@tabler/icons-react';
 import { showErrorToast } from '@/lib/toast-service';
 import { api } from '@/lib/api';
+import { useQuery } from '@tanstack/react-query';
 import { useCloseRoute, useCancelRoute } from '@/hooks/useRoutes';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
@@ -291,11 +292,87 @@ function RoutesTablePageContent() {
     if (role !== 'UNKNOWN' && !canDispatch(role)) router('/dashboard', { replace: true });
   }, [router]);
 
-  const [loading, setLoading]   = useState(true);
-  const [routes, setRoutes]     = useState<EnrichedRoute[]>([]);
-  const [drivers, setDrivers]   = useState<Driver[]>([]);
-  const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
-  const [depots, setDepots]     = useState<DepotItem[]>([]);
+  // Routes table data via React Query (cached, deduped, refetchable) — the queryFn preserves the
+  // exact enrichment the page had: base routes + per-route /full fan-out + drivers/vehicles/depots.
+  const { data: routesData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ['routes-table'],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const isManager = getCurrentRole() === 'MANAGER';
+      try {
+        const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
+          api.get('/api/admin/routes'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
+        ]);
+
+        const baseRoutes: RouteItem[] = Array.isArray(routesRes.data) ? routesRes.data : [];
+
+        const details = await Promise.allSettled(
+          baseRoutes.map(async (route) => {
+            const full = await api.get(`/api/admin/routes/${route.id}/full`).catch(() => ({ data: null }));
+            const data = full.data as any;
+            const zoneLabel = data?.detectedZoneLabel ?? route.detectedZoneLabel ?? data?.city ?? '';
+
+            const mapStop = (s: any): DeliveryDetail => {
+              const d = s.delivery ?? {};
+              const o = d.order ?? s.order ?? {};
+              return {
+                id:            s.id ?? s.stopId ?? '',
+                deliveryId:    s.deliveryId ?? d.id ?? '',
+                stopOrder:     s.stopOrder ?? s.sequenceOrder ?? 0,
+                status:        d.status ?? s.deliveryStatus ?? s.status ?? '',
+                clientName:    o.clientName ?? d.clientName ?? s.clientName ?? '',
+                dropoffAddress:o.dropoffAddress ?? d.dropoffAddress ?? s.deliveryAddress ?? '',
+                dropoffCity:   o.dropoffCity ?? d.dropoffCity ?? s.deliveryCity ?? '',
+                totalWeightKg: o.totalWeightKg ?? d.totalWeightKg ?? 0,
+                erpId:         o.erpOrderId ?? o.erpId ?? d.erpId ?? '',
+                orderId:       o.id ?? d.orderId ?? '',
+                priority:      o.priority ?? d.priority ?? '',
+                items:         o.items ?? d.items ?? s.items ?? [],
+              };
+            };
+
+            const rawStops: DeliveryDetail[]    = Array.isArray(data?.stops)       ? data.stops.map(mapStop)       : [];
+            const legacyStops: DeliveryDetail[] = Array.isArray(data?.legacyStops) ? data.legacyStops.map(mapStop) : [];
+            const allStops = rawStops.length > 0 ? rawStops : legacyStops;
+
+            const clientNames    = allStops.map((s) => s.clientName).filter((n): n is string => Boolean(n));
+            const completedStops = allStops.filter((s) => s.status && DONE_STATUSES.has(s.status)).length;
+
+            return {
+              ...route,
+              stops: allStops,
+              zoneLabel,
+              clientNames: [...new Set(clientNames.map((n) => n.trim()))],
+              completedStops,
+            } as EnrichedRoute;
+          }),
+        );
+
+        const enriched = details.map((result, idx) => {
+          if (result.status === 'fulfilled') return result.value;
+          const r = baseRoutes[idx];
+          return { ...r, zoneLabel: r.detectedZoneLabel ?? '', clientNames: [], completedStops: 0, stops: [] } as EnrichedRoute;
+        });
+
+        return {
+          routes: enriched,
+          drivers: (Array.isArray(driversRes.data) ? driversRes.data : []) as Driver[],
+          vehicles: (Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []) as VehicleItem[],
+          depots: (Array.isArray(depotsRes.data) ? depotsRes.data : []) as DepotItem[],
+        };
+      } catch {
+        showErrorToast(null, t.routesTablePage.loadError);
+        return { routes: [] as EnrichedRoute[], drivers: [] as Driver[], vehicles: [] as VehicleItem[], depots: [] as DepotItem[] };
+      }
+    },
+  });
+  const routes = routesData?.routes ?? [];
+  const drivers = routesData?.drivers ?? [];
+  const vehicles = routesData?.vehicles ?? [];
+  const depots = routesData?.depots ?? [];
 
   // Filters
   const [statusFilter,  setStatusFilter]  = useState('ALL');
@@ -323,80 +400,6 @@ function RoutesTablePageContent() {
       fetchData();
     } catch { /* toast handled in hook */ }
   }, [cancelTarget, cancelReason, cancelRouteMutation]);
-
-  const fetchData = useCallback(async () => {
-    setLoading(true);
-    const isManager = getCurrentRole() === 'MANAGER';
-    try {
-      const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
-        api.get('/api/admin/routes'),
-        isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
-        isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
-        isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
-      ]);
-
-      const baseRoutes: RouteItem[] = Array.isArray(routesRes.data) ? routesRes.data : [];
-      setDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
-      setVehicles(Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []);
-      setDepots(Array.isArray(depotsRes.data) ? depotsRes.data : []);
-
-      const details = await Promise.allSettled(
-        baseRoutes.map(async (route) => {
-          const full = await api.get(`/api/admin/routes/${route.id}/full`).catch(() => ({ data: null }));
-          const data = full.data as any;
-          const zoneLabel = data?.detectedZoneLabel ?? route.detectedZoneLabel ?? data?.city ?? '';
-
-          const mapStop = (s: any): DeliveryDetail => {
-            const d = s.delivery ?? {};
-            const o = d.order ?? s.order ?? {};
-            return {
-              id:            s.id ?? s.stopId ?? '',
-              deliveryId:    s.deliveryId ?? d.id ?? '',
-              stopOrder:     s.stopOrder ?? s.sequenceOrder ?? 0,
-              status:        d.status ?? s.deliveryStatus ?? s.status ?? '',
-              clientName:    o.clientName ?? d.clientName ?? s.clientName ?? '',
-              dropoffAddress:o.dropoffAddress ?? d.dropoffAddress ?? s.deliveryAddress ?? '',
-              dropoffCity:   o.dropoffCity ?? d.dropoffCity ?? s.deliveryCity ?? '',
-              totalWeightKg: o.totalWeightKg ?? d.totalWeightKg ?? 0,
-              erpId:         o.erpOrderId ?? o.erpId ?? d.erpId ?? '',
-              orderId:       o.id ?? d.orderId ?? '',
-              priority:      o.priority ?? d.priority ?? '',
-              items:         o.items ?? d.items ?? s.items ?? [],
-            };
-          };
-
-          const rawStops: DeliveryDetail[]    = Array.isArray(data?.stops)       ? data.stops.map(mapStop)       : [];
-          const legacyStops: DeliveryDetail[] = Array.isArray(data?.legacyStops) ? data.legacyStops.map(mapStop) : [];
-          const allStops = rawStops.length > 0 ? rawStops : legacyStops;
-
-          const clientNames    = allStops.map((s) => s.clientName).filter((n): n is string => Boolean(n));
-          const completedStops = allStops.filter((s) => s.status && DONE_STATUSES.has(s.status)).length;
-
-          return {
-            ...route,
-            stops: allStops,
-            zoneLabel,
-            clientNames: [...new Set(clientNames.map((n) => n.trim()))],
-            completedStops,
-          } as EnrichedRoute;
-        }),
-      );
-
-      setRoutes(
-        details.map((result, idx) => {
-          if (result.status === 'fulfilled') return result.value;
-          const r = baseRoutes[idx];
-          return { ...r, zoneLabel: r.detectedZoneLabel ?? '', clientNames: [], completedStops: 0, stops: [] } as EnrichedRoute;
-        }),
-      );
-    } catch {
-      showErrorToast(null, t.routesTablePage.loadError);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
-
-  useEffect(() => { void fetchData(); }, [fetchData]);
 
   const handleCloseRoute = async () => {
     if (!closeTarget) return;
