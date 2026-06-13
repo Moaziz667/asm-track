@@ -262,7 +262,7 @@ export default function ReturnsPage() {
                     <td className="px-6"><StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" /></td>
                     <td className="px-6">
                       {r.erpSyncStatus
-                        ? <StatusBadge status={r.erpSyncStatus} label={t.returnsPage?.syncLabels?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
+                        ? <StatusBadge status={r.erpSyncStatus} label={(t.returnsPage?.syncLabels as any)?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
                         : <span className="text-xs text-[var(--text-soft)]">—</span>}
                     </td>
                     <td className="px-6 max-w-[220px] truncate text-xs text-[var(--text-muted)]" title={r.reason ?? ''}>{r.reason ?? '—'}</td>

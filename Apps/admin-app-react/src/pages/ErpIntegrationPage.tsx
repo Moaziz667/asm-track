@@ -316,7 +316,7 @@ export default function ErpIntegrationPage() {
           </div>
         ) : (
           <div className="text-center py-20 text-sm text-[var(--text-muted)]">
-            {t.erpIntegrationPage.loadError ?? 'Aucune configuration ERP disponible.'}
+            {(t.erpIntegrationPage as any).loadError ?? 'Aucune configuration ERP disponible.'}
           </div>
         )}
       </div>

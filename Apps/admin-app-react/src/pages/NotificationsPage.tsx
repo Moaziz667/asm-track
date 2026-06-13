@@ -23,7 +23,6 @@ import { toast } from '@/lib/toast';
 import { notifDestination } from '@/lib/dispatch-link';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Separator } from '@/components/ui/separator';
 
 type Filter = 'all' | 'unread' | 'critical' | 'warning' | 'info';
 
@@ -124,65 +123,59 @@ export default function NotificationsPage() {
 
   return (
     <div className="flex h-full flex-col overflow-hidden bg-[var(--app-bg)]">
-      {/* ── Page header (AWS-console style) ── */}
-      <header className="shrink-0 border-b border-[var(--border)] bg-[var(--surface)] px-6 py-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-[var(--text-primary)]">{copy.title}</h1>
-            <p className="mt-0.5 text-base text-[var(--text-muted)]">{x.subtitle}</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <span className="flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
-              <span className="h-2 w-2 rounded-full bg-red-500" />
-              <b className="text-[var(--text-primary)]">{counts.critical}</b> {copy.statCritical}
-              <span className="mx-1 opacity-40">·</span>
-              <span className="h-2 w-2 rounded-full bg-sky-500" />
-              <b className="text-[var(--text-primary)]">{counts.unread}</b> {copy.statUnread}
-            </span>
-            <Separator orientation="vertical" className="hidden h-6 sm:block" />
-            <Button variant="outline" size="sm" onClick={doRefresh} disabled={refreshing}>
-              <IconRefresh size={14} className={cn('mr-2', refreshing && 'animate-spin')} />
-              {x.refresh}
-            </Button>
-            {unreadCount > 0 && (
-              <Button variant="outline" size="sm" onClick={markAllRead}>
-                <IconCheck size={14} className="mr-2" />
-                {copy.markAllRead}
+      {/* ── Page header (Clean, minimal style) ── */}
+      <header className="shrink-0 border-b border-[var(--border)] bg-[var(--app-bg)]">
+        <div className="mx-auto max-w-4xl w-full px-4 py-6 sm:px-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)]">{copy.title}</h1>
+              <p className="mt-1 text-sm text-[var(--text-muted)]">{x.subtitle}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={doRefresh} disabled={refreshing}>
+                <IconRefresh size={14} className={cn('mr-2', refreshing && 'animate-spin')} />
+                {x.refresh}
               </Button>
-            )}
+              {unreadCount > 0 && (
+                <Button variant="outline" size="sm" onClick={markAllRead}>
+                  <IconCheck size={14} className="mr-2" />
+                  {copy.markAllRead}
+                </Button>
+              )}
+            </div>
           </div>
-        </div>
 
-        {/* Toolbar: segmented severity control + search */}
-        <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--app-bg)] p-0.5">
-            {FILTERS.map(f => {
-              const activeF = filter === f.value;
-              const c = counts[f.value];
-              return (
-                <button
-                  key={f.value}
-                  type="button"
-                  onClick={() => setFilter(f.value)}
-                  className={cn(
-                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
-                    activeF ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
-                  )}
-                >
-                  {f.label}
-                  <span className={cn('rounded px-1 text-2xs font-bold tabular-nums', activeF ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]')}>{c}</span>
-                </button>
-              );
-            })}
-          </div>
-          <div className="relative w-full sm:w-72">
-            <IconSearch size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-            <Input
-              value={query}
-              onChange={e => setQuery(e.target.value)}
-              placeholder={x.search}
-              className="h-9 pl-9"
-            />
+          {/* Toolbar: segmented severity control + search */}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="inline-flex items-center rounded-lg border border-[var(--border)] bg-[var(--surface)] p-0.5">
+              {FILTERS.map(f => {
+                const activeF = filter === f.value;
+                const c = counts[f.value];
+                return (
+                  <button
+                    key={f.value}
+                    type="button"
+                    onClick={() => setFilter(f.value)}
+                    className={cn(
+                      'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                      activeF ? 'bg-[var(--app-bg)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]',
+                    )}
+                  >
+                    {f.label}
+                    <span className={cn('rounded px-1 text-2xs font-bold tabular-nums', activeF ? 'text-[var(--brand)]' : 'text-[var(--text-muted)]')}>{c}</span>
+                  </button>
+                );
+              })}
+            </div>
+            <div className="relative w-full sm:w-72">
+              <IconSearch size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+              <Input
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={x.search}
+                className="h-9 pl-9 bg-[var(--surface)] border-[var(--border)]"
+              />
+            </div>
           </div>
         </div>
       </header>
