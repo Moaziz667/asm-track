@@ -68,6 +68,24 @@ function resourceLabel(log: AuditLog, t: any): string | null {
   return ent ? `${ent} ${shortId}` : shortId;
 }
 
+/** Payload-first headline: if the details JSON has a "message" field, use that as the
+ *  primary headline. Otherwise fall back to verb + resource composition. */
+function getHeadline(log: AuditLog, t: any): { primary: string; secondary: string | null } {
+  // Priority 1: payload "message" field — the most human-readable text
+  if (log.details) {
+    try {
+      const p = JSON.parse(log.details);
+      if (p.message && typeof p.message === 'string' && p.message.length > 5) {
+        return { primary: p.message, secondary: null };
+      }
+    } catch { /* not JSON */ }
+  }
+  // Priority 2: composed verb + resource (existing logic)
+  const verb = actionVerb(log.action, t);
+  const res = resourceLabel(log, t);
+  return { primary: verb, secondary: res };
+}
+
 type Page<T> = {
   content: T[];
   totalElements: number;
@@ -291,6 +309,155 @@ function SimplePagination({ total, value, onChange }: { total: number; value: nu
   );
 }
 
+// ── Feed Item ─────────────────────────────────────────────────────────────────
+
+function FeedItem({
+  log, isExpanded, isLast, onToggle, locale, t,
+}: {
+  log: AuditLog;
+  isExpanded: boolean;
+  isLast: boolean;
+  onToggle: () => void;
+  locale: string;
+  t: any;
+}) {
+  const meta = getActionStyle(log.action, locale, t);
+  const roleColor = getRoleColor(log.actorRole);
+  const actor = displayActor(log.actorName, log.actorRole);
+  const headline = getHeadline(log, t);
+
+  return (
+    <div className="relative flex gap-0">
+      {/* Timeline column — dot + vertical line */}
+      <div className="flex flex-col items-center shrink-0 w-8 pt-[2px]">
+        {/* Action dot */}
+        <div
+          className="w-[10px] h-[10px] rounded-full shrink-0 mt-[5px] ring-[3px]"
+          style={{
+            background: meta.color,
+            boxShadow: `0 0 0 3px ${meta.color}18`,
+          }}
+        />
+        {/* Vertical connector */}
+        {!isLast && (
+          <div
+            className="flex-1 w-[1.5px] mt-1"
+            style={{ background: 'var(--border)' }}
+          />
+        )}
+      </div>
+
+      {/* Feed content */}
+      <div className="flex-1 min-w-0 pb-5">
+        {/* Main clickable area */}
+        <div
+          className="group rounded-lg px-3 py-2.5 -ml-1 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]"
+          onClick={onToggle}
+        >
+          {/* Row 1: Headline + timestamp */}
+          <div className="flex items-start justify-between gap-3">
+            <p className="text-[13px] font-[600] text-[var(--text-primary)] leading-snug min-w-0">
+              {headline.primary}
+              {headline.secondary && (
+                <span className="text-[var(--text-muted)] font-[400]"> · {headline.secondary}</span>
+              )}
+            </p>
+            <span
+              className="text-2xs text-[var(--text-muted)] whitespace-nowrap shrink-0 mt-[2px]"
+              title={formatTs(log.createdAt, locale)}
+            >
+              {relativeTime(log.createdAt, t)}
+            </span>
+          </div>
+
+          {/* Row 2: Actor + category badge */}
+          <div className="flex items-center gap-2 mt-1.5">
+            {/* Actor pill */}
+            <span className="inline-flex items-center gap-1.5">
+              <span
+                className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[8px] font-[700] shrink-0"
+                style={{ background: `${roleColor}1A`, color: roleColor }}
+              >
+                {actor.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
+              </span>
+              <span className="text-2xs text-[var(--text-muted)]">
+                <span className="font-[600]">{actor}</span>
+                <span className="mx-1 opacity-40">·</span>
+                <span className="font-[700] uppercase tracking-wide" style={{ color: roleColor, fontSize: '9px' }}>{log.actorRole}</span>
+              </span>
+            </span>
+
+            {/* Category badge */}
+            <span
+              className="text-[9px] font-[600] uppercase tracking-wider px-1.5 py-[1px] rounded-sm"
+              style={{
+                background: `${meta.color}12`,
+                color: meta.color,
+              }}
+            >
+              {meta.label}
+            </span>
+
+            {/* Expand indicator */}
+            <IconChevronDown
+              size={12}
+              className={cn(
+                'ml-auto text-[var(--text-soft)] opacity-0 group-hover:opacity-100 transition-all duration-200',
+                isExpanded && 'rotate-180 opacity-100'
+              )}
+            />
+          </div>
+        </div>
+
+        {/* Expanded details panel */}
+        <div
+          className={cn(
+            'overflow-hidden transition-all duration-300 ease-in-out',
+            isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+          )}
+        >
+          <div className="mx-2 mt-1 mb-1 rounded-lg border border-[var(--border)] overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+            <div className="px-3 py-2.5 space-y-3">
+              {/* Metadata grid */}
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+                <div>
+                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.eventId}</p>
+                  <p className="text-2xs font-mono text-[var(--text-muted)] break-all select-all">{log.id}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.engineCategory}</p>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+                    <span className="text-2xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colIp}</p>
+                  <p className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colTime}</p>
+                  <p className="text-2xs font-mono text-[var(--text-muted)]">{formatTs(log.createdAt, locale)}</p>
+                </div>
+              </div>
+
+              {/* Payload details */}
+              {log.details && (
+                <div>
+                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-1">{t.auditLogsPage.payloadDetails}</p>
+                  <div className="text-2xs p-2 rounded-xs bg-[var(--surface)] border border-[var(--border)] max-h-40 overflow-y-auto">
+                    {formatPayload(log.details, locale)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function AuditLogsPage() {
@@ -386,10 +553,19 @@ export default function AuditLogsPage() {
 
   const dateGroupOrder = ['Today', 'Yesterday', 'Earlier this week', 'Older'];
 
+  // Flatten all logs in order to determine "last" item for timeline connector
+  const allLogsFlat = useMemo(() => {
+    const flat: AuditLog[] = [];
+    dateGroupOrder.forEach(dg => {
+      if (groupedLogs[dg]) flat.push(...groupedLogs[dg]);
+    });
+    return flat;
+  }, [groupedLogs]);
+
   return (
     <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
 
-      {/* Filter bar (title removed) */}
+      {/* Filter bar */}
       <div className="px-4 py-2.5 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <div className="flex items-center gap-3 mb-2">
           <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{totalElements} {t.auditLogsPage.eventsRecorded}</span>
@@ -437,8 +613,8 @@ export default function AuditLogsPage() {
         </div>
       </div>
 
-      {/* Audit table — enterprise grid: actor-first, no card boxes. */}
-      <div className="flex-1 overflow-auto" style={{ background: 'var(--surface)' }}>
+      {/* Activity feed */}
+      <div className="flex-1 overflow-auto" style={{ background: 'var(--app-bg)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <AppLoader centered height="200px" size="sm" label={t.auditLogsPage.loadingLogs} />
@@ -448,129 +624,45 @@ export default function AuditLogsPage() {
             <p className="text-xs font-bold text-[var(--text-muted)]">{t.auditLogsPage.noLogs}</p>
           </div>
         ) : (
-          <table className="w-full border-collapse text-start">
-            {/* Sticky column header */}
-            <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
-              <tr className="border-b border-[var(--border)]">
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] ps-6 pe-3 py-2.5">{t.auditLogsPage.actorLabel}</th>
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5">{t.auditLogsPage.actionLabel}</th>
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden md:table-cell">{t.auditLogsPage.colCategory ?? 'Catégorie'}</th>
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 whitespace-nowrap">{t.auditLogsPage.colTime}</th>
-                <th className="text-start text-2xs font-[700] uppercase tracking-wide text-[var(--text-muted)] px-3 py-2.5 hidden lg:table-cell">{t.auditLogsPage.colIp}</th>
-                <th className="w-8 pe-4" />
-              </tr>
-            </thead>
-            <tbody>
-              {dateGroupOrder.map(dateGroup => {
-                const items = groupedLogs[dateGroup];
-                if (!items) return null;
-                return (
-                  <React.Fragment key={dateGroup}>
-                    {/* Date section row */}
-                    <tr>
-                      <td colSpan={6} className="ps-6 pe-3 pt-5 pb-2">
-                        <span className="text-2xs font-[700] uppercase tracking-wide text-[var(--text-soft)]">{getDateGroupLabel(dateGroup)}</span>
-                      </td>
-                    </tr>
-                    {items.map(log => {
-                      const meta = getActionStyle(log.action, locale, t);
-                      const isExpanded = expandedId === log.id;
-                      const roleColor = getRoleColor(log.actorRole);
-                      const actor = displayActor(log.actorName, log.actorRole);
-                      const initials = actor.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?';
-                      const verb = actionVerb(log.action, t);
-                      const resLabel = resourceLabel(log, t);
+          <div className="max-w-4xl mx-auto px-4 py-2">
+            {dateGroupOrder.map(dateGroup => {
+              const items = groupedLogs[dateGroup];
+              if (!items) return null;
+              return (
+                <div key={dateGroup}>
+                  {/* Date section header */}
+                  <div className="flex items-center gap-3 pt-5 pb-3 pl-1">
+                    <span className="text-[10px] font-[800] uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                      {getDateGroupLabel(dateGroup)}
+                    </span>
+                    <div className="flex-1 h-[1px]" style={{ background: 'var(--border)' }} />
+                    <span className="text-[10px] font-[600] text-[var(--text-soft)] tabular-nums">
+                      {items.length}
+                    </span>
+                  </div>
 
-                      return (
-                        <React.Fragment key={log.id}>
-                          <tr
-                            className="border-b border-[var(--border)] cursor-pointer transition-colors hover:bg-[var(--app-bg)]"
-                            onClick={() => setExpandedId(isExpanded ? null : log.id)}
-                          >
-                            {/* Actor — primary: who performed the action */}
-                            <td className="ps-6 pe-3 py-2.5 align-middle">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <span
-                                  className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0"
-                                  style={{ background: `${roleColor}1A`, color: roleColor }}
-                                >
-                                  {initials}
-                                </span>
-                                <div className="min-w-0">
-                                  <p className="text-xs font-[600] text-[var(--text-primary)] truncate leading-tight" title={log.actorName}>{actor}</p>
-                                  <span className="text-[10px] font-[700] uppercase tracking-wide" style={{ color: roleColor }}>{log.actorRole}</span>
-                                </div>
-                              </div>
-                            </td>
+                  {/* Feed items */}
+                  {items.map((log, idx) => {
+                    const isLastInGroup = idx === items.length - 1;
+                    // Check if this is truly the last item across all groups
+                    const isLastOverall = allLogsFlat[allLogsFlat.length - 1]?.id === log.id;
 
-                            {/* Action — a human sentence: "a activé · Compte X" */}
-                            <td className="px-3 py-2.5 align-middle">
-                              <span className="inline-flex items-center gap-2 min-w-0">
-                                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.color }} />
-                                <span className="text-xs text-[var(--text-primary)] min-w-0 truncate">
-                                  <span className="font-[600]">{verb}</span>
-                                  {resLabel && <span className="text-[var(--text-muted)]"> · {resLabel}</span>}
-                                </span>
-                              </span>
-                            </td>
-
-                            {/* Category (the old engine label) — secondary context */}
-                            <td className="px-3 py-2.5 align-middle hidden md:table-cell">
-                              <span className="text-2xs font-[500] text-[var(--text-soft)]">{meta.label}</span>
-                            </td>
-
-                            {/* Time — relative, with absolute on hover */}
-                            <td className="px-3 py-2.5 align-middle whitespace-nowrap">
-                              <span className="text-2xs text-[var(--text-muted)]" title={formatTs(log.createdAt, locale)}>{relativeTime(log.createdAt, t)}</span>
-                            </td>
-
-                            {/* IP */}
-                            <td className="px-3 py-2.5 align-middle hidden lg:table-cell">
-                              <span className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</span>
-                            </td>
-
-                            {/* Expand chevron */}
-                            <td className="pe-4 py-2.5 align-middle text-end">
-                              <IconChevronDown size={14} className={cn('inline text-[var(--text-muted)] transition-transform', isExpanded && 'rotate-180')} />
-                            </td>
-                          </tr>
-
-                          {/* Expanded payload row */}
-                          {isExpanded && (
-                            <tr className="border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
-                              <td colSpan={6} className="ps-6 pe-4 py-3">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
-                                  <div>
-                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.eventId}</p>
-                                    <p className="text-2xs font-mono text-[var(--text-primary)] break-all">{log.id}</p>
-                                  </div>
-                                  <div>
-                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.engineCategory}</p>
-                                    <span className="inline-flex items-center gap-1.5">
-                                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
-                                      <span className="text-2xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
-                                    </span>
-                                  </div>
-                                </div>
-                                {log.details && (
-                                  <div>
-                                    <p className="text-2xs font-[600] text-[var(--text-muted)] mb-1">{t.auditLogsPage.payloadDetails}</p>
-                                    <div className="text-2xs p-2 rounded-xs bg-[var(--surface)] border border-[var(--border)] max-h-40 overflow-y-auto">
-                                      {formatPayload(log.details, locale)}
-                                    </div>
-                                  </div>
-                                )}
-                              </td>
-                            </tr>
-                          )}
-                        </React.Fragment>
-                      );
-                    })}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+                    return (
+                      <FeedItem
+                        key={log.id}
+                        log={log}
+                        isExpanded={expandedId === log.id}
+                        isLast={isLastOverall}
+                        onToggle={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                        locale={locale}
+                        t={t}
+                      />
+                    );
+                  })}
+                </div>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -587,4 +679,3 @@ export default function AuditLogsPage() {
     </div>
   );
 }
-
