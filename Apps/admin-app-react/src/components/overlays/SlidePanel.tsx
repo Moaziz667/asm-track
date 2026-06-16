@@ -42,7 +42,7 @@ export function SlidePanel({
       <div
         className="fixed right-0 bottom-0 flex flex-col border-l border-[var(--border)] shadow-[-8px_0_32px_rgba(0,0,0,0.08)] bg-[var(--surface)] z-[999] transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)]"
         style={{
-          top: 64,
+          top: 56,
           width: `min(${width}px, 100vw)`,
           transform: open ? 'translateX(0)' : 'translateX(100%)',
           visibility: open ? 'visible' : 'hidden',

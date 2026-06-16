@@ -20,7 +20,12 @@ public class HandoffResponse {
     private String toDriverId;
     private String toDriverName;
     private LocalDateTime requestedAt;
+    private String requestedBy;
+    private LocalDateTime inProgressAt;
     private LocalDateTime tokenExpiresAt;
     private LocalDateTime confirmedAt;
+    private LocalDateTime expiredAt;
+    private LocalDateTime cancelledAt;
+    private String cancelledBy;
     private String reason;
 }

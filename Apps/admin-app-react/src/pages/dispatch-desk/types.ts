@@ -69,7 +69,12 @@ export type HandoffItem = {
   toDriverId?: string;
   toDriverName?: string;
   requestedAt?: string;
+  requestedBy?: string;
+  inProgressAt?: string;
   tokenExpiresAt?: string;
   confirmedAt?: string;
+  expiredAt?: string;
+  cancelledAt?: string;
+  cancelledBy?: string;
   reason?: string;
 };

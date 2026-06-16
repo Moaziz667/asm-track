@@ -141,6 +141,7 @@ export function DispatchTabs() {
       {isHandoffTab ? (
         <HandoffCards
           open={handoffs.open}
+          history={handoffs.history}
           loading={handoffs.loading}
           isReadOnly={isReadOnly}
           cancellingId={handoffs.cancellingId}

@@ -152,7 +152,7 @@ export default function ReturnsPage() {
   }, [filter, visibleRows.length, t]);
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
+    <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden bg-[var(--app-bg)] flex flex-col">
       <PageFilterBar
         search={query}
         onSearch={setQuery}
@@ -184,7 +184,7 @@ export default function ReturnsPage() {
         }
       />
 
-      <div className="flex flex-1 min-h-0 flex-col overflow-hidden" style={{ background: 'var(--surface)' }}>
+      <div className="flex flex-1 min-h-0 flex-col overflow-visible lg:overflow-hidden" style={{ background: 'var(--surface)' }}>
         {/* Compact toolbar — label + mini KPIs */}
         <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="flex items-center gap-8">
@@ -210,7 +210,7 @@ export default function ReturnsPage() {
 
         {/* Table — styled to match the Deliveries data slab: status ribbon, sticky sunken
             header, compact mono refs. Kept semantic (<table>) for a11y/screen readers. */}
-        <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+        <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin' }}>
           <div className="min-w-[900px] lg:min-w-0">
           <table className="w-full border-collapse">
             <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>

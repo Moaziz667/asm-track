@@ -76,8 +76,16 @@ public class ExceptionResolutionService {
 	public AdminOpsExceptionsResponse.ExceptionItem reassignException(UUID deliveryId,
 																							  AdminExceptionReassignRequest request,
 																							  UserPrincipal principal) {
+		// Resolve driver display names UP FRONT — the remote driver-service lookup must not
+		// run inside doReassign's @Transactional (it would hold a DB connection across a
+		// network call). We snapshot the names here so the audit/history reads
+		// "Bilel Driver → Mohamed Driver" instead of raw UUID fragments.
+		UUID currentDriverId = deliveryRepo.findById(deliveryId).map(Delivery::getDriverId).orElse(null);
+		String fromDriverName = resolveDriverName(currentDriverId);
+		String toDriverName = resolveDriverName(request.getDriverId());
+
 		// 1. Transactional Mutation
-		Set<UUID> affectedRouteIds = self.doReassign(deliveryId, request, principal);
+		Set<UUID> affectedRouteIds = self.doReassign(deliveryId, request, principal, fromDriverName, toDriverName);
 
 		// 2. Post-Transaction Optimization (Outside DB Lock)
 		for (UUID routeId : affectedRouteIds) {
@@ -92,10 +100,24 @@ public class ExceptionResolutionService {
 		return mapActionResult(delivery, "WARNING", "RESCHEDULED", "Delivery reassigned successfully");
 	}
 
+	/** Best-effort driver display name. Returns null on any failure so callers fall back
+	 *  to a short UUID — never blocks or throws (used for audit/history labels only). */
+	private String resolveDriverName(UUID driverId) {
+		if (driverId == null) return null;
+		try {
+			var d = transportPort.getDriver(driverId.toString());
+			return d != null ? d.getName() : null;
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
 	@Transactional
 	public Set<UUID> doReassign(UUID deliveryId,
 								AdminExceptionReassignRequest request,
-								UserPrincipal principal) {
+								UserPrincipal principal,
+								String fromDriverName,
+								String toDriverName) {
 		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
 				.orElseThrow(() -> AppException.notFound("Delivery not found"));
 
@@ -180,8 +202,14 @@ public class ExceptionResolutionService {
 		deliveryRepo.save(delivery);
 
 		ActorInfo actor = resolveActor(principal);
-		String previousDriverName = previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN";
-		String targetDriverName = request.getDriverId().toString().substring(0, 8);
+		// Prefer the resolved names (snapshotted before the transaction); fall back to a
+		// short UUID fragment only if the driver-service lookup failed.
+		String previousDriverName = (fromDriverName != null && !fromDriverName.isBlank())
+				? fromDriverName
+				: (previousDriverId != null ? previousDriverId.toString().substring(0, 8) : "UNKNOWN");
+		String targetDriverName = (toDriverName != null && !toDriverName.isBlank())
+				? toDriverName
+				: request.getDriverId().toString().substring(0, 8);
 		String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "UNKNOWN";
 
 		Map<String, Object> auditDetails = Map.of(
@@ -206,6 +234,13 @@ public class ExceptionResolutionService {
 				request.getEndTimeWindow()
 		);
 
+		// Capacity guard: now that the stop sits on the target route, reject the move if it
+		// overloads the vehicle — unless the dispatcher explicitly forced it. validateCapacity
+		// is a no-op for DRAFT routes / no vehicle, so plain planning is unaffected.
+		if (targetRoute != null) {
+			dispatchService.validateCapacity(targetRoute, request.isAcknowledgeOverload());
+		}
+
 		// Custody handoff (parcel already in the field) is opened below, after the
 		// stop has been moved onto the new driver's route — see the event section.
 
@@ -224,6 +259,16 @@ public class ExceptionResolutionService {
 							actor.role(),
 							"DELIVERY_ASSIGNED_TO_DRAFT",
 							Map.of("routeName", targetRoute != null ? targetRoute.getName() : ""));
+		} else if (previousDriverId == null) {
+			// Direct assignment (no prior driver) — not a reassignment. Emit a clean
+			// "assigned to X" event instead of "reassigned UNKNOWN → X".
+			appendHistory(delivery,
+							DeliveryStatus.SCHEDULED,
+							actor.name(),
+							actor.role(),
+							"DELIVERY_ASSIGNED",
+							Map.of("targetDriver", targetDriverName,
+								   "reason", request.getNote() != null ? request.getNote() : ""));
 		} else {
 			appendHistory(delivery,
 							DeliveryStatus.SCHEDULED,

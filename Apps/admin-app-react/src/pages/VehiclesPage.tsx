@@ -436,8 +436,8 @@ function VehiclesPageContent() {
 
   return (
     <div
-      className="flex flex-col overflow-hidden"
-      style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}
+      className="flex flex-col overflow-visible lg:overflow-hidden h-auto lg:h-[calc(100dvh-56px)]"
+      style={{ background: 'var(--app-bg)' }}
     >
       <PageFilterBar
         search={searchTerm}
@@ -487,7 +487,8 @@ function VehiclesPageContent() {
                 <p className="text-xs font-semibold text-[var(--text-muted)]">{t.vehiclesPage.noVehiclesFound}</p>
               </div>
             ) : (
-              <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[800px]">
                 <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                   <tr style={{ boxShadow: '0 1px 0 var(--border)' }}>
                     {/* Thumbnail always first */}
@@ -611,6 +612,7 @@ function VehiclesPageContent() {
                   })}
                 </tbody>
               </table>
+            </div>
             )}
           </div>
         </div>

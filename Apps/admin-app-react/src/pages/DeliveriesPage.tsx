@@ -33,10 +33,12 @@ import { DELIVERY_COLUMNS, DELIVERY_STATUSES } from './deliveries/constants';
 import { getRowId, isUuid } from './deliveries/helpers';
 import type { DeliveryRow, QuickView } from './deliveries/types';
 import { useDeliveryListData } from './deliveries/useDeliveryListData';
-import { DeliveryTableRow } from './deliveries/DeliveryTableRow';
+import { DeliveryTableRow, DeliveryMobileCard } from './deliveries/DeliveryTableRow';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { PinDropoffModal } from './deliveries/PinDropoffModal';
 
 function DeliveriesPageContent() {
+  const isMobile = useIsMobile();
   const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);
@@ -220,7 +222,7 @@ function DeliveriesPageContent() {
 
   return (
     <TooltipProvider>
-      <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
+      <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden bg-[var(--app-bg)] flex flex-col">
         <PageFilterBar
           search={query}
           onSearch={v => { setQuery(v); setPage(0); }}
@@ -285,74 +287,101 @@ function DeliveriesPageContent() {
               </div>
             </div>
 
-            {/* Full-Bleed Table */}
+            {/* Full-Bleed Table / Mobile Card List */}
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-              <div className="min-w-[1000px] lg:min-w-0">
-                <table className="w-full border-collapse">
-                  <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
-                    <tr>
-                      <th className="w-2 px-0"></th>
-                      {orderedColumns.map(col => {
-                        if (!visibleIds.has(col.id)) return null;
-                        const labelMap: Record<string, string> = {
-                          ref: t.deliveriesPage.refHeader,
-                          client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
-                          scheduled: t.deliveriesPage.scheduledHeader,
-                          status: t.deliveriesPage.statusHeader,
-                          driver: t.deliveriesPage.driverHeader,
-                          zone: t.deliveriesPage.zoneHeader,
-                        };
-                        const sortable = col.id === 'ref' || col.id === 'client' || col.id === 'status' || col.id === 'zone';
-                        const align = col.id === 'driver' || col.id === 'zone' ? 'text-center' : 'text-left';
-                        return (
-                          <th key={col.id} className={`h-10 px-6 ${align} text-xs font-[450] text-[var(--text-muted)]`}>
-                            {sortable ? (
-                              <button onClick={() => headerSort(col.id as any)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
-                                {labelMap[col.id]}
-                                <span className="text-2xs">{col.id === 'ref' ? (sortAsc ? '▲' : '▼') : (groupActive[col.id] ? (sortAsc ? '▲' : '▼') : '⇅')}</span>
-                              </button>
-                            ) : labelMap[col.id]}
-                          </th>
-                        );
-                      })}
-                      <th className="h-10 px-6 text-right text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)]">
-                    {loading ? (
-                      Array.from({ length: 15 }).map((_, i) => (
-                        <tr key={i}>
-                          <td colSpan={visibleIds.size + 2} className="px-6 py-6 text-center"><AppLoader size="sm" /></td>
-                        </tr>
-                      ))
-                    ) : filteredRows.length === 0 ? (
+              {isMobile ? (
+                <div className="flex flex-col gap-3 p-4">
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface)] animate-pulse h-32" />
+                    ))
+                  ) : filteredRows.length === 0 ? (
+                    <EmptyState icon={<IconScan size={32} />} message={t.empty.deliveries} />
+                  ) : (
+                    filteredRows.map((item: DeliveryRow) => (
+                      <DeliveryMobileCard
+                        key={item.rowId}
+                        item={item}
+                        dateTag={dateTag}
+                        downloadingBl={downloadingBl}
+                        t={t}
+                        onRowClick={(rowId) => router(`/deliveries/${rowId}`)}
+                        onPin={(it) => setPinTarget(it)}
+                        onDownloadBl={downloadBl}
+                        onOpenRoute={openRoute}
+                        onCancel={(it) => { setCancelTarget(it); setCancelReason(''); }}
+                      />
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="min-w-[1000px] lg:min-w-0">
+                  <table className="w-full border-collapse">
+                    <thead className="sticky top-0 z-20 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                       <tr>
-                        <td colSpan={visibleIds.size + 2}>
-                          <EmptyState icon={<IconScan size={32} />} message={t.empty.deliveries} />
-                        </td>
+                        <th className="w-2 px-0"></th>
+                        {orderedColumns.map(col => {
+                          if (!visibleIds.has(col.id)) return null;
+                          const labelMap: Record<string, string> = {
+                            ref: t.deliveriesPage.refHeader,
+                            client: `${t.deliveriesPage.clientHeader} · ${t.deliveriesPage.addressHeader}`,
+                            scheduled: t.deliveriesPage.scheduledHeader,
+                            status: t.deliveriesPage.statusHeader,
+                            driver: t.deliveriesPage.driverHeader,
+                            zone: t.deliveriesPage.zoneHeader,
+                          };
+                          const sortable = col.id === 'ref' || col.id === 'client' || col.id === 'status' || col.id === 'zone';
+                          const align = col.id === 'driver' || col.id === 'zone' ? 'text-center' : 'text-left';
+                          return (
+                            <th key={col.id} className={`h-10 px-6 ${align} text-xs font-[450] text-[var(--text-muted)]`}>
+                              {sortable ? (
+                                <button onClick={() => headerSort(col.id as any)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                                  {labelMap[col.id]}
+                                  <span className="text-2xs">{col.id === 'ref' ? (sortAsc ? '▲' : '▼') : (groupActive[col.id] ? (sortAsc ? '▲' : '▼') : '⇅')}</span>
+                                </button>
+                              ) : labelMap[col.id]}
+                            </th>
+                          );
+                        })}
+                        <th className="h-10 px-6 text-right text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
                       </tr>
-                    ) : (
-                      filteredRows.map((item: DeliveryRow) => (
-                        <DeliveryTableRow
-                          key={item.rowId}
-                          item={item}
-                          density={density}
-                          orderedColumns={orderedColumns}
-                          visibleIds={visibleIds}
-                          dateTag={dateTag}
-                          downloadingBl={downloadingBl}
-                          t={t}
-                          onRowClick={(rowId) => router(`/deliveries/${rowId}`)}
-                          onPin={(it) => setPinTarget(it)}
-                          onDownloadBl={downloadBl}
-                          onOpenRoute={openRoute}
-                          onCancel={(it) => { setCancelTarget(it); setCancelReason(''); }}
-                        />
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+                    </thead>
+                    <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)]">
+                      {loading ? (
+                        Array.from({ length: 15 }).map((_, i) => (
+                          <tr key={i}>
+                            <td colSpan={visibleIds.size + 2} className="px-6 py-6 text-center"><AppLoader size="sm" /></td>
+                          </tr>
+                        ))
+                      ) : filteredRows.length === 0 ? (
+                        <tr>
+                          <td colSpan={visibleIds.size + 2}>
+                            <EmptyState icon={<IconScan size={32} />} message={t.empty.deliveries} />
+                          </td>
+                        </tr>
+                      ) : (
+                        filteredRows.map((item: DeliveryRow) => (
+                          <DeliveryTableRow
+                            key={item.rowId}
+                            item={item}
+                            density={density}
+                            orderedColumns={orderedColumns}
+                            visibleIds={visibleIds}
+                            dateTag={dateTag}
+                            downloadingBl={downloadingBl}
+                            t={t}
+                            onRowClick={(rowId) => router(`/deliveries/${rowId}`)}
+                            onPin={(it) => setPinTarget(it)}
+                            onDownloadBl={downloadBl}
+                            onOpenRoute={openRoute}
+                            onCancel={(it) => { setCancelTarget(it); setCancelReason(''); }}
+                          />
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
 
             {/* Pagination footer */}

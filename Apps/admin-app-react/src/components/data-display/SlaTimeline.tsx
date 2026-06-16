@@ -72,9 +72,12 @@ function fmtTime(iso?: string): string {
 export interface SlaTimelineProps {
   deliveryId: string;
   variant?: 'compact' | 'detailed';
+  /** Suppress the driver's POD note here when the host page renders it once elsewhere
+   *  (dedup — see DeliveryDetailsPage's "Driver note" callout). */
+  hidePodComment?: boolean;
 }
 
-export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTimelineProps) {
+export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodComment = false }: SlaTimelineProps) {
   const t = useT() as any;
   const c = t.slaTimeline ?? {};
   const [data, setData] = useState<SlaTimelineData | null>(null);
@@ -131,7 +134,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
   // No current state yet (e.g. brand-new delivery) — still show the event log if we have one.
   if (!data || !data.current) {
     if (variant === 'detailed' && data?.timeline?.length) {
-      return <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} />;
+      return <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} hidePodComment={hidePodComment} />;
     }
     return <div style={{ padding: '8px 12px', color: 'var(--text-muted)', fontSize: 12 }}>{c.noTimeline ?? '—'}</div>;
   }
@@ -193,7 +196,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed' }: SlaTim
       </div>
 
       {variant === 'detailed' && (
-        <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} />
+        <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} hidePodComment={hidePodComment} />
       )}
     </div>
   );
@@ -262,10 +265,11 @@ function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDon
   );
 }
 
-function DetailedSection({ data, c, eventLabel, actorLabel }: {
+function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = false }: {
   data: SlaTimelineData; c: any;
   eventLabel: (e: { eventKey?: string; status?: string; params?: string }) => string;
   actorLabel: (e: { actor?: string; actorRole?: string }) => string;
+  hidePodComment?: boolean;
 }) {
   const by = c.by ?? 'by';
   const ctx = data.context;
@@ -297,7 +301,7 @@ function DetailedSection({ data, c, eventLabel, actorLabel }: {
       )}
 
       {/* Driver's proof-of-delivery note */}
-      {ctx?.podComment && (
+      {!hidePodComment && ctx?.podComment && (
         <div style={{
           fontSize: 11.5, color: 'var(--text-strong, #1f2937)', background: 'var(--app-bg)',
           border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px',

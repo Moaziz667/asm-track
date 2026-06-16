@@ -142,11 +142,11 @@ export default function CompaniesPage() {
   const hasErp = (c: Company) => c.erpType && c.erpType !== 'NONE';
 
   return (
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+    <div className="flex flex-col overflow-visible lg:overflow-hidden h-auto lg:h-[calc(100dvh-56px)]" style={{ background: 'var(--app-bg)' }}>
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 overflow-visible lg:overflow-hidden">
 
         {/* ── Left Rail ────────────────── */}
-        <div className="w-[300px] shrink-0 overflow-y-auto flex flex-col" style={{ borderRight: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <div className="w-full lg:w-[300px] shrink-0 overflow-y-visible lg:overflow-y-auto flex flex-col border-b lg:border-b-0 lg:border-r border-[var(--border)]" style={{ background: 'var(--surface)' }}>
           <div className="p-5 border-b border-[var(--border)]">
             <span className="text-xs font-[500] text-[var(--text-muted)] mb-0.5 block">Ressources humaines</span>
             <h1 className="text-xl font-[600] text-[var(--text-primary)] leading-tight tracking-tight">
@@ -204,7 +204,7 @@ export default function CompaniesPage() {
         </div>
 
         {/* ── Main Table ────────────────────────────────────────── */}
-        <div className="flex-1 flex flex-col min-w-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+        <div className="flex-1 flex flex-col min-w-0 overflow-visible lg:overflow-hidden" style={{ background: 'var(--app-bg)' }}>
           <div className="flex items-center justify-between px-6 h-14 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
             <p className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>
               <span style={{ color: 'var(--brand)' }}>{filtered.length}</span> entreprise(s)

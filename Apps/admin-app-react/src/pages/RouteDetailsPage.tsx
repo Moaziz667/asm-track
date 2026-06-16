@@ -213,7 +213,6 @@ export default function RouteDetailsPage() {
                 key={stop.id}
                 stop={stop}
                 delivery={d.deliveryMap[stop.deliveryId]}
-                timeline={d.timelineMap[stop.deliveryId] ?? []}
                 pod={d.podMap[stop.deliveryId]}
                 route={route}
                 currency={currency}

@@ -275,3 +275,162 @@ export function DeliveryTableRow({
     </tr>
   );
 }
+
+export function DeliveryMobileCard({
+  item, dateTag, downloadingBl, t,
+  onRowClick, onPin, onDownloadBl, onOpenRoute, onCancel,
+}: Omit<Props, 'density' | 'orderedColumns' | 'visibleIds'>) {
+  const locked = LOCKED.includes(item.status);
+  return (
+    <div
+      onClick={() => onRowClick(item.rowId)}
+      className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all flex flex-col gap-3 shadow-xs relative"
+    >
+      {/* SLA Ribbon Indicator on the left border */}
+      {(() => {
+        const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes((item.status ?? '').toUpperCase());
+        const bucket = getDayBucket((item as any).scheduledAt);
+        const h = ((item as any).slaHealth && (item as any).slaHealth !== 'NONE')
+          ? (item as any).slaHealth : (item as any).slaWorstHealth;
+        const ribbon =
+          (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) ? 'var(--danger)'
+          : (h === 'AT_RISK' || (pending && bucket === 'today')) ? 'var(--warning)'
+          : STATUS_COLORS[(item.status ?? '').toUpperCase()] || 'var(--border)';
+        return <div className="absolute left-0 top-0 bottom-0 w-[4px] rounded-l-md" style={{ backgroundColor: ribbon }} />;
+      })()}
+
+      {/* Header Row: Ref & Status */}
+      <div className="flex items-center justify-between min-w-0 ps-1">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-xs font-bold font-mono text-[var(--brand)] truncate">
+            {resolveOrderRef(item)}
+          </span>
+          <span className="text-3xs font-[600] text-[var(--text-muted)] font-mono">
+            #{shortId(item.rowId)}
+          </span>
+        </div>
+        <div className="flex items-center gap-1 shrink-0">
+          <StatusBadge status={item.status} size="sm" />
+          <SlaHealthBadge health={item.slaHealth} />
+        </div>
+      </div>
+
+      {/* Client & Address Info */}
+      <div className="flex flex-col gap-1 ps-1">
+        <span className="text-xs font-bold text-[var(--text-primary)]">
+          {item.clientName || t.deliveriesPage.unknownDriver}
+        </span>
+        <div className="flex items-center gap-1">
+          <IconMapPin size={11} className="text-[var(--text-muted)] shrink-0" />
+          <span className="text-2xs text-[var(--text-soft)] truncate">
+            {item.dropoffAddress || t.deliveriesPage.pinReverseGeocoding}
+          </span>
+        </div>
+      </div>
+
+      {/* Driver, Zone & Date */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-[var(--border)] pt-2.5 ps-1">
+        <div className="flex items-center gap-2">
+          {item.driverName ? (
+            <div className="flex items-center gap-1">
+              <div className="w-4.5 h-4.5 rounded-xs bg-[var(--surface-sunken)] border border-[var(--border)] flex items-center justify-center text-3xs font-bold text-[var(--text-primary)] uppercase">
+                {item.driverName.charAt(0)}
+              </div>
+              <span className="text-2xs font-[600] text-[var(--text-soft)]">{item.driverName}</span>
+            </div>
+          ) : (
+            <span className="text-2xs text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
+          )}
+
+          <span
+            className="text-2xs font-[500] px-1.5 py-0.5 rounded-full"
+            style={{
+              color: item.zoneColor || 'var(--text-muted)',
+              backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
+            }}
+          >
+            {item.zoneName || t.deliveriesPage.outOfZone}
+          </span>
+        </div>
+
+        {item.scheduledAt && (
+          <span className="text-2xs font-bold text-[var(--text-soft)]">
+            {new Date(item.scheduledAt).toLocaleDateString(dateTag, { month: 'short', day: 'numeric' })}
+            <span className="mx-0.5">@</span>
+            {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
+
+      {/* Actions Strip */}
+      <div className="flex items-center gap-1.5 justify-end border-t border-[var(--border)] pt-2.5" onClick={(e) => e.stopPropagation()}>
+        {!item.dropoffPinned ? (
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)]"
+            style={{ color: 'var(--brand)' }}
+            onClick={() => onPin(item)}
+            title={t.deliveriesPage.tooltipPinLocation}
+          >
+            <IconMapPin size={13} />
+          </button>
+        ) : !locked ? (
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] hover:bg-[var(--hover-bg)]"
+            style={{ color: 'var(--brand)' }}
+            onClick={() => onPin(item)}
+            title={t.deliveriesPage.tooltipRepin}
+          >
+            <IconMapPin size={13} />
+          </button>
+        ) : null}
+
+        {item.routeName && (
+          <button
+            type="button"
+            className="h-7 px-2 bg-[var(--surface)] border border-[var(--border)] rounded flex items-center gap-1 hover:bg-[var(--hover-bg)]"
+            onClick={() => onOpenRoute(item)}
+          >
+            <IconRoute size={11} className="text-[var(--text-soft)]" />
+            <span className="text-3xs font-[600] text-[var(--text-soft)] truncate max-w-[70px]">{item.routeName}</span>
+          </button>
+        )}
+
+        {item.status === 'UNSCHEDULED' && (
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-red-200 hover:bg-red-50"
+            onClick={() => onCancel(item)}
+            title={t.deliveriesPage.tooltipCancel}
+          >
+            <IconX size={14} className="text-[var(--danger)]" />
+          </button>
+        )}
+
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)]"
+          disabled={downloadingBl.has(item.rowId)}
+          onClick={() => onDownloadBl(item.rowId, resolveOrderRef(item))}
+          title={t.deliveriesPage.tooltipDownloadBL}
+        >
+          {downloadingBl.has(item.rowId) ? <Spinner className="h-3 w-3" /> : <IconFileText size={13} />}
+        </button>
+
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)]"
+          onClick={() => {
+            const url = `${window.location.origin}/track/${item.rowId}`;
+            navigator.clipboard.writeText(url);
+            showSuccessToast(t.deliveriesPage.trackingCopied);
+          }}
+          title={t.deliveriesPage.trackingLink}
+        >
+          <IconLink size={13} />
+        </button>
+      </div>
+    </div>
+  );
+}

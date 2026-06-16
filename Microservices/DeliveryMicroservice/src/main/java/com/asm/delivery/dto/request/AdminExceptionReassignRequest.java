@@ -20,4 +20,7 @@ public class AdminExceptionReassignRequest {
 
     private UUID targetRouteId;
     private Integer insertAtOrder;
+
+    /** Dispatcher explicitly accepts overloading the target vehicle (soft-block override). */
+    private boolean acknowledgeOverload;
 }

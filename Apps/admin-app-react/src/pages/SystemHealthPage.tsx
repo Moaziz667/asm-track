@@ -186,7 +186,7 @@ export default function SystemHealthPage() {
   const BannerIcon = banner.icon;
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
+    <div className="h-auto lg:h-[calc(100dvh-56px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
       {/* Header */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
         <div className="px-6 py-4 flex items-center justify-between max-w-[1400px] mx-auto">
@@ -400,8 +400,8 @@ export default function SystemHealthPage() {
               {t.systemHealthPage.techDetailsToggle}
             </button>
             {showTech && (
-              <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
-                <table className="w-full text-xs">
+              <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
+                <table className="w-full text-xs min-w-[600px]">
                   <thead>
                     <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
                       <th className="text-start font-bold px-4 py-2">{t.systemHealthPage.thCircuitBreaker}</th>

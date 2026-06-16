@@ -92,12 +92,19 @@ export const GROUP_DEFS: NavGroupDef[] = [
 export function AppSidebar() {
   const t = useT();
   const { pathname } = useLocation();
-  const { open: isOpen, toggleSidebar } = useSidebar();
-  const isCollapsed = !isOpen;
+  const { open: isOpen, toggleSidebar, isMobile } = useSidebar();
+  const isCollapsed = !isOpen && !isMobile;
 
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
   const [isClient, setIsClient] = useState(false);
   const [telemetry, setTelemetry] = useState<{ erpPending: number; activeRoutes: number; opsExceptions: number } | null>(null);
+
+  // Auto-close drawer on mobile when routing changes
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      toggleSidebar();
+    }
+  }, [pathname, isMobile]);
 
   const { locale: activeLocale } = useLocaleStore();
   const { unreadCount } = useAlerts();
@@ -213,7 +220,14 @@ export function AppSidebar() {
   if (!isClient) return null;
 
   return (
-    <aside className={cn(s.sidebar, isCollapsed && s.collapsed)}>
+    <>
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-black/40 z-45 transition-opacity duration-300 animate-fadeIn"
+          onClick={toggleSidebar}
+        />
+      )}
+      <aside className={cn(s.sidebar, isCollapsed && s.collapsed, isMobile && isOpen && s.mobileOpen)}>
       
       {/* ── Brand Header ── */}
       <Link 
@@ -429,38 +443,41 @@ export function AppSidebar() {
         </div>
 
         {/* Collapse toggle button */}
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          className={s.footer__toggle}
-          aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-        >
-          <svg 
-            data-testid={isCollapsed ? "collapse-right-icon" : "collapse-left-icon"} 
-            role="img" 
-            aria-hidden="true" 
-            className="gl-button-icon gl-icon s16 gl-fill-current shrink-0" 
-            style={{ 
-              width: 14, 
-              height: 14, 
-              fill: 'currentColor'
-            }}
-            viewBox="0 0 16 16"
+        {!isMobile && (
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            className={s.footer__toggle}
+            aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            {isCollapsed ? (
-              <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm9.146 4.146a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L9.293 8.5H4.5a.5.5 0 0 1 0-1h4.793L6.938 4.854a.5.5 0 0 1 .708-.708l3.5 3.5z" />
-            ) : (
-              <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm5.854 1.146a.5.5 0 0 1 0 .708L5.207 7.5H13.5a.5.5 0 0 1 0 1H5.207l2.647 2.646a.5.5 0 0 1-.708.708l-3.5-3.5a.5.5 0 0 1 0-.708l3.5-3.5a.5.5 0 0 1 .708 0z" />
+            <svg 
+              data-testid={isCollapsed ? "collapse-right-icon" : "collapse-left-icon"} 
+              role="img" 
+              aria-hidden="true" 
+              className="gl-button-icon gl-icon s16 gl-fill-current shrink-0" 
+              style={{ 
+                width: 14, 
+                height: 14, 
+                fill: 'currentColor'
+              }}
+              viewBox="0 0 16 16"
+            >
+              {isCollapsed ? (
+                <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm9.146 4.146a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L9.293 8.5H4.5a.5.5 0 0 1 0-1h4.793L6.938 4.854a.5.5 0 0 1 .708-.708l3.5 3.5z" />
+              ) : (
+                <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm5.854 1.146a.5.5 0 0 1 0 .708L5.207 7.5H13.5a.5.5 0 0 1 0 1H5.207l2.647 2.646a.5.5 0 0 1-.708.708l-3.5-3.5a.5.5 0 0 1 0-.708l3.5-3.5a.5.5 0 0 1 .708 0z" />
+              )}
+            </svg>
+            {!isCollapsed && (
+              <span className={s.footer__label}>
+                {activeLocale === 'ar' ? 'تصغير الشريط الجانبي' : activeLocale === 'fr' ? 'Réduire la barre latérale' : 'Collapse sidebar'}
+              </span>
             )}
-          </svg>
-          {!isCollapsed && (
-            <span className={s.footer__label}>
-              {activeLocale === 'ar' ? 'تصغير الشريط الجانبي' : activeLocale === 'fr' ? 'Réduire la barre latérale' : 'Collapse sidebar'}
-            </span>
-          )}
-        </button>
+          </button>
+        )}
       </div>
 
     </aside>
+    </>
   );
 }

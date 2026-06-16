@@ -191,8 +191,8 @@ routing:
 
 handoff:
   token:
-    # One-time custody code: short-lived + brute-force capped.
-    ttl-minutes: ${HANDOFF_TOKEN_TTL_MINUTES:5}
+    # One-time custody code: valid 2h (field handoffs need slack) + brute-force capped.
+    ttl-minutes: ${HANDOFF_TOKEN_TTL_MINUTES:120}
     max-attempts: ${HANDOFF_TOKEN_MAX_ATTEMPTS:5}
   sla:
     check-interval-ms: ${HANDOFF_SLA_CHECK_INTERVAL_MS:30000}

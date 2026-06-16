@@ -1,6 +1,6 @@
 import type { DeliveryStatus } from '@/types';
 
-export const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP'];
+export const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'];
 export const REPLANNABLE_STATUSES:  DeliveryStatus[] = ['SCHEDULED', 'PICKED_UP', 'FAILED', 'CANCELLED'];
 export const ASSIGNABLE_STATUSES:   DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'];
 

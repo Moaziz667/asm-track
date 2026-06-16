@@ -266,7 +266,7 @@ export function PageFilterBar({
       }}
     >
       {/* Toolbar row */}
-      <div className="flex items-center gap-2 px-4 h-11">
+      <div className="flex flex-wrap md:flex-nowrap items-center gap-2 px-4 py-2 md:py-0 min-h-[44px] md:h-11">
         {/* Search */}
         {onSearch !== undefined && (
           <div className="relative flex items-center flex-1 max-w-sm">
@@ -355,7 +355,7 @@ export function PageFilterBar({
 
       {/* Quick-filter pills row */}
       {quickFilters && quickFilters.length > 0 && (
-        <div className="flex items-center gap-1 px-4 pb-2.5">
+        <div className="flex items-center gap-1.5 px-4 pb-2.5 overflow-x-auto flex-nowrap" style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}>
           {quickFilters.map(qf => {
             const active = activeQuickFilter === qf.value;
             return (

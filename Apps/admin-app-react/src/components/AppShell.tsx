@@ -13,12 +13,15 @@ import GlobalFloatingMap from './GlobalFloatingMap';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
+import { useBreakpoint } from '@/hooks/use-mobile';
+
 export default function AppShell({ children }: { children: ReactNode }) {
   const { pathname } = useLocation();
   const [mounted, setMounted] = useState(false);
+  const { isMobile, isTablet } = useBreakpoint();
 
   const isAuthPage = pathname === '/login' || pathname === '/' || pathname?.startsWith('/track');
-  const lockViewport = pathname?.startsWith('/route-builder') || pathname?.startsWith('/dispatch');
+  const lockViewport = (pathname?.startsWith('/route-builder') || pathname?.startsWith('/dispatch')) && !(isMobile || isTablet);
 
   useEffect(() => {
     setMounted(true);

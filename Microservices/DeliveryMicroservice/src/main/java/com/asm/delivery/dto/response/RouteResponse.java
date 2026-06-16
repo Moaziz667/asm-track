@@ -27,6 +27,12 @@ public class RouteResponse {
     @Schema(description = "Assigned vehicle id")
     private UUID vehicleId;
 
+    @Schema(description = "Assigned vehicle payload capacity in kg (null if no vehicle/capacity)")
+    private Integer payloadKg;
+
+    @Schema(description = "Current planned load in kg: sum of non-removed delivery weights on the route")
+    private Double currentLoadKg;
+
     @Schema(description = "Route operational date")
     private LocalDate date;
 

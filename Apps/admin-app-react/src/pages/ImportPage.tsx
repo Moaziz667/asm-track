@@ -258,7 +258,7 @@ function ImportErpPageContent() {
   ];
 
   return (
-    <div className="h-[calc(100vh-64px)] overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
+    <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
       <PageFilterBar
         search={query}
         onSearch={setQuery}
@@ -294,9 +294,9 @@ function ImportErpPageContent() {
         </div>
       )}
 
-      <div className="flex flex-1 min-h-0 overflow-hidden">
+      <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-visible lg:overflow-hidden">
         {/* ── Main Table (full-width, sidebar removed) ── */}
-        <div className="flex-1 flex flex-col overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+        <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
@@ -326,7 +326,7 @@ function ImportErpPageContent() {
               />
             </div>
           </div>
-          <div className="overflow-y-auto flex-1">
+          <div className="overflow-auto flex-1">
             <table className="border-collapse min-w-[1000px] w-full">
               <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                 <tr className="border-b border-[var(--border)]">

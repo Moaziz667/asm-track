@@ -216,7 +216,7 @@ export default function ZonesPage() {
 
   return (
     <>
-    <div className="flex flex-col overflow-hidden" style={{ height: 'calc(100vh - 64px)', background: 'var(--app-bg)' }}>
+    <div className="flex flex-col overflow-visible lg:overflow-hidden h-auto lg:h-[calc(100dvh-56px)]" style={{ background: 'var(--app-bg)' }}>
 
       {/* ── Compact Action Bar ── */}
       <div
@@ -283,7 +283,8 @@ export default function ZonesPage() {
                 <p className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.noZones}</p>
               </div>
             ) : (
-              <table className="w-full border-collapse">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse min-w-[800px]">
                 <thead className="sticky top-0 z-10" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
                   <tr style={{ borderBottom: '1px solid var(--border)' }}>
                     <th className="w-2 p-0" style={{ background: 'var(--app-bg)' }}></th>
@@ -370,6 +371,7 @@ export default function ZonesPage() {
                   })}
                 </tbody>
               </table>
+            </div>
             )}
           </div>
         </div>
@@ -422,9 +424,9 @@ export default function ZonesPage() {
           </div>
         }
       >
-        <div className="flex gap-0" style={{ height: 'calc(90vh - 140px)' }}>
+        <div className="flex flex-col lg:flex-row gap-0" style={{ height: 'calc(90vh - 140px)' }}>
           {/* Config Rail */}
-          <div className="w-[340px] shrink-0 overflow-y-auto flex flex-col gap-0" style={{ borderRight: '1px solid var(--border)' }}>
+          <div className="w-full lg:w-[340px] shrink-0 h-[40%] lg:h-full overflow-y-auto flex flex-col gap-0 border-b lg:border-b-0 lg:border-r border-[var(--border)]">
             <div className="p-6 flex flex-col gap-6">
               {/* Name */}
               <div>
@@ -562,7 +564,7 @@ export default function ZonesPage() {
           </div>
 
           {/* Map Selector */}
-          <div className="flex-1 relative" style={{ background: 'var(--app-bg)' }}>
+          <div className="flex-1 h-[60%] lg:h-full relative" style={{ background: 'var(--app-bg)' }}>
             <Suspense fallback={
               <div className="flex items-center justify-center h-[600px]"
                 style={{ background: 'var(--app-bg)', border: '1px dashed var(--border)', borderRadius: 2 }}>

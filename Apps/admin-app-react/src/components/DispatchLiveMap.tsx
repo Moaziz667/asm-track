@@ -51,27 +51,20 @@ function isGpsStale(lastLocationAt?: string | null): boolean {
   return Date.now() - new Date(lastLocationAt).getTime() > 10 * 60 * 1000;
 }
 
-function stopSymbol(status: string): string {
-  if (status === 'IN_TRANSIT') return '▶';
-  if (status === 'PICKED_UP') return '↑';
-  if (status === 'DELIVERED') return '✓';
-  if (status === 'FAILED' || status === 'CANCELLED') return '✗';
-  if (status === 'PARTIALLY_DELIVERED' || status === 'PARTIAL') return '◑';
-  return '●';
-}
-
-// ── Icon factories (coloured by ROUTE, not status) ───────────────────────────────
-function makeStopIcon(color: string, status: string, dim: boolean, focused: boolean) {
-  const symbol = stopSymbol(status);
+// ── Icon factories (coloured by ROUTE) ───────────────────────────────────────────
+// Numbered teardrop — identical to the per-route page marker (RouteTrackingMap), so the
+// live map and the route detail show the same pin. The label is the stop's order number.
+function makeStopIcon(color: string, label: string, dim: boolean, focused: boolean) {
   const scale = focused ? 'scale(1.2)' : 'scale(1)';
   const opacity = dim ? 0.35 : 1;
+  const fontSize = label.length > 2 ? 9 : 11;
   return L.divIcon({
     className: '',
     iconSize: [26, 34], iconAnchor: [13, 34], popupAnchor: [0, -36],
     html: `<div style="width:26px;height:34px;transform:${scale};transform-origin:50% 100%;opacity:${opacity};filter:drop-shadow(0 2px 5px rgba(0,0,0,0.28));transition:transform 0.15s,opacity 0.15s;">
   <svg width="26" height="34" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">
     <path d="M14 0C6.268 0 0 6.268 0 14c0 5.746 3.44 10.71 8.44 13.07L14 36l5.56-8.93C24.56 24.71 28 19.746 28 14 28 6.268 21.732 0 14 0z" fill="${color}"/>
-    <text x="14" y="15" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="10" font-weight="800" font-family="system-ui,sans-serif">${symbol}</text>
+    <text x="14" y="15" text-anchor="middle" dominant-baseline="middle" fill="white" font-size="${fontSize}" font-weight="800" font-family="system-ui,sans-serif">${label}</text>
   </svg>
 </div>`,
   });
@@ -200,14 +193,16 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
     routes.forEach(route => {
       const color = routeColor(route.id);
       const dim = !!focusedRouteId && focusedRouteId !== route.id;
+      let stopNo = 0; // sequential delivery-stop number, like the route detail page
       route.stops.forEach((stop, i) => {
         if (stop.stopType === 'PICKUP') return; // pins are delivery destinations
         if (!stop.dropoffLat || !stop.dropoffLng) return;
+        stopNo += 1;
         out.push(
           <Marker
             key={`${route.id}-${stop.deliveryId ?? i}`}
             position={[stop.dropoffLat, stop.dropoffLng]}
-            icon={makeStopIcon(color, stop.status, dim, focusedRouteId === route.id)}
+            icon={makeStopIcon(color, String(stopNo), dim, focusedRouteId === route.id)}
             eventHandlers={{ click: () => onFocusRoute?.(focusedRouteId === route.id ? null : route.id) }}
           >
             <Popup>

@@ -460,6 +460,8 @@ services:
       ERP_ADAPTER_URL: http://erp-adapter:8088
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
+      # localhost:5000 = Flutter web dev (driver app ROPC). Keep the admin dev origins too.
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:5000
     depends_on:
       app-backend:
         condition: service_healthy

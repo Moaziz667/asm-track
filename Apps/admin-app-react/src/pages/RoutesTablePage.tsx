@@ -25,6 +25,7 @@ import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { AddButton } from '@/components/ui/AddButton';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 import StatusBadge from '@/components/StatusBadge';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -280,9 +281,175 @@ function RouteRow({
   );
 }
 
+function RouteMobileCard({
+  route, driverName, depotName, onCloseClick, onCancelClick,
+}: {
+  route:        EnrichedRoute;
+  driverName:   string;
+  depotName:    string;
+  onCloseClick: (route: EnrichedRoute) => void;
+  onCancelClick: (route: EnrichedRoute) => void;
+}) {
+  const t = useT();
+  const [expanded, setExpanded] = useState(false);
+  const router = useRouter();
+
+  const total    = route.stops.length;
+  const done     = route.completedStops;
+  const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
+  const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
+  const canClose = route.status === 'IN_PROGRESS';
+  const canCancel = route.status === 'VALIDATED' || route.status === 'IN_PROGRESS';
+
+  return (
+    <div className="p-4 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:border-[var(--border-strong)] transition-all flex flex-col gap-3 shadow-xs relative">
+      {/* Ribbon */}
+      <div className="absolute left-0 top-0 bottom-0 w-[4px] rounded-l-md" style={{ backgroundColor: config.ribbon }} />
+
+      {/* Header Row: Route Name & ID & Status */}
+      <div className="flex items-start justify-between min-w-0 ps-1">
+        <div className="flex flex-col min-w-0">
+          <span className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</span>
+          <span className="text-3xs font-[600] text-[var(--text-muted)] font-mono">ID: {route.id?.slice(0, 8) ?? 'N/A'}</span>
+        </div>
+        <StatusBadge status={route.status} size="sm" />
+      </div>
+
+      {/* Date, Zone & Depot Row */}
+      <div className="flex flex-wrap items-center gap-2 text-2xs ps-1 text-[var(--text-soft)]">
+        <div className="flex items-center gap-1">
+          <IconCalendar size={11} className="text-[var(--text-muted)] shrink-0" />
+          <span className="font-[600]">{route.date}</span>
+        </div>
+        <span className="text-3xs font-semibold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-sunken)] text-[var(--text-primary)] uppercase tracking-wider font-bold">
+          {route.zoneLabel || 'Zone ?'}
+        </span>
+        {depotName && (
+          <span className="text-2xs text-[var(--text-muted)] truncate max-w-[150px] italic">
+            {depotName}
+          </span>
+        )}
+      </div>
+
+      {/* Driver & Progression Row */}
+      <div className="flex items-center justify-between border-t border-[var(--border)] pt-2.5 ps-1">
+        <div className="flex items-center gap-1.5 min-w-0">
+          <div className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+          <span className="text-2xs font-[600] text-[var(--text-primary)] truncate max-w-[150px]">
+            {driverName || t.routesTablePage.notAssigned}
+          </span>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <span className="text-2xs font-[700] font-mono text-[var(--text-soft)]">{done}/{total}</span>
+          <span className="text-2xs font-[700] text-[var(--text-muted)]">{pct}%</span>
+        </div>
+      </div>
+
+      {/* Progress Bar */}
+      <div className="h-[3px] w-full bg-[var(--surface-sunken)] rounded overflow-hidden ps-1">
+        <div
+          className={cn(
+            "h-full rounded transition-all",
+            route.status === 'CLOSED' ? "bg-emerald-500" : "bg-[var(--brand)]"
+          )}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+
+      {/* Actions Strip */}
+      <div className="flex items-center gap-1.5 justify-end border-t border-[var(--border)] pt-2.5" onClick={(e) => e.stopPropagation()}>
+        {canClose && (
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--brand)] hover:bg-[var(--hover-bg)]"
+            onClick={() => onCloseClick(route)}
+            title={t.routesTablePage.closeRouteTooltip}
+          >
+            <IconLock size={13} />
+          </button>
+        )}
+        {canCancel && (
+          <button
+            type="button"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]"
+            onClick={() => onCancelClick(route)}
+            title={t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}
+          >
+            <IconX size={13} />
+          </button>
+        )}
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+          onClick={() => router(`/routes/${route.id}`)}
+          title="Ouvrir les détails"
+        >
+          <IconExternalLink size={13} />
+        </button>
+        <button
+          type="button"
+          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+          onClick={() => setExpanded(!expanded)}
+        >
+          {expanded ? <IconChevronDown size={13} /> : <IconChevronRight size={13} />}
+        </button>
+      </div>
+
+      {/* Expanded Stops Timeline */}
+      {expanded && (
+        <div className="bg-[var(--surface-sunken)] border-t border-[var(--border)] mt-2 -mx-4 -mb-4 p-3 rounded-b-md flex flex-col gap-2">
+          <span className="text-3xs uppercase font-bold text-[var(--text-muted)] tracking-wider">Arrêts de la tournée</span>
+          {route.stops.length === 0 ? (
+            <div className="py-3 text-center italic text-[var(--text-muted)] text-xs">{t.routesTablePage.noActiveStops}</div>
+          ) : (
+            route.stops
+              .sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0))
+              .map((stop, i) => {
+                const isDone = stop.status ? DONE_STATUSES.has(stop.status) : false;
+                const odooRef = stop.erpId || null;
+                const shortId = (stop.orderId || stop.deliveryId || '').replace(/-/g, '').slice(0, 8).toUpperCase();
+                return (
+                  <div key={stop.id || stop.deliveryId} className={cn(
+                    "flex flex-col gap-1.5 p-2.5 rounded border border-[var(--border)] bg-[var(--surface)]",
+                    isDone ? "opacity-60" : ""
+                  )}>
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-4 h-4 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-[10px] font-bold text-[var(--text-muted)]">{i + 1}</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)]">{stop.clientName || '—'}</span>
+                      </div>
+                      <StatusBadge status={stop.status || 'PENDING'} size="sm" />
+                    </div>
+                    <div className="flex items-center gap-1 text-2xs text-[var(--text-soft)]">
+                      <IconMapPin size={10} className="text-[var(--text-muted)] shrink-0" />
+                      <span className="truncate">
+                        {[stop.dropoffAddress, stop.dropoffCity]
+                          .filter(Boolean)
+                          .join(', ')
+                          .replace('Address not provided', t.routesTablePage.addressNotProvided) || '—'}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] pt-1.5">
+                      <span className="text-3xs font-mono font-semibold text-[var(--text-muted)]">#{shortId}</span>
+                      <div className="flex items-center gap-2">
+                        {odooRef && <span className="text-3xs font-mono text-[var(--brand)]">ERP: {odooRef}</span>}
+                        {stop.totalWeightKg != null && <span className="text-3xs font-mono font-bold text-[var(--text-muted)]">{stop.totalWeightKg.toFixed(1)}kg</span>}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main page ────────────────────────────────────────────────────────────────
 
 function RoutesTablePageContent() {
+  const isMobile = useIsMobile();
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.routes?.title || 'Tournées' }]);
   const router = useRouter();
@@ -533,49 +700,81 @@ function RoutesTablePageContent() {
           {/* ── Main Slab Registro (full-width, sidebar removed) ── */}
           <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-              <div className="min-w-[1000px] lg:min-w-0">
-                {/* Table header */}
-                <div className="sticky top-0 bg-[var(--surface)] z-10 grid grid-cols-[8px_200px_100px_1fr_150px_120px_110px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
-                  <div className="w-[8px]" />
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerRoute}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerScheduled}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerZoneDepot}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerDriver}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStops}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStatus}</span>
-                  <span className="text-xs font-[600] text-[var(--text-muted)] text-right pr-6">{t.routesTablePage.headerActions}</span>
-                </div>
-
-                {loading ? (
-                  Array.from({ length: 15 }).map((_, i) => (
-                    <div key={i} className="h-[52px] border-b border-[var(--border)] animate-pulse bg-[var(--surface)]/50" />
-                  ))
-                ) : grouped.length === 0 ? (
-                  <EmptyState icon={<IconRoute size={32} />} message={t.empty.routes} />
-                ) : (
-                  grouped.map(([date, dateRoutes]) => (
-                    <div key={date}>
-                      <div className="py-0.5 px-1.5 bg-[var(--surface)] border-b border-[var(--border)]">
-                        <div className="flex items-center gap-1.5">
-                          <IconCalendar size={10} className="text-[var(--text-muted)]" />
+              {isMobile ? (
+                <div className="flex flex-col gap-4 p-4">
+                  {loading ? (
+                    Array.from({ length: 5 }).map((_, i) => (
+                      <div key={i} className="h-32 border border-[var(--border)] rounded-md animate-pulse bg-[var(--surface)]/50" />
+                    ))
+                  ) : grouped.length === 0 ? (
+                    <EmptyState icon={<IconRoute size={32} />} message={t.empty.routes} />
+                  ) : (
+                    grouped.map(([date, dateRoutes]) => (
+                      <div key={date} className="flex flex-col gap-3">
+                        <div className="py-1 px-1 flex items-center gap-1.5 border-b border-[var(--border)]">
+                          <IconCalendar size={12} className="text-[var(--text-muted)]" />
                           <span className="text-xs font-[600] text-[var(--text-soft)]">{date}</span>
                           <span className="text-2xs font-[600] text-[var(--text-muted)]">· {dateRoutes.length} {t.routesTablePage.movementLabel}{dateRoutes.length > 1 ? 's' : ''}</span>
                         </div>
+                        {dateRoutes.map((route) => (
+                          <RouteMobileCard
+                            key={route.id}
+                            route={route}
+                            driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
+                            depotName={depots.find(d => d.id === route.depotId)?.name || ''}
+                            onCloseClick={setCloseTarget}
+                            onCancelClick={setCancelTarget}
+                          />
+                        ))}
                       </div>
-                      {dateRoutes.map((route) => (
-                        <RouteRow
-                          key={route.id}
-                          route={route}
-                          driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
-                          depotName={depots.find(d => d.id === route.depotId)?.name || ''}
-                          onCloseClick={setCloseTarget}
-                          onCancelClick={setCancelTarget}
-                        />
-                      ))}
-                    </div>
-                  ))
-                )}
-              </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div className="min-w-[1000px] lg:min-w-0">
+                  {/* Table header */}
+                  <div className="sticky top-0 bg-[var(--surface)] z-10 grid grid-cols-[8px_200px_100px_1fr_150px_120px_110px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
+                    <div className="w-[8px]" />
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerRoute}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerScheduled}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerZoneDepot}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerDriver}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStops}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerStatus}</span>
+                    <span className="text-xs font-[600] text-[var(--text-muted)] text-right pr-6">{t.routesTablePage.headerActions}</span>
+                  </div>
+
+                  {loading ? (
+                    Array.from({ length: 15 }).map((_, i) => (
+                      <div key={i} className="h-[52px] border-b border-[var(--border)] animate-pulse bg-[var(--surface)]/50" />
+                    ))
+                  ) : grouped.length === 0 ? (
+                    <EmptyState icon={<IconRoute size={32} />} message={t.empty.routes} />
+                  ) : (
+                    grouped.map(([date, dateRoutes]) => (
+                      <div key={date}>
+                        <div className="py-0.5 px-1.5 bg-[var(--surface)] border-b border-[var(--border)]">
+                          <div className="flex items-center gap-1.5">
+                            <IconCalendar size={10} className="text-[var(--text-muted)]" />
+                            <span className="text-xs font-[600] text-[var(--text-soft)]">{date}</span>
+                            <span className="text-2xs font-[600] text-[var(--text-muted)]">· {dateRoutes.length} {t.routesTablePage.movementLabel}{dateRoutes.length > 1 ? 's' : ''}</span>
+                          </div>
+                        </div>
+                        {dateRoutes.map((route) => (
+                          <RouteRow
+                            key={route.id}
+                            route={route}
+                            driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
+                            depotName={depots.find(d => d.id === route.depotId)?.name || ''}
+                            onCloseClick={setCloseTarget}
+                            onCancelClick={setCancelTarget}
+                          />
+                        ))}
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>

@@ -2,6 +2,8 @@
 import { useLocaleStore } from '@/lib/i18n';
 import { useT, getCopy } from '@/lib/LocaleContext';
 import { lazy as dynamic } from 'react';
+import { useBreakpoint } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 import {
   IconMapPin as MapPinnedIcon,
   IconChevronLeft as ChevronLeft,
@@ -68,7 +70,14 @@ const RouteBuilderMap = dynamic(() => import('@/components/RouteBuilderMap'));
 function RouteBuilderPageInner() {
   const t = useT();
   const rb = useRouteBuilderContext();
+  const unscheduledCount = rb.waitingDeliveries.length;
+  const routesCount = rb.routes.length;
+  const scheduledCount = rb.routes.reduce((sum, r) => sum + (r.stops?.filter(s => s.stopType !== 'PICKUP').length ?? 0), 0);
+  const totalCount = scheduledCount + unscheduledCount;
   const [searchParams] = useSearchParams();
+  const { isMobile, isTablet } = useBreakpoint();
+  const isMobileOrTablet = isMobile || isTablet;
+  const [builderTab, setBuilderTab] = useState<'routes' | 'stops' | 'map'>('routes');
 
   // Auto-select route from URL param (e.g. navigated from dispatch-desk after batch assign)
   useEffect(() => {
@@ -239,14 +248,225 @@ function RouteBuilderPageInner() {
     return <AppLoader centered height="100vh" size="xl" label={t.loading.generic} />;
   }
 
-  // Derived KPI counters
-  const scheduledCount = rb.routes.reduce(
-    (acc, r) => acc + (r.stops?.length ?? 0),
-    0,
+  const renderMapPanel = () => (
+    <div className="flex-1 relative bg-[var(--surface-2)] min-w-0 h-full">
+      <RouteBuilderMap
+        onPinDragStart={handlePinDragStart}
+        getDragging={() => isPinDraggingRef.current}
+        mapLayer={mapLayer}
+        showDepot={showDepot}
+      />
+
+      {/* FLOATING LAYER PANEL (top-right) */}
+      <div
+        style={{ zIndex: 100 }}
+        className="absolute top-4 right-4 p-2.5 rounded bg-[var(--surface-1)] border border-[var(--border)] shadow-md flex flex-col gap-2"
+      >
+        <div className="flex bg-[var(--surface-2)] border border-[var(--border)] rounded p-0.5 shrink-0">
+          {([
+            { value: 'street', label: t.routeBuilderPage.mapLayerStreet },
+            { value: 'hot', label: t.routeBuilderPage.mapLayerHot },
+            { value: 'satellite', label: t.routeBuilderPage.mapLayerSatellite },
+          ] as const).map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setMapLayer(opt.value)}
+              className={`px-2.5 py-1 text-2xs font-semibold rounded-sm transition-all cursor-pointer ${
+                mapLayer === opt.value
+                  ? 'bg-[var(--surface-1)] text-[var(--text-strong)] shadow-sm'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={showDepot}
+            onChange={(e) => setShowDepot(e.target.checked)}
+            className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
+          />
+          <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerDepots}</span>
+        </label>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={rb.showRouteTrajet}
+            onChange={(e) => rb.setShowRouteTrajet(e.target.checked)}
+            className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
+          />
+          <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerTraces}</span>
+        </label>
+      </div>
+
+      {/* FLOATING OVERLAY: Zone + Totals (top-left) */}
+      <div
+        style={{ zIndex: 100 }}
+        className="absolute top-4 left-4 p-2.5 rounded bg-[var(--surface-1)] border border-[var(--border)] shadow-md flex items-center gap-3.5 select-none"
+      >
+        <div className="flex items-center gap-2">
+          <div className="w-7 h-7 rounded bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--brand-orange)] shrink-0">
+            <MapPinnedIcon size={14} />
+          </div>
+          <div className="flex flex-col leading-tight">
+            <span className="text-2xs text-[var(--text-muted)] font-medium">{t.routeBuilderPage.activeZoneLabel}</span>
+            <span className="text-xs font-semibold text-[var(--text-strong)]">
+              {rb.selectedRouteZoneLabel || t.routeBuilderPage.activeZoneNone}
+            </span>
+          </div>
+        </div>
+
+        {rb.selectedRoute && (
+          <>
+            <div className="h-6 w-[1px] bg-[var(--border)]" />
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[var(--text-strong)]">
+                <RouteIcon size={13} className="text-[var(--text-muted)]" />
+                <span>{formatKm(rb.selectedRoute.totalDistanceMeters ?? rb.selectedRoute.totalDistance)}</span>
+              </div>
+              <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[var(--text-strong)]">
+                <ClockIcon size={13} className="text-[var(--text-muted)]" />
+                <span>{formatMin(rb.selectedRoute.totalDurationSeconds ?? rb.selectedRoute.totalDuration)}</span>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* FLOATING BOTTOM SHEET: Orders */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 12,
+          right: 12,
+          bottom: 12,
+          height: sheetCollapsed ? COLLAPSED_HEIGHT : sheetHeight,
+          zIndex: 100,
+          transition: 'height 160ms ease',
+        }}
+        className="bg-[var(--surface-1)] border border-[var(--border)] rounded flex flex-col overflow-hidden shadow-lg"
+      >
+        {/* Resize handle (top edge) */}
+        {!sheetCollapsed && (
+          <div
+            onMouseDown={startResizingBottom}
+            className="h-1.5 cursor-row-resize hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center shrink-0 border-b border-[var(--border)]"
+            title={t.routeBuilderPage.actionBarSettingsTooltip}
+          >
+            <div className="w-10 h-[2px] bg-[var(--border)] rounded-full" />
+          </div>
+        )}
+
+        {/* Sheet header: tabs (always visible, even when collapsed) */}
+        <div className="flex items-center gap-1 bg-[var(--surface-2)] p-1 rounded-t border-b border-[var(--border)] shrink-0 h-11 justify-between px-3">
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setBottomTab('orders');
+                if (sheetCollapsed) setSheetCollapsed(false);
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+                bottomTab === 'orders'
+                  ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
+              }`}
+            >
+              <IconList size={13} />
+              <span>{t.routeBuilderPage.tabOrders}</span>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
+                bottomTab === 'orders'
+                  ? 'bg-[var(--brand-soft)] text-[var(--brand-orange)]'
+                  : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
+              }`}>
+                {rb.filteredDeliveries.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBottomTab('routes');
+                if (sheetCollapsed) setSheetCollapsed(false);
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+                bottomTab === 'routes'
+                  ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
+              }`}
+            >
+              <IconMapPlus size={13} className="shrink-0" />
+              <span>{t.routeBuilderPage.tabRoutes}</span>
+              <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
+                bottomTab === 'routes'
+                  ? 'bg-[var(--surface-2)] text-[var(--text-soft)]'
+                  : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
+              }`}>
+                {rb.routes.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setBottomTab('timeline');
+                if (sheetCollapsed) setSheetCollapsed(false);
+              }}
+              className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
+                bottomTab === 'timeline'
+                  ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
+                  : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
+              }`}
+            >
+              <IconCalendarStats size={13} />
+              <span>{t.routeBuilderPage.tabTimeline}</span>
+            </button>
+          </div>
+
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon-xs"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setSheetCollapsed((c) => !c);
+                }}
+                className="text-[var(--text-soft)] hover:text-[var(--text-strong)] w-7 h-7"
+                aria-label={sheetCollapsed ? t.routeBuilderPage.buttonExpand : t.routeBuilderPage.buttonCollapse}
+              >
+                {sheetCollapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>{sheetCollapsed ? t.routeBuilderPage.buttonExpand : t.routeBuilderPage.buttonCollapse}</TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Sheet body */}
+        {!sheetCollapsed && (
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {bottomTab === 'orders' && (
+              <OrdersTable
+                targetRouteId={targetRouteId}
+                setTargetRouteId={setTargetRouteId}
+              />
+            )}
+            {bottomTab === 'routes' && (
+              <RoutesTable />
+            )}
+            {bottomTab === 'timeline' && (
+              <TimelineGantt />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
   );
-  const unscheduledCount = rb.waitingDeliveries.length;
-  const totalCount = scheduledCount + unscheduledCount;
-  const routesCount = rb.routes.length;
 
   return (
     <>
@@ -340,246 +560,78 @@ function RouteBuilderPageInner() {
           </div>
         </div>
 
-        <div className="flex-1 flex overflow-hidden">
-          {/* ZONE 1: Sidebar (Routes) */}
-          <div style={{ width: sidebarWidth }} className="flex flex-col h-full shrink-0 border-r border-[var(--border)]">
-            <RouteSidebar />
-          </div>
-
-          {/* HANDLE 1 */}
-          <div onMouseDown={startResizingSidebar} className="w-1 hover:bg-[var(--surface-2)] cursor-col-resize z-30 relative flex items-center justify-center transition-colors">
-            <div className="w-[1px] h-full bg-[var(--border)]" />
-          </div>
-
-          {/* RIGHT SIDE (Rest) — Stops + Map (full bleed) */}
-          <div className="flex-1 flex overflow-hidden min-w-0 bg-[var(--app-bg)]">
-
-            {/* ZONE 2: Stops Panel */}
-            <div style={{ width: stopsWidth }} className="flex flex-col h-full shrink-0">
-              <StopsPanel />
-              </div>
-
-            {/* HANDLE 2 */}
-            <div onMouseDown={startResizingStops} className="w-1 hover:bg-[var(--surface-2)] cursor-col-resize z-30 relative flex items-center justify-center transition-colors">
-              <div className="w-[1px] h-full bg-[var(--border)]" />
-            </div>
-
-            {/* ZONE 3: Map (full bleed hero) + floating overlays */}
-            <div className="flex-1 relative bg-[var(--surface-2)] min-w-0">
-              <RouteBuilderMap
-                onPinDragStart={handlePinDragStart}
-                getDragging={() => isPinDraggingRef.current}
-                mapLayer={mapLayer}
-                showDepot={showDepot}
-              />
-
-              {/* FLOATING LAYER PANEL (top-right) */}
-              <div
-                style={{ zIndex: 100 }}
-                className="absolute top-4 right-4 p-2.5 rounded bg-[var(--surface-1)] border border-[var(--border)] shadow-md flex flex-col gap-2"
-              >
-                <div className="flex bg-[var(--surface-2)] border border-[var(--border)] rounded p-0.5 shrink-0">
-                  {([
-                    { value: 'street', label: t.routeBuilderPage.mapLayerStreet },
-                    { value: 'hot', label: t.routeBuilderPage.mapLayerHot },
-                    { value: 'satellite', label: t.routeBuilderPage.mapLayerSatellite },
-                  ] as const).map((opt) => (
+        <div className="flex-1 flex overflow-hidden min-h-0">
+          {isMobileOrTablet ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+              {/* Tab Bar */}
+              <div className="flex h-10 shrink-0 border-b bg-[var(--surface-1)]" style={{ borderColor: 'var(--border)' }}>
+                {([
+                  { id: 'routes', label: t.routeBuilderPage.tabRoutes ?? 'Tournées' },
+                  { id: 'stops', label: t.routeBuilderPage.tabStops ?? 'Arrêts' },
+                  { id: 'map', label: t.routeBuilderPage.tabMap ?? 'Carte' },
+                ] as const).map(tab => {
+                  const active = builderTab === tab.id;
+                  return (
                     <button
-                      key={opt.value}
+                      key={tab.id}
                       type="button"
-                      onClick={() => setMapLayer(opt.value)}
-                      className={`px-2.5 py-1 text-2xs font-semibold rounded-sm transition-all cursor-pointer ${
-                        mapLayer === opt.value
-                          ? 'bg-[var(--surface-1)] text-[var(--text-strong)] shadow-sm'
-                          : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
-                      }`}
+                      onClick={() => setBuilderTab(tab.id)}
+                      className={cn(
+                        "flex-1 text-center text-xs font-[600] uppercase tracking-wide border-b-2 transition-colors",
+                        active ? 'border-[var(--brand)] text-[var(--text-primary)]' : 'border-transparent text-[var(--text-muted)]'
+                      )}
                     >
-                      {opt.label}
+                      {tab.label}
                     </button>
-                  ))}
-                </div>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={showDepot}
-                    onChange={(e) => setShowDepot(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerDepots}</span>
-                </label>
-
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={rb.showRouteTrajet}
-                    onChange={(e) => rb.setShowRouteTrajet(e.target.checked)}
-                    className="w-3.5 h-3.5 rounded border-[var(--border)] bg-[var(--surface)] text-[var(--brand-orange)] focus:ring-0 cursor-pointer"
-                  />
-                  <span className="text-xs font-medium text-[var(--text-strong)]">{t.routeBuilderPage.layerTraces}</span>
-                </label>
+                  );
+                })}
               </div>
 
-              {/* FLOATING OVERLAY: Zone + Totals (top-left) */}
-              <div
-                style={{ zIndex: 100 }}
-                className="absolute top-4 left-4 p-2.5 rounded bg-[var(--surface-1)] border border-[var(--border)] shadow-md flex items-center gap-3.5 select-none"
-              >
-                <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded bg-[var(--surface-2)] border border-[var(--border)] flex items-center justify-center text-[var(--brand-orange)] shrink-0">
-                    <MapPinnedIcon size={14} />
-                  </div>
-                  <div className="flex flex-col leading-tight">
-                    <span className="text-2xs text-[var(--text-muted)] font-medium">{t.routeBuilderPage.activeZoneLabel}</span>
-                    <span className="text-xs font-semibold text-[var(--text-strong)]">
-                      {rb.selectedRouteZoneLabel || t.routeBuilderPage.activeZoneNone}
-                    </span>
-                  </div>
-                </div>
-
-                {rb.selectedRoute && (
-                  <>
-                    <div className="h-6 w-[1px] bg-[var(--border)]" />
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[var(--text-strong)]">
-                        <RouteIcon size={13} className="text-[var(--text-muted)]" />
-                        <span>{formatKm(rb.selectedRoute.totalDistanceMeters ?? rb.selectedRoute.totalDistance)}</span>
-                      </div>
-                      <div className="flex items-center gap-1 font-mono text-xs font-semibold text-[var(--text-strong)]">
-                        <ClockIcon size={13} className="text-[var(--text-muted)]" />
-                        <span>{formatMin(rb.selectedRoute.totalDurationSeconds ?? rb.selectedRoute.totalDuration)}</span>
-                      </div>
-                    </div>
-                  </>
-                )}
-              </div>
-
-              {/* FLOATING BOTTOM SHEET: Orders */}
-              <div
-                style={{
-                  position: 'absolute',
-                  left: 12,
-                  right: 12,
-                  bottom: 12,
-                  height: sheetCollapsed ? COLLAPSED_HEIGHT : sheetHeight,
-                  zIndex: 100,
-                  transition: 'height 160ms ease',
-                }}
-                className="bg-[var(--surface-1)] border border-[var(--border)] rounded flex flex-col overflow-hidden shadow-lg"
-              >
-                {/* Resize handle (top edge) */}
-                {!sheetCollapsed && (
-                  <div
-                    onMouseDown={startResizingBottom}
-                    className="h-1.5 cursor-row-resize hover:bg-[var(--surface-2)] transition-colors flex items-center justify-center shrink-0 border-b border-[var(--border)]"
-                    title={t.routeBuilderPage.actionBarSettingsTooltip}
-                  >
-                    <div className="w-10 h-[2px] bg-[var(--border)] rounded-full" />
+              {/* Tab Panels */}
+              <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+                {builderTab === 'routes' && (
+                  <div className="flex-1 flex flex-col min-h-0 bg-[var(--app-bg)]">
+                    <RouteSidebar />
                   </div>
                 )}
-
-                {/* Sheet header: tabs (always visible, even when collapsed) */}
-                <div className="flex items-center gap-1 bg-[var(--surface-2)] p-1 rounded-t border-b border-[var(--border)] shrink-0 h-11 justify-between px-3">
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        setBottomTab('orders');
-                        if (sheetCollapsed) setSheetCollapsed(false);
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                        bottomTab === 'orders'
-                          ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
-                          : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
-                      }`}
-                    >
-                      <IconList size={13} />
-                      <span>{t.routeBuilderPage.tabOrders}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
-                        bottomTab === 'orders'
-                          ? 'bg-[var(--brand-soft)] text-[var(--brand-orange)]'
-                          : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
-                      }`}>
-                        {rb.filteredDeliveries.length}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setBottomTab('routes');
-                        if (sheetCollapsed) setSheetCollapsed(false);
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                        bottomTab === 'routes'
-                          ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
-                          : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
-                      }`}
-                    >
-                      <IconMapPlus size={13} className="shrink-0" />
-                      <span>{t.routeBuilderPage.tabRoutes}</span>
-                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-xs text-2xs font-bold ${
-                        bottomTab === 'routes'
-                          ? 'bg-[var(--surface-2)] text-[var(--text-soft)]'
-                          : 'bg-[var(--surface-2)] text-[var(--text-soft)]'
-                      }`}>
-                        {rb.routes.length}
-                      </span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        setBottomTab('timeline');
-                        if (sheetCollapsed) setSheetCollapsed(false);
-                      }}
-                      className={`px-3 py-1.5 text-xs font-semibold rounded transition-all cursor-pointer flex items-center gap-1.5 ${
-                        bottomTab === 'timeline'
-                          ? 'bg-[var(--surface-1)] text-[var(--text-strong)] border border-[var(--border)] shadow-sm'
-                          : 'text-[var(--text-soft)] hover:text-[var(--text-strong)]'
-                      }`}
-                    >
-                      <IconCalendarStats size={13} />
-                      <span>{t.routeBuilderPage.tabTimeline}</span>
-                    </button>
-                  </div>
-
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="ghost"
-                        size="icon-xs"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setSheetCollapsed((c) => !c);
-                        }}
-                        className="text-[var(--text-soft)] hover:text-[var(--text-strong)] w-7 h-7"
-                        aria-label={sheetCollapsed ? t.routeBuilderPage.buttonExpand : t.routeBuilderPage.buttonCollapse}
-                      >
-                        {sheetCollapsed ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>{sheetCollapsed ? t.routeBuilderPage.buttonExpand : t.routeBuilderPage.buttonCollapse}</TooltipContent>
-                  </Tooltip>
-                </div>
-
-                {/* Sheet body */}
-                {!sheetCollapsed && (
-                  <div className="flex-1 min-h-0 overflow-hidden">
-                    {bottomTab === 'orders' && (
-                      <OrdersTable
-                        targetRouteId={targetRouteId}
-                        setTargetRouteId={setTargetRouteId}
-                      />
-                    )}
-                    {bottomTab === 'routes' && (
-                      <RoutesTable />
-                    )}
-                    {bottomTab === 'timeline' && (
-                      <TimelineGantt />
-                    )}
+                {builderTab === 'stops' && (
+                  <div className="flex-1 flex flex-col min-h-0 bg-[var(--app-bg)]">
+                    <StopsPanel />
                   </div>
                 )}
+                {builderTab === 'map' && renderMapPanel()}
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              {/* ZONE 1: Sidebar (Routes) */}
+              <div style={{ width: sidebarWidth }} className="flex flex-col h-full shrink-0 border-r border-[var(--border)]">
+                <RouteSidebar />
+              </div>
+
+              {/* HANDLE 1 */}
+              <div onMouseDown={startResizingSidebar} className="w-1 hover:bg-[var(--surface-2)] cursor-col-resize z-30 relative flex items-center justify-center transition-colors">
+                <div className="w-[1px] h-full bg-[var(--border)]" />
+              </div>
+
+              {/* RIGHT SIDE (Rest) — Stops + Map (full bleed) */}
+              <div className="flex-1 flex overflow-hidden min-w-0 bg-[var(--app-bg)]">
+
+                {/* ZONE 2: Stops Panel */}
+                <div style={{ width: stopsWidth }} className="flex flex-col h-full shrink-0">
+                  <StopsPanel />
+                </div>
+
+                {/* HANDLE 2 */}
+                <div onMouseDown={startResizingStops} className="w-1 hover:bg-[var(--surface-2)] cursor-col-resize z-30 relative flex items-center justify-center transition-colors">
+                  <div className="w-[1px] h-full bg-[var(--border)]" />
+                </div>
+
+                {/* ZONE 3: Map (full bleed hero) + floating overlays */}
+                {renderMapPanel()}
+              </div>
+            </>
+          )}
         </div>
 
         {/* MODALS */}

@@ -26,10 +26,10 @@ interface AppModalProps {
 }
 
 const SIZE: Record<string, string> = {
-  sm: 'max-w-sm',
-  md: 'max-w-lg',
-  lg: 'max-w-2xl',
-  xl: 'max-w-4xl',
+  sm: 'sm:max-w-sm',
+  md: 'sm:max-w-lg',
+  lg: 'sm:max-w-2xl',
+  xl: 'sm:max-w-4xl',
 };
 
 export function AppModal({
@@ -52,8 +52,9 @@ export function AppModal({
         showCloseButton={false}
         style={{ boxShadow: 'var(--shadow-lg)' }}
         className={cn(
-          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)] rounded-2xl',
-          'max-h-[90dvh]',
+          'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)]',
+          'fixed bottom-0 top-auto left-0 translate-x-0 translate-y-0 w-full max-w-full rounded-t-2xl rounded-b-none max-h-[85vh]',
+          'sm:top-1/2 sm:left-1/2 sm:-translate-x-1/2 sm:-translate-y-1/2 sm:bottom-auto sm:rounded-2xl sm:max-h-[90dvh]',
           SIZE[size],
           className,
         )}

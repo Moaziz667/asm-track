@@ -464,6 +464,61 @@ public class DriverDeliveryService {
 
     @Transactional
     public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
+        final String blBase64 = req.getBonLivraisonPhotoBase64();
+        final String pkgBase64 = req.getPackagePhotoBase64();
+        return persistAndCompletePod(
+                deliveryId, driverId, req.getComment(), req.getLat(), req.getLng(),
+                req.isPartial(), req.getItemsDone(), principal,
+                (blPath, pkgPath) -> {
+                    try {
+                        minioStorageService.uploadBase64(blBase64, blPath);
+                    } catch (Exception e) {
+                        log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
+                    }
+                    try {
+                        minioStorageService.uploadBase64(pkgBase64, pkgPath);
+                    } catch (Exception e) {
+                        log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
+                    }
+                });
+    }
+
+    /**
+     * Multipart variant of {@link #submitPod}: photos arrive as streamed binary parts instead of
+     * base64-in-JSON, so they upload straight to MinIO via {@code uploadFile} — no base64 round-trip,
+     * no large strings on the wire. Shares the exact same persistence + completion + ERP-sync path.
+     */
+    public DriverDeliveryResponse submitPodMultipart(
+            UUID deliveryId, UUID driverId,
+            byte[] bonLivraisonPhotoBytes, String bonLivraisonContentType,
+            byte[] packagePhotoBytes, String packageContentType,
+            String comment, BigDecimal lat, BigDecimal lng,
+            boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
+            UserPrincipal principal) {
+        final String blCt = bonLivraisonContentType != null ? bonLivraisonContentType : "image/jpeg";
+        final String pkgCt = packageContentType != null ? packageContentType : "image/jpeg";
+        return persistAndCompletePod(
+                deliveryId, driverId, comment, lat, lng, partial, itemsDone, principal,
+                (blPath, pkgPath) -> {
+                    try {
+                        minioStorageService.uploadFile(bonLivraisonPhotoBytes, blCt, blPath);
+                    } catch (Exception e) {
+                        log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
+                    }
+                    try {
+                        minioStorageService.uploadFile(packagePhotoBytes, pkgCt, pkgPath);
+                    } catch (Exception e) {
+                        log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
+                    }
+                });
+    }
+
+    /** Shared POD persistence + completion + ERP sync. {@code mediaUploader} receives the
+     *  (bon-livraison, package) object paths and performs the actual upload post-commit. */
+    private DriverDeliveryResponse persistAndCompletePod(
+            UUID deliveryId, UUID driverId, String comment, BigDecimal lat, BigDecimal lng,
+            boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
+            UserPrincipal principal, java.util.function.BiConsumer<String, String> mediaUploader) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
@@ -475,7 +530,7 @@ public class DriverDeliveryService {
         }
 
         // P0: Geofence Enforcement
-        validateGeofence(delivery, req.getLat(), req.getLng());
+        validateGeofence(delivery, lat, lng);
 
         if (podRepo.existsByDeliveryId(deliveryId)) {
             log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
@@ -495,9 +550,9 @@ public class DriverDeliveryService {
                 .bonLivraisonPhotoUrl(bonLivraisonPhotoUrl)
                 .photoUrl(packagePhotoUrl)
                 .signatureUrl(null)
-                .comment(req.getComment())
-                .lat(req.getLat())
-                .lng(req.getLng())
+                .comment(comment)
+                .lat(lat)
+                .lng(lng)
                 .collectedAt(LocalDateTime.now())
                 .build();
 
@@ -509,27 +564,14 @@ public class DriverDeliveryService {
             return toDriverDeliveryResponse(latest);
         }
 
-        // Defer upload to MinIO until the database transaction successfully commits
-        String blBase64 = req.getBonLivraisonPhotoBase64();
-        String pkgBase64 = req.getPackagePhotoBase64();
-        runAfterCommit(() -> {
-            try {
-                minioStorageService.uploadBase64(blBase64, bonLivraisonPhotoPath);
-            } catch (Exception e) {
-                log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
-            }
-            try {
-                minioStorageService.uploadBase64(pkgBase64, packagePhotoPath);
-            } catch (Exception e) {
-                log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
-            }
-        });
+        // Defer upload to MinIO until the database transaction successfully commits.
+        runAfterCommit(() -> mediaUploader.accept(bonLivraisonPhotoPath, packagePhotoPath));
 
         // C1 — Order matters in Odoo: the stock move (picking validation) must reach the ERP
         // BEFORE the proof of delivery, otherwise the POD attaches to a picking that is not yet
         // validated. The outbox processes events in insertion order, so we complete() first
         // (which enqueues ERP_SYNC_STOCK) and enqueue ERP_SYNC_POD only afterwards.
-        DriverDeliveryResponse response = complete(deliveryId, driverId, req.isPartial(), req.getItemsDone(), principal);
+        DriverDeliveryResponse response = complete(deliveryId, driverId, partial, itemsDone, principal);
 
         // C5 — The images already live in MinIO (uploaded post-commit above). The ERP event carries
         // their stable MinIO URLs, not the raw base64: the adapter fetches the bytes and uploads them
@@ -537,9 +579,9 @@ public class DriverDeliveryService {
         Map<String, Object> podPayload = new HashMap<>();
         podPayload.put("deliveryId", deliveryId.toString());
         podPayload.put("deliveredAt", LocalDateTime.now().toString());
-        if (req.getComment() != null) podPayload.put("comment", req.getComment());
-        if (req.getLat() != null) podPayload.put("lat", req.getLat());
-        if (req.getLng() != null) podPayload.put("lng", req.getLng());
+        if (comment != null) podPayload.put("comment", comment);
+        if (lat != null) podPayload.put("lat", lat);
+        if (lng != null) podPayload.put("lng", lng);
         if (bonLivraisonPhotoUrl != null) podPayload.put("bonLivraisonPhotoUrl", bonLivraisonPhotoUrl);
         if (packagePhotoUrl != null) podPayload.put("packagePhotoUrl", packagePhotoUrl);
         outboxProcessor.enqueue("ERP_SYNC_POD", podPayload);

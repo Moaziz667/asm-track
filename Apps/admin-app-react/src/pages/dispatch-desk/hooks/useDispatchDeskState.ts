@@ -405,12 +405,12 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const selectedTargets = useMemo((): ReassignTarget[] => {
     if (dispatchTab === 'queue')
       return queueRows.filter(q => selectedIds.has(q.id))
-        .map(q => ({ deliveryId: q.id, orderRef: q.delivery.orderRef, clientName: q.delivery.clientName, city: q.delivery.dropoffCity, status: q.delivery.status, driverName: q.delivery.driverName, routeId: q.routeId, routeName: q.routeName }));
+        .map(q => ({ deliveryId: q.id, orderRef: q.delivery.orderRef, erpOrderId: q.delivery.erpOrderId, clientName: q.delivery.clientName, city: q.delivery.dropoffCity, status: q.delivery.status, driverName: q.delivery.driverName, routeId: q.routeId, routeName: q.routeName, timeSlotStartTime: q.delivery.timeSlotStartTime, timeSlotEndTime: q.delivery.timeSlotEndTime, totalWeightKg: q.delivery.totalWeightKg, totalAmount: q.delivery.totalAmount, currency: q.delivery.currency, itemsCount: q.delivery.items?.length, priority: q.delivery.priority, scheduledAt: q.delivery.scheduledAt, dropoffAddress: q.delivery.dropoffAddress }));
     if (dispatchTab === 'action')
       return actionRows.filter(r => selectedIds.has(r.deliveryId))
         .map(r => ({ deliveryId: r.deliveryId, orderRef: r.orderRef, clientName: r.clientName, city: r.city, status: r.status, driverName: r.driverName, routeId: r.routeId, routeName: r.routeName }));
     return deliveryRows.filter(d => selectedIds.has(rowId(d)))
-      .map(d => ({ deliveryId: rowId(d), orderRef: d.orderRef, clientName: d.clientName, city: d.dropoffCity, status: d.status, driverName: d.driverName, routeId: d.routeId, routeName: d.routeName }));
+      .map(d => ({ deliveryId: rowId(d), orderRef: d.orderRef, erpOrderId: d.erpOrderId, clientName: d.clientName, city: d.dropoffCity, status: d.status, driverName: d.driverName, routeId: d.routeId, routeName: d.routeName, timeSlotStartTime: d.timeSlotStartTime, timeSlotEndTime: d.timeSlotEndTime, totalWeightKg: d.totalWeightKg, totalAmount: d.totalAmount, currency: d.currency, itemsCount: d.items?.length, priority: d.priority, scheduledAt: d.scheduledAt, dropoffAddress: d.dropoffAddress }));
   }, [dispatchTab, queueRows, actionRows, deliveryRows, selectedIds]);
 
   const batchType: 'assign' | 'reassign' | 'mixed' | 'none' = useMemo(() => {

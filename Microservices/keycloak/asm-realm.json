@@ -136,14 +136,16 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
-      "directAccessGrantsEnabled": false,
+      "directAccessGrantsEnabled": true,
       "serviceAccountsEnabled": false,
       "authorizationServicesEnabled": false,
       "redirectUris": [
         "asm://callback",
         "com.asm.driverapp://login-callback"
       ],
-      "webOrigins": [],
+      "webOrigins": [
+        "http://localhost:5000"
+      ],
       "attributes": {
         "pkce.code.challenge.method": "S256"
       },

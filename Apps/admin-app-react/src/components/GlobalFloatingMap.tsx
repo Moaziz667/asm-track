@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { getBusinessDayKey } from '@/lib/sla';
-import { routeColor } from '@/lib/utils';
+import { routeColor, routeColorByIndex } from '@/lib/utils';
 import { useGlobalMapStore } from '@/lib/global-map-store';
 import DispatchLiveMap from '@/components/DispatchLiveMap';
 import { useT, useLocaleContext } from '@/lib/LocaleContext';
@@ -79,6 +79,15 @@ export default function GlobalFloatingMap() {
   const activeRoutes = useMemo(() => {
     return todayRoutes.filter((r: any) => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS');
   }, [todayRoutes]);
+
+  // Distinct colour per active route by position, so two routes never share a colour
+  // (the hash-based routeColor could collide). Falls back to the hash for unknown ids.
+  const routeColorFor = useMemo(() => {
+    const idx = new Map<string, number>();
+    activeRoutes.forEach((r: any, i: number) => idx.set(r.id, i));
+    return (routeId?: string | null) =>
+      routeId != null && idx.has(routeId) ? routeColorByIndex(idx.get(routeId)!) : routeColor(routeId);
+  }, [activeRoutes]);
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['global-map-drivers'],
@@ -387,7 +396,7 @@ export default function GlobalFloatingMap() {
             focusedDriverId={focusedDriverId}
             onFocusRoute={setFocusedRouteId}
             onFocusDriver={setFocusedDriverId}
-            routeColor={routeColor}
+            routeColor={routeColorFor}
           />
         </div>
 
@@ -406,7 +415,7 @@ export default function GlobalFloatingMap() {
               ) : (
                 filteredDrivers.map((driver: any) => {
                   const r = driverRoute.get(driver.id);
-                  const color = r ? routeColor(r.id) : '#71717A';
+                  const color = r ? routeColorFor(r.id) : '#71717A';
                   const isFocused = driver.id === focusedDriverId;
                   const stale = isGpsStale(driver.lastLocationAt);
                   const online = driver.currentLat && driver.currentLng && driver.onlineStatus !== 'OFFLINE';

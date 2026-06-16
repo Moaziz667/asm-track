@@ -173,7 +173,7 @@ export default function OverviewCalendarPage() {
   const weekdayLabels = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
+    <div className="h-auto lg:h-[calc(100dvh-56px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
       {/* Header */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
         <div className="px-6 py-3 flex items-center justify-between max-w-[1800px] mx-auto">
@@ -199,7 +199,7 @@ export default function OverviewCalendarPage() {
         }
       />
 
-      <div className="flex flex-1 min-h-0 max-w-[1800px] mx-auto w-full">
+      <div className="flex flex-col lg:flex-row flex-1 min-h-0 max-w-[1800px] mx-auto w-full overflow-visible lg:overflow-hidden">
         {/* Calendar grid */}
         <div className="flex-1 flex flex-col p-4 min-w-0">
           <div className="grid grid-cols-7 gap-px mb-1">
@@ -207,7 +207,7 @@ export default function OverviewCalendarPage() {
               <div key={w} className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] text-center py-1">{w}</div>
             ))}
           </div>
-          <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr">
+          <div className="grid grid-cols-7 gap-1 flex-1 auto-rows-fr min-h-[320px] lg:min-h-0">
             {days.map(day => {
               const key = isoDay(day);
               const dels = deliveriesByDay.get(key) ?? [];
@@ -258,7 +258,7 @@ export default function OverviewCalendarPage() {
         </div>
 
         {/* Day detail panel */}
-        <div className="w-[340px] border-l border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col overflow-hidden">
+        <div className="w-full lg:w-[340px] border-t lg:border-t-0 lg:border-l border-[var(--border)] bg-[var(--surface)] shrink-0 flex flex-col overflow-visible lg:overflow-hidden">
           <div className="px-4 py-3 border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
             <p className="text-base font-bold text-[var(--text-primary)] capitalize">
               {format(parseISO(selected), 'EEEE d MMMM', { locale: fr })}

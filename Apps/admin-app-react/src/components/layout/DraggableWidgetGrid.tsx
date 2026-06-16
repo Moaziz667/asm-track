@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Responsive, WidthProvider, Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout/legacy';
 import { useLocaleStore } from '@/lib/i18n';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { useT } from '@/lib/LocaleContext';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 
@@ -62,6 +63,7 @@ export function DraggableWidgetGrid({
   cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
   rowHeight = 40, // Slightly denser rows for Cloudscape
 }: DraggableWidgetGridProps) {
+  const isMobile = useIsMobile();
   const t = useT();
   const { locale } = useLocaleStore();
   const isRtl = locale === 'ar';
@@ -124,9 +126,14 @@ export function DraggableWidgetGrid({
     });
   };
 
+  const effectiveCols = React.useMemo(() => {
+    if (!isMobile) return cols;
+    return { ...cols, xs: 1, xxs: 1 };
+  }, [cols, isMobile]);
+
   const mergedLayouts: ResponsiveLayouts = { ...layouts };
-  Object.keys(cols).forEach((bp) => {
-    const breakpointCols = cols[bp as keyof typeof cols];
+  Object.keys(effectiveCols).forEach((bp) => {
+    const breakpointCols = effectiveCols[bp as keyof typeof effectiveCols];
     if (!mergedLayouts[bp] || mergedLayouts[bp].length !== items.length) {
       const existing = mergedLayouts[bp] || [];
       const newLayout = generateDefaultLayout(breakpointCols).map((l: LayoutItem) => {
@@ -136,6 +143,17 @@ export function DraggableWidgetGrid({
       mergedLayouts[bp] = newLayout;
     }
   });
+
+  const finalLayouts = React.useMemo(() => {
+    if (!isMobile) return mergedLayouts;
+    const adjustLayoutForMobile = (layout: readonly LayoutItem[]) =>
+      layout.map(item => ({ ...item, w: 1, x: 0 }));
+    return {
+      ...mergedLayouts,
+      xs: mergedLayouts.xs ? adjustLayoutForMobile(mergedLayouts.xs) : [],
+      xxs: mergedLayouts.xxs ? adjustLayoutForMobile(mergedLayouts.xxs) : [],
+    };
+  }, [mergedLayouts, isMobile]);
 
   if (!mounted) {
     return <div className="animate-pulse flex-1 bg-[var(--app-bg)] opacity-50" />;
@@ -242,9 +260,9 @@ export function DraggableWidgetGrid({
       `}</style>
       <ResponsiveGridLayout
         className={cn('layout', { 'is-dragging': isDragging })}
-        layouts={mergedLayouts}
+        layouts={finalLayouts}
         breakpoints={{ lg: 1200, md: 996, sm: 768, xs: 480, xxs: 0 }}
-        cols={cols}
+        cols={effectiveCols}
         rowHeight={rowHeight}
         onLayoutChange={handleLayoutChange}
         onDragStart={() => setIsDragging(true)}
@@ -257,13 +275,15 @@ export function DraggableWidgetGrid({
         useCSSTransforms={true}
         isBounded={true}
         isDroppable={true}
+        isDraggable={!isMobile}
+        isResizable={!isMobile}
       >
         {items.map((item) => (
           <div
             key={item.id}
             className={cn('relative group h-full flex flex-col', item.className)}
           >
-            <DragHandleIcon />
+            {!isMobile && <DragHandleIcon />}
             <div className="w-full h-full [&>div]:h-full [&>div]:m-0">
               {item.children}
             </div>

@@ -6,6 +6,7 @@ import com.asm.delivery.dto.request.LocationUpdateRequest;
 import com.asm.delivery.dto.request.ReportRequest;
 import com.asm.delivery.dto.request.IncidentReportRequest;
 import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
+import com.asm.delivery.dto.request.PartialDeliveryItem;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.MessageResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
@@ -26,6 +27,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import org.springframework.web.multipart.MultipartFile;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
 
@@ -39,6 +45,7 @@ public class DriverDeliveryController {
     private final DriverDeliveryService deliveryService;
     private final BonLivraisonPdfService bonLivraisonPdfService;
     private final com.asm.delivery.service.FailureReasonService failureReasonService;
+    private final ObjectMapper objectMapper;
 
     @GetMapping("/available")
     @Operation(summary = "Get all deliveries waiting for a driver in the driver's city")
@@ -171,6 +178,33 @@ public class DriverDeliveryController {
             @Valid @RequestBody ProofOfDeliveryRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(deliveryService.submitPod(id, UUID.fromString(principal.getUserId()), req, principal));
+    }
+
+    @PostMapping(value = "/{id}/pod", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @IdempotentOperation
+    @Operation(summary = "Submit proof of delivery (POD) — multipart upload",
+            description = "DRIVER only. Same as the JSON endpoint but photos stream as binary parts "
+                    + "(bonLivraisonPhoto, packagePhoto) instead of base64 — smaller payloads. "
+                    + "Content negotiation routes multipart/form-data here, JSON to the base64 endpoint.")
+    public ResponseEntity<DriverDeliveryResponse> submitPodMultipart(
+            @PathVariable UUID id,
+            @RequestPart("bonLivraisonPhoto") MultipartFile bonLivraisonPhoto,
+            @RequestPart("packagePhoto") MultipartFile packagePhoto,
+            @RequestParam(value = "comment", required = false) String comment,
+            @RequestParam(value = "lat", required = false) BigDecimal lat,
+            @RequestParam(value = "lng", required = false) BigDecimal lng,
+            @RequestParam(value = "partial", required = false, defaultValue = "false") boolean partial,
+            @RequestParam(value = "itemsDone", required = false) String itemsDoneJson,
+            @AuthenticationPrincipal UserPrincipal principal) throws IOException {
+        List<PartialDeliveryItem> itemsDone = null;
+        if (itemsDoneJson != null && !itemsDoneJson.isBlank()) {
+            itemsDone = objectMapper.readValue(itemsDoneJson, new TypeReference<List<PartialDeliveryItem>>() {});
+        }
+        return ResponseEntity.ok(deliveryService.submitPodMultipart(
+                id, UUID.fromString(principal.getUserId()),
+                bonLivraisonPhoto.getBytes(), bonLivraisonPhoto.getContentType(),
+                packagePhoto.getBytes(), packagePhoto.getContentType(),
+                comment, lat, lng, partial, itemsDone, principal));
     }
 
     @GetMapping("/{id}/handoff-token")

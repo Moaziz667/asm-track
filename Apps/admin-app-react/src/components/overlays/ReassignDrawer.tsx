@@ -1,6 +1,6 @@
 
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   IconArrowLeft,
   IconCalendar,
@@ -17,7 +17,7 @@ import { AppDrawer } from './AppDrawer';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
-import { cn } from '@/lib/utils';
+import { cn, formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { Driver } from '@/types';
@@ -43,11 +43,14 @@ interface RouteOption {
   status: 'DRAFT' | 'VALIDATED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED';
   driverName?: string;
   stops: RouteStop[];
+  payloadKg?: number;
+  currentLoadKg?: number;
 }
 
 export interface ReassignTarget {
   deliveryId: string;
   orderRef?: string;
+  erpOrderId?: string;
   clientName?: string;
   city?: string;
   status: string;
@@ -56,6 +59,17 @@ export interface ReassignTarget {
   routeName?: string;
   dropoffLat?: number;
   dropoffLng?: number;
+  // Existing delivery time slot (the client's créneau) — used to pre-fill the window picker.
+  timeSlotStartTime?: string;
+  timeSlotEndTime?: string;
+  // Decision context shown in the drawer recap (#4).
+  totalWeightKg?: number;
+  totalAmount?: number;
+  currency?: string;
+  itemsCount?: number;
+  priority?: string;
+  scheduledAt?: string;
+  dropoffAddress?: string;
 }
 
 interface Props {
@@ -143,6 +157,20 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
   );
 }
 
+function MetaChip({ children, danger }: { children: ReactNode; danger?: boolean }) {
+  return (
+    <span
+      className="text-2xs font-[600] px-1.5 py-0.5 rounded-xs"
+      style={{
+        background: danger ? 'var(--danger-bg)' : 'var(--hover-bg)',
+        color: danger ? 'var(--danger)' : 'var(--text-muted)',
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function ReassignDrawer({ open, target, targets, drivers, onClose, onSuccess }: Props) {
@@ -173,6 +201,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
   const [startTimeWindow, setStartTimeWindow] = useState('');
   const [endTimeWindow, setEndTimeWindow] = useState('');
   const [note, setNote] = useState('');
+  const [acknowledgeOverload, setAcknowledgeOverload] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -188,10 +217,23 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         setStartTimeWindow('');
         setEndTimeWindow('');
         setNote('');
+        setAcknowledgeOverload(false);
         setOfflineExpanded(false);
       }, 300);
     }
   }, [open]);
+
+  // Pre-fill the window from the delivery's existing slot (the créneau) as a suggested,
+  // editable default — the dispatcher rarely needs to retype it. Non-blocking: if left
+  // empty the backend inherits the current stop's window.
+  useEffect(() => {
+    if (open && target && !isBatch) {
+      const s = target.timeSlotStartTime?.slice(0, 5);
+      const e = target.timeSlotEndTime?.slice(0, 5);
+      if (s) setStartTimeWindow(prev => prev || s);
+      if (e) setEndTimeWindow(prev => prev || e);
+    }
+  }, [open, target, isBatch]);
 
   useEffect(() => {
     if (!open || drivers.length === 0) return;
@@ -238,6 +280,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
   const selectRoute = (route: RouteOption) => {
     setSelectedRoute(route);
     setInsertAfterStopId(null);
+    setAcknowledgeOverload(false);
     setStep(3);
   };
 
@@ -256,6 +299,17 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
   const toLocalTime = (t: string) =>
     t.trim().length === 5 ? `${t.trim()}:00` : t.trim();
 
+  // Capacity preview: the selected route's current load + the parcel(s) being moved vs payload.
+  const parcelWeightKg = allTargets.reduce((s, x) => s + (x.totalWeightKg ?? 0), 0);
+  const capacityInfo = (selectedRoute && selectedRoute.payloadKg != null && selectedRoute.payloadKg > 0)
+    ? (() => {
+        const capacity = selectedRoute.payloadKg as number;
+        const current = selectedRoute.currentLoadKg ?? 0;
+        const newLoad = current + parcelWeightKg;
+        return { capacity, current, newLoad, pct: Math.round((newLoad / capacity) * 100), over: newLoad > capacity };
+      })()
+    : null;
+
   const submit = async () => {
     if (allTargets.length === 0 || !selectedRoute) return;
 
@@ -266,10 +320,14 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
       return;
     }
 
-    if (!isBatch && (!startTimeWindow.trim() || !endTimeWindow.trim())) {
-      showErrorToast(undefined, 'errorTimeWindowRequired');
+    // Overload is a soft-block: the dispatcher must explicitly tick "force" to proceed.
+    if (capacityInfo?.over && !acknowledgeOverload) {
+      showErrorToast(undefined, 'errorOverloadAck');
       return;
     }
+
+    // Window is optional: pre-filled from the slot and editable. If left empty the backend
+    // inherits the delivery's current window — so we no longer hard-block on it.
 
     setSubmitting(true);
     try {
@@ -294,6 +352,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
       if (insertAtOrder !== undefined) basePayload.insertAtOrder = insertAtOrder;
       if (startTimeWindow) basePayload.startTimeWindow = toLocalTime(startTimeWindow);
       if (endTimeWindow) basePayload.endTimeWindow = toLocalTime(endTimeWindow);
+      if (acknowledgeOverload) basePayload.acknowledgeOverload = true;
 
       let successCount = 0;
       let failCount = 0;
@@ -375,7 +434,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
       <span className="text-xs font-normal text-[var(--text-muted)]">
         {isBatch
           ? allTargets.map(t => t.city ?? t.clientName).filter(Boolean).slice(0, 3).join(', ')
-          : `${target?.orderRef || target?.deliveryId?.slice(0, 8).toUpperCase()} • ${target?.clientName}`}
+          : `${target?.orderRef || target?.erpOrderId || target?.deliveryId?.slice(0, 8).toUpperCase()} • ${target?.clientName}`}
       </span>
     </div>
   );
@@ -394,7 +453,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           <Button
             size="sm"
             onClick={submit}
-            disabled={submitting || (!isAssignMode && !isBatch && selectedRoute?.status !== 'DRAFT' && !note.trim()) || (!isAssignMode && hasTimeConflict)}
+            disabled={submitting || (!isAssignMode && !isBatch && selectedRoute?.status !== 'DRAFT' && !note.trim()) || (!isAssignMode && hasTimeConflict) || (!!capacityInfo?.over && !acknowledgeOverload)}
           >
             {submitting && (
               <svg className="animate-spin -ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">
@@ -704,7 +763,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                     <div className="w-[5px] h-[5px] rounded-full bg-[var(--brand)] shrink-0" />
                     <span className="text-2xs text-[var(--text-primary)] font-semibold">{t.clientName ?? '—'}</span>
                     <span className="text-2xs text-[var(--text-muted)]">{t.city}</span>
-                    {t.orderRef && <span className="text-2xs text-[var(--text-soft)] font-mono">{t.orderRef}</span>}
+                    {(t.orderRef || t.erpOrderId) && <span className="text-2xs text-[var(--text-soft)] font-mono">{t.orderRef ?? t.erpOrderId}</span>}
                   </div>
                 ))}
                 {allTargets.length > 5 && (
@@ -718,10 +777,66 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 <div className="w-1.5 h-1.5 rounded-full bg-[var(--brand)] shrink-0" />
                 <div className="flex flex-col gap-0.5 flex-1 min-w-0">
                   <span className="text-xs font-medium text-[var(--text-primary)]">{target?.clientName}</span>
-                  <span className="text-2xs text-[var(--text-muted)]">{target?.city} • {target?.orderRef}</span>
+                  <span className="text-2xs text-[var(--text-muted)]">{target?.city} • {target?.orderRef ?? target?.erpOrderId ?? target?.deliveryId?.slice(0, 8).toUpperCase()}</span>
                 </div>
                 <span className="text-2xs font-bold text-[var(--text-soft)] uppercase">{target?.status}</span>
               </div>
+              {/* Decision context: weight / amount / items / priority / scheduled (#4) */}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                {target?.totalWeightKg != null && <MetaChip>{target.totalWeightKg} kg</MetaChip>}
+                {target?.totalAmount != null && target.totalAmount > 0 && (
+                  <MetaChip>{formatMoney(target.totalAmount, target.currency ?? 'TND')}</MetaChip>
+                )}
+                {target?.itemsCount != null && target.itemsCount > 0 && <MetaChip>{target.itemsCount} art.</MetaChip>}
+                {target?.priority && target.priority.toUpperCase() !== 'NORMAL' && <MetaChip danger>{target.priority}</MetaChip>}
+                {target?.scheduledAt && (
+                  <MetaChip>{new Date(target.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })}</MetaChip>
+                )}
+              </div>
+              {target?.dropoffAddress && (
+                <p className="text-2xs text-[var(--text-muted)] mt-1.5 truncate">{target.dropoffAddress}</p>
+              )}
+            </div>
+          )}
+
+          {/* Capacity bar (#1/#5): current load + parcel(s) vs vehicle payload */}
+          {capacityInfo && (
+            <div
+              className="flex flex-col gap-2 p-3 rounded-sm border"
+              style={{
+                borderColor: capacityInfo.over ? 'var(--danger)' : 'var(--border)',
+                background: capacityInfo.over ? 'var(--danger-bg)' : 'transparent',
+              }}
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-2xs font-black uppercase tracking-[0.05em]" style={{ color: 'var(--text-primary)' }}>
+                  {t.reassignDrawer.capacityLabel}
+                </span>
+                <span className="text-xs font-bold" style={{ color: capacityInfo.over ? 'var(--danger)' : 'var(--text-primary)' }}>
+                  {Math.round(capacityInfo.newLoad)} / {capacityInfo.capacity} kg ({capacityInfo.pct}%)
+                </span>
+              </div>
+              <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'var(--hover-bg)' }}>
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(capacityInfo.pct, 100)}%`,
+                    background: capacityInfo.over ? 'var(--danger)' : capacityInfo.pct > 80 ? 'var(--warning)' : 'var(--brand)',
+                  }}
+                />
+              </div>
+              {capacityInfo.over && (
+                <label className="flex items-center gap-2 cursor-pointer mt-0.5 select-none">
+                  <input
+                    type="checkbox"
+                    checked={acknowledgeOverload}
+                    onChange={e => setAcknowledgeOverload(e.currentTarget.checked)}
+                  />
+                  <span className="text-2xs font-bold" style={{ color: 'var(--danger)' }}>
+                    {t.reassignDrawer.capacityForce}
+                  </span>
+                </label>
+              )}
             </div>
           )}
 
@@ -824,8 +939,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                       <div
                         className="px-2.5 py-2 rounded border"
                         style={{
-                          background: isOverlap ? '#FEF2F2' : '#FAFAFA',
-                          borderColor: isOverlap ? '#EF4444' : '#E4E4E7',
+                          background: isOverlap ? 'var(--danger-bg)' : 'var(--surface)',
+                          borderColor: isOverlap ? 'var(--danger)' : 'var(--border)',
                           opacity: STOP_STATUS_DONE.has(stop.status) ? 0.5 : 1,
                         }}
                       >
@@ -834,11 +949,11 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                             <div
                               className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
                               style={{
-                                background: isOverlap ? '#EF444420' : '#E4E4E7',
-                                border: isOverlap ? '1px solid #EF4444' : 'none',
+                                background: isOverlap ? 'var(--danger-bg)' : 'var(--hover-bg)',
+                                border: isOverlap ? '1px solid var(--danger)' : 'none',
                               }}
                             >
-                              <span className="text-2xs font-black" style={{ color: isOverlap ? '#EF4444' : '#71717A' }}>{i + 1}</span>
+                              <span className="text-2xs font-black" style={{ color: isOverlap ? 'var(--danger)' : 'var(--text-muted)' }}>{i + 1}</span>
                             </div>
                             <div className="min-w-0 flex flex-col gap-0.5">
                               <span className="text-2xs font-bold text-[var(--text-primary)] truncate">

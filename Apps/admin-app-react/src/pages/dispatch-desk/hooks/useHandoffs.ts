@@ -18,6 +18,16 @@ export function isHandoffOpen(h: HandoffItem): boolean {
   return h.state === 'REQUESTED' || h.state === 'IN_PROGRESS';
 }
 
+/** Terminal handoffs (completed lifecycle) — kept as history in the dispatch desk. */
+export function isHandoffTerminal(h: HandoffItem): boolean {
+  return h.state === 'CONFIRMED' || h.state === 'EXPIRED' || h.state === 'CANCELLED';
+}
+
+/** Best timestamp to sort/age a terminal handoff by (when it ended). */
+export function handoffEndedAt(h: HandoffItem): string | undefined {
+  return h.confirmedAt ?? h.cancelledAt ?? h.expiredAt ?? h.requestedAt;
+}
+
 export function handoffAgeMinutes(h: HandoffItem): number {
   if (!h.requestedAt) return 0;
   return Math.floor((Date.now() - new Date(h.requestedAt).getTime()) / 60000);
@@ -91,5 +101,13 @@ export function useHandoffs() {
 
   const overdueCount = useMemo(() => open.filter(isHandoffOverdue).length, [open]);
 
-  return { items, open, overdueCount, loading, cancel, cancellingId, refetch };
+  // Completed transfers, newest-ended first — the retained lifecycle history.
+  const history = useMemo(
+    () => items
+      .filter(isHandoffTerminal)
+      .sort((a, b) => new Date(handoffEndedAt(b) ?? 0).getTime() - new Date(handoffEndedAt(a) ?? 0).getTime()),
+    [items],
+  );
+
+  return { items, open, history, overdueCount, loading, cancel, cancellingId, refetch };
 }

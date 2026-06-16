@@ -136,7 +136,11 @@ export function ReassignCommandOverlay({
 
   return (
     <Dialog open={open} onOpenChange={(val) => !val && onCancel()}>
-      <DialogContent className="max-w-[850px] p-0 overflow-hidden flex flex-col h-auto max-h-[85vh]">
+      <DialogContent className={cn(
+        "p-0 overflow-hidden flex flex-col",
+        "fixed bottom-0 top-auto left-0 translate-x-0 translate-y-0 w-full max-w-full rounded-t-2xl rounded-b-none h-[85dvh] max-h-[85dvh]",
+        "md:top-1/2 md:left-1/2 md:-translate-x-1/2 md:-translate-y-1/2 md:bottom-auto md:translate-y-[-50%] md:translate-x-[-50%] md:rounded-xl md:max-h-[85vh] md:h-auto md:max-w-[850px]"
+      )}>
         
         <DialogHeader className="px-6 py-4 border-b border-border bg-muted/30">
           <div className="flex items-center gap-3">
@@ -154,10 +158,10 @@ export function ReassignCommandOverlay({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-[400px]">
+        <div className="flex flex-col md:flex-row flex-1 overflow-hidden min-h-0 md:min-h-[400px]">
           
           {/* Left Split: Target Selection (60%) */}
-          <div className="w-full md:w-[55%] flex flex-col border-r border-border bg-background">
+          <div className="w-full md:w-[55%] h-[45%] md:h-full flex flex-col border-b md:border-b-0 md:border-r border-border bg-background">
             <Tabs value={tab} onValueChange={handleTabChange} className="flex flex-col h-full w-full">
               {routes.length > 0 && (
                 <div className="px-4 pt-3 pb-1 border-b border-border bg-muted/10">
@@ -308,7 +312,7 @@ export function ReassignCommandOverlay({
           </div>
 
           {/* Right Split: Parameters Configuration (45%) */}
-          <ScrollArea className="w-full md:w-[45%] bg-muted/20">
+          <ScrollArea className="w-full md:w-[45%] h-[55%] md:h-full bg-muted/20">
             <div className="p-6 flex flex-col h-full gap-5">
               
               <div className="flex items-center border-b border-border pb-2">

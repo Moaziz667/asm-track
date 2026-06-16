@@ -206,12 +206,31 @@ public class RouteResponseMapper {
         com.asm.delivery.entity.Depot depot = route.getDepotId() != null
                 ? depotMap.get(route.getDepotId()) : null;
 
+        // Capacity context for capacity-aware reassignment: vehicle payload + current planned load
+        // (sum of non-removed delivery weights). Lets the dispatch desk show a load/capacity bar.
+        Integer payloadKg = null;
+        if (route.getVehicleId() != null) {
+            Vehicle v = vehicleRepository.findById(route.getVehicleId()).orElse(null);
+            if (v != null) payloadKg = v.getPayloadKg();
+        }
+        java.math.BigDecimal loadKg = java.math.BigDecimal.ZERO;
+        for (RouteStop s : activeStops) {
+            if (s.getStopType() == RouteStopType.DELIVERY && s.getDeliveryId() != null) {
+                Delivery d = deliveriesById.get(s.getDeliveryId());
+                if (d != null && d.getOrder() != null && d.getOrder().getTotalWeightKg() != null) {
+                    loadKg = loadKg.add(d.getOrder().getTotalWeightKg());
+                }
+            }
+        }
+
         return RouteResponse.builder()
                 .id(route.getId())
 
                 .name(route.getName())
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
+                .payloadKg(payloadKg)
+                .currentLoadKg(loadKg.doubleValue())
                 .date(route.getDate())
                 .depotId(route.getDepotId())
                 .depotName(depot != null ? depot.getName() : null)

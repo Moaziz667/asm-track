@@ -1,7 +1,7 @@
 import React from 'react';
 import { useT } from '@/lib/LocaleContext';
 import { formatMoney, formatMinutes as fmtMins } from '@/lib/utils';
-import { Delivery, ProofOfDelivery, TimelineEvent } from '@/types';
+import { Delivery, ProofOfDelivery } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -13,16 +13,15 @@ import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { BadgeStatusMap } from '@/components/route/StatusBadgeIcons';
 import stopTabsStyles from '@/styles/stop-tabs.module.scss';
-import { fmt, fmtLong, fmtTimeWindow, cleanNote, mediaSrc } from './helpers';
-import { STOP_STATUS, STATUS_COLORS, REMOVABLE_STOP_STATUSES } from './constants';
+import { fmtLong, fmtTimeWindow, mediaSrc } from './helpers';
+import { STOP_STATUS, REMOVABLE_STOP_STATUSES } from './constants';
 import type { RouteDetail, RouteStop } from './types';
 
-type Tab = 'details' | 'timeline' | 'pod';
+type Tab = 'details' | 'pod';
 
 type StopCardProps = {
   stop: RouteStop;
   delivery: Delivery | undefined;
-  timeline: TimelineEvent[];
   pod: ProofOfDelivery | null;
   route: RouteDetail;
   currency: string;
@@ -44,7 +43,7 @@ type StopCardProps = {
 };
 
 export function StopCard({
-  stop, delivery, timeline, pod, route, currency, isActiveRoute, isExpanded, tab,
+  stop, delivery, pod, route, currency, isActiveRoute, isExpanded, tab,
   setActiveTab, stopRefs, toggleStop, creatingBackorderFor, createBackorder, downloadBL,
   openEditWindow, setRemoveStopTarget, setCancelStopTarget, setCancelStopReason,
   setViewerTitle, setViewerImage,
@@ -176,14 +175,13 @@ export function StopCard({
         <div className={stopTabsStyles.expandedContainer}>
           {/* Tab Bar */}
           <div className={stopTabsStyles.tabBar}>
-            {(['details', 'timeline', 'pod'] as const).map((tb) => (
+            {(['details', 'pod'] as const).map((tb) => (
               <button
                 key={tb}
                 onClick={(e) => { e.stopPropagation(); setActiveTab(prev => ({ ...prev, [stop.id]: tb })); }}
                 className={`${stopTabsStyles.tab} ${tab === tb ? stopTabsStyles.active : ''}`}
               >
                 {tb === 'details' && (t.routeBuilderPage.tabDetails)}
-                {tb === 'timeline' && (t.routeBuilderPage.tabHistory)}
                 {tb === 'pod' && (t.routeBuilderPage.tabProof)}
               </button>
             ))}
@@ -329,48 +327,6 @@ export function StopCard({
                   >
                     {creatingBackorderFor === stop.deliveryId ? t.routeBuilderPage.loadingState : t.routeBuilderPage.createBackorder}
                   </button>
-                )}
-              </div>
-            )}
-
-            {tab === 'timeline' && (
-              <div>
-                {timeline.length === 0 ? (
-                  <div className={stopTabsStyles.emptyState}>
-                    <IconAlertCircle size={12} />
-                    <span>{t.routeBuilderPage.noEvents}</span>
-                  </div>
-                ) : (
-                  <div className={stopTabsStyles.timelineContainer}>
-                    {timeline.map((ev, idx) => {
-                      const isLast = idx === timeline.length - 1;
-                      const dotColor = isLast ? (STATUS_COLORS[ev.status] ?? 'var(--border)') : 'var(--border)';
-                      return (
-                        <div key={`${ev.timestamp}-${idx}`} className={stopTabsStyles.timelineItem}>
-                          <div className={stopTabsStyles.dotContainer} style={{ width: 22, flexShrink: 0 }}>
-                            <div style={{ width: 18, height: 18, borderRadius: '50%', flexShrink: 0, background: isLast ? dotColor : 'transparent', border: `2px solid ${dotColor}`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                              {isLast && <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#fff', flexShrink: 0 }} />}
-                            </div>
-                          </div>
-                          <div className={stopTabsStyles.content}>
-                            <div className={stopTabsStyles.header}>
-                              <span className={stopTabsStyles.status} style={{ color: dotColor }}>
-                                {t.statusLabels[ev.status] ?? ev.status}
-                              </span>
-                              <span className={stopTabsStyles.timestamp}>{fmt(ev.timestamp)}</span>
-                            </div>
-                            {ev.actor && <div className={stopTabsStyles.actor}>{t.routeBuilderPage.byLabel} {ev.actor === route?.driver?.id ? (route.driver?.name ?? ev.actor) : (t.actors[ev.actor] ?? ev.actor)}</div>}
-                            {cleanNote(ev.note, t) && (
-                              <div className={stopTabsStyles.note} dangerouslySetInnerHTML={{ __html: cleanNote(ev.note, t) ?? '' }} />
-                            )}
-                            {(ev.eventParams as any)?.reason && (
-                              <div className={stopTabsStyles.note}>{t.routeBuilderPage.reasonLabel} <em>{(ev.eventParams as any).reason}</em></div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
                 )}
               </div>
             )}

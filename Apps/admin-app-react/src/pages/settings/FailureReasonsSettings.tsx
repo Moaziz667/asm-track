@@ -163,8 +163,8 @@ export default function FailureReasonsSettings({ canManage }: { canManage: boole
         </div>
       </div>
 
-      <div className="rounded-lg overflow-hidden" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <table className="w-full text-sm border-collapse">
+      <div className="rounded-lg overflow-x-auto" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
+        <table className="w-full text-sm border-collapse min-w-[600px]">
           <thead>
             <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
               {orderedColumns.map(col => {

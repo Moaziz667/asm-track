@@ -31,11 +31,13 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import { DRIVER_COLUMNS, type DriverCrud } from './drivers/constants';
 import { SVGUpload, SVGUser } from './drivers/icons';
-import { DriverTableRow } from './drivers/DriverTableRow';
+import { DriverTableRow, DriverMobileCard } from './drivers/DriverTableRow';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { DriverDetailsModal } from './drivers/DriverDetailsModal';
 import { DriverFormModal } from './drivers/DriverFormModal';
 
 function DriversPageContent() {
+  const isMobile = useIsMobile();
   const t = useT();
   const { locale } = useLocaleStore();
   usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Chauffeurs' }]);
@@ -280,55 +282,85 @@ function DriversPageContent() {
             />
           </div>
           <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
-            <div className="min-w-[1000px] lg:min-w-0">
-              {/* Header Grid Row */}
-              <div
-                className="sticky top-0 z-10 grid gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]"
-                style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
-              >
-                <div className="w-[8px]" />
-                <span className="text-xs font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
-                {orderedColumns.filter(c => !c.pinned).map(col => !visibleIds.has(col.id) ? null : (
-                  <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
-                    {col.id === 'contact' ? t.driversPage.tableHeaderContact
-                     : col.id === 'activity' ? t.driversPage.tableHeaderActivity
-                     : t.driversPage.tableHeaderAccountStatus || 'Statut du compte'}
-                  </span>
-                ))}
-                <span className="text-xs font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
+            {isMobile ? (
+              <div className="flex flex-col gap-3 p-4">
+                {loading ? (
+                  Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="h-28 border border-[var(--border)] rounded-md animate-pulse bg-[var(--surface)]/50" />
+                  ))
+                ) : filtered.length === 0 ? (
+                  <EmptyState icon={<SVGUser size={32} />} message={t.empty?.drivers || 'Aucun chauffeur enregistré pour le moment.'} />
+                ) : (
+                  filtered.map((drv) => (
+                    <DriverMobileCard
+                      key={drv.id}
+                      drv={drv}
+                      t={t}
+                      readOnly={readOnly}
+                      resendCooldown={resendCooldown}
+                      isDriverEnLivraison={isDriverEnLivraison}
+                      onOpenDetails={(id) => { setSelectedId(id); setDetailsOpen(true); }}
+                      onEdit={openEdit}
+                      onResendInvite={handleResendInvite}
+                      onCancelInvite={openCancelInvite}
+                      onSuspend={openSuspend}
+                      onForceLogout={handleForceLogout}
+                      onActivate={toggleActive}
+                    />
+                  ))
+                )}
               </div>
+            ) : (
+              <div className="min-w-[1000px] lg:min-w-0">
+                {/* Header Grid Row */}
+                <div
+                  className="sticky top-0 z-10 grid gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]"
+                  style={{ gridTemplateColumns: gridCols, background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}
+                >
+                  <div className="w-[8px]" />
+                  <span className="text-xs font-semibold text-[var(--text-muted)] text-start">{t.driversPage.tableHeaderDriver}</span>
+                  {orderedColumns.filter(c => !c.pinned).map(col => !visibleIds.has(col.id) ? null : (
+                    <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
+                      {col.id === 'contact' ? t.driversPage.tableHeaderContact
+                       : col.id === 'activity' ? t.driversPage.tableHeaderActivity
+                       : t.driversPage.tableHeaderAccountStatus || 'Statut du compte'}
+                    </span>
+                  ))}
+                  <span className="text-xs font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>
+                </div>
 
-              {/* Data Rows */}
-              {loading ? (
-                Array.from({ length: 12 }).map((_, i) => (
-                  <div key={i} className="h-[52px] border-b border-[var(--border)] animate-pulse bg-[var(--surface)]/50" />
-                ))
-              ) : filtered.length === 0 ? (
-                <EmptyState icon={<SVGUser size={32} />} message={t.empty?.drivers || 'Aucun chauffeur enregistré pour le moment.'} />
-              ) : (
-                filtered.map((drv) => (
-                  <DriverTableRow
-                    key={drv.id}
-                    drv={drv}
-                    gridCols={gridCols}
-                    rowHeight={DRIVER_ROW_H[density]}
-                    orderedColumns={orderedColumns}
-                    visibleIds={visibleIds}
-                    t={t}
-                    readOnly={readOnly}
-                    resendCooldown={resendCooldown}
-                    isDriverEnLivraison={isDriverEnLivraison}
-                    onOpenDetails={(id) => { setSelectedId(id); setDetailsOpen(true); }}
-                    onEdit={openEdit}
-                    onResendInvite={handleResendInvite}
-                    onCancelInvite={openCancelInvite}
-                    onSuspend={openSuspend}
-                    onForceLogout={handleForceLogout}
-                    onActivate={toggleActive}
-                  />
-                ))
-              )}
-            </div>
+                {/* Data Rows */}
+                {loading ? (
+                  Array.from({ length: 12 }).map((_, i) => (
+                    <div key={i} className="h-[52px] border-b border-[var(--border)] animate-pulse bg-[var(--surface)]/50" />
+                  ))
+                ) : filtered.length === 0 ? (
+                  <EmptyState icon={<SVGUser size={32} />} message={t.empty?.drivers || 'Aucun chauffeur enregistré pour le moment.'} />
+                ) : (
+                  filtered.map((drv) => (
+                    <DriverTableRow
+                      key={drv.id}
+                      drv={drv}
+                      gridCols={gridCols}
+                      rowHeight={DRIVER_ROW_H[density]}
+                      orderedColumns={orderedColumns}
+                      visibleIds={visibleIds}
+                      t={t}
+                      readOnly={readOnly}
+                      resendCooldown={resendCooldown}
+                      isDriverEnLivraison={isDriverEnLivraison}
+                      onOpenDetails={(id) => { setSelectedId(id); setDetailsOpen(true); }}
+                      onEdit={openEdit}
+                      onResendInvite={handleResendInvite}
+                      onCancelInvite={openCancelInvite}
+                      onSuspend={openSuspend}
+                      onForceLogout={handleForceLogout}
+                      onActivate={toggleActive}
+                    />
+                  ))
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>

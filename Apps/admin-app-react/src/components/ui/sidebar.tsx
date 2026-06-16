@@ -1,5 +1,6 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useEffect } from 'react';
 import { safeStorage } from '@/lib/storage';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type SidebarContextProps = {
   state: 'expanded' | 'collapsed';
@@ -18,15 +19,28 @@ export function useSidebar() {
 }
 
 export function SidebarProvider({ children }: { children: React.ReactNode }) {
+  const isMobile = useIsMobile();
   const [open, setOpen] = useState(() => {
     if (typeof window === 'undefined') return true;
     return safeStorage.getItem('sidebar_state') !== 'collapsed';
   });
 
+  // Sync open state when viewport becomes mobile
+  useEffect(() => {
+    if (isMobile) {
+      setOpen(false);
+    } else {
+      const stored = safeStorage.getItem('sidebar_state');
+      setOpen(stored !== 'collapsed');
+    }
+  }, [isMobile]);
+
   const toggleSidebar = () => {
     setOpen((prev) => {
       const next = !prev;
-      safeStorage.setItem('sidebar_state', next ? 'expanded' : 'collapsed');
+      if (!isMobile) {
+        safeStorage.setItem('sidebar_state', next ? 'expanded' : 'collapsed');
+      }
       return next;
     });
   };
@@ -34,7 +48,7 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   const state = open ? 'expanded' : 'collapsed';
 
   return (
-    <SidebarContext.Provider value={{ state, open, setOpen, toggleSidebar, isMobile: false }}>
+    <SidebarContext.Provider value={{ state, open, setOpen, toggleSidebar, isMobile }}>
       <div className="flex min-h-screen w-full">
         {children}
       </div>
@@ -43,12 +57,12 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function SidebarInset({ children, className, style, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  const { open } = useSidebar();
+  const { open, isMobile } = useSidebar();
   return (
     <main
       className={`relative flex w-full flex-1 flex-col bg-background transition-[padding] duration-200 ease-linear ${className}`}
       style={{
-        paddingInlineStart: open ? '212px' : '48px',
+        paddingInlineStart: isMobile ? '0px' : (open ? '212px' : '48px'),
         ...style,
       }}
       {...props}

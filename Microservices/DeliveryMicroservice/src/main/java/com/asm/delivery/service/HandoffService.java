@@ -6,8 +6,11 @@ import com.asm.delivery.entity.Handoff;
 import com.asm.delivery.entity.HandoffState;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.entity.RouteStop;
+import com.asm.delivery.entity.DeliveryStatusHistory;
+import com.asm.delivery.entity.Role;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
 import com.asm.delivery.repository.HandoffRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.security.UserPrincipal;
@@ -46,6 +49,8 @@ public class HandoffService {
     private final EventPublisher eventPublisher;
     private final AuditLogService auditLogService;
     private final com.asm.delivery.transport.TransportPort transportPort;
+    private final DeliveryStatusHistoryRepository historyRepo;
+    private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     /** Self-reference so REQUIRES_NEW helpers run in their own committed transaction. */
     @org.springframework.context.annotation.Lazy
@@ -110,6 +115,10 @@ public class HandoffService {
                         "fromDriver", fromDriverId.toString(),
                         "toDriver", toDriverId.toString(),
                         "reason", reason != null ? reason : ""));
+
+        appendHistory(deliveryId, delivery.getStatus(), actorName(actor), Role.DISPATCHER,
+                "HANDOFF_REQUESTED",
+                Map.of("fromDriver", driverLabel(fromDriverId), "toDriver", driverLabel(toDriverId)));
 
         eventPublisher.publishHandoffRequested(handoff, delivery.getOrder());
         return handoff;
@@ -217,6 +226,9 @@ public class HandoffService {
                         "toDriver", toDriverId.toString(),
                         "client", order != null && order.getClientName() != null ? order.getClientName() : "N/A"));
 
+        appendHistory(delivery.getId(), delivery.getStatus(), driverLabel(toDriverId), Role.DRIVER,
+                "HANDOFF_CONFIRMED", Map.of("toDriver", driverLabel(toDriverId)));
+
         log.info("HANDOFF_CONFIRMED handoffId={} from={} to={}", h.getId(), h.getFromDriverId(), toDriverId);
         eventPublisher.publishHandoffConfirmed(h, order);
         return delivery;
@@ -238,6 +250,9 @@ public class HandoffService {
         clearStopPointer(h);
         auditLogService.logAction(actor, "HANDOFF_CANCELLED", "DELIVERY", h.getDeliveryId().toString(),
                 Map.of("handoffId", h.getId().toString(), "reason", reason != null ? reason : ""));
+        deliveryRepo.findById(h.getDeliveryId()).ifPresent(d ->
+                appendHistory(d.getId(), d.getStatus(), actorName(actor), Role.DISPATCHER,
+                        "HANDOFF_CANCELLED", Map.of("reason", reason != null ? reason : "")));
         log.info("HANDOFF_CANCELLED handoffId={} reason={}", h.getId(), reason);
         eventPublisher.publishHandoffCancelled(h, loadOrder(h));
         return h;
@@ -252,6 +267,9 @@ public class HandoffService {
         handoffRepo.save(h);
         revertCustodyToSender(h);
         clearStopPointer(h);
+        deliveryRepo.findById(h.getDeliveryId()).ifPresent(d ->
+                appendHistory(d.getId(), d.getStatus(), "SYSTEM", Role.SYSTEM,
+                        "HANDOFF_EXPIRED", Map.of("fromDriver", driverLabel(h.getFromDriverId()))));
         log.warn("HANDOFF_EXPIRED handoffId={} deliveryId={} reason={} — custody reverted to sender {}",
                 h.getId(), h.getDeliveryId(), reason, h.getFromDriverId());
         eventPublisher.publishHandoffCancelled(h, loadOrder(h));
@@ -303,12 +321,19 @@ public class HandoffService {
         return merged.values().stream().map(this::toResponse).toList();
     }
 
+    /** Days of terminal handoff history exposed to the admin feed (open handoffs are always shown). */
+    @Value("${handoff.admin.history-days:30}")
+    private long adminHistoryDays;
+
     @Transactional(readOnly = true)
     public List<com.asm.delivery.dto.response.HandoffResponse> listForAdmin(HandoffState state) {
-        List<Handoff> all = (state != null)
-                ? handoffRepo.findAll().stream().filter(h -> h.getState() == state).toList()
-                : handoffRepo.findAll();
-        return all.stream().map(this::toResponse).toList();
+        // Bounded: all open handoffs + terminal ones within the history window (newest first),
+        // instead of an unbounded findAll() that grows forever.
+        List<Handoff> base = handoffRepo.findForAdmin(LocalDateTime.now().minusDays(adminHistoryDays));
+        return base.stream()
+                .filter(h -> state == null || h.getState() == state)
+                .map(this::toResponse)
+                .toList();
     }
 
     private com.asm.delivery.dto.response.HandoffResponse toResponse(Handoff h) {
@@ -326,8 +351,13 @@ public class HandoffService {
                 .toDriverId(h.getToDriverId() != null ? h.getToDriverId().toString() : null)
                 .toDriverName(driverName(h.getToDriverId()))
                 .requestedAt(h.getRequestedAt())
+                .requestedBy(h.getRequestedBy())
+                .inProgressAt(h.getInProgressAt())
                 .tokenExpiresAt(h.getTokenExpiresAt())
                 .confirmedAt(h.getConfirmedAt())
+                .expiredAt(h.getExpiredAt())
+                .cancelledAt(h.getCancelledAt())
+                .cancelledBy(h.getCancelledBy())
                 .reason(h.getReason())
                 .build();
     }
@@ -340,6 +370,33 @@ public class HandoffService {
         } catch (Exception e) {
             return null;
         }
+    }
+
+    /** Display name with a short-UUID fallback, for human-readable history labels. */
+    private String driverLabel(UUID driverId) {
+        if (driverId == null) return "—";
+        String name = driverName(driverId);
+        return (name != null && !name.isBlank()) ? name : driverId.toString().substring(0, 8);
+    }
+
+    /** Records a custody-transfer event on the delivery's visible timeline (DeliveryStatusHistory),
+     *  so handoffs are auditable in the same place as every other lifecycle step — not only in the
+     *  admin audit log. Mirrors RouteExecutionService.appendHistory. */
+    private void appendHistory(UUID deliveryId, DeliveryStatus status, String changedBy, Role role,
+                               String eventKey, Map<String, Object> params) {
+        String jsonParams = "{}";
+        try {
+            jsonParams = objectMapper.writeValueAsString(params != null ? params : Map.of());
+        } catch (Exception ignored) {}
+        historyRepo.save(DeliveryStatusHistory.builder()
+                .deliveryId(deliveryId)
+                .status(status)
+                .changedBy(changedBy)
+                .changedByRole(role)
+                .eventKey(eventKey)
+                .eventParams(jsonParams)
+                .changedAt(LocalDateTime.now())
+                .build());
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────
@@ -400,8 +457,9 @@ public class HandoffService {
 
     private String actorName(UserPrincipal p) {
         if (p == null) return "SYSTEM";
-        if (p.getName() != null) return p.getName();
-        return p.getUserId() != null ? p.getUserId() : "SYSTEM";
+        // getName() returns the userId (a UUID); prefer the human display name from the JWT.
+        if (p.getDisplayName() != null && !p.getDisplayName().isBlank()) return p.getDisplayName();
+        return "Dispatch";
     }
 
     private static String generateCode() {

@@ -61,9 +61,13 @@ export function QueueDetail() {
     : '';
 
   const target = {
-    deliveryId: id, orderRef: d.orderRef, clientName: d.clientName,
+    deliveryId: id, orderRef: d.orderRef, erpOrderId: d.erpOrderId, clientName: d.clientName,
     city: d.dropoffCity, status: d.status, driverName: d.driverName,
     routeId: d.routeId, routeName: d.routeName,
+    timeSlotStartTime: d.timeSlotStartTime, timeSlotEndTime: d.timeSlotEndTime,
+    totalWeightKg: d.totalWeightKg, totalAmount: d.totalAmount, currency: d.currency,
+    itemsCount: d.items?.length, priority: d.priority, scheduledAt: d.scheduledAt,
+    dropoffAddress: d.dropoffAddress,
   };
 
   const slot = d.timeSlotStartTime && d.timeSlotEndTime
@@ -242,7 +246,7 @@ export function QueueDetail() {
 
       {/* Action bar — fixed footer, always visible regardless of scroll position */}
       {!isReadOnly && (
-        <div className="shrink-0 flex items-center justify-end gap-2 px-5 py-3 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
+        <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
           {canReassign && (
             <Button size="sm" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
               {d.driverId ? <IconReassign size={14} /> : <IconAssign size={14} />}

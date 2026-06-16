@@ -35,9 +35,12 @@ export function AppDrawer({
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
       <SheetContent
         side={side}
-        style={{ width, maxWidth: '95vw' }}
+        style={{
+          '--drawer-width': typeof width === 'number' ? `${width}px` : width,
+        } as React.CSSProperties}
         className={cn(
           'flex flex-col gap-0 p-0 bg-[var(--surface)] border-[var(--border)]',
+          'w-full max-w-full sm:w-[var(--drawer-width)] sm:max-w-[95vw]',
           className,
         )}
       >

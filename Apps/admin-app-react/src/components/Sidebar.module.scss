@@ -118,7 +118,7 @@ $t-slow:  0.33s $ease-out;
   z-index: 50;
   border-right: 1px solid var(--sb-sep-right);
   box-shadow: none;
-  transition: width $t-mid;
+  transition: width $t-mid, transform $t-mid;
   overflow: hidden;
   // Subpixel rendering precision
   -webkit-font-smoothing: antialiased;
@@ -135,6 +135,29 @@ $t-slow:  0.33s $ease-out;
       pointer-events: none;
       // Slightly faster fade-out than fade-in for snappier collapse
       transition: opacity 0.10s $ease-out;
+    }
+  }
+
+  @media (max-width: 768px) {
+    width: 272px;
+    z-index: 100;
+    transform: translateX(-100%);
+    box-shadow: none;
+    border-right: 1px solid var(--sb-sep-right);
+
+    :global(html[dir="rtl"]) & {
+      transform: translateX(100%);
+      border-right: none;
+      border-left: 1px solid var(--sb-sep-right);
+    }
+
+    &.mobileOpen {
+      transform: translateX(0) !important;
+      box-shadow: 4px 0 24px rgba(16, 24, 40, 0.15);
+
+      :global(html[dir="rtl"]) & {
+        box-shadow: -4px 0 24px rgba(16, 24, 40, 0.15);
+      }
     }
   }
 }
