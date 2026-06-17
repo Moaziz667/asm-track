@@ -21,6 +21,10 @@ export type ErpPendingOrderSummaryDTO = {
   warehouseCode?: string
   warehouseName?: string
   ready?: boolean
+  /** True when this picking is a backorder (reliquat of a prior partial delivery). */
+  backorder?: boolean
+  /** BL number of the origin picking this is a backorder of. */
+  originBl?: string
 }
 
 export interface ErpPendingOrderPreviewDTO extends ErpPendingOrderSummaryDTO {

@@ -1097,6 +1097,8 @@ export const EN_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'Driver & Route',
     sectionFulfillment: 'Commitment & Delivery note',
+    relatedShipmentsTitle: 'Shipments of this sale order',
+    relatedShipmentCurrent: 'Current',
     scheduledLabel: 'Promised date',
     blNumberLabel: 'Delivery note no.',
     sourceDepotLabel: 'Source depot',
@@ -1338,6 +1340,8 @@ export const EN_COPY = {
 
     // Warnings
     backorderWarning: 'Backorder detected (ID: {backorderId})',
+    backorderBadge: 'Backorder',
+    backorderOf: 'Backorder of',
 
     // Action buttons
     buttonViewDelivery: 'View Delivery',

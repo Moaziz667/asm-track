@@ -200,6 +200,22 @@ public class ErpLookupService {
             }
         }
 
+        // Group this shipment under its sale order: if other orders already share this saleRef
+        // (the original + earlier backorder(s)/multi-depot splits), link the new order to the group
+        // ROOT so the original PARTIALLY_DELIVERED order and its backorder are traceable together.
+        // The first import of a sale order has no siblings → stays the root (parentOrderId == null).
+        if (StringUtils.hasText(saleRef)) {
+            List<Order> siblings = orderRepository.findByErpExternalRefOrderByCreatedAtAsc(saleRef);
+            if (!siblings.isEmpty()) {
+                UUID rootId = siblings.stream()
+                        .filter(o -> o.getParentOrderId() == null)
+                        .map(Order::getId)
+                        .findFirst()
+                        .orElse(siblings.get(0).getId());
+                order.setParentOrderId(rootId);
+            }
+        }
+
         order = orderRepository.save(order);
 
         Delivery delivery = Delivery.builder()

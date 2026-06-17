@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { IconMapPin as MapPin, IconRoute as Route, IconRefresh as RotateCcw, IconCircleX as XCircle } from '@tabler/icons-react';
+import { IconMapPin as MapPin, IconRoute as Route, IconCircleX as XCircle } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
 import { colors, spacing, typography } from '@/lib/design-tokens';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -15,9 +15,7 @@ interface DeliveryRowProps {
   onRowClick?: (item: DeliveryRowItem) => void;
   onPin?: (item: DeliveryRowItem) => void;
   onOpenRoute?: (item: DeliveryRowItem) => void;
-  onBackorder?: (item: DeliveryRowItem) => void;
   onCancel?: (item: DeliveryRowItem) => void;
-  creatingBackorderFor?: string | null;
   cancellingOrderId?: string | null;
 }
 
@@ -94,9 +92,7 @@ export function DeliveryRow({
   onRowClick,
   onPin,
   onOpenRoute,
-  onBackorder,
   onCancel,
-  creatingBackorderFor,
   cancellingOrderId,
 }: DeliveryRowProps) {
   const t = useT();
@@ -104,7 +100,6 @@ export function DeliveryRow({
   const isActive = hover || isFocused;
 
   const canCancel = (item.status === 'UNSCHEDULED' || item.status === 'SCHEDULED') && !!item.orderId;
-  const canBackorder = item.status === 'PARTIALLY_DELIVERED';
   const isPinned = !!item.dropoffPinned;
 
   return (
@@ -284,14 +279,6 @@ export function DeliveryRow({
               label={t.deliveryRow.pinPosition}
               onClick={() => onPin?.(item)}
               variant="danger"
-            />
-          )}
-          {canBackorder && (
-            <ActionIcon
-              icon={<RotateCcw size={13} color={colors.warning} />}
-              label={t.deliveryRow.createBackorder}
-              onClick={() => onBackorder?.(item)}
-              disabled={creatingBackorderFor === item.rowId}
             />
           )}
           {canCancel && (

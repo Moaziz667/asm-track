@@ -4,7 +4,6 @@ import com.asm.delivery.config.RabbitMQConfig;
 import com.asm.delivery.entity.Order;
 import com.asm.delivery.repository.OrderRepository;
 import com.asm.delivery.service.EventPublisher;
-import com.asm.delivery.service.dispatch.ExceptionResolutionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
@@ -27,7 +26,6 @@ public class ErpSyncResultConsumer {
 
     private final OrderRepository orderRepo;
     private final EventPublisher eventPublisher;
-    private final ExceptionResolutionService exceptionResolutionService;
     private final com.asm.delivery.repository.RmaRepository rmaRepo;
 
     @RabbitListener(queues = RabbitMQConfig.ERP_SYNC_RESULT_QUEUE)
@@ -63,21 +61,10 @@ public class ErpSyncResultConsumer {
             order.setNextSyncRetryAt(null);
             orderRepo.save(order);
             log.info("ERP sync SYNCED — orderId={} op={}", orderId, op);
-
-            // A partial delivery that left a remainder → Odoo created a backorder picking.
-            // Auto-create the backorder shipment (new delivery under the same order) + notify.
-            // B3 — Idempotent on replay: createBackorderShipment short-circuits if a shipment already
-            // exists for this odooBackorderId, so a redelivered result never creates a second one.
-            Integer backorderPickingId = asInt(result.get("backorderPickingId"));
-            if ("STOCK_PARTIAL".equals(op) && backorderPickingId != null) {
-                try {
-                    exceptionResolutionService.createBackorderShipment(
-                            orderId, backorderPickingId, str(result.get("backorderBlNumber")), deliveryId);
-                } catch (Exception e) {
-                    log.error("Failed to auto-create backorder shipment for orderId={} backorderPickingId={}: {}",
-                            orderId, backorderPickingId, e.getMessage(), e);
-                }
-            }
+            // Backorders are NOT auto-created as shipments. When a partial delivery syncs, Odoo creates
+            // the backorder picking; the operator imports it from the Import page (per-BL import), where
+            // it becomes its own order — the same path as every other Odoo picking. Single source of
+            // truth, and no duplicate (auto-shipment + importable picking) for the same backorder.
         } else {
             order.setOdooSyncStatus("SYNC_FAILED");
             order.setLastSyncOp(op);
@@ -138,9 +125,4 @@ public class ErpSyncResultConsumer {
         return s.length() > 2000 ? s.substring(0, 2000) : s;
     }
 
-    private static Integer asInt(Object v) {
-        if (v == null) return null;
-        if (v instanceof Number n) return n.intValue();
-        try { return Integer.parseInt(String.valueOf(v)); } catch (Exception e) { return null; }
-    }
 }

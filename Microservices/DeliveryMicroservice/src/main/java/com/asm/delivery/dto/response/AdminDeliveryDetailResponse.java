@@ -143,6 +143,12 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Replan date set by admin; non-null when the delivery was rescheduled")
     private LocalDateTime rescheduledAt;
 
+    @Schema(description = "Delivery time-window start (HH:mm) from the active route stop")
+    private String timeSlotStartTime;
+
+    @Schema(description = "Delivery time-window end (HH:mm) from the active route stop")
+    private String timeSlotEndTime;
+
     @Schema(description = "Official ERP delivery-note (bon de livraison) number")
     private String blNumber;
 
@@ -168,4 +174,21 @@ public class AdminDeliveryDetailResponse {
 
     @Schema(description = "Status timeline for audit/tracking")
     private List<StatusHistoryResponse> statusHistory;
+
+    @Schema(description = "All shipments sharing this order's sale-order ref (original + backorder(s) / "
+            + "multi-depot splits), so the group is traceable from any one of them")
+    private List<RelatedShipment> relatedShipments;
+
+    @Data
+    @Builder
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Schema(description = "A sibling shipment under the same sale order")
+    public static class RelatedShipment {
+        private UUID deliveryId;
+        private String blNumber;
+        private String status;
+        @Schema(description = "True for the delivery currently being viewed")
+        private boolean current;
+    }
 }

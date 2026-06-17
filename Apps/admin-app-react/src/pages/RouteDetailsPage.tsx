@@ -222,8 +222,6 @@ export default function RouteDetailsPage() {
                 setActiveTab={d.setActiveTab}
                 stopRefs={d.stopRefs}
                 toggleStop={d.toggleStop}
-                creatingBackorderFor={d.creatingBackorderFor}
-                createBackorder={d.createBackorder}
                 downloadBL={d.downloadBL}
                 openEditWindow={d.openEditWindow}
                 setRemoveStopTarget={d.setRemoveStopTarget}

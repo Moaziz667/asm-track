@@ -174,7 +174,8 @@ public class DispatchService {
     public RouteInfo getRouteInfo(UUID deliveryId) {
         return routeStopRepository.findActiveByDeliveryIdWithRoute(deliveryId)
                 .filter(rs -> rs.getRoute() != null)
-                .map(rs -> new RouteInfo(rs.getRoute().getId(), rs.getRoute().getName()))
+                .map(rs -> new RouteInfo(rs.getRoute().getId(), rs.getRoute().getName(),
+                        rs.getStartTimeWindow(), rs.getEndTimeWindow()))
                 .orElse(null);
     }
 
@@ -582,7 +583,8 @@ public class DispatchService {
                 .filter(routeStop -> routeStop.getRoute() != null)
                 .collect(Collectors.toMap(
                         com.asm.delivery.entity.RouteStop::getDeliveryId,
-                        routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName()),
+                        routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName(),
+                                routeStop.getStartTimeWindow(), routeStop.getEndTimeWindow()),
                         (existing, replacement) -> existing
                 ));
     }
@@ -677,7 +679,8 @@ public class DispatchService {
                 .build();
     }
 
-        private record RouteInfo(UUID routeId, String routeName) {}
+        private record RouteInfo(UUID routeId, String routeName,
+                                 java.time.LocalTime startWindow, java.time.LocalTime endWindow) {}
 
         private String normalizeText(String value) {
                 if (!StringUtils.hasText(value)) {
@@ -713,6 +716,8 @@ public class DispatchService {
                 .orderId(order != null ? order.getId() : null)
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
+                .timeSlotStartTime(routeInfo != null && routeInfo.startWindow() != null ? routeInfo.startWindow().toString() : null)
+                .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failureComment(d.getFailReason())
@@ -763,7 +768,31 @@ public class DispatchService {
                 .cancelledAt(d.getCancelledAt())
                 .podExists(podExists)
                 .statusHistory(history)
+                .relatedShipments(buildRelatedShipments(order, d.getId()))
                 .build();
+    }
+
+    /**
+     * All shipments sharing this order's sale-order ref (original + backorder(s) / multi-depot splits),
+     * so the group is traceable from any one of them. Returns null when there is no group (a single
+     * shipment) — the UI then shows nothing.
+     */
+    private List<AdminDeliveryDetailResponse.RelatedShipment> buildRelatedShipments(Order order, UUID currentDeliveryId) {
+        if (order == null || !StringUtils.hasText(order.getErpExternalRef())) return null;
+        List<Order> group = orderRepo.findByErpExternalRefOrderByCreatedAtAsc(order.getErpExternalRef());
+        if (group.size() <= 1) return null;
+        List<AdminDeliveryDetailResponse.RelatedShipment> out = new ArrayList<>();
+        for (Order o : group) {
+            Delivery del = deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(o.getId()).orElse(null);
+            if (del == null) continue;
+            out.add(AdminDeliveryDetailResponse.RelatedShipment.builder()
+                    .deliveryId(del.getId())
+                    .blNumber(o.getBlNumber())
+                    .status(del.getStatus().name())
+                    .current(del.getId().equals(currentDeliveryId))
+                    .build());
+        }
+        return out.size() > 1 ? out : null;
     }
 
     private Map<String, Object> deserializeEventParams(String json) {

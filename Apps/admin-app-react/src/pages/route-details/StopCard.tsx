@@ -11,7 +11,7 @@ import {
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
-import { BadgeStatusMap } from '@/components/route/StatusBadgeIcons';
+import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
 import stopTabsStyles from '@/styles/stop-tabs.module.scss';
 import { fmtLong, fmtTimeWindow, mediaSrc } from './helpers';
 import { STOP_STATUS, REMOVABLE_STOP_STATUSES } from './constants';
@@ -31,8 +31,6 @@ type StopCardProps = {
   setActiveTab: React.Dispatch<React.SetStateAction<Record<string, Tab>>>;
   stopRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   toggleStop: (id: string) => void;
-  creatingBackorderFor: string | null;
-  createBackorder: (deliveryId: string) => void;
   downloadBL: (delivery: Delivery | undefined, pod: ProofOfDelivery | null) => void;
   openEditWindow: (stop: RouteStop, client: string) => void;
   setRemoveStopTarget: (v: { stopId: string; client: string } | null) => void;
@@ -44,7 +42,7 @@ type StopCardProps = {
 
 export function StopCard({
   stop, delivery, pod, route, currency, isActiveRoute, isExpanded, tab,
-  setActiveTab, stopRefs, toggleStop, creatingBackorderFor, createBackorder, downloadBL,
+  setActiveTab, stopRefs, toggleStop, downloadBL,
   openEditWindow, setRemoveStopTarget, setCancelStopTarget, setCancelStopReason,
   setViewerTitle, setViewerImage,
 }: StopCardProps) {
@@ -278,7 +276,6 @@ export function StopCard({
                               }
                             }
                             const outcome    = item.outcome ?? inferredOutcome;
-                            const badgeConfig = outcome ? BadgeStatusMap[outcome as keyof typeof BadgeStatusMap] : null;
 
                             return (
                               <>
@@ -289,13 +286,7 @@ export function StopCard({
                                     {isPostPod ? `×${qtyDone}` : '—'}
                                   </td>
                                   <td>
-                                    {badgeConfig ? (
-                                      <span className={`${stopTabsStyles.statusBadgeContainer} ${stopTabsStyles[badgeConfig.className]}`}>
-                                        <span className={stopTabsStyles.svgIcon}><badgeConfig.icon /></span>
-                                        <span className={stopTabsStyles.label}>{badgeConfig.label}</span>
-                                        {item.reason && <span className={stopTabsStyles.reason}>{t.itemReasons[item.reason] ?? item.reason}</span>}
-                                      </span>
-                                    ) : '—'}
+                                    {outcome ? <ItemOutcomeBadge outcome={outcome} reason={item.reason} /> : '—'}
                                   </td>
                                   <td>{formatMoney(item.unitPrice ?? item.price, stop.order?.currency ?? currency)}</td>
                                 </tr>
@@ -319,15 +310,8 @@ export function StopCard({
                   </div>
                 )}
 
-                {(stop.status === 'PARTIAL' || delivery?.status === 'PARTIALLY_DELIVERED') && (
-                  <button
-                    style={{ marginTop: 12, padding: '8px 12px', fontSize: 11, fontWeight: 600, border: '1px solid var(--border-color)', background: 'var(--surface-3)', color: 'var(--text-strong)', borderRadius: 3, cursor: 'pointer' }}
-                    onClick={(e) => { e.stopPropagation(); void createBackorder(stop.deliveryId); }}
-                    disabled={creatingBackorderFor === stop.deliveryId}
-                  >
-                    {creatingBackorderFor === stop.deliveryId ? t.routeBuilderPage.loadingState : t.routeBuilderPage.createBackorder}
-                  </button>
-                )}
+                {/* Backorder is no longer created here. When a partial delivery syncs, Odoo creates the
+                    backorder picking; the operator imports it from the Import page (per-BL import). */}
               </div>
             )}
 

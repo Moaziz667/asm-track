@@ -41,4 +41,8 @@ public class ErpPendingOrderSummaryDTO {
     private String warehouseName;
     /** True when ready to ship (Odoo picking state = 'assigned'). */
     private Boolean ready;
+    /** True when this picking is a backorder (reliquat) — Odoo {@code backorder_id} is set. */
+    private boolean backorder;
+    /** BL number of the origin picking this is a backorder of (from {@code backorder_id}). */
+    private String originBl;
 }

@@ -431,6 +431,14 @@ function ImportErpPageContent() {
                                       {row.warehouseCode}
                                     </span>
                                   )}
+                                  {row.backorder && (
+                                    <span
+                                      title={row.originBl ? `${t.importPage.backorderOf} ${row.originBl}` : undefined}
+                                      className="px-1.5 py-0.5 bg-[var(--warning)]/15 text-[var(--warning)] border border-[var(--warning)]/40 rounded text-2xs font-bold tracking-wide uppercase"
+                                    >
+                                      {t.importPage.backorderBadge}
+                                    </span>
+                                  )}
                                 </div>
                                 {row.blNumber && row.erpOrderId && (
                                   <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>

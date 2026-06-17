@@ -778,47 +778,6 @@ public class EventPublisher {
     }
 
     /**
-     * A backorder shipment was created automatically (remaining items from a partial delivery).
-     * Surfaces on the admin dashboard so a dispatcher can schedule the re-delivery.
-     */
-    public void publishBackorderCreated(Order order, UUID backorderDeliveryId, String backorderBlNumber) {
-        if (order == null) return;
-        final String orderRef = order.resolveRef();
-        final String client = order.getClientName();
-        final String boId = backorderDeliveryId != null ? backorderDeliveryId.toString() : null;
-        executeAfterCommitAsync(() -> {
-            log.info("EVENT delivery.backorder_created orderRef={} backorderDeliveryId={} bl={}", orderRef, boId, backorderBlNumber);
-            // Canonical CloudEvent keys (deliveryId / erpOrderId / clientName) — same
-            // convention every other delivery event uses, so the UI localizes + navigates uniformly.
-            Map<String, Object> p = new HashMap<>();
-            p.put("deliveryId", boId);
-            p.put("erpOrderId", orderRef);
-            p.put("clientName", client);
-            p.put("blNumber", backorderBlNumber);
-            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
-                    .source("/delivery-service")
-                    .type("delivery.backorder_created")
-                    .data(p)
-                    .build();
-            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
-            // Persist the same params so the bell/history re-localizes identically after a reload.
-            Map<String, Object> persisted = new HashMap<>();
-            persisted.put("erpOrderId", orderRef != null ? orderRef : "");
-            persisted.put("clientName", client != null ? client : "");
-            persisted.put("blNumber", backorderBlNumber != null ? backorderBlNumber : "");
-            notificationGateway.record(Notification.builder()
-                    .eventType("delivery.backorder_created").severity("info")
-                    .title("Backorder created")
-                    .message((client != null ? client + " — " : "") + "Remaining items for "
-                            + (orderRef != null ? orderRef : "order") + " — schedule re-delivery"
-                            + (backorderBlNumber != null ? " (" + backorderBlNumber + ")" : ""))
-                    .orderRef(orderRef).deliveryId(boId).clientName(client)
-                    .payload(persisted)
-                    .build());
-        });
-    }
-
-    /**
      * Refused-defect re-delivery: the customer refused goods for a defect (damaged / wrong item /
      * postponed) but still wants the product, so a replacement shipment was created. Emits a SINGLE
      * clear notification (instead of a confusing failed + backorder pair) — the failed visit already

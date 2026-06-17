@@ -255,13 +255,6 @@ public class AdminDeliveryController {
         return ResponseEntity.ok().build();
     }
 
-    @PostMapping("/{id}/create-backorder")
-    @Operation(summary = "Create backorder delivery", description = "Creates a new UNSCHEDULED delivery for the items that were not delivered in a partial delivery. Only valid for deliveries with status PARTIAL.")
-    @IdempotentOperation
-    public ResponseEntity<AdminDeliveryDetailResponse> createBackorder(@PathVariable UUID id) {
-        return ResponseEntity.ok(exceptionResolutionService.createBackorderDelivery(id));
-    }
-
     @GetMapping("/drivers")
     @Operation(summary = "List drivers with availability and active deliveries")
     public ResponseEntity<List<AdminDriverResponse>> drivers() {

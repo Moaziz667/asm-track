@@ -143,7 +143,9 @@ public class ErpInboundReconciliationService {
     private void applyDateChange(Order order, Map<String, Object> payload) {
         if (payload == null) return;
         Object dateRaw = payload.get("scheduledAt");
-        if (!(dateRaw instanceof String s) || s.isBlank()) return;
+        // Guard against Odoo's empty-field sentinel ("false") and any value too short to be a datetime
+        // ("YYYY-MM-DD HH:MM" needs ≥16 chars) — both would otherwise throw on the substring below.
+        if (!(dateRaw instanceof String s) || s.isBlank() || "false".equalsIgnoreCase(s) || s.length() < 16) return;
         try {
             order.setRescheduledAt(LocalDateTime.parse(s.replace(' ', 'T').substring(0, 16)));
             orderRepo.save(order);

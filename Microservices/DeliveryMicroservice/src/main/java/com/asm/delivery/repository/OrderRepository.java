@@ -27,6 +27,10 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     /** Sale-order reference (e.g. "S00110") used by ERP sync + inbound reconciliation. */
     Optional<Order> findByErpExternalRef(String erpExternalRef);
 
+    /** All orders sharing a sale-order reference (original + backorders + multi-depot splits),
+     *  oldest first — used to group shipments and pick the group root for parentOrderId linkage. */
+    List<Order> findByErpExternalRefOrderByCreatedAtAsc(String erpExternalRef);
+
     boolean existsByErpOrderId(String erpOrderId);
 
     /** Idempotency key for per-delivery-note (bon de livraison) imports. */

@@ -74,7 +74,12 @@ public class ErpChangePoller {
                     // rule + anti-replay decide whether/how to apply. (Line-level diffing can be added
                     // later; the webhook carries richer payloads when configured.)
                     Map<String, Object> payload = new HashMap<>();
-                    if (o.get("commitment_date") != null) payload.put("scheduledAt", str(o.get("commitment_date")));
+                    // Odoo returns boolean `false` for an unset field — skip it, don't forward "false".
+                    Object commitmentDate = o.get("commitment_date");
+                    if (commitmentDate != null && !Boolean.FALSE.equals(commitmentDate)
+                            && !"false".equalsIgnoreCase(String.valueOf(commitmentDate))) {
+                        payload.put("scheduledAt", str(commitmentDate));
+                    }
                     if (!payload.isEmpty()) forwarder.forward(ref, "DATE", payload, writeDate);
                 }
                 if (writeDate != null) cursor = writeDate; // advance cursor (orders are write_date asc)

@@ -1156,6 +1156,8 @@ export const AR_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'السائق والرحلة',
     sectionFulfillment: 'الالتزام وسند التسليم',
+    relatedShipmentsTitle: 'شحنات هذا الطلب',
+    relatedShipmentCurrent: 'الحالية',
     scheduledLabel: 'التاريخ الموعود',
     blNumberLabel: 'رقم سند التسليم',
     sourceDepotLabel: 'المستودع المصدر',
@@ -1396,6 +1398,8 @@ export const AR_COPY = {
 
     // Warnings
     backorderWarning: 'تم اكتشاف طلب متأخر (معرف: {backorderId})',
+    backorderBadge: 'طلب متبقٍ',
+    backorderOf: 'طلب متبقٍ من',
 
     // Action buttons
     buttonViewDelivery: 'عرض التسليم',

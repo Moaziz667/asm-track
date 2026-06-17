@@ -52,6 +52,7 @@ public class DriverDeliveryService {
     private final ObjectMapper                    objectMapper;
     private final HandoffService                  handoffService;
     private final com.asm.delivery.repository.HandoffRepository handoffRepository;
+    private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final FailureReasonService            failureReasonService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
 
@@ -256,6 +257,16 @@ public class DriverDeliveryService {
                 item.setReason(null);
                 item.setComment(null);
             }
+        }
+
+        // PERSIST the line quantities. `items` is a JSONB column (@Type(JsonType.class)); mutating its
+        // elements in place is NOT reliably detected by Hibernate dirty-checking, so without this the
+        // quantityDone/outcome changes above silently revert to 0 on commit. Reassign the list reference
+        // (forces the JSON column dirty) and save the order explicitly.
+        if (delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
+            Order ord = delivery.getOrder();
+            ord.setItems(new java.util.ArrayList<>(ord.getItems()));
+            orderRepo.save(ord);
         }
 
         // C3 — The final status is DERIVED from the line quantities now persisted on the order, not
@@ -488,6 +499,7 @@ public class DriverDeliveryService {
      * base64-in-JSON, so they upload straight to MinIO via {@code uploadFile} — no base64 round-trip,
      * no large strings on the wire. Shares the exact same persistence + completion + ERP-sync path.
      */
+    @Transactional
     public DriverDeliveryResponse submitPodMultipart(
             UUID deliveryId, UUID driverId,
             byte[] bonLivraisonPhotoBytes, String bonLivraisonContentType,
@@ -520,6 +532,17 @@ public class DriverDeliveryService {
             boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
             UserPrincipal principal, java.util.function.BiConsumer<String, String> mediaUploader) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
+
+        // Idempotency FIRST: if a POD already exists, this submit is a duplicate/replay (double-tap,
+        // client retry after a slow response, or offline-queue replay) of one that already completed.
+        // Return the current state as success — the first submit already advanced the status past
+        // IN_TRANSIT/PICKED_UP, so running the status guard before this would wrongly 400 a delivery
+        // that is in fact DELIVERED/PARTIALLY_DELIVERED.
+        if (podRepo.existsByDeliveryId(deliveryId)) {
+            log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
+            return toDriverDeliveryResponse(delivery);
+        }
+
         if (delivery.getStatus() != DeliveryStatus.IN_TRANSIT
                 && delivery.getStatus() != DeliveryStatus.PICKED_UP) {
             throw AppException.badRequest(
@@ -531,11 +554,6 @@ public class DriverDeliveryService {
 
         // P0: Geofence Enforcement
         validateGeofence(delivery, lat, lng);
-
-        if (podRepo.existsByDeliveryId(deliveryId)) {
-            log.info("POD_DUPLICATE_SKIP deliveryId={} driverId={}", deliveryId, driverId);
-            return toDriverDeliveryResponse(delivery);
-        }
 
         // P2: Deterministic Object Storage
         String deliveryFolder = "pod/" + deliveryId;

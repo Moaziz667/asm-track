@@ -142,7 +142,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private static final List<String> PICKING_FIELDS = List.of(
             "id", "name", "origin", "state", "partner_id",
-            "scheduled_date", "date_deadline", "picking_type_id", "sale_id");
+            "scheduled_date", "date_deadline", "picking_type_id", "sale_id", "backorder_id");
 
     @Override
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
@@ -474,6 +474,10 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
                 .currency(resolveCurrency(sale))
                 .state(asString(picking.get("state")))
+                // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
+                // partial delivery; surface it so the operator sees it's a backorder before importing.
+                .backorder(asRelId(picking.get("backorder_id")) != null)
+                .originBl(asRelName(picking.get("backorder_id")))
                 .dateOrder(sale != null ? parseOdooDateTime(sale.get("date_order")) : null)
                 .scheduledAt(parseOdooDateTime(picking.get("scheduled_date")))
                 .build();

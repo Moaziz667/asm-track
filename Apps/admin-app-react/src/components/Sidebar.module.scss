@@ -136,6 +136,10 @@ $t-slow:  0.33s $ease-out;
       // Slightly faster fade-out than fade-in for snappier collapse
       transition: opacity 0.10s $ease-out;
     }
+
+    // The brand text must leave the layout (not just fade) when collapsed — otherwise the
+    // centered brand row still reserves its width and the logo sits left of true center.
+    .brand__text { display: none; }
   }
 
   @media (max-width: 768px) {

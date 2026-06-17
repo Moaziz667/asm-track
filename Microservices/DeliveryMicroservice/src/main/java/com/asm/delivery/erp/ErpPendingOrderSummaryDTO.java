@@ -78,4 +78,10 @@ public class ErpPendingOrderSummaryDTO {
 
     @Schema(description = "True when ready to ship", example = "true")
     private Boolean ready;
+
+    @Schema(description = "True when this picking is a backorder (reliquat of a prior partial delivery)", example = "true")
+    private boolean backorder;
+
+    @Schema(description = "BL number of the origin picking this is a backorder of", example = "WH/OUT/00012")
+    private String originBl;
 }

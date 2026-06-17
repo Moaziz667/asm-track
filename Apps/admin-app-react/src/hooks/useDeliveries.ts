@@ -69,24 +69,6 @@ export function usePinDropoff() {
   });
 }
 
-export function useCreateBackorder() {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: async (deliveryId: string) => {
-      const res = await api.post(`/api/admin/deliveries/${deliveryId}/create-backorder`);
-      return res.data;
-    },
-    onSuccess: () => {
-      showSuccessToast('successBackorderCreated');
-      queryClient.invalidateQueries({ queryKey: DELIVERIES_QUERY_KEY });
-    },
-    onError: (err: any) => {
-      showErrorToast(err, 'errorBackorderFailed');
-    }
-  });
-}
-
 export function useCancelDelivery() {
   const queryClient = useQueryClient();
 

@@ -220,7 +220,7 @@ public class RouteWebSocketService {
                     .build();
 
                 messaging.convertAndSend(destination, envelope);
-                log.info("notifyDriverStatusChanged: driverId={} status={} -> {}", destination, driverId, status);
+                log.info("notifyDriverStatusChanged: driverId={} status={} destination={}", driverId, status, destination);
             } catch (Exception e) {
                 log.warn("notifyDriverStatusChanged: failed for driverId={}: {}", driverId, e.getMessage());
             }

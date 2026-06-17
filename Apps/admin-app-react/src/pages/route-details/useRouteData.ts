@@ -24,7 +24,6 @@ export function useRouteData(routeId: string | undefined) {
   const [podMap, setPodMap] = useState<Record<string, ProofOfDelivery | null>>({});
   const [loading, setLoading] = useState(true);
   const [expandedStops, setExpandedStops] = useState<Set<string>>(new Set());
-  const [creatingBackorderFor, setCreatingBackorderFor] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<Record<string, 'details' | 'timeline' | 'pod'>>({});
   const [cancelStopTarget, setCancelStopTarget] = useState<{ stopId: string; client: string; isPickedUp: boolean } | null>(null);
   const [cancelStopReason, setCancelStopReason] = useState('');
@@ -191,28 +190,6 @@ export function useRouteData(routeId: string | undefined) {
     }
   };
 
-  const createBackorder = async (deliveryId: string) => {
-    try {
-      setCreatingBackorderFor(deliveryId);
-      const delivery = route?.stops?.find(s => s.deliveryId === deliveryId)?.delivery;
-      await api.post(`/api/admin/deliveries/${deliveryId}/create-backorder`);
-      showSuccessToast(t.apiMessages.successBackorderCreated, {
-        orderId: delivery?.order?.referenceId,
-        erpId: delivery?.order?.erpOrderId,
-        clientName: delivery?.clientName,
-      });
-      await fetchData();
-    } catch (err: any) {
-      const delivery = route?.stops?.find(s => s.deliveryId === deliveryId)?.delivery;
-      showErrorToast(
-        err?.response?.data?.message,
-        t.routeDetailPage?.backorderError,
-        { clientName: delivery?.clientName },
-      );
-    } finally {
-      setCreatingBackorderFor(null);
-    }
-  };
 
   const handleCancelStop = async () => {
     if (!route || !cancelStopTarget) return;
@@ -344,7 +321,7 @@ export function useRouteData(routeId: string | undefined) {
     orderedStops, mapStops, totalWeightKg,
     stopRefs, expandedStops, toggleStop, scrollToStop,
     activeTab, setActiveTab,
-    creatingBackorderFor, createBackorder, downloadBL,
+    downloadBL,
     cancelStopTarget, setCancelStopTarget, cancelStopReason, setCancelStopReason, cancellingStop, handleCancelStop,
     removeStopTarget, setRemoveStopTarget, removeStopReason, setRemoveStopReason, removingStop, handleRemoveStop,
     editWindowTarget, setEditWindowTarget, editWindowStart, setEditWindowStart, editWindowEnd, setEditWindowEnd,

@@ -127,10 +127,11 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
 }
 
 function RouteRow({
-  route, driverName, depotName, onCloseClick, onCancelClick,
+  route, driverName, driverOnline, depotName, onCloseClick, onCancelClick,
 }: {
   route:        EnrichedRoute;
   driverName:   string;
+  driverOnline: boolean;
   depotName:    string;
   onCloseClick: (route: EnrichedRoute) => void;
   onCancelClick: (route: EnrichedRoute) => void;
@@ -180,7 +181,10 @@ function RouteRow({
 
         {/* Chauffeur */}
         <div className="flex items-center gap-1.5">
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+          <div
+            className={cn('w-1.5 h-1.5 rounded-full shrink-0', driverName && driverOnline ? 'bg-emerald-500' : 'bg-gray-400')}
+            title={driverName ? (driverOnline ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')) : undefined}
+          />
           <span className="text-xs font-[600] text-[var(--text-primary)] truncate max-w-[120px]">{driverName || t.routesTablePage.notAssigned}</span>
         </div>
 
@@ -282,10 +286,11 @@ function RouteRow({
 }
 
 function RouteMobileCard({
-  route, driverName, depotName, onCloseClick, onCancelClick,
+  route, driverName, driverOnline, depotName, onCloseClick, onCancelClick,
 }: {
   route:        EnrichedRoute;
   driverName:   string;
+  driverOnline: boolean;
   depotName:    string;
   onCloseClick: (route: EnrichedRoute) => void;
   onCancelClick: (route: EnrichedRoute) => void;
@@ -334,7 +339,10 @@ function RouteMobileCard({
       {/* Driver & Progression Row */}
       <div className="flex items-center justify-between border-t border-[var(--border)] pt-2.5 ps-1">
         <div className="flex items-center gap-1.5 min-w-0">
-          <div className="w-1.5 h-1.5 rounded-full bg-gray-400 shrink-0" />
+          <div
+            className={cn('w-1.5 h-1.5 rounded-full shrink-0', driverName && driverOnline ? 'bg-emerald-500' : 'bg-gray-400')}
+            title={driverName ? (driverOnline ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')) : undefined}
+          />
           <span className="text-2xs font-[600] text-[var(--text-primary)] truncate max-w-[150px]">
             {driverName || t.routesTablePage.notAssigned}
           </span>
@@ -721,6 +729,7 @@ function RoutesTablePageContent() {
                             key={route.id}
                             route={route}
                             driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
+                            driverOnline={drivers.find(d => d.id === route.driverId)?.onlineStatus === 'ONLINE'}
                             depotName={depots.find(d => d.id === route.depotId)?.name || ''}
                             onCloseClick={setCloseTarget}
                             onCancelClick={setCancelTarget}
@@ -765,6 +774,7 @@ function RoutesTablePageContent() {
                             key={route.id}
                             route={route}
                             driverName={drivers.find(d => d.id === route.driverId)?.name || ''}
+                            driverOnline={drivers.find(d => d.id === route.driverId)?.onlineStatus === 'ONLINE'}
                             depotName={depots.find(d => d.id === route.depotId)?.name || ''}
                             onCloseClick={setCloseTarget}
                             onCancelClick={setCancelTarget}

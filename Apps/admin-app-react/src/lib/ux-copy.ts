@@ -1192,6 +1192,8 @@ export const FR_COPY = {
     // Section: Driver & Route
     sectionDriverRoute: 'Chauffeur & Tournée',
     sectionFulfillment: 'Engagement & BL',
+    relatedShipmentsTitle: 'Livraisons de cette commande',
+    relatedShipmentCurrent: 'Actuelle',
     scheduledLabel: 'Date promise',
     blNumberLabel: 'N° bon de livraison',
     sourceDepotLabel: 'Dépôt source',
@@ -1434,6 +1436,8 @@ export const FR_COPY = {
 
     // Warnings
     backorderWarning: 'Livraison reliquat détectée (ID: {backorderId})',
+    backorderBadge: 'Reliquat',
+    backorderOf: 'Reliquat de',
 
     // Action buttons
     buttonViewDelivery: 'Voir la Livraison',

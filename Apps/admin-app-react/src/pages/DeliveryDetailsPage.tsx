@@ -19,6 +19,7 @@ import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
+import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -359,6 +360,33 @@ export default function DeliveryDetailPage() {
                 )}
               </Section>
 
+              {/* Shipments of the same sale order (original + backorder(s) / multi-depot splits) */}
+              {Array.isArray((delivery as any).relatedShipments) && (delivery as any).relatedShipments.length > 1 && (
+                <Section
+                  title={`${t.deliveryPage.relatedShipmentsTitle}${(delivery as any).erpExternalRef ? ' · ' + (delivery as any).erpExternalRef : ''}`}
+                  icon={<IconPackage size={12} />}
+                >
+                  <div className="flex flex-col">
+                    {((delivery as any).relatedShipments as Array<{ deliveryId: string; blNumber?: string; status: string; current: boolean }>).map((s) => (
+                      s.current ? (
+                        <div key={s.deliveryId} className="flex items-center justify-between py-2 border-b border-[var(--border)]/30">
+                          <span className="text-xs font-semibold text-[var(--text-primary)] font-mono">{s.blNumber || '—'}</span>
+                          <div className="flex items-center gap-2">
+                            <StatusBadge status={s.status} size="sm" />
+                            <span className="text-2xs text-[var(--text-muted)]">{t.deliveryPage.relatedShipmentCurrent}</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <Link key={s.deliveryId} to={`/deliveries/${s.deliveryId}`} className="flex items-center justify-between py-2 border-b border-[var(--border)]/30 hover:bg-[var(--hover-bg)] rounded-sm px-1 -mx-1">
+                          <span className="text-xs font-semibold text-[var(--brand)] font-mono">{s.blNumber || '—'}</span>
+                          <StatusBadge status={s.status} size="sm" />
+                        </Link>
+                      )
+                    ))}
+                  </div>
+                </Section>
+              )}
+
               {/* Items table */}
               {items.length > 0 && (
                 <Section title={t.deliveryPage.itemsCount.replace('{count}', String(items.length)).replace('{plural}', items.length > 1 ? 's' : '')} icon={<IconPackage size={12} />}>
@@ -379,6 +407,9 @@ export default function DeliveryDetailPage() {
                           <tr key={i} style={{ borderBottom: '1px solid var(--border)/30' }} className="hover:bg-[var(--app-bg)]/40 transition-colors">
                             <td style={{ padding: '10px 12px', border: 'none' }}>
                               <span className="text-sm font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
+                              {item.outcome && item.outcome !== 'DELIVERED' && (
+                                <div className="mt-1"><ItemOutcomeBadge outcome={item.outcome} reason={item.reason} /></div>
+                              )}
                             </td>
                             <td style={{ padding: '10px 12px', border: 'none' }}>
                               <span className="text-2xs font-mono text-[var(--text-muted)]">{item.sku ?? '—'}</span>
