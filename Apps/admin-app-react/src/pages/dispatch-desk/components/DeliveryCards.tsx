@@ -323,7 +323,7 @@ export function DeliveryCards() {
                           </Tooltip>
                         )}
                         {isGpsTab && (
-                          <Link to={`/deliveries/${id}`} className="text-2xs font-[600] underline" style={{ color: '#6366F1' }}>
+                          <Link to={`/deliveries?pin=${id}`} className="text-2xs font-[600] underline" style={{ color: '#6366F1' }}>
                             {t.dispatchDeskPage.fixGps}
                           </Link>
                         )}

@@ -39,7 +39,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <AppSidebar />
 
           {/* Main */}
-          <SidebarInset className="flex flex-col flex-1 min-w-0 min-h-dvh bg-[var(--app-bg)]">
+          <SidebarInset className="ct-canvas flex flex-col flex-1 min-w-0 min-h-dvh bg-[var(--app-bg)]">
             <TopNav />
             <div
               className={cn(
@@ -49,7 +49,8 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   : 'overflow-y-auto',
               )}
             >
-              <div className="w-full h-full">
+              {/* key={pathname} replays the control-tower reveal on each route mount */}
+              <div key={pathname} className="page-reveal w-full h-full">
                 {children}
               </div>
             </div>

@@ -1,5 +1,5 @@
       /* App font: Clear Sans (Intel, Apache-2.0, self-hosted) + JetBrains Mono for tabular/data values. */
-      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Saira:wght@500;600;700&display=swap');
       @import "tailwindcss";
       @import "tw-animate-css";
       @import "shadcn/tailwind.css";
@@ -92,6 +92,8 @@
         --radius-lg:  12px;
         --radius-xl:  12px;
         --font-heading:    'Clear Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+        /* Control-tower display face — technical/aerospace grotesk, page titles only. */
+        --font-display:    'Saira', 'Clear Sans', system-ui, sans-serif;
         --color-sidebar-ring:    var(--sidebar-ring);
         --color-sidebar-border:    var(--sidebar-border);
         --color-sidebar-accent-foreground:    var(--sidebar-accent-foreground);
@@ -411,6 +413,75 @@
         input[type="checkbox"] {
           accent-color: var(--brand);
         }
+      }
+
+      /* ── Control-Tower signature layer ───────────────────────────────────────────
+         Additive, reversible aesthetic pass (control-tower / terminal tone): a technical
+         display face for page titles, a faint cockpit grid on the canvas, a sharpened
+         "live" signal accent, and one fast staggered page-load reveal. Tokens, density and
+         the live map are untouched. */
+      :root            { --ct-grid-line: rgba(23, 26, 32, 0.038); --signal: var(--brand); }
+      .dark,
+      [data-mantine-color-scheme='dark'] { --ct-grid-line: rgba(255, 255, 255, 0.045); }
+
+      @layer base {
+        /* Page titles wear the display face; body stays Clear Sans, data stays JetBrains Mono. */
+        h1, h2 {
+          font-family: var(--font-display);
+          letter-spacing: -0.01em;
+        }
+        /* Instrument-label kicker (opt-in) — uppercase tracked mono eyebrow. */
+        .ct-kicker {
+          font-family: var(--font-mono);
+          text-transform: uppercase;
+          letter-spacing: 0.18em;
+          font-size: 10px;
+          font-weight: 600;
+          color: var(--text-soft);
+        }
+      }
+
+      /* Cockpit canvas: a hairline grid layered over the main work area, fading out toward the
+         edges. Pinned + subtle so data surfaces stay clean; reads as graphite instrumentation
+         in dark mode, barely-there on the white canvas. Applied via .ct-canvas on the shell. */
+      .ct-canvas {
+        background-image:
+          linear-gradient(var(--ct-grid-line) 1px, transparent 1px),
+          linear-gradient(90deg, var(--ct-grid-line) 1px, transparent 1px);
+        background-size: 54px 54px;
+        background-position: center top;
+        background-attachment: fixed;
+      }
+
+      /* "Live" signal — a sharpened, pulsing accent for actionable/real-time state (opt-in). */
+      .is-live { position: relative; }
+      .is-live::after {
+        content: '';
+        position: absolute; top: -2px; right: -2px;
+        width: 6px; height: 6px; border-radius: 50%;
+        background: var(--signal);
+        animation: ct-signal 1.8s ease-out infinite;
+      }
+      @keyframes ct-signal {
+        0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 60%, transparent); }
+        70%  { box-shadow: 0 0 0 7px color-mix(in srgb, var(--signal) 0%, transparent); }
+        100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal) 0%, transparent); }
+      }
+
+      /* Page-load reveal — one fast, staggered fade-up when a route mounts (keyed on pathname). */
+      @keyframes ct-reveal {
+        from { opacity: 0; transform: translateY(8px); }
+        to   { opacity: 1; transform: translateY(0); }
+      }
+      .page-reveal       { animation: ct-reveal 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      .page-reveal > *   { animation: ct-reveal 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+      .page-reveal > *:nth-child(1) { animation-delay: 0.02s; }
+      .page-reveal > *:nth-child(2) { animation-delay: 0.06s; }
+      .page-reveal > *:nth-child(3) { animation-delay: 0.10s; }
+      .page-reveal > *:nth-child(4) { animation-delay: 0.14s; }
+
+      @media (prefers-reduced-motion: reduce) {
+        .page-reveal, .page-reveal > *, .is-live::after { animation: none; }
       }
 
       /* ── Typography scale ───────────────────────────────────────────────────────── */

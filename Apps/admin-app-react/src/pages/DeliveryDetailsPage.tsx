@@ -7,7 +7,7 @@ import {
   IconRefresh, IconPackage, IconUser, IconRoute,
   IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
   IconPhoto, IconWeight, IconCurrencyDollar,
-  IconFileText, IconBuildingWarehouse, IconQuote,
+  IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
 import { formatMoney } from '@/lib/utils';
@@ -20,6 +20,7 @@ import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/t
 import StatusBadge from '@/components/StatusBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
+import { CreateReturnModal } from '@/components/returns/CreateReturnModal';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -98,6 +99,7 @@ export default function DeliveryDetailPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
   const [viewerTitle, setViewerTitle] = useState('');
+  const [returnOpen, setReturnOpen] = useState(false);
   const [assignedDriverStatus, setAssignedDriverStatus] = useState<string | null>(null);
 
   usePageBreadcrumb(
@@ -241,15 +243,36 @@ export default function DeliveryDetailPage() {
                 </div>
               </div>
 
-              <button
-                type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-sm border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors shrink-0"
-                onClick={() => fetchAll(true)}
-                title={t.deliveryPage.refresh}
-                disabled={refreshing}
-              >
-                <IconRefresh size={13} className={refreshing ? 'animate-spin' : ''} />
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                {(delivery.status === 'DELIVERED' || delivery.status === 'PARTIALLY_DELIVERED') && (
+                  (delivery as any).hasOpenReturn ? (
+                    <span
+                      className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-soft)]"
+                      title={t.returnsPage?.returnInProgress ?? 'Un retour est déjà en cours pour cette livraison'}
+                    >
+                      <IconPackageExport size={13} /> {t.returnsPage?.returnInProgress ?? 'Retour en cours'}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setReturnOpen(true)}
+                      className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+                      title={t.returnsPage?.newReturn ?? 'Créer un retour'}
+                    >
+                      <IconPackageExport size={13} /> {t.returnsPage?.newReturn ?? 'Créer un retour'}
+                    </button>
+                  )
+                )}
+                <button
+                  type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded-sm border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+                  onClick={() => fetchAll(true)}
+                  title={t.deliveryPage.refresh}
+                  disabled={refreshing}
+                >
+                  <IconRefresh size={13} className={refreshing ? 'animate-spin' : ''} />
+                </button>
+              </div>
             </div>
 
             {/* Stat chips */}
@@ -579,6 +602,14 @@ export default function DeliveryDetailPage() {
           <img src={viewerImage} alt={viewerTitle} style={{ width: '100%', height: 'auto', maxHeight: '75vh', objectFit: 'contain', display: 'block', borderRadius: 2 }} />
         )}
       </AppModal>
+
+      {/* Contextual return — pre-scoped to this delivery, no search */}
+      <CreateReturnModal
+        open={returnOpen}
+        onClose={() => setReturnOpen(false)}
+        onCreated={() => setReturnOpen(false)}
+        prefillDeliveryId={delivery.id || id}
+      />
     </div>
   );
 }

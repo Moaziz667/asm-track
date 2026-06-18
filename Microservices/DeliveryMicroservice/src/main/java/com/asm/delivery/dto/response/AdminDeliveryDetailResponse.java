@@ -172,6 +172,10 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "True when POD exists for this delivery")
     private boolean podExists;
 
+    @Schema(description = "True when this delivery already has an open return (REQUESTED/APPROVED/RECEIVED) "
+            + "— lets the UI prevent a duplicate RMA proactively")
+    private boolean hasOpenReturn;
+
     @Schema(description = "Status timeline for audit/tracking")
     private List<StatusHistoryResponse> statusHistory;
 

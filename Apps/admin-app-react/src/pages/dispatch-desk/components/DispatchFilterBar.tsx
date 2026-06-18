@@ -80,7 +80,7 @@ function FilterDropdown({
   return (
     <div
       ref={panelRef}
-      className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[220px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
+      className="absolute left-0 top-[calc(100%+4px)] z-50 min-w-[220px] rounded-[var(--radius-sm)] border border-[var(--border)] bg-[var(--surface)] shadow-[0_4px_16px_rgba(0,0,0,0.10)]"
       style={{ fontFamily: "'Clear Sans', system-ui, sans-serif" }}
     >
       {/* Header */}
@@ -96,7 +96,7 @@ function FilterDropdown({
         )}
         <span className="text-xs font-[600] text-[var(--text-muted)] uppercase tracking-wide">
           {step === 'attrs'
-            ? 'Filter by attribute'
+            ? t.dispatchDeskPage.filterByAttributeHeader
             : attrs.find(a => a.key === step)?.label}
         </span>
       </div>
@@ -303,7 +303,7 @@ function FilterDropdown({
                 onClick={onClose}
                 className="mt-1 h-7 rounded bg-[var(--brand-blue)] text-white text-sm font-[600] hover:opacity-90 transition-opacity"
               >
-                Apply
+                {t.dispatchDeskPage.filterApply}
               </button>
             </div>
           )}
@@ -393,7 +393,7 @@ export function DispatchFilterBar() {
       {/* Toolbar row */}
       <div className="flex items-center gap-2 px-4 h-11">
         {/* Search */}
-        <div className="relative flex items-center flex-1 max-w-sm">
+        <div className="relative flex items-center flex-1 min-w-0 max-w-sm">
           <IconSearch size={13} className="absolute left-2.5 text-[var(--text-muted)] pointer-events-none" />
           <input
             type="text"
@@ -416,13 +416,13 @@ export function DispatchFilterBar() {
             type="button"
             onClick={() => setDropdownOpen(o => !o)}
             className={cn(
-              'h-8 px-3 flex items-center gap-1.5 border rounded-[var(--radius-xs)] text-base font-[500] transition-colors',
+              'h-8 px-3 flex items-center gap-1.5 border rounded-[var(--radius-xs)] text-base font-[500] transition-colors shrink-0 whitespace-nowrap',
               dropdownOpen
                 ? 'border-[var(--brand-blue)] text-[var(--brand-blue)] bg-[var(--brand-blue-soft)]'
                 : 'border-[var(--border)] text-[var(--text-primary)] bg-[var(--surface)] hover:border-[var(--border-strong)]',
             )}
           >
-            Filter by attribute
+            {t.dispatchDeskPage.filterButton}
             {activeTokens.length > 0 && (
               <span className="inline-flex items-center justify-center w-4 h-4 rounded-full bg-[var(--brand-blue)] text-white text-2xs font-[700] leading-none">
                 {activeTokens.length}
@@ -442,7 +442,7 @@ export function DispatchFilterBar() {
           />
         </div>
 
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-1.5 shrink-0">
           {hasActive && (
             <button
               type="button"
@@ -450,7 +450,7 @@ export function DispatchFilterBar() {
               className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded-[var(--radius-xs)] text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
             >
               <IconX size={12} stroke={2.5} />
-              Clear
+              {t.dispatchDeskPage.filterClear}
             </button>
           )}
           <RefreshButton refreshing={refreshing} onClick={doRefresh} />

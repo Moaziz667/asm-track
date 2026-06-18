@@ -8,17 +8,11 @@ import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import {
-  Select, SelectTrigger, SelectValue, SelectContent, SelectItem,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import {
-  IconPlus, IconTrash, IconRotateClockwise, IconPackageExport, IconSearch,
+  IconRotateClockwise, IconPackageExport,
   IconArrowRight, IconBan, IconCircleCheck, IconArchive,
 } from '@tabler/icons-react';
 
@@ -69,7 +63,6 @@ export default function ReturnsPage() {
   const [kpi, setKpi] = useState<{ total: number; open: number; restocked: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<RmaStatus | 'ALL'>('ALL');
-  const [createOpen, setCreateOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   // Reason modal for reject/cancel transitions (replaces window.prompt).
@@ -86,11 +79,11 @@ export default function ReturnsPage() {
       setRmas(Array.isArray(listRes.data) ? listRes.data : []);
       if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked });
     } catch {
-      showErrorToast(null, 'Échec du chargement des retours');
+      showErrorToast(null, t.returnsPage?.loadError ?? 'Échec du chargement des retours');
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
 
@@ -111,10 +104,10 @@ export default function ReturnsPage() {
       await api.post(`/api/admin/returns/${r.id}/transition`, null, {
         params: { target, ...(note ? { note } : {}) },
       });
-      showSuccessToast(`Retour → ${statusLabel(target)}`);
+      showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
       await fetchAll();
     } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, 'Transition impossible');
+      showErrorToast(err?.response?.data?.message, t.returnsPage?.transitionError ?? 'Transition impossible');
     } finally {
       setBusyId(null);
     }
@@ -125,8 +118,19 @@ export default function ReturnsPage() {
     const note = reasonText.trim();
     if (!note) return; // ConfirmModal enforces this via reasonRequired, but guard anyway
     const { rma, target } = reasonModal;
-    setReasonModal(null);
-    await runTransition(rma, target, note);
+    // Keep the modal open while the request runs so its spinner (loading prop) shows;
+    // close on success, leave open on error so the user can retry.
+    setBusyId(rma.id);
+    try {
+      await api.post(`/api/admin/returns/${rma.id}/transition`, null, { params: { target, note } });
+      showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
+      setReasonModal(null);
+      await fetchAll();
+    } catch (err: any) {
+      showErrorToast(err?.response?.data?.message, t.returnsPage?.transitionError ?? 'Transition impossible');
+    } finally {
+      setBusyId(null);
+    }
   };
 
   // Client-side search over the loaded rows (server already filters by status).
@@ -143,7 +147,7 @@ export default function ReturnsPage() {
   // Quick-filter pills (statuses) with live counts for the active list.
   const quickFilters = useMemo(() => {
     const base: { value: RmaStatus | 'ALL'; label: string }[] =
-      FILTERS.map((f) => ({ value: f, label: f === 'ALL' ? 'Tous' : statusLabel(f) }));
+      FILTERS.map((f) => ({ value: f, label: f === 'ALL' ? (t.returnsPage?.allFilter ?? 'Tous') : statusLabel(f) }));
     return base.map((b) => ({
       value: b.value,
       label: b.label,
@@ -177,9 +181,6 @@ export default function ReturnsPage() {
                 { header: 'Créé le', accessor: r => r.createdAt },
               ]}
             />
-            <Button size="sm" onClick={() => setCreateOpen(true)} className="h-7 gap-1.5 px-3 text-xs font-bold">
-              <IconPlus size={14} /> {t.returnsPage?.newReturn ?? 'Nouveau retour'}
-            </Button>
           </>
         }
       />
@@ -189,21 +190,21 @@ export default function ReturnsPage() {
         <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="flex items-center gap-8">
             <span className="text-base font-[600] text-[var(--text-primary)]">
-              Retours <span className="font-mono text-[var(--brand)]">{filter === 'ALL' ? 'TOUS' : statusLabel(filter).toUpperCase()}</span>
+              {t.returnsPage?.title ?? 'Retours'} <span className="font-mono text-[var(--brand)]">{filter === 'ALL' ? (t.returnsPage?.allUpper ?? 'TOUS') : statusLabel(filter).toUpperCase()}</span>
             </span>
             <span className="text-xs font-[500] text-[var(--text-muted)]">
-              {visibleRows.length} retour{visibleRows.length > 1 ? 's' : ''}
+              {visibleRows.length} {t.returnsPage?.countSuffix ?? 'retour(s)'}
             </span>
           </div>
           <div className="flex items-center gap-5 text-xs font-[500]">
-            <span className="text-[var(--text-muted)]">Total <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.total ?? 0}</b></span>
+            <span className="text-[var(--text-muted)]">{t.returnsPage?.kpiTotal ?? 'Total'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.total ?? 0}</b></span>
             <span className="text-[var(--text-muted)]">
               <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--warning)' }} />
-              En cours <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.open ?? 0}</b>
+              {t.returnsPage?.kpiOpen ?? 'En cours'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.open ?? 0}</b>
             </span>
             <span className="text-[var(--text-muted)]">
               <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--success)' }} />
-              Restockés <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.restocked ?? 0}</b>
+              {t.returnsPage?.kpiRestocked ?? 'Restockés'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.restocked ?? 0}</b>
             </span>
           </div>
         </div>
@@ -230,7 +231,7 @@ export default function ReturnsPage() {
                 Array.from({ length: 5 }).map((_, i) => (
                   <tr key={i} className="border-b border-[var(--border)]">
                     <td className="p-0" />
-                    {Array.from({ length: 6 }).map((__, j) => (
+                    {Array.from({ length: 7 }).map((__, j) => (
                       <td key={j} className="px-6 py-3"><Skeleton className="h-4 w-full max-w-[120px]" /></td>
                     ))}
                   </tr>
@@ -241,8 +242,7 @@ export default function ReturnsPage() {
                     <EmptyState
                       icon={<IconPackageExport size={26} />}
                       message={t.returnsPage?.emptyMessage ?? 'Aucun retour'}
-                      hint={t.returnsPage?.emptyHint ?? 'Créez un retour depuis une livraison livrée.'}
-                      action={{ label: t.returnsPage?.newReturn ?? 'Nouveau retour', onClick: () => setCreateOpen(true) }}
+                      hint={t.returnsPage?.emptyHint ?? 'Créez un retour depuis le détail d’une livraison livrée.'}
                     />
                   </td>
                 </tr>
@@ -256,8 +256,8 @@ export default function ReturnsPage() {
                     <td className="px-6 text-xs font-[600] text-[var(--text-primary)]">{r.clientName ?? '—'}</td>
                     <td className="px-6 font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</td>
                     <td className="px-6 text-xs text-[var(--text-secondary)]">
-                      <span className="tabular-nums font-[600]">{r.totalUnits}</span> u.
-                      <span className="text-[var(--text-soft)]"> · {r.items.length} lignes</span>
+                      <span className="tabular-nums font-[600]">{r.totalUnits}</span> {t.returnsPage?.unitsSuffix ?? 'u.'}
+                      <span className="text-[var(--text-soft)]"> · {r.items.length} {t.returnsPage?.linesSuffix ?? 'lignes'}</span>
                     </td>
                     <td className="px-6"><StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" /></td>
                     <td className="px-6">
@@ -300,12 +300,6 @@ export default function ReturnsPage() {
         </div>
       </div>
 
-      <CreateReturnModal
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={() => { setCreateOpen(false); void fetchAll(); }}
-      />
-
       {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
       <ConfirmModal
         open={reasonModal !== null}
@@ -324,161 +318,5 @@ export default function ReturnsPage() {
         onCancel={() => setReasonModal(null)}
       />
     </div>
-  );
-}
-
-// ─── Create return modal ─────────────────────────────────────────────────────
-function CreateReturnModal({ open, onClose, onCreated }: { open: boolean; onClose: () => void; onCreated: () => void }) {
-  const [search, setSearch] = useState('');
-  const [results, setResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [selected, setSelected] = useState<any | null>(null);
-  const [items, setItems] = useState<RmaItem[]>([]);
-  const [reason, setReason] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (!open) { setSearch(''); setResults([]); setSelected(null); setItems([]); setReason(''); }
-  }, [open]);
-
-  const doSearch = async () => {
-    setSearching(true);
-    try {
-      const res = await api.get('/api/admin/deliveries', { params: { q: search, status: 'DELIVERED', size: 10 } });
-      setResults(Array.isArray(res.data?.content) ? res.data.content : []);
-    } catch { setResults([]); }
-    finally { setSearching(false); }
-  };
-
-  const selectDelivery = async (d: any) => {
-    setSelected(d);
-    try {
-      const res = await api.get(`/api/admin/deliveries/${d.deliveryId}`);
-      const detailItems = res.data?.items ?? [];
-      setItems(detailItems.length > 0
-        ? detailItems.map((it: any) => ({ sku: it.sku, name: it.name, quantity: it.quantity ?? 1, condition: 'RESELLABLE' as const }))
-        : [{ name: '', quantity: 1, condition: 'RESELLABLE' }]);
-    } catch {
-      setItems([{ name: '', quantity: 1, condition: 'RESELLABLE' }]);
-    }
-  };
-
-  const updateItem = (i: number, patch: Partial<RmaItem>) => setItems((prev) => prev.map((it, idx) => idx === i ? { ...it, ...patch } : it));
-  const removeItem = (i: number) => setItems((prev) => prev.filter((_, idx) => idx !== i));
-  const addItem = () => setItems((prev) => [...prev, { name: '', quantity: 1, condition: 'RESELLABLE' }]);
-
-  const submit = async () => {
-    if (!selected) { showErrorToast(null, 'Sélectionnez une livraison'); return; }
-    const valid = items.filter((it) => (it.name || it.sku) && it.quantity > 0);
-    if (valid.length === 0) { showErrorToast(null, 'Ajoutez au moins un article'); return; }
-    setSubmitting(true);
-    try {
-      await api.post('/api/admin/returns', { deliveryId: selected.deliveryId, reason, items: valid });
-      showSuccessToast('Retour créé');
-      onCreated();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, 'Échec de la création');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  return (
-    <AppModal opened={open} onClose={onClose} title="Nouveau retour (RMA)" subtitle="À créer sur une livraison déjà livrée." size="lg">
-      <div className="flex flex-col gap-4">
-        {!selected ? (
-          <>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <IconSearch size={15} className="absolute start-3 top-1/2 -translate-y-1/2 text-[var(--text-soft)]" />
-                <Input
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  onKeyDown={(e) => e.key === 'Enter' && doSearch()}
-                  placeholder="Rechercher une livraison livrée (client, réf, BL)…"
-                  className="ps-9"
-                />
-              </div>
-              <Button onClick={doSearch} disabled={searching}>{searching ? 'Recherche…' : 'Rechercher'}</Button>
-            </div>
-            <div className="flex max-h-[320px] flex-col gap-1.5 overflow-y-auto">
-              {results.length === 0 ? (
-                <p className="py-8 text-center text-sm text-[var(--text-soft)]">
-                  {searching ? 'Recherche…' : 'Aucune livraison — lancez une recherche.'}
-                </p>
-              ) : results.map((d) => (
-                <button
-                  key={d.deliveryId}
-                  onClick={() => selectDelivery(d)}
-                  className="flex items-center justify-between rounded-lg border border-[var(--border)] p-3 text-left transition-colors hover:bg-[var(--hover-bg)]"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-[var(--text-primary)]">{d.clientName ?? d.orderRef}</p>
-                    <p className="truncate text-xs text-[var(--text-muted)]">{d.blNumber ?? d.erpOrderId} · {d.dropoffCity}</p>
-                  </div>
-                  <IconArrowRight size={14} className="text-[var(--text-soft)]" />
-                </button>
-              ))}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--app-bg)] p-3">
-              <div className="min-w-0">
-                <p className="truncate text-base font-bold text-[var(--text-primary)]">{selected.clientName ?? selected.orderRef}</p>
-                <p className="truncate text-xs text-[var(--text-muted)]">{selected.blNumber ?? selected.erpOrderId}</p>
-              </div>
-              <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setItems([]); }}>Changer</Button>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold text-[var(--text-secondary)]">Articles retournés</label>
-                <Button variant="ghost" size="sm" onClick={addItem} className="h-7 gap-1 px-2 text-xs"><IconPlus size={12} /> Ajouter</Button>
-              </div>
-              {items.map((it, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <Input
-                    value={it.name ?? ''}
-                    onChange={(e) => updateItem(i, { name: e.target.value })}
-                    placeholder="Article"
-                    className="h-9 flex-1"
-                  />
-                  <Input
-                    type="number"
-                    min={1}
-                    value={it.quantity}
-                    onChange={(e) => updateItem(i, { quantity: Number(e.target.value) || 0 })}
-                    className="h-9 w-20"
-                  />
-                  <Select value={it.condition} onValueChange={(v) => updateItem(i, { condition: v as RmaItem['condition'] })}>
-                    <SelectTrigger className="h-9 w-[150px]"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="RESELLABLE">Revendable</SelectItem>
-                      <SelectItem value="DAMAGED">Endommagé</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <Button variant="outline" size="icon" onClick={() => removeItem(i)} className="h-9 w-9 text-[var(--danger)]">
-                    <IconTrash size={14} />
-                  </Button>
-                </div>
-              ))}
-            </div>
-
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-secondary)]">Motif du retour</label>
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="Ex. produit défectueux, erreur de commande…" />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-1">
-              <Button variant="outline" onClick={onClose}>Annuler</Button>
-              <Button onClick={submit} disabled={submitting} className="gap-1.5">
-                {submitting ? 'Création…' : (<><IconPackageExport size={15} /> Créer le retour</>)}
-              </Button>
-            </div>
-          </>
-        )}
-      </div>
-    </AppModal>
   );
 }

@@ -146,6 +146,17 @@ function DeliveriesPageContent() {
     else if (globalFilters.search) { setQuery(globalFilters.search); }
   }, [globalContext, searchParams, applyFilters, globalFilters.search]);
 
+  // Deep-link from the dispatch GPS tab: ?pin={deliveryId} → load the unpinned set and open the
+  // pin modal for that delivery so the operator fixes its drop-off coordinates directly here.
+  const pinParam = searchParams?.get('pin');
+  const pinConsumedRef = useRef(false);
+  useEffect(() => { if (pinParam) setQuickView('needsPinning'); }, [pinParam]);
+  useEffect(() => {
+    if (!pinParam || pinConsumedRef.current) return;
+    const row = rows.find(r => r.rowId === pinParam || (r as any).deliveryId === pinParam || (r as any).id === pinParam);
+    if (row) { setPinTarget(row); pinConsumedRef.current = true; }
+  }, [pinParam, rows]);
+
   useEffect(() => {
     if (!globalContext) return;
     if (status !== (globalFilters.status || '')) setStatus(globalFilters.status || '');

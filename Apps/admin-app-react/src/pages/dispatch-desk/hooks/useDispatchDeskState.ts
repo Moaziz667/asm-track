@@ -152,7 +152,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [zoneFilter, setZoneFilter]   = useState(globalFilters.zone || '');
   const [statusFilter, setStatusFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
-  const [queueSort, setQueueSort] = useState<QueueSortMode>('sla');
+  const [queueSort, setQueueSort] = useState<QueueSortMode>('route');
 
   // ── UI state ──────────────────────────────────────────────────────────────
   const [dispatchTab, setDispatchTab]   = useState<DispatchTab>('queue');
@@ -276,9 +276,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     if (!globalContext || initialSyncRef.current) return;
     initialSyncRef.current = true;
     const tabParam = searchParams?.get('tab');
-    if (tabParam === 'queue' || tabParam === 'failed' || tabParam === 'gps' || tabParam === 'handoff') {
+    if (tabParam === 'queue' || tabParam === 'gps' || tabParam === 'handoff') {
       setDispatchTab(tabParam);
-    } else if (tabParam === 'action' || tabParam === 'assign') {
+    } else if (tabParam === 'action' || tabParam === 'assign' || tabParam === 'failed') {
       // Legacy deep links — both tabs were merged into the unified Queue.
       setDispatchTab('queue');
     }
@@ -332,8 +332,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       if (!matchSearch(d.clientName, d.orderRef, d.erpOrderId, id)) return false;
       if (driverId && d.driverId !== driverId) return false;
       if (zoneFilter && d.zoneName !== zoneFilter && d.dropoffCity !== zoneFilter) return false;
+      if (d.status === 'CANCELLED') return false; // annulées exclues du dispatch desk
       if (dispatchTab === 'assign') return (ASSIGNABLE_STATUSES as string[]).includes(d.status);
-      if (dispatchTab === 'failed') return d.status === 'FAILED' || d.status === 'CANCELLED';
       if (dispatchTab === 'gps')    return !d.dropoffLat || !d.dropoffLng;
       return true;
     });
@@ -371,6 +371,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       if (byId.has(r.deliveryId)) return;
       const d = deliveryMap.get(r.deliveryId);
       if (!d) return;
+      if (d.status === 'CANCELLED') return; // annulées exclues du dispatch desk
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return;
       if (driverId && r.driverId !== driverId) return;
       if (zoneFilter && r.zoneName !== zoneFilter && r.city !== zoneFilter) return;
@@ -389,8 +390,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     queue:  queueRows.length,
     assign: allDeliveries.filter(d => (ASSIGNABLE_STATUSES as string[]).includes(d.status)).length,
     action: rows.length,
-    failed: allDeliveries.filter(d => d.status === 'FAILED' || d.status === 'CANCELLED').length,
-    gps:    allDeliveries.filter(d => !d.dropoffLat || !d.dropoffLng).length,
+    failed: allDeliveries.filter(d => d.status === 'FAILED').length,
+    gps:    allDeliveries.filter(d => (!d.dropoffLat || !d.dropoffLng) && d.status !== 'CANCELLED').length,
   }), [allDeliveries, rows, queueRows]);
 
   const allFilteredIds = useMemo(() => {

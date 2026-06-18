@@ -181,20 +181,21 @@ export function DisplaySettingsDropdown({
               >
                 {t.displaySettings.density}
               </p>
-              <div className="flex gap-1">
+              <div className="flex flex-col gap-1">
                 {(['compact', 'comfortable', 'spacious'] as Density[]).map(d => (
                   <button
                     key={d}
                     type="button"
                     onClick={() => onDensityChange(d)}
-                    className="flex-1 h-6 text-2xs font-bold rounded transition-colors"
+                    className="flex items-center justify-between w-full h-7 px-2 text-xs font-semibold rounded transition-colors text-left"
                     style={{
                       border: density === d ? '1.5px solid var(--brand)' : '1px solid var(--border)',
-                      color: density === d ? 'var(--brand)' : 'var(--text-muted)',
+                      color: density === d ? 'var(--brand)' : 'var(--text-secondary)',
                       background: density === d ? 'var(--brand-blue-soft)' : 'transparent',
                     }}
                   >
-                    {DENSITY_LABELS[d]}
+                    <span className="truncate">{DENSITY_LABELS[d]}</span>
+                    {density === d && <IconCheck size={12} strokeWidth={3} className="shrink-0" />}
                   </button>
                 ))}
               </div>

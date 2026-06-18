@@ -35,7 +35,6 @@ export function DispatchTabs() {
       <div className="flex items-stretch h-10 shrink-0 flex-nowrap" style={{ background: 'var(--surface)', boxShadow: '0 1px 0 var(--border), var(--shadow-xs)' }}>
         {([
           { id: 'queue',   label: t.dispatchDeskPage.tabQueue,      count: tabCounts.queue },
-          { id: 'failed',  label: t.dispatchDeskPage.tabFailed,     count: tabCounts.failed },
           { id: 'gps',     label: t.dispatchDeskPage.tabMissingGps, count: tabCounts.gps },
           { id: 'handoff', label: t.dispatchDeskPage.tabHandoff,    count: handoffs.open.length, danger: handoffs.overdueCount > 0 },
         ] as const).map(tab => {

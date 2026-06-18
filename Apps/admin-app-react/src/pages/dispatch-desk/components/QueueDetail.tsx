@@ -8,7 +8,6 @@ import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
-import { FailureInfo } from '@/components/data-display/FailureInfo';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
   REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip,
@@ -135,15 +134,8 @@ export function QueueDetail() {
             </div>
           </div>
 
-          {/* Failure motif (motif d'échec) — same as the per-delivery page. Backend summary uses
-              failureCode/failReason (not failureReason); fall back to the alert's fields. */}
-          {(d.status === 'FAILED' || d.status === 'PARTIALLY_DELIVERED') &&
-            (alert?.failureCode || (d as any).failureCode || alert?.comment || (d as any).failReason) && (
-            <FailureInfo
-              code={alert?.failureCode ?? (d as any).failureCode}
-              reason={alert?.comment ?? (d as any).failReason}
-            />
-          )}
+          {/* Failure motif is shown in the Activité panel (alert banner + "Échec" timeline entry),
+              so it is intentionally NOT repeated here. */}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {/* Driver */}
@@ -193,7 +185,7 @@ export function QueueDetail() {
           {/* Schedule / slot / amount — subtle meta pills */}
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }} title={formatShortDate(d.createdAt)}>
-              <IconClock size={12} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(alert?.updatedAt ?? d.createdAt, t))}
+              <IconClock size={12} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(d.createdAt, t))}
             </span>
             {d.scheduledAt && (
               <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }}>

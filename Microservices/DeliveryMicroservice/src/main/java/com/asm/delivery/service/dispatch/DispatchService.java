@@ -51,6 +51,7 @@ public class DispatchService {
     private final TransportPort transportPort;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final OrderRepository orderRepo;
+    private final com.asm.delivery.repository.RmaRepository rmaRepo;
     private final ProofOfDeliveryRepository podRepo;
     private final DriverDeliveryService driverDeliveryService;
     private final EntityManager entityManager;
@@ -769,7 +770,17 @@ public class DispatchService {
                 .podExists(podExists)
                 .statusHistory(history)
                 .relatedShipments(buildRelatedShipments(order, d.getId()))
+                .hasOpenReturn(hasOpenReturn(d.getId()))
                 .build();
+    }
+
+    /** True when the delivery already has a non-terminal return — mirrors RmaService's open-RMA
+     *  guard so the UI can prevent a duplicate before the operator even submits. */
+    private boolean hasOpenReturn(UUID deliveryId) {
+        return rmaRepo.findByDeliveryIdOrderByCreatedAtDesc(deliveryId).stream()
+                .anyMatch(r -> r.getStatus() == com.asm.delivery.entity.RmaStatus.REQUESTED
+                        || r.getStatus() == com.asm.delivery.entity.RmaStatus.APPROVED
+                        || r.getStatus() == com.asm.delivery.entity.RmaStatus.RECEIVED);
     }
 
     /**
