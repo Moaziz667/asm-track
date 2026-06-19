@@ -286,13 +286,13 @@ export function StopCard({
                                     {isPostPod ? `×${qtyDone}` : '—'}
                                   </td>
                                   <td>
-                                    {outcome ? <ItemOutcomeBadge outcome={outcome} reason={item.reason} /> : '—'}
+                                    {outcome ? <ItemOutcomeBadge outcome={outcome} reason={item.reason} reasonLabel={item.reasonLabel} /> : '—'}
                                   </td>
                                   <td>{formatMoney(item.unitPrice ?? item.price, stop.order?.currency ?? currency)}</td>
                                 </tr>
                                 {item.comment && (
                                   <tr key={`${item.name}-${idx}-comment`} className={stopTabsStyles.commentRow}>
-                                    <td colSpan={5} dangerouslySetInnerHTML={{ __html: item.comment }} />
+                                    <td colSpan={5}>{item.comment}</td>
                                   </tr>
                                 )}
                               </>

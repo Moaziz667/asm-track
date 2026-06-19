@@ -96,6 +96,7 @@ public class ErpSyncCommandPublisher {
             if (item.getName() != null)             m.put("itemName", item.getName());
             if (item.getOutcome() != null)          m.put("outcome", item.effectiveOutcome());
             if (item.getReason() != null)           m.put("reason", item.getReason());
+            if (item.getReasonLabel() != null)      m.put("reasonLabel", item.getReasonLabel());
             if (item.getComment() != null)          m.put("comment", item.getComment());
             out.add(m);
         }

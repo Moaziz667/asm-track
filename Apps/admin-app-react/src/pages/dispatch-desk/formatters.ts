@@ -21,6 +21,7 @@ export function formatMotif(motif?: string, copy?: CopyDict): string {
   if (key === 'REFUSED')        return resolvedCopy.dispatchDeskPage.motifRefused;
   if (key === 'WRONG_ADDRESS')  return resolvedCopy.dispatchDeskPage.motifWrongAddress;
   if (key === 'DAMAGED')        return resolvedCopy.dispatchDeskPage.motifDamaged;
+  if (key === 'MISSING')        return resolvedCopy.dispatchDeskPage.motifMissing;
   if (key === 'OTHER')          return resolvedCopy.dispatchDeskPage.motifOther;
   if (key === 'PARTIAL_DELIVERY' || key.includes('PARTIAL')) return resolvedCopy.dispatchDeskPage.motifPartialDelivery;
   if (key === 'FAILED')         return resolvedCopy.dispatchDeskPage.motifFailed;

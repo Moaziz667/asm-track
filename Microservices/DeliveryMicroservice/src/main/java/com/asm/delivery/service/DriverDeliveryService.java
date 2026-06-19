@@ -384,6 +384,10 @@ public class DriverDeliveryService {
             // Preserve per-item outcome, reason, and comment supplied by the driver app
             normalizedItem.setOutcome(input.effectiveOutcome());
             normalizedItem.setReason(input.getReason());
+            // Resolve the catalog label so the ERP note shows a human motif, not a raw code.
+            if (input.getReason() != null) {
+                normalizedItem.setReasonLabel(failureReasonService.findLabel(input.getReason()).orElse(null));
+            }
             normalizedItem.setComment(input.getComment());
             // Set item display name from matched OrderItem for readable Odoo notes
             if (matched != null && matched.getName() != null) {
@@ -429,7 +433,10 @@ public class DriverDeliveryService {
                 int planned = item.getQuantity() != null ? item.getQuantity() : 0;
                 item.setQuantityDone(Math.min(done, Math.max(planned, 0)));
                 item.setOutcome(outcomeBySku.get(key));
-                item.setReason(reasonBySku.get(key));
+                String reasonCode = reasonBySku.get(key);
+                item.setReason(reasonCode);
+                // Snapshot the human label from the catalog (stable for history); null for non-catalog codes.
+                item.setReasonLabel(reasonCode != null ? failureReasonService.findLabel(reasonCode).orElse(null) : null);
                 item.setComment(commentBySku.get(key));
             } else {
                 // Item not mentioned by driver → infer as REFUSED with qty 0

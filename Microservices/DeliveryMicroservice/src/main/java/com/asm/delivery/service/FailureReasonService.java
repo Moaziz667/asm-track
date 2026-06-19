@@ -47,12 +47,23 @@ public class FailureReasonService {
 
     @Transactional
     public FailureReasonResponse create(FailureReasonRequest req) {
-        String code = (req.getCode() != null && !req.getCode().isBlank())
-                ? req.getCode().trim().toUpperCase(Locale.ROOT)
-                : slugify(req.getLabel());
-        if (repository.existsByCode(code)) {
-            throw AppException.conflict("FAILURE_REASON_EXISTS",
-                    "Un motif avec ce code existe déjà : " + code);
+        boolean explicitCode = req.getCode() != null && !req.getCode().isBlank();
+        String code;
+        if (explicitCode) {
+            // Caller chose the code (API) — must be unique, no silent rewrite.
+            code = req.getCode().trim().toUpperCase(Locale.ROOT);
+            if (repository.existsByCode(code)) {
+                throw AppException.conflict("FAILURE_REASON_EXISTS",
+                        "Un motif avec ce code existe déjà : " + code);
+            }
+        } else {
+            // Auto-generated from the label (the UI path): dedupe so creation never fails on a
+            // label collision — the user never sees the code, so a 409 here would be confusing.
+            String base = slugify(req.getLabel());
+            code = base;
+            for (int n = 2; repository.existsByCode(code); n++) {
+                code = base + "_" + n;
+            }
         }
         FailureReason saved = repository.save(FailureReason.builder()
                 .code(code)
@@ -128,6 +139,16 @@ public class FailureReasonService {
     }
 
     public record Resolved(FailureCode category, String label) {}
+
+    /**
+     * The catalog label for a motif code, or empty when the code isn't in the catalog (legacy/offline
+     * codes). Used to snapshot a human-readable per-item reason at write time.
+     */
+    @Transactional(readOnly = true)
+    public java.util.Optional<String> findLabel(String code) {
+        if (code == null || code.isBlank()) return java.util.Optional.empty();
+        return repository.findByCode(code.trim()).map(FailureReason::getLabel);
+    }
 
     private static String slugify(String label) {
         String n = Normalizer.normalize(label, Normalizer.Form.NFD)

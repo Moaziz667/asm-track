@@ -19,8 +19,10 @@ export interface DeliveryItem {
   price?: number;
   unitPrice?: number;
   unitWeightKg?: number;
-  outcome?: 'DELIVERED' | 'REFUSED' | 'DAMAGED';
+  outcome?: 'DELIVERED' | 'REFUSED' | 'DAMAGED' | 'MISSING';
   reason?: string;
+  /** Human label for `reason`, snapshotted from the failure-reason catalog at submission time. */
+  reasonLabel?: string;
   comment?: string;
 }
 

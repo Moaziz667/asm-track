@@ -1186,8 +1186,40 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
     }
 
+    /** Cached id of the mail.mt_note subtype ("log note"), resolved lazily. */
+    private volatile Integer noteSubtypeId;
+
+    /**
+     * Posts an HTML log note to the sale-order chatter. We do NOT use {@code message_post(body=...)}:
+     * Odoo HTML-escapes a non-Markup string body (Odoo 17+), so the raw tags would show literally in the
+     * chatter — and Markup can't cross JSON-RPC. Creating a {@code mail.message} whose {@code body} is an
+     * Html field renders the (sanitized) HTML correctly. Best-effort.
+     */
     private void addNoteToSaleOrder(Integer erpId, String note) {
-        rpc.callRpc(rpc.buildArgs("sale.order", "message_post", List.of(List.of(erpId)), Map.of("body", note)));
+        Map<String, Object> vals = new HashMap<>();
+        vals.put("model", "sale.order");
+        vals.put("res_id", erpId);
+        vals.put("body", note);
+        vals.put("message_type", "comment");
+        Integer subtype = resolveNoteSubtypeId();
+        if (subtype != null) vals.put("subtype_id", subtype);
+        rpc.callRpc(rpc.buildArgs("mail.message", "create", List.of(vals)));
+    }
+
+    /** Resolve mail.mt_note (the chatter "log note" subtype) once; null if unavailable. */
+    private Integer resolveNoteSubtypeId() {
+        if (noteSubtypeId != null) return noteSubtypeId;
+        try {
+            List<Map<String, Object>> rows = rpc.searchRead("ir.model.data",
+                    List.of(List.of("module", "=", "mail"), List.of("name", "=", "mt_note")),
+                    List.of("res_id"), 1, null);
+            if (rows != null && !rows.isEmpty() && rows.get(0).get("res_id") instanceof Number n) {
+                noteSubtypeId = n.intValue();
+            }
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=resolveNoteSubtypeId action=skip reason={}", e.getMessage());
+        }
+        return noteSubtypeId;
     }
 
     /**
@@ -1283,8 +1315,12 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 } else {
                     sb.append(" — Refusé");
                 }
-                if (item.getReason() != null && !item.getReason().isBlank()) {
-                    sb.append(" (").append(humanizeReason(item.getReason())).append(")");
+                // Prefer the platform-resolved catalog label; fall back to humanizing the raw code.
+                String reasonText = (item.getReasonLabel() != null && !item.getReasonLabel().isBlank())
+                        ? item.getReasonLabel()
+                        : humanizeReason(item.getReason());
+                if (reasonText != null && !reasonText.isBlank()) {
+                    sb.append(" (").append(reasonText).append(")");
                 }
                 if (item.getComment() != null && !item.getComment().isBlank()) {
                     sb.append("<br/><i>").append(item.getComment()).append("</i>");

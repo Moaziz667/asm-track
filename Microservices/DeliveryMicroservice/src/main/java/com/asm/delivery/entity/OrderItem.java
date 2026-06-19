@@ -24,8 +24,15 @@ public class OrderItem {
     /** Delivery outcome recorded by the driver: DELIVERED, REFUSED, or DAMAGED. */
     private String outcome;
 
-    /** Reason code when outcome is REFUSED or DAMAGED (e.g. CLIENT_ABSENT, WRONG_ITEM). */
+    /** Reason code when outcome is REFUSED/DAMAGED/MISSING (the failure-reason catalog code). */
     private String reason;
+
+    /**
+     * Human label for {@link #reason}, snapshotted from the failure-reason catalog at submission time
+     * (like Delivery.failReason). Historically stable — display shows this verbatim, independent of any
+     * later rename/deactivation of the motif. Null for legacy/offline codes not in the catalog.
+     */
+    private String reasonLabel;
 
     /** Optional driver comment specific to this item. */
     private String comment;

@@ -275,15 +275,13 @@ public class AnalyticsPdfService extends BasePdfService {
         };
     }
 
+    /** Canonical category label (single source = the FailureCode enum); raw code if unrecognized. */
     private static String formatFailCode(String code) {
         if (code == null) return "-";
-        return switch (code.toUpperCase()) {
-            case "CLIENT_ABSENT"       -> "Client absent";
-            case "ADDRESS_NOT_FOUND"   -> "Adresse introuvable";
-            case "REFUSED_DELIVERY"    -> "Refus de livraison";
-            case "DAMAGED_PACKAGE"     -> "Colis endommagé";
-            case "WRONG_ADDRESS"       -> "Adresse incorrecte";
-            default                    -> code;
-        };
+        try {
+            return com.asm.delivery.entity.FailureCode.valueOf(code.toUpperCase()).getLabel();
+        } catch (IllegalArgumentException e) {
+            return code;
+        }
     }
 }

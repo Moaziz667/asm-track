@@ -411,7 +411,7 @@ public class RouteReportService {
 
             Delivery d = deliveriesById.get(s.getDeliveryId());
             if (d != null && "FAILED".equals(s.getStatus().name()) && d.getFailedAt() != null) {
-                String code = d.getFailureCode() != null ? d.getFailureCode().name() : "UNKNOWN";
+                String code = d.getFailureCode() != null ? d.getFailureCode().getLabel() : "Échec";
                 events.add(RouteReportResponse.MovementEvent.builder()
                         .at(d.getFailedAt())
                         .type("STOP_FAILED")

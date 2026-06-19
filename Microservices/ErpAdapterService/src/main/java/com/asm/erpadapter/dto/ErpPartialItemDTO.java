@@ -23,6 +23,9 @@ public class ErpPartialItemDTO {
     /** Reason code when outcome is REFUSED or DAMAGED. */
     private String reason;
 
+    /** Human label for {@link #reason}, resolved by the platform from its catalog. */
+    private String reasonLabel;
+
     /** Optional driver comment for this item. */
     private String comment;
 }

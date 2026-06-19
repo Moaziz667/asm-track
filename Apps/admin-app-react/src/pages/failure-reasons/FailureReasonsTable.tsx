@@ -32,7 +32,6 @@ interface FailureReason {
 
 interface FormState {
   id?: string;
-  code: string;
   label: string;
   category: Category;
   appliesTo: Context[];
@@ -40,7 +39,8 @@ interface FormState {
   active: boolean;
 }
 
-const EMPTY_FORM: FormState = { code: '', label: '', category: 'OTHER', appliesTo: ['FAILURE'], sortOrder: 100, active: true };
+// Code is auto-generated server-side from the label (and deduped) — not an editable field.
+const EMPTY_FORM: FormState = { label: '', category: 'OTHER', appliesTo: ['FAILURE'], sortOrder: 100, active: true };
 
 const REASON_ROW_H = {
   compact: 'h-9',
@@ -100,7 +100,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
 
   const openCreate = () => { setForm(EMPTY_FORM); setModalOpen(true); };
   const openEdit = (r: FailureReason) => {
-    setForm({ id: r.id, code: r.code, label: r.label, category: r.category, appliesTo: [...r.appliesTo], sortOrder: r.sortOrder, active: r.active });
+    setForm({ id: r.id, label: r.label, category: r.category, appliesTo: [...r.appliesTo], sortOrder: r.sortOrder, active: r.active });
     setModalOpen(true);
   };
 
@@ -115,7 +115,6 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     setSubmitting(true);
     try {
       const payload = {
-        code: form.code.trim() || undefined,
         label: form.label.trim(),
         category: form.category,
         appliesTo: form.appliesTo,
@@ -408,15 +407,6 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
               ))}
             </div>
           </div>
-          {!form.id && (
-            <FieldInput
-              label={t.failureReasonsSettings.formCode}
-              value={form.code}
-              onChange={e => setForm(f => ({ ...f, code: e.target.value }))}
-              placeholder={t.failureReasonsSettings.formCodePlaceholder}
-              className="font-mono"
-            />
-          )}
           <div className="flex items-end gap-4">
             <FieldInput
               wrapperClassName="flex-1"

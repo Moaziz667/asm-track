@@ -245,23 +245,14 @@ export default function DeliveryDetailPage() {
 
               <div className="flex items-center gap-2 shrink-0">
                 {(delivery.status === 'DELIVERED' || delivery.status === 'PARTIALLY_DELIVERED') && (
-                  (delivery as any).hasOpenReturn ? (
-                    <span
-                      className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-soft)]"
-                      title={t.returnsPage?.returnInProgress ?? 'Un retour est déjà en cours pour cette livraison'}
-                    >
-                      <IconPackageExport size={13} /> {t.returnsPage?.returnInProgress ?? 'Retour en cours'}
-                    </span>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => setReturnOpen(true)}
-                      className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
-                      title={t.returnsPage?.newReturn ?? 'Créer un retour'}
-                    >
-                      <IconPackageExport size={13} /> {t.returnsPage?.newReturn ?? 'Créer un retour'}
-                    </button>
-                  )
+                  <button
+                    type="button"
+                    onClick={() => setReturnOpen(true)}
+                    className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+                    title={t.returnsPage?.newReturn ?? 'Créer un retour'}
+                  >
+                    <IconPackageExport size={13} /> {t.returnsPage?.newReturn ?? 'Créer un retour'}
+                  </button>
                 )}
                 <button
                   type="button"
@@ -431,7 +422,7 @@ export default function DeliveryDetailPage() {
                             <td style={{ padding: '10px 12px', border: 'none' }}>
                               <span className="text-sm font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
                               {item.outcome && item.outcome !== 'DELIVERED' && (
-                                <div className="mt-1"><ItemOutcomeBadge outcome={item.outcome} reason={item.reason} /></div>
+                                <div className="mt-1"><ItemOutcomeBadge outcome={item.outcome} reason={item.reason} reasonLabel={(item as any).reasonLabel} /></div>
                               )}
                             </td>
                             <td style={{ padding: '10px 12px', border: 'none' }}>

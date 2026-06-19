@@ -34,6 +34,9 @@ public class PartialDeliveryItem {
     /** Item display name — populated server-side from OrderItem.name for Odoo notes. */
     private String name;
 
+    /** Human label for {@link #reason}, resolved server-side from the catalog for Odoo notes. */
+    private String reasonLabel;
+
     public PartialDeliveryItem(String sku, Integer quantityDone) {
         this.sku = sku;
         this.quantityDone = quantityDone;
