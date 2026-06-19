@@ -1,7 +1,7 @@
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { useT } from '@/lib/LocaleContext';
 import { getCurrentRole, canManageSettings } from '@/lib/auth';
-import FailureReasonsSettings from './settings/FailureReasonsSettings';
+import FailureReasonsTable from './failure-reasons/FailureReasonsTable';
 
 // Promoted out of Settings into the Livraisons section: failure reasons are an
 // operational catalog (what drivers pick when a delivery fails), so they belong
@@ -17,7 +17,7 @@ export default function FailureReasonsPage() {
   return (
     <div className="w-full h-full overflow-y-auto bg-[var(--app-bg)]">
       <div className="max-w-[1100px] mx-auto px-6 py-6">
-        <FailureReasonsSettings canManage={canManage} />
+        <FailureReasonsTable canManage={canManage} />
       </div>
     </div>
   );

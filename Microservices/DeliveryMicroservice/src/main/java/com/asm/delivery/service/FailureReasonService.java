@@ -2,92 +2,63 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.dto.request.FailureReasonRequest;
 import com.asm.delivery.dto.response.FailureReasonResponse;
-import com.asm.delivery.entity.Company;
 import com.asm.delivery.entity.FailureCode;
+import com.asm.delivery.entity.FailureContext;
 import com.asm.delivery.entity.FailureReason;
 import com.asm.delivery.exception.AppException;
-import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.FailureReasonRepository;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 import java.util.UUID;
 
 /**
- * CRUD + seeding for the configurable {@link FailureReason} referential.
- * Company context follows the per-instance arch: the single active company.
+ * CRUD for the configurable {@link FailureReason} referential (single-tenant — no company scoping).
+ * Seeding is owned by the Flyway migration; this service only reads/writes.
  */
 @Service
 @RequiredArgsConstructor
 public class FailureReasonService {
 
-    /** Default seed: enum value -> French label. Code == enum name for continuity. */
-    private static final List<FailureReason> DEFAULTS = List.of(
-            seed("CLIENT_ABSENT", "Client absent", FailureCode.CLIENT_ABSENT, 0),
-            seed("REFUSED", "Refus du client", FailureCode.REFUSED, 1),
-            seed("WRONG_ADDRESS", "Adresse incorrecte", FailureCode.WRONG_ADDRESS, 2),
-            seed("DAMAGED", "Colis endommagé", FailureCode.DAMAGED, 3),
-            seed("OTHER", "Autre", FailureCode.OTHER, 4)
-    );
+    /** Contexts an item-outcome picker depends on — must never be left without an active motif. */
+    private static final Set<FailureContext> GUARDED_CONTEXTS = EnumSet.of(
+            FailureContext.FAILURE, FailureContext.ITEM_REFUSED,
+            FailureContext.ITEM_DAMAGED, FailureContext.ITEM_MISSING);
 
     private final FailureReasonRepository repository;
-    private final CompanyRepository companyRepository;
 
-    private static FailureReason seed(String code, String label, FailureCode cat, int order) {
-        return FailureReason.builder().code(code).label(label).category(cat).active(true).sortOrder(order).build();
-    }
-
-    /** Resolve the active company; seed defaults on first use. */
-    private UUID resolveCompanyId() {
-        Company company = companyRepository.findAllByActiveTrue().stream().findFirst()
-                .orElseThrow(() -> new AppException(HttpStatus.PRECONDITION_FAILED,
-                        "NO_ACTIVE_COMPANY", "Aucune société active configurée."));
-        return company.getId();
-    }
-
-    @Transactional
+    @Transactional(readOnly = true)
     public List<FailureReasonResponse> listForAdmin() {
-        UUID companyId = resolveCompanyId();
-        ensureSeeded(companyId);
-        return repository.findByCompanyIdOrderBySortOrderAscLabelAsc(companyId).stream()
+        return repository.findAllByOrderBySortOrderAscLabelAsc().stream()
                 .map(FailureReasonResponse::from).toList();
     }
 
-    @Transactional
+    @Transactional(readOnly = true)
     public List<FailureReasonResponse> listActive() {
-        UUID companyId = resolveCompanyId();
-        ensureSeeded(companyId);
-        return repository.findByCompanyIdAndActiveTrueOrderBySortOrderAscLabelAsc(companyId).stream()
+        return repository.findByActiveTrueOrderBySortOrderAscLabelAsc().stream()
                 .map(FailureReasonResponse::from).toList();
-    }
-
-    private void ensureSeeded(UUID companyId) {
-        if (repository.countByCompanyId(companyId) > 0) return;
-        DEFAULTS.forEach(d -> repository.save(FailureReason.builder()
-                .companyId(companyId).code(d.getCode()).label(d.getLabel())
-                .category(d.getCategory()).active(true).sortOrder(d.getSortOrder()).build()));
     }
 
     @Transactional
     public FailureReasonResponse create(FailureReasonRequest req) {
-        UUID companyId = resolveCompanyId();
         String code = (req.getCode() != null && !req.getCode().isBlank())
                 ? req.getCode().trim().toUpperCase(Locale.ROOT)
                 : slugify(req.getLabel());
-        if (repository.existsByCompanyIdAndCode(companyId, code)) {
+        if (repository.existsByCode(code)) {
             throw AppException.conflict("FAILURE_REASON_EXISTS",
                     "Un motif avec ce code existe déjà : " + code);
         }
         FailureReason saved = repository.save(FailureReason.builder()
-                .companyId(companyId)
                 .code(code)
                 .label(req.getLabel().trim())
                 .category(req.getCategory())
+                .appliesTo(resolveAppliesTo(req))
                 .active(req.getActive() == null || req.getActive())
                 .sortOrder(req.getSortOrder() == null ? 100 : req.getSortOrder())
                 .build());
@@ -96,9 +67,10 @@ public class FailureReasonService {
 
     @Transactional
     public FailureReasonResponse update(UUID id, FailureReasonRequest req) {
-        FailureReason reason = getOwned(id);
+        FailureReason reason = getOrThrow(id);
         reason.setLabel(req.getLabel().trim());
         reason.setCategory(req.getCategory());
+        reason.setAppliesTo(resolveAppliesTo(req));
         if (req.getActive() != null) reason.setActive(req.getActive());
         if (req.getSortOrder() != null) reason.setSortOrder(req.getSortOrder());
         return FailureReasonResponse.from(repository.save(reason));
@@ -107,19 +79,33 @@ public class FailureReasonService {
     /** Soft-delete: deactivate so historical deliveries keep their reason intact. */
     @Transactional
     public void deactivate(UUID id) {
-        FailureReason reason = getOwned(id);
+        FailureReason reason = getOrThrow(id);
+        if (!reason.isActive()) return;
+        // Guard: a context an item/failure picker relies on must keep at least one active motif.
+        List<FailureReason> active = repository.findByActiveTrueOrderBySortOrderAscLabelAsc();
+        for (FailureContext ctx : reason.getAppliesTo()) {
+            if (!GUARDED_CONTEXTS.contains(ctx)) continue;
+            boolean another = active.stream()
+                    .anyMatch(r -> !r.getId().equals(id) && r.getAppliesTo().contains(ctx));
+            if (!another) {
+                throw AppException.conflict("FAILURE_REASON_LAST_IN_CONTEXT",
+                        "Impossible de désactiver le dernier motif actif du contexte " + ctx + ".");
+            }
+        }
         reason.setActive(false);
         repository.save(reason);
     }
 
-    private FailureReason getOwned(UUID id) {
-        UUID companyId = resolveCompanyId();
-        FailureReason reason = repository.findById(id)
+    private FailureReason getOrThrow(UUID id) {
+        return repository.findById(id)
                 .orElseThrow(() -> AppException.notFound("FAILURE_REASON_NOT_FOUND", "Motif introuvable."));
-        if (!companyId.equals(reason.getCompanyId())) {
-            throw AppException.notFound("FAILURE_REASON_NOT_FOUND", "Motif introuvable.");
+    }
+
+    private Set<FailureContext> resolveAppliesTo(FailureReasonRequest req) {
+        if (req.getAppliesTo() == null || req.getAppliesTo().isEmpty()) {
+            return EnumSet.of(FailureContext.FAILURE);
         }
-        return reason;
+        return EnumSet.copyOf(req.getAppliesTo());
     }
 
     /**
@@ -129,8 +115,7 @@ public class FailureReasonService {
     @Transactional(readOnly = true)
     public Resolved resolve(String code) {
         if (code == null || code.isBlank()) return new Resolved(FailureCode.OTHER, "Autre");
-        UUID companyId = resolveCompanyId();
-        return repository.findByCompanyIdAndCode(companyId, code.trim())
+        return repository.findByCode(code.trim())
                 .map(r -> new Resolved(r.getCategory(), r.getLabel()))
                 .orElseGet(() -> {
                     // Tolerate raw enum names submitted by legacy clients.

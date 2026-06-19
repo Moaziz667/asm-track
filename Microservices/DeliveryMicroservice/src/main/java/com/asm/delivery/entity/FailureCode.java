@@ -5,5 +5,6 @@ public enum FailureCode {
     REFUSED,
     WRONG_ADDRESS,
     DAMAGED,
+    MISSING,
     OTHER
 }

@@ -11,6 +11,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
@@ -36,6 +37,7 @@ public class AdminFailureReasonController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Create a failure reason")
     public ResponseEntity<FailureReasonResponse> create(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -47,6 +49,7 @@ public class AdminFailureReasonController {
     }
 
     @PutMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Update a failure reason")
     public ResponseEntity<FailureReasonResponse> update(
             @AuthenticationPrincipal UserPrincipal principal,
@@ -59,6 +62,7 @@ public class AdminFailureReasonController {
     }
 
     @DeleteMapping("/{id}")
+    @PreAuthorize("hasRole('ADMIN')")
     @Operation(summary = "Deactivate a failure reason", description = "Soft-delete: keeps historical deliveries intact.")
     public ResponseEntity<Void> deactivate(
             @AuthenticationPrincipal UserPrincipal principal,

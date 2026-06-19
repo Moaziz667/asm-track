@@ -1,10 +1,13 @@
 package com.asm.delivery.dto.request;
 
 import com.asm.delivery.entity.FailureCode;
+import com.asm.delivery.entity.FailureContext;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
+
+import java.util.Set;
 
 @Data
 public class FailureReasonRequest {
@@ -20,6 +23,9 @@ public class FailureReasonRequest {
     /** Analytics category the reason rolls up to. */
     @NotNull
     private FailureCode category;
+
+    /** Where the motif is offered (full failure / per-item). Defaults to FAILURE when omitted. */
+    private Set<FailureContext> appliesTo;
 
     private Boolean active;
 

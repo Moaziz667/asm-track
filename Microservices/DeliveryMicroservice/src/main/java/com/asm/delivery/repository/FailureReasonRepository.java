@@ -11,13 +11,11 @@ import java.util.UUID;
 @Repository
 public interface FailureReasonRepository extends JpaRepository<FailureReason, UUID> {
 
-    List<FailureReason> findByCompanyIdOrderBySortOrderAscLabelAsc(UUID companyId);
+    List<FailureReason> findAllByOrderBySortOrderAscLabelAsc();
 
-    List<FailureReason> findByCompanyIdAndActiveTrueOrderBySortOrderAscLabelAsc(UUID companyId);
+    List<FailureReason> findByActiveTrueOrderBySortOrderAscLabelAsc();
 
-    Optional<FailureReason> findByCompanyIdAndCode(UUID companyId, String code);
+    Optional<FailureReason> findByCode(String code);
 
-    boolean existsByCompanyIdAndCode(UUID companyId, String code);
-
-    long countByCompanyId(UUID companyId);
+    boolean existsByCode(String code);
 }

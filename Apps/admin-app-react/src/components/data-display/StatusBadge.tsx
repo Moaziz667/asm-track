@@ -63,6 +63,7 @@ const CONFIG: Record<string, StatusConfig> = {
   REFUSED:             { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
   WRONG_ADDRESS:       { dot: '#D4772C', bg: 'rgba(212,119,44,0.09)',  text: '#B05A18' },
   DAMAGED:             { dot: '#7B6FCC', bg: 'rgba(123,111,204,0.09)', text: '#6055A8' },
+  MISSING:             { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
   OTHER:               { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
 };
 
