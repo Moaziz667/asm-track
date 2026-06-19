@@ -22,8 +22,7 @@ import java.util.Map;
 
 /**
  * V2 — Applies a change made <em>inside</em> Odoo back to ASM (Odoo→ASM direction), so the two systems
- * stay in sync after import. Arrives via two channels (webhook for speed, polling as the reliable net),
- * both funnelling to {@link #apply}.
+ * stay in sync after import. Arrives via the Odoo poller (ErpAdapter) and funnels to {@link #apply}.
  *
  * <p><b>Conflict rule (the whole policy in one line):</b> the boundary is <b>PICKED_UP</b>.
  * <ul>

@@ -14,10 +14,9 @@ import java.time.LocalDateTime;
 import java.util.Map;
 
 /**
- * V2 — Inbound channel for Odoo→ASM changes. Both the webhook (fast) and the polling fallback
- * (reliable) reach ASM through the ErpAdapter, which calls this endpoint with a service token — so it
- * lives under {@code /internal/**} (SERVICE role, see SecurityConfig). The PICKED_UP conflict rule and
- * anti-replay live in {@link ErpInboundReconciliationService}.
+ * V2 — Inbound channel for Odoo→ASM changes. The ErpAdapter poller reaches ASM through this endpoint
+ * with a service token — so it lives under {@code /internal/**} (SERVICE role, see SecurityConfig).
+ * The PICKED_UP conflict rule and anti-replay live in {@link ErpInboundReconciliationService}.
  */
 @RestController
 @RequestMapping("/internal/erp")

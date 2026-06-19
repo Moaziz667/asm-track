@@ -494,37 +494,6 @@ public class DriverDeliveryService {
                 });
     }
 
-    /**
-     * Multipart variant of {@link #submitPod}: photos arrive as streamed binary parts instead of
-     * base64-in-JSON, so they upload straight to MinIO via {@code uploadFile} — no base64 round-trip,
-     * no large strings on the wire. Shares the exact same persistence + completion + ERP-sync path.
-     */
-    @Transactional
-    public DriverDeliveryResponse submitPodMultipart(
-            UUID deliveryId, UUID driverId,
-            byte[] bonLivraisonPhotoBytes, String bonLivraisonContentType,
-            byte[] packagePhotoBytes, String packageContentType,
-            String comment, BigDecimal lat, BigDecimal lng,
-            boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
-            UserPrincipal principal) {
-        final String blCt = bonLivraisonContentType != null ? bonLivraisonContentType : "image/jpeg";
-        final String pkgCt = packageContentType != null ? packageContentType : "image/jpeg";
-        return persistAndCompletePod(
-                deliveryId, driverId, comment, lat, lng, partial, itemsDone, principal,
-                (blPath, pkgPath) -> {
-                    try {
-                        minioStorageService.uploadFile(bonLivraisonPhotoBytes, blCt, blPath);
-                    } catch (Exception e) {
-                        log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
-                    }
-                    try {
-                        minioStorageService.uploadFile(packagePhotoBytes, pkgCt, pkgPath);
-                    } catch (Exception e) {
-                        log.error("Deferred post-commit upload failed for package photo of delivery {}: {}", deliveryId, e.getMessage());
-                    }
-                });
-    }
-
     /** Shared POD persistence + completion + ERP sync. {@code mediaUploader} receives the
      *  (bon-livraison, package) object paths and performs the actual upload post-commit. */
     private DriverDeliveryResponse persistAndCompletePod(

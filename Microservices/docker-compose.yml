@@ -377,7 +377,6 @@ services:
       # POD photo fetch: rewrite the stored public MinIO URL to the internal container URL.
       MINIO_PUBLIC_URL: ${MINIO_PUBLIC_URL:-http://localhost:9000}
       MINIO_INTERNAL_URL: http://minio:9000
-      ERP_WEBHOOK_SECRET: ${ERP_WEBHOOK_SECRET:-}
       SPRING_RABBITMQ_HOST: rabbitmq
       SPRING_RABBITMQ_USERNAME: ${RABBITMQ_USER}
       SPRING_RABBITMQ_PASSWORD: ${RABBITMQ_PASS}

@@ -9,9 +9,9 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * V2 — Forwards an Odoo→ASM order change to the delivery platform. Both the webhook (fast) and the
- * polling fallback (reliable) call {@link #forward}; ASM applies the PICKED_UP conflict rule + anti-replay.
- * Best-effort: a failure here is logged, not thrown — the polling fallback will re-deliver it.
+ * V2 — Forwards an Odoo→ASM order change to the delivery platform. The inbound poller (ErpChangePoller)
+ * calls {@link #forward}; ASM applies the PICKED_UP conflict rule + anti-replay.
+ * Best-effort: a failure here is logged, not thrown — the next poll will re-deliver it.
  */
 @Service
 @RequiredArgsConstructor

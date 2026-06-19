@@ -94,7 +94,6 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
         return path.startsWith("/api/auth/")
                 || path.startsWith("/api/public/")
                 || path.startsWith("/api/dev/")
-                || path.startsWith("/api/erp/inbound/")   // Odoo webhook — secret-gated, no user context
                 || path.startsWith("/ws/")
                 || path.equals("/ws");
     }

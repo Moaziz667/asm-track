@@ -28,9 +28,6 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers("/actuator/**", "/swagger-ui/**", "/v3/api-docs/**").permitAll()
-                // V2 — Odoo webhook cannot present a service JWT; this endpoint is gated by a shared
-                // secret header inside the controller instead (see ErpWebhookController).
-                .requestMatchers("/api/erp/inbound/**").permitAll()
                 .requestMatchers("/api/**").hasRole("SERVICE")
                 .anyRequest().authenticated()
             )

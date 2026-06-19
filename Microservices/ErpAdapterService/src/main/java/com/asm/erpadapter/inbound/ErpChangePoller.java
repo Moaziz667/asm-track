@@ -12,15 +12,12 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * V2 / Channel B — Polling fallback for Odoo→ASM changes. Webhooks are fast but can be lost (ASM/Odoo
- * restart, network blip); this sweep guarantees no change is missed for long. Every {@code N} minutes it
- * asks Odoo for sale orders whose {@code write_date} is newer than the last cursor and forwards each to
- * ASM (which de-duplicates via write_date vs lastSyncedAt). Idempotent with the webhook — same payload,
- * same handler.
+ * V2 — Polling channel for Odoo→ASM changes (the inbound sync mechanism; the real-time webhook channel
+ * was removed). Every {@code N} minutes it asks Odoo for sale orders whose {@code write_date} is newer
+ * than the last cursor and forwards each to ASM (which de-duplicates via write_date vs lastSyncedAt).
  *
- * <p><b>Pluggability note:</b> this fallback is Odoo-specific (it queries the {@code sale.order} model
- * via {@link OdooJsonRpcClient}). The webhook channel (ErpWebhookController) is already
- * provider-agnostic. When a second ERP (DUX) implements outbound changes, extract an
+ * <p><b>Pluggability note:</b> this poller is Odoo-specific (it queries the {@code sale.order} model
+ * via {@link OdooJsonRpcClient}). When a second ERP (DUX) implements outbound changes, extract an
  * {@code ErpChangePort} with per-provider pollers selected like {@code ErpSyncPort}. Until DUX is
  * implemented this single Odoo poller is sufficient.
  */
@@ -71,8 +68,7 @@ public class ErpChangePoller {
                     forwarder.forward(ref, "CANCELLED", null, writeDate);
                 } else {
                     // Generic content change: forward a DATE snapshot (commitment_date). ASM's frontier
-                    // rule + anti-replay decide whether/how to apply. (Line-level diffing can be added
-                    // later; the webhook carries richer payloads when configured.)
+                    // rule + anti-replay decide whether/how to apply. (Line-level diffing can be added later.)
                     Map<String, Object> payload = new HashMap<>();
                     // Odoo returns boolean `false` for an unset field — skip it, don't forward "false".
                     Object commitmentDate = o.get("commitment_date");

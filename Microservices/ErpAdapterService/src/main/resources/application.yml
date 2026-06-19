@@ -97,10 +97,8 @@ management:
         enabled: true
       show-details: when_authorized
 
-# V2 — Odoo→ASM inbound sync (webhook + polling fallback)
+# V2 — Odoo→ASM inbound sync (polling)
 erp:
-  webhook:
-    secret: ${ERP_WEBHOOK_SECRET:}        # shared secret Odoo must send as X-Webhook-Secret
   inbound:
     poll:
       enabled: ${ERP_INBOUND_POLL_ENABLED:true}
