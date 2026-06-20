@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
 import { resolveOrderRef, shortId } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 type OpsException = {
   deliveryId: string;
@@ -107,13 +108,32 @@ export function ReplanModal({
 
           {/* New scheduled date (replan only) — overrides the stale ERP date for SLA */}
           {isReplan && (
-            <FieldInput
-              type="datetime-local"
-              label={t.dispatchDeskPage.replanModalScheduledLabel}
-              hint={t.dispatchDeskPage.replanModalScheduledHint}
-              value={scheduledAt}
-              onChange={(e) => onScheduledAtChange?.(e.currentTarget.value)}
-            />
+            <div className="flex flex-col gap-1">
+              <label className="text-xs font-medium text-[var(--text-muted)] select-none">
+                {t.dispatchDeskPage.replanModalScheduledLabel}
+              </label>
+              <div className="flex gap-2">
+                <DatePickerPopover
+                  value={scheduledAt ? scheduledAt.split('T')[0] : null}
+                  onChange={(val) => {
+                    const timePart = scheduledAt.includes('T') ? scheduledAt.split('T')[1] : '08:00';
+                    onScheduledAtChange?.(val ? `${val}T${timePart}` : '');
+                  }}
+                  placeholder="Choisir une date"
+                  className="flex-1 !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]"
+                />
+                <input
+                  type="time"
+                  value={scheduledAt.includes('T') ? scheduledAt.split('T')[1] : '08:00'}
+                  onChange={(e) => {
+                    const datePart = scheduledAt.includes('T') ? scheduledAt.split('T')[0] : new Date().toISOString().slice(0, 10);
+                    onScheduledAtChange?.(`${datePart}T${e.currentTarget.value}`);
+                  }}
+                  className="w-28 h-[38px] px-3 rounded bg-[var(--surface)] border border-[var(--border)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand)] focus:ring-1 focus:ring-[var(--brand)]"
+                />
+              </div>
+              <p className="text-xs text-[var(--text-soft)]">{t.dispatchDeskPage.replanModalScheduledHint}</p>
+            </div>
           )}
 
           {/* Note input */}

@@ -151,6 +151,32 @@ public class RmaService {
         return RmaResponse.from(saved);
     }
 
+    /**
+     * Manually re-runs the ERP reverse-move for a return whose sync failed. Mirrors the order-level resync:
+     * only a RESTOCKED return that is SYNC_FAILED can be replayed; it goes back to PENDING_SYNC and is
+     * re-enqueued through the same transactional outbox, so the async result can flip it to SYNCED.
+     */
+    @Transactional
+    public RmaResponse resync(UUID id, UserPrincipal principal) {
+        Rma rma = load(id);
+        if (rma.getStatus() != RmaStatus.RESTOCKED) {
+            throw AppException.conflict("RMA_NOT_RESTOCKED",
+                    "Seul un retour restocké peut être resynchronisé.");
+        }
+        if (!"SYNC_FAILED".equals(rma.getErpSyncStatus())) {
+            throw AppException.conflict("RMA_NOT_FAILED",
+                    "Ce retour n'est pas en échec de synchronisation.");
+        }
+        rma.setErpSyncStatus("PENDING_SYNC");
+        rma.setErpSyncError(null);
+        Rma saved = rmaRepository.save(rma);
+
+        auditLogService.logAction(principal, "RMA_RESYNC", "RMA", id.toString(),
+                Map.of("delivery", String.valueOf(saved.getDeliveryId())));
+        enqueueErpReturn(saved);
+        return RmaResponse.from(saved);
+    }
+
     private void enqueueErpReturn(Rma rma) {
         if (rma.getErpOrderId() == null) {
             log.info("RMA {} has no erpOrderId — skipping ERP return sync", rma.getId());

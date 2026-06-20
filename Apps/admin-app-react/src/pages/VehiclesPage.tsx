@@ -457,7 +457,7 @@ function VehiclesPageContent() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── Technical Grid ── */}
-        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
           {/* Toolbar */}
           <div
             className="flex items-center justify-between px-4 h-11 shrink-0"

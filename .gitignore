@@ -4,7 +4,7 @@
 # Dependencies
 # External package repo — has its own git repo
 Microservices/asm-canonical-model/
-
+.ai
 # Dependencies
 node_modules/
 .pnp
@@ -128,3 +128,8 @@ Apps/asm-super-admin/dist/
 test.tex
 # Local DB seed dumps (transfer to VPS via scp, never commit)
 Microservices/db-seed/
+
+# Local AI context-engineering system — kept local, not committed
+/.ai/
+/CLAUDE.md
+/PROJECT_STATE.md

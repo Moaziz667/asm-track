@@ -63,4 +63,13 @@ public class AdminRmaController {
             @RequestParam(required = false) String note) {
         return ResponseEntity.ok(rmaService.transition(id, target, note, principal));
     }
+
+    @PostMapping("/{id}/resync")
+    @Operation(summary = "Re-run the ERP reverse-move for a return whose sync failed",
+               description = "Allowed only for a RESTOCKED return in SYNC_FAILED; re-enqueues the reverse stock move via the outbox.")
+    public ResponseEntity<RmaResponse> resync(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id) {
+        return ResponseEntity.ok(rmaService.resync(id, principal));
+    }
 }

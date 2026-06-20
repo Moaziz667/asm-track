@@ -13,7 +13,7 @@ import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import {
   IconRotateClockwise, IconPackageExport,
-  IconArrowRight, IconBan, IconCircleCheck, IconArchive,
+  IconArrowRight, IconBan, IconCircleCheck, IconArchive, IconReload,
 } from '@tabler/icons-react';
 
 // ─── Domain ────────────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@ interface RmaItem { id?: string; sku?: string; name?: string; quantity: number; 
 interface Rma {
   id: string; deliveryId: string; erpOrderId?: string; blNumber?: string; clientName?: string;
   status: RmaStatus; reason?: string; resolutionNote?: string; items: RmaItem[]; totalUnits: number;
-  erpSyncStatus?: string; createdBy?: string; createdAt?: string;
+  erpSyncStatus?: string; erpSyncError?: string; createdBy?: string; createdAt?: string;
 }
 
 /** Status visual tokens (tone classes from the design system). */
@@ -108,6 +108,20 @@ export default function ReturnsPage() {
       await fetchAll();
     } catch (err: any) {
       showErrorToast(err?.response?.data?.message, t.returnsPage?.transitionError ?? 'Transition impossible');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  // Manual re-run of the ERP reverse-move for a return whose sync failed.
+  const resync = async (r: Rma) => {
+    setBusyId(r.id);
+    try {
+      await api.post(`/api/admin/returns/${r.id}/resync`);
+      showSuccessToast(t.returnsPage?.resyncDone ?? 'Resynchronisation lancée');
+      await fetchAll();
+    } catch (err: any) {
+      showErrorToast(err?.response?.data?.message, t.returnsPage?.resyncError ?? 'Resynchronisation impossible');
     } finally {
       setBusyId(null);
     }
@@ -261,9 +275,26 @@ export default function ReturnsPage() {
                     </td>
                     <td className="px-6"><StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" /></td>
                     <td className="px-6">
-                      {r.erpSyncStatus
-                        ? <StatusBadge status={r.erpSyncStatus} label={(t.returnsPage?.syncLabels as any)?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
-                        : <span className="text-xs text-[var(--text-soft)]">—</span>}
+                      {r.erpSyncStatus ? (
+                        <div className="flex items-center gap-1.5">
+                          <span title={r.erpSyncStatus === 'SYNC_FAILED' && r.erpSyncError ? `${t.returnsPage?.syncErrorLabel ?? 'Erreur'} : ${r.erpSyncError}` : undefined}>
+                            <StatusBadge status={r.erpSyncStatus} label={(t.returnsPage?.syncLabels as any)?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
+                          </span>
+                          {r.erpSyncStatus === 'SYNC_FAILED' && (
+                            <Button
+                              variant="outline"
+                              size="icon"
+                              disabled={busyId === r.id}
+                              onClick={() => void resync(r)}
+                              title={t.returnsPage?.resync ?? 'Resynchroniser'}
+                              className="h-6 w-6"
+                              style={{ color: 'var(--brand)' }}
+                            >
+                              <IconReload size={12} />
+                            </Button>
+                          )}
+                        </div>
+                      ) : <span className="text-xs text-[var(--text-soft)]">—</span>}
                     </td>
                     <td className="px-6 max-w-[220px] truncate text-xs text-[var(--text-muted)]" title={r.reason ?? ''}>{r.reason ?? '—'}</td>
                     <td className="px-6 text-end">

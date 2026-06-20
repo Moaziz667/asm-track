@@ -38,6 +38,8 @@ export default function DashboardPage() {
     driverName, getStatusConfig,
   } = useDashboardData(period);
 
+  const deliveredPct = today?.total ? Math.round((today.delivered / today.total) * 100) : 0;
+
   useEffect(() => {
     const cachedMode = localStorage.getItem('asm_dashboard_view');
     if (cachedMode === 'office' || cachedMode === 'kanban') setViewMode(cachedMode);
@@ -103,40 +105,40 @@ export default function DashboardPage() {
       {viewMode === 'office' ? (
         <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
           <DraggableWidgetGrid
-            storageKey="dashboard-v5"
+            storageKey="dashboard-v7"
             items={[
               {
-                id: 'kpi-sla', defaultLayout: { w: 2, h: 2, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-sla', defaultLayout: { w: 2, h: 3, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <KPICard label={t.dashboardPage.slaRateLabel} value={`${slaPercent}%`}
                   trend={slaDelta == null ? undefined : { delta: Math.round(slaDelta), format: n => `${Math.abs(n)} pts`, goodWhen: 'up', caption: vsPrev }}
                   sparklineData={completionSpark.length > 0 ? completionSpark : undefined}
                   tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'} className="h-full" />,
               },
               {
-                id: 'kpi-delivered', defaultLayout: { w: 2, h: 2, x: 2, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-delivered', defaultLayout: { w: 2, h: 3, x: 2, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <KPICard label={t.dashboardPage.kpiDelivered || 'Livrés'} value={today?.delivered ?? 0}
                   trend={deliveredDelta == null ? undefined : { delta: deliveredDelta, format: n => `${Math.abs(n).toFixed(0)}%`, goodWhen: 'up', caption: vsPrev }}
-                  sub={deliveredDelta == null ? deliveredSub : undefined}
+                  sub={
+                    <div className="flex flex-col gap-1 w-full mt-1.5">
+                      <div className="flex items-center justify-between text-2xs text-[var(--text-soft)]">
+                        <span>{today?.delivered ?? 0} / {today?.total ?? 0} {t.dashboardPage.kpiDelivered || 'Livrés'}</span>
+                        <span>{deliveredPct}%</span>
+                      </div>
+                      <div className="w-full bg-[var(--border)] h-1.5 rounded-full overflow-hidden">
+                        <div className="bg-[var(--info)] h-full rounded-full transition-all duration-500" style={{ width: `${deliveredPct}%` }} />
+                      </div>
+                    </div>
+                  }
                   sparklineData={deliveredSpark.length > 0 ? deliveredSpark : undefined}
                   tone={(today?.delivered ?? 0) > 0 ? 'info' : 'default'} className="h-full" />,
               },
               {
-                id: 'kpi-partial-delivery', defaultLayout: { w: 2, h: 2, x: 4, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <KPICard label={t.dashboardPage.kpiPartialDelivery || 'Livrais. Partielles'} value={`${(stats?.today?.partialRate ?? 0).toFixed(1)}%`}
-                  sub={`${stats?.today?.partialCount ?? 0} livraisons`} tone={(stats?.today?.partialCount ?? 0) > 0 ? 'warning' : 'default'} className="h-full" />,
-              },
-              {
-                id: 'kpi-routes', defaultLayout: { w: 2, h: 2, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <KPICard label={t.dashboardPage.kpiActiveRoutes || 'Tournées'} value={activeRoutesCount}
-                  sub={t.dashboardPage.kpiActiveRoutesSub || 'en cours'} tone={activeRoutesCount > 0 ? 'info' : 'default'} className="h-full" />,
-              },
-              {
-                id: 'kpi-drivers', defaultLayout: { w: 2, h: 2, x: 8, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-drivers', defaultLayout: { w: 2, h: 3, x: 4, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <KPICard label={t.dashboardPage.kpiDriversOnline || 'En ligne'} value={driverGroups.online.length}
                   sub={`/ ${drivers.length} ${t.dashboardPage.kpiDriversTotalSuffix || 'total'}`} tone={driverGroups.online.length === 0 ? 'danger' : 'default'} className="h-full" />,
               },
               {
-                id: 'kpi-system-health', defaultLayout: { w: 2, h: 2, x: 10, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-system-health', defaultLayout: { w: 2, h: 3, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <KPICard
                   label={t.dashboardPage.systemHealthLabel || 'Santé Système'}
                   value={healthSummary.serviceCount > 0 ? `${healthSummary.okServices} / ${healthSummary.serviceCount}` : '--'}
@@ -145,14 +147,14 @@ export default function DashboardPage() {
                   tone={healthSummary.allGood ? 'success' : healthSummary.downCount > 0 ? 'danger' : 'warning'}
                   onClick={() => navigate('/system-health')} className="h-full" />,
               },
-              { id: 'trend-chart', defaultLayout: { w: 8, h: 6, x: 0, y: 2, minW: 6, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
-              ...(needsAttention.length > 0 ? [{ id: 'needs-attention', defaultLayout: { w: 4, h: 6, x: 8, y: 2, minW: 3, minH: 4 }, className: '', children: <NeedsAttentionWidget items={needsAttention} navigate={navigate} /> }] : []),
-              { id: 'top-items', defaultLayout: { w: 4, h: 6, x: 0, y: 8, minW: 3, minH: 4 }, className: '', children: <TopItemsWidget stats={stats} /> },
-              { id: 'failure-causes', defaultLayout: { w: 4, h: 6, x: 4, y: 8, minW: 3, minH: 4 }, className: '', children: <FailureCausesWidget stats={stats} /> },
-              { id: 'activity-ticker', defaultLayout: { w: 4, h: 6, x: 8, y: 8, minW: 3, minH: 4 }, className: '', children: <ActivityTicker /> },
-              { id: 'driver-availability', defaultLayout: { w: 4, h: 6, x: 0, y: 14, minW: 3, minH: 4 }, className: '', children: <DriverAvailabilityWidget driverGroups={driverGroups} /> },
-              { id: 'section-start', defaultLayout: { w: 4, h: 6, x: 4, y: 14, minW: 3, minH: 4 }, className: '', children: <ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} /> },
-              { id: 'quick-actions', defaultLayout: { w: 4, h: 6, x: 8, y: 14, minW: 3, minH: 4 }, className: '', children: <QuickActionsWidget navigate={navigate} /> },
+              { id: 'trend-chart', defaultLayout: { w: 8, h: 6, x: 0, y: 3, minW: 6, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
+              ...(needsAttention.length > 0 ? [{ id: 'needs-attention', defaultLayout: { w: 4, h: 9, x: 8, y: 0, minW: 3, minH: 4 }, className: '', children: <NeedsAttentionWidget items={needsAttention} navigate={navigate} /> }] : []),
+              { id: 'top-items', defaultLayout: { w: 4, h: 6, x: 0, y: 9, minW: 3, minH: 4 }, className: '', children: <TopItemsWidget stats={stats} /> },
+              { id: 'failure-causes', defaultLayout: { w: 4, h: 6, x: 4, y: 9, minW: 3, minH: 4 }, className: '', children: <FailureCausesWidget stats={stats} /> },
+              { id: 'activity-ticker', defaultLayout: { w: 4, h: 6, x: 8, y: 9, minW: 3, minH: 4 }, className: '', children: <ActivityTicker /> },
+              { id: 'driver-availability', defaultLayout: { w: 4, h: 6, x: 0, y: 15, minW: 3, minH: 4 }, className: '', children: <DriverAvailabilityWidget driverGroups={driverGroups} /> },
+              { id: 'section-start', defaultLayout: { w: 4, h: 6, x: 4, y: 15, minW: 3, minH: 4 }, className: '', children: <ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} /> },
+              { id: 'quick-actions', defaultLayout: { w: 4, h: 6, x: 8, y: 15, minW: 3, minH: 4 }, className: '', children: <QuickActionsWidget navigate={navigate} /> },
             ]}
           />
         </div>

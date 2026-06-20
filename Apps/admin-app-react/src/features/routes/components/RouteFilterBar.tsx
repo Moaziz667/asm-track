@@ -3,6 +3,7 @@
 import React from 'react';
 import { IconSearch as Search, IconX as X } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 interface RouteFilterBarProps {
   counts: {
@@ -90,19 +91,19 @@ export function RouteFilterBar({
         />
 
         {/* Date From */}
-        <input
-          type="date"
-          value={filters.dateFrom || ''}
-          onChange={(e) => onFilterChange('dateFrom', e.target.value)}
-          className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800/20"
+        <DatePickerPopover
+          value={filters.dateFrom || null}
+          onChange={(val) => onFilterChange('dateFrom', val || '')}
+          placeholder="Date de début"
+          className="!h-9 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800/20"
         />
 
         {/* Date To */}
-        <input
-          type="date"
-          value={filters.dateTo || ''}
-          onChange={(e) => onFilterChange('dateTo', e.target.value)}
-          className="h-9 px-3 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800/20"
+        <DatePickerPopover
+          value={filters.dateTo || null}
+          onChange={(val) => onFilterChange('dateTo', val || '')}
+          placeholder="Date de fin"
+          className="!h-9 bg-white border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-slate-800/20"
         />
 
         {/* Clear Filters */}

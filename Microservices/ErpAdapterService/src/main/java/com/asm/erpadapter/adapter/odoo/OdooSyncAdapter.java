@@ -130,7 +130,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
         return idempotency.execute(transactionId, erpOrderId, Boolean.class, () -> {
             String key = inFlightKey(erpOrderId, pickingRef);
             if (!inFlight.add(key)) return false;
-            try { return doSyncReturn(erpOrderId, items, reason); }
+            try { return doSyncReturn(erpOrderId, items, reason, pickingRef); }
             finally { inFlight.remove(key); }
         });
     }
@@ -448,31 +448,32 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     // ── Returns (RMA) ──────────────────────────────────────────────────────────
 
-    private boolean doSyncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason) {
+    private boolean doSyncReturn(String erpOrderId, List<ErpReturnItemDTO> items, String reason, String pickingRef) {
         Integer erpId = resolveErpId(erpOrderId);
         if (erpId == null) return false;
 
-        // Record the return on the sale-order chatter (authoritative trace in the ERP).
+        // Record the return on the sale-order chatter (a human-readable trace in the ERP). This is only a
+        // trace — STRICT policy: a return is reported successful ONLY when a validated reverse stock move
+        // actually puts the goods back. A note alone never counts as success.
         addNoteToSaleOrder(erpId, buildReturnNote(items, reason));
 
-        // Best-effort reverse stock move for resellable units via the return-picking wizard.
-        // Tolerant of Odoo configuration differences — the note above is the guarantee.
-        try {
-            createReturnPicking(erpId, items);
-        } catch (Exception e) {
-            log.warn("provider=odoo operation=syncReturn erpId={} action=return_picking_skipped reason={}", erpId, e.getMessage());
-        }
-        return true;
+        return createReturnPicking(erpId, items, pickingRef);
     }
 
+    /**
+     * Performs the reverse stock move for a return and returns true ONLY when the return picking is created
+     * AND validated to 'done'. Any failure (no source picking, wizard unavailable, picking not validated)
+     * returns false so the RMA is marked SYNC_FAILED upstream — never a silent fake SYNCED.
+     */
     @SuppressWarnings("unchecked")
-    private void createReturnPicking(Integer erpId, List<ErpReturnItemDTO> items) {
-        // V1.2 — A return must be taken against the DONE outgoing picking (the goods that were actually
-        // delivered), NOT a pending one. findSinglePicking excludes 'done', so it could never find it.
-        Map<String, Object> picking = findDonePicking(erpId);
+    private boolean createReturnPicking(Integer erpId, List<ErpReturnItemDTO> items, String pickingRef) {
+        // A return is taken against the DONE outgoing picking (the goods actually delivered). Prefer the
+        // exact picking named by the RMA's BL (pickingRef) so a multi-shipment order returns against the
+        // correct shipment; fall back to the most recent done picking only when the ref is absent/unknown.
+        Map<String, Object> picking = findReturnSourcePicking(erpId, pickingRef);
         if (picking == null) {
-            log.info("provider=odoo operation=syncReturn erpId={} action=no_done_picking", erpId);
-            return;
+            log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} pickingRef={} reason=no_done_picking retryable=true", erpId, pickingRef);
+            return false;
         }
         Integer pickingId = ((Number) picking.get("id")).intValue();
 
@@ -481,27 +482,91 @@ public class OdooSyncAdapter implements ErpSyncPort {
         Map<String, Object> ctx = Map.of("active_id", pickingId, "active_model", "stock.picking", "active_ids", List.of(pickingId));
         Map<String, Object> wizardResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "create",
                 List.of(Map.of("picking_id", pickingId)), Map.of("context", ctx)));
-        Object wizardIdRaw = wizardResp != null ? wizardResp.get("result") : null;
-        Integer wizardId = asInt(wizardIdRaw);
+        Integer wizardId = asInt(wizardResp != null ? wizardResp.get("result") : null);
         if (wizardId == null) {
-            log.info("provider=odoo operation=syncReturn erpId={} pickingId={} action=wizard_unavailable", erpId, pickingId);
-            return;
+            log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} pickingId={} reason=wizard_unavailable retryable=true", erpId, pickingId);
+            return false;
         }
 
-        // V1.3 — Respect the RMA quantities per line instead of returning the whole picking, and route
-        // DAMAGED units to scrap. We read the wizard's pre-filled lines, match each to an RMA item by the
-        // product's default_code, set its return quantity, and zero out lines not in the RMA.
+        // Respect the RMA quantities per line instead of returning the whole picking. Read the wizard's
+        // pre-filled lines, match each to an RMA item by the product's default_code, set its return
+        // quantity, and zero out lines not in the RMA.
         applyReturnQuantities(wizardId, items);
 
-        rpc.callRpc(rpc.buildArgs("stock.return.picking", "create_returns", List.of(List.of(wizardId)), Map.of("context", ctx)));
-        log.info("provider=odoo operation=syncReturn erpId={} pickingId={} wizardId={} action=return_created", erpId, pickingId, wizardId);
+        // create_returns builds the reverse picking and returns an ir.actions.act_window referencing it.
+        Map<String, Object> returnResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "create_returns",
+                List.of(List.of(wizardId)), Map.of("context", ctx)));
+        Integer returnPickingId = extractReturnPickingId(returnResp);
+        if (returnPickingId == null) {
+            log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} wizardId={} reason=return_picking_id_unresolved retryable=true result={}",
+                    erpId, wizardId, returnResp != null ? returnResp.get("result") : null);
+            return false;
+        }
+        log.info("provider=odoo operation=syncReturn erpId={} sourcePickingId={} returnPickingId={} action=return_created", erpId, pickingId, returnPickingId);
 
-        // DAMAGED units must not re-enter sellable stock: once the return picking is created and its
-        // goods are back, scrap the damaged quantities so they leave the on-hand inventory.
+        // Validate the return picking so the goods actually re-enter stock — a draft create_returns moves
+        // nothing on its own. Reuses the same button_validate + wizard handling as outbound transfers.
+        boolean done = validateTransferByPickingId(returnPickingId);
+        if (!done) {
+            log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} returnPickingId={} reason=return_picking_not_done retryable=true", erpId, returnPickingId);
+            return false;
+        }
+
+        // The goods are back on-hand now → DAMAGED units must not stay in sellable stock; scrap them
+        // AFTER validation (before it, there is nothing on-hand to scrap).
         scrapDamagedReturnedItems(erpId, items);
+        return true;
     }
 
-    /** Finds the most recent DONE outgoing picking for a sale order — the one a return is taken against. */
+    /**
+     * Resolves the DONE outgoing picking a return is taken against. Prefers the exact picking named by the
+     * RMA's BL reference (correct shipment on multi-picking orders); falls back to the most recent done
+     * picking when the ref is missing or doesn't match.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> findReturnSourcePicking(Integer erpOrderId, String pickingRef) {
+        if (pickingRef != null && !pickingRef.isBlank()) {
+            Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
+                    List.of(List.of(
+                            List.of("sale_id", "=", erpOrderId),
+                            List.of("state", "=", "done"),
+                            List.of("name", "=", pickingRef.trim()))),
+                    Map.of("fields", List.of("id", "state", "name"), "limit", 1)));
+            List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
+            if (result != null && !result.isEmpty()) {
+                log.info("provider=odoo operation=findReturnSourcePicking erpOrderId={} pickingRef={} action=matched_by_name", erpOrderId, pickingRef);
+                return result.get(0);
+            }
+            log.info("provider=odoo operation=findReturnSourcePicking erpOrderId={} pickingRef={} action=name_no_match fallback=most_recent_done", erpOrderId, pickingRef);
+        }
+        return findDonePicking(erpOrderId);
+    }
+
+    /**
+     * Extracts the new return-picking id from a create_returns response. Odoo returns an
+     * ir.actions.act_window referencing the created picking — usually via res_id, sometimes only via a
+     * domain like [('id','in',[id,...])]; a few versions return the id directly.
+     */
+    @SuppressWarnings("unchecked")
+    private Integer extractReturnPickingId(Map<String, Object> returnResp) {
+        Object result = returnResp != null ? returnResp.get("result") : null;
+        if (!(result instanceof Map<?, ?> action)) return asInt(result);
+        Integer resId = asInt(action.get("res_id"));
+        if (resId != null && resId > 0) return resId;
+        Object domain = action.get("domain");
+        if (domain instanceof List<?> clauses) {
+            for (Object clause : clauses) {
+                if (clause instanceof List<?> triplet && triplet.size() == 3 && "id".equals(triplet.get(0))) {
+                    Object val = triplet.get(2);
+                    if (val instanceof Number n) return n.intValue();
+                    if (val instanceof List<?> ids && !ids.isEmpty() && ids.get(0) instanceof Number n) return n.intValue();
+                }
+            }
+        }
+        return null;
+    }
+
+    /** Finds the most recent DONE outgoing picking for a sale order — the fallback return source. */
     @SuppressWarnings("unchecked")
     private Map<String, Object> findDonePicking(Integer erpOrderId) {
         // V3.1: throw on transport error so a timeout isn't mistaken for "no done picking to return".

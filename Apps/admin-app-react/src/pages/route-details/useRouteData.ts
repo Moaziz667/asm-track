@@ -24,7 +24,7 @@ export function useRouteData(routeId: string | undefined) {
   const [podMap, setPodMap] = useState<Record<string, ProofOfDelivery | null>>({});
   const [loading, setLoading] = useState(true);
   const [expandedStops, setExpandedStops] = useState<Set<string>>(new Set());
-  const [activeTab, setActiveTab] = useState<Record<string, 'details' | 'timeline' | 'pod'>>({});
+  const [activeTab, setActiveTab] = useState<Record<string, 'details' | 'pod'>>({});
   const [cancelStopTarget, setCancelStopTarget] = useState<{ stopId: string; client: string; isPickedUp: boolean } | null>(null);
   const [cancelStopReason, setCancelStopReason] = useState('');
   const [cancellingStop, setCancellingStop] = useState(false);

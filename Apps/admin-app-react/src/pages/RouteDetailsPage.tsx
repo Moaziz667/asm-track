@@ -207,7 +207,7 @@ export default function RouteDetailsPage() {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-[var(--app-bg)] p-3">
+          <div className="flex-1 overflow-y-auto bg-[var(--surface-sunken)] p-3">
             {d.orderedStops.map((stop) => (
               <StopCard
                 key={stop.id}

@@ -153,7 +153,7 @@ function DeliveriesPageContent() {
   useEffect(() => { if (pinParam) setQuickView('needsPinning'); }, [pinParam]);
   useEffect(() => {
     if (!pinParam || pinConsumedRef.current) return;
-    const row = rows.find(r => r.rowId === pinParam || (r as any).deliveryId === pinParam || (r as any).id === pinParam);
+    const row = rows.find((r: DeliveryRow) => r.rowId === pinParam || (r as any).deliveryId === pinParam || (r as any).id === pinParam);
     if (row) { setPinTarget(row); pinConsumedRef.current = true; }
   }, [pinParam, rows]);
 

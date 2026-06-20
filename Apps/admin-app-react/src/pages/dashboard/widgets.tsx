@@ -63,45 +63,44 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
   const t = useT();
   const { locale } = useLocaleStore();
   return (
-    <div className="flex flex-col bg-[var(--danger-bg)] dark:bg-[var(--danger)]/10 border border-[var(--danger)]/30 rounded-xl h-full shadow-sm overflow-hidden relative">
-      <div className="absolute top-0 left-0 right-0 h-[3px] bg-[var(--danger)]" />
-      <div className="ps-8 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-        <span className="flex items-center gap-2">
-          <span className="text-xl font-bold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
-          <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'var(--danger)', color: '#fff' }}>{items.length}</span>
-        </span>
-        <button onClick={() => navigate('/dispatch-desk?tab=queue')} className="text-xs font-medium text-[var(--brand-blue)] hover:underline flex items-center gap-1 cursor-pointer transition-colors">
+    <div className="card overflow-hidden flex flex-col h-full">
+      <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+        <div className="flex items-center gap-2">
+          <IconAlertTriangle size={16} className="text-[var(--danger)]" />
+          <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
+          <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--danger-bg)] text-[var(--danger)] font-mono leading-none">{items.length}</span>
+        </div>
+        <button onClick={() => navigate('/dispatch-desk?tab=queue')} className="text-xs font-medium text-[var(--brand)] hover:underline flex items-center gap-1 cursor-pointer transition-colors">
           {t.dashboardPage.needsAttentionViewAll || 'View all'} <IconArrowUpRight size={11} />
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-6 py-2" style={{ scrollbarWidth: 'thin' }}>
-        <div className="flex flex-col gap-3 py-2">
+      <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+        <div className="divide-y divide-[var(--border)]">
           {items.map((exc: any, idx: number) => {
             const exHealth = (exc.slaHealth && exc.slaHealth !== 'NONE') ? exc.slaHealth : exc.slaWorstHealth;
             const isCrit = exHealth === 'BREACHED' || exHealth === 'LATE' || exc.severity === 'CRITICAL';
-            const accent = isCrit ? '#C7372F' : '#D4772C';
+            const accent = isCrit ? 'var(--danger)' : 'var(--warning)';
             const timeRef = exc.scheduledAt || exc.createdAt;
             const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
             return (
               <div
                 key={idx}
                 onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))}
-                className="flex items-stretch rounded-lg border bg-[var(--surface)] hover:shadow-sm transition-all cursor-pointer overflow-hidden group"
-                style={{ borderColor: 'var(--border)' }}
+                className="flex items-stretch hover:bg-[var(--hover-bg)] transition-colors cursor-pointer overflow-hidden group"
               >
                 <span className="w-[3px] shrink-0" style={{ background: accent }} />
-                <div className="flex flex-col min-w-0 flex-1 gap-1.5 p-2.5">
+                <div className="flex flex-col min-w-0 flex-1 gap-1.5 p-3.5">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-xs font-bold" style={{ color: 'var(--brand)' }}>{exc.orderRef || exc.deliveryId?.slice(0, 8) || 'Alert'}</span>
-                    <span className="text-2xs font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
+                    <span className="font-mono text-2xs font-bold" style={{ color: 'var(--brand)' }}>{exc.orderRef || exc.deliveryId?.slice(0, 8) || 'Alert'}</span>
+                    <span className="text-3xs font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
                   </div>
-                  <span className="text-base font-semibold text-[var(--text-primary)] truncate leading-tight">
+                  <span className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
                     {exc.clientName || '—'}{exc.city ? <span className="font-normal text-[var(--text-muted)]"> · {exc.city}</span> : null}
                   </span>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     <StatusBadge status={exc.status} size="sm" />
                     <SlaHealthBadge health={exc.slaHealth} />
-                    {exc.driverName && <span className="text-2xs text-[var(--text-muted)] truncate">· {exc.driverName}</span>}
+                    {exc.driverName && <span className="text-3xs text-[var(--text-muted)] truncate">· {exc.driverName}</span>}
                   </div>
                 </div>
               </div>
@@ -168,23 +167,36 @@ export function FailureCausesWidget({ stats }: { stats: any }) {
           const data = stats.byFailureCode.map((fail: any) => ({ name: t.failureCodes?.[fail.code] || fail.code, value: fail.count, pct: (fail.count / totalFailures) * 100 }));
           const COLORS = ['#EF4444', '#F97316', '#F59E0B', '#10B981', '#6366F1', '#8B5CF6'];
           return (
-            <div className="flex-1 min-w-0 h-full relative flex items-center justify-center">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                  <Pie data={data} cx="50%" cy="50%" innerRadius="70%" outerRadius="95%" paddingAngle={2} dataKey="value">
-                    {data.map((_entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip
-                    formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.pct.toFixed(0)}%)`, name]}
-                    contentStyle={{ background: 'var(--surface)', borderColor: 'var(--border-strong)', borderRadius: '6px', fontSize: '11px', color: 'var(--text-primary)' }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                <span className="text-[9px] uppercase font-bold tracking-wider text-[var(--text-muted)] font-mono">Total</span>
-                <span className="text-md font-bold text-[var(--text-primary)] font-mono">{totalFailures}</span>
+            <>
+              <div className="flex-1 min-w-0 h-full relative flex items-center justify-center">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
+                    <Pie data={data} cx="50%" cy="50%" innerRadius="70%" outerRadius="95%" paddingAngle={2} dataKey="value">
+                      {data.map((_entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip
+                      formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.pct.toFixed(0)}%)`, name]}
+                      contentStyle={{ background: 'var(--surface)', borderColor: 'var(--border-strong)', borderRadius: '6px', fontSize: '11px', color: 'var(--text-primary)' }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+                  <span className="text-3xs uppercase font-bold tracking-wider text-[var(--text-muted)] font-mono">Total</span>
+                  <span className="text-md font-bold text-[var(--text-primary)] font-mono">{totalFailures}</span>
+                </div>
               </div>
-            </div>
+              <div className="flex flex-col justify-center gap-2 min-w-[140px] pr-2 select-none shrink-0">
+                {data.map((item: any, index: number) => (
+                  <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
+                    <div className="flex items-center gap-1.5 min-w-0">
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                      <span className="text-[var(--text-secondary)] font-medium truncate" title={item.name}>{item.name}</span>
+                    </div>
+                    <span className="font-mono text-[var(--text-muted)] font-[500] shrink-0">{item.value} ({item.pct.toFixed(0)}%)</span>
+                  </div>
+                ))}
+              </div>
+            </>
           );
         })()}
       </div>

@@ -111,7 +111,7 @@ export default function DepotsPage() {
               <div className="absolute bottom-4 left-4 z-[1000]">
                 <div
                   className="px-3 py-2 rounded-md opacity-90"
-                  style={{ border: '1px solid var(--border)', background: 'var(--surface)', backdropFilter: 'blur(4px)' }}
+                  style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}
                 >
                   <div className="flex items-center gap-4">
                     <div>

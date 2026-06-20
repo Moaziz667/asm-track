@@ -6,19 +6,23 @@ const config: Config = {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["'Clear Sans'", "system-ui", "-apple-system", "'Segoe UI'", "sans-serif"],
+        sans: ["'Inter'", "'Clear Sans'", "system-ui", "-apple-system", "'Segoe UI'", "sans-serif"],
+        heading: ["'Inter'", "'Clear Sans'", "sans-serif"],
         mono: ['"JetBrains Mono"', "ui-monospace", "monospace"],
       },
       borderRadius: {
         xs:  "2px",
-        sm:  "4px",
-        DEFAULT: "6px",
-        md:  "6px",
-        lg:  "8px",
-        xl:  "12px",
-        "2xl": "16px",
+        sm:  "6px",
+        DEFAULT: "8px",
+        md:  "10px",
+        lg:  "12px",
+        xl:  "20px",
+        "2xl": "24px",
+        "3xl": "32px",
       },
       fontSize: {
+        "4xs": ["8px", { lineHeight: "10px" }],
+        "3xs": ["9px", { lineHeight: "12px" }],
         "2xs": ["10px", { lineHeight: "14px" }],
         xs:    ["11px", { lineHeight: "16px" }],
         sm:    ["12px", { lineHeight: "18px" }],

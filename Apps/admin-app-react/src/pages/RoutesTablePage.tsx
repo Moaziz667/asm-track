@@ -5,7 +5,8 @@ import { useT } from '@/lib/LocaleContext';
 import {
   IconRefresh, IconPlus, IconCalendar, IconSearch, IconChevronDown,
   IconChevronRight, IconMapPin, IconUser, IconTruck, IconRoute,
-  IconCar, IconLock, IconExternalLink, IconPackage, IconWeight, IconClock, IconX, IconAlertTriangle
+  IconCar, IconLock, IconExternalLink, IconPackage, IconWeight, IconClock, IconX, IconAlertTriangle,
+  IconDots
 } from '@tabler/icons-react';
 import { showErrorToast } from '@/lib/toast-service';
 import { api } from '@/lib/api';
@@ -13,6 +14,9 @@ import { useQuery } from '@tanstack/react-query';
 import { useCloseRoute, useCancelRoute } from '@/hooks/useRoutes';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 import type { Driver, DeliveryItem } from '@/types';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -211,45 +215,50 @@ function RouteRow({
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-1 flex-nowrap justify-end pr-4" onClick={(e) => e.stopPropagation()}>
-          {canClose && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors"
-                  onClick={() => onCloseClick(route)}
-                >
-                  <IconLock size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{t.routesTablePage.closeRouteTooltip}</TooltipContent>
-            </Tooltip>
-          )}
-          {canCancel && (
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  type="button"
-                  className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)] transition-colors"
-                  onClick={() => onCancelClick(route)}
-                >
-                  <IconX size={14} />
-                </button>
-              </TooltipTrigger>
-              <TooltipContent>{t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}</TooltipContent>
-            </Tooltip>
-          )}
+        <div className="flex items-center gap-1.5 flex-nowrap justify-end pr-4" onClick={(e) => e.stopPropagation()}>
           <button
             type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            title={t.routesTablePage.viewRouteDetails || 'Détails de la tournée'}
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
             onClick={() => router(`/routes/${route.id}`)}
           >
             <IconExternalLink size={14} />
           </button>
+          
+          {(canClose || canCancel) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  type="button"
+                  className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors cursor-pointer"
+                >
+                  <IconDots size={14} />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-md p-1 z-50">
+                {canClose && (
+                  <DropdownMenuItem
+                    onClick={() => onCloseClick(route)}
+                    className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                  >
+                    <IconLock size={13} /> {t.routesTablePage.closeRouteTooltip || 'Fermer la tournée'}
+                  </DropdownMenuItem>
+                )}
+                {canCancel && (
+                  <DropdownMenuItem
+                    onClick={() => onCancelClick(route)}
+                    className="text-xs font-semibold text-[var(--danger)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                  >
+                    <IconX size={13} /> {t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+
           <button
             type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"
+            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
             onClick={() => setExpanded(!expanded)}
           >
             {expanded ? <IconChevronDown size={14} /> : <IconChevronRight size={14} />}
@@ -423,7 +432,7 @@ function RouteMobileCard({
                   )}>
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
-                        <span className="w-4 h-4 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-[10px] font-bold text-[var(--text-muted)]">{i + 1}</span>
+                        <span className="w-4 h-4 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-2xs font-bold text-[var(--text-muted)]">{i + 1}</span>
                         <span className="text-xs font-bold text-[var(--text-primary)]">{stop.clientName || '—'}</span>
                       </div>
                       <StatusBadge status={stop.status || 'PENDING'} size="sm" />

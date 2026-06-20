@@ -10,7 +10,7 @@ import {
   IconPlus, IconLock, IconClock, IconShieldCheck, IconChevronRight,
   IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
   IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle, IconRouter,
-  IconBuildingStore, IconDatabase, IconCheck, IconSettings,
+  IconBuildingStore, IconCheck, IconSettings,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { tw } from '@/lib/typography';
@@ -125,21 +125,6 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSyncCompanyFromErp = async () => {
-    setCompanySaving(true);
-    try {
-      const res = await api.post('/api/admin/companies/me/sync-erp');
-      if (res.data) setCompany({
-        name: res.data.name, supportEmail: res.data.supportEmail,
-        address: res.data.address, primaryColor: res.data.primaryColor,
-      });
-      showSuccessToast('successCompanySynced');
-    } catch (err) {
-      showErrorToast(err, 'errorCompanySyncFailed');
-    } finally {
-      setCompanySaving(false);
-    }
-  };
 
   useEffect(() => {
     const r = getCurrentRole();
@@ -273,16 +258,6 @@ export default function SettingsPage() {
               </button>
             ))}
 
-            {/* Link to the dedicated ERP integration page (not duplicated here). */}
-            <button
-              type="button"
-              onClick={() => navigate('/settings/erp')}
-              className="px-3 py-2 rounded-md transition-all flex items-center gap-3 text-left text-sm border border-transparent text-[var(--text-muted)] hover:bg-[var(--hover-bg)]/50 hover:border-[var(--border)]"
-            >
-              <IconDatabase size={16} className="text-[var(--text-muted)]" />
-              <span className="flex-1">{(t.sidebar.items as any).erpIntegration ?? 'Intégration ERP'}</span>
-              <IconChevronRight size={14} className="text-[var(--text-soft)]" />
-            </button>
           </div>
 
           <div className="p-4 border-t border-[var(--border)]">
@@ -359,10 +334,7 @@ export default function SettingsPage() {
                     </div>
 
                     {canManage && (
-                      <div className="flex justify-between items-center pt-1 gap-2">
-                        <Button size="sm" variant="outline" onClick={handleSyncCompanyFromErp} disabled={companySaving} title={sp.syncFromErpHint}>
-                          {sp.syncFromErp ?? "Synchroniser depuis l'ERP"}
-                        </Button>
+                      <div className="flex justify-end items-center pt-1 gap-2">
                         <Button size="sm" onClick={handleSaveCompany} disabled={companySaving}>
                           {companySaving ? (sp.savingLabel ?? 'Enregistrement…') : (sp.saveConfig ?? 'Enregistrer')}
                         </Button>

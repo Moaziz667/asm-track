@@ -11,9 +11,10 @@ interface DatePickerPopoverProps {
   value: string | null;
   onChange: (iso: string | null) => void;
   placeholder?: string;
+  className?: string;
 }
 
-export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une date' }: DatePickerPopoverProps) {
+export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une date', className }: DatePickerPopoverProps) {
   const selected = value ? parseISO(value) : undefined;
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -56,6 +57,7 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
           'bg-[var(--surface-2)] border-[var(--border)] text-[var(--text-strong)]',
           'hover:border-[var(--brand)] focus:outline-none',
           open && 'border-[var(--brand)]',
+          className,
         )}
       >
         <IconCalendar size={13} className="text-[var(--text-soft)] shrink-0" />

@@ -38,7 +38,7 @@ export function Sheet({
     <div className="fixed inset-0 z-[1000] flex select-none">
       {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[1px] transition-opacity"
+        className="fixed inset-0 bg-black/40 transition-opacity"
         onClick={onClose}
       />
 

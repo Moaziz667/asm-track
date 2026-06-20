@@ -1724,6 +1724,7 @@ export const EN_COPY = {
 
     // Error messages
     loadError: 'Failed to load routes',
+    viewRouteDetails: 'View Route Details',
   },
 
   // ── Drivers Page ───────────────────────────────────────────────────────
@@ -2046,9 +2047,14 @@ export const EN_COPY = {
     reasonPlaceholder: 'Explain the reason…',
     transitionDone: 'Return',
     transitionError: 'Transition not allowed',
+    resync: 'Resync',
+    resyncDone: 'Resync started',
+    resyncError: 'Resync failed',
+    syncErrorLabel: 'Error',
     syncLabels: {
       SYNCED: 'Synced',
       PENDING: 'Pending',
+      PENDING_SYNC: 'Pending',
       SYNCING: 'Syncing',
       SYNC_FAILED: 'Sync failed',
       NOT_SYNCED: 'Not synced',

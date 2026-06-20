@@ -13,6 +13,7 @@ import {
 } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
 import { Button } from '@/components/ui/button';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -356,7 +357,7 @@ function FeedItem({
         >
           {/* Row 1: Headline + timestamp */}
           <div className="flex items-start justify-between gap-3">
-            <p className="text-[13px] font-[600] text-[var(--text-primary)] leading-snug min-w-0">
+            <p className="text-base font-[600] text-[var(--text-primary)] leading-snug min-w-0">
               {headline.primary}
               {headline.secondary && (
                 <span className="text-[var(--text-muted)] font-[400]"> · {headline.secondary}</span>
@@ -375,7 +376,7 @@ function FeedItem({
             {/* Actor pill */}
             <span className="inline-flex items-center gap-1.5">
               <span
-                className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-[8px] font-[700] shrink-0"
+                className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-4xs font-[700] shrink-0"
                 style={{ background: `${roleColor}1A`, color: roleColor }}
               >
                 {actor.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
@@ -389,7 +390,7 @@ function FeedItem({
 
             {/* Category badge */}
             <span
-              className="text-[9px] font-[600] uppercase tracking-wider px-1.5 py-[1px] rounded-sm"
+              className="text-3xs font-[600] uppercase tracking-wider px-1.5 py-[1px] rounded-sm"
               style={{
                 background: `${meta.color}12`,
                 color: meta.color,
@@ -416,27 +417,27 @@ function FeedItem({
             isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
           )}
         >
-          <div className="mx-2 mt-1 mb-1 rounded-lg border border-[var(--border)] overflow-hidden" style={{ background: 'var(--app-bg)' }}>
+          <div className="mx-2 mt-1 mb-1 rounded-lg border border-[var(--border)] overflow-hidden" style={{ background: 'var(--surface)' }}>
             <div className="px-3 py-2.5 space-y-3">
               {/* Metadata grid */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
                 <div>
-                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.eventId}</p>
+                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.eventId}</p>
                   <p className="text-2xs font-mono text-[var(--text-muted)] break-all select-all">{log.id}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.engineCategory}</p>
+                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.engineCategory}</p>
                   <span className="inline-flex items-center gap-1.5">
                     <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
                     <span className="text-2xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
                   </span>
                 </div>
                 <div>
-                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colIp}</p>
+                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colIp}</p>
                   <p className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</p>
                 </div>
                 <div>
-                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colTime}</p>
+                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colTime}</p>
                   <p className="text-2xs font-mono text-[var(--text-muted)]">{formatTs(log.createdAt, locale)}</p>
                 </div>
               </div>
@@ -444,7 +445,7 @@ function FeedItem({
               {/* Payload details */}
               {log.details && (
                 <div>
-                  <p className="text-[9px] font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-1">{t.auditLogsPage.payloadDetails}</p>
+                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-1">{t.auditLogsPage.payloadDetails}</p>
                   <div className="text-2xs p-2 rounded-xs bg-[var(--surface)] border border-[var(--border)] max-h-40 overflow-y-auto">
                     {formatPayload(log.details, locale)}
                   </div>
@@ -599,11 +600,21 @@ export default function AuditLogsPage() {
           </div>
           <div>
             <label className={labelCls}>{t.auditLogsPage.fromLabel}</label>
-            <input type="date" className={inputCls} value={filterFrom} onChange={e => setFilterFrom(e.target.value)} />
+            <DatePickerPopover
+              value={filterFrom || null}
+              onChange={(val) => setFilterFrom(val || '')}
+              placeholder="Date de début"
+              className="w-full !h-8 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-xs rounded-xs"
+            />
           </div>
           <div>
             <label className={labelCls}>{t.auditLogsPage.toLabel}</label>
-            <input type="date" className={inputCls} value={filterTo} onChange={e => setFilterTo(e.target.value)} />
+            <DatePickerPopover
+              value={filterTo || null}
+              onChange={(val) => setFilterTo(val || '')}
+              placeholder="Date de fin"
+              className="w-full !h-8 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-xs rounded-xs"
+            />
           </div>
           <div>
             <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-red-600 hover:text-red-600 hover:bg-red-50 text-2xs font-bold w-full">
@@ -614,7 +625,7 @@ export default function AuditLogsPage() {
       </div>
 
       {/* Activity feed */}
-      <div className="flex-1 overflow-auto" style={{ background: 'var(--app-bg)' }}>
+      <div className="flex-1 overflow-auto" style={{ background: 'var(--surface)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <AppLoader centered height="200px" size="sm" label={t.auditLogsPage.loadingLogs} />
@@ -632,11 +643,11 @@ export default function AuditLogsPage() {
                 <div key={dateGroup}>
                   {/* Date section header */}
                   <div className="flex items-center gap-3 pt-5 pb-3 pl-1">
-                    <span className="text-[10px] font-[800] uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                    <span className="text-2xs font-[800] uppercase tracking-[0.08em] text-[var(--text-soft)]">
                       {getDateGroupLabel(dateGroup)}
                     </span>
                     <div className="flex-1 h-[1px]" style={{ background: 'var(--border)' }} />
-                    <span className="text-[10px] font-[600] text-[var(--text-soft)] tabular-nums">
+                    <span className="text-2xs font-[600] text-[var(--text-soft)] tabular-nums">
                       {items.length}
                     </span>
                   </div>

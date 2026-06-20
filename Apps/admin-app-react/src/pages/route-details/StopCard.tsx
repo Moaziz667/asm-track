@@ -69,7 +69,7 @@ export function StopCard({
     return (
       <div
         ref={(el) => { if (el) stopRefs.current[stop.id] = el; }}
-        className="border border-cyan-600/30 rounded-lg bg-[var(--surface-2)] mb-2 cursor-pointer hover:bg-[var(--surface-hover)]"
+        className="border border-cyan-600/30 rounded-lg bg-[var(--surface)] mb-2 cursor-pointer hover:bg-[var(--surface-hover)]"
         onClick={() => toggleStop(stop.id)}
       >
         <div className="p-3 flex items-center justify-between">
@@ -137,7 +137,7 @@ export function StopCard({
   return (
     <div
       ref={(el) => { if (el) stopRefs.current[stop.id] = el; }}
-      className="border border-[var(--border-color)] rounded-lg bg-[var(--surface-2)] mb-2 cursor-pointer hover:bg-[var(--surface-hover)]"
+      className="border border-[var(--border-color)] rounded-lg bg-[var(--surface)] mb-2 cursor-pointer hover:bg-[var(--surface-hover)]"
       onClick={() => toggleStop(stop.id)}
     >
       <div className="p-3 flex items-center justify-between">
@@ -374,7 +374,7 @@ export function StopCard({
       )}
 
       {isExpanded && (
-        <div className="border-t border-[var(--border-color)] p-2 bg-[var(--surface-2)] flex gap-2">
+        <div className="border-t border-[var(--border-color)] p-2 bg-[var(--surface-sunken)] flex gap-2">
           {canEditWindow && (
             <Tooltip>
               <TooltipTrigger asChild>

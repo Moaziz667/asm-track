@@ -195,7 +195,7 @@ export function PinDropoffModal({
             zoom={flyCenter ? 16 : 12}
           />
           {reverseGeocoding && (
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-sm flex items-center justify-center z-50">
+            <div className="absolute inset-0 bg-white/40 flex items-center justify-center z-50">
               <div className="flex items-center gap-2 bg-[var(--surface)] px-6 py-2 rounded-xs shadow-xl border border-[var(--border)]">
                 <AppLoader size="sm" />
                 <span className="text-sm font-[500] text-[var(--text-primary)]">{t.deliveriesPage.analyzeInProgress}</span>

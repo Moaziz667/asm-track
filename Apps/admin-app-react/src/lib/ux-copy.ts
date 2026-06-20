@@ -1820,6 +1820,7 @@ export const FR_COPY = {
 
     // Error messages
     loadError: 'Échec du chargement des itinéraires',
+    viewRouteDetails: 'Détails de la tournée',
   },
 
   // ── Drivers Page ───────────────────────────────────────────────────────
@@ -2150,9 +2151,14 @@ export const FR_COPY = {
     reasonPlaceholder: 'Expliquez la raison…',
     transitionDone: 'Retour',
     transitionError: 'Transition impossible',
+    resync: 'Resynchroniser',
+    resyncDone: 'Resynchronisation lancée',
+    resyncError: 'Resynchronisation impossible',
+    syncErrorLabel: 'Erreur',
     syncLabels: {
       SYNCED: 'Synchronisé',
       PENDING: 'En attente',
+      PENDING_SYNC: 'En attente',
       SYNCING: 'En cours',
       SYNC_FAILED: 'Échec sync',
       NOT_SYNCED: 'Non synchronisé',

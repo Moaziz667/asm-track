@@ -3,6 +3,7 @@ import { IconSearch, IconChevronDown, IconChevronLeft, IconX } from '@tabler/ico
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { cn } from '@/lib/utils';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -280,22 +281,22 @@ function FilterDropdown({
                 <label className="text-xs font-[500] text-[var(--text-muted)]">
                   {t.dispatchDeskPage.dateFrom}
                 </label>
-                <input
-                  type="date"
-                  value={customFrom}
-                  onChange={e => setCustomFrom(e.currentTarget.value)}
-                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
+                <DatePickerPopover
+                  value={customFrom || null}
+                  onChange={(val) => setCustomFrom(val || '')}
+                  placeholder="Date de début"
+                  className="w-full !h-7 bg-[var(--app-bg)] text-[var(--text-primary)] border-[var(--border)] rounded focus:outline-none focus:border-[var(--brand-blue)]"
                 />
               </div>
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-[500] text-[var(--text-muted)]">
                   {t.dispatchDeskPage.dateTo}
                 </label>
-                <input
-                  type="date"
-                  value={customTo}
-                  onChange={e => setCustomTo(e.currentTarget.value)}
-                  className="h-7 px-2 rounded border border-[var(--border)] bg-[var(--app-bg)] text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--brand-blue)]"
+                <DatePickerPopover
+                  value={customTo || null}
+                  onChange={(val) => setCustomTo(val || '')}
+                  placeholder="Date de fin"
+                  className="w-full !h-7 bg-[var(--app-bg)] text-[var(--text-primary)] border-[var(--border)] rounded focus:outline-none focus:border-[var(--brand-blue)]"
                 />
               </div>
               <button

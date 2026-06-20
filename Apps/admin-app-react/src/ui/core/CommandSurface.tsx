@@ -90,7 +90,7 @@ export function CommandSurface() {
     <div className="fixed inset-0 z-[9999] flex items-start justify-center pt-24 select-none">
       {/* Backdrop overlay */}
       <div
-        className="fixed inset-0 bg-black/40 backdrop-blur-[1.5px] transition-opacity z-[9998]"
+        className="fixed inset-0 bg-black/40 transition-opacity z-[9998]"
         onClick={() => setOpened(false)}
       />
 

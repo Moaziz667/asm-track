@@ -61,7 +61,7 @@ async function bootstrapAdminApp() {
   }
 
   // Synchronous theme apply to avoid flashes
-  const theme = safeStorage.getItem('admin-color-scheme') || 'light';
+  const theme = safeStorage.getItem('admin-color-scheme') || 'dark';
   document.documentElement.classList.toggle('dark', theme === 'dark');
   document.documentElement.setAttribute('data-mantine-color-scheme', theme);
 

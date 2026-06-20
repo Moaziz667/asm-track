@@ -1783,6 +1783,7 @@ export const AR_COPY = {
 
     // Error messages
     loadError: 'فشل تحميل الرحلات',
+    viewRouteDetails: 'تفاصيل الجولة',
   },
 
   // ── صفحة السائقين ────────────────────────────────────────────────────
@@ -2105,9 +2106,14 @@ export const AR_COPY = {
     reasonPlaceholder: 'اشرح السبب…',
     transitionDone: 'مرتجع',
     transitionError: 'التحويل غير ممكن',
+    resync: 'إعادة المزامنة',
+    resyncDone: 'بدأت إعادة المزامنة',
+    resyncError: 'تعذّرت إعادة المزامنة',
+    syncErrorLabel: 'خطأ',
     syncLabels: {
       SYNCED: 'متزامن',
       PENDING: 'قيد الانتظار',
+      PENDING_SYNC: 'قيد الانتظار',
       SYNCING: 'جارٍ المزامنة',
       SYNC_FAILED: 'فشل المزامنة',
       NOT_SYNCED: 'غير متزامن',

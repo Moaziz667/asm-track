@@ -1,9 +1,0 @@
-services:
-  discovery-server:
-    image: nginx:alpine
-    container_name: global-discovery
-    ports:
-      - "8080:80"
-    volumes:
-      - ./clients.json:/usr/share/nginx/html/clients.json:ro
-    restart: unless-stopped

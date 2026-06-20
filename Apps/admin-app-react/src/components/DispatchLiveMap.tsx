@@ -79,7 +79,7 @@ function makeDriverIcon(ring: string, dim: boolean, focused: boolean) {
     className: '',
     iconSize: [size + 8, size + 8], iconAnchor: [(size + 8) / 2, (size + 8) / 2], popupAnchor: [0, -(size / 2) - 6],
     html: `<div style="width:${size + 8}px;height:${size + 8}px;display:flex;align-items:center;justify-content:center;opacity:${opacity};transition:opacity 0.15s;">
-  <div style="width:${size + 8}px;height:${size + 8}px;border-radius:50%;background:#fff;border:2.5px solid ${ring};box-shadow:0 0 0 2px ${ring}33, 0 2px 6px rgba(0,0,0,0.3);display:flex;align-items:center;justify-content:center;">
+  <div style="width:${size + 8}px;height:${size + 8}px;border-radius:50%;background:var(--surface);border:2.5px solid ${ring};box-shadow:0 0 0 2px ${ring}33, var(--shadow-card);display:flex;align-items:center;justify-content:center;">
     <img src="${voitureFourgon}" alt="" aria-hidden="true" style="width:${Math.round(size * 0.74)}px;height:${Math.round(size * 0.74)}px;object-fit:contain;display:block;" />
   </div>
 </div>`,
@@ -206,11 +206,11 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
             eventHandlers={{ click: () => onFocusRoute?.(focusedRouteId === route.id ? null : route.id) }}
           >
             <Popup>
-              <div style={{ fontFamily: '"IBM Plex Sans", sans-serif', minWidth: 160 }}>
+              <div style={{ fontFamily: 'var(--font-sans)', minWidth: 160 }}>
                 <div style={{ fontSize: 10, fontWeight: 800, color, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{route.name}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#09090B', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
-                {stop.deliveryCity && <div style={{ fontSize: 11, color: '#71717A' }}>{stop.deliveryCity}</div>}
-                <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 4, fontWeight: 600, textTransform: 'uppercase' }}>{stop.status}</div>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)', marginBottom: 2 }}>{stop.clientName ?? '—'}</div>
+                {stop.deliveryCity && <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{stop.deliveryCity}</div>}
+                <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4, fontWeight: 600, textTransform: 'uppercase' }}>{stop.status}</div>
               </div>
             </Popup>
           </Marker>
@@ -234,11 +234,11 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
           eventHandlers={{ click: () => onFocusRoute?.(r ? (focusedRouteId === r.id ? null : r.id) : null) }}
         >
           <Popup>
-            <div style={{ fontFamily: '"IBM Plex Sans", sans-serif' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#09090B' }}>{driver.name}</div>
+            <div style={{ fontFamily: 'var(--font-sans)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-primary)' }}>{driver.name}</div>
               {r && <div style={{ fontSize: 11, color, fontWeight: 700, marginTop: 2 }}>{r.name}</div>}
-              <div style={{ fontSize: 10, color: '#A1A1AA', marginTop: 2 }}>{statusLabels[driver.onlineStatus ?? 'OFFLINE']}</div>
-              <div style={{ fontSize: 10, color: isGpsStale(driver.lastLocationAt) ? '#C7372F' : '#71717A', marginTop: 3, fontWeight: 600 }}>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{statusLabels[driver.onlineStatus ?? 'OFFLINE']}</div>
+              <div style={{ fontSize: 10, color: isGpsStale(driver.lastLocationAt) ? 'var(--danger)' : 'var(--text-secondary)', marginTop: 3, fontWeight: 600 }}>
                 {lastSeen(driver.lastLocationAt)}
               </div>
             </div>
@@ -250,10 +250,9 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
 
   if (!mounted) {
     return (
-      <div style={{ width: '100%', height: '100%', background: '#F4F4F5', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 10 }}>
-        <div style={{ width: 32, height: 32, borderRadius: '50%', border: '3px solid #E4E4E7', borderTopColor: 'var(--brand)', animation: 'spin 0.8s linear infinite' }} />
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-        <span style={{ fontSize: 11, color: '#A1A1AA', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase' }}>{loadingText}</span>
+      <div className="w-full h-full bg-[var(--app-bg)] flex flex-col items-center justify-center gap-2.5">
+        <div className="w-8 h-8 rounded-full border-[3px] border-[var(--border)] border-t-[var(--brand)] animate-spin" />
+        <span className="text-2xs text-[var(--text-muted)] font-bold tracking-wider uppercase">{loadingText}</span>
       </div>
     );
   }
@@ -286,10 +285,10 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
       </MapContainer>
 
       {/* Overlay counts + a "reset focus" affordance */}
-      <div style={{ position: 'absolute', bottom: 10, left: 10, zIndex: 800, display: 'flex', gap: 6 }}>
-        <div style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', display: 'flex', alignItems: 'center', gap: 5, pointerEvents: 'none' }}>
-          <div style={{ width: 5, height: 5, borderRadius: '50%', background: '#10B981' }} />
-          <span style={{ fontSize: 10, color: '#D4D4D8', fontWeight: 700, letterSpacing: '0.05em' }}>
+      <div className="absolute bottom-3.5 left-3.5 z-[800] flex gap-1.5 font-sans">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-2.5 py-1 flex items-center gap-1.5 shadow-[var(--shadow-dropdown)] pointer-events-none">
+          <div className="w-1.5 h-1.5 rounded-full bg-[var(--success)] animate-pulse" />
+          <span className="text-2xs text-[var(--text-primary)] font-bold tracking-wide">
             {statsLabel}
           </span>
         </div>
@@ -297,7 +296,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
           <button
             type="button"
             onClick={() => onFocusRoute?.(null)}
-            style={{ background: 'rgba(9,9,11,0.72)', borderRadius: 4, padding: '3px 8px', fontSize: 10, color: '#fff', fontWeight: 700, letterSpacing: '0.05em', border: 'none', cursor: 'pointer' }}
+            className="bg-[var(--surface)] border border-[var(--border)] rounded-[var(--radius-md)] px-2.5 py-1 text-2xs text-[var(--text-primary)] font-bold tracking-wide shadow-[var(--shadow-dropdown)] hover:bg-[var(--hover-bg)] active:scale-[0.98] transition-all cursor-pointer"
           >
             {showAllText}
           </button>

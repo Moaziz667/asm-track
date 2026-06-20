@@ -6,6 +6,7 @@ import { IconRoute } from '@tabler/icons-react';
 import { AppModal } from '@/components/overlays/AppModal';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function CreateRouteModal() {
@@ -64,15 +65,18 @@ export function CreateRouteModal() {
               setCreateForm((p) => ({ ...p, name: val }));
             }}
           />
-          <FieldInput
-            type="date"
-            label={t.placeholders.date}
-            value={createForm.date}
-            onChange={(e) => {
-              const val = e.currentTarget.value;
-              setCreateForm((p) => ({ ...p, date: val }));
-            }}
-          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-[var(--text-muted)] select-none">
+              {t.placeholders.date}
+            </label>
+            <DatePickerPopover
+              value={createForm.date || null}
+              onChange={(val) => {
+                setCreateForm((p) => ({ ...p, date: val || '' }));
+              }}
+              className="w-full !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

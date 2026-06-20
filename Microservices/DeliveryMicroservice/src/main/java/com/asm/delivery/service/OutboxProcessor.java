@@ -31,11 +31,13 @@ public class OutboxProcessor {
     private final TransportPort transportPort;
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
+    private final com.asm.delivery.repository.RmaRepository rmaRepo;
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
                            TransportPort transportPort, EventPublisher eventPublisher,
-                           com.asm.delivery.repository.OrderRepository orderRepo) {
+                           com.asm.delivery.repository.OrderRepository orderRepo,
+                           com.asm.delivery.repository.RmaRepository rmaRepo) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
@@ -43,6 +45,7 @@ public class OutboxProcessor {
         this.transportPort = transportPort;
         this.eventPublisher = eventPublisher;
         this.orderRepo = orderRepo;
+        this.rmaRepo = rmaRepo;
     }
 
     @Scheduled(fixedDelay = 20000)
@@ -104,6 +107,27 @@ public class OutboxProcessor {
                 log.error("Outbox event dead — eventId={} eventType={} retryCount={} lastError={} action=permanent_failure",
                         eventId, event.getEventType(), newRetryCount, error);
                 
+                // A dead-lettered RETURN must mark the RMA itself SYNC_FAILED — otherwise it stays stuck
+                // PENDING_SYNC forever (the reverse-move loop only closes via the result message, which
+                // never arrives once the command is dead). Best-effort, like the order path below.
+                if ("ERP_SYNC_RETURN".equals(event.getEventType())) {
+                    try {
+                        Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});
+                        Object rmaIdRaw = payload.get("rmaId");
+                        if (rmaIdRaw != null) {
+                            UUID rmaId = UUID.fromString((String) rmaIdRaw);
+                            rmaRepo.findById(rmaId).ifPresent(rma -> {
+                                rma.setErpSyncStatus("SYNC_FAILED");
+                                rma.setErpSyncError(event.getLastError());
+                                rmaRepo.save(rma);
+                                log.info("Marked RMA id={} as SYNC_FAILED after outbox exhaustion", rmaId);
+                            });
+                        }
+                    } catch (Exception ex) {
+                        log.error("Failed to mark RMA SYNC_FAILED for eventId={}: {}", eventId, ex.getMessage());
+                    }
+                }
+
                 // Update Order status in DB to record permanent sync failure
                 try {
                     Map<String, Object> payload = objectMapper.readValue(event.getPayload(), new TypeReference<>() {});

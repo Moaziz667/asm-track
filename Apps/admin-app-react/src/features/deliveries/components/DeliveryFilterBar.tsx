@@ -6,6 +6,7 @@ import { Spinner } from '@/components/feedback/LoadingBar';
 import type { DeliveriesFilters } from '@/hooks/useDeliveries';
 import type { Driver, Zone } from '@/types';
 import { useT } from '@/lib/LocaleContext';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 function getDeliveryStatuses(t: any) {
   return [
@@ -217,11 +218,11 @@ export function DeliveryFilterBar({
         </select>
 
         {/* Date */}
-        <input
-          type="date"
-          value={filters.date ?? ''}
-          onChange={(e) => onChange({ date: e.target.value || undefined })}
-          style={{ ...inputStyle, width: 136 }}
+        <DatePickerPopover
+          value={filters.date ?? null}
+          onChange={(val) => onChange({ date: val || undefined })}
+          placeholder="Choisir une date"
+          className="!h-[34px] !bg-[var(--surface)] !text-[var(--text-primary)] !border-[var(--border)] !rounded-[var(--radius-md)] !font-medium"
         />
 
         {/* Spacer */}

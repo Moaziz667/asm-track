@@ -26,28 +26,28 @@ $t-slow:  0.33s $ease-out;
 
   // ── Light ─────────────────────────────────────────────────────────────────
   --sb-bg:              #FFFFFF;
-  --sb-bg-hover:        #F4F4F4;  // Light Ash
-  --sb-bg-active:       #F4F4F4;  // Light Ash
-  --sb-sep-right:       #EEEEEE;  // Cloud Gray
-  --sb-sep-h:           #EEEEEE;  // Cloud Gray
+  --sb-bg-hover:        #F1F5F9;  // Slate-100 Hover
+  --sb-bg-active:       #F1F5F9;  // Slate-100 Active
+  --sb-sep-right:       #E2E8F0;  // Slate-200 Border
+  --sb-sep-h:           #E2E8F0;  // Slate-200 Border
 
   // Brand
-  --sb-brand-name:      #171A20;  // Carbon Dark
-  --sb-brand-sub:       #5C5E62;  // Pewter
+  --sb-brand-name:      #0F172A;  // Slate-900 Primary Text
+  --sb-brand-sub:       #64748B;  // Slate-500 Muted Text
 
   // Navigation text
-  --sb-label:           #5C5E62;  // Pewter
-  --sb-item:            #393C41;  // Graphite
-  --sb-item-hover:      #171A20;  // Carbon Dark
-  --sb-item-active:     #171A20;  // Carbon Dark
+  --sb-label:           #64748B;  // Slate-500 Muted Text
+  --sb-item:            #334155;  // Slate-700 Text
+  --sb-item-hover:      #0F172A;  // Slate-900 text
+  --sb-item-active:     #0F172A;  // Slate-900 text
 
   // Icons
-  --sb-icon:            #5C5E62;  // Pewter
-  --sb-icon-hover:      #171A20;
-  --sb-icon-active:     #171A20;
+  --sb-icon:            #64748B;  // Slate-500 icon
+  --sb-icon-hover:      #0F172A;
+  --sb-icon-active:     #0F172A;
 
   // Accent indicator
-  --sb-bar:             #3E6AE1;  // Electric Blue
+  --sb-bar:             #2563EB;  // Vibrant Blue
 
   // Operational status
   --sb-status:          #5C5E62;
@@ -174,10 +174,11 @@ $t-slow:  0.33s $ease-out;
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 0 11px;
+  padding: 0 16px;
   border-bottom: 1px solid var(--sb-sep-h);
   flex-shrink: 0;
   text-decoration: none;
+  transition: opacity 0.2s ease;
   &:active { opacity: 0.80; }
 
   .collapsed & {
@@ -457,25 +458,13 @@ $t-slow:  0.33s $ease-out;
     background: var(--sb-bg-active);
     box-shadow: none;
 
-    // Inline-start indicator: logical property mirrors automatically in RTL
-    &::before {
-      content: '';
-      position: absolute;
-      inset-inline-start: 0;
-      top: calc(50% - 8px);
-      height: 16px;
-      width: 2px;
-      // LTR: rounded right corners; RTL: swap via direction-aware calc
-      border-start-end-radius: 2px;
-      border-end-end-radius: 2px;
-      background: var(--sb-bar);
-    }
+    // Removed left-border highlight bar (matching StarSass legend)
 
     .item__icon  { color: var(--sb-icon-active); }
 
     .item__label {
       color: var(--sb-item-active);
-      font-weight: 560;
+      font-weight: 600;
       letter-spacing: -0.018em;
     }
 

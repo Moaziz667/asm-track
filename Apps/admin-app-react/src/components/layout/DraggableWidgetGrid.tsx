@@ -35,7 +35,7 @@ interface DraggableWidgetGridProps {
   rowHeight?: number;
 }
 
-// ── Drag handle (Cloudscape Grip) ─────────────────────────────────────────────
+// ── Drag handle ───────────────────────────────────────────────────────────────
 
 function DragHandleIcon() {
   const t = useT();
@@ -61,7 +61,7 @@ export function DraggableWidgetGrid({
   items,
   className,
   cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
-  rowHeight = 40, // Slightly denser rows for Cloudscape
+  rowHeight = 40, // denser rows
 }: DraggableWidgetGridProps) {
   const isMobile = useIsMobile();
   const t = useT();
@@ -270,7 +270,7 @@ export function DraggableWidgetGrid({
         onResizeStart={() => setIsDragging(true)}
         onResizeStop={() => setIsDragging(false)}
         draggableHandle=".react-grid-dragHandle"
-        margin={[20, 20]} // Cloudscape 20px standard container spacing
+        margin={[20, 20]} // 20px standard container spacing
         containerPadding={[0, 0]}
         useCSSTransforms={true}
         isBounded={true}

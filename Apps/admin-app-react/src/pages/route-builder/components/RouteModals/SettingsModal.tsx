@@ -6,6 +6,7 @@ import { IconCalendar, IconDeviceFloppy } from '@tabler/icons-react';
 import { AppModal } from '@/components/overlays/AppModal';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { Button } from '@/components/ui/button';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useRouteBuilderContext } from '../../hooks/useRouteBuilder';
 
 export function SettingsModal() {
@@ -66,15 +67,18 @@ export function SettingsModal() {
             readOnly
             disabled
           />
-          <FieldInput
-            type="date"
-            label={t.routeBuilderPage.operationDateLabel}
-            value={settingsForm.date}
-            onChange={(e) => {
-              const val = e.currentTarget.value;
-              setSettingsForm((p) => ({ ...p, date: val }));
-            }}
-          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-[var(--text-muted)] select-none">
+              {t.routeBuilderPage.operationDateLabel}
+            </label>
+            <DatePickerPopover
+              value={settingsForm.date || null}
+              onChange={(val) => {
+                setSettingsForm((p) => ({ ...p, date: val || '' }));
+              }}
+              className="w-full !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]"
+            />
+          </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -79,7 +79,7 @@ export function ModalRenderer() {
       role="dialog"
       aria-label={config.type === 'CONFIRM' ? config.title : t.reassignCommandOverlay.title}
       onClick={close}
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40"
     >
       <div
         ref={containerRef}

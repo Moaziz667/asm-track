@@ -253,7 +253,7 @@ export default function GlobalFloatingMap() {
         <button
           type="button"
           onClick={() => setMapMode('floating')}
-          className="group relative w-12 h-12 rounded-lg flex items-center justify-center bg-[var(--surface)] border border-[var(--border-strong)] shadow-xl hover:scale-102 hover:bg-[var(--hover-bg)] active:scale-98 transition-all duration-200 backdrop-blur-md"
+          className="group relative w-12 h-12 rounded-[var(--map-radius)] flex items-center justify-center bg-[var(--map-bg)] border border-[var(--map-border)] shadow-[var(--map-shadow)] hover:scale-102 hover:bg-[var(--hover-bg)] active:scale-98 transition-all duration-200 backdrop-blur-md"
           title={bubbleTooltipText}
         >
           <IconMap size={20} className="text-[var(--text-secondary)]" />
@@ -282,7 +282,7 @@ export default function GlobalFloatingMap() {
   return (
     <div
       ref={containerRef}
-      className={`fixed z-50 flex flex-col bg-[var(--surface)]/95 border border-[var(--border-strong)] shadow-2xl rounded-lg overflow-hidden backdrop-blur-md max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)] ${
+      className={`fixed z-50 flex flex-col bg-[var(--map-bg)]/95 border border-[var(--map-border)] shadow-[var(--map-shadow)] rounded-[var(--map-radius)] overflow-hidden backdrop-blur-md max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)] ${
         position ? '' : 'bottom-6 right-6 rtl:right-auto rtl:left-6'
       } ${MAP_SIZES[mapSize]}`}
       style={style}
@@ -292,15 +292,15 @@ export default function GlobalFloatingMap() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-        className="h-9 px-3 border-b border-[var(--border-strong)] flex items-center justify-between shrink-0 select-none bg-[var(--surface-2)]/90 touch-none active:bg-[var(--hover-bg)]/50 transition-colors"
+        className="h-9 px-3 border-b border-[var(--map-border)] flex items-center justify-between shrink-0 select-none bg-[var(--surface-2)]/90 touch-none active:bg-[var(--hover-bg)]/50 transition-colors"
       >
         <div className="flex items-center gap-2 min-w-0">
           <IconGripVertical size={13} className="text-[var(--text-soft)] shrink-0 cursor-grab active:cursor-grabbing" />
           <IconTruck size={14} className="text-[var(--brand)] animate-pulse shrink-0" />
-          <span className="text-[11px] font-mono font-bold text-[var(--text-primary)] shrink-0 uppercase tracking-wide">
+          <span className="text-xs font-mono font-bold text-[var(--text-primary)] shrink-0 uppercase tracking-wide">
             {t.globalMap.title}
           </span>
-          <span className="font-mono text-[9px] bg-[var(--hover-bg)] border border-[var(--border-strong)] px-1.5 py-0.5 rounded text-[var(--text-secondary)] tracking-tight">
+          <span className="font-mono text-3xs bg-[var(--hover-bg)] border border-[var(--border-strong)] px-1.5 py-0.5 rounded text-[var(--text-secondary)] tracking-tight">
             {activeRoutes.length} {t.globalMap.routesLabel} · {onlineDriversCount} {t.globalMap.onlineLabel}
           </span>
         </div>
@@ -313,7 +313,7 @@ export default function GlobalFloatingMap() {
                 placeholder={t.globalMap.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="font-mono text-[9px] w-32 px-2 py-0.5 rounded border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-soft)] focus:outline-none focus:border-[var(--brand)] transition-all pr-5 rtl:pr-2 rtl:pl-5"
+                className="font-mono text-3xs w-32 px-2 py-0.5 rounded border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-soft)] focus:outline-none focus:border-[var(--brand)] transition-all pr-5 rtl:pr-2 rtl:pl-5"
               />
               {searchQuery && (
                 <button
@@ -327,7 +327,7 @@ export default function GlobalFloatingMap() {
             </div>
           )}
 
-          <div className="flex items-center border border-[var(--border-strong)] rounded overflow-hidden divide-x divide-[var(--border-strong)] font-mono text-[9px]">
+          <div className="flex items-center border border-[var(--border-strong)] rounded overflow-hidden divide-x divide-[var(--border-strong)] font-mono text-3xs">
             {(['S', 'M', 'L'] as const).map((size) => {
               const label = size === 'S' ? '380px' : size === 'M' ? '680px' : '1020px';
               const active = mapSize === size;
@@ -403,13 +403,13 @@ export default function GlobalFloatingMap() {
         {mapSize !== 'S' && isSidebarOpen && (
           <div className="w-[200px] shrink-0 border-l rtl:border-l-0 rtl:border-r border-[var(--border-strong)] bg-[var(--surface)] flex flex-col h-full overflow-hidden select-none">
             <div className="px-3 py-2 border-b border-[var(--border-strong)] flex items-center justify-between shrink-0 bg-[var(--surface-2)]">
-              <span className="text-[9px] font-mono font-bold text-[var(--text-secondary)] uppercase tracking-wider">
+              <span className="text-3xs font-mono font-bold text-[var(--text-secondary)] uppercase tracking-wider">
                 {t.pages?.drivers?.title} ({filteredDrivers.length})
               </span>
             </div>
             <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]/30">
               {filteredDrivers.length === 0 ? (
-                <div className="p-4 text-center font-mono text-[9px] text-[var(--text-muted)]">
+                <div className="p-4 text-center font-mono text-3xs text-[var(--text-muted)]">
                   {t.globalMap.noDrivers}
                 </div>
               ) : (
@@ -433,7 +433,7 @@ export default function GlobalFloatingMap() {
                         borderRight: isRtl && isFocused ? `3px solid ${color}` : undefined,
                       }}
                     >
-                      <div className="flex items-center justify-between gap-1 w-full font-mono text-[10px]">
+                      <div className="flex items-center justify-between gap-1 w-full font-mono text-2xs">
                         <div className="flex items-center gap-1.5 min-w-0">
                           <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
                             online ? 'bg-emerald-500' : 'bg-gray-400'
@@ -443,20 +443,20 @@ export default function GlobalFloatingMap() {
                           </span>
                         </div>
                         {stale && online && (
-                          <span className="text-[8px] bg-red-500/10 text-red-500 px-1 py-0.2 rounded font-bold uppercase shrink-0">
+                          <span className="text-4xs bg-red-500/10 text-red-500 px-1 py-0.2 rounded font-bold uppercase shrink-0">
                             {t.globalMap.staleGps}
                           </span>
                         )}
                       </div>
                       {r ? (
-                        <div className="flex items-center gap-1 font-mono text-[9px]">
+                        <div className="flex items-center gap-1 font-mono text-3xs">
                           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                           <span className="font-medium text-[var(--text-soft)] truncate">
                             {r.name}
                           </span>
                         </div>
                       ) : (
-                        <span className="font-mono text-[9px] text-[var(--text-muted)]">
+                        <span className="font-mono text-3xs text-[var(--text-muted)]">
                           {t.globalMap.offRoute}
                         </span>
                       )}

@@ -187,7 +187,7 @@ export function DisplaySettingsDropdown({
                     key={d}
                     type="button"
                     onClick={() => onDensityChange(d)}
-                    className="flex items-center justify-between w-full h-7 px-2 text-xs font-semibold rounded transition-colors text-left"
+                    className="flex items-center justify-between w-full h-6 px-2 text-2xs font-semibold rounded transition-colors text-left"
                     style={{
                       border: density === d ? '1.5px solid var(--brand)' : '1px solid var(--border)',
                       color: density === d ? 'var(--brand)' : 'var(--text-secondary)',

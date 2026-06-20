@@ -341,7 +341,7 @@ function ZoneSelectorMapInner({
       {processing && (
         <div style={{
           position: 'absolute', inset: 0, zIndex: 2000,
-          background: isDark ? 'rgba(23, 26, 32, 0.85)' : 'rgba(255,255,255,0.82)', backdropFilter: 'blur(4px)',
+          background: isDark ? 'rgba(23, 26, 32, 0.85)' : 'rgba(255,255,255,0.82)',
           display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <div className="flex flex-col items-center gap-3">

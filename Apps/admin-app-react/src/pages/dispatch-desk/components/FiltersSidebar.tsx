@@ -1,6 +1,7 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { IconSearch, IconX, IconChevronLeft, IconChevronRight } from '@tabler/icons-react';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { STATUS_DOT, getDriverStatusTip } from '../constants';
@@ -102,19 +103,29 @@ export function FiltersSidebar() {
                 ))}
               </div>
               {period === 'custom' && (
-                <div className="flex flex-col gap-1.5 mt-2">
-                  <FieldInput
-                    type="date"
-                    label={<span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateFrom}</span>}
-                    value={customFrom}
-                    onChange={e => setCustomFrom(e.currentTarget.value)}
-                  />
-                  <FieldInput
-                    type="date"
-                    label={<span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.dateTo}</span>}
-                    value={customTo}
-                    onChange={e => setCustomTo(e.currentTarget.value)}
-                  />
+                <div className="flex flex-col gap-2 mt-2">
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-[500] text-[var(--text-muted)] select-none">
+                      {t.dispatchDeskPage.dateFrom}
+                    </label>
+                    <DatePickerPopover
+                      value={customFrom || null}
+                      onChange={(val) => setCustomFrom(val || '')}
+                      placeholder="Date de début"
+                      className="w-full !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-sm rounded"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-xs font-[500] text-[var(--text-muted)] select-none">
+                      {t.dispatchDeskPage.dateTo}
+                    </label>
+                    <DatePickerPopover
+                      value={customTo || null}
+                      onChange={(val) => setCustomTo(val || '')}
+                      placeholder="Date de fin"
+                      className="w-full !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-sm rounded"
+                    />
+                  </div>
                 </div>
               )}
             </div>

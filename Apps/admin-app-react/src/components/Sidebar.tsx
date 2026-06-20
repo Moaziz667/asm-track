@@ -150,7 +150,8 @@ export function AppSidebar() {
         const activeRoutes = routesList.filter((r: any) => r.status === 'IN_PROGRESS').length;
 
         const exceptionsList = Array.isArray(exceptionsRes.data?.items) ? exceptionsRes.data.items : [];
-        const opsExceptions = exceptionsList.length;
+        // Align with the dispatch desk queue: cancelled deliveries are excluded there.
+        const opsExceptions = exceptionsList.filter((x: any) => x.status !== 'CANCELLED').length;
 
         setTelemetry({ erpPending, activeRoutes, opsExceptions });
       } catch (err) {
@@ -261,12 +262,6 @@ export function AppSidebar() {
 
           const isExpanded = isCollapsed ? true : (expandedGroups[group.labelKey] ?? true);
 
-          // Calculate collapsed group indicator status
-          const groupBadges = group.items.map(item => getBadgeFor(item.labelKey)).filter(Boolean);
-          const hasAlert = groupBadges.some(b => b?.type === 'alert');
-          const hasInfo = groupBadges.some(b => b?.type === 'info');
-          const hasNeutral = groupBadges.some(b => b?.type === 'neutral');
-
           return (
             <div key={group.label} className={cn(s.group, !isExpanded && s['group--collapsed'])}>
               
@@ -286,14 +281,6 @@ export function AppSidebar() {
                     <span className={s.group__label}>{group.label}</span>
                   </div>
                   <div className="flex items-center gap-1.5 shrink-0">
-                    {!isExpanded && groupBadges.length > 0 && (
-                      <span className={cn(
-                        s.group__indicator,
-                        hasAlert && s['group__indicator--alert'],
-                        hasInfo && s['group__indicator--info'],
-                        hasNeutral && s['group__indicator--neutral']
-                      )} />
-                    )}
                     {isExpanded ? (
                       <IconChevronDown size={11} stroke={2.5} className="text-[var(--sb-label)] opacity-60" />
                     ) : (
@@ -419,28 +406,7 @@ export function AppSidebar() {
       {/* ── Footer ── */}
       <div className={s.footer}>
         
-        {/* User Profile Indicator */}
-        <div 
-          className="flex items-center px-3 py-2 border-b border-[var(--sb-sep-h)] mb-2 gap-2 text-left" 
-          style={{ 
-            justifyContent: isCollapsed ? 'center' : 'flex-start', 
-            borderBottom: isCollapsed ? 'none' : '1px solid var(--sb-sep-h)',
-            paddingLeft: isCollapsed ? 0 : 12,
-            paddingRight: isCollapsed ? 0 : 12
-          }}
-        >
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-full bg-[var(--sb-bg-hover)] border border-[var(--sb-sep-h)] flex items-center justify-center shrink-0 font-bold text-2xs text-[var(--sb-item-active)] shadow-2xs">
-              SU
-            </div>
-            {!isCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="font-semibold text-xs text-[var(--sb-item-active)] truncate leading-tight">Super Admin</span>
-                <span className="text-2xs text-[var(--sb-label)] tracking-wider leading-none mt-0.5">Admin</span>
-              </div>
-            )}
-          </div>
-        </div>
+
 
         {/* Collapse toggle button */}
         {!isMobile && (

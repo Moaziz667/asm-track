@@ -3,16 +3,13 @@ import { useState, useEffect, useRef } from 'react';
 import { useLocaleStore, type Locale } from '@/lib/i18n';
 import { useLocaleContext } from '@/lib/LocaleContext';
 
-// Circular, pixel-perfect SVGs for Tunisia (AR), France (FR), United States (EN)
-export const TNFlag = () => (
+// Circular, pixel-perfect SVGs for Arabic (AR — Pan-Arab flag), France (FR), United States (EN)
+export const ARFlag = () => (
   <svg width="14" height="14" viewBox="0 0 24 24" style={{ borderRadius: '50%', flexShrink: 0, display: 'inline-block', verticalAlign: 'middle' }}>
-    <rect width="24" height="24" fill="#E70013" />
-    <circle cx="12" cy="12" r="6" fill="#FFFFFF" />
-    {/* Crescent */}
-    <circle cx="11.5" cy="12" r="3" fill="#E70013" />
-    <circle cx="12.5" cy="12" r="2.5" fill="#FFFFFF" />
-    {/* 5-pointed star centered around (13.5, 12) */}
-    <path d="M13.5,10.2 L13.9,11.4 L15.2,11.4 L14.1,12.2 L14.5,13.5 L13.5,12.7 L12.5,13.5 L12.9,12.2 L11.8,11.4 L13.1,11.4 Z" fill="#E70013" />
+    <rect width="24" height="8" fill="#000000" />
+    <rect y="8" width="24" height="8" fill="#FFFFFF" />
+    <rect y="16" width="24" height="8" fill="#007A3D" />
+    <path d="M0,0 L10,12 L0,24 Z" fill="#CE1126" />
   </svg>
 );
 
@@ -46,7 +43,7 @@ export const USFlag = () => (
 );
 
 const LANGS: { code: Locale; label: string; Flag: React.ComponentType; name: string }[] = [
-  { code: 'ar', label: 'العربية', Flag: TNFlag, name: 'TN' },
+  { code: 'ar', label: 'العربية', Flag: ARFlag, name: 'AR' },
   { code: 'fr', label: 'Français', Flag: FRFlag, name: 'FR' },
   { code: 'en', label: 'English', Flag: USFlag, name: 'US' },
 ];
@@ -106,7 +103,7 @@ export default function LanguageSelector({ variant = 'default', scrolled = false
               ? 'rgba(250,247,242,0.2)'
               : 'var(--border)'
           }`,
-          borderRadius: '99px',
+          borderRadius: 'var(--radius, 4px)',
           cursor: 'pointer',
           fontFamily: 'var(--font-space-grotesk)',
           fontSize: '11px',
@@ -154,7 +151,7 @@ export default function LanguageSelector({ variant = 'default', scrolled = false
           [activeLocale === 'ar' ? 'left' : 'right']: 0,
           background: 'var(--surface, #FFFFFF)',
           border: '1px solid var(--border, rgba(0,0,0,0.08))',
-          borderRadius: '12px',
+          borderRadius: 'var(--radius, 4px)',
           boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 1px 3px rgba(0,0,0,0.04)',
           minWidth: '130px',
           padding: '4px',
@@ -182,7 +179,7 @@ export default function LanguageSelector({ variant = 'default', scrolled = false
                   background: isSelected ? 'var(--hover-bg, rgba(0,0,0,0.04))' : 'transparent',
                   color: isSelected ? 'var(--text-primary, #000)' : 'var(--text-secondary, #666)',
                   border: 'none',
-                  borderRadius: '8px',
+                  borderRadius: 'var(--radius-sm, 2px)',
                   cursor: 'pointer',
                   textAlign: activeLocale === 'ar' ? 'right' : 'left',
                   flexDirection: activeLocale === 'ar' ? 'row-reverse' : 'row',

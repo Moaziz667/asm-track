@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { IconSearch, IconChevronDown, IconChevronLeft, IconX } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { cn } from '@/lib/utils';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -53,13 +55,35 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
   const ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<'attrs' | string>('attrs');
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    if (open && anchorRef.current) {
-      const r = anchorRef.current.getBoundingClientRect();
-      setPos({ top: r.bottom + 4, left: r.left, width: Math.max(240, r.width) });
+    setMounted(true);
+  }, []);
+
+  useEffect(() => {
+    if (!open || !anchorRef.current) {
+      if (!open) setStep('attrs');
+      return;
     }
-    if (!open) setStep('attrs');
+
+    const updatePosition = () => {
+      if (anchorRef.current) {
+        const r = anchorRef.current.getBoundingClientRect();
+        setPos({ top: r.bottom + 4, left: r.left, width: Math.max(240, r.width) });
+      }
+    };
+
+    updatePosition();
+
+    // Listen to resize and scroll to keep dropdown aligned
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
   }, [open, anchorRef]);
 
   useEffect(() => {
@@ -74,21 +98,21 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
     return () => document.removeEventListener('mousedown', handle);
   }, [open, onClose, anchorRef]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const activeAttr = step !== 'attrs' ? attributes.find(a => a.key === step) : null;
 
-  return (
+  return createPortal(
     <div
       ref={ref}
-      className="fixed z-[200] rounded-[var(--radius)] overflow-hidden"
+      className="fixed z-[9999] rounded-[var(--radius)] overflow-hidden"
       style={{
         top: pos.top,
         left: pos.left,
         width: pos.width,
         background: 'var(--surface)',
-        boxShadow: 'var(--shadow-card-hover)',
-        border: '1px solid var(--border)',
+        boxShadow: 'var(--shadow-dropdown)',
+        border: '1px solid var(--border-strong)',
       }}
     >
       {/* Step 1 — attribute list */}
@@ -143,12 +167,11 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
 
           {activeAttr.type === 'date' ? (
             <div className="p-3">
-              <input
-                type="date"
-                className="w-full h-8 px-2.5 rounded text-sm border"
-                style={{ background: 'var(--app-bg)', borderColor: 'var(--border)', color: 'var(--text-primary)' }}
-                value={activeFilters[activeAttr.key] ?? ''}
-                onChange={e => { onFilterChange(activeAttr.key, e.target.value || null); }}
+              <DatePickerPopover
+                value={activeFilters[activeAttr.key] ?? null}
+                onChange={val => { onFilterChange(activeAttr.key, val); }}
+                placeholder="Choisir une date"
+                className="w-full !h-8 bg-[var(--app-bg)] text-[var(--text-primary)] border-[var(--border)] rounded text-sm"
               />
               {activeFilters[activeAttr.key] && (
                 <button
@@ -197,7 +220,8 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
           )}
         </div>
       )}
-    </div>
+    </div>,
+    document.body
   );
 }
 

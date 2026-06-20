@@ -455,10 +455,10 @@ export default function GlobalSearch() {
         <button
           type="button"
           onClick={() => setIsOpen(true)}
-          className="w-full h-9 pl-9 pr-3 text-left text-sm font-normal bg-[var(--app-bg)] border border-[var(--border)] rounded-full text-[var(--text-soft)] hover:border-[var(--brand)] hover:shadow-sm transition-all flex items-center cursor-pointer justify-between outline-none gap-2"
+          className="w-full h-9 pl-9 pr-3 text-left text-sm font-normal bg-[var(--app-bg)] border border-[var(--border)] rounded-md text-[var(--text-soft)] hover:border-[var(--brand)] hover:shadow-sm transition-all flex items-center cursor-pointer justify-between outline-none gap-2"
         >
           <span className="truncate text-[var(--text-soft)]/85">{t.globalSearch.triggerPlaceholder}</span>
-          <kbd className="font-mono text-2xs px-1.5 py-0.5 rounded-full border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] select-none leading-none shadow-[0_1px_0_rgba(0,0,0,0.05)] shrink-0">⌘K</kbd>
+          <kbd className="font-mono text-2xs px-1.5 py-0.5 rounded-sm border border-[var(--border)] bg-[var(--surface)] text-[var(--text-soft)] select-none leading-none shadow-[0_1px_0_rgba(0,0,0,0.05)] shrink-0">⌘K</kbd>
         </button>
       </div>
 
@@ -468,14 +468,14 @@ export default function GlobalSearch() {
 
           {/* Backdrop Blur Layer */}
           <div
-            className="fixed inset-0 bg-zinc-950/40 backdrop-blur-sm transition-opacity"
+            className="fixed inset-0 bg-zinc-950/40 transition-opacity"
             onClick={() => setIsOpen(false)}
           />
 
           {/* Modal Panel Surface */}
           <div
             ref={modalRef}
-            className="relative z-10 w-full max-w-[700px] border border-[var(--border)] bg-[var(--surface)] rounded-xl shadow-2xl flex flex-col overflow-hidden max-h-[520px] transition-transform scale-100 duration-100"
+            className="relative z-10 w-full max-w-[700px] border border-[var(--border)] bg-[var(--surface)] rounded-md shadow-2xl flex flex-col overflow-hidden max-h-[520px] transition-transform scale-100 duration-100"
             style={{ boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.10)' }}
           >
             {/* Command search input bar */}
@@ -540,7 +540,7 @@ export default function GlobalSearch() {
                             type="button"
                             onClick={() => action.onClick()}
                             onMouseEnter={() => setFocused(actionIdx)}
-                            className="flex items-center gap-3 w-full px-3.5 py-2 rounded-lg text-left transition-all relative border-l-2 outline-none"
+                            className="flex items-center gap-3 w-full px-3.5 py-2 rounded text-left transition-all relative border-l-2 outline-none"
                             style={{
                               background: isFocused ? 'var(--hover-bg)' : 'transparent',
                               borderLeftColor: isFocused ? 'var(--brand)' : 'transparent',

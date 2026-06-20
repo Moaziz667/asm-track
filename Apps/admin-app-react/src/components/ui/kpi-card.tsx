@@ -90,6 +90,9 @@ export function KPICard({ label, value, sub, trend, icon, tone = 'default', clas
         className,
       )}
     >
+      {tone !== 'default' && (
+        <div className={cn('absolute top-0 left-0 right-0 h-[3px]', TONE_DOT[tone])} />
+      )}
       <div className="flex items-start justify-between mb-3 shrink-0 relative z-10">
         <span className="text-sm font-medium text-[var(--text-muted)]">{label}</span>
         <div className="flex items-center gap-2 text-[var(--text-muted)]">
@@ -97,7 +100,7 @@ export function KPICard({ label, value, sub, trend, icon, tone = 'default', clas
           {tone !== 'default' && <span className={cn('w-2 h-2 rounded-full', TONE_DOT[tone])} />}
         </div>
       </div>
-      <div className="font-mono text-3xl font-semibold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
+      <div className="font-mono text-[2.5rem] font-bold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
         {value}
       </div>
       {trend ? (

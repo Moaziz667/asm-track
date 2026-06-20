@@ -26,6 +26,8 @@ public class RmaResponse {
     private String resolutionNote;
     /** State of the ERP reverse-move sync once RESTOCKED: PENDING_SYNC → SYNCED / SYNC_FAILED. */
     private String erpSyncStatus;
+    /** Last ERP reverse-move error when {@code erpSyncStatus = SYNC_FAILED}, for operator triage. */
+    private String erpSyncError;
     private List<Item> items;
     private int totalUnits;
     private String createdBy;
@@ -58,6 +60,7 @@ public class RmaResponse {
                 .reason(r.getReason())
                 .resolutionNote(r.getResolutionNote())
                 .erpSyncStatus(r.getErpSyncStatus())
+                .erpSyncError(r.getErpSyncError())
                 .items(items)
                 .totalUnits(items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum())
                 .createdBy(r.getCreatedBy())
