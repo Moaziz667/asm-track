@@ -2164,6 +2164,8 @@ export const AR_COPY = {
     eventsRecorded: 'الأحداث المسجلة',
     actionLabel: 'الإجراء',
     actionPlaceholder: 'مثال DELETE_ROUTE',
+    searchPlaceholder: 'ابحث عن إجراء أو فاعل أو مرجع…',
+    entityFilterLabel: 'الكيان',
     actorLabel: 'الممثل',
     actorPlaceholder: 'الاسم أو البريد الإلكتروني',
     roleLabel: 'كيان الدور',
@@ -2190,6 +2192,8 @@ export const AR_COPY = {
     entities: {
       DELIVERY: 'توصيلة', ROUTE: 'جولة', VEHICLE: 'مركبة', ZONE: 'منطقة',
       DRIVER: 'سائق', DEPOT: 'مستودع', ADMIN_USER: 'حساب', ORDER: 'طلب', RETURN: 'مرتجع',
+      RMA: 'مرتجع', COMPANY: 'الشركة', SLA_SETTINGS: 'إعدادات SLA', FAILURE_REASON: 'سبب الفشل',
+      ROUTE_STOP: 'محطة', INCIDENT: 'حادثة',
     },
     verbs: {
       CREATE_ROUTE: 'أنشأ جولة', UPDATE_ROUTE: 'عدّل جولة', DELETE_ROUTE: 'حذف جولة',
@@ -2205,6 +2209,10 @@ export const AR_COPY = {
       DRIVER_BULK_IMPORTED: 'استورد سائقين', DRIVER_AUTO_OFFLINED: 'جعل سائقًا غير متصل', DRIVER_FORCE_LOGOUT: 'سجّل خروج سائق',
       CREATE_ADMIN_USER: 'أنشأ حسابًا', TOGGLE_ADMIN_USER_STATUS: 'غيّر حالة حساب',
       UPDATE_ADMIN_USER: 'عدّل حسابًا', RESET_ADMIN_USER_PASSWORD: 'أعاد ضبط كلمة مرور', FORCE_LOGOUT_ADMIN_USER: 'سجّل خروج حساب',
+      PIN_DROPOFF: 'حدّد موقع تسليم', UPDATE_DEPOT_LOCATION: 'نقل المستودع', GEOLOCATE_DEPOT: 'حدّد موقع المستودع',
+      ERP_RESYNC: 'أعاد المزامنة مع ERP', UPDATE_COMPANY: 'عدّل بيانات الشركة', UPDATE_BRANDING: 'عدّل الهوية البصرية',
+      SYNC_COMPANY_ERP: 'زامن الشركة من ERP', REASSIGN_ROUTE: 'أعاد تعيين جولة', CONFIRM_RETURN: 'أكّد مرتجعًا',
+      CREATE_RMA: 'فتح مرتجعًا', RMA_RESTOCKED: 'أعاد تخزين مرتجع',
     },
     payloadDetails: 'تفاصيل الحمولة',
     noTechnicalDetails: 'لا توجد تفاصيل تقنية مسجلة.',

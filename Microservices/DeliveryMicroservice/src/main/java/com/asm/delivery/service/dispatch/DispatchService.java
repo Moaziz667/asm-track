@@ -449,6 +449,14 @@ public class DispatchService {
                 routeRepository.save(route);
             }
         });
+
+        // Audit: an operator manually pinned the dropoff location (actor from SecurityContext).
+        auditLogService.logAction(null, "PIN_DROPOFF", "DELIVERY", deliveryId.toString(),
+                java.util.Map.of(
+                        "client", order.getClientName() != null ? order.getClientName() : "",
+                        "lat", String.valueOf(request.getLat()),
+                        "lng", String.valueOf(request.getLng()),
+                        "address", order.getDropoffAddress() != null ? order.getDropoffAddress() : ""));
     }
     // ── Helpers ──────────────────────────────────────────────────────────────
 

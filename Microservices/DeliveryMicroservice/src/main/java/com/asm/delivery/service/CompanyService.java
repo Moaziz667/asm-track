@@ -23,6 +23,7 @@ public class CompanyService {
     private final CompanyRepository repo;
     private final MinioStorageService minioStorageService;
     private final com.asm.delivery.erp.port.ErpPort erpPort;
+    private final AuditLogService auditLogService;
 
     public Optional<Company> findById(UUID id) {
         return repo.findById(id);
@@ -47,7 +48,10 @@ public class CompanyService {
         if (patch.getPrimaryColor() != null) existing.setPrimaryColor(patch.getPrimaryColor());
         if (patch.getSupportEmail() != null) existing.setSupportEmail(patch.getSupportEmail());
         if (patch.getActive() != null) existing.setActive(patch.getActive());
-        return repo.save(existing);
+        Company saved = repo.save(existing);
+        auditLogService.logAction(null, "UPDATE_COMPANY", "COMPANY", id.toString(),
+                java.util.Map.of("name", saved.getName() != null ? saved.getName() : ""));
+        return saved;
     }
 
     /**
@@ -88,7 +92,10 @@ public class CompanyService {
             }
         }
 
-        return repo.save(existing);
+        Company saved = repo.save(existing);
+        auditLogService.logAction(null, "SYNC_COMPANY_ERP", "COMPANY", id.toString(),
+                java.util.Map.of("name", saved.getName() != null ? saved.getName() : ""));
+        return saved;
     }
 
     private static String str(Object v) {
@@ -113,11 +120,13 @@ public class CompanyService {
             String publicUrl = minioStorageService.getPublicUrl(path);
             company.setLogoUrl(publicUrl);
             Company saved = repo.save(company);
-            
+
             byte[] fileBytes = file.getBytes();
             String contentType = file.getContentType();
             runAfterCommit(() -> minioStorageService.uploadFile(fileBytes, contentType, path));
-            
+
+            auditLogService.logAction(null, "UPDATE_BRANDING", "COMPANY", id.toString(),
+                    java.util.Map.of("name", saved.getName() != null ? saved.getName() : "", "change", "logo"));
             return saved;
         } catch (IOException e) {
             throw AppException.badRequest("Failed to upload logo: " + e.getMessage());

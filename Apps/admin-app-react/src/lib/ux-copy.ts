@@ -2209,6 +2209,8 @@ export const FR_COPY = {
     eventsRecorded: 'Événements répertoriés',
     actionLabel: 'Action',
     actionPlaceholder: 'e.g. DELETE_ROUTE',
+    searchPlaceholder: 'Rechercher action, acteur ou référence…',
+    entityFilterLabel: 'Entité',
     actorLabel: 'Acteur',
     actorPlaceholder: 'Nom ou email',
     roleLabel: 'Entité Rôle',
@@ -2235,6 +2237,8 @@ export const FR_COPY = {
     entities: {
       DELIVERY: 'Livraison', ROUTE: 'Tournée', VEHICLE: 'Véhicule', ZONE: 'Zone',
       DRIVER: 'Chauffeur', DEPOT: 'Dépôt', ADMIN_USER: 'Compte', ORDER: 'Commande', RETURN: 'Retour',
+      RMA: 'Retour', COMPANY: 'Entreprise', SLA_SETTINGS: 'Paramètres SLA', FAILURE_REASON: 'Motif d’échec',
+      ROUTE_STOP: 'Arrêt', INCIDENT: 'Incident',
     },
     verbs: {
       CREATE_ROUTE: 'a créé une tournée', UPDATE_ROUTE: 'a modifié une tournée', DELETE_ROUTE: 'a supprimé une tournée',
@@ -2250,6 +2254,10 @@ export const FR_COPY = {
       DRIVER_BULK_IMPORTED: 'a importé des chauffeurs', DRIVER_AUTO_OFFLINED: 'a mis un chauffeur hors ligne', DRIVER_FORCE_LOGOUT: 'a déconnecté un chauffeur',
       CREATE_ADMIN_USER: 'a créé un compte', TOGGLE_ADMIN_USER_STATUS: 'a modifié le statut d’un compte',
       UPDATE_ADMIN_USER: 'a modifié un compte', RESET_ADMIN_USER_PASSWORD: 'a réinitialisé un mot de passe', FORCE_LOGOUT_ADMIN_USER: 'a déconnecté un compte',
+      PIN_DROPOFF: 'a épinglé l’adresse de', UPDATE_DEPOT_LOCATION: 'a déplacé le dépôt', GEOLOCATE_DEPOT: 'a géolocalisé le dépôt',
+      ERP_RESYNC: 'a relancé la sync ERP', UPDATE_COMPANY: 'a modifié l’entreprise', UPDATE_BRANDING: 'a modifié l’identité visuelle',
+      SYNC_COMPANY_ERP: 'a synchronisé l’entreprise depuis l’ERP', REASSIGN_ROUTE: 'a réassigné une tournée', CONFIRM_RETURN: 'a confirmé un retour',
+      CREATE_RMA: 'a ouvert un retour', RMA_RESTOCKED: 'a restocké un retour',
     },
     payloadDetails: 'Détails du Payload',
     noTechnicalDetails: 'Aucun détail technique consigné.',

@@ -22,6 +22,9 @@ public class AuditLogService {
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
 
+    private static final java.util.regex.Pattern UUID_PATTERN = java.util.regex.Pattern.compile(
+            "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
+
     @Transactional(propagation = Propagation.REQUIRES_NEW)
     public void logAction(UserPrincipal principal, String action, String targetEntity, String resourceId, Object details) {
         if (principal == null) {
@@ -36,7 +39,13 @@ public class AuditLogService {
 
         if (principal != null) {
             actorRole = principal.getRole() != null ? principal.getRole() : "UNKNOWN";
-            actorName = principal.getDisplayName() != null ? principal.getDisplayName() : principal.getUserId();
+            // Prefer a human display name; never store a bare UUID/blank as the actor — fall back to the
+            // role so a row reads "ADMIN" rather than machine garbage. (The real per-user identity fix is
+            // the Keycloak named-account P1 in backlog.md.)
+            String display = principal.getDisplayName();
+            actorName = (display != null && !display.isBlank() && !UUID_PATTERN.matcher(display.trim()).matches())
+                    ? display
+                    : actorRole;
         }
 
         String detailsJson;

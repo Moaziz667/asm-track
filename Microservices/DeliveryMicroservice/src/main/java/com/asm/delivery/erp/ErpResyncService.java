@@ -48,6 +48,7 @@ public class ErpResyncService {
     private final OutboxRepository outboxRepo;
     private final OutboxProcessor outboxProcessor;
     private final ObjectMapper objectMapper;
+    private final com.asm.delivery.service.AuditLogService auditLogService;
 
     /** Grace window before the reconciliation sweep re-drives a PENDING_SYNC order (B1). */
     @org.springframework.beans.factory.annotation.Value("${erp.reconcile.stuck-minutes:15}")
@@ -110,6 +111,8 @@ public class ErpResyncService {
             outboxRepo.save(failed);
             log.info("ERP resync — re-queued outbox event eventId={} orderId={} type={}",
                     failed.getId(), orderId, failed.getEventType());
+            auditLogService.logAction(null, "ERP_RESYNC", "ORDER", orderId.toString(),
+                    Map.of("bl", blNumber != null ? blNumber : "", "via", "outbox-event"));
             return new ResyncResult(orderId, blNumber, "PENDING_SYNC", true, "Re-queued original outbox event");
         }
 
@@ -142,6 +145,8 @@ public class ErpResyncService {
         markPending(order);
         outboxProcessor.enqueue(type, payload);
         log.info("ERP resync — enqueued fresh outbox event type={} orderId={}", type, orderId);
+        auditLogService.logAction(null, "ERP_RESYNC", "ORDER", orderId.toString(),
+                Map.of("bl", blNumber != null ? blNumber : "", "via", "outbox-" + op));
         return new ResyncResult(orderId, blNumber, "PENDING_SYNC", true, "Re-queued via outbox (" + op + ")");
     }
 

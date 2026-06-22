@@ -1,19 +1,16 @@
 
 
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT, getCopy } from '@/lib/LocaleContext';
+import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import {
-  IconRefresh, IconChevronDown,
-} from '@tabler/icons-react';
+import { IconChevronDown } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
-import { Button } from '@/components/ui/button';
-import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -69,23 +66,6 @@ function resourceLabel(log: AuditLog, t: any): string | null {
   return ent ? `${ent} ${shortId}` : shortId;
 }
 
-/** Payload-first headline: if the details JSON has a "message" field, use that as the
- *  primary headline. Otherwise fall back to verb + resource composition. */
-function getHeadline(log: AuditLog, t: any): { primary: string; secondary: string | null } {
-  // Priority 1: payload "message" field — the most human-readable text
-  if (log.details) {
-    try {
-      const p = JSON.parse(log.details);
-      if (p.message && typeof p.message === 'string' && p.message.length > 5) {
-        return { primary: p.message, secondary: null };
-      }
-    } catch { /* not JSON */ }
-  }
-  // Priority 2: composed verb + resource (existing logic)
-  const verb = actionVerb(log.action, t);
-  const res = resourceLabel(log, t);
-  return { primary: verb, secondary: res };
-}
 
 type Page<T> = {
   content: T[];
@@ -95,62 +75,50 @@ type Page<T> = {
   size: number;
 };
 
-// ── Action Mapping ────────────────────────────────────────────────────────────
+// ── Semantic tone (design tokens — never raw hex) ─────────────────────────────
+// Each action maps to a tone by *intent* (create=success, delete/fail=danger, …); the colour
+// is always a CSS design token so the page stays on-brand in light + dark and passes check:design.
+type Tone = 'success' | 'info' | 'danger' | 'warning' | 'brand' | 'neutral';
 
-const getActionStyle = (action: string, locale: string, copy?: any) => {
-  const actionMap: Record<string, { labelKey: string; color: string }> = {
-    CREATE_ROUTE:        { labelKey: 'actionFluxRoute',      color: '#10B981' },
-    UPDATE_ROUTE:        { labelKey: 'actionFluxRoute',      color: '#3B82F6' },
-    DELETE_ROUTE:        { labelKey: 'actionFluxRoute',      color: '#EF4444' },
-    START_ROUTE:         { labelKey: 'actionExecution',      color: '#10B981' },
-    ARRIVE_STOP:         { labelKey: 'actionExecution',      color: '#3B82F6' },
-    CREATE_VEHICLE:      { labelKey: 'actionFleetManagement',color: '#10B981' },
-    UPDATE_VEHICLE:      { labelKey: 'actionFleetManagement',color: '#3B82F6' },
-    DELETE_VEHICLE:      { labelKey: 'actionFleetManagement',color: '#EF4444' },
-    ASSIGN_VEHICLE:      { labelKey: 'actionAssignment',     color: '#F59E0B' },
-    CREATE_ZONE:         { labelKey: 'actionMeshing',        color: '#8B5CF6' },
-    UPDATE_ZONE:         { labelKey: 'actionMeshing',        color: '#8B5CF6' },
-    DRIVER_ACCEPT:       { labelKey: 'actionMobility',       color: '#10B981' },
-    DRIVER_TRANSIT:      { labelKey: 'actionMobility',       color: '#3B82F6' },
-    DRIVER_COMPLETE:     { labelKey: 'actionMobility',       color: '#10B981' },
-    DRIVER_FAIL:         { labelKey: 'actionMobility',       color: '#EF4444' },
-    REASSIGN_DELIVERY:   { labelKey: 'actionIntervention',   color: '#F59E0B' },
-    APP_ORDER_CREATED:   { labelKey: 'actionSystem',         color: '#6366F1' },
-    ODOO_RECV_ORDER:     { labelKey: 'actionErpSync',        color: '#A855F7' },
-    // Driver lifecycle (Enterprise standard audit)
-    DRIVER_INVITED:              { labelKey: 'actionDriverInvited',        color: '#3B82F6' },
-    DRIVER_ACTIVATED:            { labelKey: 'actionDriverActivated',      color: '#10B981' },
-    DRIVER_SUSPENDED:            { labelKey: 'actionDriverSuspended',      color: '#F59E0B' },
-    DRIVER_INVITE_RESENT_BY_ADMIN:{ labelKey: 'actionDriverInviteResent',  color: '#8B5CF6' },
-    DRIVER_INVITE_CANCELLED:     { labelKey: 'actionDriverInviteCancelled',color: '#EF4444' },
-    DRIVER_UPDATED:              { labelKey: 'actionDriverUpdated',        color: '#6366F1' },
-    DRIVER_PASSWORD_RESET:       { labelKey: 'actionDriverPasswordReset',  color: '#A855F7' },
-    DRIVER_BULK_IMPORTED:        { labelKey: 'actionDriverBulkImported',   color: '#0891B2' },
-    DRIVER_AUTO_OFFLINED:        { labelKey: 'actionDriverSuspended',      color: '#9CA3AF' },
-    DRIVER_FORCE_LOGOUT:         { labelKey: 'actionDriverForceLogout',    color: '#EF4444' },
-    CREATE_ADMIN_USER:           { labelKey: 'actionCreateAdminUser',      color: '#10B981' },
-    TOGGLE_ADMIN_USER_STATUS:    { labelKey: 'actionToggleAdminUserStatus', color: '#F59E0B' },
-    UPDATE_ADMIN_USER:           { labelKey: 'actionUpdateAdminUser',      color: '#3B82F6' },
-    RESET_ADMIN_USER_PASSWORD:   { labelKey: 'actionResetAdminUserPassword',color: '#A855F7' },
-    FORCE_LOGOUT_ADMIN_USER:     { labelKey: 'actionForceLogoutAdminUser',  color: '#EF4444' },
-  };
-
-  const resolvedCopy = copy || getCopy(locale as any);
-  const meta = actionMap[action] ?? { labelKey: 'actionSystemAudit', color: '#71717A' };
-  return { label: resolvedCopy.auditLogsPage[meta.labelKey as keyof typeof resolvedCopy.auditLogsPage] as string, color: meta.color };
+const TONE_VAR: Record<Tone, string> = {
+  success: 'var(--success)',
+  info:    'var(--info)',
+  danger:  'var(--danger)',
+  warning: 'var(--warning)',
+  brand:   'var(--brand)',
+  neutral: 'var(--text-muted)',
 };
 
-// Stable per-role accent for the actor avatar/role label. Keeps the *person* who acted
-// visually distinct (admin vs dispatcher vs driver) — the headline of each audit row.
-const getRoleColor = (role: string): string => {
-  switch ((role || '').toUpperCase()) {
-    case 'ADMIN':      return '#3B82F6';
-    case 'DISPATCHER': return '#8B5CF6';
-    case 'DRIVER':     return '#10B981';
-    case 'SYSTEM':     return '#71717A';
-    default:           return '#6366F1';
+/** Map an action code to a semantic tone. Order matters (danger before success for DEACTIVATE). */
+function actionTone(action: string): Tone {
+  const a = (action || '').toUpperCase();
+  if (/(DELETE|FAIL|CANCEL|REJECT|REMOVE|SUSPEND|FORCE_LOGOUT|DEACTIVATE)/.test(a)) return 'danger';
+  if (/(REASSIGN|REPLAN|ASSIGN|TOGGLE|HANDOFF|AUTO_OFFLINE|PIN_)/.test(a)) return 'warning';
+  if (/(ODOO|ERP|RESYNC|IMPORT)/.test(a)) return 'brand';
+  if (/(CREATE|START|ACCEPT|COMPLETE|CONFIRM|ACTIVAT|RESTOCK|ADD_STOP|INVITED)/.test(a)) return 'success';
+  if (/(UPDATE|TRANSIT|ARRIVE|REORDER|TRANSFER|REPORT|BRANDING|SETTING)/.test(a)) return 'info';
+  return 'neutral';
+}
+
+const ROLE_TONE: Record<string, Tone> = { ADMIN: 'info', DISPATCHER: 'brand', DRIVER: 'success', SYSTEM: 'neutral' };
+const roleVar = (role: string) => TONE_VAR[ROLE_TONE[(role || '').toUpperCase()] ?? 'neutral'];
+
+/** Deep-link an audit row to the entity it touched (null when there's no page for it). */
+function entityHref(log: AuditLog): string | null {
+  const id = log.resourceId;
+  switch (log.targetEntity) {
+    case 'ROUTE':                return id ? `/routes/${id}` : '/routes-table';
+    case 'DELIVERY': case 'ORDER': return id ? `/deliveries/${id}` : '/deliveries';
+    case 'VEHICLE':              return '/vehicles';
+    case 'ZONE':                 return '/zones';
+    case 'DEPOT':                return '/depots';
+    case 'RMA': case 'RETURN':   return '/returns';
+    case 'COMPANY':              return '/settings';
+    case 'SLA_SETTINGS':         return '/settings';
+    case 'FAILURE_REASON':       return '/failure-reasons';
+    default:                     return null;
   }
-};
+}
 
 const getLocaleFormat = (locale: string): string => {
   const map: Record<string, string> = { fr: 'fr-FR', en: 'en-US', ar: 'ar-SA' };
@@ -165,26 +133,6 @@ function formatTs(ts: string, locale: string = 'fr') {
   });
 }
 
-function formatTime(ts: string, locale: string = 'fr') {
-  const d = new Date(ts);
-  return d.toLocaleString(getLocaleFormat(locale), {
-    hour: '2-digit', minute: '2-digit', second: '2-digit',
-  });
-}
-
-/** Human relative time: "à l'instant", "il y a 5 min", "il y a 2 h", "il y a 3 j", else a date. */
-function relativeTime(ts: string, t: any): string {
-  const r = t.auditLogsPage?.relative ?? {};
-  const diffMs = Date.now() - new Date(ts).getTime();
-  const mins = Math.floor(diffMs / 60000);
-  if (mins < 1) return r.now ?? "à l'instant";
-  if (mins < 60) return (r.minutes ?? 'il y a {n} min').replace('{n}', String(mins));
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return (r.hours ?? 'il y a {n} h').replace('{n}', String(hrs));
-  const days = Math.floor(hrs / 24);
-  if (days < 7) return (r.days ?? 'il y a {n} j').replace('{n}', String(days));
-  return new Date(ts).toLocaleDateString();
-}
 
 function getPayloadKeyLabel(key: string, locale: string): string {
   const keyMap: Record<string, Record<string, string>> = {
@@ -313,148 +261,69 @@ function SimplePagination({ total, value, onChange }: { total: number; value: nu
 // ── Feed Item ─────────────────────────────────────────────────────────────────
 
 function FeedItem({
-  log, isExpanded, isLast, onToggle, locale, t,
+  log, isExpanded, onToggle, locale, t,
 }: {
   log: AuditLog;
   isExpanded: boolean;
-  isLast: boolean;
   onToggle: () => void;
   locale: string;
   t: any;
 }) {
-  const meta = getActionStyle(log.action, locale, t);
-  const roleColor = getRoleColor(log.actorRole);
+  const tone = actionTone(log.action);
+  const toneColor = TONE_VAR[tone];
+  const roleColor = roleVar(log.actorRole);
   const actor = displayActor(log.actorName, log.actorRole);
-  const headline = getHeadline(log, t);
+  const verb = actionVerb(log.action, t);
+  const href = entityHref(log);
+  const entityText = resourceLabel(log, t);
+  let payloadMessage: string | null = null;
+  if (log.details) {
+    try { const p = JSON.parse(log.details); if (typeof p.message === 'string' && p.message.length > 5) payloadMessage = p.message; } catch { /* not JSON */ }
+  }
+  const clock = new Date(log.createdAt).toLocaleTimeString(getLocaleFormat(locale), { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="relative flex gap-0">
-      {/* Timeline column — dot + vertical line */}
-      <div className="flex flex-col items-center shrink-0 w-8 pt-[2px]">
-        {/* Action dot */}
-        <div
-          className="w-[10px] h-[10px] rounded-full shrink-0 mt-[5px] ring-[3px]"
-          style={{
-            background: meta.color,
-            boxShadow: `0 0 0 3px ${meta.color}18`,
-          }}
-        />
-        {/* Vertical connector */}
-        {!isLast && (
-          <div
-            className="flex-1 w-[1.5px] mt-1"
-            style={{ background: 'var(--border)' }}
-          />
-        )}
-      </div>
-
-      {/* Feed content */}
-      <div className="flex-1 min-w-0 pb-5">
-        {/* Main clickable area */}
-        <div
-          className="group rounded-lg px-3 py-2.5 -ml-1 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]"
-          onClick={onToggle}
-        >
-          {/* Row 1: Headline + timestamp */}
-          <div className="flex items-start justify-between gap-3">
-            <p className="text-base font-[600] text-[var(--text-primary)] leading-snug min-w-0">
-              {headline.primary}
-              {headline.secondary && (
-                <span className="text-[var(--text-muted)] font-[400]"> · {headline.secondary}</span>
-              )}
-            </p>
-            <span
-              className="text-2xs text-[var(--text-muted)] whitespace-nowrap shrink-0 mt-[2px]"
-              title={formatTs(log.createdAt, locale)}
-            >
-              {relativeTime(log.createdAt, t)}
-            </span>
-          </div>
-
-          {/* Row 2: Actor + category badge */}
-          <div className="flex items-center gap-2 mt-1.5">
-            {/* Actor pill */}
-            <span className="inline-flex items-center gap-1.5">
-              <span
-                className="w-[18px] h-[18px] rounded-full flex items-center justify-center text-4xs font-[700] shrink-0"
-                style={{ background: `${roleColor}1A`, color: roleColor }}
-              >
-                {actor.trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase() || '?'}
-              </span>
-              <span className="text-2xs text-[var(--text-muted)]">
-                <span className="font-[600]">{actor}</span>
-                <span className="mx-1 opacity-40">·</span>
-                <span className="font-[700] uppercase tracking-wide" style={{ color: roleColor, fontSize: '9px' }}>{log.actorRole}</span>
-              </span>
-            </span>
-
-            {/* Category badge */}
-            <span
-              className="text-3xs font-[600] uppercase tracking-wider px-1.5 py-[1px] rounded-sm"
-              style={{
-                background: `${meta.color}12`,
-                color: meta.color,
-              }}
-            >
-              {meta.label}
-            </span>
-
-            {/* Expand indicator */}
-            <IconChevronDown
-              size={12}
-              className={cn(
-                'ml-auto text-[var(--text-soft)] opacity-0 group-hover:opacity-100 transition-all duration-200',
-                isExpanded && 'rotate-180 opacity-100'
-              )}
-            />
-          </div>
-        </div>
-
-        {/* Expanded details panel */}
-        <div
-          className={cn(
-            'overflow-hidden transition-all duration-300 ease-in-out',
-            isExpanded ? 'max-h-[500px] opacity-100' : 'max-h-0 opacity-0'
+    <div>
+      {/* Dense single-line row — clock · tone dot · "actor verb entity" · role */}
+      <div
+        className="group flex items-center gap-3 h-9 px-2 rounded-md cursor-pointer transition-colors hover:bg-[var(--hover-bg)]"
+        onClick={onToggle}
+      >
+        <span className="w-11 shrink-0 text-2xs text-[var(--text-muted)] tabular-nums" title={formatTs(log.createdAt, locale)}>{clock}</span>
+        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: toneColor }} />
+        <p className="flex-1 min-w-0 truncate text-sm text-[var(--text-secondary)]">
+          {payloadMessage ? (
+            <span className="text-[var(--text-primary)]">{payloadMessage}</span>
+          ) : (
+            <><span className="font-[600] text-[var(--text-primary)]">{actor}</span> {verb}</>
           )}
-        >
-          <div className="mx-2 mt-1 mb-1 rounded-lg border border-[var(--border)] overflow-hidden" style={{ background: 'var(--surface)' }}>
-            <div className="px-3 py-2.5 space-y-3">
-              {/* Metadata grid */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-                <div>
-                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.eventId}</p>
-                  <p className="text-2xs font-mono text-[var(--text-muted)] break-all select-all">{log.id}</p>
-                </div>
-                <div>
-                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.engineCategory}</p>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
-                    <span className="text-2xs font-[600] text-[var(--text-primary)]">{meta.label}</span>
-                  </span>
-                </div>
-                <div>
-                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colIp}</p>
-                  <p className="text-2xs font-mono text-[var(--text-muted)]">{log.ipAddress}</p>
-                </div>
-                <div>
-                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-0.5">{t.auditLogsPage.colTime}</p>
-                  <p className="text-2xs font-mono text-[var(--text-muted)]">{formatTs(log.createdAt, locale)}</p>
-                </div>
-              </div>
-
-              {/* Payload details */}
-              {log.details && (
-                <div>
-                  <p className="text-3xs font-[700] uppercase tracking-wider text-[var(--text-soft)] mb-1">{t.auditLogsPage.payloadDetails}</p>
-                  <div className="text-2xs p-2 rounded-xs bg-[var(--surface)] border border-[var(--border)] max-h-40 overflow-y-auto">
-                    {formatPayload(log.details, locale)}
-                  </div>
-                </div>
+          {entityText && (
+            <>
+              {' '}
+              {href ? (
+                <Link to={href} onClick={(e) => e.stopPropagation()} className="font-[500] text-[var(--brand)] hover:underline">{entityText}</Link>
+              ) : (
+                <span className="font-[500] text-[var(--text-primary)]">{entityText}</span>
               )}
-            </div>
-          </div>
-        </div>
+            </>
+          )}
+        </p>
+        <span className="shrink-0 text-3xs font-[700] uppercase tracking-wide hidden sm:inline" style={{ color: roleColor }}>{log.actorRole}</span>
+        <IconChevronDown
+          size={13}
+          className={cn('shrink-0 text-[var(--text-soft)] opacity-0 group-hover:opacity-60 transition-transform', isExpanded && 'rotate-180 !opacity-100')}
+        />
       </div>
+
+      {/* Minimal expand — payload + one muted meta line, no card */}
+      {isExpanded && (
+        <div className="ml-[3.5rem] mb-2 mt-0.5 pl-3 border-l-2 border-[var(--border)] space-y-1.5">
+          {log.details && <div className="text-2xs">{formatPayload(log.details, locale)}</div>}
+          <p className="text-3xs font-mono text-[var(--text-soft)] break-all">
+            {log.action} · {log.ipAddress} · {formatTs(log.createdAt, locale)} · {log.id.slice(0, 8)}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -479,9 +348,11 @@ export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const PAGE_SIZE = 50;
 
-  const [filterAction, setFilterAction] = useState('');
-  const [filterActor, setFilterActor] = useState('');
+  // Single search (q → action/actor/resource) + attribute filters, all driving the shared PageFilterBar.
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
+  const [filterEntity, setFilterEntity] = useState('');
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
 
@@ -490,6 +361,12 @@ export default function AuditLogsPage() {
 
   const abortRef = useRef<AbortController | null>(null);
 
+  // Debounce the search box so we don't fire a request per keystroke.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 300);
+    return () => clearTimeout(id);
+  }, [search]);
+
   const fetchLogs = useCallback(async (p: number) => {
     if (abortRef.current) abortRef.current.abort();
     abortRef.current = new AbortController();
@@ -497,9 +374,9 @@ export default function AuditLogsPage() {
     setLoading(true);
     try {
       const params: Record<string, string | number> = { page: p - 1, size: PAGE_SIZE };
-      if (filterAction.trim()) params.action = filterAction.trim();
-      if (filterActor.trim()) params.actor = filterActor.trim();
+      if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
       if (filterRole.trim()) params.actorRole = filterRole.trim();
+      if (filterEntity.trim()) params.entity = filterEntity.trim();
       if (filterFrom) params.from = filterFrom + 'T00:00:00';
       if (filterTo) params.to = filterTo + 'T23:59:59';
 
@@ -513,23 +390,43 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filterAction, filterActor, filterRole, filterFrom, filterTo]);
+  }, [debouncedSearch, filterRole, filterEntity, filterFrom, filterTo]);
 
   useEffect(() => {
     setPage(1);
     fetchLogs(1);
   }, [fetchLogs]);
 
-  const handleReset = () => {
-    setFilterAction('');
-    setFilterActor('');
-    setFilterRole('');
-    setFilterFrom('');
-    setFilterTo('');
+  // Shared-filter wiring (role + entity selects, from/to dates).
+  const filterAttributes = useMemo(() => ([
+    { key: 'role', label: t.auditLogsPage.roleLabel, type: 'select' as const, options: [
+      { value: 'ADMIN', label: 'ADMIN' }, { value: 'DISPATCHER', label: 'DISPATCHER' },
+      { value: 'DRIVER', label: 'DRIVER' }, { value: 'SYSTEM', label: 'SYSTEM' },
+    ] },
+    { key: 'entity', label: t.auditLogsPage.entityFilterLabel ?? 'Entité', type: 'select' as const, options: [
+      { value: 'ROUTE', label: t.auditLogsPage.entities.ROUTE }, { value: 'DELIVERY', label: t.auditLogsPage.entities.DELIVERY },
+      { value: 'VEHICLE', label: t.auditLogsPage.entities.VEHICLE }, { value: 'ZONE', label: t.auditLogsPage.entities.ZONE },
+      { value: 'DEPOT', label: t.auditLogsPage.entities.DEPOT }, { value: 'RMA', label: t.auditLogsPage.entities.RMA },
+      { value: 'COMPANY', label: t.auditLogsPage.entities.COMPANY }, { value: 'ADMIN_USER', label: t.auditLogsPage.entities.ADMIN_USER },
+      { value: 'DRIVER', label: t.auditLogsPage.entities.DRIVER },
+    ] },
+    { key: 'from', label: t.auditLogsPage.fromLabel, type: 'date' as const },
+    { key: 'to', label: t.auditLogsPage.toLabel, type: 'date' as const },
+  ]), [t]);
+
+  const activeFilters: Record<string, string> = {
+    ...(filterRole && { role: filterRole }),
+    ...(filterEntity && { entity: filterEntity }),
+    ...(filterFrom && { from: filterFrom }),
+    ...(filterTo && { to: filterTo }),
   };
 
-  const inputCls = "h-8 w-full px-2 text-xs rounded-xs border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)]";
-  const labelCls = "block text-2xs font-[600] text-[var(--text-muted)] mb-1";
+  const handleFilterChange = (key: string, value: string | null) => {
+    if (key === 'role') setFilterRole(value ?? '');
+    if (key === 'entity') setFilterEntity(value ?? '');
+    if (key === 'from') setFilterFrom(value ?? '');
+    if (key === 'to') setFilterTo(value ?? '');
+  };
 
   // Group logs by date
   const groupedLogs = useMemo(() => {
@@ -554,75 +451,25 @@ export default function AuditLogsPage() {
 
   const dateGroupOrder = ['Today', 'Yesterday', 'Earlier this week', 'Older'];
 
-  // Flatten all logs in order to determine "last" item for timeline connector
-  const allLogsFlat = useMemo(() => {
-    const flat: AuditLog[] = [];
-    dateGroupOrder.forEach(dg => {
-      if (groupedLogs[dg]) flat.push(...groupedLogs[dg]);
-    });
-    return flat;
-  }, [groupedLogs]);
-
   return (
     <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden flex flex-col" style={{ background: 'var(--app-bg)' }}>
 
-      {/* Filter bar */}
-      <div className="px-4 py-2.5 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <div className="flex items-center gap-3 mb-2">
-          <span className="text-xs font-semibold" style={{ color: 'var(--text-muted)' }}>{totalElements} {t.auditLogsPage.eventsRecorded}</span>
-          <button
-            type="button"
-            onClick={() => fetchLogs(page)}
-            disabled={loading}
-            className="ml-auto w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-50 transition-colors"
-          >
-            <IconRefresh size={13} />
-          </button>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2 items-end">
-          <div>
-            <label className={labelCls}>{t.auditLogsPage.actionLabel}</label>
-            <input className={inputCls} placeholder={t.auditLogsPage.actionPlaceholder} value={filterAction} onChange={e => setFilterAction(e.target.value)} />
-          </div>
-          <div>
-            <label className={labelCls}>{t.auditLogsPage.actorLabel}</label>
-            <input className={inputCls} placeholder={t.auditLogsPage.actorPlaceholder} value={filterActor} onChange={e => setFilterActor(e.target.value)} />
-          </div>
-          <div>
-            <label className={labelCls}>{t.auditLogsPage.roleLabel}</label>
-            <select className={inputCls} value={filterRole} onChange={e => setFilterRole(e.target.value)}>
-              <option value="">{t.auditLogsPage.allRoles}</option>
-              <option value="ADMIN">ADMIN</option>
-              <option value="DISPATCHER">DISPATCHER</option>
-              <option value="DRIVER">DRIVER</option>
-              <option value="SYSTEM">SYSTEM</option>
-            </select>
-          </div>
-          <div>
-            <label className={labelCls}>{t.auditLogsPage.fromLabel}</label>
-            <DatePickerPopover
-              value={filterFrom || null}
-              onChange={(val) => setFilterFrom(val || '')}
-              placeholder="Date de début"
-              className="w-full !h-8 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-xs rounded-xs"
-            />
-          </div>
-          <div>
-            <label className={labelCls}>{t.auditLogsPage.toLabel}</label>
-            <DatePickerPopover
-              value={filterTo || null}
-              onChange={(val) => setFilterTo(val || '')}
-              placeholder="Date de fin"
-              className="w-full !h-8 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)] focus:outline-none focus:ring-1 focus:ring-[var(--brand)] text-xs rounded-xs"
-            />
-          </div>
-          <div>
-            <Button variant="ghost" size="sm" onClick={handleReset} className="h-8 text-red-600 hover:text-red-600 hover:bg-red-50 text-2xs font-bold w-full">
-              {t.auditLogsPage.resetButton}
-            </Button>
-          </div>
-        </div>
-      </div>
+      {/* Filter bar — shared PageFilterBar (search + role/entity/date attributes) */}
+      <PageFilterBar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder={t.auditLogsPage.searchPlaceholder ?? t.auditLogsPage.actionPlaceholder}
+        attributes={filterAttributes}
+        activeFilters={activeFilters}
+        onFilterChange={handleFilterChange}
+        onRefresh={() => fetchLogs(page)}
+        refreshing={loading}
+        extraActions={
+          <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--text-muted)' }}>
+            {totalElements} {t.auditLogsPage.eventsRecorded}
+          </span>
+        }
+      />
 
       {/* Activity feed */}
       <div className="flex-1 overflow-auto" style={{ background: 'var(--surface)' }}>
@@ -653,23 +500,16 @@ export default function AuditLogsPage() {
                   </div>
 
                   {/* Feed items */}
-                  {items.map((log, idx) => {
-                    const isLastInGroup = idx === items.length - 1;
-                    // Check if this is truly the last item across all groups
-                    const isLastOverall = allLogsFlat[allLogsFlat.length - 1]?.id === log.id;
-
-                    return (
-                      <FeedItem
-                        key={log.id}
-                        log={log}
-                        isExpanded={expandedId === log.id}
-                        isLast={isLastOverall}
-                        onToggle={() => setExpandedId(expandedId === log.id ? null : log.id)}
-                        locale={locale}
-                        t={t}
-                      />
-                    );
-                  })}
+                  {items.map((log) => (
+                    <FeedItem
+                      key={log.id}
+                      log={log}
+                      isExpanded={expandedId === log.id}
+                      onToggle={() => setExpandedId(expandedId === log.id ? null : log.id)}
+                      locale={locale}
+                      t={t}
+                    />
+                  ))}
                 </div>
               );
             })}

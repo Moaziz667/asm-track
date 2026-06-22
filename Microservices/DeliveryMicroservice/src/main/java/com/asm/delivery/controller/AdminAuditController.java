@@ -45,9 +45,11 @@ public class AdminAuditController {
             @AuthenticationPrincipal UserPrincipal principal,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "50") int size,
+            String q,
             String action,
             String actor,
             String actorRole,
+            String entity,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
@@ -57,6 +59,14 @@ public class AdminAuditController {
         // 1. Delivery-side logs (own table)
         Specification<AuditLog> spec = (root, query, cb) -> {
             List<Predicate> predicates = new ArrayList<>();
+            // Single search box — matches action OR actor OR resource id (case-insensitive).
+            if (q != null && !q.isBlank()) {
+                String needle = "%" + q.toUpperCase().trim() + "%";
+                predicates.add(cb.or(
+                        cb.like(cb.upper(root.get("action")), needle),
+                        cb.like(cb.upper(root.get("actorName")), needle),
+                        cb.like(cb.upper(root.get("resourceId")), needle)));
+            }
             if (action != null && !action.isBlank()) {
                 predicates.add(cb.like(cb.upper(root.get("action")), "%" + action.toUpperCase().trim() + "%"));
             }
@@ -65,6 +75,9 @@ public class AdminAuditController {
             }
             if (actorRole != null && !actorRole.isBlank()) {
                 predicates.add(cb.equal(cb.upper(root.get("actorRole")), actorRole.toUpperCase().trim()));
+            }
+            if (entity != null && !entity.isBlank()) {
+                predicates.add(cb.equal(cb.upper(root.get("targetEntity")), entity.toUpperCase().trim()));
             }
             if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
             if (to != null)   predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
@@ -76,8 +89,17 @@ public class AdminAuditController {
 
         // 2. Driver-side logs via HTTP — fetch a wider window so the page has
         //    at least one driver's events even if delivery is the dominant source.
+        // Driver-side search: the single `q` is passed as the action filter (best-effort across the
+        // HTTP boundary), falling back to an explicit `action`. Entity is applied in-memory after fetch.
+        String driverSearch = (q != null && !q.isBlank()) ? q : action;
         List<AuditLogView> driverLogs = driverAuditClient.fetchDriverLogs(
-                action, actor, actorRole, from, to, 0, Math.max(safeSize, 200));
+                driverSearch, actor, actorRole, from, to, 0, Math.max(safeSize, 200));
+        if (entity != null && !entity.isBlank()) {
+            String wanted = entity.trim();
+            driverLogs = driverLogs.stream()
+                    .filter(v -> v.getTargetEntity() != null && wanted.equalsIgnoreCase(v.getTargetEntity()))
+                    .toList();
+        }
 
         // 3. Map + merge
         List<AuditLogView> merged = new ArrayList<>();

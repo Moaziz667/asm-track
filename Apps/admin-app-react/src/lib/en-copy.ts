@@ -2105,6 +2105,8 @@ export const EN_COPY = {
     eventsRecorded: 'Events Recorded',
     actionLabel: 'Action',
     actionPlaceholder: 'e.g. DELETE_ROUTE',
+    searchPlaceholder: 'Search action, actor or reference…',
+    entityFilterLabel: 'Entity',
     actorLabel: 'Actor',
     actorPlaceholder: 'Name or email',
     roleLabel: 'Role Entity',
@@ -2131,6 +2133,8 @@ export const EN_COPY = {
     entities: {
       DELIVERY: 'Delivery', ROUTE: 'Route', VEHICLE: 'Vehicle', ZONE: 'Zone',
       DRIVER: 'Driver', DEPOT: 'Depot', ADMIN_USER: 'Account', ORDER: 'Order', RETURN: 'Return',
+      RMA: 'Return', COMPANY: 'Company', SLA_SETTINGS: 'SLA settings', FAILURE_REASON: 'Failure reason',
+      ROUTE_STOP: 'Stop', INCIDENT: 'Incident',
     },
     verbs: {
       CREATE_ROUTE: 'created a route', UPDATE_ROUTE: 'updated a route', DELETE_ROUTE: 'deleted a route',
@@ -2146,6 +2150,10 @@ export const EN_COPY = {
       DRIVER_BULK_IMPORTED: 'imported drivers', DRIVER_AUTO_OFFLINED: 'set a driver offline', DRIVER_FORCE_LOGOUT: 'logged out a driver',
       CREATE_ADMIN_USER: 'created an account', TOGGLE_ADMIN_USER_STATUS: 'changed an account status',
       UPDATE_ADMIN_USER: 'updated an account', RESET_ADMIN_USER_PASSWORD: 'reset a password', FORCE_LOGOUT_ADMIN_USER: 'logged out an account',
+      PIN_DROPOFF: 'pinned the drop-off for', UPDATE_DEPOT_LOCATION: 'moved the depot', GEOLOCATE_DEPOT: 'geolocated the depot',
+      ERP_RESYNC: 'resynced to the ERP', UPDATE_COMPANY: 'updated company info', UPDATE_BRANDING: 'updated branding',
+      SYNC_COMPANY_ERP: 'synced company from the ERP', REASSIGN_ROUTE: 'reassigned a route', CONFIRM_RETURN: 'confirmed a return',
+      CREATE_RMA: 'opened a return', RMA_RESTOCKED: 'restocked a return',
     },
     payloadDetails: 'Payload Details',
     noTechnicalDetails: 'No technical details recorded.',

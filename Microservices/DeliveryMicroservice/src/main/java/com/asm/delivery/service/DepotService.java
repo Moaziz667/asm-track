@@ -23,6 +23,7 @@ public class DepotService {
 
     private final DepotRepository depotRepository;
     private final GeocodingService geocodingService;
+    private final AuditLogService auditLogService;
 
     @Transactional(readOnly = true)
     public List<DepotResponse> list() {
@@ -60,7 +61,12 @@ public class DepotService {
         }
         depot.setLatitude(geo.getLat());
         depot.setLongitude(geo.getLng());
-        return toResponse(depotRepository.save(depot));
+        Depot saved = depotRepository.save(depot);
+        // Actor resolved from the SecurityContext (request thread) inside logAction.
+        auditLogService.logAction(null, "GEOLOCATE_DEPOT", "DEPOT", id.toString(),
+                java.util.Map.of("name", depot.getName() != null ? depot.getName() : "",
+                        "lat", String.valueOf(geo.getLat()), "lng", String.valueOf(geo.getLng())));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -75,7 +81,12 @@ public class DepotService {
         if (req.getAddress() != null) {
             depot.setAddress(req.getAddress());
         }
-        return toResponse(depotRepository.save(depot));
+        Depot saved = depotRepository.save(depot);
+        auditLogService.logAction(null, "UPDATE_DEPOT_LOCATION", "DEPOT", id.toString(),
+                java.util.Map.of("name", depot.getName() != null ? depot.getName() : "",
+                        "lat", String.valueOf(depot.getLatitude()), "lng", String.valueOf(depot.getLongitude()),
+                        "address", depot.getAddress() != null ? depot.getAddress() : ""));
+        return toResponse(saved);
     }
 
     private DepotResponse toResponse(Depot depot) {
