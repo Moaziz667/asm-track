@@ -51,13 +51,8 @@ public class AnalyticsPdfService extends BasePdfService {
         LocalDateTime start = resolveStart(period, from, now);
         LocalDateTime end   = to != null ? to.atTime(23, 59, 59) : now;
 
-        List<Delivery> all      = deliveryRepository.findAll();
-        List<Delivery> filtered = all.stream()
-                .filter(d -> {
-                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
-                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
-                })
-                .collect(Collectors.toList());
+        // Bounded to the report window at the DB level (was a full-table findAll() + in-memory filter).
+        List<Delivery> filtered = deliveryRepository.findByActivityBetween(start, end);
 
         long total     = filtered.size();
         long delivered = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED).count();

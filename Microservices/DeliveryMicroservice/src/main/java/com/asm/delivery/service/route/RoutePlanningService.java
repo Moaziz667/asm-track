@@ -18,6 +18,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.hibernate.Filter;
 import org.hibernate.Session;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
@@ -80,6 +82,47 @@ public class RoutePlanningService {
 
     @Transactional(readOnly = true)
     public List<RouteResponse> list(RouteStatus status, UUID driverId, LocalDate date, LocalDate from, LocalDate to, String city) {
+        // Date-windowed / filtered list — callers always pass a bounding filter (today, a week, a month),
+        // so the result set is inherently bounded. The unbounded all-time browse uses listPaged().
+        Specification<Route> spec = buildSpec(status, driverId, date, from, to, city);
+        return routeRepository
+                .findAll(spec, Sort.by(Sort.Direction.DESC, "date", "createdAt"))
+                .stream()
+                .map(routeResponseMapper::toResponse)
+                .toList();
+    }
+
+    /**
+     * Server-side paginated route browse for the management table (all-time, no date window required).
+     * Reuses the same Specification filters; the Pageable carries page/size/sort (default date desc).
+     */
+    @Transactional(readOnly = true)
+    public Page<RouteResponse> listPaged(RouteStatus status, UUID driverId, String city, UUID vehicleId,
+                                         UUID depotId, LocalDate from, LocalDate to, String q, Pageable pageable) {
+        Specification<Route> spec = buildSpec(status, driverId, null, from, to, city);
+
+        if (vehicleId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("vehicleId"), vehicleId));
+        }
+        if (depotId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("depotId"), depotId));
+        }
+        if (StringUtils.hasText(q)) {
+            String needle = "%" + q.trim().toLowerCase() + "%";
+            // Match route name OR customer name. Client names live on Order (no JPA path from Route),
+            // so resolve matching route ids via the stop→delivery→order theta-join, then OR them in.
+            List<UUID> clientRouteIds = routeStopRepository.findRouteIdsByClientName(q.trim());
+            spec = spec.and((root, query, cb) -> {
+                var nameLike = cb.like(cb.lower(root.get("name")), needle);
+                return clientRouteIds.isEmpty() ? nameLike : cb.or(nameLike, root.get("id").in(clientRouteIds));
+            });
+        }
+        return routeRepository.findAll(spec, pageable).map(routeResponseMapper::toResponse);
+    }
+
+    /** Shared filter spec for both the windowed list and the paged browse. */
+    private Specification<Route> buildSpec(RouteStatus status, UUID driverId, LocalDate date,
+                                           LocalDate from, LocalDate to, String city) {
         Specification<Route> spec = Specification.where(null);
 
         if (status != null) {
@@ -103,12 +146,7 @@ public class RoutePlanningService {
             String normalizedCity = city.trim().toLowerCase();
             spec = spec.and((root, query, cb) -> cb.equal(cb.lower(root.get("city")), normalizedCity));
         }
-
-        return routeRepository
-                .findAll(spec, Sort.by(Sort.Direction.DESC, "date", "createdAt"))
-                .stream()
-                .map(routeResponseMapper::toResponse)
-                .toList();
+        return spec;
     }
 
     @Transactional(readOnly = true)

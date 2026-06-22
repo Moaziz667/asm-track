@@ -2,6 +2,8 @@ package com.asm.delivery.repository;
 
 import com.asm.delivery.entity.Rma;
 import com.asm.delivery.entity.RmaStatus;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
@@ -19,6 +21,21 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
     List<Rma> findByStatusOrderByCreatedAtDesc(RmaStatus status);
 
     List<Rma> findByDeliveryIdOrderByCreatedAtDesc(UUID deliveryId);
+
+    /**
+     * Server-side paginated + filtered returns list. Both filters are optional: null status = all
+     * statuses, blank q = no text filter. Search spans client name / BL / ERP ref (all on the Rma row).
+     */
+    @Query("""
+            SELECT r FROM Rma r
+            WHERE (:status IS NULL OR r.status = :status)
+              AND (:q IS NULL OR :q = '' OR
+                   LOWER(r.clientName) LIKE LOWER(CONCAT('%', :q, '%')) OR
+                   LOWER(r.blNumber)   LIKE LOWER(CONCAT('%', :q, '%')) OR
+                   LOWER(r.erpOrderId) LIKE LOWER(CONCAT('%', :q, '%')))
+            ORDER BY r.createdAt DESC
+            """)
+    Page<Rma> searchPaged(@Param("status") RmaStatus status, @Param("q") String q, Pageable pageable);
 
     long countByStatus(RmaStatus status);
 

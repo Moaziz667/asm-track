@@ -104,11 +104,9 @@ public class RmaService {
     }
 
     @Transactional(readOnly = true)
-    public List<RmaResponse> list(RmaStatus status) {
-        List<Rma> rows = (status != null)
-                ? rmaRepository.findByStatusOrderByCreatedAtDesc(status)
-                : rmaRepository.findAllByOrderByCreatedAtDesc();
-        return rows.stream().map(RmaResponse::from).toList();
+    public org.springframework.data.domain.Page<RmaResponse> list(
+            RmaStatus status, String q, org.springframework.data.domain.Pageable pageable) {
+        return rmaRepository.searchPaged(status, q, pageable).map(RmaResponse::from);
     }
 
     @Transactional(readOnly = true)

@@ -152,4 +152,16 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Delivery> findScheduledBetween(@Param("start") java.time.LocalDateTime start,
                                         @Param("end") java.time.LocalDateTime end);
+
+    /**
+     * All deliveries (any status) whose activity timestamp COALESCE(completedAt, createdAt) falls in
+     * [start, end]. Backs analytics/performance reports — replaces a full-table findAll() + in-memory
+     * date filter so the scan is bounded to the report window.
+     */
+    @Query("""
+            SELECT d FROM Delivery d
+            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+            """)
+    List<Delivery> findByActivityBetween(@Param("start") java.time.LocalDateTime start,
+                                         @Param("end") java.time.LocalDateTime end);
 }

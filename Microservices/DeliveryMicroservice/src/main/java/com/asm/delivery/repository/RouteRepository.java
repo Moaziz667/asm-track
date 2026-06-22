@@ -25,6 +25,9 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
 
     List<Route> findAllByDriverIdAndDate(UUID driverId, LocalDate date);
 
+    /** Routes for a given date filtered by status — backs the dispatch desk's active-driver lookup. */
+    List<Route> findByDateAndStatusIn(LocalDate date, List<RouteStatus> statuses);
+
     List<Route> findAllByVehicleIdAndDate(UUID vehicleId, LocalDate date);
 
     Optional<Route> findByDriverIdAndDate(UUID driverId, LocalDate date);

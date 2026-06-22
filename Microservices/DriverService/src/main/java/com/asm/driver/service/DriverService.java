@@ -104,14 +104,16 @@ public class DriverService {
         return newStatus;
     }
 
-    public HistoryResponse getHistory(UUID driverId) {
-        var items = historyRepo.findByDriverIdOrderByCreatedAtDesc(driverId).stream()
+    public HistoryResponse getHistory(UUID driverId, org.springframework.data.domain.Pageable pageable) {
+        var slice = historyRepo.findByDriverIdOrderByCreatedAtDesc(driverId, pageable);
+        var items = slice.getContent().stream()
                 .map(h -> HistoryResponse.HistoryItem.builder()
                         .deliveryId(h.getDeliveryId())
                         .status(h.getStatus())
+                        .createdAt(h.getCreatedAt() != null ? h.getCreatedAt().toString() : null)
                         .build())
                 .collect(Collectors.toList());
-        return HistoryResponse.builder().items(items).build();
+        return HistoryResponse.builder().items(items).hasNext(slice.hasNext()).build();
     }
 
     private DriverProfileResponse mapToProfile(Driver d) {

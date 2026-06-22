@@ -277,9 +277,11 @@ public class DispatchService {
                 ));
 
         LocalDate today = LocalDate.now();
-        Map<String, UUID> activeRouteMap = routeRepository.findAll().stream()
-                .filter(route -> today.equals(route.getDate()))
-                .filter(route -> route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)
+        // Query today's active routes directly instead of scanning every route ever (hot path on the
+        // live dispatch desk).
+        Map<String, UUID> activeRouteMap = routeRepository
+                .findByDateAndStatusIn(today, List.of(RouteStatus.VALIDATED, RouteStatus.IN_PROGRESS)).stream()
+                .filter(route -> route.getDriverId() != null)
                 .collect(Collectors.toMap(
                         route -> route.getDriverId().toString(),
                         Route::getId,
@@ -321,40 +323,47 @@ public class DispatchService {
 
     @Transactional
     public void syncAllZones() {
-        List<Delivery> deliveries = deliveryRepo.findAll();
-        List<Zone> activeZones = zoneRepository.findByIsActiveTrueOrderByNameAsc();
-        
-        for (Delivery delivery : deliveries) {
-            Order order = delivery.getOrder();
-            if (order == null) continue;
+        // Maintenance re-zone of every delivery. Process in bounded pages so we never hold the entire
+        // deliveries table in memory at once (it grows without limit).
+        final int pageSize = 500;
+        int pageNum = 0;
+        org.springframework.data.domain.Page<Delivery> page;
+        do {
+            page = deliveryRepo.findAll(org.springframework.data.domain.PageRequest.of(
+                    pageNum, pageSize, org.springframework.data.domain.Sort.by("id")));
+            for (Delivery delivery : page.getContent()) {
+                Order order = delivery.getOrder();
+                if (order == null) continue;
 
-            String postalCode = normalizePostalCode(order.getDropoffPostalCode());
-            String city = normalizeText(order.getDropoffCity());
-            
-            UUID newZoneId = null;
-            boolean found = false;
+                String postalCode = normalizePostalCode(order.getDropoffPostalCode());
+                String city = normalizeText(order.getDropoffCity());
 
-            if (StringUtils.hasText(postalCode)) {
-                Optional<Zone> zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode);
-                if (zoneByPostal.isPresent()) {
-                    newZoneId = zoneByPostal.get().getId();
-                    found = true;
+                UUID newZoneId = null;
+                boolean found = false;
+
+                if (StringUtils.hasText(postalCode)) {
+                    Optional<Zone> zoneByPostal = zoneRepository.findActiveByPostalCodeMember(postalCode);
+                    if (zoneByPostal.isPresent()) {
+                        newZoneId = zoneByPostal.get().getId();
+                        found = true;
+                    }
+                }
+
+                if (!found && StringUtils.hasText(city)) {
+                    Optional<Zone> zoneByCity = zoneRepository.findActiveByCityMember(city.trim());
+                    if (zoneByCity.isPresent()) {
+                        newZoneId = zoneByCity.get().getId();
+                    }
+                }
+
+                if ((order.getZoneId() == null && newZoneId != null) ||
+                    (order.getZoneId() != null && !order.getZoneId().equals(newZoneId))) {
+                    order.setZoneId(newZoneId);
+                    orderRepo.save(order);
                 }
             }
-
-            if (!found && StringUtils.hasText(city)) {
-                Optional<Zone> zoneByCity = zoneRepository.findActiveByCityMember(city.trim());
-                if (zoneByCity.isPresent()) {
-                    newZoneId = zoneByCity.get().getId();
-                }
-            }
-
-            if ((order.getZoneId() == null && newZoneId != null) || 
-                (order.getZoneId() != null && !order.getZoneId().equals(newZoneId))) {
-                order.setZoneId(newZoneId);
-                orderRepo.save(order);
-            }
-        }
+            pageNum++;
+        } while (page.hasNext());
     }
 
     public void pinDropoff(UUID deliveryId, PinDropoffRequest request) {

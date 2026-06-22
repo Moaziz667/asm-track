@@ -58,7 +58,65 @@ type RouteItem = {
   status: 'DRAFT' | 'VALIDATED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED' | string;
   stops: DeliveryDetail[];
   detectedZoneLabel?: string;
+  /** Stop count from the paged list summary (collapsed row shows this without fetching /full). */
+  totalStops?: number;
+  city?: string;
 };
+
+/** Maps one stop from the route `/full` payload to the flat DeliveryDetail the expand row renders. */
+function mapFullStop(s: any): DeliveryDetail {
+  const d = s.delivery ?? {};
+  const o = d.order ?? s.order ?? {};
+  return {
+    id:            s.id ?? s.stopId ?? '',
+    deliveryId:    s.deliveryId ?? d.id ?? '',
+    stopOrder:     s.stopOrder ?? s.sequenceOrder ?? 0,
+    status:        d.status ?? s.deliveryStatus ?? s.status ?? '',
+    clientName:    o.clientName ?? d.clientName ?? s.clientName ?? '',
+    dropoffAddress:o.dropoffAddress ?? d.dropoffAddress ?? s.deliveryAddress ?? '',
+    dropoffCity:   o.dropoffCity ?? d.dropoffCity ?? s.deliveryCity ?? '',
+    totalWeightKg: o.totalWeightKg ?? d.totalWeightKg ?? 0,
+    erpId:         o.erpOrderId ?? o.erpId ?? d.erpId ?? '',
+    orderId:       o.id ?? d.orderId ?? '',
+    priority:      o.priority ?? d.priority ?? '',
+    items:         o.items ?? d.items ?? s.items ?? [],
+  };
+}
+
+/** Date-filter pill → {from,to} server params (Africa/Tunis-agnostic ISO day strings). */
+function dateRangeFor(filter: string): { from?: string; to?: string } {
+  const iso = (d: Date) => d.toISOString().split('T')[0];
+  const today = new Date();
+  if (filter === 'TODAY') return { from: iso(today), to: iso(today) };
+  if (filter === 'YESTERDAY') { const y = new Date(today); y.setDate(today.getDate() - 1); return { from: iso(y), to: iso(y) }; }
+  if (filter === 'WEEK') { const w = new Date(today); w.setDate(today.getDate() - 7); return { from: iso(w), to: iso(today) }; }
+  return {};
+}
+
+/**
+ * Lazy-loads a route's stop detail from /full only once its row is expanded — replaces the old
+ * fetch-/full-for-every-route fan-out. Collapsed rows render from the list summary (counts) alone.
+ */
+function useRouteStops(route: EnrichedRoute, expanded: boolean) {
+  const [stops, setStops] = useState<DeliveryDetail[]>(route.stops ?? []);
+  const [loaded, setLoaded] = useState((route.stops ?? []).length > 0);
+  const [loading, setLoading] = useState(false);
+  useEffect(() => {
+    if (!expanded || loaded || loading) return;
+    setLoading(true);
+    api.get(`/api/admin/routes/${route.id}/full`)
+      .then((res) => {
+        const data = res.data ?? {};
+        const raw = Array.isArray(data.stops) ? data.stops.map(mapFullStop) : [];
+        const legacy = Array.isArray(data.legacyStops) ? data.legacyStops.map(mapFullStop) : [];
+        setStops(raw.length > 0 ? raw : legacy);
+        setLoaded(true);
+      })
+      .catch(() => setLoaded(true))
+      .finally(() => setLoading(false));
+  }, [expanded, loaded, loading, route.id]);
+  return { stops, loadingStops: loading };
+}
 
 type VehicleItem = { id: string; name: string; plate: string };
 type DepotItem   = { id: string; name: string; latitude: number; longitude: number };
@@ -144,7 +202,8 @@ function RouteRow({
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
 
-  const total    = route.stops.length;
+  const { stops, loadingStops } = useRouteStops(route, expanded);
+  const total    = route.totalStops ?? stops.length;
   const done     = route.completedStops;
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
   const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
@@ -281,10 +340,12 @@ function RouteRow({
               <span key={h} className="text-xs font-[600] text-[var(--text-muted)]">{h}</span>
             ))}
           </div>
-          {route.stops.length === 0 ? (
+          {loadingStops ? (
+            <div className="py-5 text-center italic text-[var(--text-muted)] text-xs">…</div>
+          ) : stops.length === 0 ? (
             <div className="py-5 text-center italic text-[var(--text-muted)] text-xs">{t.routesTablePage.noActiveStops}</div>
           ) : (
-            route.stops
+            stops
               .sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0))
               .map((stop, i) => <StopDetailRow key={stop.id || stop.deliveryId} stop={stop} index={i} />)
           )}
@@ -308,7 +369,8 @@ function RouteMobileCard({
   const [expanded, setExpanded] = useState(false);
   const router = useRouter();
 
-  const total    = route.stops.length;
+  const { stops, loadingStops } = useRouteStops(route, expanded);
+  const total    = route.totalStops ?? stops.length;
   const done     = route.completedStops;
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
   const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
@@ -416,10 +478,12 @@ function RouteMobileCard({
       {expanded && (
         <div className="bg-[var(--surface-sunken)] border-t border-[var(--border)] mt-2 -mx-4 -mb-4 p-3 rounded-b-md flex flex-col gap-2">
           <span className="text-3xs uppercase font-bold text-[var(--text-muted)] tracking-wider">Arrêts de la tournée</span>
-          {route.stops.length === 0 ? (
+          {loadingStops ? (
+            <div className="py-3 text-center italic text-[var(--text-muted)] text-xs">…</div>
+          ) : stops.length === 0 ? (
             <div className="py-3 text-center italic text-[var(--text-muted)] text-xs">{t.routesTablePage.noActiveStops}</div>
           ) : (
-            route.stops
+            stops
               .sort((a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0))
               .map((stop, i) => {
                 const isDone = stop.status ? DONE_STATUSES.has(stop.status) : false;
@@ -476,89 +540,7 @@ function RoutesTablePageContent() {
     if (role !== 'UNKNOWN' && !canDispatch(role)) router('/dashboard', { replace: true });
   }, [router]);
 
-  // Routes table data via React Query (cached, deduped, refetchable) — the queryFn preserves the
-  // exact enrichment the page had: base routes + per-route /full fan-out + drivers/vehicles/depots.
-  const { data: routesData, isLoading: loading, refetch: fetchData } = useQuery({
-    queryKey: ['routes-table'],
-    staleTime: 30_000,
-    queryFn: async () => {
-      const isManager = getCurrentRole() === 'MANAGER';
-      try {
-        const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
-          api.get('/api/admin/routes'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
-        ]);
-
-        const baseRoutes: RouteItem[] = Array.isArray(routesRes.data) ? routesRes.data : [];
-
-        const details = await Promise.allSettled(
-          baseRoutes.map(async (route) => {
-            const full = await api.get(`/api/admin/routes/${route.id}/full`).catch(() => ({ data: null }));
-            const data = full.data as any;
-            const zoneLabel = data?.detectedZoneLabel ?? route.detectedZoneLabel ?? data?.city ?? '';
-
-            const mapStop = (s: any): DeliveryDetail => {
-              const d = s.delivery ?? {};
-              const o = d.order ?? s.order ?? {};
-              return {
-                id:            s.id ?? s.stopId ?? '',
-                deliveryId:    s.deliveryId ?? d.id ?? '',
-                stopOrder:     s.stopOrder ?? s.sequenceOrder ?? 0,
-                status:        d.status ?? s.deliveryStatus ?? s.status ?? '',
-                clientName:    o.clientName ?? d.clientName ?? s.clientName ?? '',
-                dropoffAddress:o.dropoffAddress ?? d.dropoffAddress ?? s.deliveryAddress ?? '',
-                dropoffCity:   o.dropoffCity ?? d.dropoffCity ?? s.deliveryCity ?? '',
-                totalWeightKg: o.totalWeightKg ?? d.totalWeightKg ?? 0,
-                erpId:         o.erpOrderId ?? o.erpId ?? d.erpId ?? '',
-                orderId:       o.id ?? d.orderId ?? '',
-                priority:      o.priority ?? d.priority ?? '',
-                items:         o.items ?? d.items ?? s.items ?? [],
-              };
-            };
-
-            const rawStops: DeliveryDetail[]    = Array.isArray(data?.stops)       ? data.stops.map(mapStop)       : [];
-            const legacyStops: DeliveryDetail[] = Array.isArray(data?.legacyStops) ? data.legacyStops.map(mapStop) : [];
-            const allStops = rawStops.length > 0 ? rawStops : legacyStops;
-
-            const clientNames    = allStops.map((s) => s.clientName).filter((n): n is string => Boolean(n));
-            const completedStops = allStops.filter((s) => s.status && DONE_STATUSES.has(s.status)).length;
-
-            return {
-              ...route,
-              stops: allStops,
-              zoneLabel,
-              clientNames: [...new Set(clientNames.map((n) => n.trim()))],
-              completedStops,
-            } as EnrichedRoute;
-          }),
-        );
-
-        const enriched = details.map((result, idx) => {
-          if (result.status === 'fulfilled') return result.value;
-          const r = baseRoutes[idx];
-          return { ...r, zoneLabel: r.detectedZoneLabel ?? '', clientNames: [], completedStops: 0, stops: [] } as EnrichedRoute;
-        });
-
-        return {
-          routes: enriched,
-          drivers: (Array.isArray(driversRes.data) ? driversRes.data : []) as Driver[],
-          vehicles: (Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []) as VehicleItem[],
-          depots: (Array.isArray(depotsRes.data) ? depotsRes.data : []) as DepotItem[],
-        };
-      } catch {
-        showErrorToast(null, t.routesTablePage.loadError);
-        return { routes: [] as EnrichedRoute[], drivers: [] as Driver[], vehicles: [] as VehicleItem[], depots: [] as DepotItem[] };
-      }
-    },
-  });
-  const routes = routesData?.routes ?? [];
-  const drivers = routesData?.drivers ?? [];
-  const vehicles = routesData?.vehicles ?? [];
-  const depots = routesData?.depots ?? [];
-
-  // Filters
+  // ── Filters + pagination (all server-side; the list endpoint is paginated + filtered) ──
   const [statusFilter,  setStatusFilter]  = useState('ALL');
   const [dateFilter,    setDateFilter]    = useState('ALL');
   const [zoneFilter,    setZoneFilter]    = useState('');
@@ -566,6 +548,71 @@ function RoutesTablePageContent() {
   const [vehicleFilter, setVehicleFilter] = useState('');
   const [depotFilter,   setDepotFilter]   = useState('');
   const [clientFilter,  setClientFilter]  = useState('');
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 25;
+  // Debounce the client/route search → server `q`; reset to the first page on a new search.
+  const [debouncedClient, setDebouncedClient] = useState('');
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedClient(clientFilter); setPage(0); }, 300);
+    return () => clearTimeout(id);
+  }, [clientFilter]);
+
+  // Routes table data via React Query — server-side paginated + filtered. Collapsed rows render from
+  // the list summary (counts/zone); the rich per-stop detail is lazy-loaded via /full on row-expand.
+  const routeRange = dateRangeFor(dateFilter);
+  const { data: routesData, isLoading: loading, refetch: fetchData } = useQuery({
+    queryKey: ['routes-table', page, statusFilter, dateFilter, driverFilter, vehicleFilter, depotFilter, zoneFilter, debouncedClient],
+    staleTime: 30_000,
+    queryFn: async () => {
+      const isManager = getCurrentRole() === 'MANAGER';
+      const params: Record<string, string | number> = { page, size: PAGE_SIZE };
+      if (statusFilter !== 'ALL') params.status = statusFilter;
+      if (driverFilter)  params.driverId = driverFilter;
+      if (vehicleFilter) params.vehicleId = vehicleFilter;
+      if (depotFilter)   params.depotId = depotFilter;
+      if (zoneFilter)    params.city = zoneFilter; // zone label maps to the route's operational city
+      if (routeRange.from) params.from = routeRange.from;
+      if (routeRange.to)   params.to = routeRange.to;
+      if (debouncedClient.trim()) params.q = debouncedClient.trim();
+      try {
+        const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
+          api.get('/api/admin/routes/page', { params }),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
+        ]);
+
+        const pageData = routesRes.data ?? {};
+        const content: any[] = Array.isArray(pageData.content) ? pageData.content : [];
+        const enriched: EnrichedRoute[] = content.map((r) => ({
+          ...r,
+          stops: [],                                  // lazy-loaded on expand (kills the old /full fan-out)
+          totalStops: r.totalStops ?? 0,
+          completedStops: r.completedStops ?? 0,
+          zoneLabel: r.detectedZoneLabel ?? r.city ?? '',
+          clientNames: [],
+        }));
+
+        return {
+          routes: enriched,
+          totalPages: Math.max(1, Number(pageData.totalPages ?? 1)),
+          totalElements: Number(pageData.totalElements ?? content.length),
+          drivers: (Array.isArray(driversRes.data) ? driversRes.data : []) as Driver[],
+          vehicles: (Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []) as VehicleItem[],
+          depots: (Array.isArray(depotsRes.data) ? depotsRes.data : []) as DepotItem[],
+        };
+      } catch {
+        showErrorToast(null, t.routesTablePage.loadError);
+        return { routes: [] as EnrichedRoute[], totalPages: 1, totalElements: 0, drivers: [] as Driver[], vehicles: [] as VehicleItem[], depots: [] as DepotItem[] };
+      }
+    },
+  });
+  const routes = routesData?.routes ?? [];
+  const totalPages = routesData?.totalPages ?? 1;
+  const totalElements = routesData?.totalElements ?? 0;
+  const drivers = routesData?.drivers ?? [];
+  const vehicles = routesData?.vehicles ?? [];
+  const depots = routesData?.depots ?? [];
 
   // Close modal
   const [closeTarget, setCloseTarget] = useState<EnrichedRoute | null>(null);
@@ -598,29 +645,9 @@ function RoutesTablePageContent() {
 
   const closingRoute = closeRouteMutation.isPending;
 
-  const filteredRoutes = useMemo(() => {
-    const q = clientFilter.trim().toLowerCase();
-    const now = new Date();
-    const todayStr     = now.toISOString().split('T')[0];
-    const yesterday    = new Date(now); yesterday.setDate(now.getDate() - 1);
-    const yesterdayStr = yesterday.toISOString().split('T')[0];
-    const weekAgo = new Date(now); weekAgo.setDate(now.getDate() - 7);
-
-    return routes.filter((r) => {
-      if (statusFilter !== 'ALL' && r.status !== statusFilter) return false;
-      if (dateFilter !== 'ALL') {
-        if (dateFilter === 'TODAY' && r.date !== todayStr) return false;
-        if (dateFilter === 'YESTERDAY' && r.date !== yesterdayStr) return false;
-        if (dateFilter === 'WEEK' && new Date(r.date) < weekAgo) return false;
-      }
-      if (zoneFilter    && r.zoneLabel !== zoneFilter)                return false;
-      if (driverFilter  && r.driverId  !== driverFilter)              return false;
-      if (vehicleFilter && (r.vehicleId  ?? '') !== vehicleFilter)    return false;
-      if (depotFilter   && (r.depotId    ?? '') !== depotFilter)      return false;
-      if (q && !r.clientNames.join(' ').toLowerCase().includes(q))   return false;
-      return true;
-    });
-  }, [routes, statusFilter, dateFilter, zoneFilter, driverFilter, vehicleFilter, depotFilter, clientFilter]);
+  // Filtering happens server-side (status/date/driver/vehicle/depot/zone/q), so the loaded page is
+  // already the filtered result — no client-side re-filtering (which would only filter one page).
+  const filteredRoutes = routes;
 
   const grouped = useMemo(() => {
     const map = new Map<string, EnrichedRoute[]>();
@@ -680,6 +707,7 @@ function RoutesTablePageContent() {
     if (key === 'vehicle') setVehicleFilter(value ?? '');
     if (key === 'depot')   setDepotFilter(value ?? '');
     if (key === 'zone')    setZoneFilter(value ?? '');
+    setPage(0); // any filter change resets to the first page of the server-side result
   };
 
   return (
@@ -702,7 +730,7 @@ function RoutesTablePageContent() {
                 columns={[
                   { header: 'Tournée', accessor: r => r.name },
                   { header: 'Chauffeur', accessor: r => drivers.find(d => d.id === r.driverId)?.name ?? '' },
-                  { header: 'Arrêts', accessor: r => r.stops?.length ?? 0 },
+                  { header: 'Arrêts', accessor: r => r.totalStops ?? r.stops?.length ?? 0 },
                   { header: 'Statut', accessor: r => r.status },
                   { header: 'Zone', accessor: r => (r as any).zoneLabel },
                   { header: 'Date', accessor: r => r.date },
@@ -795,6 +823,23 @@ function RoutesTablePageContent() {
                 </div>
               )}
             </div>
+
+            {/* Pagination footer — server-side paged */}
+            {(totalPages > 1 || page > 0) && (
+              <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {(t.deliveriesPage?.pageLabel ?? 'Page')} {page + 1} / {totalPages} · {totalElements}
+                </span>
+                <div className="flex items-center gap-1.5">
+                  <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="h-7 px-3 text-xs font-[700]">
+                    {t.deliveriesPage?.prevButton ?? 'Précédent'}
+                  </Button>
+                  <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-7 px-3 text-xs font-[700]">
+                    {t.deliveriesPage?.nextButton ?? 'Suivant'}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 

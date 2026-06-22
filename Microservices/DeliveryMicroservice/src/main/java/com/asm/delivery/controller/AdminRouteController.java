@@ -71,6 +71,25 @@ public class AdminRouteController {
         return ResponseEntity.ok(routePlanningService.list(status, driverId, date, from, to, city));
     }
 
+    @GetMapping("/page")
+    @Operation(summary = "List routes (paginated, all-time)",
+               description = "Server-side paginated route browse for the management table. Default sort date desc.")
+    public ResponseEntity<org.springframework.data.domain.Page<RouteResponse>> listPaged(
+            RouteStatus status,
+            UUID driverId,
+            String city,
+            UUID vehicleId,
+            UUID depotId,
+            LocalDate from,
+            LocalDate to,
+            String q,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 25, sort = {"date", "createdAt"},
+                    direction = org.springframework.data.domain.Sort.Direction.DESC) org.springframework.data.domain.Pageable pageable
+    ) {
+        return ResponseEntity.ok(routePlanningService.listPaged(status, driverId, city, vehicleId, depotId, from, to, q, pageable));
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get route")
     public ResponseEntity<RouteResponse> get(@PathVariable UUID id) {

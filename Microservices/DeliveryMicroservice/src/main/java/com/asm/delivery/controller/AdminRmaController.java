@@ -28,9 +28,13 @@ public class AdminRmaController {
     private final RmaService rmaService;
 
     @GetMapping
-    @Operation(summary = "List returns, optionally filtered by status")
-    public ResponseEntity<List<RmaResponse>> list(@RequestParam(required = false) RmaStatus status) {
-        return ResponseEntity.ok(rmaService.list(status));
+    @Operation(summary = "List returns (paginated), optionally filtered by status and search query")
+    public ResponseEntity<org.springframework.data.domain.Page<RmaResponse>> list(
+            @RequestParam(required = false) RmaStatus status,
+            @RequestParam(required = false) String q,
+            @org.springdoc.core.annotations.ParameterObject
+            @org.springframework.data.web.PageableDefault(size = 25) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(rmaService.list(status, q, pageable));
     }
 
     @GetMapping("/kpi")

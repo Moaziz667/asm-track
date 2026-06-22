@@ -21,6 +21,17 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
     @Query("SELECT rs FROM RouteStop rs JOIN FETCH rs.route r WHERE rs.deliveryId = :deliveryId ORDER BY rs.createdAt DESC")
     List<RouteStop> findStopsByDeliveryIdWithRoute(@Param("deliveryId") UUID deliveryId);
 
+    /**
+     * Route ids whose stops belong to a delivery whose order's client name matches {@code q}. Backs the
+     * routes-table server-side client-name search (Route has no JPA path to Order, so we theta-join here).
+     */
+    @Query("""
+        SELECT DISTINCT rs.route.id FROM RouteStop rs, Delivery d
+        WHERE d.id = rs.deliveryId
+          AND LOWER(d.order.clientName) LIKE LOWER(CONCAT('%', :q, '%'))
+        """)
+    List<UUID> findRouteIdsByClientName(@Param("q") String q);
+
     default Optional<RouteStop> findByDeliveryId(UUID deliveryId) {
         return findFirstByDeliveryIdOrderByCreatedAtDesc(deliveryId);
     }

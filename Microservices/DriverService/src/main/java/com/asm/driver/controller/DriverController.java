@@ -56,8 +56,10 @@ public class DriverController {
     }
 
     @GetMapping("/history")
-    public ResponseEntity<HistoryResponse> getHistory(@AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(driverService.getHistory(UUID.fromString(user.getUserId())));
+    public ResponseEntity<HistoryResponse> getHistory(
+            @AuthenticationPrincipal UserPrincipal user,
+            @org.springframework.data.web.PageableDefault(size = 20) org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(driverService.getHistory(UUID.fromString(user.getUserId()), pageable));
     }
 
     @PutMapping("/fcm-token")

@@ -13,6 +13,14 @@ spring:
   application:
     name: delivery-service
 
+  # Global pagination guardrails: cap any `Pageable` controller argument so a client can never
+  # request an unbounded page (e.g. ?size=100000). Endpoints with stricter explicit clamps keep them.
+  data:
+    web:
+      pageable:
+        default-page-size: 25
+        max-page-size: 100
+
   cloud:
     openfeign:
       circuitbreaker:

@@ -238,12 +238,8 @@ public class DriverPerformancePdfService extends BasePdfService {
 
     @org.springframework.transaction.annotation.Transactional(readOnly = true)
     public double getFleetAverageData(LocalDateTime start, LocalDateTime end) {
-        List<Delivery> allDeliveries = deliveryRepository.findAll();
-        List<Delivery> fleetFiltered = allDeliveries.stream()
-                .filter(d -> {
-                    LocalDateTime ref = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
-                    return ref != null && !ref.isBefore(start) && !ref.isAfter(end);
-                }).toList();
+        // Bounded to the report window at the DB level (was a full-table findAll() + in-memory filter).
+        List<Delivery> fleetFiltered = deliveryRepository.findByActivityBetween(start, end);
         long fleetTotal     = fleetFiltered.size();
         long fleetDelivered = fleetFiltered.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED).count();
         return fleetTotal == 0 ? 0 : (double) fleetDelivered / fleetTotal * 100.0;

@@ -54,6 +54,8 @@ const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> = {
 
 const FILTERS: (RmaStatus | 'ALL')[] = ['ALL', 'REQUESTED', 'APPROVED', 'RECEIVED', 'RESTOCKED', 'REJECTED'];
 
+const PAGE_SIZE = 25;
+
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
   const t = useT();
@@ -65,6 +67,10 @@ export default function ReturnsPage() {
   const [filter, setFilter] = useState<RmaStatus | 'ALL'>('ALL');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [page, setPage] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalElements, setTotalElements] = useState(0);
   // Reason modal for reject/cancel transitions (replaces window.prompt).
   const [reasonModal, setReasonModal] = useState<{ rma: Rma; target: RmaStatus } | null>(null);
   const [reasonText, setReasonText] = useState('');
@@ -72,20 +78,33 @@ export default function ReturnsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
+      const params: Record<string, string | number> = { page, size: PAGE_SIZE };
+      if (filter !== 'ALL') params.status = filter;
+      if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
       const [listRes, kpiRes] = await Promise.all([
-        api.get('/api/admin/returns', { params: filter === 'ALL' ? {} : { status: filter } }),
+        api.get('/api/admin/returns', { params }),
         api.get('/api/admin/returns/kpi').catch(() => ({ data: null })),
       ]);
-      setRmas(Array.isArray(listRes.data) ? listRes.data : []);
+      // Endpoint is paginated → response is a Spring Page { content, totalPages, totalElements }.
+      const data = listRes.data ?? {};
+      setRmas(Array.isArray(data.content) ? data.content : (Array.isArray(data) ? data : []));
+      setTotalPages(Math.max(1, Number(data.totalPages ?? 1)));
+      setTotalElements(Number(data.totalElements ?? (Array.isArray(data.content) ? data.content.length : 0)));
       if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked });
     } catch {
       showErrorToast(null, t.returnsPage?.loadError ?? 'Échec du chargement des retours');
     } finally {
       setLoading(false);
     }
-  }, [filter, t]);
+  }, [filter, debouncedQuery, page, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
+
+  // Debounce the search box → server `q`; reset to the first page on a new search or filter.
+  useEffect(() => {
+    const id = setTimeout(() => { setDebouncedQuery(query); setPage(0); }, 300);
+    return () => clearTimeout(id);
+  }, [query]);
 
   // Entry point from the row actions. Reject/cancel need a reason → open the modal; other
   // transitions run immediately.
@@ -147,27 +166,19 @@ export default function ReturnsPage() {
     }
   };
 
-  // Client-side search over the loaded rows (server already filters by status).
-  const visibleRows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return rmas;
-    return rmas.filter((r) =>
-      (r.clientName ?? '').toLowerCase().includes(q) ||
-      (r.blNumber ?? '').toLowerCase().includes(q) ||
-      (r.erpOrderId ?? '').toLowerCase().includes(q),
-    );
-  }, [rmas, query]);
+  // Rows come pre-filtered + paginated from the server (status + q applied server-side).
+  const visibleRows = rmas;
 
-  // Quick-filter pills (statuses) with live counts for the active list.
+  // Quick-filter pills (statuses); count reflects the full server-side result for the active filter.
   const quickFilters = useMemo(() => {
     const base: { value: RmaStatus | 'ALL'; label: string }[] =
       FILTERS.map((f) => ({ value: f, label: f === 'ALL' ? (t.returnsPage?.allFilter ?? 'Tous') : statusLabel(f) }));
     return base.map((b) => ({
       value: b.value,
       label: b.label,
-      count: b.value === filter ? visibleRows.length : undefined,
+      count: b.value === filter ? totalElements : undefined,
     }));
-  }, [filter, visibleRows.length, t]);
+  }, [filter, totalElements, t]);
 
   return (
     <div className="h-auto lg:h-[calc(100dvh-56px)] overflow-visible lg:overflow-hidden bg-[var(--app-bg)] flex flex-col">
@@ -179,7 +190,7 @@ export default function ReturnsPage() {
         refreshing={loading}
         quickFilters={quickFilters}
         activeQuickFilter={filter}
-        onQuickFilterChange={(v) => setFilter(v as RmaStatus | 'ALL')}
+        onQuickFilterChange={(v) => { setFilter(v as RmaStatus | 'ALL'); setPage(0); }}
         extraActions={
           <>
             <ExportCsvButton
@@ -207,7 +218,7 @@ export default function ReturnsPage() {
               {t.returnsPage?.title ?? 'Retours'} <span className="font-mono text-[var(--brand)]">{filter === 'ALL' ? (t.returnsPage?.allUpper ?? 'TOUS') : statusLabel(filter).toUpperCase()}</span>
             </span>
             <span className="text-xs font-[500] text-[var(--text-muted)]">
-              {visibleRows.length} {t.returnsPage?.countSuffix ?? 'retour(s)'}
+              {totalElements} {t.returnsPage?.countSuffix ?? 'retour(s)'}
             </span>
           </div>
           <div className="flex items-center gap-5 text-xs font-[500]">
@@ -329,6 +340,23 @@ export default function ReturnsPage() {
           </table>
           </div>
         </div>
+
+        {/* Pagination footer — server-side paged (mirrors the Deliveries pager). */}
+        {(totalPages > 1 || page > 0) && (
+          <div className="flex items-center justify-between px-4 py-2.5 border-t border-[var(--border)] shrink-0" style={{ background: 'var(--surface)' }}>
+            <span className="text-xs text-[var(--text-muted)]">
+              {(t.deliveriesPage?.pageLabel ?? 'Page')} {page + 1} / {totalPages}
+            </span>
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="sm" disabled={page === 0} onClick={() => setPage((p) => Math.max(0, p - 1))} className="h-7 px-3 text-xs font-[700]">
+                {t.deliveriesPage?.prevButton ?? 'Précédent'}
+              </Button>
+              <Button variant="outline" size="sm" disabled={page + 1 >= totalPages} onClick={() => setPage((p) => p + 1)} className="h-7 px-3 text-xs font-[700]">
+                {t.deliveriesPage?.nextButton ?? 'Suivant'}
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Reason modal for reject/cancel — replaces window.prompt with an inline-validated textarea. */}
