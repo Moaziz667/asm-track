@@ -10,10 +10,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -25,6 +23,7 @@ public class DeliveryQueryService {
     private final TrackingRepository              trackingRepo;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final TransportPort                   transportPort;
+    private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private DeliveryQueryService self;
 
@@ -74,21 +73,12 @@ public class DeliveryQueryService {
     public List<StatusHistoryResponse> getHistory(UUID deliveryId, String requesterId, String requesterRole) {
         List<DeliveryStatusHistory> history = self.doGetHistory(deliveryId, requesterId, requesterRole);
 
-        // Batch fetch driver names for history if needed
-        Set<String> driverIds = history.stream()
-                .filter(h -> h.getChangedByRole() == com.asm.delivery.entity.Role.DRIVER && h.getChangedBy() != null)
-                .map(DeliveryStatusHistory::getChangedBy)
-                .collect(Collectors.toSet());
-
-        Map<String, String> driverNames = new HashMap<>();
-        for (String dId : driverIds) {
-            DriverDTO d = transportPort.getDriver(dId);
-            if (d != null && d.getName() != null) driverNames.put(dId, d.getName());
-        }
+        // Resolve every actor (driver + admin/dispatcher) to a real name in at most two remote calls.
+        Map<String, String> actorNames = actorNameResolver.prefetch(history);
 
         return history.stream()
                 .map(h -> {
-                    String actorDisplay = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), driverNames);
+                    String actorDisplay = actorNameResolver.resolve(h.getChangedBy(), h.getChangedByRole(), actorNames);
                     return StatusHistoryResponse.builder()
                             .id(h.getId() != null ? h.getId().toString() : null)
                             .status(h.getStatus().name())
@@ -120,37 +110,6 @@ public class DeliveryQueryService {
             return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
         } catch (Exception e) {
             return Map.of();
-        }
-    }
-
-    private String resolveActorNameLocal(String changedBy, com.asm.delivery.entity.Role role, Map<String, String> driverNames) {
-        if (changedBy == null) return null;
-        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
-        try {
-            UUID.fromString(changedBy);
-            if (role == com.asm.delivery.entity.Role.DRIVER) {
-                return driverNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
-            }
-            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN) return "Dispatching";
-            return changedBy.substring(0, 8).toUpperCase();
-        } catch (IllegalArgumentException e) {
-            return changedBy;
-        }
-    }
-
-    private String resolveActorName(String changedBy, com.asm.delivery.entity.Role role) {
-        if (changedBy == null) return null;
-        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
-        try {
-            UUID.fromString(changedBy);
-            if (role == com.asm.delivery.entity.Role.DRIVER) {
-                DriverDTO driver = transportPort.getDriver(changedBy);
-                if (driver != null && driver.getName() != null) return driver.getName();
-            }
-            if (role == com.asm.delivery.entity.Role.DISPATCHER || role == com.asm.delivery.entity.Role.ADMIN) return "Dispatching";
-            return changedBy.substring(0, 8).toUpperCase();
-        } catch (IllegalArgumentException e) {
-            return changedBy;
         }
     }
 

@@ -66,6 +66,7 @@ public class DispatchService {
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.service.HandoffService handoffService;
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
+    private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     // ── Search deliveries ─────────────────────────────────────────────────────
@@ -201,19 +202,7 @@ public class DispatchService {
     }
 
     private Map<String, String> fetchActorNames(List<DeliveryStatusHistory> histories) {
-        Set<String> driverIds = histories.stream()
-                .filter(h -> h.getChangedByRole() == Role.DRIVER && h.getChangedBy() != null)
-                .map(DeliveryStatusHistory::getChangedBy)
-                .collect(Collectors.toSet());
-
-        Map<String, String> map = new HashMap<>();
-        for (String id : driverIds) {
-            try {
-                DriverDTO d = transportPort.getDriver(id);
-                if (d != null && d.getName() != null) map.put(id, d.getName());
-            } catch (Exception ignored) {}
-        }
-        return map;
+        return actorNameResolver.prefetch(histories);
     }
 
     @Transactional(readOnly = true)
@@ -833,7 +822,7 @@ public class DispatchService {
     }
 
     private StatusHistoryResponse toHistoryResponseLocal(DeliveryStatusHistory h, Map<String, String> actorNames) {
-        String actorDisplay = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), actorNames);
+        String actorDisplay = actorNameResolver.resolve(h.getChangedBy(), h.getChangedByRole(), actorNames);
         return StatusHistoryResponse.builder()
                 .id(h.getId() != null ? h.getId().toString() : null)
                 .status(h.getStatus().name())
@@ -845,21 +834,6 @@ public class DispatchService {
                 .eventParams(deserializeEventParams(h.getEventParams()))
                 .changedAt(h.getChangedAt())
                 .build();
-    }
-
-    private String resolveActorNameLocal(String changedBy, Role role, Map<String, String> actorNames) {
-        if (changedBy == null) return null;
-        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
-        try {
-            UUID.fromString(changedBy);
-            if (role == Role.DRIVER) {
-                return actorNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
-            }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
-            return changedBy.substring(0, 8).toUpperCase();
-        } catch (IllegalArgumentException e) {
-            return changedBy;
-        }
     }
 
     private static UUID parseUuid(String id) {

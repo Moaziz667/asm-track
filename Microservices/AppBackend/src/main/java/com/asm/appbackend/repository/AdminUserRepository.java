@@ -13,5 +13,8 @@ public interface AdminUserRepository extends JpaRepository<AdminUser, UUID> {
     Optional<AdminUser> findByEmail(String email);
     boolean existsByEmail(String email);
     boolean existsByRole(String role);
+
+    /** Rows that may diverge from Keycloak — the reconciler's fast incremental pass. */
+    List<AdminUser> findByKcSyncedFalse();
 }
 

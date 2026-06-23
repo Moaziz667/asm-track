@@ -3,66 +3,136 @@ package com.asm.appbackend.scheduler;
 import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.entity.AdminUser;
 import com.asm.appbackend.repository.AdminUserRepository;
-import lombok.RequiredArgsConstructor;
+import io.micrometer.core.instrument.MeterRegistry;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
+import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLong;
 
+/**
+ * Reconciles the {@code admin_users} table against its Keycloak mirror. Two passes:
+ * <ul>
+ *   <li><b>dirty</b> (every 60s): only rows flagged {@code kcSynced=false} — fast healing of
+ *       just-created/updated users so attribution-critical fields (incl. display name) propagate
+ *       quickly, without re-scanning every user every tick.</li>
+ *   <li><b>full</b> (every 15min): drift audit over all rows to catch out-of-band Keycloak changes.</li>
+ * </ul>
+ * Both emit Micrometer metrics ({@code kc.sync.*}) so a permanently-failing sync is visible instead
+ * of buried in logs. The reconciler — not a server-minted password — is the consistency mechanism;
+ * a missing user is re-provisioned with an {@code UPDATE_PASSWORD} required action.
+ */
 @Component
-@RequiredArgsConstructor
 @Slf4j
 public class KeycloakSyncScheduler {
 
     private final AdminUserRepository adminUserRepo;
     private final KeycloakAdminClient keycloakAdminClient;
+    private final MeterRegistry meters;
+    private final AtomicLong lastSuccessEpoch = new AtomicLong(0);
 
-    // Runs every 5 minutes with initial delay of 10 seconds
-    @Scheduled(fixedDelay = 300000, initialDelay = 10000)
-    public void reconcileAdminUsers() {
-        log.info("Starting Keycloak Admin Users synchronization and reconciliation...");
-        List<AdminUser> dbUsers = adminUserRepo.findAll();
+    public KeycloakSyncScheduler(AdminUserRepository adminUserRepo,
+                                 KeycloakAdminClient keycloakAdminClient,
+                                 MeterRegistry meters) {
+        this.adminUserRepo = adminUserRepo;
+        this.keycloakAdminClient = keycloakAdminClient;
+        this.meters = meters;
+        meters.gauge("kc.sync.last_success.seconds", lastSuccessEpoch);
+    }
 
-        for (AdminUser dbUser : dbUsers) {
+    /** Fast incremental pass: only rows that may diverge (just created/updated, or failed sync). */
+    @Scheduled(fixedDelay = 60_000, initialDelay = 10_000)
+    public void reconcileDirty() {
+        List<AdminUser> dirty = adminUserRepo.findByKcSyncedFalse();
+        if (dirty.isEmpty()) return;
+        log.info("Keycloak admin sync (dirty pass): {} row(s) to reconcile", dirty.size());
+        runPass("dirty", dirty);
+    }
+
+    /** Full drift audit over all rows — catches out-of-band Keycloak edits the dirty pass misses. */
+    @Scheduled(fixedDelay = 900_000, initialDelay = 60_000)
+    public void reconcileAll() {
+        log.info("Keycloak admin sync (full pass): starting drift audit...");
+        runPass("full", adminUserRepo.findAll());
+        log.info("Keycloak admin sync (full pass): complete.");
+    }
+
+    private void runPass(String pass, List<AdminUser> users) {
+        meters.counter("kc.sync.runs", "service", "admin", "pass", pass).increment();
+        for (AdminUser dbUser : users) {
             try {
-                Map<String, Object> kcUser = keycloakAdminClient.getUserDetails(dbUser.getEmail());
-
-                if (kcUser == null) {
-                    // Provision user if missing in Keycloak
-                    log.info("Sync: Admin user missing in Keycloak. Provisioning... email={}", dbUser.getEmail());
-                    // Generate temporary random password
-                    String randomPassword = "Tmp_" + UUID.randomUUID().toString().substring(0, 8) + "!";
-                    keycloakAdminClient.createUser(
-                            dbUser.getEmail(),
-                            dbUser.getRole(),
-                            dbUser.getId().toString(),
-                            randomPassword
-                    );
-                } else {
-                    // Reconcile status
-                    boolean kcEnabled = Boolean.TRUE.equals(kcUser.get("enabled"));
-                    if (kcEnabled != dbUser.isActive()) {
-                        log.info("Sync: Status out of sync for user {}. DB active={}, Keycloak enabled={}. Reconciling...",
-                                dbUser.getEmail(), dbUser.isActive(), kcEnabled);
-                        keycloakAdminClient.setUserEnabled(dbUser.getId().toString(), dbUser.isActive());
-                    }
-
-                    // Reconcile role
-                    String kcUserId = (String) kcUser.get("id");
-                    List<String> kcRoles = keycloakAdminClient.getUserRoles(kcUserId);
-                    if (!kcRoles.contains(dbUser.getRole().toUpperCase())) {
-                        log.info("Sync: Role out of sync for user {}. DB role={}, Keycloak roles={}. Reconciling...",
-                                dbUser.getEmail(), dbUser.getRole(), kcRoles);
-                        keycloakAdminClient.setUserRole(dbUser.getId().toString(), dbUser.getEmail(), dbUser.getRole());
-                    }
-                }
+                reconcileOne(dbUser);
             } catch (Exception e) {
-                log.error("Failed to reconcile user email={}: {}", dbUser.getEmail(), e.getMessage());
+                meters.counter("kc.sync.failures", "service", "admin", "pass", pass).increment();
+                log.error("Failed to reconcile admin user email={}: {}", dbUser.getEmail(), e.getMessage());
             }
         }
-        log.info("Keycloak Admin Users reconciliation complete.");
+        lastSuccessEpoch.set(System.currentTimeMillis() / 1000);
+    }
+
+    /** Reconcile a single user; flips kcSynced=true only when Keycloak is confirmed in sync. */
+    private void reconcileOne(AdminUser dbUser) {
+        Map<String, Object> kcUser = keycloakAdminClient.getUserDetails(dbUser.getEmail());
+
+        if (kcUser == null) {
+            // Missing in Keycloak — provision with no server-side password (UPDATE_PASSWORD required
+            // action). createUser is idempotent and also applies the display name on the way through.
+            log.info("Sync: admin user missing in Keycloak. Provisioning... email={}", dbUser.getEmail());
+            keycloakAdminClient.createUser(dbUser.getEmail(), dbUser.getRole(), dbUser.getId().toString(), null, dbUser.getName());
+            meters.counter("kc.sync.repairs", "service", "admin", "kind", "provision").increment();
+            // Best-effort: prompt the user to set a password (no-op if SMTP isn't configured).
+            try {
+                keycloakAdminClient.triggerPasswordResetEmail(dbUser.getId().toString());
+            } catch (Exception e) {
+                log.warn("Provisioned admin {} but could not send password-reset email: {}", dbUser.getEmail(), e.getMessage());
+            }
+            markSynced(dbUser);
+            return;
+        }
+
+        boolean repaired = false;
+
+        // Status drift
+        boolean kcEnabled = Boolean.TRUE.equals(kcUser.get("enabled"));
+        if (kcEnabled != dbUser.isActive()) {
+            log.info("Sync: status drift for {} (db={}, kc={}). Reconciling...", dbUser.getEmail(), dbUser.isActive(), kcEnabled);
+            keycloakAdminClient.setUserEnabled(dbUser.getId().toString(), dbUser.isActive());
+            repaired = true;
+        }
+
+        // Role drift
+        String kcUserId = (String) kcUser.get("id");
+        List<String> kcRoles = keycloakAdminClient.getUserRoles(kcUserId);
+        if (!kcRoles.contains(dbUser.getRole().toUpperCase())) {
+            log.info("Sync: role drift for {} (db={}, kc={}). Reconciling...", dbUser.getEmail(), dbUser.getRole(), kcRoles);
+            keycloakAdminClient.setUserRole(dbUser.getId().toString(), dbUser.getEmail(), dbUser.getRole());
+            repaired = true;
+        }
+
+        // Name drift — the gap that made admin audit/history show a generic actor instead of a person.
+        Map<String, Object> expected = KeycloakAdminClient.nameFields(dbUser.getName());
+        if (!expected.isEmpty()
+                && (!Objects.equals(expected.get("firstName"), kcUser.get("firstName"))
+                 || !Objects.equals(expected.get("lastName"),  kcUser.get("lastName")))) {
+            log.info("Sync: name drift for {}. Reconciling display name...", dbUser.getEmail());
+            keycloakAdminClient.updateUserName(dbUser.getId().toString(), dbUser.getEmail(), dbUser.getName());
+            repaired = true;
+        }
+
+        if (repaired) {
+            meters.counter("kc.sync.drift", "service", "admin").increment();
+            meters.counter("kc.sync.repairs", "service", "admin", "kind", "attributes").increment();
+        }
+        markSynced(dbUser);
+    }
+
+    private void markSynced(AdminUser dbUser) {
+        if (!dbUser.isKcSynced()) {
+            dbUser.setKcSynced(true);
+            adminUserRepo.save(dbUser);
+        }
     }
 }

@@ -26,6 +26,7 @@ public class AdminUserService {
     private final KeycloakAdminClient keycloakAdminClient;
     private final ApplicationEventPublisher eventPublisher;
     private final AuditEventPublisher auditEventPublisher;
+    private final OutboxProcessor outboxProcessor;
 
     // ── User management (unchanged) ───────────────────────────────────────────
 
@@ -43,10 +44,13 @@ public class AdminUserService {
 
         adminUserRepo.save(user);
 
-        // Provision in Keycloak (Resilient: caught exceptions will not roll back database)
+        // Provision in Keycloak (Resilient: caught exceptions will not roll back database).
+        // kcSynced stays false until Keycloak confirms, so the reconciler heals a failed provision.
         try {
-            keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password());
+            keycloakAdminClient.createUser(req.email(), req.role(), user.getId().toString(), req.password(), req.name());
             eventPublisher.publishEvent(new KeycloakUserRollbackEvent(this, user.getId().toString()));
+            user.setKcSynced(true);
+            adminUserRepo.save(user);
         } catch (Exception e) {
             log.warn("Keycloak is down/failed to provision user (appUserId={}) during creation. Sync scheduler will reconcile: {}", user.getId(), e.getMessage());
         }
@@ -65,17 +69,12 @@ public class AdminUserService {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
         user.setActive(active);
+        user.setKcSynced(false);
         AdminUser saved = adminUserRepo.save(user);
 
-        try {
-            if (active) {
-                keycloakAdminClient.enableUser(user.getId().toString());
-            } else {
-                keycloakAdminClient.disableUser(user.getId().toString());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to update user status in Keycloak for appUserId={}. Reconciliation scheduler will retry: {}", user.getId(), e.getMessage());
-        }
+        // Async, exactly-once via the IAM outbox (drained by OutboxProcessor → Keycloak).
+        outboxProcessor.enqueue(IamCommandApplier.SET_ENABLED, java.util.Map.of(
+                "appUserId", user.getId().toString(), "enabled", active));
 
         return toResponse(saved);
     }
@@ -93,23 +92,27 @@ public class AdminUserService {
             throw new AppException(HttpStatus.CONFLICT, "Email already in use");
         }
 
+        String oldName = user.getName();
         user.setName(name.trim());
         user.setEmail(trimmedEmail);
         user.setRole(role);
+        user.setKcSynced(false); // about to mutate the KC mirror — mark dirty until confirmed
         AdminUser saved = adminUserRepo.save(user);
 
-        // Sync to Keycloak resiliently
-        try {
-            if (!trimmedEmail.equalsIgnoreCase(oldEmail)) {
-                // Pass oldEmail for fallback search (finding users created with email as username)
-                keycloakAdminClient.updateUserEmail(user.getId().toString(), oldEmail, trimmedEmail);
-            }
-            if (!role.equalsIgnoreCase(oldRole)) {
-                // Pass email for fallback search
-                keycloakAdminClient.setUserRole(user.getId().toString(), trimmedEmail, role);
-            }
-        } catch (Exception e) {
-            log.warn("Failed to sync updates to Keycloak for appUserId={}. Reconciliation scheduler will retry: {}", user.getId(), e.getMessage());
+        // Async, exactly-once via the IAM outbox. Each changed attribute is its own command so a
+        // partial failure retries only what's left; the admin reconciler is the backstop.
+        String appUserId = user.getId().toString();
+        if (!trimmedEmail.equalsIgnoreCase(oldEmail)) {
+            outboxProcessor.enqueue(IamCommandApplier.UPDATE_EMAIL, java.util.Map.of(
+                    "appUserId", appUserId, "oldEmail", oldEmail, "email", trimmedEmail));
+        }
+        if (!role.equalsIgnoreCase(oldRole)) {
+            outboxProcessor.enqueue(IamCommandApplier.SET_ROLE, java.util.Map.of(
+                    "appUserId", appUserId, "email", trimmedEmail, "role", role));
+        }
+        if (!saved.getName().equals(oldName)) {
+            outboxProcessor.enqueue(IamCommandApplier.UPDATE_NAME, java.util.Map.of(
+                    "appUserId", appUserId, "email", trimmedEmail, "name", saved.getName()));
         }
 
         return toResponse(saved);

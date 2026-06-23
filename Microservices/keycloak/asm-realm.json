@@ -39,19 +39,39 @@
       {
         "name": "ADMIN",
         "description": "Platform administrator",
-        "composite": false,
+        "composite": true,
+        "composites": {
+          "realm": [
+            "perm:user:manage", "perm:driver:manage", "perm:driver:view",
+            "perm:route:view", "perm:route:manage", "perm:route:validate",
+            "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate",
+            "perm:erp:sync", "perm:erp:config", "perm:report:view",
+            "perm:audit:view", "perm:settings:manage", "perm:company:manage"
+          ]
+        },
         "clientRole": false
       },
       {
         "name": "DISPATCHER",
         "description": "Logistics dispatcher",
-        "composite": false,
+        "composite": true,
+        "composites": {
+          "realm": [
+            "perm:driver:view",
+            "perm:route:view", "perm:route:manage", "perm:route:validate",
+            "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate",
+            "perm:erp:sync", "perm:report:view", "perm:audit:view"
+          ]
+        },
         "clientRole": false
       },
       {
         "name": "MANAGER",
         "description": "Read-only manager",
-        "composite": false,
+        "composite": true,
+        "composites": {
+          "realm": ["perm:route:view", "perm:delivery:view", "perm:report:view"]
+        },
         "clientRole": false
       },
       {
@@ -71,7 +91,22 @@
         "description": "Internal service account",
         "composite": false,
         "clientRole": false
-      }
+      },
+      { "name": "perm:user:manage",      "description": "Manage admin/dispatcher/manager users", "composite": false, "clientRole": false },
+      { "name": "perm:driver:manage",    "description": "Invite/edit/suspend drivers",          "composite": false, "clientRole": false },
+      { "name": "perm:driver:view",      "description": "View drivers",                         "composite": false, "clientRole": false },
+      { "name": "perm:route:view",       "description": "View routes",                          "composite": false, "clientRole": false },
+      { "name": "perm:route:manage",     "description": "Build/edit routes",                    "composite": false, "clientRole": false },
+      { "name": "perm:route:validate",   "description": "Validate/start/close routes",          "composite": false, "clientRole": false },
+      { "name": "perm:delivery:view",    "description": "View deliveries",                      "composite": false, "clientRole": false },
+      { "name": "perm:delivery:manage",  "description": "Edit/dispatch deliveries",             "composite": false, "clientRole": false },
+      { "name": "perm:dispatch:operate", "description": "Operate the dispatch desk",            "composite": false, "clientRole": false },
+      { "name": "perm:erp:sync",         "description": "Trigger ERP import/sync",              "composite": false, "clientRole": false },
+      { "name": "perm:erp:config",       "description": "Configure ERP connection",             "composite": false, "clientRole": false },
+      { "name": "perm:report:view",      "description": "View stats/reports/analytics",         "composite": false, "clientRole": false },
+      { "name": "perm:audit:view",       "description": "View audit logs",                      "composite": false, "clientRole": false },
+      { "name": "perm:settings:manage",  "description": "Manage system settings",               "composite": false, "clientRole": false },
+      { "name": "perm:company:manage",   "description": "Manage company profile/branding",      "composite": false, "clientRole": false }
     ]
   },
   "defaultRoles": [],
@@ -280,6 +315,8 @@
     {
       "username": "admin@asm.com",
       "email": "admin@asm.com",
+      "firstName": "System",
+      "lastName": "Admin",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -303,6 +340,8 @@
     {
       "username": "dispatcher@asm.com",
       "email": "dispatcher@asm.com",
+      "firstName": "Chief",
+      "lastName": "Dispatcher",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -326,6 +365,8 @@
     {
       "username": "33333333-3333-3333-3333-333333333333",
       "email": "driver1@asm.com",
+      "firstName": "Driver",
+      "lastName": "One",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -349,6 +390,8 @@
     {
       "username": "44444444-4444-4444-4444-444444444444",
       "email": "driver2@asm.com",
+      "firstName": "Driver",
+      "lastName": "Two",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -372,6 +415,8 @@
     {
       "username": "55555555-5555-5555-5555-555555555555",
       "email": "driver3@asm.com",
+      "firstName": "Driver",
+      "lastName": "Three",
       "enabled": true,
       "emailVerified": true,
       "credentials": [

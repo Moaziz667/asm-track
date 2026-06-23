@@ -23,12 +23,11 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
-import com.asm.driver.client.KeycloakAdminClient;
+import com.asm.driver.client.AppBackendIamClient;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.context.ApplicationEventPublisher;
-import com.asm.driver.security.KeycloakDriverRollbackEvent;
 
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -50,7 +49,8 @@ public class AdminDriverService {
     private final DriverAuditLogService auditLogService;
     private final EmailService emailService;
     private final DeliveryServiceWebClient deliveryClient;
-    private final KeycloakAdminClient keycloakAdminClient;
+    private final OutboxProcessor outboxProcessor;
+    private final AppBackendIamClient iamClient;
     private final ApplicationEventPublisher eventPublisher;
     private final DriverEventPublisher driverEventPublisher;
 
@@ -128,13 +128,14 @@ public class AdminDriverService {
                 .build();
         driver = driverRepo.save(driver);
 
-        // Provision in Keycloak (Resilient: Keycloak failures will not roll back local DB write)
-        try {
-            keycloakAdminClient.createDriver(driver.getId().toString(), trimmedEmail, phone);
-            eventPublisher.publishEvent(new KeycloakDriverRollbackEvent(this, driver.getId().toString()));
-        } catch (Exception e) {
-            log.warn("Failed to provision driver (id={}) in Keycloak during invitation. Background sync scheduler will reconcile: {}", driver.getId(), e.getMessage());
-        }
+        // Provision the Keycloak user via the IAM outbox (exactly-once). Enqueued in this same
+        // transaction as the driver insert, then published to AppBackend (the sole Keycloak owner).
+        outboxProcessor.enqueue(OutboxProcessor.IAM_PROVISION, Map.of(
+                "appUserId", driver.getId().toString(),
+                "email", trimmedEmail,
+                "phone", phone,
+                "name", name,
+                "role", "DRIVER"));
 
         // Generate invite token
         UUID token = UUID.randomUUID();
@@ -172,7 +173,6 @@ public class AdminDriverService {
         Driver driver = driverRepo.findById(invite.getDriverId())
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
-        // Commit DB state first — Keycloak is external and can't participate in the transaction
         driver.setAccountStatus(DriverAccountStatus.ACTIVE);
         driver.setIsRegistered(true);
         driverRepo.save(driver);
@@ -180,14 +180,12 @@ public class AdminDriverService {
         invite.setUsed(true);
         inviteTokenRepo.save(invite);
 
-        // Keycloak update after DB commit — if this fails the scheduler reconciles
-        try {
-            keycloakAdminClient.resetPassword(driver.getId().toString(), newPassword);
-            keycloakAdminClient.enableDriver(driver.getId().toString());
-        } catch (Exception e) {
-            log.warn("Keycloak update failed during driver setup (id={}). Reconciliation will retry: {}",
-                    driver.getId(), e.getMessage());
-        }
+        // Interactive path: set the password + enable SYNCHRONOUSLY via AppBackend (the sole Keycloak
+        // owner) so the driver can log in immediately. A failure throws → the whole setup rolls back
+        // (token stays unused) so the driver can retry, rather than leaving an ACTIVE driver who can't
+        // sign in. This is the one IAM op that must not be eventual.
+        iamClient.setPassword(driver.getId().toString(), Map.of("password", newPassword));
+        iamClient.setEnabled(driver.getId().toString(), Map.of("enabled", true));
 
         return toResponse(driver);
     }
@@ -291,7 +289,11 @@ public class AdminDriverService {
         String oldName = driver.getName();
         String oldPhone = driver.getPhone();
         String oldEmail = driver.getEmail();
-        if (name != null && !name.isBlank()) driver.setName(name.trim());
+        boolean nameChanged = false;
+        if (name != null && !name.isBlank() && !name.trim().equals(driver.getName())) {
+            driver.setName(name.trim());
+            nameChanged = true;
+        }
         if (phone != null && !phone.isBlank()) {
             if (!phone.equals(driver.getPhone()) && driverRepo.existsByPhone(phone)) {
                 throw AppException.conflict("Phone already in use");
@@ -307,7 +309,13 @@ public class AdminDriverService {
                 throw AppException.conflict("Email already in use");
             }
             driver.setEmail(trimmedEmail);
-            keycloakAdminClient.updateDriverEmail(driver.getId().toString(), trimmedEmail);
+            outboxProcessor.enqueue(OutboxProcessor.IAM_UPDATE_EMAIL, Map.of(
+                    "appUserId", driver.getId().toString(), "oldEmail", oldEmail, "email", trimmedEmail));
+        }
+        // Propagate a renamed driver to Keycloak so audit/history attribution stays accurate.
+        if (nameChanged) {
+            outboxProcessor.enqueue(OutboxProcessor.IAM_UPDATE_NAME, Map.of(
+                    "appUserId", driver.getId().toString(), "email", driver.getEmail(), "name", driver.getName()));
         }
         Driver saved = driverRepo.save(driver);
 
@@ -333,18 +341,15 @@ public class AdminDriverService {
         driver.setAccountStatus(next);
         driver.setIsRegistered(isRegistered);
         
-        try {
-            if (isRegistered) {
-                driver.setSuspendedReason(null);
-                keycloakAdminClient.enableDriver(driver.getId().toString());
-            } else {
-                driver.setSuspendedReason(reason);
-                keycloakAdminClient.disableDriver(driver.getId().toString());
-            }
-        } catch (Exception e) {
-            log.warn("Failed to update driver status in Keycloak for driver ID={}. Reconciliation scheduler will retry: {}", driver.getId(), e.getMessage());
+        if (isRegistered) {
+            driver.setSuspendedReason(null);
+        } else {
+            driver.setSuspendedReason(reason);
         }
-        
+        // Enable/disable the Keycloak account via the IAM outbox (exactly-once).
+        outboxProcessor.enqueue(OutboxProcessor.IAM_SET_ENABLED, Map.of(
+                "appUserId", driver.getId().toString(), "enabled", isRegistered));
+
         Driver saved = driverRepo.save(driver);
 
         String action = isRegistered ? "DRIVER_ACTIVATED" : "DRIVER_SUSPENDED";
@@ -369,8 +374,8 @@ public class AdminDriverService {
             throw AppException.badRequest("Only pending invites can be cancelled");
         }
 
-        // Delete from Keycloak first
-        keycloakAdminClient.deleteDriver(driver.getId().toString());
+        // Delete the Keycloak user via the IAM outbox (exactly-once; survives the driver row delete).
+        outboxProcessor.enqueue(OutboxProcessor.IAM_DELETE, Map.of("appUserId", driver.getId().toString()));
 
         inviteTokenRepo.findByDriverId(id).forEach(t -> {
             t.setUsed(true);
@@ -493,7 +498,9 @@ public class AdminDriverService {
         Driver driver = driverRepo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
 
-        keycloakAdminClient.forceLogout(driver.getId().toString());
+        // Revoke Keycloak sessions via the IAM outbox; the instant app-logout push below is the
+        // immediate backstop, so eventual revocation here is fine.
+        outboxProcessor.enqueue(OutboxProcessor.IAM_LOGOUT, Map.of("appUserId", driver.getId().toString()));
 
         // S2: push an instant logout to the driver's app instead of waiting for token expiry.
         driverEventPublisher.publishSessionRevoked(driver.getId());

@@ -18,9 +18,18 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
     public AbstractAuthenticationToken convert(Jwt jwt) {
         List<String> roles = extractRoles(jwt);
 
+        // Emit ROLE_* for the coarse roles (back-compat) AND perm:* permission roles (RBAC). The
+        // ADMIN/DISPATCHER/MANAGER realm roles are Keycloak composites, so realm_access.roles already
+        // carries the effective perm:* roles — no custom token mapper needed.
         List<SimpleGrantedAuthority> authorities = roles.stream()
-                .filter(r -> ROLE_PRIORITY.contains(r.toUpperCase()))
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.toUpperCase()))
+                .map(String::trim)
+                .filter(r -> !r.isEmpty())
+                .map(r -> r.startsWith("perm:")
+                        ? new SimpleGrantedAuthority(r)
+                        : (ROLE_PRIORITY.contains(r.toUpperCase())
+                                ? new SimpleGrantedAuthority("ROLE_" + r.toUpperCase())
+                                : null))
+                .filter(Objects::nonNull)
                 .collect(Collectors.toList());
 
         String dominantRole = roles.stream()

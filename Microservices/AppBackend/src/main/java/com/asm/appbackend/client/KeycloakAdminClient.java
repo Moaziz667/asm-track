@@ -18,6 +18,7 @@ import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.util.UriComponentsBuilder;
 
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -106,7 +107,16 @@ public class KeycloakAdminClient {
         return client.getAccessToken().getTokenValue();
     }
 
-    public String createUser(String email, String role, String appUserId, String password) {
+    public String createUser(String email, String role, String appUserId, String password, String name) {
+        return createUser(email, role, appUserId, password, name, null);
+    }
+
+    /**
+     * Provision (idempotently) a Keycloak user. Now the single provisioning entry point for the whole
+     * platform (admins AND drivers — drivers carry a {@code phone} attribute). {@code password} null ⇒
+     * the user is created with an UPDATE_PASSWORD required action instead of a server-minted password.
+     */
+    public String createUser(String email, String role, String appUserId, String password, String name, String phone) {
         String token = getServiceToken();
 
         List<Map<String, Object>> existing = searchByUserId(appUserId);  // Search by appUserId (username)
@@ -115,14 +125,29 @@ public class KeycloakAdminClient {
         if (!existing.isEmpty()) {
             kcUserId = (String) existing.get(0).get("id");
             log.info("User already exists in Keycloak (idempotency): appUserId={}", appUserId);
+            // Keep the display name in sync even on the idempotent path (older users had none).
+            applyName(kcUserId, name, token);
         } else {
-            // Username is appUserId (stable, immutable), email is an attribute (changeable)
-            Map<String, Object> userPayload = (password != null && !password.isBlank())
-                    ? Map.of("username", appUserId, "email", email, "enabled", true,
-                             "attributes", Map.of("app_user_id", List.of(appUserId)),
-                             "credentials", List.of(Map.of("type", "password", "value", password, "temporary", true)))
-                    : Map.of("username", appUserId, "email", email, "enabled", true,
-                             "attributes", Map.of("app_user_id", List.of(appUserId)));
+            // Username is appUserId (stable, immutable), email is an attribute (changeable).
+            // firstName/lastName populate the JWT `name` claim → attributable audit/history downstream.
+            Map<String, Object> attributes = new HashMap<>();
+            attributes.put("app_user_id", List.of(appUserId));
+            if (phone != null && !phone.isBlank()) attributes.put("phone", List.of(phone));
+            if (role != null && !role.isBlank()) attributes.put("role", List.of(role.toUpperCase()));
+            Map<String, Object> userPayload = new HashMap<>();
+            userPayload.put("username", appUserId);
+            userPayload.put("email", email);
+            userPayload.put("enabled", true);
+            userPayload.put("attributes", attributes);
+            userPayload.putAll(nameFields(name));
+            if (password != null && !password.isBlank()) {
+                userPayload.put("credentials",
+                        List.of(Map.of("type", "password", "value", password, "temporary", true)));
+            } else {
+                // No password supplied (e.g. reconciler healing a missing user): require the user to
+                // set one rather than minting a server-side password in code.
+                userPayload.put("requiredActions", List.of("UPDATE_PASSWORD"));
+            }
 
             try {
                 restClient.post()
@@ -150,6 +175,50 @@ public class KeycloakAdminClient {
         return kcUserId;
     }
 
+    /**
+     * Push the display name to Keycloak (firstName/lastName) for an existing user, located by
+     * appUserId with email fallback. Best-effort: a failure is logged and left for the reconciler.
+     */
+    public void updateUserName(String appUserId, String email, String name) {
+        if (name == null || name.isBlank()) return;
+        String token = getServiceToken();
+        List<Map<String, Object>> users = searchUserWithFallback(appUserId, email);
+        if (users.isEmpty()) {
+            log.warn("User not found in Keycloak for name update (appUserId={})", appUserId);
+            return;
+        }
+        applyName((String) users.get(0).get("id"), name, token);
+    }
+
+    private void applyName(String kcUserId, String name, String token) {
+        Map<String, Object> body = nameFields(name);
+        if (body.isEmpty()) return;
+        try {
+            restClient.put()
+                    .uri(getAdminUrl() + "/users/" + kcUserId)
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(body)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            log.error("Failed to update name in Keycloak (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+        }
+    }
+
+    /** Split a single display name into Keycloak firstName/lastName. Empty map when name is blank. */
+    public static Map<String, Object> nameFields(String fullName) {
+        if (fullName == null || fullName.isBlank()) return Map.of();
+        String trimmed = fullName.trim();
+        int sp = trimmed.indexOf(' ');
+        String first = sp < 0 ? trimmed : trimmed.substring(0, sp);
+        String last  = sp < 0 ? ""      : trimmed.substring(sp + 1).trim();
+        Map<String, Object> m = new HashMap<>();
+        m.put("firstName", first);
+        m.put("lastName", last);
+        return m;
+    }
+
     private void assignRole(String kcUserId, String role, String token) {
         Map<String, Object> roleRepr;
         try {
@@ -174,6 +243,26 @@ public class KeycloakAdminClient {
             } catch (RestClientResponseException e) {
                 log.error("Failed to assign role to user in Keycloak: {}", e.getResponseBodyAsString());
             }
+        }
+    }
+
+    /** Set a permanent password (driver onboarding / admin reset). Synchronous — login works at once. */
+    public void resetPassword(String appUserId, String newPassword) {
+        String token = getServiceToken();
+        List<Map<String, Object>> users = searchByUserId(appUserId);
+        if (users.isEmpty()) throw new AppException(HttpStatus.NOT_FOUND, "User not found in Keycloak");
+        String kcUserId = (String) users.get(0).get("id");
+        try {
+            restClient.put()
+                    .uri(getAdminUrl() + "/users/" + kcUserId + "/reset-password")
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("type", "password", "value", newPassword, "temporary", false))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            log.error("Failed to reset password in Keycloak: {}", e.getResponseBodyAsString());
+            throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to set credentials in Keycloak");
         }
     }
 

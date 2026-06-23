@@ -64,6 +64,11 @@ spring:
       mode: always
       continue-on-error: true
 
+appbackend:
+  service:
+    # AppBackend is the sole Keycloak owner; used for the synchronous driver-onboarding password set.
+    url: ${APPBACKEND_SERVICE_URL:http://app-backend:8080}
+
 resend:
   api-key: ${RESEND_API_KEY:re_placeholder}
   from: onboarding@resend.dev

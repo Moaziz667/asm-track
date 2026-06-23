@@ -26,6 +26,16 @@ public class RabbitMQConfig {
     public static final String DRIVER_COMMANDS_DLX      = "driver.commands.dlx";
     public static final String DRIVER_LOCATION_DLQ      = "driver.location.update.dlq";
 
+    // ── IAM provisioning commands (DriverService → AppBackend, the sole Keycloak owner) ──────────
+    public static final String IAM_EXCHANGE    = "iam.exchange";
+    public static final String IAM_ROUTING_KEY = "iam.command";
+
+    /** Producer-side declaration (idempotent with AppBackend's). The queue/DLQ are owned by AppBackend. */
+    @Bean
+    public TopicExchange iamExchange() {
+        return new TopicExchange(IAM_EXCHANGE, true, false);
+    }
+
     @Bean
     public TopicExchange driverEventsExchange() {
         return new TopicExchange(DRIVER_EVENTS_EXCHANGE, true, false);

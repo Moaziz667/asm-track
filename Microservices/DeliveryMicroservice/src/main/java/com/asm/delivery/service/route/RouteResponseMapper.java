@@ -46,6 +46,7 @@ public class RouteResponseMapper {
     private final ProofOfDeliveryService proofOfDeliveryService;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
+    private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
 
     public RouteResponse toResponse(Route route) {
@@ -281,10 +282,6 @@ public class RouteResponseMapper {
                 .filter(stop -> !RoutePlanningService.isRemovedStatus(stop.getStatus()))
                 .toList();
 
-        Map<String, String> actorNames = new HashMap<>();
-        // Note: Driver name resolution for history is omitted for brevity or handled by building a map if needed.
-        // For PFE, we prioritize stability (fixing the LazyInit crash).
-
         // Pre-load SLA state + source depots for all stops once, so toFullStopResponse does no
         // per-stop SLA/depot query (was N+1: two SlaState reads + one depot read per stop).
         List<UUID> allDeliveryIds = allStops.stream()
@@ -292,6 +289,12 @@ public class RouteResponseMapper {
                 .filter(java.util.Objects::nonNull)
                 .distinct()
                 .toList();
+
+        // Resolve actor display names (driver + admin/dispatcher) for every stop's status history in
+        // one batched prefetch — previously this map was left empty, so history actors fell back to a
+        // raw short id / the hardcoded "Dispatching" literal.
+        Map<String, String> actorNames = allDeliveryIds.isEmpty() ? Map.of()
+                : actorNameResolver.prefetch(deliveryStatusHistoryRepository.findByDeliveryIdIn(allDeliveryIds));
         Map<UUID, com.asm.delivery.sla.SlaState> slaByDeliveryId = allDeliveryIds.isEmpty() ? Map.of()
                 : slaStateRepository.findByDeliveryIdIn(allDeliveryIds).stream()
                     .collect(Collectors.toMap(com.asm.delivery.sla.SlaState::getDeliveryId, Function.identity(), (a, b) -> a));
@@ -573,7 +576,7 @@ public class RouteResponseMapper {
                         deliveryStatusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
                                 .stream()
                                 .map(h -> {
-                                    String actorName = resolveActorNameLocal(h.getChangedBy(), h.getChangedByRole(), actorNames);
+                                    String actorName = actorNameResolver.resolve(h.getChangedBy(), h.getChangedByRole(), actorNames);
                                     return StatusHistoryResponse.builder()
                                         .id(h.getId() != null ? h.getId().toString() : null)
                                         .status(h.getStatus().name())
@@ -594,21 +597,6 @@ public class RouteResponseMapper {
                 .clientName(orderInfo != null ? orderInfo.getClientName() : null)
                 .orderRef(orderInfo != null ? orderInfo.resolveRef() : null)
                 .build();
-    }
-
-    private String resolveActorNameLocal(String changedBy, Role role, Map<String, String> actorNames) {
-        if (changedBy == null) return null;
-        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
-        try {
-            UUID.fromString(changedBy);
-            if (role == Role.DRIVER) {
-                return actorNames.getOrDefault(changedBy, changedBy.substring(0, 8).toUpperCase());
-            }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
-            return changedBy.substring(0, 8).toUpperCase();
-        } catch (IllegalArgumentException e) {
-            return changedBy;
-        }
     }
 
     private ProofOfDeliveryResponse fetchDeliveryPod(UUID deliveryId) {

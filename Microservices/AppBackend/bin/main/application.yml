@@ -1,0 +1,95 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: app-backend-service
+
+  cloud:
+    openfeign:
+      circuitbreaker:
+        enabled: true
+
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: ${KC_JWK_SET_URI:http://keycloak:8080/realms/asm/protocol/openid-connect/certs}
+      # Service-to-service auth: client_credentials registration used by Feign clients.
+      client:
+        registration:
+          asm-svc:
+            provider: asm-keycloak
+            authorization-grant-type: client_credentials
+            client-id: ${CLIENT_ID:app-backend}
+            client-secret: ${CLIENT_SECRET}
+        provider:
+          asm-keycloak:
+            token-uri: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}/protocol/openid-connect/token
+
+  # Host/credentials supplied via SPRING_RABBITMQ_* env vars (see docker-compose).
+  rabbitmq:
+    publisher-confirm-type: correlated
+    publisher-returns: true
+
+  datasource:
+    url: jdbc:postgresql://${DB_HOST:localhost}:${DB_PORT:5433}/${DB_NAME:app_backend_db}
+    username: ${DB_USER:app_backend}
+    password: ${DB_PASS:app_backend}
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+    show-sql: false
+    open-in-view: false
+
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+      continue-on-error: true
+
+app:
+  cookie:
+    secure: ${COOKIE_SECURE:false}
+
+auth:
+  server:
+    url: ${AUTH_SERVER_URL:http://keycloak:8080/realms/asm}
+  issuer:
+    url: ${AUTH_ISSUER_URL:${auth.server.url}}
+  client:
+    id: ${CLIENT_ID:app-backend}
+    secret: ${CLIENT_SECRET}
+
+odoo:
+  url: ${ODOO_URL:http://host.docker.internal:8069/jsonrpc}
+  db: ${ODOO_DB:odoo}
+  uid: ${ODOO_UID:2}
+  password: ${ODOO_PASSWORD:admin}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    operations-sorter: method
+    tags-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+  default-produces-media-type: application/json
+
+delivery:
+  service:
+    url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when_authorized
+

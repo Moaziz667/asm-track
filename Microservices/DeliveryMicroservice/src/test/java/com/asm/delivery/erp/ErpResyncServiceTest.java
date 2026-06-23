@@ -31,6 +31,7 @@ class ErpResyncServiceTest {
     @Mock DeliveryRepository deliveryRepo;
     @Mock OutboxRepository outboxRepo;
     @Mock OutboxProcessor outboxProcessor;
+    @Mock com.asm.delivery.service.AuditLogService auditLogService;
     // Real mapper so payload-matching actually parses JSON.
     private final ObjectMapper objectMapper = new ObjectMapper();
 
@@ -42,7 +43,7 @@ class ErpResyncServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new ErpResyncService(orderRepo, deliveryRepo, outboxRepo, outboxProcessor, objectMapper);
+        service = new ErpResyncService(orderRepo, deliveryRepo, outboxRepo, outboxProcessor, objectMapper, auditLogService);
         orderId = UUID.randomUUID();
         order = Order.builder()
                 .id(orderId)

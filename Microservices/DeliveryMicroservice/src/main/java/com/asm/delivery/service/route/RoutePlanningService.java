@@ -967,23 +967,6 @@ public class RoutePlanningService {
             .build();
     }
 
-    private String resolveActorName(String changedBy, Role role) {
-        if (changedBy == null) return null;
-        if ("SYSTEM".equalsIgnoreCase(changedBy)) return "Système";
-        try {
-            UUID.fromString(changedBy);
-            if (role == Role.DRIVER) {
-                com.asm.delivery.transport.DriverDTO driver = transportPort.getDriver(changedBy);
-                if (driver != null && driver.getName() != null) return driver.getName();
-            }
-            if (role == Role.DISPATCHER || role == Role.ADMIN) return "Dispatching";
-            return changedBy.substring(0, 8).toUpperCase();
-        } catch (IllegalArgumentException e) {
-            return changedBy;
-        }
-    }
-
-
     private void appendHistory(Delivery d, DeliveryStatus status, String changedBy, Role role, String eventKey, Map<String, Object> params) {
         String jsonParams = "{}";
         try {

@@ -8,9 +8,10 @@ import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import { IconChevronDown } from '@tabler/icons-react';
+import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -258,6 +259,37 @@ function SimplePagination({ total, value, onChange }: { total: number; value: nu
   );
 }
 
+// ── Standalone date-range control ──────────────────────────────────────────────
+// Reuses the shared DatePickerPopover (same one as the route builder), kept on its own here
+// instead of nested in the filter dropdown — that nesting was what made it unreliable.
+
+function DateRangeControl({
+  from, to, onFrom, onTo, t,
+}: {
+  from: string; to: string;
+  onFrom: (v: string) => void; onTo: (v: string) => void;
+  t: any;
+}) {
+  return (
+    <div className="flex items-center gap-1.5 shrink-0">
+      <DatePickerPopover value={from || null} onChange={v => onFrom(v ?? '')} placeholder={t.auditLogsPage.fromLabel} />
+      <span className="text-xs text-[var(--text-muted)]">→</span>
+      <DatePickerPopover value={to || null} onChange={v => onTo(v ?? '')} placeholder={t.auditLogsPage.toLabel} />
+      {(from || to) && (
+        <button
+          type="button"
+          onClick={() => { onFrom(''); onTo(''); }}
+          className="hover:opacity-70 transition-opacity shrink-0"
+          style={{ color: 'var(--text-muted)' }}
+          aria-label="Effacer"
+        >
+          <IconX size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
 // ── Feed Item ─────────────────────────────────────────────────────────────────
 
 function FeedItem({
@@ -353,6 +385,7 @@ export default function AuditLogsPage() {
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [filterRole, setFilterRole] = useState('');
   const [filterEntity, setFilterEntity] = useState('');
+  // Date range — standalone control, kept out of the shared filter dropdown (the popover-in-dropdown was unreliable).
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
 
@@ -410,22 +443,16 @@ export default function AuditLogsPage() {
       { value: 'COMPANY', label: t.auditLogsPage.entities.COMPANY }, { value: 'ADMIN_USER', label: t.auditLogsPage.entities.ADMIN_USER },
       { value: 'DRIVER', label: t.auditLogsPage.entities.DRIVER },
     ] },
-    { key: 'from', label: t.auditLogsPage.fromLabel, type: 'date' as const },
-    { key: 'to', label: t.auditLogsPage.toLabel, type: 'date' as const },
   ]), [t]);
 
   const activeFilters: Record<string, string> = {
     ...(filterRole && { role: filterRole }),
     ...(filterEntity && { entity: filterEntity }),
-    ...(filterFrom && { from: filterFrom }),
-    ...(filterTo && { to: filterTo }),
   };
 
   const handleFilterChange = (key: string, value: string | null) => {
     if (key === 'role') setFilterRole(value ?? '');
     if (key === 'entity') setFilterEntity(value ?? '');
-    if (key === 'from') setFilterFrom(value ?? '');
-    if (key === 'to') setFilterTo(value ?? '');
   };
 
   // Group logs by date
@@ -465,9 +492,18 @@ export default function AuditLogsPage() {
         onRefresh={() => fetchLogs(page)}
         refreshing={loading}
         extraActions={
-          <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--text-muted)' }}>
-            {totalElements} {t.auditLogsPage.eventsRecorded}
-          </span>
+          <>
+            <DateRangeControl
+              from={filterFrom}
+              to={filterTo}
+              onFrom={setFilterFrom}
+              onTo={setFilterTo}
+              t={t}
+            />
+            <span className="text-xs font-semibold shrink-0" style={{ color: 'var(--text-muted)' }}>
+              {totalElements} {t.auditLogsPage.eventsRecorded}
+            </span>
+          </>
         }
       />
 

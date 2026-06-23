@@ -33,6 +33,15 @@ public class AdminUser {
     @Builder.Default
     private boolean active = true;
 
+    /**
+     * False whenever this row may differ from its Keycloak mirror (just created/updated). The
+     * reconciler processes dirty rows first and flips it true once Keycloak is confirmed in sync,
+     * so the fast path doesn't re-scan every user every tick.
+     */
+    @Column(name = "kc_synced", nullable = false)
+    @Builder.Default
+    private boolean kcSynced = false;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
