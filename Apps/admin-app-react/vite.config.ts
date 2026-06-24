@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       keycloakify({
         themeName: 'asm',
         themeVersion: '1.0.0',
-        accountThemeImplementation: 'none',
+        accountThemeImplementation: 'Single-Page',
         startKeycloakOptions: {
           port: 8090,
         },
