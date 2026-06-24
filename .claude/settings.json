@@ -52,7 +52,16 @@
       "Bash(bash scripts/iam-e2e.sh)",
       "Bash(grep -oE '\\\\$\\\\{[A-Z_]+' Microservices/docker-compose.yml)",
       "Bash(grep -rndE \"import\\\\.meta\\\\.env|VITE_\" src)",
-      "Bash(grep -vE '^\\\\s*#|^\\\\s*$')"
+      "Bash(grep -vE '^\\\\s*#|^\\\\s*$')",
+      "PowerShell($c = Get-Command flutter -ErrorAction SilentlyContinue; if \\($c\\) { \"flutter: $\\($c.Source\\)\" } else { \"no flutter on PATH\" }; $d = Get-Command dart -ErrorAction SilentlyContinue; if \\($d\\) { \"dart: $\\($d.Source\\)\" } else { \"no dart on PATH\" })",
+      "Bash(grep -viE \"^\\\\s*//|w3\\\\.org|schemas|example|comment\")",
+      "Bash(grep -iE \"\\\\.env|env\\\\.json|\\\\.json$\")",
+      "Bash(awk 'NR>=3480 && NR<=3517 && /^[[:space:]]{1,6}[a-zA-Z]+:[[:space:]]*\\\\{/' lib/ux-copy.ts)",
+      "Bash(awk 'NR<=3507 && /^  [a-zA-Z]+:[[:space:]]*\\\\{/{ln=NR; key=$0} END{print ln\": \"key}' lib/ux-copy.ts)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('asm-realm.json','utf8'\\)\\); console.log\\('JSON VALID'\\)\")",
+      "Bash(python -c \"import json;json.load\\(open\\('asm-realm.json'\\)\\);print\\('JSON VALID'\\)\")",
+      "Bash(awk '/\\\\.dark|data-theme.*dark/{f=1} f&&/--\\(app-bg|sidebar-bg|surface|elevated|hover-bg|border|text-primary|text-secondary|text-muted|brand\\)\\\\b/{print NR\": \"$0} f&&/^\\\\s*\\\\}/{c++; if\\(c>2\\)exit}' src/globals.css)",
+      "Bash(node -e \"const p=require\\('./package.json'\\);console.log\\('keycloakify:', \\(p.dependencies||{}\\).keycloakify||\\(p.devDependencies||{}\\).keycloakify\\)\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\M S I",

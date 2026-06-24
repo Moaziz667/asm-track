@@ -418,7 +418,7 @@ public class RoutePlanningService {
             stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
             stop.setRemovedAt(LocalDateTime.now());
             stop.setRemovedReason(cancelReason);
-            stop.setRemovedBy("ADMIN");
+            stop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
             routeStopRepository.save(stop);
 
             if (stop.getDeliveryId() != null) {
@@ -485,7 +485,7 @@ public class RoutePlanningService {
         stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
         stop.setRemovedAt(LocalDateTime.now());
         stop.setRemovedReason(cancelReason);
-        stop.setRemovedBy("ADMIN");
+        stop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
         routeStopRepository.save(stop);
 
         Delivery delivery = deliveryRepository.findByIdWithOrder(stop.getDeliveryId())
@@ -636,7 +636,7 @@ public class RoutePlanningService {
             stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
             stop.setRemovedAt(LocalDateTime.now());
             stop.setRemovedReason("REPLANNED");
-            stop.setRemovedBy("ADMIN");
+            stop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
             routeStopRepository.save(stop);
         } else {
             // DRAFT: hard delete

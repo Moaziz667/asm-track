@@ -46,6 +46,7 @@ public class RouteReportService {
     private final DelayCalculationService delayCalculationService;
     private final MinioStorageService minioStorageService;
     private final ObjectMapper objectMapper;
+    private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
 
     /** Compute the report payload from current entity state. No DB writes. */
     @Transactional(readOnly = true)
@@ -401,7 +402,8 @@ public class RouteReportService {
                         .type("HANDOFF_CONFIRMED")
                         .stopOrder(s.getStopOrder())
                         .clientName(clientName)
-                        .actor("DRIVER")
+                        // The receiving driver confirms the handoff (QR scan) — name them, not a generic role.
+                        .actor(to != null && !to.isBlank() ? to : "DRIVER")
                         .detail("Arrêt #" + s.getStopOrder() + " transféré"
                                 + (from != null ? " : " + from : "")
                                 + (to != null ? " → " + to : "")
@@ -412,12 +414,18 @@ public class RouteReportService {
             Delivery d = deliveriesById.get(s.getDeliveryId());
             if (d != null && "FAILED".equals(s.getStatus().name()) && d.getFailedAt() != null) {
                 String code = d.getFailureCode() != null ? d.getFailureCode().getLabel() : "Échec";
+                // The attempting driver failed the stop — resolve their name (fallback to the role).
+                String failActor = "DRIVER";
+                if (d.getDriverId() != null) {
+                    DriverDTO drv = safeGetDriver(d.getDriverId().toString());
+                    if (drv != null && drv.getName() != null && !drv.getName().isBlank()) failActor = drv.getName();
+                }
                 events.add(RouteReportResponse.MovementEvent.builder()
                         .at(d.getFailedAt())
                         .type("STOP_FAILED")
                         .stopOrder(s.getStopOrder())
                         .clientName(clientName)
-                        .actor("DRIVER")
+                        .actor(failActor)
                         .detail("Arrêt #" + s.getStopOrder() + " échec · " + code
                                 + (d.getFailReason() != null && !d.getFailReason().isBlank()
                                         ? " · « " + d.getFailReason() + " »" : ""))
@@ -462,16 +470,15 @@ public class RouteReportService {
         // Step 1 — collect all events
         record Raw(LocalDateTime at, String actor, String role, Integer stopOrder, String eventKey, String eventParams) {}
         List<Raw> raw = new ArrayList<>();
-        Set<String> actorIdsToResolve = new HashSet<>();
+        List<DeliveryStatusHistory> allRows = new ArrayList<>();
 
         for (RouteStop s : stops) {
             if (s.getDeliveryId() == null) continue;
             for (DeliveryStatusHistory h : statusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(s.getDeliveryId())) {
-                String actor = h.getChangedBy();
-                if (looksLikeUuid(actor)) actorIdsToResolve.add(actor);
+                allRows.add(h);
                 raw.add(new Raw(
                         h.getChangedAt(),
-                        actor,
+                        h.getChangedBy(),
                         h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
                         s.getStopOrder(),
                         h.getEventKey(),
@@ -480,24 +487,14 @@ public class RouteReportService {
             }
         }
 
-        // Step 2 — batch-resolve UUID actors to driver names
-        Map<String, String> actorNames = new HashMap<>();
-        for (String id : actorIdsToResolve) {
-            DriverDTO d = safeGetDriver(id);
-            if (d != null && d.getName() != null && !d.getName().isBlank()) {
-                actorNames.put(id, d.getName());
-            }
-        }
+        // Step 2 — batch-resolve every actor (driver + admin/dispatcher UUIDs, and literal names)
+        // through the shared resolver, so admin actions show the real name, not a UUID fragment.
+        Map<String, String> actorNames = actorNameResolver.prefetch(allRows);
 
         // Step 3 — format French actions from structured events
         List<RouteReportResponse.AuditEntry> entries = new ArrayList<>();
         for (Raw r : raw) {
-            String actor = r.actor;
-            if (actor != null && actorNames.containsKey(actor)) {
-                actor = actorNames.get(actor);
-            } else if (looksLikeUuid(actor)) {
-                actor = actor.substring(0, 8); // short fallback if driver not resolvable
-            }
+            String actor = actorNameResolver.resolve(r.actor(), null, actorNames);
             entries.add(RouteReportResponse.AuditEntry.builder()
                     .at(r.at)
                     .actor(actor)
@@ -525,33 +522,51 @@ public class RouteReportService {
         if (eventKey == null) return "Événement inconnu";
         return switch (eventKey) {
             case "DELIVERY_CREATED"              -> "Créée";
+            case "DELIVERY_IMPORTED"             -> "Importée";
             case "DELIVERY_SCHEDULED"            -> "Planifiée";
+            case "DELIVERY_SCHEDULED_BY_DRIVER"  -> "Planifiée par le chauffeur";
             case "DELIVERY_PICKED_UP"            -> "Récupérée";
             case "DELIVERY_TRANSIT_STARTED"      -> "Départ en transit";
             case "DELIVERY_COMPLETED"            -> "Livrée";
             case "DELIVERY_PARTIALLY_DELIVERED"  -> "Livrée partiellement";
             case "DELIVERY_FAILED"               -> "Échouée";
             case "DELIVERY_CANCELLED"            -> "Annulée";
+            case "DELIVERY_REPLANNED"            -> "Replanifiée";
+            case "ROUTE_VALIDATED_ASSIGNED"      -> "Tournée validée · affectée";
+            case "ROUTE_STARTED_AUTO_PICKUP"     -> "Ramassage auto au départ";
+            case "ROUTE_STOP_ADDED"              -> "Ajoutée à la tournée";
+            case "ROUTE_STOP_REMOVED"            -> "Retirée de la tournée";
+            case "ROUTE_STOP_CANCELLED"          -> "Arrêt annulé";
+            case "ROUTE_CANCELLED"               -> "Tournée annulée";
+            case "RETURN_TO_ORIGIN_CONFIRMED"    -> "Retour au dépôt confirmé";
             default                              -> eventKey;
         };
     }
 
-    /** Extract relevant details from structured event payload. */
-    private static String extractEventDetail(String eventParams) {
+    /** Extract relevant details from structured event payload (driver UUID → name, route, reason, note). */
+    private String extractEventDetail(String eventParams) {
         if (eventParams == null || eventParams.isBlank() || eventParams.equals("{}")) {
             return null;
         }
         try {
-            var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
             var params = objectMapper.readValue(eventParams, java.util.Map.class);
             var details = new java.util.ArrayList<String>();
-            if (params.containsKey("driverId")) {
-                details.add("Chauffeur: " + params.get("driverId"));
+            Object routeName = params.get("routeName");
+            if (routeName != null && !routeName.toString().isBlank()) {
+                details.add("Tournée: " + routeName);
             }
-            if (params.containsKey("reason")) {
+            if (params.get("driverId") != null) {
+                String id = String.valueOf(params.get("driverId"));
+                DriverDTO d = safeGetDriver(id);
+                String name = (d != null && d.getName() != null && !d.getName().isBlank())
+                        ? d.getName()
+                        : (looksLikeUuid(id) ? id.substring(0, 8) : id);
+                details.add("Chauffeur: " + name);
+            }
+            if (params.get("reason") != null) {
                 details.add("Motif: " + params.get("reason"));
             }
-            if (params.containsKey("note")) {
+            if (params.get("note") != null) {
                 details.add("Note: " + params.get("note"));
             }
             return details.isEmpty() ? null : String.join(" | ", details);

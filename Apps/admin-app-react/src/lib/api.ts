@@ -92,7 +92,23 @@ api.interceptors.request.use((config) => {
 });
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Spring Boot 3.3 serializes a Page as { content, page: { size, number, totalElements, totalPages } }
+    // (PagedModel / VIA_DTO). The app reads these fields top-level, so flatten them here once for every
+    // paginated endpoint — otherwise pagination metadata is undefined and tables lose their controls.
+    const d = response.data as Record<string, unknown> | undefined;
+    if (d && Array.isArray((d as { content?: unknown }).content)
+        && (d as { totalPages?: unknown }).totalPages === undefined) {
+      const meta = (d as { page?: Record<string, unknown> }).page;
+      if (meta && typeof meta === 'object') {
+        d.totalPages = meta.totalPages;
+        d.totalElements = meta.totalElements;
+        d.number = meta.number;
+        d.size = meta.size;
+      }
+    }
+    return response;
+  },
   async (error: AxiosError) => {
     const original = error.config as (InternalAxiosRequestConfig & { _retried?: boolean }) | undefined;
     const status = error.response?.status;

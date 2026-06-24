@@ -24,7 +24,7 @@ public class SlaTimelineService {
     private final SlaStateService slaStateService;
     private final DeliveryRepository deliveryRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
-    private final com.asm.delivery.transport.TransportPort transportPort;
+    private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
     private final com.asm.delivery.repository.ProofOfDeliveryRepository proofOfDeliveryRepository;
 
     @Transactional
@@ -50,7 +50,9 @@ public class SlaTimelineService {
                 state.getPhaseHealth());
 
         var rows = historyRepository.findByDeliveryIdOrderByChangedAtAsc(deliveryId);
-        java.util.Map<String, String> driverNames = resolveDriverNames(rows);
+        // Resolve EVERY actor (driver + admin/dispatcher UUIDs, and literal names) to a display name,
+        // not just drivers — otherwise admin events fell back to the generic role label ("Admin").
+        java.util.Map<String, String> actorNames = actorNameResolver.prefetch(rows);
         String source = d.getOrder() != null && d.getOrder().getSource() != null ? d.getOrder().getSource().name() : "";
         boolean hasCreatedRow = rows.stream().anyMatch(h -> "DELIVERY_CREATED".equals(h.getEventKey()));
 
@@ -59,8 +61,8 @@ public class SlaTimelineService {
         if (!hasCreatedRow) timeline.add(importedEvent(d));
         for (com.asm.delivery.entity.DeliveryStatusHistory h : rows) {
             String role = h.getChangedByRole() != null ? h.getChangedByRole().name() : null;
-            // For driver actions changedBy is a driver UUID — show the resolved name instead.
-            String actor = "DRIVER".equals(role) ? driverNames.get(h.getChangedBy()) : null;
+            // Resolve the real name for any actor (driver/admin/dispatcher UUID → DB lookup; literal → as-is).
+            String actor = actorNameResolver.resolve(h.getChangedBy(), h.getChangedByRole(), actorNames);
             String eventKey = h.getEventKey();
             String params = h.getEventParams();
             // Promote the creation row to the richer "imported · source" line (no duplicate).
@@ -75,22 +77,6 @@ public class SlaTimelineService {
         }
 
         return new SlaTimelineResponse(current, timeline, buildContext(d));
-    }
-
-    /** Batch-resolve driver UUIDs (the actor of driver events) to names for a readable audit trail. */
-    private java.util.Map<String, String> resolveDriverNames(List<com.asm.delivery.entity.DeliveryStatusHistory> rows) {
-        java.util.Map<String, String> names = new java.util.HashMap<>();
-        rows.stream()
-                .filter(h -> h.getChangedByRole() == com.asm.delivery.entity.Role.DRIVER && h.getChangedBy() != null)
-                .map(com.asm.delivery.entity.DeliveryStatusHistory::getChangedBy)
-                .distinct()
-                .forEach(id -> {
-                    try {
-                        var dto = transportPort.getDriver(id);
-                        if (dto != null && dto.getName() != null) names.put(id, dto.getName());
-                    } catch (Exception ignored) { /* fall back to role label on the frontend */ }
-                });
-        return names;
     }
 
     /** Synthetic "order entered the system" event, derived from createdAt + the order source. */

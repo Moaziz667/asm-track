@@ -6,11 +6,14 @@
 # users, then cleans everything up. Usage: bash Microservices/scripts/iam-e2e.sh
 set -u
 
-GW="http://localhost:80"
-KC="http://localhost:8089"
+# Config: URLs default to local; secrets are read from Microservices/.env (no hardcoded creds).
+HERE="$(cd "$(dirname "$0")/.." && pwd)"
+[ -f "$HERE/.env" ] && set -a && . "$HERE/.env" && set +a
+GW="${GW_URL:-http://localhost:80}"
+KC="${KC_URL:-http://localhost:8089}"
 CID="e2e-runner"
-KCPW='Asm@Kc2024!Admin'
-PGPW='pGk8#m2L!v9Xq4$z'
+KCPW="${KC_ADMIN_PASSWORD:?set KC_ADMIN_PASSWORD in Microservices/.env}"
+PGPW="${APP_DB_PASS:?set APP_DB_PASS in Microservices/.env}"
 PW='Pw!123456'
 TS="$(date +%s)"
 PASS=0; FAIL=0

@@ -254,7 +254,7 @@ services:
       SPRING_DATASOURCE_PASSWORD: ${APP_DB_PASS}
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       AUTH_SERVER_URL: http://keycloak:8080/realms/asm
-      AUTH_ISSUER_URL : http://192.168.1.7:8089/realms/asm     
+      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost:8089/realms/asm}
       CLIENT_ID: app-backend
       CLIENT_SECRET: ${CLIENT_SECRET_APP}
       DELIVERY_SERVICE_URL: http://delivery-service:8082
@@ -414,7 +414,7 @@ services:
       DB_PASS: ${DRIVER_DB_PASS}
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       AUTH_SERVER_URL: http://keycloak:8080/realms/asm
-      AUTH_ISSUER_URL: http://localhost:8089/realms/asm
+      AUTH_ISSUER_URL: ${PUBLIC_KEYCLOAK_URL:-http://localhost:8089/realms/asm}
       CLIENT_ID: driver-service
       CLIENT_SECRET: ${CLIENT_SECRET_DRIVER}
       RESEND_API_KEY: ${RESEND_API_KEY}
@@ -459,8 +459,8 @@ services:
       ERP_ADAPTER_URL: http://erp-adapter:8088
       KC_JWK_SET_URI: http://keycloak:8080/realms/asm/protocol/openid-connect/certs
       CLIENT_SECRET_GW: ${CLIENT_SECRET_GW}
-      # localhost:5000 = Flutter web dev (driver app ROPC). Keep the admin dev origins too.
-      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:5000
+      # Admin web + Flutter web dev origins. Override per env via .env (CORS_ALLOWED_ORIGINS).
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:5173,http://localhost:3000,http://localhost:5000}
     depends_on:
       app-backend:
         condition: service_healthy

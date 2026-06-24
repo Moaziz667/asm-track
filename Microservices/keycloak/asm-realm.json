@@ -106,10 +106,25 @@
       { "name": "perm:report:view",      "description": "View stats/reports/analytics",         "composite": false, "clientRole": false },
       { "name": "perm:audit:view",       "description": "View audit logs",                      "composite": false, "clientRole": false },
       { "name": "perm:settings:manage",  "description": "Manage system settings",               "composite": false, "clientRole": false },
-      { "name": "perm:company:manage",   "description": "Manage company profile/branding",      "composite": false, "clientRole": false }
+      { "name": "perm:company:manage",   "description": "Manage company profile/branding",      "composite": false, "clientRole": false },
+      {
+        "name": "default-roles-asm",
+        "description": "${role_default-roles}",
+        "composite": true,
+        "composites": {
+          "realm": ["offline_access", "uma_authorization"],
+          "client": { "account": ["view-profile", "manage-account"] }
+        },
+        "clientRole": false
+      }
     ]
   },
-  "defaultRoles": [],
+  "defaultRole": {
+    "name": "default-roles-asm",
+    "description": "${role_default-roles}",
+    "composite": true,
+    "clientRole": false
+  },
   "components": {
     "org.keycloak.userprofile.UserProfileProvider": [
       {

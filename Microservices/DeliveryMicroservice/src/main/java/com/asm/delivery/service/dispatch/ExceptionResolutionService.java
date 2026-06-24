@@ -457,7 +457,7 @@ public class ExceptionResolutionService {
                 stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
                 stop.setRemovedAt(LocalDateTime.now());
                 stop.setRemovedReason(reason != null ? reason : "CANCELLED");
-                stop.setRemovedBy("ADMIN");
+                stop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
                 routeStopRepository.save(stop);
                 String clientName = order != null ? order.getClientName() : null;
                 String erpOrderId = order != null ? order.getErpOrderId() : null;
@@ -730,7 +730,7 @@ public class ExceptionResolutionService {
                                 stop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
                                 stop.setRemovedAt(LocalDateTime.now());
                                 stop.setRemovedReason("REPLANNED");
-                                stop.setRemovedBy("ADMIN");
+                                stop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
                                 routeStopRepository.save(stop);
                                 
                                 // Notify driver in real-time
