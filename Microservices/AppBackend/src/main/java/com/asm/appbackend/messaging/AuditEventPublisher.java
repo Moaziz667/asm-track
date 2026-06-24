@@ -47,17 +47,38 @@ public class AuditEventPublisher {
      * exchange; DeliveryService relays it to the {@code /topic/admin.security} WebSocket topic.
      * Best-effort — the short token lifespan is the backstop if this never arrives.
      */
-    public void publishSessionRevoked(String email) {
-        if (email == null || email.isBlank()) return;
+    public void publishSessionRevoked(String sub) {
+        if (sub == null || sub.isBlank()) return;
         try {
             Map<String, Object> event = new HashMap<>();
             event.put("action", "SESSION_REVOKED");
-            event.put("email", email);
+            // Key on the immutable OIDC subject (Keycloak user id) — the client matches it against its
+            // own token's `sub`. Stable across email/username changes, and what the logout_token carries.
+            event.put("sub", sub);
             event.put("timestamp", Instant.now().toString());
             rabbitTemplate.convertAndSend(
                     RabbitMQConfig.AUDIT_EXCHANGE, RabbitMQConfig.AUDIT_ROUTING_KEY, event);
         } catch (Exception e) {
-            log.warn("Failed to publish session-revoked event for {}: {}", email, e.getMessage());
+            log.warn("Failed to publish session-revoked event for sub {}: {}", sub, e.getMessage());
+        }
+    }
+
+    /**
+     * Driver variant of {@link #publishSessionRevoked}: drivers are targeted on their own
+     * {@code /topic/driver.<driverId>} topic (keyed by the business driver id, not sub), so the
+     * back-channel-logout path resolves the logout token's sub → driver id and publishes that here.
+     */
+    public void publishDriverSessionRevoked(String driverId) {
+        if (driverId == null || driverId.isBlank()) return;
+        try {
+            Map<String, Object> event = new HashMap<>();
+            event.put("action", "SESSION_REVOKED");
+            event.put("driverId", driverId);
+            event.put("timestamp", Instant.now().toString());
+            rabbitTemplate.convertAndSend(
+                    RabbitMQConfig.AUDIT_EXCHANGE, RabbitMQConfig.AUDIT_ROUTING_KEY, event);
+        } catch (Exception e) {
+            log.warn("Failed to publish driver session-revoked event for {}: {}", driverId, e.getMessage());
         }
     }
 }

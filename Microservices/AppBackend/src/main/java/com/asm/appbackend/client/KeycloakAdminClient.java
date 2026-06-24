@@ -372,10 +372,12 @@ public class KeycloakAdminClient {
         }
     }
 
-    public void forceLogout(String appUserId) {
+    /** Revokes the user's Keycloak sessions. Returns the Keycloak user id (the token {@code sub}),
+     *  or {@code null} if the user isn't in Keycloak — callers use it as the session-revocation key. */
+    public String forceLogout(String appUserId) {
         String token = getServiceToken();
         List<Map<String, Object>> users = searchByUserId(appUserId);
-        if (users.isEmpty()) return;
+        if (users.isEmpty()) return null;
         String kcUserId = (String) users.get(0).get("id");
         try {
             restClient.post()
@@ -384,6 +386,7 @@ public class KeycloakAdminClient {
                     .retrieve()
                     .toBodilessEntity();
             log.info("Force-logged out user in Keycloak: appUserId={}", appUserId);
+            return kcUserId;
         } catch (RestClientResponseException e) {
             log.error("Failed to force logout user in Keycloak: {}", e.getResponseBodyAsString());
             throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to force logout user");
@@ -413,6 +416,23 @@ public class KeycloakAdminClient {
             return users.isEmpty() ? null : users.get(0);
         } catch (Exception e) {
             log.error("Failed to get Keycloak user details for appUserId={}: {}", appUserId, e.getMessage());
+            return null;
+        }
+    }
+
+    /** Resolves a Keycloak user id (the token {@code sub}) to its username. For our users the username
+     *  is the app-side id (admin_users.id / driver.id), so this maps a logout token's sub back to the
+     *  business id used as the session-revocation key (e.g. the driver topic {@code /topic/driver.<id>}). */
+    public String getUsernameById(String kcUserId) {
+        try {
+            Map<String, Object> user = restClient.get()
+                    .uri(getAdminUrl() + "/users/" + kcUserId)
+                    .header("Authorization", "Bearer " + getServiceToken())
+                    .retrieve()
+                    .body(MAP_TYPE);
+            return user == null ? null : (String) user.get("username");
+        } catch (Exception e) {
+            log.error("Failed to fetch Keycloak username for kcUserId={}: {}", kcUserId, e.getMessage());
             return null;
         }
     }

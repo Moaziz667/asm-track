@@ -16,6 +16,14 @@ const REDIRECT_URI =
 const POST_LOGOUT_URI =
   import.meta.env.VITE_OIDC_POST_LOGOUT_URI || APP_ORIGIN + '/login';
 
+// Drive Keycloak's language from the app's chosen locale (asm-locale cookie) so the login page —
+// and the KEYCLOAK_LOCALE cookie it sets, which the account console then inherits — match the app.
+function appLocale(): string {
+  if (typeof document === 'undefined') return 'fr';
+  const m = document.cookie.split('; ').find((c) => c.startsWith('asm-locale='));
+  return m ? m.split('=')[1] : 'fr';
+}
+
 /**
  * Mirror the OIDC access token + decoded identity into localStorage so the
  * axios layer (lib/api.ts) and legacy guards can read it. Called both on the
@@ -62,6 +70,9 @@ export const oidcConfig: AuthProviderProps = {
   post_logout_redirect_uri: POST_LOGOUT_URI,
   response_type: 'code',
   scope: 'openid profile email',
+
+  // Render the Keycloak login in the app's language (FR/EN/AR) and seed KEYCLOAK_LOCALE.
+  extraQueryParams: { ui_locales: appLocale() },
 
   // Persist the OIDC session in localStorage (default is sessionStorage, which
   // is lost across tabs / some redirect flows and causes phantom logouts).

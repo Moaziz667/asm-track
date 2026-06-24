@@ -40,13 +40,14 @@ public class AuditEventConsumer {
         // on /topic/admin.security; drivers are targeted directly on their own /topic/driver.<id>.
         if ("SESSION_REVOKED".equals(action)) {
             String driverId = str(event.get("driverId"));
-            String email = str(event.get("email"));
+            String sub = str(event.get("sub"));
             if (driverId != null) {
                 ws.convertAndSend("/topic/driver." + driverId,
                         Map.of("type", "session.revoked", "driverId", driverId));
-            } else if (email != null) {
+            } else if (sub != null) {
+                // Admin clients match this against their own token's `sub` (immutable Keycloak subject).
                 ws.convertAndSend("/topic/admin.security",
-                        Map.of("type", "session.revoked", "email", email));
+                        Map.of("type", "session.revoked", "sub", sub));
             }
             return;
         }

@@ -143,6 +143,7 @@
       "name": "Admin Web Application",
       "enabled": true,
       "publicClient": true,
+      "frontchannelLogout": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": false,
@@ -158,7 +159,10 @@
       ],
       "attributes": {
         "pkce.code.challenge.method": "S256",
-        "post.logout.redirect.uris": "+"
+        "post.logout.redirect.uris": "+",
+        "backchannel.logout.url": "http://app-backend:8080/api/auth/backchannel-logout",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
       },
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
@@ -184,6 +188,7 @@
       "name": "Driver Mobile Application",
       "enabled": true,
       "publicClient": true,
+      "frontchannelLogout": false,
       "standardFlowEnabled": true,
       "implicitFlowEnabled": false,
       "directAccessGrantsEnabled": true,
@@ -197,7 +202,10 @@
         "http://localhost:5000"
       ],
       "attributes": {
-        "pkce.code.challenge.method": "S256"
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.url": "http://app-backend:8080/api/auth/backchannel-logout",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "false"
       },
       "protocol": "openid-connect",
       "fullScopeAllowed": true,
@@ -315,17 +323,19 @@
     "password": "${RESEND_API_KEY}"
   },
   "loginTheme": "asm",
-  "accountTheme": "",
+  "accountTheme": "asm-account",
   "adminTheme": "",
   "emailTheme": "",
   "eventsEnabled": false,
   "adminEventsEnabled": false,
   "adminEventsDetailsEnabled": false,
-  "internationalizationEnabled": false,
+  "internationalizationEnabled": true,
   "supportedLocales": [
-    "en"
+    "fr",
+    "en",
+    "ar"
   ],
-  "defaultLocale": "en",
+  "defaultLocale": "fr",
   "users": [
     {
       "username": "admin@asm.com",

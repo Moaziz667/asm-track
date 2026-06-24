@@ -119,9 +119,12 @@ services:
       RESEND_API_KEY: ${RESEND_API_KEY}
     volumes:
       - ./keycloak:/opt/keycloak/data/import:ro
-      # Keycloakify outputs the theme as a JAR. Deploy it as a provider so every
+      # Keycloakify outputs the LOGIN theme as a JAR. Deploy it as a provider so every
       # `npm run build-keycloak-theme` is picked up on the next Keycloak restart.
       - ../Apps/admin-app-react/dist_keycloak/keycloak-theme-for-kc-all-other-versions.jar:/opt/keycloak/providers/asm-theme.jar:ro
+      # ASM-branded ACCOUNT console theme (extends keycloak.v3, CSS + logo). Plain KC theme dir —
+      # avoids pulling the PatternFly account-ui into the React 19 admin app.
+      - ./keycloak/themes:/opt/keycloak/themes:ro
     ports:
       - "8089:8080"
     depends_on:

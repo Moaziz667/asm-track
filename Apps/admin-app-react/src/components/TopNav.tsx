@@ -207,9 +207,12 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
 
   const handleLogout = async () => {
     safeStorage.removeItem('admin-operational-filters');
+    // Capture the id_token BEFORE clearing the user: passing it as id_token_hint lets Keycloak skip
+    // its (unstyled) logout-confirmation prompt and log out + redirect straight to /login.
+    const id_token_hint = auth.user?.id_token;
     try {
       await auth.removeUser();
-      await auth.signoutRedirect();
+      await auth.signoutRedirect(id_token_hint ? { id_token_hint } : undefined);
     } catch {
       window.location.href = '/';
     }
@@ -311,11 +314,12 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
               </span>
             </div>
             <DropdownMenuSeparator />
-            <DropdownMenuItem 
+            <DropdownMenuItem
               className="gap-2 text-xs font-semibold cursor-pointer"
               onClick={() => {
                 if (auth.settings.authority) {
-                  window.open(`${auth.settings.authority}/account/`, '_blank');
+                  // Force the account console into the app's current language → no FR/EN/AR mismatch.
+                  window.open(`${auth.settings.authority}/account/?kc_locale=${activeLocale}`, '_blank');
                 }
               }}
             >

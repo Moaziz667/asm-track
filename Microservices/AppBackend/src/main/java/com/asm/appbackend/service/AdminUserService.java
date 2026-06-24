@@ -122,9 +122,10 @@ public class AdminUserService {
     public void forceLogout(UUID id) {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
-        keycloakAdminClient.forceLogout(user.getId().toString());
+        String sub = keycloakAdminClient.forceLogout(user.getId().toString());
         // S2: tell the user's client to log out immediately instead of waiting for token expiry.
-        auditEventPublisher.publishSessionRevoked(user.getEmail());
+        // Keyed on the Keycloak subject (sub) — same key the back-channel-logout path uses.
+        auditEventPublisher.publishSessionRevoked(sub);
     }
 
     @Transactional

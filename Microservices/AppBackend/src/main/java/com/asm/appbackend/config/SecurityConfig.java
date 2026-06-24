@@ -65,6 +65,7 @@ public class SecurityConfig {
     private String issuerUri;
 
     @Bean
+    @org.springframework.context.annotation.Primary
     public org.springframework.security.oauth2.jwt.JwtDecoder jwtDecoder() {
         org.springframework.security.oauth2.jwt.NimbusJwtDecoder jwtDecoder =
                 org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri).build();
@@ -109,6 +110,38 @@ public class SecurityConfig {
 
         jwtDecoder.setJwtValidator(withAudience);
         return jwtDecoder;
+    }
+
+    /**
+     * Dedicated decoder for OIDC back-channel <b>logout tokens</b>. These are signed by the realm just
+     * like access tokens, but carry the JOSE header {@code typ: logout+jwt}, which the default Nimbus
+     * type verifier rejects. We accept that typ here (and only here) and validate signature + issuer;
+     * the logout-specific {@code events} claim is checked in {@code BackChannelLogoutController}.
+     */
+    @Bean("logoutTokenJwtDecoder")
+    public org.springframework.security.oauth2.jwt.JwtDecoder logoutTokenJwtDecoder() {
+        org.springframework.security.oauth2.jwt.NimbusJwtDecoder decoder =
+                org.springframework.security.oauth2.jwt.NimbusJwtDecoder.withJwkSetUri(jwkSetUri)
+                        .jwtProcessorCustomizer(p -> p.setJWSTypeVerifier(
+                                new com.nimbusds.jose.proc.DefaultJOSEObjectTypeVerifier<>(
+                                        new com.nimbusds.jose.JOSEObjectType("logout+jwt"),
+                                        com.nimbusds.jose.JOSEObjectType.JWT,
+                                        null)))
+                        .build();
+
+        org.springframework.security.oauth2.core.OAuth2TokenValidator<org.springframework.security.oauth2.jwt.Jwt> issuerValidator = jwt -> {
+            java.net.URL issuer = jwt.getIssuer();
+            if (issuer != null && issuer.toString().endsWith("/realms/asm")) {
+                return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();
+            }
+            return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.failure(
+                    new org.springframework.security.oauth2.core.OAuth2Error(
+                            "invalid_token", "Invalid issuer: " + issuer, null));
+        };
+        decoder.setJwtValidator(new org.springframework.security.oauth2.core.DelegatingOAuth2TokenValidator<>(
+                new org.springframework.security.oauth2.jwt.JwtTimestampValidator(),
+                issuerValidator));
+        return decoder;
     }
 
     @Bean

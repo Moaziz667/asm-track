@@ -1,7 +1,6 @@
 import { useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { useRealtimeEvent } from './RealtimeProvider';
-import { safeStorage } from '@/lib/storage';
 import { showErrorToast } from '@/lib/toast-service';
 import { useT } from '@/lib/LocaleContext';
 
@@ -18,10 +17,10 @@ export default function SessionRevocationWatcher() {
   useRealtimeEvent(['session.revoked'], (evt) => {
     if (triggered.current) return;
 
-    const target = String(evt.payload?.email ?? '').trim().toLowerCase();
-    const mine = String(auth.user?.profile?.email ?? safeStorage.getItem('admin_email') ?? '')
-      .trim()
-      .toLowerCase();
+    // Match on the immutable OIDC subject (sub) — stable across email/username changes and what the
+    // Keycloak back-channel-logout token carries. Always present in our tokens (scope=openid).
+    const target = String(evt.payload?.sub ?? '').trim();
+    const mine = String(auth.user?.profile?.sub ?? '').trim();
     if (!target || !mine || target !== mine) return;
 
     triggered.current = true;
