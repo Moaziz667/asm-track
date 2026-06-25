@@ -420,6 +420,28 @@ public class KeycloakAdminClient {
         }
     }
 
+    /**
+     * Find a Keycloak user by the immutable {@code app_user_id} attribute. Unlike {@link #getUserDetails}
+     * (which searches by username), this works regardless of whether the username is the email (seed
+     * admins) or the UUID (app-created users / drivers) — the attribute is set on all of them.
+     */
+    public Map<String, Object> getUserByAppUserId(String appUserId) {
+        try {
+            List<Map<String, Object>> body = restClient.get()
+                    .uri(UriComponentsBuilder.fromHttpUrl(getAdminUrl() + "/users")
+                            .queryParam("q", "app_user_id:" + appUserId)
+                            .queryParam("exact", "true")
+                            .build().toUriString())
+                    .header("Authorization", "Bearer " + getServiceToken())
+                    .retrieve()
+                    .body(LIST_OF_MAPS);
+            return (body == null || body.isEmpty()) ? null : body.get(0);
+        } catch (Exception e) {
+            log.warn("getUserByAppUserId failed for {}: {}", appUserId, e.getMessage());
+            return null;
+        }
+    }
+
     /** Resolves a Keycloak user id (the token {@code sub}) to its username. For our users the username
      *  is the app-side id (admin_users.id / driver.id), so this maps a logout token's sub back to the
      *  business id used as the session-revocation key (e.g. the driver topic {@code /topic/driver.<id>}). */

@@ -3,10 +3,8 @@
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useQueryClient } from '@tanstack/react-query';
 import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
-import type { User } from 'oidc-client-ts';
 
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
@@ -161,28 +159,11 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const t = useT();
   const auth = useAuth();
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
-  // Identity from /api/admin/me (the name mirror). Name is Keycloak-mastered: refreshed at login
-  // (onSigninCallback → /me/sync) and on admin edits (write-through + ['me'] invalidation).
+  // Identity from /api/admin/me, which reads the name LIVE from Keycloak (the master). React Query
+  // refetches on window focus (staleTime 0), so a name self-edited in "Mon compte" shows the moment
+  // the user returns to the app tab — no manual re-login.
   const { data: user } = useCurrentUser();
-  const queryClient = useQueryClient();
   const [isClient, setIsClient] = useState(false);
-
-  // Enterprise pattern (à la Google): on each automatic background token renew, pull the
-  // Keycloak-mastered name into the mirror and refresh the display — so a name self-edited in
-  // "Mon compte" appears within the (short) token lifespan, with no manual re-login.
-  useEffect(() => {
-    const onUserLoaded = (u: User) => {
-      if (!u?.access_token) return;
-      fetch('/api/admin/me/sync', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${u.access_token}` },
-      })
-        .then(() => queryClient.invalidateQueries({ queryKey: ['me'] }))
-        .catch(() => {});
-    };
-    auth.events.addUserLoaded(onUserLoaded);
-    return () => auth.events.removeUserLoaded(onUserLoaded);
-  }, [auth.events, queryClient]);
   const [isDark, setIsDark] = useState(false);
   const { locale: activeLocale, setLocale } = useLocaleStore();
 

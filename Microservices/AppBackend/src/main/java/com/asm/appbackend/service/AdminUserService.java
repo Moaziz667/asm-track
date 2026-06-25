@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -65,30 +66,29 @@ public class AdminUserService {
     }
 
     /**
-     * Current user's own profile, read live from the DB — the master for name/email (admin-owned;
-     * those fields are read-only in the Keycloak account console). Sourcing the UI identity here means
-     * an admin edit shows immediately, without waiting for a new token (re-login). The reconciler keeps
-     * Keycloak in sync DB→KC, so the token catches up on its next refresh.
-     */
-    @Transactional(readOnly = true)
-    public AdminUserResponse getById(UUID id) {
-        return adminUserRepo.findById(id)
-                .map(this::toResponse)
-                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
-    }
-
-    /**
-     * Login-pull: refresh the name mirror from the Keycloak-mastered value carried in the user's
-     * (fresh) login token. Called once at sign-in, so the token reflects the user's latest KC name —
-     * no race with a concurrent admin edit. This is how a self-edit in "Mon compte" reaches the app.
+     * Current user's profile for the UI. The display name is Keycloak-mastered (users self-edit it in
+     * the account console), so we read it LIVE from the KC user entity here — NOT from the access token,
+     * whose {@code name} claim is a stale login-time snapshot (Keycloak caches it on the session and a
+     * refresh-token renew does not re-read it; only a full re-login does). The DB mirror (read by audit
+     * attribution) is refreshed in passing. If Keycloak is unreachable, fall back to the mirror.
      */
     @Transactional
-    public AdminUserResponse syncNameFromToken(UUID id, String tokenName) {
+    public AdminUserResponse getMeLive(UUID id) {
         AdminUser user = adminUserRepo.findById(id)
                 .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
-        if (tokenName != null && !tokenName.isBlank() && !tokenName.equals(user.getName())) {
-            user.setName(tokenName);
-            adminUserRepo.save(user);
+        try {
+            Map<String, Object> kc = keycloakAdminClient.getUserByAppUserId(id.toString());
+            if (kc != null) {
+                String fn = kc.get("firstName") == null ? "" : kc.get("firstName").toString();
+                String ln = kc.get("lastName") == null ? "" : kc.get("lastName").toString();
+                String live = (fn + " " + ln).trim();
+                if (!live.isBlank() && !live.equals(user.getName())) {
+                    user.setName(live);
+                    adminUserRepo.save(user);
+                }
+            }
+        } catch (Exception e) {
+            log.warn("getMeLive: could not read live name from Keycloak for {}: {}", id, e.getMessage());
         }
         return toResponse(user);
     }

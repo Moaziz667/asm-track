@@ -7,7 +7,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -30,16 +29,8 @@ public class MeController {
     @GetMapping
     public ResponseEntity<AdminUserResponse> me(@AuthenticationPrincipal UserPrincipal principal) {
         // principal.getName() is the app user id (= admin_users.id), injected by JwtAuthConverter.
-        return ResponseEntity.ok(adminUserService.getById(UUID.fromString(principal.getName())));
-    }
-
-    /**
-     * Login-pull: refresh the name mirror from the token's name claim (the Keycloak-mastered value).
-     * The SPA calls this once on sign-in so a name self-edited in the account console reaches the app.
-     */
-    @PostMapping("/sync")
-    public ResponseEntity<AdminUserResponse> sync(@AuthenticationPrincipal UserPrincipal principal) {
-        return ResponseEntity.ok(
-                adminUserService.syncNameFromToken(UUID.fromString(principal.getName()), principal.name()));
+        // Reads the display name LIVE from Keycloak (the master) so a self-edit in "Mon compte" shows
+        // without a re-login — the token's name claim is a stale login-time snapshot.
+        return ResponseEntity.ok(adminUserService.getMeLive(UUID.fromString(principal.getName())));
     }
 }

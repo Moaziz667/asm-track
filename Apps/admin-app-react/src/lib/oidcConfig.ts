@@ -78,8 +78,12 @@ export const oidcConfig: AuthProviderProps = {
   // is lost across tabs / some redirect flows and causes phantom logouts).
   userStore: new WebStorageStateStore({ store: window.localStorage }),
 
-  // Keep the access token fresh transparently.
+  // Keep the access token fresh transparently. Use the REFRESH TOKEN grant for silent renew (not the
+  // default iframe/prompt=none flow, which needs 3rd-party cookies and is broken on http://localhost
+  // — same reason monitorSession is off). Without this, signinSilent / automaticSilentRenew fail and
+  // a KC-side profile change (e.g. name in "Mon compte") only shows after a full re-login.
   automaticSilentRenew: true,
+  useRefreshToken: true,
 
   // Session-status iframe checks don't work reliably against Keycloak on
   // http://localhost (third-party cookie / X-Frame issues); disable to avoid
@@ -88,14 +92,6 @@ export const oidcConfig: AuthProviderProps = {
 
   onSigninCallback: (user) => {
     syncSession(user);
-    // Login-pull: refresh the DB name mirror from the Keycloak-mastered name in the fresh token, so a
-    // name self-edited in the account console shows in the app. Fire-and-forget (token-expiry backstop).
-    if (user?.access_token) {
-      void fetch('/api/admin/me/sync', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${user.access_token}` },
-      }).catch(() => {});
-    }
     // Strip ?code & ?state from the URL without a full reload.
     window.history.replaceState({}, document.title, window.location.pathname);
   },
