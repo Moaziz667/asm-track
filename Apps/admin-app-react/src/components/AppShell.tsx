@@ -21,7 +21,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const { isMobile, isTablet } = useBreakpoint();
 
   const isAuthPage = pathname === '/login' || pathname === '/' || pathname?.startsWith('/track');
-  const lockViewport = (pathname?.startsWith('/route-builder') || pathname?.startsWith('/dispatch')) && !(isMobile || isTablet);
+  // Full-screen DnD tools: the page-reveal animation leaves a retained `transform` on this wrapper
+  // (animation-fill-mode: both), which becomes the containing block for the dnd-kit DragOverlay
+  // (position: fixed) and breaks dragging (the dragged card won't follow the cursor). Skip it here.
+  const isDndPage = Boolean(pathname?.startsWith('/route-builder') || pathname?.startsWith('/dispatch'));
+  const lockViewport = isDndPage && !(isMobile || isTablet);
 
   useEffect(() => {
     setMounted(true);
@@ -49,8 +53,9 @@ export default function AppShell({ children }: { children: ReactNode }) {
                   : 'overflow-y-auto',
               )}
             >
-              {/* key={pathname} replays the control-tower reveal on each route mount */}
-              <div key={pathname} className="page-reveal w-full h-full">
+              {/* key={pathname} replays the control-tower reveal on each route mount. DnD pages skip
+                  it: the retained transform would break the drag overlay's fixed positioning. */}
+              <div key={pathname} className={cn('w-full h-full', !isDndPage && 'page-reveal')}>
                 {children}
               </div>
             </div>
