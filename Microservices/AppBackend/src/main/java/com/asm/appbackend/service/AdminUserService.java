@@ -64,6 +64,35 @@ public class AdminUserService {
         return adminUserRepo.findAll().stream().map(this::toResponse).toList();
     }
 
+    /**
+     * Current user's own profile, read live from the DB — the master for name/email (admin-owned;
+     * those fields are read-only in the Keycloak account console). Sourcing the UI identity here means
+     * an admin edit shows immediately, without waiting for a new token (re-login). The reconciler keeps
+     * Keycloak in sync DB→KC, so the token catches up on its next refresh.
+     */
+    @Transactional(readOnly = true)
+    public AdminUserResponse getById(UUID id) {
+        return adminUserRepo.findById(id)
+                .map(this::toResponse)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
+    }
+
+    /**
+     * Login-pull: refresh the name mirror from the Keycloak-mastered value carried in the user's
+     * (fresh) login token. Called once at sign-in, so the token reflects the user's latest KC name —
+     * no race with a concurrent admin edit. This is how a self-edit in "Mon compte" reaches the app.
+     */
+    @Transactional
+    public AdminUserResponse syncNameFromToken(UUID id, String tokenName) {
+        AdminUser user = adminUserRepo.findById(id)
+                .orElseThrow(() -> new AppException(HttpStatus.NOT_FOUND, "User not found"));
+        if (tokenName != null && !tokenName.isBlank() && !tokenName.equals(user.getName())) {
+            user.setName(tokenName);
+            adminUserRepo.save(user);
+        }
+        return toResponse(user);
+    }
+
     @Transactional
     public AdminUserResponse setActive(UUID id, boolean active) {
         AdminUser user = adminUserRepo.findById(id)
@@ -111,8 +140,10 @@ public class AdminUserService {
                     "appUserId", appUserId, "email", trimmedEmail, "role", role));
         }
         if (!saved.getName().equals(oldName)) {
-            outboxProcessor.enqueue(IamCommandApplier.UPDATE_NAME, java.util.Map.of(
-                    "appUserId", appUserId, "email", trimmedEmail, "name", saved.getName()));
+            // The display name is Keycloak-mastered (users self-edit it in the account console), so we
+            // write it through to KC — the master — directly; the mirror set above just follows. There
+            // is intentionally no DB→KC name reconcile (it would revert a user's self-edit).
+            keycloakAdminClient.updateUserName(appUserId, trimmedEmail, saved.getName());
         }
 
         return toResponse(saved);

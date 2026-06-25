@@ -32,18 +32,17 @@ public class DriverService {
     private final DriverEventPublisher eventPublisher;
     private final DriverAuditLogService auditLogService;
 
-    public DriverProfileResponse getProfile(UUID driverId) {
-        Driver driver = driverRepo.findById(driverId)
-                .orElseThrow(() -> AppException.notFound("Driver not found"));
-        return mapToProfile(driver);
-    }
-
     @Transactional
-    public void updateProfile(UUID driverId, String name) {
+    public DriverProfileResponse getProfile(UUID driverId, String tokenName) {
         Driver driver = driverRepo.findById(driverId)
                 .orElseThrow(() -> AppException.notFound("Driver not found"));
-        driver.setName(name);
-        driver = driverRepo.save(driver);
+        // The display name is Keycloak-mastered (self-service in the account console). Refresh the
+        // mirror from the (login) token's name claim so a self-edit reaches the app + attribution.
+        if (tokenName != null && !tokenName.isBlank() && !tokenName.equals(driver.getName())) {
+            driver.setName(tokenName);
+            driver = driverRepo.save(driver);
+        }
+        return mapToProfile(driver);
     }
 
     @Transactional

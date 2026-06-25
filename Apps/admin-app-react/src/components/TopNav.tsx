@@ -3,8 +3,10 @@
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
+import type { User } from 'oidc-client-ts';
 
 import {
   IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
@@ -21,8 +23,9 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AlertBell from './AlertBell';
 import GlobalSearch from './GlobalSearch';
-import { getCurrentRole, getCurrentUser } from '@/lib/auth';
-import { AdminRole, AdminUser } from '@/types';
+import { getCurrentRole } from '@/lib/auth';
+import { useCurrentUser } from '@/lib/useCurrentUser';
+import { AdminRole } from '@/types';
 import { useBreadcrumb } from '@/lib/breadcrumb';
 import { GROUP_DEFS } from './Sidebar';
 import { useLocaleStore } from '@/lib/i18n';
@@ -158,8 +161,28 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const t = useT();
   const auth = useAuth();
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
-  const [user, setUser] = useState<AdminUser | null>(null);
+  // Identity from /api/admin/me (the name mirror). Name is Keycloak-mastered: refreshed at login
+  // (onSigninCallback → /me/sync) and on admin edits (write-through + ['me'] invalidation).
+  const { data: user } = useCurrentUser();
+  const queryClient = useQueryClient();
   const [isClient, setIsClient] = useState(false);
+
+  // Enterprise pattern (à la Google): on each automatic background token renew, pull the
+  // Keycloak-mastered name into the mirror and refresh the display — so a name self-edited in
+  // "Mon compte" appears within the (short) token lifespan, with no manual re-login.
+  useEffect(() => {
+    const onUserLoaded = (u: User) => {
+      if (!u?.access_token) return;
+      fetch('/api/admin/me/sync', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${u.access_token}` },
+      })
+        .then(() => queryClient.invalidateQueries({ queryKey: ['me'] }))
+        .catch(() => {});
+    };
+    auth.events.addUserLoaded(onUserLoaded);
+    return () => auth.events.removeUserLoaded(onUserLoaded);
+  }, [auth.events, queryClient]);
   const [isDark, setIsDark] = useState(false);
   const { locale: activeLocale, setLocale } = useLocaleStore();
 
@@ -175,7 +198,6 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   useEffect(() => {
     setIsClient(true);
     setRole(getCurrentRole());
-    setUser(getCurrentUser());
     setIsDark(document.documentElement.classList.contains('dark'));
 
     const handleStorage = (e: StorageEvent) => {

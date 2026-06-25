@@ -69,6 +69,11 @@ spring:
           predicates:
             - Path=/api/admin/users/**
 
+        - id: app-backend-admin-me
+          uri: ${APP_BACKEND_URL:http://localhost:8080}
+          predicates:
+            - Path=/api/admin/me/**,/api/admin/me
+
         - id: delivery-admin
           uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
           predicates:

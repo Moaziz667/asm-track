@@ -2,7 +2,6 @@ package com.asm.driver.controller;
 
 import com.asm.driver.dto.request.LocationRequest;
 import com.asm.driver.dto.request.PasswordUpdateRequest;
-import com.asm.driver.dto.request.ProfileUpdateRequest;
 import com.asm.driver.dto.response.DriverProfileResponse;
 import com.asm.driver.dto.response.HistoryResponse;
 import com.asm.driver.dto.response.StatsResponse;
@@ -31,17 +30,11 @@ public class DriverController {
 
     @GetMapping("/profile")
     public ResponseEntity<DriverProfileResponse> getProfile(@AuthenticationPrincipal UserPrincipal user) {
-        return ResponseEntity.ok(driverService.getProfile(UUID.fromString(user.getUserId())));
+        return ResponseEntity.ok(
+                driverService.getProfile(UUID.fromString(user.getUserId()), user.getDisplayName()));
     }
 
-    @PutMapping("/profile")
-    public ResponseEntity<Map<String, String>> updateProfile(@AuthenticationPrincipal UserPrincipal user,
-                                                             @Valid @RequestBody ProfileUpdateRequest req) {
-        driverService.updateProfile(UUID.fromString(user.getUserId()), req.getName());
-        return ResponseEntity.ok(Map.of("message", "Profile updated"));
-    }
-
-
+    // Driver name is Keycloak-mastered (self-service in the account console) → no app-side name edit.
 
     @PostMapping("/location")
     public ResponseEntity<Map<String, String>> updateLocation(@AuthenticationPrincipal UserPrincipal user,

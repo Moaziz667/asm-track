@@ -142,6 +142,8 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
         if (path.startsWith("/api/driver/")) return hasRole(roles, "DRIVER");
 
         // Admin surface — permission-based (order matters: most specific first).
+        if (path.equals("/api/admin/me") || path.startsWith("/api/admin/me/"))
+            return true; // any authenticated admin/dispatcher/manager — only their own profile (read + login-sync)
         if (path.equals("/api/admin/companies/me"))
             return roles.contains("perm:company:manage") || roles.contains("perm:dispatch:operate");
         if (path.startsWith("/api/admin/companies/"))

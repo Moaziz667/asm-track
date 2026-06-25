@@ -88,6 +88,14 @@ export const oidcConfig: AuthProviderProps = {
 
   onSigninCallback: (user) => {
     syncSession(user);
+    // Login-pull: refresh the DB name mirror from the Keycloak-mastered name in the fresh token, so a
+    // name self-edited in the account console shows in the app. Fire-and-forget (token-expiry backstop).
+    if (user?.access_token) {
+      void fetch('/api/admin/me/sync', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${user.access_token}` },
+      }).catch(() => {});
+    }
     // Strip ?code & ?state from the URL without a full reload.
     window.history.replaceState({}, document.title, window.location.pathname);
   },

@@ -10,7 +10,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -112,15 +111,10 @@ public class KeycloakSyncScheduler {
             repaired = true;
         }
 
-        // Name drift — the gap that made admin audit/history show a generic actor instead of a person.
-        Map<String, Object> expected = KeycloakAdminClient.nameFields(dbUser.getName());
-        if (!expected.isEmpty()
-                && (!Objects.equals(expected.get("firstName"), kcUser.get("firstName"))
-                 || !Objects.equals(expected.get("lastName"),  kcUser.get("lastName")))) {
-            log.info("Sync: name drift for {}. Reconciling display name...", dbUser.getEmail());
-            keycloakAdminClient.updateUserName(dbUser.getId().toString(), dbUser.getEmail(), dbUser.getName());
-            repaired = true;
-        }
+        // NOTE: the display name is intentionally NOT reconciled DB→KC. The name is Keycloak-mastered
+        // (users self-edit it in the account console); pushing the DB value here would revert their
+        // edit. The mirror is refreshed KC→DB on login (POST /api/admin/me/sync). Only role/status,
+        // which the app masters, are reconciled DB→KC above.
 
         if (repaired) {
             meters.counter("kc.sync.drift", "service", "admin").increment();

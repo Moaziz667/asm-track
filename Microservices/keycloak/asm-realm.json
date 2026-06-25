@@ -37,6 +37,20 @@
   "roles": {
     "realm": [
       {
+        "name": "offline_access",
+        "description": "${role_offline-access}",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
+      },
+      {
+        "name": "uma_authorization",
+        "description": "${role_uma_authorization}",
+        "composite": false,
+        "clientRole": false,
+        "attributes": {}
+      },
+      {
         "name": "ADMIN",
         "description": "Platform administrator",
         "composite": true,
@@ -131,7 +145,7 @@
         "providerId": "declarative-user-profile",
         "config": {
           "kc.user.profile.config": [
-            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
+            "{\"attributes\":[{\"name\":\"username\",\"displayName\":\"${username}\",\"validations\":{\"length\":{\"min\":3,\"max\":255},\"username-prohibited-characters\":{},\"up-username-not-idn-homograph\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"email\",\"displayName\":\"${email}\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]},\"multivalued\":false},{\"name\":\"firstName\",\"displayName\":\"${firstName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false},{\"name\":\"lastName\",\"displayName\":\"${lastName}\",\"validations\":{\"length\":{\"max\":255},\"person-name-prohibited-characters\":{}},\"required\":{\"roles\":[\"user\"]},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\",\"user\"]},\"multivalued\":false}],\"groups\":[{\"name\":\"user-metadata\",\"displayHeader\":\"User metadata\",\"displayDescription\":\"Attributes, which refer to user metadata\"}],\"unmanagedAttributePolicy\":\"ENABLED\"}"
           ]
         }
       }
@@ -340,8 +354,8 @@
     {
       "username": "admin@asm.com",
       "email": "admin@asm.com",
-      "firstName": "System",
-      "lastName": "Admin",
+      "firstName": "Aziz",
+      "lastName": "Hadjkacem",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -351,7 +365,8 @@
         }
       ],
       "realmRoles": [
-        "ADMIN"
+        "ADMIN",
+        "default-roles-asm"
       ],
       "attributes": {
         "app_user_id": [
@@ -365,8 +380,8 @@
     {
       "username": "dispatcher@asm.com",
       "email": "dispatcher@asm.com",
-      "firstName": "Chief",
-      "lastName": "Dispatcher",
+      "firstName": "Sofiene",
+      "lastName": "Brahmi",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -376,7 +391,8 @@
         }
       ],
       "realmRoles": [
-        "DISPATCHER"
+        "DISPATCHER",
+        "default-roles-asm"
       ],
       "attributes": {
         "app_user_id": [
@@ -388,10 +404,36 @@
       }
     },
     {
+      "username": "manager@asm.com",
+      "email": "manager@asm.com",
+      "firstName": "Nadia",
+      "lastName": "Cherif",
+      "enabled": true,
+      "emailVerified": true,
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager"
+        }
+      ],
+      "realmRoles": [
+        "MANAGER",
+        "default-roles-asm"
+      ],
+      "attributes": {
+        "app_user_id": [
+          "66666666-6666-6666-6666-666666666666"
+        ],
+        "role": [
+          "MANAGER"
+        ]
+      }
+    },
+    {
       "username": "33333333-3333-3333-3333-333333333333",
       "email": "driver1@asm.com",
-      "firstName": "Driver",
-      "lastName": "One",
+      "firstName": "Ahmed",
+      "lastName": "Ben Ali",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -401,7 +443,8 @@
         }
       ],
       "realmRoles": [
-        "DRIVER"
+        "DRIVER",
+        "default-roles-asm"
       ],
       "attributes": {
         "app_user_id": [
@@ -415,8 +458,8 @@
     {
       "username": "44444444-4444-4444-4444-444444444444",
       "email": "driver2@asm.com",
-      "firstName": "Driver",
-      "lastName": "Two",
+      "firstName": "Sami",
+      "lastName": "Trabelsi",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -426,7 +469,8 @@
         }
       ],
       "realmRoles": [
-        "DRIVER"
+        "DRIVER",
+        "default-roles-asm"
       ],
       "attributes": {
         "app_user_id": [
@@ -440,8 +484,8 @@
     {
       "username": "55555555-5555-5555-5555-555555555555",
       "email": "driver3@asm.com",
-      "firstName": "Driver",
-      "lastName": "Three",
+      "firstName": "Karim",
+      "lastName": "Mansour",
       "enabled": true,
       "emailVerified": true,
       "credentials": [
@@ -451,7 +495,8 @@
         }
       ],
       "realmRoles": [
-        "DRIVER"
+        "DRIVER",
+        "default-roles-asm"
       ],
       "attributes": {
         "app_user_id": [

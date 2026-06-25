@@ -41,7 +41,7 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         String appUserId = jwt.getClaimAsString("app_user_id");
         String principalId = appUserId != null ? appUserId : jwt.getSubject();
 
-        UserPrincipal principal = new UserPrincipal(principalId, dominantRole);
+        UserPrincipal principal = new UserPrincipal(principalId, dominantRole, jwt.getClaimAsString("name"));
         return new UsernamePasswordAuthenticationToken(principal, null, authorities);
     }
 

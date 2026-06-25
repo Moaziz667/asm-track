@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
 import { canManageSettings, getCurrentRole } from '@/lib/auth';
@@ -53,6 +54,7 @@ const ROLE_TONE: Record<string, string> = {
 export default function SettingsPage() {
   const t = useT();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const sp = t.settingsPage as TSettings;
   const [section, setSection] = useState<SettingSection>('COMPANY');
   const [role, setRole] = useState<'ADMIN' | 'DISPATCHER' | 'MANAGER' | 'UNKNOWN'>('UNKNOWN');
@@ -170,6 +172,8 @@ export default function SettingsPage() {
       setEditOpen(false);
       setEditingUser(null);
       fetchAdminUsers();
+      // If the edited user is the signed-in one, refresh the live profile so the top bar updates now.
+      queryClient.invalidateQueries({ queryKey: ['me'] });
     } catch (err: any) {
       showErrorToast(err, 'errorUserUpdateFailed');
     } finally {
