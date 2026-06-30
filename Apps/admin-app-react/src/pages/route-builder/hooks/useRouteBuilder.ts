@@ -459,6 +459,12 @@ export function useRouteBuilder() {
     return Boolean((vehicle as any).assigned);
   };
 
+  // A driver is busy if they're already assigned to another route in today's builder list.
+  const isDriverBusy = (driver?: Driver, excludeRouteId?: string) => {
+    if (!driver) return false;
+    return routes.some((r) => r.driverId === driver.id && r.id !== excludeRouteId);
+  };
+
   const appendStopsToRoute = (routeId: string, newStops: RouteStop[]) => {
     setRoutes((prev) => prev.map((route) => {
       if (route.id !== routeId) return route;
@@ -1410,6 +1416,7 @@ export function useRouteBuilder() {
     handleDragStart,
     handleDragEnd,
     isVehicleBusy,
+    isDriverBusy,
     removeFromUnscheduled,
     appendStopsToRoute,
 

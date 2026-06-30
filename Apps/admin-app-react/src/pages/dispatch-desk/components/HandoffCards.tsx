@@ -1,10 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
-  IconArrowRight, IconClock, IconArrowsExchange, IconCheck, IconChevronDown,
+  IconClock, IconX, IconChevronDown, IconMapPin, IconCheck,
+  IconAlertTriangle, IconPackageExport, IconArrowNarrowRight,
 } from '@tabler/icons-react';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { AppLoader } from '@/components/AppLoader';
+import StatusBadge from '@/components/StatusBadge';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
+import type { StatusValue } from '@/components/data-display/StatusBadge';
 import { isHandoffOverdue } from '../hooks/useHandoffs';
 import type { HandoffItem } from '../types';
 
@@ -20,29 +25,45 @@ interface Props {
 
 type Segment = 'open' | 'history';
 
-/** Urgency / outcome styling for the state chip + card accent. */
-function chipStyle(h: HandoffItem, t: any): { label: string; color: string; bg: string; accent: string } {
-  switch (h.state) {
-    case 'CONFIRMED':
-      return { label: t.dispatchDeskPage.handoffStateConfirmed, color: 'var(--success)', bg: 'var(--success-bg)', accent: 'var(--success)' };
-    case 'EXPIRED':
-      return { label: t.dispatchDeskPage.handoffStateExpired, color: 'var(--warning)', bg: 'var(--warning-bg)', accent: 'var(--warning)' };
-    case 'CANCELLED':
-      return { label: t.dispatchDeskPage.handoffStateCancelled, color: 'var(--text-muted)', bg: 'var(--hover-bg)', accent: 'var(--text-soft)' };
-  }
-  if (isHandoffOverdue(h)) {
-    return { label: t.dispatchDeskPage.handoffStateOverdue, color: 'var(--danger)', bg: 'var(--danger-bg)', accent: 'var(--danger)' };
-  }
-  if (h.state === 'IN_PROGRESS') {
-    return { label: t.dispatchDeskPage.handoffStateInProgress, color: 'var(--brand)', bg: 'var(--brand-soft)', accent: 'var(--brand)' };
-  }
-  return { label: t.dispatchDeskPage.handoffStateRequested, color: 'var(--info)', bg: 'var(--info-bg)', accent: 'var(--info)' };
+/**
+ * The transfer phase drives everything visual on the card: the StatusBadge, the
+ * custody-connector treatment, and the checkpoint icon. One derivation, no drift.
+ *  - wait      → requested, sender hasn't shown the code yet
+ *  - active    → code ready, awaiting the receiver's scan (the parcel is "in motion")
+ *  - overdue   → open past its SLA
+ *  - confirmed → received (terminal, success)
+ *  - expired   → timed out (terminal)
+ *  - cancelled → aborted by dispatch (terminal)
+ */
+type Phase = 'wait' | 'active' | 'overdue' | 'confirmed' | 'expired' | 'cancelled';
+
+function phaseOf(h: HandoffItem): Phase {
+  if (h.state === 'CONFIRMED') return 'confirmed';
+  if (h.state === 'EXPIRED') return 'expired';
+  if (h.state === 'CANCELLED') return 'cancelled';
+  if (isHandoffOverdue(h)) return 'overdue';
+  if (h.state === 'IN_PROGRESS') return 'active';
+  return 'wait';
 }
 
-function initials(name?: string): string {
-  if (!name) return '—';
-  const parts = name.trim().split(/\s+/).slice(0, 2);
-  return parts.map(p => p[0]?.toUpperCase() ?? '').join('') || '—';
+interface CardView {
+  status: StatusValue;
+  label: string;
+  accent: string;
+  phase: Phase;
+}
+
+function cardView(h: HandoffItem, t: any): CardView {
+  const c = t.dispatchDeskPage;
+  const phase = phaseOf(h);
+  switch (phase) {
+    case 'confirmed': return { status: 'COMPLETED', label: c.handoffStateConfirmed, accent: 'var(--success)', phase };
+    case 'expired':   return { status: 'PENDING' as StatusValue, label: c.handoffStateExpired, accent: 'var(--warning)', phase };
+    case 'cancelled': return { status: 'CANCELLED', label: c.handoffStateCancelled, accent: 'var(--text-soft)', phase };
+    case 'overdue':   return { status: 'FAILED', label: c.handoffStateOverdue, accent: 'var(--danger)', phase };
+    case 'active':    return { status: 'IN_PROGRESS', label: c.handoffStateInProgress, accent: 'var(--brand)', phase };
+    default:          return { status: 'REQUESTED' as StatusValue, label: c.handoffStateRequested, accent: 'var(--info)', phase };
+  }
 }
 
 function fmtTs(iso?: string): string {
@@ -64,18 +85,69 @@ function durationLabel(h: HandoffItem, t: any): string | null {
   return (t.dispatchDeskPage.handoffDuration ?? 'Completed in {d}').replace('{d}', fmtMinutes(mins));
 }
 
-function DriverChip({ name }: { name?: string }) {
+/**
+ * The custody connector — the signature element of a handoff card. It reads left→right
+ * as "sender hands the parcel to receiver", and the LINE itself encodes the live state:
+ * a marching dashed line while the parcel is in motion (awaiting scan), a solid line once
+ * received, a broken segment when it failed. A centred checkpoint chip carries the phase
+ * icon. This replaces color-only meaning — the badge above still names the state in words.
+ */
+function CustodyTrail({ h, view }: { h: HandoffItem; view: CardView }) {
+  const { accent, phase } = view;
+  const solid = phase === 'confirmed' || phase === 'overdue';
+  const animated = phase === 'active';
+  const broken = phase === 'expired' || phase === 'cancelled';
+
+  const Checkpoint = () => {
+    let icon: React.ReactNode;
+    if (phase === 'confirmed') icon = <IconCheck size={11} stroke={3} />;
+    else if (phase === 'overdue' || phase === 'expired') icon = <IconAlertTriangle size={10} stroke={2.5} />;
+    else if (phase === 'cancelled') icon = <IconX size={11} stroke={3} />;
+    else if (phase === 'active') return <span className="is-live inline-block rounded-full" style={{ width: 7, height: 7, background: accent }} />;
+    else icon = <IconArrowNarrowRight size={12} stroke={2.5} />;
+    return <span style={{ color: accent, display: 'flex' }}>{icon}</span>;
+  };
+
   return (
-    <div className="flex items-center gap-1.5 min-w-0">
-      <div
-        className="flex items-center justify-center rounded-full shrink-0 text-2xs font-[600]"
-        style={{ width: 24, height: 24, background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}
-      >
-        {initials(name)}
+    <div className="flex items-center gap-2">
+      <DriverNode driverId={h.fromDriverId} name={h.fromDriverName} role="from" />
+      <div className="relative flex-1 flex items-center justify-center" style={{ minWidth: 40 }}>
+        <span
+          className={`ho-conn${animated ? ' ho-conn--march' : ''}${solid ? ' ho-conn--solid' : ''}${broken ? ' ho-conn--broken' : ''}`}
+          style={{ ['--ho-c' as any]: accent }}
+          aria-hidden
+        />
+        <span
+          className="relative flex items-center justify-center rounded-full shrink-0"
+          style={{ width: 18, height: 18, background: 'var(--surface)', border: `1.5px solid ${accent}` }}
+        >
+          <Checkpoint />
+        </span>
       </div>
-      <span className="text-xs font-[500] truncate" style={{ maxWidth: 92, color: 'var(--text-primary)' }}>
+      <DriverNode driverId={h.toDriverId} name={h.toDriverName} role="to" />
+    </div>
+  );
+}
+
+function DriverNode({ driverId, name, role }: { driverId?: string; name?: string; role: 'from' | 'to' }) {
+  const isTo = role === 'to';
+  return (
+    <div
+      className="flex items-center gap-1.5 min-w-0"
+      style={{ flex: '1 1 0', justifyContent: isTo ? 'flex-end' : 'flex-start' }}
+    >
+      {!isTo && <DriverAvatarById driverId={driverId} name={name} size={26} />}
+      <span
+        className="text-xs truncate"
+        style={{
+          maxWidth: 88,
+          color: isTo ? 'var(--text-primary)' : 'var(--text-secondary)',
+          fontWeight: isTo ? 700 : 500,
+        }}
+      >
         {name ?? '—'}
       </span>
+      {isTo && <DriverAvatarById driverId={driverId} name={name} size={26} />}
     </div>
   );
 }
@@ -105,7 +177,7 @@ type Step = { label: string; at?: string; by?: string; dotColor: string };
 function lifecycle(h: HandoffItem, t: any): Step[] {
   const c = t.dispatchDeskPage;
   const steps: Step[] = [
-    { label: c.handoffStepRequested, at: h.requestedAt, by: h.requestedBy, dotColor: 'var(--text-soft)' },
+    { label: c.handoffStepRequested, at: h.requestedAt, by: h.requestedBy, dotColor: 'var(--info)' },
   ];
   if (h.inProgressAt) {
     steps.push({ label: c.handoffStepCodeReady, at: h.inProgressAt, dotColor: 'var(--brand)' });
@@ -117,7 +189,7 @@ function lifecycle(h: HandoffItem, t: any): Step[] {
   } else if (h.state === 'CANCELLED') {
     steps.push({ label: c.handoffStepCancelled, at: h.cancelledAt, by: h.cancelledBy, dotColor: 'var(--danger)' });
   } else {
-    steps.push({ label: c.handoffStepPending, dotColor: 'var(--border)' });
+    steps.push({ label: c.handoffStepPending, dotColor: 'var(--border-strong)' });
   }
   return steps;
 }
@@ -126,15 +198,18 @@ function LifecycleTrail({ h, t }: { h: HandoffItem; t: any }) {
   const steps = lifecycle(h, t);
   const by = t.dispatchDeskPage.handoffByLabel ?? 'by';
   return (
-    <div className="flex flex-col gap-0 px-3 pb-3 pt-1">
+    <div className="flex flex-col px-3 pb-3 pt-2.5 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
       {steps.map((s, i) => (
-        <div key={i} className="flex items-start gap-2">
+        <div key={i} className="flex items-start gap-2.5">
           <div className="flex flex-col items-center self-stretch">
-            <span className="rounded-full shrink-0" style={{ width: 8, height: 8, marginTop: 5, background: s.dotColor }} />
-            {i < steps.length - 1 && <span className="flex-1 w-px my-0.5" style={{ background: 'var(--border)', minHeight: 14 }} />}
+            <span
+              className="rounded-full shrink-0"
+              style={{ width: 9, height: 9, marginTop: 4, background: s.dotColor, boxShadow: `0 0 0 3px var(--surface-sunken)` }}
+            />
+            {i < steps.length - 1 && <span className="flex-1 w-px my-0.5" style={{ background: 'var(--border-strong)', minHeight: 16 }} />}
           </div>
-          <div className="flex flex-col pb-2 min-w-0">
-            <span className="text-2xs font-[600]" style={{ color: 'var(--text-primary)' }}>{s.label}</span>
+          <div className="flex flex-col pb-2.5 min-w-0">
+            <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{s.label}</span>
             <span className="text-2xs font-mono" style={{ color: 'var(--text-muted)' }}>
               {fmtTs(s.at)}{s.by ? ` · ${by} ${s.by}` : ''}
             </span>
@@ -142,17 +217,133 @@ function LifecycleTrail({ h, t }: { h: HandoffItem; t: any }) {
         </div>
       ))}
       {h.reason && (
-        <div className="mt-1 text-2xs" style={{ color: 'var(--text-muted)' }}>
-          <span className="font-[600]">{t.dispatchDeskPage.handoffReasonLabel ?? 'Reason'}: </span>{h.reason}
+        <div className="mt-0.5 flex gap-1.5 text-2xs" style={{ color: 'var(--text-secondary)' }}>
+          <span className="font-[700] shrink-0" style={{ color: 'var(--text-muted)' }}>
+            {t.dispatchDeskPage.handoffReasonLabel ?? 'Reason'} ·
+          </span>
+          <span className="min-w-0">{h.reason}</span>
         </div>
       )}
     </div>
   );
 }
 
+/** Scoped styles for the custody connector. Animation conveys live state (parcel in
+ *  motion); honors prefers-reduced-motion by freezing the dashes. */
+const CONNECTOR_CSS = `
+.ho-conn{position:absolute;left:0;right:0;height:2px;border-radius:2px;
+  background-image:linear-gradient(90deg,var(--ho-c) 0 55%,transparent 0);
+  background-size:7px 2px;background-repeat:repeat-x;opacity:.85;}
+.ho-conn--solid{background-image:none;background-color:var(--ho-c);opacity:.9;}
+.ho-conn--broken{opacity:.55;}
+.ho-conn--march{animation:hoMarch .55s linear infinite;}
+@keyframes hoMarch{to{background-position-x:7px;}}
+@media (prefers-reduced-motion: reduce){.ho-conn--march{animation:none;}}
+`;
+
+/**
+ * A single handoff card. Owns its OWN expand state so opening "Détails" on one card
+ * never touches another (a shared expanded-id can leak across cards if the API ever
+ * returns colliding/empty ids — local state can't).
+ */
+function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t }: {
+  h: HandoffItem;
+  isOpenItem: boolean;
+  isReadOnly: boolean;
+  cancellingId: string | null;
+  onCancelClick: (h: HandoffItem) => void;
+  t: any;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const view = cardView(h, t);
+  const ref = h.erpOrderId || h.deliveryId?.slice(0, 8) || '—';
+  const showCountdown = h.state === 'IN_PROGRESS' && !!h.tokenExpiresAt;
+  const duration = durationLabel(h, t);
+  // Urgency reads through a full danger border (not a side-stripe); everything
+  // else keeps the neutral 1px container so the grid stays calm.
+  const borderColor = view.phase === 'overdue' ? 'var(--danger)' : 'var(--border)';
+
+  return (
+    <article
+      className="rounded-[var(--radius-xl)] overflow-hidden flex flex-col dispatch-card"
+      style={{ background: 'var(--surface)', border: `1px solid ${borderColor}`, boxShadow: 'var(--shadow-card)' }}
+    >
+      <div className="p-3 flex flex-col gap-3">
+        {/* Header: state pill (primary anchor) + ref + client */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <StatusBadge status={view.status} label={view.label} size="sm" />
+            <p className="text-md font-bold truncate mt-1.5" style={{ color: 'var(--text-primary)' }}>
+              {h.clientName ?? '—'}
+            </p>
+          </div>
+          <Link
+            to={h.deliveryId ? `/deliveries/${h.deliveryId}` : '/dispatch-desk'}
+            className="font-mono text-xs font-[600] hover:underline shrink-0 mt-0.5"
+            style={{ color: 'var(--brand)' }}
+          >
+            {ref}
+          </Link>
+        </div>
+
+        {/* Custody connector: from → to, the line encodes the live state */}
+        <CustodyTrail h={h} view={view} />
+
+        {/* Address */}
+        {h.dropoffAddress && (
+          <div className="flex items-center gap-1 min-w-0" style={{ color: 'var(--text-muted)' }}>
+            <IconMapPin size={12} stroke={2} className="shrink-0" />
+            <span className="text-xs truncate">{h.dropoffAddress}</span>
+          </div>
+        )}
+      </div>
+
+      {/* Expandable lifecycle trail */}
+      {expanded && <LifecycleTrail h={h} t={t} />}
+
+      {/* Footer: time signal + actions */}
+      <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }}>
+        <div className="flex items-center gap-1.5 text-2xs font-mono" style={{ color: showCountdown ? 'var(--brand)' : 'var(--text-muted)' }}>
+          {showCountdown
+            ? <span className="is-live inline-block rounded-full" style={{ width: 6, height: 6, background: 'var(--brand)' }} />
+            : <IconClock size={12} stroke={2} />}
+          {showCountdown
+            ? <Countdown to={h.tokenExpiresAt!} t={t} />
+            : duration
+              ? duration
+              : fmtTs(isOpenItem ? h.requestedAt : (h.confirmedAt ?? h.cancelledAt ?? h.expiredAt ?? h.requestedAt))}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={() => setExpanded(v => !v)}
+            className="text-2xs font-[600] h-6 px-2 rounded-[var(--radius)] flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)]"
+            style={{ color: 'var(--text-muted)' }}
+            aria-expanded={expanded}
+          >
+            {t.dispatchDeskPage.handoffDetailsButton ?? 'Détails'}
+            <IconChevronDown size={12} stroke={2.5} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
+          </button>
+          {isOpenItem && !isReadOnly && (
+            <button
+              type="button"
+              onClick={() => onCancelClick(h)}
+              disabled={cancellingId === h.id}
+              className="text-2xs font-[600] h-6 px-2.5 rounded-[var(--radius)] flex items-center gap-1 transition-colors disabled:opacity-50 hover:bg-[var(--danger-bg)]"
+              style={{ color: 'var(--danger)' }}
+            >
+              <IconX size={12} stroke={2.5} />
+              {t.dispatchDeskPage.handoffCancelButton}
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 export function HandoffCards({ open, history, loading, isReadOnly, cancellingId, onCancel, t }: Props) {
   const [segment, setSegment] = useState<Segment>('open');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [cancelTarget, setCancelTarget] = useState<HandoffItem | null>(null);
   const [reason, setReason] = useState('');
 
@@ -165,9 +356,9 @@ export function HandoffCards({ open, history, loading, isReadOnly, cancellingId,
   if (loading) {
     return (
       <div className="flex-1 overflow-auto p-3" style={{ background: 'var(--app-bg)' }}>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-[var(--radius)] border p-4" style={{ borderColor: 'var(--border)', background: 'var(--surface)' }}>
+            <div key={i} className="rounded-[var(--radius-xl)] p-4" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-card)' }}>
               <AppLoader size="sm" />
             </div>
           ))}
@@ -178,129 +369,44 @@ export function HandoffCards({ open, history, loading, isReadOnly, cancellingId,
 
   const list = segment === 'open' ? open : history;
 
-  const SegmentTab = ({ id, label, count }: { id: Segment; label: string; count: number }) => {
-    const active = segment === id;
-    return (
-      <button
-        type="button"
-        onClick={() => { setSegment(id); setExpandedId(null); }}
-        className="text-xs font-[600] px-3 py-1.5 rounded-[var(--radius)] transition-colors"
-        style={{
-          background: active ? 'var(--brand)' : 'transparent',
-          color: active ? '#fff' : 'var(--text-muted)',
-        }}
-      >
-        {label} <span style={{ opacity: 0.8 }}>· {count}</span>
-      </button>
-    );
-  };
-
   return (
     <div className="flex-1 overflow-auto p-3" style={{ background: 'var(--app-bg)' }}>
-      {/* Segmented control: open vs history */}
-      <div className="flex items-center gap-1 mb-3 p-1 rounded-[var(--radius)] w-fit" style={{ background: 'var(--surface)', border: '1px solid var(--border)' }}>
-        <SegmentTab id="open" label={t.dispatchDeskPage.handoffSegmentOpen ?? 'En cours'} count={open.length} />
-        <SegmentTab id="history" label={t.dispatchDeskPage.handoffSegmentHistory ?? 'Historique'} count={history.length} />
+      <style>{CONNECTOR_CSS}</style>
+      {/* Sub-filter: open vs history — shared simple/pro segmented control */}
+      <div className="mb-3">
+        <SegmentedControl<Segment>
+          value={segment}
+          onChange={setSegment}
+          options={[
+            { value: 'open', label: t.dispatchDeskPage.handoffSegmentOpen ?? 'En cours', count: open.length },
+            { value: 'history', label: t.dispatchDeskPage.handoffSegmentHistory ?? 'Historique', count: history.length },
+          ]}
+        />
       </div>
 
       {list.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-16">
-          <IconCheck size={22} stroke={2.5} style={{ color: 'var(--text-soft)', marginBottom: 6 }} />
-          <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>
+        <div className="flex flex-col items-center justify-center py-20">
+          <div className="flex items-center justify-center rounded-full mb-3"
+            style={{ width: 44, height: 44, background: 'var(--surface-sunken)', border: '1px solid var(--border)' }}>
+            <IconPackageExport size={20} stroke={2} style={{ color: 'var(--text-soft)' }} />
+          </div>
+          <p className="text-sm font-[600]" style={{ color: 'var(--text-secondary)' }}>
             {segment === 'open' ? t.dispatchDeskPage.handoffEmpty : (t.dispatchDeskPage.handoffHistoryEmpty ?? 'Aucun transfert terminé')}
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-          {list.map(h => {
-            const chip = chipStyle(h, t);
-            const ref = h.erpOrderId || h.deliveryId?.slice(0, 8) || '—';
-            const expanded = expandedId === h.id;
-            const isOpenItem = segment === 'open';
-            const showCountdown = h.state === 'IN_PROGRESS' && !!h.tokenExpiresAt;
-            const duration = durationLabel(h, t);
-            return (
-              <article
-                key={h.id}
-                className="rounded-[var(--radius)] overflow-hidden flex flex-col dispatch-card"
-                style={{ background: 'var(--surface)', borderLeft: `3px solid ${chip.accent}`, boxShadow: 'var(--shadow-card)' }}
-              >
-                <div className="p-3 flex flex-col gap-2.5">
-                  {/* Header: ref + state chip */}
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <Link
-                        to={h.deliveryId ? `/deliveries/${h.deliveryId}` : '/dispatch-desk'}
-                        className="font-mono text-xs font-[600] hover:underline"
-                        style={{ color: 'var(--brand)' }}
-                      >
-                        {ref}
-                      </Link>
-                      <p className="text-sm font-[600] truncate mt-0.5" style={{ color: 'var(--text-primary)' }}>
-                        {h.clientName ?? '—'}
-                      </p>
-                    </div>
-                    <span
-                      className="text-2xs font-[600] px-1.5 py-0.5 rounded shrink-0"
-                      style={{ color: chip.color, background: chip.bg }}
-                    >
-                      {chip.label}
-                    </span>
-                  </div>
-
-                  {/* Driver flow: from → to */}
-                  <div className="flex items-center gap-2 rounded px-2 py-1.5" style={{ background: 'var(--app-bg)' }}>
-                    <DriverChip name={h.fromDriverName} />
-                    <IconArrowRight size={14} stroke={2.5} style={{ color: 'var(--text-muted)', flexShrink: 0 }} />
-                    <DriverChip name={h.toDriverName} />
-                  </div>
-
-                  {/* Address */}
-                  {h.dropoffAddress && (
-                    <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{h.dropoffAddress}</p>
-                  )}
-                </div>
-
-                {/* Expandable lifecycle trail */}
-                {expanded && <LifecycleTrail h={h} t={t} />}
-
-                {/* Footer */}
-                <div className="flex items-center justify-between px-3 py-2 mt-auto border-t" style={{ borderColor: 'var(--border)' }}>
-                  <div className="flex items-center gap-1 text-2xs font-mono" style={{ color: showCountdown ? 'var(--brand)' : 'var(--text-muted)' }}>
-                    <IconClock size={12} stroke={2.5} />
-                    {showCountdown
-                      ? <Countdown to={h.tokenExpiresAt!} t={t} />
-                      : duration
-                        ? duration
-                        : fmtTs(isOpenItem ? h.requestedAt : (h.confirmedAt ?? h.cancelledAt ?? h.expiredAt ?? h.requestedAt))}
-                  </div>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedId(expanded ? null : h.id)}
-                      className="text-2xs font-[500] h-6 px-2 rounded-[var(--radius)] flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)]"
-                      style={{ color: 'var(--text-muted)' }}
-                    >
-                      {t.dispatchDeskPage.handoffDetailsButton ?? 'Détails'}
-                      <IconChevronDown size={12} stroke={2.5} style={{ transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }} />
-                    </button>
-                    {isOpenItem && !isReadOnly && (
-                      <button
-                        type="button"
-                        onClick={() => { setCancelTarget(h); setReason(''); }}
-                        disabled={cancellingId === h.id}
-                        className="text-xs font-[500] h-6 px-2.5 rounded-[var(--radius)] border flex items-center gap-1 transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50"
-                        style={{ borderColor: 'var(--border)', color: 'var(--danger)' }}
-                      >
-                        <IconArrowsExchange size={12} stroke={2.5} />
-                        {t.dispatchDeskPage.handoffCancelButton}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </article>
-            );
-          })}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 items-start">
+          {list.map((h, idx) => (
+            <HandoffCard
+              key={h.id || `${h.deliveryId ?? 'h'}-${idx}`}
+              h={h}
+              isOpenItem={segment === 'open'}
+              isReadOnly={isReadOnly}
+              cancellingId={cancellingId}
+              onCancelClick={(item) => { setCancelTarget(item); setReason(''); }}
+              t={t}
+            />
+          ))}
         </div>
       )}
 

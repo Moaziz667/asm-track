@@ -12,6 +12,7 @@ import {
   IconX,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
+import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import { FieldInput, FieldTextarea } from '@/components/ui/field';
 import { AppDrawer } from './AppDrawer';
 import { api } from '@/lib/api';
@@ -550,7 +551,10 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="w-2 h-2 rounded-full shrink-0" style={{ background: statusCfg.dot }} />
+                    <div className="relative shrink-0">
+                      <DriverAvatar name={driver.name} photoUrl={driver.photoUrl} size={28} />
+                      <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]" style={{ background: statusCfg.dot }} />
+                    </div>
                     <div className="flex-1 min-w-0 flex flex-col gap-1">
                       <div className="flex items-center gap-1 flex-wrap">
                         <span className="text-sm font-semibold text-[var(--text-primary)]">{driver.name}</span>

@@ -115,6 +115,7 @@ export interface Driver {
   lastLocationAt?: string;
   email?: string;
   createdAt?: string;
+  photoUrl?: string;
   onlineStatus?: 'ONLINE' | 'ON_BREAK' | 'OFFLINE';
   invitationExpiresAt?: string | null;
   lastInvitedAt?: string | null;

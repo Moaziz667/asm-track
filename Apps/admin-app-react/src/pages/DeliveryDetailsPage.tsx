@@ -21,6 +21,7 @@ import StatusBadge from '@/components/StatusBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
 import { CreateReturnModal } from '@/components/returns/CreateReturnModal';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
@@ -468,10 +469,7 @@ export default function DeliveryDetailPage() {
                       <div className="flex flex-col gap-1">
                         <span className="text-2xs font-medium text-[var(--text-muted)] uppercase tracking-wide">{t.deliveryPage.labelDriver}</span>
                         <div className="flex items-center gap-2">
-                          {assignedDriverStatus && (() => {
-                            const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
-                            return <div style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />;
-                          })()}
+                          <DriverAvatarById driverId={delivery.driverId} name={delivery.driverName ?? undefined} size={24} />
                           <span className="text-sm font-semibold text-[var(--text-primary)]">{delivery.driverName ?? '—'}</span>
                           {assignedDriverStatus && (() => {
                             const cfg = DRIVER_STATUS_COLOR[assignedDriverStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;

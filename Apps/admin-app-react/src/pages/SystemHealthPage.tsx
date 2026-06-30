@@ -2,15 +2,16 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import {
-  IconHeartbeat, IconReload, IconAlertTriangle, IconCircleCheck,
-  IconRefreshDot, IconPlugConnected, IconServer2, IconInbox, IconChevronDown,
-  IconDatabase, IconWifiOff, IconInfoCircle,
+  IconActivityHeartbeat, IconReload, IconAlertTriangle, IconCircleCheck,
+  IconChevronDown, IconPlugConnected, IconInbox, IconDatabase, IconWifiOff,
+  IconInfoCircle, IconTimeline,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { AppModal } from '@/components/overlays/AppModal';
-import { deriveHealthSummary, computeStale, ageParts, groupServices, describeKey, type AgeParts, type DescriptionKey } from '@/lib/system-health';
+import { deriveHealthSummary, computeStale, ageParts, describeKey, type AgeParts, type DescriptionKey } from '@/lib/system-health';
 
 interface CircuitBreaker {
   name: string; state: string; reachable?: boolean; shallow?: boolean;
@@ -33,22 +34,40 @@ interface HealthPayload {
   erpSync?: ErpSyncInfo;
   erp: { reachable: boolean; pendingSyncFailures: number };
 }
+type ComponentKey = 'drivers' | 'erp' | 'db' | 'queues';
+interface HistoryPoint {
+  t: number;
+  erpFailed: number;
+  maxFailureRate: number;
+  dlqTotal: number;
+  breakersOpen: number;
+  components: Record<ComponentKey, Tone>;
+}
 
-// ── Humanization ────────────────────────────────────────────────────────────
+// ── Tone → design-system tokens (no hardcoded hex; matches the rest of the app) ──
 type Tone = 'ok' | 'warn' | 'down' | 'idle';
-const TONE_COLOR: Record<Tone, string> = { ok: '#4CAF82', warn: '#D4772C', down: '#C7372F', idle: '#8A8F98' };
-
-const STATE_STATUS: Record<string, { tone: Tone }> = {
-  CLOSED:      { tone: 'ok' },
-  OPEN:        { tone: 'down' },
-  HALF_OPEN:   { tone: 'warn' },
-  DISABLED:    { tone: 'idle' },
-  FORCED_OPEN: { tone: 'down' },
+const TONE_VAR: Record<Tone, string> = {
+  ok: 'var(--success)', warn: 'var(--warning)', down: 'var(--danger)', idle: 'var(--text-soft)',
 };
+const TONE_BG: Record<Tone, string> = {
+  ok: 'var(--success-bg)', warn: 'var(--warning-bg)', down: 'var(--danger-bg)', idle: 'var(--hover-bg)',
+};
+const STATE_TONE: Record<string, Tone> = {
+  CLOSED: 'ok', OPEN: 'down', HALF_OPEN: 'warn', DISABLED: 'idle', FORCED_OPEN: 'down',
+};
+const toneRank = (t: Tone) => (t === 'down' ? 3 : t === 'warn' ? 2 : t === 'ok' ? 1 : 0);
+const worstTone = (tones: Tone[]): Tone =>
+  tones.reduce<Tone>((acc, t) => (toneRank(t) > toneRank(acc) ? t : acc), 'ok');
+
+const RANGES: { min: number; label: string }[] = [
+  { min: 10, label: '10 min' }, { min: 30, label: '30 min' }, { min: 60, label: '1 h' },
+];
 
 export default function SystemHealthPage() {
   const t = useT();
   const [data, setData] = useState<HealthPayload | null>(null);
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [rangeMin, setRangeMin] = useState(60);
   const [refreshing, setRefreshing] = useState(false);
   const [replaying, setReplaying] = useState<string | null>(null);
   const [resyncing, setResyncing] = useState<string | null>(null);
@@ -57,12 +76,10 @@ export default function SystemHealthPage() {
   const [infoKey, setInfoKey] = useState<DescriptionKey | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [, setNowTick] = useState(0);
-  const lastUpdatedRef = useRef<number | null>(null);
 
   const statusFor = (state: string) => {
     const s = t.systemHealthPage.states[state as keyof typeof t.systemHealthPage.states];
-    const staticInfo = STATE_STATUS[state] ?? { tone: 'idle' as Tone };
-    return { label: s?.label ?? state, hint: s?.hint ?? '', tone: staticInfo.tone };
+    return { label: s?.label ?? state, hint: s?.hint ?? '', tone: STATE_TONE[state] ?? 'idle' };
   };
 
   const getFriendlyService = (name: string): string => {
@@ -97,12 +114,14 @@ export default function SystemHealthPage() {
   const fetchHealth = useCallback(async (silent = false) => {
     if (!silent) setRefreshing(true);
     try {
-      const res = await api.get<HealthPayload>('/api/admin/system/health');
-      setData(res.data);
+      const [snapRes, histRes] = await Promise.all([
+        api.get<HealthPayload>('/api/admin/system/health'),
+        api.get<HistoryPoint[]>('/api/admin/system/health/history').catch(() => ({ data: [] as HistoryPoint[] })),
+      ]);
+      setData(snapRes.data);
+      setHistory(Array.isArray(histRes.data) ? histRes.data : []);
       setConnected(true);
-      const ts = Date.now();
-      setLastUpdated(ts);
-      lastUpdatedRef.current = ts;
+      setLastUpdated(Date.now());
     } catch {
       setConnected(false);
       if (!silent) showErrorToast(null, t.systemHealthPage.toastLoadError);
@@ -113,7 +132,7 @@ export default function SystemHealthPage() {
 
   useEffect(() => {
     void fetchHealth();
-    const id = setInterval(() => void fetchHealth(true), 20_000);
+    const id = setInterval(() => void fetchHealth(true), 10_000);
     const tick = setInterval(() => setNowTick(n => n + 1), 5_000);
     return () => { clearInterval(id); clearInterval(tick); };
   }, [fetchHealth]);
@@ -161,237 +180,149 @@ export default function SystemHealthPage() {
     }
   };
 
-  // ── Derived, non-technical view ───────────────────────────────────────────
+  // ── Derived ────────────────────────────────────────────────────────────────
   const breakers = data?.circuitBreakers ?? [];
   const dlqEntries = Object.entries(data?.dlq ?? {});
   const stuckQueues = dlqEntries.filter(([, d]) => Number(d) > 0);
   const dbReachable = data?.db?.reachable ?? true;
   const erpSync = data?.erpSync;
-  const { serviceCount, downCount, recoveringCount, okServices, totalStuck, erpFailed, erpInProgress, problems, allGood } =
+  const failures = erpSync?.failures ?? [];
+  const { serviceCount, okServices, totalStuck, erpFailed, problems, allGood, recoveringCount } =
     deriveHealthSummary(data, getFriendlyService);
 
-  // ── Staleness ──────────────────────────────────────────────────────────────
+  const openBreakers = breakers.filter(b => b.state === 'OPEN' || b.state === 'FORCED_OPEN' || b.reachable === false).length;
+  const maxFailureRate = breakers.reduce((m, b) => (b.bufferedCalls > 0 && b.failureRate >= 0 ? Math.max(m, b.failureRate) : m), 0);
+  const actionCount = failures.length + stuckQueues.length;
+
   const isStale = computeStale({ connected, generatedAt: data?.generatedAt, lastUpdated, now: Date.now() });
   const agoSeconds = lastUpdated ? Math.max(0, Math.round((Date.now() - lastUpdated) / 1000)) : null;
 
-  const banner = allGood
-    ? { tone: 'ok' as Tone, icon: IconCircleCheck, title: t.systemHealthPage.allGoodTitle, sub: t.systemHealthPage.allGoodSub }
-    : problems > 0
-      ? {
-          tone: 'down' as Tone, icon: IconAlertTriangle,
-          title: t.systemHealthPage.pointsAttentionTitle.replace('{count}', String(problems)).replace('{plural}', problems > 1 ? 's' : ''),
-          sub: t.systemHealthPage.pointsAttentionSub,
-        }
-      : { tone: 'warn' as Tone, icon: IconRefreshDot, title: t.systemHealthPage.recoveringTitle, sub: t.systemHealthPage.recoveringSub };
-  const BannerIcon = banner.icon;
+  // History window for sparklines + swimlanes.
+  const now = Date.now();
+  const windowPoints = history.filter(p => now - p.t <= rangeMin * 60_000);
+  const series = (key: 'erpFailed' | 'maxFailureRate' | 'dlqTotal') => windowPoints.map(p => Number(p[key]) || 0);
+  const latest = history[history.length - 1];
+
+  const overall: Tone = allGood ? 'ok' : problems > 0 ? 'down' : recoveringCount > 0 ? 'warn' : 'ok';
+  const overallLabel = overall === 'ok'
+    ? (t.systemHealthPage.statusOperational ?? 'Opérationnel')
+    : overall === 'warn'
+      ? (t.systemHealthPage.recoveringTitle ?? 'Rétablissement')
+      : t.systemHealthPage.pointsAttentionTitle.replace('{count}', String(problems)).replace('{plural}', problems > 1 ? 's' : '');
+
+  const LANES: { key: ComponentKey; label: string }[] = [
+    { key: 'drivers', label: t.systemHealthPage.services.drivers },
+    { key: 'erp', label: t.systemHealthPage.services.erp },
+    { key: 'db', label: t.systemHealthPage.services.database },
+    { key: 'queues', label: t.systemHealthPage.queuesGroupLabel ?? 'Files de messages' },
+  ];
 
   return (
     <div className="h-auto lg:h-[calc(100dvh-56px)] flex flex-col" style={{ background: 'var(--app-bg)' }}>
-      {/* Header */}
+      {/* Command bar */}
       <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0">
-        <div className="px-6 py-4 flex items-center justify-between max-w-[1400px] mx-auto">
-          <div className="flex items-center gap-3">
-            <IconHeartbeat size={18} className="text-[var(--brand)]" />
-            <h1 className="text-lg font-bold text-[var(--text-primary)]">{t.systemHealthPage.title}</h1>
+        <div className="px-6 py-3.5 flex items-center gap-3 flex-wrap max-w-[1400px] mx-auto">
+          <IconActivityHeartbeat size={18} className="text-[var(--brand)]" />
+          <h1 className="text-base font-bold text-[var(--text-primary)]">{t.systemHealthPage.title}</h1>
+          <StatusChip tone={overall} label={overallLabel} />
+          <div className="ms-auto flex items-center gap-3">
+            <RangeSelector value={rangeMin} onChange={setRangeMin} />
             {agoSeconds != null && !isStale && (
-              <span className="text-xs text-[var(--text-muted)]">
+              <span className="hidden sm:inline-flex items-center gap-1.5 text-xs text-[var(--text-muted)]">
+                <span className="is-live inline-block w-1.5 h-1.5 rounded-full" style={{ background: 'var(--success)' }} />
                 {t.systemHealthPage.updatedAgo.replace('{n}', String(agoSeconds))}
               </span>
             )}
+            <RefreshButton refreshing={refreshing} onClick={() => fetchHealth()} />
           </div>
-          <RefreshButton refreshing={refreshing} onClick={() => fetchHealth()} />
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto p-6 flex flex-col gap-5">
 
-          {/* ── Disconnected / stale strip ── */}
           {isStale && (
-            <div
-              className="rounded-xl px-4 py-3 flex items-center gap-3 border"
-              style={{ background: `${TONE_COLOR.warn}12`, borderColor: `${TONE_COLOR.warn}40` }}
-            >
-              <IconWifiOff size={18} style={{ color: TONE_COLOR.warn }} />
-              <div>
-                <p className="text-sm font-bold text-[var(--text-primary)]">{t.systemHealthPage.disconnectedTitle}</p>
-                <p className="text-xs text-[var(--text-secondary)]">{t.systemHealthPage.disconnectedSub}</p>
-              </div>
-            </div>
+            <Banner tone="warn" icon={IconWifiOff} title={t.systemHealthPage.disconnectedTitle} sub={t.systemHealthPage.disconnectedSub} />
           )}
 
-          {/* ── Headline status banner ── */}
-          <div
-            className="rounded-xl p-5 flex items-center gap-4 border"
-            style={{ background: `${TONE_COLOR[banner.tone]}12`, borderColor: `${TONE_COLOR[banner.tone]}40` }}
-          >
-            <BannerIcon size={34} style={{ color: TONE_COLOR[banner.tone] }} className={banner.tone === 'warn' ? 'animate-pulse' : ''} />
-            <div>
-              <p className="text-xl font-black text-[var(--text-primary)] leading-tight">{banner.title}</p>
-              <p className="text-sm text-[var(--text-secondary)] mt-0.5">{banner.sub}</p>
-            </div>
-            <HeartbeatLine color={TONE_COLOR[banner.tone]} paused={banner.tone === 'down'} />
-          </div>
-
-          {/* ── Summary cards ── */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <SummaryCard
-              icon={IconPlugConnected}
-              label={t.systemHealthPage.erpSyncTitle}
-              value={erpFailed > 0
-                ? t.systemHealthPage.erpSyncFailed.replace('{count}', String(erpFailed))
-                : erpInProgress > 0
-                  ? t.systemHealthPage.erpSyncInProgress.replace('{count}', String(erpInProgress))
-                  : t.systemHealthPage.erpSyncAllOk}
-              tone={erpFailed > 0 ? 'down' : erpInProgress > 0 ? 'warn' : 'ok'}
-              foot={erpFailed > 0
-                ? t.systemHealthPage.erpSyncFootFailed.replace('{count}', String(erpFailed))
-                : t.systemHealthPage.erpSyncFootOk}
-            />
-            <SummaryCard
-              icon={IconServer2}
-              label={t.systemHealthPage.cardServicesTitle}
-              value={serviceCount === 0 ? '—' : t.systemHealthPage.cardServicesValue.replace('{ok}', String(okServices)).replace('{total}', String(serviceCount))}
-              tone={downCount > 0 ? 'down' : recoveringCount > 0 ? 'warn' : 'ok'}
-              foot={downCount > 0
-                ? t.systemHealthPage.cardServicesFootFailures.replace('{count}', String(downCount))
-                : recoveringCount > 0 ? t.systemHealthPage.cardServicesFootRecovering.replace('{count}', String(recoveringCount)) : t.systemHealthPage.cardServicesFootOk}
-            />
-            <SummaryCard
-              icon={IconInbox}
-              label={t.systemHealthPage.cardReplayTitle}
-              value={String(totalStuck)}
-              tone={totalStuck > 0 ? 'down' : 'ok'}
-              foot={totalStuck > 0 ? t.systemHealthPage.cardReplayFootFailures.replace('{count}', String(stuckQueues.length)) : t.systemHealthPage.cardReplayFootOk}
-            />
-          </div>
-
-          {/* ── ERP sync failures drill-down (action needed) ── */}
-          {erpSync && erpSync.failures.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-2.5">
-                <div>
-                  <h2 className="text-base font-bold text-[var(--text-primary)]">{t.systemHealthPage.failuresTitle}</h2>
-                  <p className="text-xs text-[var(--text-muted)]">{t.systemHealthPage.failuresSubNeedsAttention}</p>
-                </div>
-                {erpSync.failures.length > 1 && (
-                  <button
-                    onClick={resyncAll}
-                    disabled={resyncing != null}
-                    className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <IconReload size={13} className={resyncing === '__all__' ? 'animate-spin' : ''} />
-                    {t.systemHealthPage.resync.resyncAllButton}
-                  </button>
+          {/* ── À traiter (action stream) ── */}
+          {actionCount > 0 ? (
+            <section className="rounded-[var(--radius-xl)] overflow-hidden border" style={{ borderColor: 'var(--danger)' }}>
+              <header className="flex items-center justify-between gap-2 px-4 py-2.5" style={{ background: 'var(--danger-bg)' }}>
+                <span className="inline-flex items-center gap-2 text-sm font-bold" style={{ color: 'var(--danger)' }}>
+                  <IconAlertTriangle size={15} />
+                  {(t.systemHealthPage.actionRequiredTitle ?? 'À traiter')} · {actionCount}
+                </span>
+                {failures.length > 1 && (
+                  <ActionButton onClick={resyncAll} busy={resyncing === '__all__'} disabled={resyncing != null}
+                    label={t.systemHealthPage.resync.resyncAllButton} />
                 )}
-              </div>
-              <div className="flex flex-col gap-2">
-                {erpSync.failures.map(f => (
-                  <div key={f.orderId} className="card p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/5 flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-base font-bold text-[var(--text-primary)] truncate">{f.blNumber || f.erpRef || f.orderId.slice(0, 8)}</span>
-                        <span className="text-2xs font-bold px-2 py-0.5 rounded-full" style={{ background: `${TONE_COLOR.idle}1a`, color: TONE_COLOR.idle }}>
-                          {opLabel(f.lastSyncOp)}
-                        </span>
-                        <span className="text-2xs text-[var(--text-muted)]">
-                          {t.systemHealthPage.stuckFor.replace('{duration}', formatAge(f.stuckSince, t))}
-                          {f.retryCount > 0 && ` · ${t.systemHealthPage.attemptsLabel.replace('{count}', String(f.retryCount))}`}
-                        </span>
-                      </div>
-                      {f.lastSyncError && (
-                        <p className="text-xs text-[var(--text-muted)] mt-1 line-clamp-2 break-words">{f.lastSyncError}</p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => resync(f.orderId, f.blNumber)}
-                      disabled={resyncing != null}
-                      className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      <IconReload size={13} className={resyncing === f.orderId ? 'animate-spin' : ''} />
-                      {resyncing === f.orderId ? t.systemHealthPage.resync.resyncingButton : t.systemHealthPage.resync.resyncButton}
-                    </button>
-                  </div>
+              </header>
+              <div className="flex flex-col">
+                {failures.map(f => (
+                  <ActionRow
+                    key={f.orderId}
+                    icon={IconPlugConnected}
+                    title={`${t.systemHealthPage.erpSyncTitle} — ${f.blNumber || f.erpRef || f.orderId.slice(0, 8)}`}
+                    meta={`${opLabel(f.lastSyncOp)} · ${t.systemHealthPage.stuckFor.replace('{duration}', formatAge(f.stuckSince, t))}${f.retryCount > 0 ? ` · ${t.systemHealthPage.attemptsLabel.replace('{count}', String(f.retryCount))}` : ''}`}
+                    detail={f.lastSyncError ?? undefined}
+                    action={<ActionButton onClick={() => resync(f.orderId, f.blNumber)} busy={resyncing === f.orderId} disabled={resyncing != null} label={resyncing === f.orderId ? t.systemHealthPage.resync.resyncingButton : t.systemHealthPage.resync.resyncButton} />}
+                  />
                 ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── Services grid ── */}
-          <div>
-            <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.statusTitle}</h2>
-            {breakers.length === 0 && !data?.db ? (
-              <EmptyHint text={t.systemHealthPage.noServices} />
-            ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {groupServices(breakers, getFriendlyService).map(g => {
-                  const s = g.reachableDown ? statusFor('OPEN') : statusFor(g.state);
-                  return (
-                    <div key={g.label} className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-base font-bold text-[var(--text-primary)] truncate">{g.label}</span>
-                        <StatusPill tone={s.tone} label={s.label} />
-                      </div>
-                      <p className="text-xs text-[var(--text-muted)] leading-snug">{s.hint}</p>
-                      {g.failureRate >= 0 && g.bufferedCalls > 0 && (
-                        <p className="text-2xs text-[var(--text-soft)] mt-auto pt-1">
-                          {t.systemHealthPage.recentErrorRate} <span className="font-bold tabular-nums" style={{ color: g.failureRate > 50 ? TONE_COLOR.down : 'var(--text-secondary)' }}>{g.failureRate.toFixed(0)}%</span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                })}
-                {/* Database health card */}
-                {data?.db && (
-                  <div className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-2">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-base font-bold text-[var(--text-primary)] inline-flex items-center gap-1.5 truncate">
-                        <IconDatabase size={14} className="text-[var(--text-muted)]" />
-                        {t.systemHealthPage.services.database}
-                      </span>
-                      <StatusPill
-                        tone={dbReachable ? 'ok' : 'down'}
-                        label={dbReachable ? statusFor('CLOSED').label : statusFor('OPEN').label}
-                      />
-                    </div>
-                    <p className="text-xs text-[var(--text-muted)] leading-snug">
-                      {dbReachable ? t.systemHealthPage.dbOk : t.systemHealthPage.dbDown}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* ── Operations to replay (only when something is stuck) ── */}
-          {stuckQueues.length > 0 && (
-            <div>
-              <h2 className="text-base font-bold text-[var(--text-primary)] mb-2.5">{t.systemHealthPage.replaysTitle}</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {stuckQueues.map(([queue, depth]) => (
-                  <div key={queue} className="card p-4 rounded-xl border border-[var(--danger)]/30 bg-[var(--danger)]/5 flex items-center justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-[var(--text-primary)] truncate">{getFriendlyQueue(queue)}</p>
-                      <p className="text-xs text-[var(--text-muted)]">
-                        {t.systemHealthPage.replaysAwaiting.replace('{count}', String(depth))}
-                      </p>
-                    </div>
-                    <button
-                      onClick={() => replay(queue)}
-                      disabled={replaying === queue}
-                      className="shrink-0 text-sm font-bold px-3 py-1.5 rounded-md border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
-                    >
-                      <IconReload size={13} className={replaying === queue ? 'animate-spin' : ''} />
-                      {replaying === queue ? t.systemHealthPage.replayingButton : t.systemHealthPage.replayButton}
-                    </button>
-                  </div>
+                  <ActionRow
+                    key={queue}
+                    icon={IconInbox}
+                    title={getFriendlyQueue(queue)}
+                    meta={t.systemHealthPage.replaysAwaiting.replace('{count}', String(depth))}
+                    action={<ActionButton onClick={() => replay(queue)} busy={replaying === queue} disabled={replaying === queue} label={replaying === queue ? t.systemHealthPage.replayingButton : t.systemHealthPage.replayButton} />}
+                  />
                 ))}
               </div>
+            </section>
+          ) : (
+            <div className="rounded-[var(--radius-xl)] px-4 py-3 flex items-center gap-2.5 border"
+              style={{ background: 'var(--success-bg)', borderColor: 'color-mix(in srgb, var(--success) 30%, transparent)' }}>
+              <IconCircleCheck size={18} style={{ color: 'var(--success)' }} />
+              <span className="text-sm font-[600]" style={{ color: 'var(--text-primary)' }}>{t.systemHealthPage.allGoodTitle}</span>
+              <span className="text-xs text-[var(--text-muted)]">{t.systemHealthPage.allGoodSub}</span>
             </div>
           )}
 
-          {/* ── Technical details (for engineers) ── */}
-          <div className="mt-1">
+          {/* ── Signals strip (golden signals + sparklines) ── */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <StatTile label={t.systemHealthPage.erpSyncTitle} value={String(erpFailed)} tone={erpFailed > 0 ? 'down' : 'ok'} spark={series('erpFailed')} />
+            <StatTile label={t.systemHealthPage.thFailureRate} value={`${Math.round(maxFailureRate)}%`} tone={maxFailureRate > 50 ? 'down' : maxFailureRate > 0 ? 'warn' : 'ok'} spark={series('maxFailureRate')} />
+            <StatTile label={t.systemHealthPage.cardReplayTitle} value={String(totalStuck)} tone={totalStuck > 0 ? 'down' : 'ok'} spark={series('dlqTotal')} />
+            <StatTile label={t.systemHealthPage.cardServicesTitle}
+              value={serviceCount === 0 ? '—' : `${okServices}/${serviceCount}`}
+              tone={openBreakers > 0 ? 'down' : recoveringCount > 0 ? 'warn' : 'ok'}
+              suffix={openBreakers > 0 ? t.systemHealthPage.cardServicesFootFailures.replace('{count}', String(openBreakers)) : undefined} />
+          </div>
+
+          {/* ── Component status timelines (swimlanes) ── */}
+          <section>
+            <h2 className="text-sm font-bold text-[var(--text-primary)] mb-2.5 inline-flex items-center gap-1.5">
+              <IconTimeline size={15} className="text-[var(--text-muted)]" />
+              {t.systemHealthPage.timelineTitle ?? 'Chronologie des composants'}
+              <span className="text-xs font-[500] text-[var(--text-soft)]">· {RANGES.find(r => r.min === rangeMin)?.label}</span>
+            </h2>
+            <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] divide-y divide-[var(--border)]">
+              {LANES.map(lane => (
+                <Swimlane
+                  key={lane.key}
+                  label={lane.label}
+                  points={windowPoints.map(p => p.components[lane.key] ?? 'ok')}
+                  current={(latest?.components?.[lane.key] as Tone) ?? 'ok'}
+                  okLabel={statusFor('CLOSED').label}
+                  koLabel={statusFor('OPEN').label}
+                />
+              ))}
+            </div>
+          </section>
+
+          {/* ── Technical details ── */}
+          <div>
             <button
               onClick={() => setShowTech(v => !v)}
               className="text-sm font-semibold text-[var(--text-muted)] hover:text-[var(--text-primary)] inline-flex items-center gap-1.5 transition-colors"
@@ -400,7 +331,7 @@ export default function SystemHealthPage() {
               {t.systemHealthPage.techDetailsToggle}
             </button>
             {showTech && (
-              <div className="mt-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
+              <div className="mt-3 rounded-[var(--radius-lg)] border border-[var(--border)] bg-[var(--surface)] overflow-x-auto">
                 <table className="w-full text-xs min-w-[600px]">
                   <thead>
                     <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)]" style={{ background: 'var(--app-bg)' }}>
@@ -419,7 +350,7 @@ export default function SystemHealthPage() {
                             <span className="truncate">{cb.name}{cb.reachable === false ? ' ⚠' : ''}</span>
                           </span>
                         </td>
-                        <td className="px-4 py-2 font-mono" style={{ color: TONE_COLOR[statusFor(cb.state).tone] }}>{cb.state}</td>
+                        <td className="px-4 py-2 font-mono" style={{ color: TONE_VAR[statusFor(cb.state).tone] }}>{cb.state}</td>
                         <td className="px-4 py-2 tabular-nums">{cb.failureRate < 0 ? '—' : `${cb.failureRate.toFixed(0)}%`}</td>
                         <td className="px-4 py-2 tabular-nums">{cb.failedCalls} / {cb.bufferedCalls}</td>
                       </tr>
@@ -435,6 +366,14 @@ export default function SystemHealthPage() {
                         <td className="px-4 py-2 tabular-nums">{d}</td>
                       </tr>
                     ))}
+                    {!dbReachable && (
+                      <tr className="border-t border-[var(--border)]">
+                        <td className="px-4 py-2 font-mono" colSpan={3} style={{ color: 'var(--danger)' }}>
+                          <span className="inline-flex items-center gap-1.5"><IconDatabase size={13} /> {t.systemHealthPage.services.database}</span>
+                        </td>
+                        <td className="px-4 py-2" style={{ color: 'var(--danger)' }}>{statusFor('OPEN').label}</td>
+                      </tr>
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -443,7 +382,6 @@ export default function SystemHealthPage() {
         </div>
       </div>
 
-      {/* Plain-language description modal */}
       {infoKey && (
         <AppModal
           open
@@ -469,7 +407,130 @@ export default function SystemHealthPage() {
   );
 }
 
-/** Small round info trigger used in the technical details table. */
+// ── Sub-components ────────────────────────────────────────────────────────────
+
+function StatusChip({ tone, label }: { tone: Tone; label: string }) {
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 text-xs font-[600] px-2.5 py-1 rounded-full"
+      style={{ background: TONE_BG[tone], color: TONE_VAR[tone] }}
+    >
+      <span className="w-1.5 h-1.5 rounded-full" style={{ background: TONE_VAR[tone] }} />
+      {label}
+    </span>
+  );
+}
+
+function RangeSelector({ value, onChange }: { value: number; onChange: (m: number) => void }) {
+  return (
+    <SegmentedControl<number>
+      value={value}
+      onChange={onChange}
+      options={RANGES.map(r => ({ value: r.min, label: r.label }))}
+    />
+  );
+}
+
+function StatTile({ label, value, tone, spark, suffix }: { label: string; value: string; tone: Tone; spark?: number[]; suffix?: string }) {
+  return (
+    <div className="rounded-[var(--radius-xl)] border border-[var(--border)] bg-[var(--surface)] px-3.5 py-3 flex flex-col gap-2">
+      <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">{label}</p>
+      <div className="flex items-end justify-between gap-2">
+        <span className="text-2xl font-bold font-mono tabular-nums leading-none" style={{ color: tone === 'down' ? 'var(--danger)' : 'var(--text-primary)' }}>{value}</span>
+        {spark && spark.length > 1 ? <Sparkline data={spark} tone={tone} /> : null}
+      </div>
+      {suffix && <p className="text-2xs" style={{ color: TONE_VAR[tone] }}>{suffix}</p>}
+    </div>
+  );
+}
+
+function Sparkline({ data, tone }: { data: number[]; tone: Tone }) {
+  const w = 60, h = 22;
+  const max = Math.max(1, ...data);
+  const min = Math.min(0, ...data);
+  const span = max - min || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * w},${h - 2 - ((v - min) / span) * (h - 4)}`).join(' ');
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} fill="none" aria-hidden="true" className="shrink-0">
+      <polyline points={pts} stroke={TONE_VAR[tone]} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+const MAX_SEGMENTS = 40;
+
+function Swimlane({ label, points, current, okLabel, koLabel }: {
+  label: string; points: Tone[]; current: Tone; okLabel: string; koLabel: string;
+}) {
+  // Downsample to <= MAX_SEGMENTS, worst tone per bucket.
+  const segs: Tone[] = [];
+  if (points.length > 0) {
+    const size = Math.max(1, Math.ceil(points.length / MAX_SEGMENTS));
+    for (let i = 0; i < points.length; i += size) segs.push(worstTone(points.slice(i, i + size)));
+  }
+  const okPct = points.length ? Math.round((100 * points.filter(p => p === 'ok').length) / points.length) : 100;
+
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <span className="w-36 shrink-0 text-sm font-[600] text-[var(--text-primary)] truncate">{label}</span>
+      <div className="flex-1 flex gap-[2px] min-w-0">
+        {segs.length === 0
+          ? <div className="h-4 flex-1 rounded-[2px]" style={{ background: 'var(--hover-bg)' }} title="—" />
+          : segs.map((s, i) => (
+            <div key={i} className="h-4 flex-1 rounded-[2px]" style={{ background: TONE_VAR[s], opacity: s === 'ok' ? 0.55 : 1 }} />
+          ))}
+      </div>
+      <span className="w-24 shrink-0 text-end font-mono text-2xs" style={{ color: current === 'ok' ? 'var(--text-secondary)' : TONE_VAR[current] }}>
+        {okPct}% · {current === 'ok' ? okLabel : koLabel}
+      </span>
+    </div>
+  );
+}
+
+function ActionRow({ icon: Icon, title, meta, detail, action }: {
+  icon: any; title: string; meta: string; detail?: string; action: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-start gap-3 px-4 py-3 border-t border-[var(--border)] first:border-t-0 bg-[var(--surface)]">
+      <span className="w-7 h-7 rounded-[var(--radius)] flex items-center justify-center shrink-0" style={{ background: 'var(--danger-bg)', color: 'var(--danger)' }}>
+        <Icon size={15} />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-[600] text-[var(--text-primary)] truncate">{title}</p>
+        <p className="text-xs text-[var(--text-muted)]">{meta}</p>
+        {detail && <p className="text-2xs mt-0.5 line-clamp-2 break-words" style={{ color: 'var(--danger)' }}>{detail}</p>}
+      </div>
+      <div className="shrink-0">{action}</div>
+    </div>
+  );
+}
+
+function ActionButton({ onClick, busy, disabled, label }: { onClick: () => void; busy: boolean; disabled?: boolean; label: string }) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className="text-xs font-[600] px-3 h-7 rounded-[var(--radius)] border border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand)] hover:text-white transition-colors inline-flex items-center gap-1.5 disabled:opacity-50"
+    >
+      <IconReload size={13} className={busy ? 'animate-spin' : ''} />
+      {label}
+    </button>
+  );
+}
+
+function Banner({ tone, icon: Icon, title, sub }: { tone: Tone; icon: any; title: string; sub: string }) {
+  return (
+    <div className="rounded-[var(--radius-xl)] px-4 py-3 flex items-center gap-3 border"
+      style={{ background: TONE_BG[tone], borderColor: `color-mix(in srgb, ${TONE_VAR[tone]} 35%, transparent)` }}>
+      <Icon size={18} style={{ color: TONE_VAR[tone] }} />
+      <div>
+        <p className="text-sm font-bold text-[var(--text-primary)]">{title}</p>
+        <p className="text-xs text-[var(--text-secondary)]">{sub}</p>
+      </div>
+    </div>
+  );
+}
+
 function InfoButton({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
@@ -484,7 +545,6 @@ function InfoButton({ onClick, label }: { onClick: () => void; label: string }) 
   );
 }
 
-// ── Small presentational helpers ─────────────────────────────────────────────
 function formatAge(iso: string | null, t: ReturnType<typeof useT>): string {
   const parts: AgeParts = ageParts(iso, Date.now());
   switch (parts.kind) {
@@ -493,58 +553,4 @@ function formatAge(iso: string | null, t: ReturnType<typeof useT>): string {
     case 'hours': return t.systemHealthPage.durationHours.replace('{h}', String(parts.h)).replace('{m}', String(parts.m));
     case 'days': return t.systemHealthPage.durationDays.replace('{d}', String(parts.d)).replace('{h}', String(parts.h));
   }
-}
-
-/** Decorative EKG trace — animates a heartbeat sweep when healthy, flatlines when something is down. */
-function HeartbeatLine({ color, paused }: { color: string; paused: boolean }) {
-  const ekg = 'M0 24 H40 L48 24 L54 10 L62 38 L70 24 L78 21 L86 24 H120 L128 24 L134 13 L142 35 L150 24 H200';
-  const flat = 'M0 24 H200';
-  return (
-    <svg width="200" height="48" viewBox="0 0 200 48" fill="none"
-         className="hidden md:block ml-auto shrink-0" aria-hidden="true">
-      <path d={paused ? flat : ekg} stroke={color} strokeWidth="2" strokeOpacity="0.2"
-            strokeLinejoin="round" strokeLinecap="round" />
-      {!paused && (
-        <path d={ekg} stroke={color} strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round"
-              strokeDasharray="48 260">
-          <animate attributeName="stroke-dashoffset" from="308" to="0" dur="2.4s" repeatCount="indefinite" />
-        </path>
-      )}
-    </svg>
-  );
-}
-
-function SummaryCard({ icon: Icon, label, value, tone, foot }: {
-  icon: any; label: string; value: string; tone: Tone; foot: string;
-}) {
-  return (
-    <div className="card p-4 rounded-xl border border-[var(--border)] bg-[var(--surface)] flex flex-col gap-1.5">
-      <div className="flex items-center gap-2">
-        <Icon size={16} style={{ color: TONE_COLOR[tone] }} />
-        <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{label}</p>
-      </div>
-      <p className="text-2xl font-black text-[var(--text-primary)] leading-tight">{value}</p>
-      <p className="text-xs text-[var(--text-muted)]">{foot}</p>
-    </div>
-  );
-}
-
-function StatusPill({ tone, label }: { tone: Tone; label: string }) {
-  return (
-    <span
-      className="shrink-0 text-2xs font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1 whitespace-nowrap"
-      style={{ background: `${TONE_COLOR[tone]}1a`, color: TONE_COLOR[tone] }}
-    >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: TONE_COLOR[tone] }} />
-      {label}
-    </span>
-  );
-}
-
-function EmptyHint({ text }: { text: string }) {
-  return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--surface)] px-4 py-8 text-center">
-      <span className="text-sm text-[var(--text-muted)]">{text}</span>
-    </div>
-  );
 }

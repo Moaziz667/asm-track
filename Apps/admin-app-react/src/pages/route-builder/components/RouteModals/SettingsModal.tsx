@@ -23,6 +23,7 @@ export function SettingsModal() {
     vehicles,
     depots,
     isVehicleBusy,
+    isDriverBusy,
     saveRouteSettings,
     savingSettings,
   } = rb;
@@ -85,7 +86,11 @@ export function SettingsModal() {
           <FieldSelect
             label={t.routeBuilderPage.assignedDriverLabel}
             placeholder={t.routeBuilderPage.selectPlaceholder}
-            options={drivers.map((d) => ({ value: d.id, label: d.name }))}
+            options={drivers.map((d) => ({
+              value: d.id,
+              label: `${d.name}${d.id !== selectedRoute.driverId && isDriverBusy(d, selectedRoute.id) ? ` ${t.routeBuilderPage.driverBusy}` : ''}`,
+              disabled: d.id !== selectedRoute.driverId && isDriverBusy(d, selectedRoute.id),
+            }))}
             value={settingsForm.driverId || ''}
             onChange={(e) => {
               const val = e.target.value;

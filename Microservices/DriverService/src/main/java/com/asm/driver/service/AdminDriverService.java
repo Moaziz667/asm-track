@@ -59,6 +59,20 @@ public class AdminDriverService {
 
     // ── Queries ─────────────────────────────────────────────────────────────
 
+    /** Lightweight driverId → avatar-URL map for showing photos anywhere a driver appears
+     *  (handoff cards, dashboard, stats, reports). Only drivers with a photo are included. */
+    @Transactional(readOnly = true)
+    public Map<String, String> avatarsMap() {
+        Map<String, String> out = new HashMap<>();
+        for (Driver d : driverRepo.findAll()) {
+            if (d.getPhotoUrl() != null && !d.getPhotoUrl().isBlank()) {
+                out.put(d.getId().toString(), d.getPhotoUrl());
+            }
+        }
+        return out;
+    }
+
+
     public List<AdminDriverResponse> listAll() {
         Map<UUID, ActiveMissionsDTO> missions = deliveryClient.getActiveMissions();
         return driverRepo.findAll().stream().map(d -> toResponse(d, missions)).toList();
@@ -476,6 +490,7 @@ public class AdminDriverService {
                 .failed(stats != null ? stats.getFailed() : 0)
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
                 .email(d.getEmail())
+                .photoUrl(d.getPhotoUrl())
                 .activeDeliveryId(activeDeliveryId)
                 .activeRouteId(activeRouteId)
                 .suspendedReason(d.getSuspendedReason())

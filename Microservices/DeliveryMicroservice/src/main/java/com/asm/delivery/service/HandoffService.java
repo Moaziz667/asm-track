@@ -5,13 +5,17 @@ import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Handoff;
 import com.asm.delivery.entity.HandoffState;
 import com.asm.delivery.entity.Order;
+import com.asm.delivery.entity.Route;
+import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.entity.RouteStop;
+import com.asm.delivery.entity.RouteStopStatus;
 import com.asm.delivery.entity.DeliveryStatusHistory;
 import com.asm.delivery.entity.Role;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
 import com.asm.delivery.repository.HandoffRepository;
+import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.route.RouteExecutionService;
@@ -25,6 +29,7 @@ import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -45,6 +50,8 @@ public class HandoffService {
     private final HandoffRepository handoffRepo;
     private final DeliveryRepository deliveryRepo;
     private final RouteStopRepository routeStopRepository;
+    private final RouteRepository routeRepository;
+    private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final RouteExecutionService routeExecutionService;
     private final EventPublisher eventPublisher;
     private final AuditLogService auditLogService;
@@ -440,8 +447,83 @@ public class HandoffService {
                 delivery.setStatus(DeliveryStatus.PICKED_UP);
                 if (delivery.getPickedUpAt() == null) delivery.setPickedUpAt(LocalDateTime.now());
                 deliveryRepo.save(delivery);
+                relocateStopToSender(delivery, h.getFromDriverId());
             }
         });
+    }
+
+    /**
+     * Move the delivery's active route-stop back onto the sending driver's route.
+     *
+     * <p>An in-field reassign physically relocates the stop onto the <i>receiver's</i> route (and deletes
+     * the sender's stop) before opening the handoff. So reverting only the delivery row would leave the
+     * stop orphaned on the receiver: the parcel vanishes from the sender's route forever, yet stays on the
+     * receiver's route as an un-actionable phantom (any tap fails the {@code driverId} authorization check).
+     * Re-homing the stop keeps the route plan consistent with the reverted custody, and the STOP_REMOVED /
+     * STOP_ADDED nudges make both drivers' route views update live.
+     */
+    private void relocateStopToSender(Delivery delivery, UUID senderId) {
+        if (senderId == null) return;
+
+        RouteStop stop = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId()).orElse(null);
+        Route receiverRoute = stop != null ? stop.getRoute() : null;
+
+        // Same-route handoff (rare) — the stop is already on the sender's route, nothing to move.
+        if (receiverRoute != null && senderId.equals(receiverRoute.getDriverId())) return;
+
+        // The reassign left the sender's route intact (only their stop was deleted) — find it.
+        LocalDate date = receiverRoute != null ? receiverRoute.getDate() : LocalDate.now();
+        Route senderRoute = routeRepository
+                .findByDriverIdAndDateAndStatusIn(senderId, date,
+                        List.of(RouteStatus.IN_PROGRESS, RouteStatus.VALIDATED, RouteStatus.DRAFT))
+                .stream().findFirst().orElse(null);
+        if (senderRoute == null) {
+            log.warn("HANDOFF_REVERT no active route for sender {} on {} — stop left in place for delivery {}",
+                    senderId, date, delivery.getId());
+            return;
+        }
+
+        Order order = delivery.getOrder();
+        int nextOrder = routeStopRepository.findByRouteIdOrderByStopOrderAsc(senderRoute.getId()).size() + 1;
+
+        if (stop != null) {
+            UUID receiverRouteId = receiverRoute != null ? receiverRoute.getId() : null;
+            stop.setRoute(senderRoute);
+            stop.setStopOrder(nextOrder);
+            stop.setStatus(RouteStopStatus.PENDING);
+            stop.setNotes("Returned to sender — handoff reverted");
+            routeStopRepository.save(stop);
+            if (receiverRouteId != null) {
+                repackActiveStopOrder(receiverRouteId);
+                routeWebSocketService.notifyDriverStopRemoved(
+                        receiverRoute.getDriverId(), receiverRouteId, receiverRoute.getName(),
+                        order != null ? order.getClientName() : null,
+                        order != null ? order.getErpOrderId() : null, "Passation annulée");
+            }
+        } else {
+            // Defensive: no stop survived — recreate one so the parcel reappears on the sender's route.
+            routeStopRepository.save(RouteStop.builder()
+                    .route(senderRoute)
+                    .deliveryId(delivery.getId())
+                    .stopOrder(nextOrder)
+                    .status(RouteStopStatus.PENDING)
+                    .notes("Returned to sender — handoff reverted")
+                    .build());
+        }
+
+        routeWebSocketService.notifyDriverStopAdded(
+                senderRoute.getDriverId(), senderRoute.getId(), senderRoute.getName(),
+                order != null ? order.getClientName() : null);
+    }
+
+    /** Compact stop_order to 1..n for the active (non-removed) stops of a route after a stop leaves it. */
+    private void repackActiveStopOrder(UUID routeId) {
+        List<RouteStop> active = routeStopRepository.findByRouteIdOrderByStopOrderAsc(routeId).stream()
+                .filter(s -> s.getStatus() != RouteStopStatus.REMOVED_REPLANNED
+                          && s.getStatus() != RouteStopStatus.REMOVED_CANCELLED)
+                .toList();
+        for (int i = 0; i < active.size(); i++) active.get(i).setStopOrder(i + 1);
+        if (!active.isEmpty()) routeStopRepository.saveAll(active);
     }
 
     private void clearStopPointer(Handoff h) {

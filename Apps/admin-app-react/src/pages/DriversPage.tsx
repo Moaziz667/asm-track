@@ -32,6 +32,8 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { DRIVER_COLUMNS, type DriverCrud } from './drivers/constants';
 import { SVGUpload, SVGUser } from './drivers/icons';
 import { DriverTableRow, DriverMobileCard } from './drivers/DriverTableRow';
+import { useRoutes } from '@/hooks/useRoutes';
+import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DriverDetailsModal } from './drivers/DriverDetailsModal';
 import { DriverFormModal } from './drivers/DriverFormModal';
@@ -51,6 +53,16 @@ function DriversPageContent() {
   const [activeTab, setActiveTab] = useState<'info' | 'mission' | 'activity'>('info');
 
   const { data: drivers = [], isLoading: loading, refetch: fetchDrivers } = useDrivers();
+  const navigate = useNavigate();
+
+  // Resolve active-route ids → human route names for the activity column (shows the route name, not a
+  // raw UUID slice). Cheap: reuses the shared routes query cache.
+  const { data: routes = [] } = useRoutes();
+  const routeNameById = useMemo(
+    () => Object.fromEntries(routes.map((r) => [r.id, r.name])) as Record<string, string>,
+    [routes],
+  );
+  const openRoute = useCallback((routeId: string) => navigate(`/routes/${routeId}`), [navigate]);
 
   // Realtime: keep online/offline + account status live via a debounced refetch.
   const driverRtTimer = useRef<number | null>(null);
@@ -299,6 +311,8 @@ function DriversPageContent() {
                       readOnly={readOnly}
                       resendCooldown={resendCooldown}
                       isDriverEnLivraison={isDriverEnLivraison}
+                      routeNameById={routeNameById}
+                      onOpenRoute={openRoute}
                       onOpenDetails={(id) => { setSelectedId(id); setDetailsOpen(true); }}
                       onEdit={openEdit}
                       onResendInvite={handleResendInvite}
@@ -349,6 +363,8 @@ function DriversPageContent() {
                       readOnly={readOnly}
                       resendCooldown={resendCooldown}
                       isDriverEnLivraison={isDriverEnLivraison}
+                      routeNameById={routeNameById}
+                      onOpenRoute={openRoute}
                       onOpenDetails={(id) => { setSelectedId(id); setDetailsOpen(true); }}
                       onEdit={openEdit}
                       onResendInvite={handleResendInvite}

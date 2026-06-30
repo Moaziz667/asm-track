@@ -59,10 +59,23 @@ spring:
     show-sql: false
     defer-datasource-initialization: true
 
+  # Driver avatar uploads (phone photos can exceed the 1MB default).
+  servlet:
+    multipart:
+      max-file-size: 8MB
+      max-request-size: 10MB
+
   sql:
     init:
       mode: always
       continue-on-error: true
+
+minio:
+  # Internal Docker URL for the client; PUBLIC_URL is what the browser/app loads avatars from.
+  url: ${MINIO_URL:http://localhost:9000}
+  public-url: ${MINIO_PUBLIC_URL:${MINIO_URL:http://localhost:9000}}
+  access-key: ${MINIO_ACCESS_KEY:asmtracking}
+  secret-key: ${MINIO_SECRET_KEY:asmtracking}
 
 appbackend:
   service:

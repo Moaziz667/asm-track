@@ -11,6 +11,7 @@ import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip, RIBBON, SEVERITY_CHIP } from '../constants';
 import { formatMotif, formatElapsed, formatShortDate } from '../formatters';
 import { FailureInfo } from '@/components/data-display/FailureInfo';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { rowId } from '../utils';
 import type { OpsException } from '../types';
 import { formatMoney } from '@/lib/utils';
@@ -201,7 +202,7 @@ export function DeliveryCards() {
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <div className="flex items-center gap-1.5 cursor-default">
-                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
+                                <DriverAvatarById driverId={d.driverId} name={d.driverName} size={20} />
                                 <span className="text-sm font-[500] truncate" style={{ maxWidth: 120, color: 'var(--text-primary)' }}>{d.driverName}</span>
                               </div>
                             </TooltipTrigger>

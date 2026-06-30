@@ -164,19 +164,19 @@ export default function AlertBell() {
           <IconBell size={16} stroke={2.5} />
         </button>
 
-        {/* Badge — static, no pulse */}
+        {/* Badge — compact, capped, knocked out of the bell with a surface ring */}
         {unreadCount > 0 && (
           <span
             className={cn(
               'absolute -top-1 -right-1 rtl:right-auto rtl:-left-1',
-              'min-w-[16px] h-4 rounded-full text-white text-2xs font-bold',
-              'flex items-center justify-center px-1 leading-none',
-              'border-[1.5px] border-[var(--surface)] pointer-events-none',
+              'min-w-[15px] h-[15px] px-[3px] rounded-full text-white text-2xs font-bold',
+              'flex items-center justify-center leading-none',
+              'ring-2 ring-[var(--surface)] pointer-events-none',
               'font-mono tabular-nums select-none',
               hasCritical ? 'bg-[var(--danger)]' : 'bg-[var(--brand)]',
             )}
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
+            {unreadCount > 9 ? '9+' : unreadCount}
           </span>
         )}
       </div>

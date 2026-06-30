@@ -34,6 +34,23 @@ public class DriverController {
                 driverService.getProfile(UUID.fromString(user.getUserId()), user.getDisplayName()));
     }
 
+    /** Driver uploads/replaces their own profile photo (multipart "file"). Re-encoded + stored server-side. */
+    @PostMapping(value = "/me/photo", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<?> uploadPhoto(@AuthenticationPrincipal UserPrincipal user,
+                                         @RequestParam("file") org.springframework.web.multipart.MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("error", "file is required"));
+        }
+        try {
+            return ResponseEntity.ok(
+                    driverService.uploadPhoto(UUID.fromString(user.getUserId()), file.getBytes(), user.getDisplayName()));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        } catch (java.io.IOException e) {
+            return ResponseEntity.badRequest().body(Map.of("error", "UNREADABLE_UPLOAD"));
+        }
+    }
+
     // Driver name is Keycloak-mastered (self-service in the account console) → no app-side name edit.
 
     @PostMapping("/location")

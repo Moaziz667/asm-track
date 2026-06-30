@@ -29,6 +29,8 @@ public class SecurityConfig {
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/internal/**").hasRole("SERVICE")
+                // Driver avatar map is dispatcher-visible (dispatch desk) — gateway already enforces driver:view.
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers/avatars").authenticated()
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
                 .anyRequest().authenticated()

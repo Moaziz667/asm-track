@@ -25,8 +25,11 @@ export function CreateRouteModal() {
     depots,
     createRoute,
     creating,
+    isVehicleBusy,
+    isDriverBusy,
   } = rb;
 
+  // Prefer the availability-API list when populated; fall back to the full list with busy markers.
   const drivers = availableDrivers.length ? availableDrivers : allDrivers;
   const vehicles = availableVehicles.length ? availableVehicles : allVehicles;
 
@@ -83,7 +86,11 @@ export function CreateRouteModal() {
           <FieldSelect
             label={t.routeBuilderPage.assignedDriverLabel}
             placeholder={t.routeBuilderPage.selectPlaceholder}
-            options={drivers.map((d) => ({ value: d.id, label: d.name }))}
+            options={drivers.map((d) => ({
+              value: d.id,
+              label: `${d.name}${isDriverBusy(d) ? ` ${t.routeBuilderPage.driverBusy}` : ''}`,
+              disabled: isDriverBusy(d),
+            }))}
             value={createForm.driverId || ''}
             onChange={(e) => {
               const val = e.target.value;
@@ -95,7 +102,11 @@ export function CreateRouteModal() {
             placeholder={t.routeBuilderPage.selectPlaceholder}
             options={vehicles
               .filter((v) => v.active !== false)
-              .map((v) => ({ value: v.id, label: `${v.name} (${v.plate})` }))}
+              .map((v) => ({
+                value: v.id,
+                label: `${v.name} (${v.plate})${isVehicleBusy(v) ? ` ${t.routeBuilderPage.vehicleBusy}` : ''}`,
+                disabled: isVehicleBusy(v),
+              }))}
             value={createForm.vehicleId || ''}
             onChange={(e) => {
               const val = e.target.value;

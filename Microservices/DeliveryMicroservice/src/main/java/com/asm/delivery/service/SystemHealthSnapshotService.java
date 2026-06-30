@@ -63,24 +63,103 @@ public class SystemHealthSnapshotService {
 
     private volatile Map<String, Object> snapshot;
 
+    /** Rolling history of compact health points (~1h at the 10s cadence) for the console's trend
+     *  sparklines and per-component status timelines. In-memory only — resets on restart, which is
+     *  fine for an operational at-a-glance view (it is not an audit/metrics store). */
+    private static final int HISTORY_CAPACITY = 360; // ~1 hour at fixedDelay=10s
+    private final java.util.Deque<Map<String, Object>> history = new java.util.ArrayDeque<>(HISTORY_CAPACITY + 8);
+
     /** Cached snapshot; builds one synchronously on first call before the scheduler has run. */
     public Map<String, Object> current() {
         Map<String, Object> s = snapshot;
         if (s == null) {
             s = build();
             snapshot = s;
+            recordHistory(s);
         }
         return s;
+    }
+
+    /** Snapshot of the rolling history, oldest → newest (a copy, safe to serialize off-thread). */
+    public List<Map<String, Object>> history() {
+        synchronized (history) {
+            return new ArrayList<>(history);
+        }
     }
 
     @Scheduled(fixedDelay = 10_000)
     public void refresh() {
         try {
-            snapshot = build();
+            Map<String, Object> s = build();
+            snapshot = s;
+            recordHistory(s);
         } catch (Exception e) {
             log.warn("System health snapshot refresh failed: {}", e.getMessage());
         }
     }
+
+    private void recordHistory(Map<String, Object> snap) {
+        Map<String, Object> point = buildHistoryPoint(snap);
+        synchronized (history) {
+            history.addLast(point);
+            while (history.size() > HISTORY_CAPACITY) history.removeFirst();
+        }
+    }
+
+    /**
+     * Distils a full snapshot into a compact, chart-ready point: the headline signal scalars plus a
+     * per-component tone (ok/warn/down) so the UI can draw status swimlanes without re-deriving grouping.
+     */
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> buildHistoryPoint(Map<String, Object> snap) {
+        List<Map<String, Object>> breakers = (List<Map<String, Object>>) snap.getOrDefault("circuitBreakers", List.of());
+        Map<String, Object> dlq = (Map<String, Object>) snap.getOrDefault("dlq", Map.of());
+        Map<String, Object> db = (Map<String, Object>) snap.getOrDefault("db", Map.of());
+        Map<String, Object> erpSync = (Map<String, Object>) snap.getOrDefault("erpSync", Map.of());
+
+        long erpFailed = toLong(erpSync.get("failed"));
+        long dlqTotal = dlq.values().stream().mapToLong(SystemHealthSnapshotService::toLong).sum();
+        boolean dbReachable = !Boolean.FALSE.equals(db.get("reachable"));
+
+        int breakersOpen = 0;
+        double maxFailureRate = 0;
+        String driversTone = "ok";
+        String erpTone = "ok";
+        for (Map<String, Object> b : breakers) {
+            String state = String.valueOf(b.get("state"));
+            boolean reachable = !Boolean.FALSE.equals(b.get("reachable"));
+            boolean open = "OPEN".equals(state) || "FORCED_OPEN".equals(state) || !reachable;
+            boolean half = "HALF_OPEN".equals(state);
+            if (open) breakersOpen++;
+            double fr = toDouble(b.get("failureRate"));
+            if (toLong(b.get("bufferedCalls")) > 0 && fr >= 0 && fr > maxFailureRate) maxFailureRate = fr;
+            String name = String.valueOf(b.get("name")).toLowerCase();
+            String tone = open ? "down" : half ? "warn" : "ok";
+            if (name.contains("driver")) driversTone = worse(driversTone, tone);
+            if (name.contains("erp") || name.contains("adapter")) erpTone = worse(erpTone, tone);
+        }
+        if (erpFailed > 0) erpTone = worse(erpTone, "down");
+
+        Map<String, String> components = new LinkedHashMap<>();
+        components.put("drivers", driversTone);
+        components.put("erp", erpTone);
+        components.put("db", dbReachable ? "ok" : "down");
+        components.put("queues", dlqTotal > 0 ? "down" : "ok");
+
+        Map<String, Object> point = new LinkedHashMap<>();
+        point.put("t", System.currentTimeMillis());
+        point.put("erpFailed", erpFailed);
+        point.put("maxFailureRate", maxFailureRate);
+        point.put("dlqTotal", dlqTotal);
+        point.put("breakersOpen", breakersOpen);
+        point.put("components", components);
+        return point;
+    }
+
+    private static long toLong(Object o) { return o instanceof Number n ? n.longValue() : 0L; }
+    private static double toDouble(Object o) { return o instanceof Number n ? n.doubleValue() : 0d; }
+    private static int toneRank(String t) { return "down".equals(t) ? 3 : "warn".equals(t) ? 2 : 1; }
+    private static String worse(String a, String b) { return toneRank(a) >= toneRank(b) ? a : b; }
 
     private Map<String, Object> build() {
         Map<String, Object> out = new LinkedHashMap<>();

@@ -4,7 +4,7 @@ import { useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useNotificationsState, getLocalizedNotif, type Notification } from '@/components/AlertsProvider';
 import { useLocaleStore } from '@/lib/i18n';
 import { formatElapsed } from '@/lib/sla';
-import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/dispatch-link';
 import { cn } from '@/lib/utils';
 
 // Recent operational activity, sourced from the server-backed notifications feed
@@ -66,9 +66,7 @@ export default function ActivityTicker() {
                 <button
                   key={n.id}
                   type="button"
-                  onClick={() => navigate(dispatchDeskQueueLink({
-                    orderRef: n.orderId, orderId: n.orderId, deliveryId: n.deliveryId,
-                  }))}
+                  onClick={() => navigate(notifDestination(n))}
                   className="flex items-start gap-2.5 px-2 py-2 rounded-lg hover:bg-[var(--hover-bg)] transition-colors text-left"
                 >
                   <span className="mt-0.5 shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: dot }} />

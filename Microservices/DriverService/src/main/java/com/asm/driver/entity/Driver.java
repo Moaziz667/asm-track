@@ -54,6 +54,26 @@ public class Driver {
     @Column(name = "suspended_reason", length = 500)
     private String suspendedReason;
 
+    // ── Profile photo (avatar) ───────────────────────────────────────────────────
+    /** Public URL of the current avatar thumbnail (null = no photo → UI shows initials). */
+    @Column(name = "photo_url", length = 500)
+    private String photoUrl;
+
+    /** Monotonic version; bumped on each upload so object keys + URLs are cache-busting. */
+    @Column(name = "photo_version")
+    private Integer photoVersion;
+
+    /** NONE | READY | REJECTED — lifecycle of the stored photo. */
+    @Column(name = "photo_status", length = 20)
+    private String photoStatus;
+
+    @Column(name = "photo_updated_at")
+    private LocalDateTime photoUpdatedAt;
+
+    /** PHOTO_REQUIRED → COMPLETE — drives the driver-app first-login mandatory photo gate. */
+    @Column(name = "onboarding_status", length = 30)
+    private String onboardingStatus;
+
     @Column(nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();

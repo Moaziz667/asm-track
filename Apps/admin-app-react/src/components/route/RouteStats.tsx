@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { cn, formatMinutes } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import styles from '@/styles/route-details.module.scss';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
 interface KpiCardProps {
   label: string;
@@ -60,6 +61,7 @@ interface RouteStatsProps {
   failed: number;
   total: number;
   progressPercent: number;
+  driverId?: string;
   driverName?: string;
   driverStatus?: string;
   driverStatusColor?: { text: string; dot: string; label: string };
@@ -80,6 +82,7 @@ export function RouteStats({
   failed,
   total,
   progressPercent,
+  driverId,
   driverName,
   driverStatus,
   driverStatusColor,
@@ -100,17 +103,19 @@ export function RouteStats({
   return (
     <div className={styles.kpiStrip}>
       <div className={styles.kpiGrid}>
-        {/* Driver KPI — with status dot */}
-        <KpiCard
-          label={t.routeDetailPage?.labelDriver || 'Chauffeur'}
-          value={driverName || (t.routeDetailPage?.notAssigned || 'Non assigné')}
-          sub={driverStatus && driverStatusColor && driverStatusColor.label}
-          driverStatus={
-            driverStatusColor
-              ? { dot: driverStatusColor.dot, label: driverStatusColor.label }
-              : undefined
-          }
-        />
+        {/* Driver KPI — avatar + name + status */}
+        <div className={styles.kpiCard}>
+          <div className={styles.label}>{t.routeDetailPage?.labelDriver || 'Chauffeur'}</div>
+          <div className="flex items-center gap-2 mt-0.5">
+            <DriverAvatarById driverId={driverId} name={driverName ?? undefined} size={24} />
+            <div className={styles.value}>{driverName || (t.routeDetailPage?.notAssigned || 'Non assigné')}</div>
+          </div>
+          {driverStatusColor && (
+            <div className={cn(styles.sub, 'mt-1')} style={{ color: driverStatusColor.text }}>
+              {driverStatusColor.label}
+            </div>
+          )}
+        </div>
 
         {/* Progression */}
         <KpiCard

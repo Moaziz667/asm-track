@@ -22,7 +22,9 @@ import {
   IconAlertCircle,
   IconClock,
   IconCloudDownload,
+  IconArrowBackUp,
 } from '@tabler/icons-react';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatMoney } from '@/lib/utils';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { AppDrawer } from '@/components/overlays/AppDrawer';
@@ -427,18 +429,24 @@ function ImportErpPageContent() {
                                     {row.blNumber || row.erpOrderId}
                                   </p>
                                   {row.warehouseCode && (
-                                    <span className="px-1.5 py-0.5 bg-[var(--hover-bg)] text-[var(--text-muted)] border border-[var(--border)] rounded text-2xs font-bold font-mono tracking-widest uppercase">
+                                    <span className="inline-flex items-center px-1.5 py-0.5 rounded bg-[var(--surface-sunken)] text-[var(--text-soft)] border border-[var(--border)] text-2xs font-[600] font-mono">
                                       {row.warehouseCode}
                                     </span>
                                   )}
-                                  {row.backorder && (
-                                    <span
-                                      title={row.originBl ? `${t.importPage.backorderOf} ${row.originBl}` : undefined}
-                                      className="px-1.5 py-0.5 bg-[var(--warning)]/15 text-[var(--warning)] border border-[var(--warning)]/40 rounded text-2xs font-bold tracking-wide uppercase"
-                                    >
-                                      {t.importPage.backorderBadge}
-                                    </span>
-                                  )}
+                                  {row.backorder && (() => {
+                                    const badgeCls = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)] text-2xs font-[600]';
+                                    const inner = <><IconArrowBackUp size={11} stroke={2.5} />{t.importPage.backorderBadge}</>;
+                                    return row.originBl ? (
+                                      <Tooltip>
+                                        <TooltipTrigger render={<span className={cn(badgeCls, 'cursor-default')} />}>
+                                          {inner}
+                                        </TooltipTrigger>
+                                        <TooltipContent>{`${t.importPage.backorderOf} ${row.originBl}`}</TooltipContent>
+                                      </Tooltip>
+                                    ) : (
+                                      <span className={badgeCls}>{inner}</span>
+                                    );
+                                  })()}
                                 </div>
                                 {row.blNumber && row.erpOrderId && (
                                   <p className="text-2xs font-semibold text-[var(--text-muted)]">SO: {row.erpOrderId}</p>

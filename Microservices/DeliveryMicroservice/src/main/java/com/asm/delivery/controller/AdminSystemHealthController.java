@@ -10,6 +10,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -33,6 +34,12 @@ public class AdminSystemHealthController {
     @Operation(summary = "Aggregated system health for the operator console (cached snapshot)")
     public ResponseEntity<Map<String, Object>> health() {
         return ResponseEntity.ok(snapshotService.current());
+    }
+
+    @GetMapping("/health/history")
+    @Operation(summary = "Rolling health history (~1h) for the console's trend sparklines + status timelines")
+    public ResponseEntity<List<Map<String, Object>>> healthHistory() {
+        return ResponseEntity.ok(snapshotService.history());
     }
 
     @PostMapping("/erp-sync/{orderId}/resync")

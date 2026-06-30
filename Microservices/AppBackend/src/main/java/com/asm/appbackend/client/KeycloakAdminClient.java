@@ -219,6 +219,49 @@ public class KeycloakAdminClient {
         return m;
     }
 
+    /**
+     * Sets the user's {@code picture} attribute (avatar URL) → surfaced as the OIDC {@code picture} claim.
+     * Merges into the existing attribute map so we never drop {@code app_user_id} (the live-lookup key,
+     * ADR-026). Requires {@code picture} to be declared in the realm's user-profile config (see asm-realm.json).
+     */
+    @SuppressWarnings("unchecked")
+    public void setUserPicture(String appUserId, String pictureUrl) {
+        if (pictureUrl == null || pictureUrl.isBlank()) return;
+        String token = getServiceToken();
+        List<Map<String, Object>> users = searchUserWithFallback(appUserId, null);
+        if (users.isEmpty()) {
+            log.warn("User not found in Keycloak for picture update (appUserId={})", appUserId);
+            return;
+        }
+        String kcUserId = (String) users.get(0).get("id");
+        Map<String, Object> attrs = new HashMap<>();
+        try {
+            Map<String, Object> full = restClient.get()
+                    .uri(getAdminUrl() + "/users/" + kcUserId)
+                    .header("Authorization", "Bearer " + token)
+                    .retrieve()
+                    .body(MAP_TYPE);
+            Object existing = full != null ? full.get("attributes") : null;
+            if (existing instanceof Map<?, ?> m) {
+                for (Map.Entry<?, ?> e : m.entrySet()) attrs.put(String.valueOf(e.getKey()), e.getValue());
+            }
+        } catch (RestClientResponseException e) {
+            log.warn("Could not read existing attributes for picture merge (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+        }
+        attrs.put("picture", List.of(pictureUrl));
+        try {
+            restClient.put()
+                    .uri(getAdminUrl() + "/users/" + kcUserId)
+                    .header("Authorization", "Bearer " + token)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(Map.of("attributes", attrs))
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException e) {
+            log.error("Failed to set picture in Keycloak (kcUserId={}): {}", kcUserId, e.getResponseBodyAsString());
+        }
+    }
+
     private void assignRole(String kcUserId, String role, String token) {
         Map<String, Object> roleRepr;
         try {

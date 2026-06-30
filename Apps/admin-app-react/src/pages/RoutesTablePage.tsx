@@ -275,14 +275,19 @@ function RouteRow({
 
         {/* Actions */}
         <div className="flex items-center gap-1.5 flex-nowrap justify-end pr-4" onClick={(e) => e.stopPropagation()}>
-          <button
-            type="button"
-            title={t.routesTablePage.viewRouteDetails || 'Détails de la tournée'}
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
-            onClick={() => router(`/routes/${route.id}`)}
-          >
-            <IconExternalLink size={14} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger render={
+              <button
+                type="button"
+                aria-label={t.routesTablePage.viewRouteDetails || 'Détails de la tournée'}
+                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
+                onClick={() => router(`/routes/${route.id}`)}
+              />
+            }>
+              <IconExternalLink size={14} />
+            </TooltipTrigger>
+            <TooltipContent>{t.routesTablePage.viewRouteDetails || 'Détails de la tournée'}</TooltipContent>
+          </Tooltip>
           
           {(canClose || canCancel) && (
             <DropdownMenu>
@@ -438,33 +443,48 @@ function RouteMobileCard({
       {/* Actions Strip */}
       <div className="flex items-center gap-1.5 justify-end border-t border-[var(--border)] pt-2.5" onClick={(e) => e.stopPropagation()}>
         {canClose && (
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--brand)] hover:bg-[var(--hover-bg)]"
-            onClick={() => onCloseClick(route)}
-            title={t.routesTablePage.closeRouteTooltip}
-          >
-            <IconLock size={13} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger render={
+              <button
+                type="button"
+                aria-label={t.routesTablePage.closeRouteTooltip}
+                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--brand)] hover:bg-[var(--hover-bg)]"
+                onClick={() => onCloseClick(route)}
+              />
+            }>
+              <IconLock size={13} />
+            </TooltipTrigger>
+            <TooltipContent>{t.routesTablePage.closeRouteTooltip}</TooltipContent>
+          </Tooltip>
         )}
         {canCancel && (
-          <button
-            type="button"
-            className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]"
-            onClick={() => onCancelClick(route)}
-            title={t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}
-          >
-            <IconX size={13} />
-          </button>
+          <Tooltip>
+            <TooltipTrigger render={
+              <button
+                type="button"
+                aria-label={t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}
+                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]"
+                onClick={() => onCancelClick(route)}
+              />
+            }>
+              <IconX size={13} />
+            </TooltipTrigger>
+            <TooltipContent>{t.routesTablePage.cancelRouteTooltip || 'Annuler la tournée'}</TooltipContent>
+          </Tooltip>
         )}
-        <button
-          type="button"
-          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
-          onClick={() => router(`/routes/${route.id}`)}
-          title="Ouvrir les détails"
-        >
-          <IconExternalLink size={13} />
-        </button>
+        <Tooltip>
+          <TooltipTrigger render={
+            <button
+              type="button"
+              aria-label={t.routesTablePage.viewRouteDetails || 'Ouvrir les détails'}
+              className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"
+              onClick={() => router(`/routes/${route.id}`)}
+            />
+          }>
+            <IconExternalLink size={13} />
+          </TooltipTrigger>
+          <TooltipContent>{t.routesTablePage.viewRouteDetails || 'Ouvrir les détails'}</TooltipContent>
+        </Tooltip>
         <button
           type="button"
           className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]"

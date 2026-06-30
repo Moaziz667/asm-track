@@ -1,5 +1,6 @@
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 import StatusBadge from '@/components/StatusBadge';
+import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import { cn } from '@/lib/utils';
 import type { Driver } from '@/types';
 import type { useT } from '@/lib/LocaleContext';
@@ -18,6 +19,8 @@ interface Props {
   readOnly: boolean;
   resendCooldown: number;
   isDriverEnLivraison: (d: Driver) => boolean;
+  routeNameById?: Record<string, string>;
+  onOpenRoute?: (routeId: string) => void;
   onOpenDetails: (id: string) => void;
   onEdit: (drv: Driver) => void;
   onResendInvite: (drv: Driver) => void;
@@ -27,9 +30,48 @@ interface Props {
   onActivate: (drv: Driver) => void;
 }
 
+/**
+ * Activity cell: badge + the driver's active *route name* (clickable → route detail), falling back to
+ * a short id only when the name isn't resolved yet. Never shows a raw UUID slice as the primary label.
+ */
+function DriverActivity({
+  drv, t, routeNameById, onOpenRoute,
+}: Pick<Props, 'drv' | 't' | 'routeNameById' | 'onOpenRoute'>) {
+  const routeId = drv.activeRouteId;
+  const onDuty = Boolean(drv.activeDeliveryId || routeId);
+  if (!onDuty) return <span className="text-xs text-[var(--text-soft)]">{t.driversPage.free}</span>;
+
+  const label = (routeId && routeNameById?.[routeId])
+    || (routeId ? routeId.slice(0, 8).toUpperCase() : drv.activeDeliveryId!.slice(0, 8).toUpperCase());
+  const chipBase =
+    'font-mono text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-sunken)] max-w-[160px] truncate';
+
+  return (
+    <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
+      <StatusBadge
+        status={drv.activeDeliveryId ? 'IN_TRANSIT' : 'IN_PROGRESS'}
+        size="sm"
+        label={drv.activeDeliveryId ? t.driversPage.activeDelivery : t.driversPage.onRoute}
+      />
+      {routeId && onOpenRoute ? (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenRoute(routeId); }}
+          title={label}
+          className={cn(chipBase, 'not-italic font-sans text-[var(--brand)] hover:underline hover:bg-[var(--brand-bg)] transition-colors cursor-pointer')}
+        >
+          {label}
+        </button>
+      ) : (
+        <span title={label} className={cn(chipBase, 'text-[var(--text-muted)]')}>{label}</span>
+      )}
+    </div>
+  );
+}
+
 export function DriverTableRow({
   drv, gridCols, rowHeight, orderedColumns, visibleIds, t, readOnly, resendCooldown,
-  isDriverEnLivraison, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
+  isDriverEnLivraison, routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Props) {
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',
@@ -47,9 +89,7 @@ export function DriverTableRow({
         {/* Driver info (pinned) */}
         <div className="flex items-center gap-3 overflow-hidden text-start">
           <div className="relative shrink-0 select-none">
-            <div className="h-8 w-8 rounded-full border border-[var(--border)] bg-[var(--surface)] flex items-center justify-center font-mono text-2xs font-bold text-[var(--brand)]">
-              {drv.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
+            <DriverAvatar name={drv.name} photoUrl={drv.photoUrl} size={32} />
             {drv.accountStatus === 'ACTIVE' && (
               <span
                 title={drv.onlineStatus === 'ONLINE' ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')}
@@ -73,24 +113,8 @@ export function DriverTableRow({
             </div>
           );
           if (col.id === 'activity') return (
-            <div key="activity" className="flex items-center gap-1.5 flex-nowrap text-start">
-              {drv.activeDeliveryId ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusBadge status="IN_TRANSIT" size="sm" label={t.driversPage.activeDelivery} />
-                  <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                    {drv.activeDeliveryId.slice(0, 8).toUpperCase()}
-                  </span>
-                </div>
-              ) : drv.activeRouteId ? (
-                <div className="flex items-center gap-1.5">
-                  <StatusBadge status="IN_PROGRESS" size="sm" label={t.driversPage.onRoute} />
-                  <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                    {drv.activeRouteId.slice(0, 8).toUpperCase()}
-                  </span>
-                </div>
-              ) : (
-                <span className="text-xs text-[var(--text-soft)]">{t.driversPage.free}</span>
-              )}
+            <div key="activity" className="text-start min-w-0">
+              <DriverActivity drv={drv} t={t} routeNameById={routeNameById} onOpenRoute={onOpenRoute} />
             </div>
           );
           if (col.id === 'status') return (
@@ -165,7 +189,7 @@ export function DriverTableRow({
 
 export function DriverMobileCard({
   drv, t, readOnly, resendCooldown,
-  isDriverEnLivraison, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
+  isDriverEnLivraison, routeNameById, onOpenRoute, onOpenDetails, onEdit, onResendInvite, onCancelInvite, onSuspend, onForceLogout, onActivate,
 }: Omit<Props, 'gridCols' | 'rowHeight' | 'orderedColumns' | 'visibleIds'>) {
   const statusConfig = DRIVER_STATUS_COLORS[drv.accountStatus ?? 'PENDING_SETUP'] ?? {
     dot: '#8A8F98', bg: 'rgba(138,143,152,0.08)', text: '#6B7280', ribbon: '#8A8F98',
@@ -183,9 +207,7 @@ export function DriverMobileCard({
       <div className="flex items-start justify-between min-w-0 ps-1">
         <div className="flex items-center gap-3 min-w-0">
           <div className="relative shrink-0 select-none">
-            <div className="h-9 w-9 rounded-full border border-[var(--border)] bg-[var(--surface-sunken)] flex items-center justify-center font-mono text-xs font-bold text-[var(--brand)] shadow-2xs">
-              {drv.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-            </div>
+            <DriverAvatar name={drv.name} photoUrl={drv.photoUrl} size={36} />
             {drv.accountStatus === 'ACTIVE' && (
               <span
                 title={drv.onlineStatus === 'ONLINE' ? (t.driversPage.statusOnline ?? 'En ligne') : (t.driversPage.statusOffline ?? 'Hors ligne')}
@@ -266,24 +288,8 @@ export function DriverMobileCard({
           <span className="text-xs font-[600] text-[var(--text-soft)] font-mono tracking-wide">{drv.phone}</span>
         </div>
 
-        <div className="flex items-center gap-1.5 flex-nowrap">
-          {drv.activeDeliveryId ? (
-            <div className="flex items-center gap-1.5">
-              <StatusBadge status="IN_TRANSIT" size="sm" label={t.driversPage.activeDelivery} />
-              <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                {drv.activeDeliveryId.slice(0, 8).toUpperCase()}
-              </span>
-            </div>
-          ) : drv.activeRouteId ? (
-            <div className="flex items-center gap-1.5">
-              <StatusBadge status="IN_PROGRESS" size="sm" label={t.driversPage.onRoute} />
-              <span className="font-mono text-2xs font-bold text-[var(--text-muted)] bg-[var(--surface-sunken)] px-1.5 py-0.5 rounded border border-[var(--border)]">
-                {drv.activeRouteId.slice(0, 8).toUpperCase()}
-              </span>
-            </div>
-          ) : (
-            <span className="text-xs text-[var(--text-soft)]">{t.driversPage.free}</span>
-          )}
+        <div className="flex items-center gap-1.5 flex-nowrap min-w-0" onClick={(e) => e.stopPropagation()}>
+          <DriverActivity drv={drv} t={t} routeNameById={routeNameById} onOpenRoute={onOpenRoute} />
         </div>
       </div>
     </div>

@@ -13,4 +13,6 @@ public class DriverProfileResponse {
     private BigDecimal currentLng;
     private LocalDateTime lastLocationAt;
     private String onlineStatus;
+    private String photoUrl;
+    private String onboardingStatus;
 }

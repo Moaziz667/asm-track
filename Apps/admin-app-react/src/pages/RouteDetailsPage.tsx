@@ -102,6 +102,7 @@ export default function RouteDetailsPage() {
         failed={failed}
         total={total}
         progressPercent={pct}
+        driverId={route.driver?.id}
         driverName={route.driver?.name}
         driverStatus={d.driverOnlineStatus ?? undefined}
         driverStatusColor={d.driverOnlineStatus ? (DRIVER_STATUS_COLOR[d.driverOnlineStatus as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE) : undefined}

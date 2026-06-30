@@ -477,6 +477,27 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
         Integer pickingId = ((Number) picking.get("id")).intValue();
 
+        // Idempotency guard (mirrors the outbound "already done" validate path). The upstream idempotency
+        // cache only stores SUCCESSES, and create_returns has visible side effects: a prior attempt that
+        // created the reverse picking but failed before/at validation — or a manual resync (new txId) —
+        // would otherwise create a SECOND return picking on every retry. If a (non-cancelled) return
+        // picking already exists against this source, resume/validate THAT one instead of creating another.
+        Integer existingReturnId = findExistingReturnPicking(pickingId);
+        if (existingReturnId != null) {
+            boolean alreadyDone = "done".equalsIgnoreCase(readPickingState(existingReturnId));
+            log.info("provider=odoo operation=syncReturn erpId={} sourcePickingId={} existingReturnPickingId={} alreadyDone={} action=resume_existing",
+                    erpId, pickingId, existingReturnId, alreadyDone);
+            boolean done = alreadyDone || validateTransferByPickingId(existingReturnId);
+            if (!done) {
+                log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} existingReturnPickingId={} reason=existing_return_not_done retryable=true", erpId, existingReturnId);
+                return false;
+            }
+            // Scrap only when WE just validated it — an already-done return was scrapped on its original pass,
+            // and scrapping twice would double-remove the damaged units from stock.
+            if (!alreadyDone) scrapDamagedReturnedItems(erpId, items);
+            return true;
+        }
+
         // Create the return-picking wizard bound to the source picking; Odoo pre-fills the returnable
         // move lines (stock.return.picking.line) via default_get.
         Map<String, Object> ctx = Map.of("active_id", pickingId, "active_model", "stock.picking", "active_ids", List.of(pickingId));
@@ -564,6 +585,51 @@ public class OdooSyncAdapter implements ErpSyncPort {
             }
         }
         return null;
+    }
+
+    /**
+     * Returns the id of a return picking already created against {@code sourcePickingId}, or null if none.
+     * Detection is version-stable: each reverse move carries {@code origin_returned_move_id} pointing at the
+     * original move, so we walk source moves → reverse moves → their pickings. Cancelled return pickings are
+     * ignored; a {@code done} one is preferred (it means the goods already re-entered stock — idempotent
+     * success). Used to make the reverse stock move retry/resync-safe (no duplicate return pickings).
+     */
+    @SuppressWarnings("unchecked")
+    private Integer findExistingReturnPicking(Integer sourcePickingId) {
+        Map<String, Object> srcMovesResp = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("picking_id", "=", sourcePickingId))),
+                Map.of("fields", List.of("id"))));
+        List<Map<String, Object>> srcMoves = srcMovesResp != null ? (List<Map<String, Object>>) srcMovesResp.get("result") : null;
+        if (srcMoves == null || srcMoves.isEmpty()) return null;
+        List<Integer> srcMoveIds = srcMoves.stream().map(m -> asInt(m.get("id")))
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (srcMoveIds.isEmpty()) return null;
+
+        // Reverse moves point back at the source moves via origin_returned_move_id.
+        Map<String, Object> retMovesResp = rpc.callRpc(rpc.buildArgs("stock.move", "search_read",
+                List.of(List.of(List.of("origin_returned_move_id", "in", srcMoveIds))),
+                Map.of("fields", List.of("picking_id"))));
+        List<Map<String, Object>> retMoves = retMovesResp != null ? (List<Map<String, Object>>) retMovesResp.get("result") : null;
+        if (retMoves == null || retMoves.isEmpty()) return null;
+        List<Integer> retPickingIds = retMoves.stream().map(m -> asRelId(m.get("picking_id")))
+                .filter(java.util.Objects::nonNull).distinct().toList();
+        if (retPickingIds.isEmpty()) return null;
+
+        // Skip cancelled return pickings; prefer a done one (idempotent success), else any live one.
+        Map<String, Object> pickResp = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+                List.of(List.of(List.of("id", "in", retPickingIds))),
+                Map.of("fields", List.of("id", "state"))));
+        List<Map<String, Object>> picks = pickResp != null ? (List<Map<String, Object>>) pickResp.get("result") : null;
+        if (picks == null || picks.isEmpty()) return null;
+        Integer firstLive = null;
+        for (Map<String, Object> p : picks) {
+            String state = (String) p.get("state");
+            if ("cancel".equalsIgnoreCase(state)) continue;
+            Integer id = asInt(p.get("id"));
+            if ("done".equalsIgnoreCase(state)) return id;
+            if (firstLive == null) firstLive = id;
+        }
+        return firstLive;
     }
 
     /** Finds the most recent DONE outgoing picking for a sale order — the fallback return source. */

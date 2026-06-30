@@ -11,23 +11,25 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
+import { RmaDetailDrawer } from '@/components/returns/RmaDetailDrawer';
 import {
   IconRotateClockwise, IconPackageExport,
   IconArrowRight, IconBan, IconCircleCheck, IconArchive, IconReload,
 } from '@tabler/icons-react';
 
 // ─── Domain ────────────────────────────────────────────────────────────────
-type RmaStatus = 'REQUESTED' | 'APPROVED' | 'RECEIVED' | 'RESTOCKED' | 'REJECTED' | 'CANCELLED';
+export type RmaStatus = 'REQUESTED' | 'APPROVED' | 'RECEIVED' | 'RESTOCKED' | 'REJECTED' | 'CANCELLED';
 
-interface RmaItem { id?: string; sku?: string; name?: string; quantity: number; condition?: 'RESELLABLE' | 'DAMAGED'; reason?: string; }
-interface Rma {
+export interface RmaItem { id?: string; sku?: string; name?: string; quantity: number; unitPrice?: number; condition?: 'RESELLABLE' | 'DAMAGED'; reason?: string; }
+export interface Rma {
   id: string; deliveryId: string; erpOrderId?: string; blNumber?: string; clientName?: string;
   status: RmaStatus; reason?: string; resolutionNote?: string; items: RmaItem[]; totalUnits: number;
   erpSyncStatus?: string; erpSyncError?: string; createdBy?: string; createdAt?: string;
+  receivedAt?: string; restockedAt?: string;
 }
 
 /** Status visual tokens (tone classes from the design system). */
-const STATUS_TOKENS: Record<RmaStatus, { dot: string; text: string; bg: string }> = {
+export const STATUS_TOKENS: Record<RmaStatus, { dot: string; text: string; bg: string }> = {
   REQUESTED: { dot: 'var(--warning)', text: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 12%, transparent)' },
   APPROVED:  { dot: 'var(--brand)',   text: 'var(--brand)',   bg: 'color-mix(in srgb, var(--brand) 12%, transparent)' },
   RECEIVED:  { dot: 'var(--info)',    text: 'var(--info)',    bg: 'color-mix(in srgb, var(--info) 12%, transparent)' },
@@ -37,14 +39,14 @@ const STATUS_TOKENS: Record<RmaStatus, { dot: string; text: string; bg: string }
 };
 
 /** Allowed next transitions from each status. */
-const NEXT: Record<RmaStatus, RmaStatus[]> = {
+export const NEXT: Record<RmaStatus, RmaStatus[]> = {
   REQUESTED: ['APPROVED', 'REJECTED', 'CANCELLED'],
   APPROVED:  ['RECEIVED', 'REJECTED', 'CANCELLED'],
   RECEIVED:  ['RESTOCKED', 'CANCELLED'],
   RESTOCKED: [], REJECTED: [], CANCELLED: [],
 };
 
-const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> = {
+export const TRANSITION_ICON: Partial<Record<RmaStatus, typeof IconArrowRight>> = {
   RESTOCKED: IconRotateClockwise,
   REJECTED: IconBan,
   CANCELLED: IconBan,
@@ -74,6 +76,8 @@ export default function ReturnsPage() {
   // Reason modal for reject/cancel transitions (replaces window.prompt).
   const [reasonModal, setReasonModal] = useState<{ rma: Rma; target: RmaStatus } | null>(null);
   const [reasonText, setReasonText] = useState('');
+  // Detail drawer — opens on row click; shows items, value, timeline, sync triage.
+  const [selected, setSelected] = useState<Rma | null>(null);
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -99,6 +103,13 @@ export default function ReturnsPage() {
   }, [filter, debouncedQuery, page, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
+
+  // Keep the open drawer in sync with the freshly-fetched list (status/sync update after an action).
+  useEffect(() => {
+    if (!selected) return;
+    const fresh = rmas.find((r) => r.id === selected.id);
+    if (fresh && fresh !== selected) setSelected(fresh);
+  }, [rmas]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Debounce the search box → server `q`; reset to the first page on a new search or filter.
   useEffect(() => {
@@ -272,20 +283,33 @@ export default function ReturnsPage() {
                   </td>
                 </tr>
               ) : (
-                visibleRows.map((r) => (
-                  <tr key={r.id} className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors group">
+                visibleRows.map((r) => {
+                  const itemTeaser = r.items.map((it) => it.name ?? it.sku).filter(Boolean).slice(0, 2).join(', ');
+                  const moreItems = r.items.length - Math.min(r.items.length, 2);
+                  return (
+                  <tr
+                    key={r.id}
+                    onClick={() => setSelected(r)}
+                    className="h-14 border-b border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors group cursor-pointer"
+                  >
                     {/* Status ribbon (same idiom as Deliveries) */}
                     <td className="p-0">
                       <div className="w-[3px] h-10 rounded-r-[2px]" style={{ backgroundColor: STATUS_TOKENS[r.status]?.dot ?? 'var(--border)' }} />
                     </td>
                     <td className="px-6 text-xs font-[600] text-[var(--text-primary)]">{r.clientName ?? '—'}</td>
                     <td className="px-6 font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</td>
-                    <td className="px-6 text-xs text-[var(--text-secondary)]">
-                      <span className="tabular-nums font-[600]">{r.totalUnits}</span> {t.returnsPage?.unitsSuffix ?? 'u.'}
-                      <span className="text-[var(--text-soft)]"> · {r.items.length} {t.returnsPage?.linesSuffix ?? 'lignes'}</span>
+                    <td className="px-6 text-xs">
+                      <div className="flex flex-col gap-0.5 min-w-0 max-w-[240px]">
+                        <span className="truncate text-[var(--text-secondary)]">
+                          {itemTeaser || '—'}{moreItems > 0 ? <span className="text-[var(--text-soft)]"> +{moreItems}</span> : null}
+                        </span>
+                        <span className="text-2xs text-[var(--text-soft)]">
+                          <span className="tabular-nums font-[600] text-[var(--text-muted)]">{r.totalUnits}</span> {t.returnsPage?.unitsSuffix ?? 'u.'} · {r.items.length} {t.returnsPage?.linesSuffix ?? 'lignes'}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6"><StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" /></td>
-                    <td className="px-6">
+                    <td className="px-6" onClick={(e) => e.stopPropagation()}>
                       {r.erpSyncStatus ? (
                         <div className="flex items-center gap-1.5">
                           <span title={r.erpSyncStatus === 'SYNC_FAILED' && r.erpSyncError ? `${t.returnsPage?.syncErrorLabel ?? 'Erreur'} : ${r.erpSyncError}` : undefined}>
@@ -308,7 +332,7 @@ export default function ReturnsPage() {
                       ) : <span className="text-xs text-[var(--text-soft)]">—</span>}
                     </td>
                     <td className="px-6 max-w-[220px] truncate text-xs text-[var(--text-muted)]" title={r.reason ?? ''}>{r.reason ?? '—'}</td>
-                    <td className="px-6 text-end">
+                    <td className="px-6 text-end" onClick={(e) => e.stopPropagation()}>
                       <div className="flex items-center justify-end gap-1.5">
                         {NEXT[r.status].length === 0 ? (
                           <span className="text-xs text-[var(--text-soft)]">—</span>
@@ -334,7 +358,8 @@ export default function ReturnsPage() {
                       </div>
                     </td>
                   </tr>
-                ))
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -375,6 +400,18 @@ export default function ReturnsPage() {
         loading={busyId === reasonModal?.rma.id}
         onConfirm={() => void confirmReason()}
         onCancel={() => setReasonModal(null)}
+      />
+
+      {/* Detail drawer — items, value, ERP-sync triage, and lifecycle timeline. */}
+      <RmaDetailDrawer
+        rma={selected}
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        statusLabel={statusLabel}
+        busyId={busyId}
+        onTransition={transition}
+        onResync={(r) => void resync(r)}
+        t={t}
       />
     </div>
   );

@@ -30,4 +30,6 @@ public class AdminDriverResponse {
     private LocalDateTime invitationExpiresAt;
     private LocalDateTime lastInvitedAt;
     private String invitedByName;
+    /** Public avatar thumbnail URL (null = render initials). */
+    private String photoUrl;
 }

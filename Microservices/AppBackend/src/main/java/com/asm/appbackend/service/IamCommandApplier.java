@@ -23,6 +23,7 @@ public class IamCommandApplier {
     public static final String UPDATE_NAME  = "IAM_UPDATE_NAME";
     public static final String SET_ROLE     = "IAM_SET_ROLE";
     public static final String SET_ENABLED  = "IAM_SET_ENABLED";
+    public static final String SET_PICTURE  = "IAM_SET_PICTURE";
     public static final String DELETE       = "IAM_DELETE";
     public static final String LOGOUT       = "IAM_LOGOUT";
 
@@ -37,6 +38,7 @@ public class IamCommandApplier {
             case UPDATE_NAME  -> kc.updateUserName(appUserId, str(p, "email"), str(p, "name"));
             case SET_ROLE     -> kc.setUserRole(appUserId, str(p, "email"), str(p, "role"));
             case SET_ENABLED  -> kc.setUserEnabled(appUserId, Boolean.TRUE.equals(p.get("enabled")));
+            case SET_PICTURE  -> kc.setUserPicture(appUserId, str(p, "picture"));
             case DELETE       -> kc.deleteUser(appUserId);
             case LOGOUT       -> kc.forceLogout(appUserId);
             default           -> log.warn("Unknown IAM op: {}", op);

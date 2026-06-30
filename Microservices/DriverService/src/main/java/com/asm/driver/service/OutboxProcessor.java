@@ -33,6 +33,7 @@ public class OutboxProcessor {
     public static final String IAM_UPDATE_EMAIL = "IAM_UPDATE_EMAIL";
     public static final String IAM_UPDATE_NAME  = "IAM_UPDATE_NAME";
     public static final String IAM_SET_ENABLED  = "IAM_SET_ENABLED";
+    public static final String IAM_SET_PICTURE  = "IAM_SET_PICTURE";
     public static final String IAM_DELETE       = "IAM_DELETE";
     public static final String IAM_LOGOUT       = "IAM_LOGOUT";
 

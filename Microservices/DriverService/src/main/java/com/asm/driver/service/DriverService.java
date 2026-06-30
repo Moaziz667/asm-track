@@ -14,6 +14,7 @@ import com.asm.driver.repository.DriverRepository;
 import com.asm.driver.repository.DriverStatsRepository;
 import com.asm.driver.service.DriverAuditLogService;
 import com.asm.driver.service.DriverEventPublisher;
+import com.asm.driver.storage.AvatarService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -31,6 +32,41 @@ public class DriverService {
     private final DriverHistoryRepository historyRepo;
     private final DriverEventPublisher eventPublisher;
     private final DriverAuditLogService auditLogService;
+    private final AvatarService avatarService;
+    private final OutboxProcessor outboxProcessor;
+
+    /**
+     * Driver uploads/replaces their profile photo. The bytes are validated + re-encoded (EXIF stripped)
+     * into square JPEG variants and stored; the version is bumped (cache-busting) and onboarding is
+     * marked COMPLETE so the app's first-login photo gate is cleared.
+     */
+    @Transactional
+    public DriverProfileResponse uploadPhoto(UUID driverId, byte[] data, String tokenName) {
+        Driver driver = driverRepo.findById(driverId)
+                .orElseThrow(() -> AppException.notFound("Driver not found"));
+        int newVersion = (driver.getPhotoVersion() == null ? 0 : driver.getPhotoVersion()) + 1;
+        String url = avatarService.store(driverId, data, newVersion);
+        driver.setPhotoUrl(url);
+        driver.setPhotoVersion(newVersion);
+        driver.setPhotoStatus("READY");
+        driver.setPhotoUpdatedAt(LocalDateTime.now());
+        driver.setOnboardingStatus("COMPLETE");
+        if (tokenName != null && !tokenName.isBlank() && !tokenName.equals(driver.getName())) {
+            driver.setName(tokenName);
+        }
+        DriverProfileResponse res = mapToProfile(driverRepo.save(driver));
+        // Mirror the avatar URL into Keycloak's `picture` attribute (→ OIDC picture claim) via the IAM
+        // outbox (AppBackend is the sole KC owner). Best-effort: failure here never fails the upload.
+        try {
+            outboxProcessor.enqueue(OutboxProcessor.IAM_SET_PICTURE,
+                    java.util.Map.of("appUserId", driverId.toString(), "picture", url));
+        } catch (Exception e) {
+            // outbox enqueue is transactional with this method; a failure rolls back — log only.
+            org.slf4j.LoggerFactory.getLogger(DriverService.class)
+                    .warn("Failed to enqueue IAM_SET_PICTURE for {}: {}", driverId, e.getMessage());
+        }
+        return res;
+    }
 
     @Transactional
     public DriverProfileResponse getProfile(UUID driverId, String tokenName) {
@@ -125,6 +161,8 @@ public class DriverService {
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
+                .photoUrl(d.getPhotoUrl())
+                .onboardingStatus(d.getOnboardingStatus())
                 .build();
     }
 }

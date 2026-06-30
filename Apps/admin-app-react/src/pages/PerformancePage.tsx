@@ -11,6 +11,8 @@ import {
   IconBolt, IconActivity, IconFileAnalytics, IconCheck
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
@@ -179,22 +181,17 @@ export default function PerformancePage() {
       {/* ── Period bar (replaces title bar) ── */}
       <div className="flex items-center gap-3 px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
         <span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
-        <div className="flex items-center gap-1">
-          {(['day', 'week', 'month', 'all'] as Period[]).map(p => (
-            <button
-              key={p}
-              onClick={() => setPeriod(p)}
-              className={cn(
-                'px-2.5 py-1 text-xs font-[500] transition-colors rounded-md cursor-pointer',
-                period === p
-                  ? 'bg-[var(--hover-bg)] text-[var(--text-primary)] font-[600]'
-                  : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]/50'
-              )}
-            >
-              {{ day: t.performancePage.periodDay, week: t.performancePage.periodWeek, month: t.performancePage.periodMonth, all: t.performancePage.periodAll }[p]}
-            </button>
-          ))}
-        </div>
+        <SegmentedControl<Period>
+          value={period}
+          onChange={setPeriod}
+          ariaLabel={t.performancePage.periodLabel}
+          options={[
+            { value: 'day', label: t.performancePage.periodDay },
+            { value: 'week', label: t.performancePage.periodWeek },
+            { value: 'month', label: t.performancePage.periodMonth },
+            { value: 'all', label: t.performancePage.periodAll },
+          ]}
+        />
         <div className="ml-auto">
           <RefreshButton refreshing={loading} onClick={loadData} />
         </div>
@@ -440,14 +437,7 @@ export default function PerformancePage() {
                        >
                          {/* Driver avatar and name */}
                          <div className="flex items-center gap-3">
-                            <div
-                              className="w-[30px] h-[30px] flex items-center justify-center rounded-md"
-                              style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}
-                            >
-                              <span className="text-2xs font-mono font-bold text-[var(--text-secondary)]">
-                                {d.driverName ? d.driverName.split(' ').map(n=>n[0]).join('').toUpperCase().slice(0,2) : "D"}
-                              </span>
-                            </div>
+                            <DriverAvatarById driverId={d.driverId} name={d.driverName} size={30} />
                             <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                               {d.driverName || t.performancePage.notAssigned}
                             </p>

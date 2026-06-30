@@ -40,6 +40,14 @@ public class AdminDriverController {
         return ResponseEntity.ok(service.listAll());
     }
 
+    @GetMapping("/avatars")
+    @Operation(summary = "driverId → avatar URL map (dispatcher-visible; non-sensitive)")
+    public ResponseEntity<Map<String, String>> avatars() {
+        // No requireAdmin: dispatchers see driver avatars on the dispatch desk. Authorization is the
+        // gateway's driver:view perm + the SecurityConfig rule that permits this GET to any authenticated user.
+        return ResponseEntity.ok(service.avatarsMap());
+    }
+
     @GetMapping("/{id}")
     @Operation(summary = "Get driver detail")
     public ResponseEntity<AdminDriverResponse> get(

@@ -302,7 +302,10 @@
       "Bash(curl -s http://localhost:5173/)",
       "Read(//c/Program Files/Google/Chrome/Application/**)",
       "Bash(node -e \"try{require.resolve\\('puppeteer-core'\\);console.log\\('puppeteer-core: yes'\\)}catch\\(e\\){console.log\\('puppeteer-core: no'\\)}\")",
-      "Bash(npm i *)"
+      "Bash(npm i *)",
+      "mcp__visualize__show_widget",
+      "mcp__visualize__read_me",
+      "Bash(grep -nA6 \"^minio:\" DeliveryMicroservice/src/main/resources/application.yml)"
     ],
     "additionalDirectories": [
       "c:\\Users\\M S I\\.claude\\projects\\c--Users-M-S-I-OneDrive-Documents-PFE\\memory",

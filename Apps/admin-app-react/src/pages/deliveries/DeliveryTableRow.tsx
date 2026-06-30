@@ -12,6 +12,7 @@ import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DELIVERY_ROW_H } from './constants';
 import { Spinner } from './helpers';
 import type { DeliveryRow } from './types';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
 const LOCKED = ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED'];
 
@@ -132,9 +133,7 @@ export function DeliveryTableRow({
             <div className="flex items-center gap-1.5 justify-center">
               {item.driverName ? (
                 <>
-                  <div className="size-5 rounded-xs bg-[var(--surface)] border border-[var(--border)] flex items-center justify-center text-2xs font-bold text-[var(--text-primary)] uppercase">
-                    {item.driverName.charAt(0)}
-                  </div>
+                  <DriverAvatarById driverId={item.driverId} name={item.driverName} size={20} />
                   <span className="text-xs font-[600] text-[var(--text-soft)] truncate max-w-[100px]">{item.driverName}</span>
                 </>
               ) : (
@@ -333,9 +332,7 @@ export function DeliveryMobileCard({
         <div className="flex items-center gap-2">
           {item.driverName ? (
             <div className="flex items-center gap-1">
-              <div className="w-4.5 h-4.5 rounded-xs bg-[var(--surface-sunken)] border border-[var(--border)] flex items-center justify-center text-3xs font-bold text-[var(--text-primary)] uppercase">
-                {item.driverName.charAt(0)}
-              </div>
+              <DriverAvatarById driverId={item.driverId} name={item.driverName} size={18} />
               <span className="text-2xs font-[600] text-[var(--text-soft)]">{item.driverName}</span>
             </div>
           ) : (
