@@ -37,7 +37,21 @@ public class AdminDriverController {
     @GetMapping
     @Operation(summary = "List active drivers scoped to the calling company")
     public ResponseEntity<List<DriverDTO>> list() {
-        return ResponseEntity.ok(transportPort.getAvailableDrivers());
+        List<DriverDTO> drivers = transportPort.getAvailableDrivers();
+        // Enrich with route-presence so the reassign drawer can show "En tournée" / route id directly,
+        // instead of the admin deriving it client-side from the loaded deliveries (which misses any
+        // driver whose stops fall outside a filtered set). The query is ordered by relevance, so the
+        // first row per driver wins. LocalDate.now() = container TZ (Africa/Tunis), matching
+        // DriverDeliveryService / DispatchService.
+        Map<UUID, UUID> driverRoute = new HashMap<>();
+        for (Object[] row : routeRepository.findActiveDriverRoutes(LocalDate.now())) {
+            driverRoute.putIfAbsent((UUID) row[0], (UUID) row[1]);
+        }
+        for (DriverDTO d : drivers) {
+            UUID routeId = driverRoute.get(UUID.fromString(d.getId()));
+            if (routeId != null) d.setActiveRouteId(routeId.toString());
+        }
+        return ResponseEntity.ok(drivers);
     }
 
     @GetMapping("/{id}")
@@ -53,7 +67,11 @@ public class AdminDriverController {
     public ResponseEntity<List<DriverDTO>> available(
             @RequestParam LocalDate date,
             @RequestParam LocalTime startTime,
-            @RequestParam LocalTime endTime) {        Set<UUID> busyIds = routeRepository.findConflictingDriverIds(date, startTime, endTime, ACTIVE_STATUSES);
+            @RequestParam LocalTime endTime) {
+        Set<UUID> busyIds = new java.util.HashSet<>(
+                routeRepository.findConflictingDriverIds(date, startTime, endTime, ACTIVE_STATUSES));
+        // Plus anyone physically out on the road right now (IN_PROGRESS) — busy regardless of date.
+        busyIds.addAll(routeRepository.findDriverIdsByStatusIn(List.of(RouteStatus.IN_PROGRESS)));
         List<DriverDTO> available = transportPort.getAvailableDrivers().stream()
                 .filter(d -> !busyIds.contains(UUID.fromString(d.getId())))
                 .toList();

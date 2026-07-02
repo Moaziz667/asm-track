@@ -1,10 +1,11 @@
 import { Link } from 'react-router-dom';
 import {
   IconReload, IconExternalLink, IconArrowRight, IconPackage,
-  IconAlertTriangle, IconClock, IconUser, IconTruckReturn,
+  IconClock, IconUser, IconTruckReturn,
 } from '@tabler/icons-react';
 import { AppDrawer } from '@/components/overlays/AppDrawer';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import { ConditionPill } from '@/components/data-display/ConditionPill';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/utils';
 import { NEXT, STATUS_TOKENS, TRANSITION_ICON, type Rma, type RmaStatus } from '@/pages/ReturnsPage';
@@ -35,28 +36,9 @@ const STATUS_ORDER: Record<RmaStatus, number> = {
 function Metric({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean }) {
   return (
     <div className="flex flex-col gap-0.5 min-w-0">
-      <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>{label}</span>
+      <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>{label}</span>
       <span className={`text-xs font-[600] truncate ${mono ? 'font-mono' : ''}`} style={{ color: 'var(--text-primary)' }}>{value}</span>
     </div>
-  );
-}
-
-function ConditionPill({ condition, t }: { condition?: string; t: any }) {
-  const damaged = condition === 'DAMAGED';
-  const label = damaged
-    ? (t.returnsPage?.conditionDamaged ?? 'Endommagé')
-    : (t.returnsPage?.conditionResellable ?? 'Revendable');
-  return (
-    <span
-      className="inline-flex items-center gap-1 text-2xs font-[600] px-1.5 py-0.5 rounded-[var(--radius)]"
-      style={{
-        background: damaged ? 'var(--danger-bg)' : 'var(--success-bg)',
-        color: damaged ? 'var(--danger)' : 'var(--success)',
-      }}
-    >
-      {damaged && <IconAlertTriangle size={10} stroke={2.5} />}
-      {label}
-    </span>
   );
 }
 
@@ -93,7 +75,6 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
   const title = rma ? (
     <div className="flex items-center gap-2">
       <span className="truncate">{rma.clientName ?? '—'}</span>
-      <StatusBadge status={rma.status} label={statusLabel(rma.status)} size="sm" />
     </div>
   ) : '';
 
@@ -174,7 +155,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             </div>
             <table className="w-full border-collapse">
               <thead>
-                <tr className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+                <tr className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
                   <th className="text-left pb-1.5 font-[600]">{t.returnsPage?.colItemSku ?? 'SKU / Article'}</th>
                   <th className="text-right pb-1.5 font-[600]">{t.returnsPage?.colItemQty ?? 'Qté'}</th>
                   <th className="text-left pb-1.5 pl-3 font-[600]">{t.returnsPage?.colItemCondition ?? 'État'}</th>
@@ -197,7 +178,14 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                     <td className="py-2 text-right text-xs font-mono font-[600] tabular-nums" style={{ color: 'var(--text-primary)' }}>
                       {it.quantity}
                     </td>
-                    <td className="py-2 pl-3"><ConditionPill condition={(it as any).condition} t={t} /></td>
+                    <td className="py-2 pl-3">
+                      <ConditionPill
+                        condition={(it as any).condition}
+                        label={(it as any).condition === 'DAMAGED'
+                          ? (t.returnsPage?.conditionDamaged ?? 'Endommagé')
+                          : (t.returnsPage?.conditionResellable ?? 'Revendable')}
+                      />
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -209,7 +197,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="px-5 py-4 border-b flex flex-col gap-3" style={{ borderColor: 'var(--border)' }}>
               {rma.reason && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+                  <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
                     {t.returnsPage?.colReason ?? 'Motif'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.reason}</span>
@@ -217,7 +205,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               )}
               {rma.resolutionNote && (
                 <div className="flex flex-col gap-1">
-                  <span className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+                  <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
                     {t.returnsPage?.drawerResolution ?? 'Note de résolution'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.resolutionNote}</span>
@@ -230,7 +218,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
           {rma.erpSyncStatus && (
             <div className="px-5 py-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
               <div className="flex flex-col gap-1 min-w-0">
-                <span className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
+                <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
                   {t.returnsPage?.colSync ?? 'Sync ERP'}
                 </span>
                 <div className="flex items-center gap-2">
@@ -272,8 +260,8 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                     className="rounded-full shrink-0"
                     style={{
                       width: 9, height: 9, marginTop: 3,
-                      background: s.reached ? s.dotColor : 'var(--surface)',
-                      border: s.reached ? 'none' : '1.5px solid var(--border-strong)',
+                      background: 'var(--surface)',
+                      border: `1.5px solid ${s.reached ? s.dotColor : 'var(--border-strong)'}`,
                     }}
                   />
                   {i < steps.length - 1 && <span className="flex-1 w-px my-0.5" style={{ background: 'var(--border)', minHeight: 14 }} />}

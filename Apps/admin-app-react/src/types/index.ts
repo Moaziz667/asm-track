@@ -31,6 +31,8 @@ export interface Delivery {
   deliveryId?: string;
   routeId?: string;
   routeName?: string;
+  /** Status of the route this delivery sits on (DRAFT/VALIDATED/IN_PROGRESS…) — backend summary already sends it. */
+  routeStatus?: string;
   orderId: string;
   orderRef?: string;
   clientName: string;

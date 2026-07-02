@@ -19,7 +19,7 @@ export function ItemOutcomeBadge({ outcome, reason, reasonLabel }: { outcome?: s
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
       <StatusBadge status={outcome} label={outcomeLabel} size="sm" />
-      {display && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{display}</span>}
+      {display && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>! {display}</span>}
     </span>
   );
 }

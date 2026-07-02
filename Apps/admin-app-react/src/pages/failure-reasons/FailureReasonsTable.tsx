@@ -309,7 +309,9 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
                   );
                   if (col.id === 'category') return (
                     <td key="category" className="px-4 align-middle">
-                      <StatusBadge status={r.category} label={catLabel(r.category)} size="sm" />
+                      <span className="text-2xs px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-secondary)] bg-[var(--app-bg)] whitespace-nowrap">
+                        {catLabel(r.category)}
+                      </span>
                     </td>
                   );
                   if (col.id === 'appliesTo') return (

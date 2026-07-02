@@ -6,13 +6,17 @@ import {
   IconCalendar,
   IconCheck,
   IconChevronRight,
+  IconChevronDown,
   IconClock,
   IconMapPin,
   IconUser,
   IconX,
+  IconAdjustments,
+  IconBolt,
+  IconNote,
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
-import { DriverAvatar } from '@/components/data-display/DriverAvatar';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { FieldInput, FieldTextarea } from '@/components/ui/field';
 import { AppDrawer } from './AppDrawer';
 import { api } from '@/lib/api';
@@ -58,11 +62,15 @@ export interface ReassignTarget {
   driverName?: string;
   routeId?: string;
   routeName?: string;
+  routeStatus?: string;
   dropoffLat?: number;
   dropoffLng?: number;
   // Existing delivery time slot (the client's créneau) — used to pre-fill the window picker.
   timeSlotStartTime?: string;
   timeSlotEndTime?: string;
+  // Fallbacks when there's no HH:mm slot: a named slot, or the requested delivery date.
+  timeSlotName?: string;
+  requestedDeliveryDate?: string;
   // Decision context shown in the drawer recap (#4).
   totalWeightKg?: number;
   totalAmount?: number;
@@ -106,6 +114,29 @@ function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): nu
   const a = Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) * Math.cos((lat2 * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+interface NearestInfo { etaSeconds: number | null; distanceMeters: number | null; source: string; rank: number; }
+
+function formatEta(seconds?: number | null): string | null {
+  if (seconds == null) return null;
+  const m = Math.round(seconds / 60);
+  if (m < 1) return '<1 min';
+  if (m < 60) return `${m} min`;
+  return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, '0')}`;
+}
+function formatKm(meters?: number | null): string | null {
+  if (meters == null) return null;
+  return meters < 1000 ? `${meters} m` : `${(meters / 1000).toFixed(1)} km`;
+}
+// GPS-fix recency shown as text (no status dots — see .ai/anti-slop.md). fresh ≤ 5 min.
+function formatSeen(iso?: string | null): { text: string; fresh: boolean } | null {
+  if (!iso) return null;
+  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+  if (mins < 1) return { text: 'MAJ à l’instant', fresh: true };
+  if (mins < 60) return { text: `${mins <= 5 ? 'MAJ' : 'GPS'} ${mins} min`, fresh: mins <= 5 };
+  const h = Math.floor(mins / 60);
+  return { text: `GPS ${h} h`, fresh: false };
 }
 
 function groupByDate(routes: RouteOption[]) {
@@ -172,6 +203,14 @@ function MetaChip({ children, danger }: { children: ReactNode; danger?: boolean 
   );
 }
 
+function AdvChip({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 text-2xs font-medium px-2 py-1 rounded-md text-[var(--text-secondary)]" style={{ background: 'var(--surface-sunken)' }}>
+      {icon}{label}
+    </span>
+  );
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export function ReassignDrawer({ open, target, targets, drivers, onClose, onSuccess }: Props) {
@@ -203,6 +242,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
   const [endTimeWindow, setEndTimeWindow] = useState('');
   const [note, setNote] = useState('');
   const [acknowledgeOverload, setAcknowledgeOverload] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   const [submitting, setSubmitting] = useState(false);
 
@@ -236,32 +276,40 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
     }
   }, [open, target, isBatch]);
 
-  useEffect(() => {
-    if (!open || drivers.length === 0) return;
+  // A driver's assignable routes = upcoming window (today → +30d) UNION every IN_PROGRESS route. A route
+  // that's running was likely created on a prior day, so a date-only window would hide it (and make the
+  // driver look idle). Merge + dedupe so a currently-driving driver still shows their live route.
+  const loadDriverRoutes = useCallback(async (driverId: string): Promise<RouteOption[]> => {
     const from = new Date().toISOString().slice(0, 10);
     const to = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
+    const [upcomingRes, runningRes] = await Promise.all([
+      api.get(`/api/admin/routes/driver/${driverId}`, { params: { from, to } }).catch(() => ({ data: [] })),
+      api.get('/api/admin/routes', { params: { driverId, status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
+    ]);
+    const a = (Array.isArray(upcomingRes.data) ? upcomingRes.data : []) as RouteOption[];
+    const b = (Array.isArray(runningRes.data) ? runningRes.data : []) as RouteOption[];
+    const byId = new Map<string, RouteOption>();
+    [...a, ...b].forEach(r => byId.set(r.id, r));
+    return Array.from(byId.values());
+  }, []);
+
+  useEffect(() => {
+    if (!open || drivers.length === 0) return;
     setPrefetching(true);
     Promise.all(
-      drivers.map(d =>
-        api.get(`/api/admin/routes/driver/${d.id}`, { params: { from, to } })
-          .then(res => ({ id: d.id, routes: (Array.isArray(res.data) ? res.data : []) as RouteOption[] }))
-          .catch(() => ({ id: d.id, routes: [] as RouteOption[] }))
-      )
+      drivers.map(d => loadDriverRoutes(d.id).then(routes => ({ id: d.id, routes })).catch(() => ({ id: d.id, routes: [] as RouteOption[] })))
     ).then(results => {
       const map: Record<string, RouteOption[]> = {};
       for (const r of results) map[r.id] = r.routes.filter(rt => rt.status !== 'CLOSED' && rt.status !== 'CANCELLED');
       setPrefetchedRoutes(map);
     }).finally(() => setPrefetching(false));
-  }, [open, drivers]);
+  }, [open, drivers, loadDriverRoutes]);
 
   const fetchDriverRoutes = useCallback(async (driverId: string) => {
     setLoadingRoutes(true);
     setRoutes([]);
     try {
-      const from = new Date().toISOString().slice(0, 10);
-      const to = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-      const res = await api.get(`/api/admin/routes/driver/${driverId}`, { params: { from, to } });
-      const data: RouteOption[] = Array.isArray(res.data) ? res.data : [];
+      const data = await loadDriverRoutes(driverId);
       let active = data.filter(r => r.status !== 'CLOSED' && r.status !== 'CANCELLED');
       if (isBatch) active = active.filter(r => r.status === 'DRAFT');
       setRoutes(active);
@@ -270,7 +318,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
     } finally {
       setLoadingRoutes(false);
     }
-  }, [isBatch]);
+  }, [isBatch, loadDriverRoutes]);
 
   const selectDriver = (driverId: string) => {
     setSelectedDriverId(driverId);
@@ -283,6 +331,46 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
     setInsertAfterStopId(null);
     setAcknowledgeOverload(false);
     setStep(3);
+  };
+
+  // Road-proximity ranking (OSRM) for the recommended quick-pick — single-target reassign only.
+  const [nearest, setNearest] = useState<Record<string, NearestInfo>>({});
+  useEffect(() => {
+    if (!open || isBatch || !target?.deliveryId) { setNearest({}); return; }
+    let alive = true;
+    api.get(`/api/admin/ops/exceptions/${target.deliveryId}/nearest-drivers`, { params: { limit: 8 } })
+      .then(res => {
+        if (!alive) return;
+        const map: Record<string, NearestInfo> = {};
+        (Array.isArray(res.data) ? res.data : []).forEach((r: { driverId: string; etaSeconds: number | null; distanceMeters: number | null; source: string }, i: number) => {
+          map[r.driverId] = { etaSeconds: r.etaSeconds, distanceMeters: r.distanceMeters, source: r.source, rank: i };
+        });
+        setNearest(map);
+      })
+      .catch(() => { if (alive) setNearest({}); });
+    return () => { alive = false; };
+  }, [open, isBatch, target?.deliveryId]);
+
+  // Quick path: reassign straight to a driver (server auto-resolves/creates the route, window + position
+  // inherited). In-field parcels need a handover note, so route those through the detailed flow instead.
+  const quickReassign = async (driverId: string) => {
+    const inField = allTargets.some(x => x.status === 'PICKED_UP' || x.status === 'IN_TRANSIT');
+    if (inField) { selectDriver(driverId); return; }
+    setSubmitting(true);
+    try {
+      let ok = 0, fail = 0;
+      for (const x of allTargets) {
+        try { await api.post(`/api/admin/ops/exceptions/${x.deliveryId}/reassign`, { driverId, note: '' }); ok++; }
+        catch { fail++; }
+      }
+      if (ok > 0 && fail === 0) showSuccessToast('successReassignToActive');
+      else if (ok > 0) showErrorToast(undefined, 'errorReassignPartialSuccess');
+      else showErrorToast(undefined, 'errorReassignFailed');
+      onSuccess();
+      onClose();
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const locale = useLocaleStore(s => s.locale);
@@ -445,8 +533,13 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
       open={open}
       onClose={onClose}
       title={drawerTitle}
-      width={520}
-      footer={step === 3 ? (
+      width={680}
+      footer={step === 1 ? (
+        <div className="flex items-center gap-2 w-full text-2xs text-[var(--text-muted)]">
+          <IconBolt size={14} className="text-[var(--brand)] shrink-0" />
+          <span>{t.reassignDrawer.pickerHint}</span>
+        </div>
+      ) : step === 3 ? (
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" size="sm" onClick={() => setStep(2)}>
             {t.reassignDrawer.backButton}
@@ -467,8 +560,9 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         </div>
       ) : undefined}
     >
-      {/* Step indicator + breadcrumb */}
-      <div className="mb-5 px-5">
+      {/* Wizard chrome only for the detailed path (steps 2-3). Step 1 is the single-screen picker. */}
+      {step > 1 && (
+      <div className="mb-5 px-6 pt-2">
         <StepIndicator step={step} />
         {step > 1 && selectedDriver && (
           <div className="flex items-center gap-1 mt-2 text-xs">
@@ -497,6 +591,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           </div>
         )}
       </div>
+      )}
 
       {/* ─── Step 1: Pick driver ─────────────────────────────────────── */}
       {step === 1 && (() => {
@@ -522,82 +617,102 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           });
         };
 
+        // Exclude the driver(s) currently holding the delivery being reassigned — reassigning to the same
+        // driver is a no-op. (Assign mode has no current driver, so this excludes nothing.)
+        const currentDriverNames = new Set(allTargets.map(x => x.driverName).filter(Boolean));
         const searched = drivers.filter(d =>
-          !driverSearch.trim() || d.name.toLowerCase().includes(driverSearch.toLowerCase())
+          (!driverSearch.trim() || d.name.toLowerCase().includes(driverSearch.toLowerCase())) &&
+          !currentDriverNames.has(d.name)
         );
-        const online = sortDrivers(searched.filter(d => d.onlineStatus === 'ONLINE'));
-        const onBreak = sortDrivers(searched.filter(d => d.onlineStatus === 'ON_BREAK'));
-        const offline = sortDrivers(searched.filter(d => !d.onlineStatus || d.onlineStatus === 'OFFLINE'));
+        // Recommended = closest driver by road (OSRM rank). Excluded from the tiers below to avoid a dup.
+        const recommendedId = (() => {
+          let best: string | null = null, bestRank = Infinity;
+          for (const d of searched) {
+            const n = nearest[d.id];
+            if (n && n.rank < bestRank) { bestRank = n.rank; best = d.id; }
+          }
+          return best;
+        })();
+        const recommended = recommendedId ? searched.find(d => d.id === recommendedId) ?? null : null;
+
+        const online = sortDrivers(searched.filter(d => d.onlineStatus === 'ONLINE' && d.id !== recommendedId));
+        const onBreak = sortDrivers(searched.filter(d => d.onlineStatus === 'ON_BREAK' && d.id !== recommendedId));
+        const offline = sortDrivers(searched.filter(d => (!d.onlineStatus || d.onlineStatus === 'OFFLINE') && d.id !== recommendedId));
 
         const onlineWithRoute = online.filter(d => hasActiveRoute(d));
         const onlineWithoutRoute = online.filter(d => !hasActiveRoute(d));
 
-        const DriverCard = ({ driver, dimmed = false }: { driver: Driver; dimmed?: boolean }) => {
-          const dist = getDistance(driver);
+        // Clean row — NO status dots (see .ai/anti-slop.md): status + GPS recency are TEXT in tone tokens.
+        const DriverCard = ({ driver, dimmed = false, recommended: isRec = false }: { driver: Driver; dimmed?: boolean; recommended?: boolean }) => {
+          const near = nearest[driver.id];
+          const hav = getDistance(driver);
+          const etaTxt = formatEta(near?.etaSeconds);
+          const kmTxt = formatKm(near?.distanceMeters) ?? (hav != null ? `${hav.toFixed(1)} km` : null);
+          const proximity = [etaTxt, kmTxt].filter(Boolean).join(' · ');
           const routes = driverRoutes(driver);
           const status = driver.onlineStatus ?? 'OFFLINE';
           const statusCfg = DRIVER_STATUS_COLOR[status as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
           const activeStopCount = routes.reduce((sum, r) => sum + r.stops.filter(s => !STOP_STATUS_DONE.has(s.status)).length, 0);
-          const totalStopCount = routes.reduce((sum, r) => sum + r.stops.length, 0);
+          const seen = formatSeen(driver.lastLocationAt);
+          const routeTxt = routes.length > 0
+            ? `${ROUTE_STATUS_LABEL[routes[0].status] ?? routes[0].status} · ${routes[0].stops.filter(s => STOP_STATUS_DONE.has(s.status)).length}/${routes[0].stops.length}${activeStopCount > 0 ? ` · ${activeStopCount} ${t.reassignDrawer.stopFree}` : ''}`
+            : prefetching ? t.reassignDrawer.loadingRoutes : t.reassignDrawer.noRoutes;
 
-          return (
+          const Sub = (
+            <div className="flex items-center gap-x-1.5 gap-y-0 flex-wrap text-2xs">
+              <span className="font-medium" style={{ color: statusCfg.text }}>{statusCfg.label}</span>
+              {seen && <><span className="text-[var(--text-soft)]">·</span><span style={{ color: seen.fresh ? 'var(--success)' : 'var(--text-muted)' }}>{seen.text}</span></>}
+              <span className="text-[var(--text-soft)]">·</span><span className="text-[var(--text-muted)] tabular-nums">{routeTxt}</span>
+            </div>
+          );
+          const ReassignBtn = (
             <button
-              key={driver.id}
               type="button"
+              onClick={e => { e.stopPropagation(); void quickReassign(driver.id); }}
+              disabled={submitting}
+              className={cn(
+                'h-8 px-3.5 rounded-md text-xs font-semibold transition-colors disabled:opacity-50 shrink-0',
+                isRec
+                  ? 'bg-[var(--brand)] text-white hover:opacity-90'
+                  : 'border border-[var(--border)] text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)]',
+              )}
+            >
+              {t.reassignDrawer.assignAction ?? 'Réaffecter'}
+            </button>
+          );
+
+          if (isRec) {
+            return (
+              <div
+                onClick={() => selectDriver(driver.id)}
+                className="rounded-xl p-3.5 flex items-center gap-3.5 cursor-pointer transition-colors hover:bg-[var(--hover-bg)]"
+                style={{ background: 'var(--surface-sunken)' }}
+              >
+                <DriverAvatarById driverId={driver.id} name={driver.name} size={42} />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-[var(--text-primary)] truncate">{driver.name}</p>
+                  <div className="mt-0.5">{Sub}</div>
+                  {proximity && <p className="mt-1 text-sm font-semibold text-[var(--text-primary)] tabular-nums">{proximity}</p>}
+                </div>
+                {ReassignBtn}
+              </div>
+            );
+          }
+          return (
+            <div
               onClick={() => selectDriver(driver.id)}
-              className="w-full text-left"
+              className="flex items-center gap-3 py-2.5 px-1 -mx-1 border-t border-[var(--border)] cursor-pointer transition-colors hover:bg-[var(--app-bg)]"
               style={{ opacity: dimmed ? 0.6 : 1 }}
             >
-              <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent hover:bg-[var(--app-bg)] transition-colors cursor-pointer">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2 flex-1 min-w-0">
-                    <div className="relative shrink-0">
-                      <DriverAvatar name={driver.name} photoUrl={driver.photoUrl} size={28} />
-                      <span className="absolute bottom-0 right-0 block h-2 w-2 rounded-full ring-1 ring-[var(--surface)]" style={{ background: statusCfg.dot }} />
-                    </div>
-                    <div className="flex-1 min-w-0 flex flex-col gap-1">
-                      <div className="flex items-center gap-1 flex-wrap">
-                        <span className="text-sm font-semibold text-[var(--text-primary)]">{driver.name}</span>
-                        {dimmed && (
-                          <span className="text-2xs font-medium px-1.5 py-0.5 rounded-xs" style={{ background: statusCfg.bg, color: statusCfg.text }}>
-                            {statusCfg.label}
-                          </span>
-                        )}
-                      </div>
-                      {routes.length > 0 ? (
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {routes.slice(0, 1).map(r => (
-                            <div key={r.id} className="flex items-center gap-1.5">
-                              <span className="text-2xs font-medium text-[var(--text-muted)]">
-                                {ROUTE_STATUS_LABEL[r.status] ?? r.status}
-                              </span>
-                              <span className="text-2xs font-mono text-[var(--text-muted)]">
-                                {r.stops.filter(s => STOP_STATUS_DONE.has(s.status)).length}/{r.stops.length}
-                              </span>
-                            </div>
-                          ))}
-                          {activeStopCount > 0 && (
-                            <span className="text-2xs text-[var(--text-muted)]">
-                              {activeStopCount} arrêt{activeStopCount !== 1 ? 's' : ''} {t.reassignDrawer.stopFree}
-                            </span>
-                          )}
-                        </div>
-                      ) : prefetching ? (
-                        <span className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.loadingRoutes}</span>
-                      ) : (
-                        <span className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.noRoutes}</span>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {dist != null && (
-                      <span className="text-xs font-medium text-[var(--text-primary)] font-mono">{dist.toFixed(1)} km</span>
-                    )}
-                    <IconChevronRight size={14} className="text-[var(--text-muted)] opacity-50" />
-                  </div>
-                </div>
+              <DriverAvatarById driverId={driver.id} name={driver.name} size={34} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{driver.name}</p>
+                <div className="mt-0.5">{Sub}</div>
               </div>
-            </button>
+              {proximity && <span className="text-xs font-medium text-[var(--text-secondary)] tabular-nums whitespace-nowrap shrink-0">{proximity}</span>}
+              {ReassignBtn}
+              <IconChevronRight size={15} className="text-[var(--text-muted)] shrink-0" />
+            </div>
           );
         };
 
@@ -606,13 +721,20 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         );
 
         return (
-          <div className="flex flex-col gap-2 px-5 pb-4">
+          <div className="flex flex-col gap-2 px-6 pb-5">
             <FieldInput
               placeholder={t.reassignDrawer.searchPlaceholder}
               value={driverSearch}
               onChange={e => setDriverSearch(e.currentTarget.value)}
               leftSection={<IconUser size={14} />}
             />
+
+            {recommended && (
+              <>
+                <TierLabel label={t.reassignDrawer.recommendedLabel ?? 'Recommandé'} />
+                <DriverCard driver={recommended} recommended />
+              </>
+            )}
 
             {onlineWithRoute.length > 0 && (
               <>
@@ -643,9 +765,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                 <button
                   type="button"
                   onClick={() => setOfflineExpanded(v => !v)}
-                  className="flex items-center gap-1.5 py-2 w-full text-2xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
+                  className="flex items-center gap-1.5 py-2 w-full text-2xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors border-t border-[var(--border)]"
                 >
-                  <span className="w-2 h-2 rounded-full bg-[var(--text-muted)] opacity-40" />
                   <span>
                     {offlineExpanded ? t.reassignDrawer.hideOffline : t.reassignDrawer.showOffline} {offline.length} {t.reassignDrawer.offlineLabel}
                   </span>
@@ -667,13 +788,41 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             {online.length === 0 && onBreak.length === 0 && !offlineExpanded && offline.length === 0 && (
               <p className="text-sm text-[var(--text-soft)] text-center py-6">{t.reassignDrawer.noDriver}</p>
             )}
+
+            {/* Advanced options — collapsed by default (progressive disclosure). The detailed route /
+                window / stop-position flow is reached by clicking a driver row instead of "Réaffecter". */}
+            {!isBatch && (
+              <div className="border-t border-[var(--border)] mt-1 pt-3">
+                <button
+                  type="button"
+                  onClick={() => setAdvancedOpen(v => !v)}
+                  className="flex items-center justify-between w-full"
+                >
+                  <span className="flex items-center gap-2 text-sm font-semibold text-[var(--text-primary)]">
+                    <IconAdjustments size={16} className="text-[var(--text-secondary)]" />
+                    {t.reassignDrawer.advancedOptions}
+                  </span>
+                  <IconChevronDown size={15} className="text-[var(--text-muted)] transition-transform" style={{ transform: advancedOpen ? 'rotate(180deg)' : 'none' }} />
+                </button>
+                {advancedOpen && (
+                  <div className="mt-2.5 ps-6 flex flex-col gap-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      <AdvChip icon={<IconClock size={12} />} label={t.reassignDrawer.timeWindowInherited ?? 'Créneau conservé'} />
+                      <AdvChip icon={<IconMapPin size={12} />} label={t.reassignDrawer.chipAddedEnd ?? 'Ajouté en fin'} />
+                      <AdvChip icon={<IconNote size={12} />} label={t.reassignDrawer.chipNoNote ?? 'Sans note'} />
+                    </div>
+                    <p className="text-2xs leading-relaxed text-[var(--text-muted)]">{t.reassignDrawer.advancedHint}</p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         );
       })()}
 
       {/* ─── Step 2: Pick route/date ─────────────────────────────────── */}
       {step === 2 && (
-        <div className="flex flex-col gap-4 px-5 pb-4">
+        <div className="flex flex-col gap-4 px-6 pb-5">
           {loadingRoutes && (
             <div className="flex items-center justify-center gap-2 py-8">
               <svg className="animate-spin h-4 w-4 text-[var(--brand)]" fill="none" viewBox="0 0 24 24">
@@ -754,7 +903,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
 
       {/* ─── Step 3: Configure stop ───────────────────────────────────── */}
       {step === 3 && selectedRoute && (
-        <div className="flex flex-col gap-4 px-5 pb-4">
+        <div className="flex flex-col gap-4 px-6 pb-5">
           {/* Delivery info recap */}
           {isBatch ? (
             <div className="p-3 rounded-sm border border-[var(--border)] bg-transparent">
@@ -813,7 +962,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
               }}
             >
               <div className="flex items-center justify-between">
-                <span className="text-2xs font-black uppercase tracking-[0.05em]" style={{ color: 'var(--text-primary)' }}>
+                <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   {t.reassignDrawer.capacityLabel}
                 </span>
                 <span className="text-xs font-bold" style={{ color: capacityInfo.over ? 'var(--danger)' : 'var(--text-primary)' }}>
@@ -844,19 +993,33 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             </div>
           )}
 
-          {/* Time windows */}
+          {/* Time windows — the on-time reference (client créneau). Inherited if untouched. */}
           {!isBatch && (
-            <div className="flex flex-col gap-2">
-              <span className="text-2xs font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
-                {t.reassignDrawer.timeWindowLabel}
-              </span>
-              <div className="grid grid-cols-2 gap-2">
+            <div className="flex flex-col gap-3 rounded-lg border border-[var(--border)] bg-[var(--surface)] p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="flex items-center justify-center w-8 h-8 rounded-md bg-[var(--brand-bg)] shrink-0">
+                    <IconClock size={16} className="text-[var(--brand)]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[var(--text-primary)] leading-tight">{t.reassignDrawer.timeWindowLabel}</p>
+                    <p className="text-2xs text-[var(--text-muted)]">{t.reassignDrawer.timeWindowSub ?? 'Référence de ponctualité'}</p>
+                  </div>
+                </div>
+                {!startTimeWindow && !endTimeWindow && (
+                  <span className="text-2xs font-semibold px-2 py-1 rounded-md shrink-0" style={{ background: 'var(--surface-sunken)', color: 'var(--text-muted)' }}>
+                    {t.reassignDrawer.timeWindowInherited ?? 'Créneau actuel conservé'}
+                  </span>
+                )}
+              </div>
+              <p className="text-2xs leading-relaxed text-[var(--text-muted)]">{t.reassignDrawer.timeWindowHint}</p>
+              <div className="grid grid-cols-2 gap-3">
                 <FieldInput
                   label={t.reassignDrawer.timeWindowStart}
                   placeholder="08:00"
                   value={startTimeWindow}
                   onChange={e => setStartTimeWindow(e.currentTarget.value)}
-                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
+                  leftSection={<IconClock size={14} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
                   type="time"
                   error={hasTimeConflict ? ' ' : undefined}
                 />
@@ -865,7 +1028,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
                   placeholder="18:00"
                   value={endTimeWindow}
                   onChange={e => setEndTimeWindow(e.currentTarget.value)}
-                  leftSection={<IconClock size={12} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
+                  leftSection={<IconClock size={14} className={hasTimeConflict ? 'text-[var(--danger)]' : ''} />}
                   type="time"
                   error={errStartGtEnd ? t.reassignDrawer.timeWindowError : undefined}
                 />
@@ -901,7 +1064,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
             const canPickPosition = selectedRoute.status === 'DRAFT' || selectedRoute.status === 'VALIDATED';
             return (
               <div className="flex flex-col gap-2">
-                <span className="text-2xs font-black text-[var(--text-primary)] uppercase tracking-[0.05em]">
+                <span className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">
                   Arrêts de la tournée
                 </span>
                 <p className="text-2xs text-[var(--text-muted)]">

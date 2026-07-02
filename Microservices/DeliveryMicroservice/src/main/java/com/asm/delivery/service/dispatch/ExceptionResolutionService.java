@@ -63,6 +63,7 @@ public class ExceptionResolutionService {
     private final DispatchService dispatchService;
     private final RouteWebSocketService routeWebSocketService;
     private final OutboxProcessor outboxProcessor;
+    private final com.asm.delivery.service.route.PickupStopReconciler pickupStopReconciler;
     private final com.asm.delivery.service.HandoffService handoffService;
     private final com.asm.delivery.sla.SlaStateService slaStateService;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
@@ -87,10 +88,17 @@ public class ExceptionResolutionService {
 		// 1. Transactional Mutation
 		Set<UUID> affectedRouteIds = self.doReassign(deliveryId, request, principal, fromDriverName, toDriverName);
 
-		// 2. Post-Transaction Optimization (Outside DB Lock)
+		// 2. Post-Transaction Optimization (Outside DB Lock).
+		// Best-effort: the reassign is already committed, and ETA/geometry recompute is advisory (a
+		// depot-less draft, OSRM hiccup, etc. must not turn a successful reassign into a 400). Honest
+		// state — the stop IS placed; we just log if the cosmetic recalc couldn't run.
 		for (UUID routeId : affectedRouteIds) {
 			if (routeId == null) continue;
-			routeOptimizationService.recalculate(routeId);
+			try {
+				routeOptimizationService.recalculate(routeId);
+			} catch (Exception e) {
+				log.warn("Post-reassign recalc skipped for route {} (reassign still committed): {}", routeId, e.getMessage());
+			}
 		}
 
 		// 3. Return final state — must use join-fetch variant so Order proxy is
@@ -241,6 +249,15 @@ public class ExceptionResolutionService {
 			dispatchService.validateCapacity(targetRoute, request.isAcknowledgeOverload());
 		}
 
+		// Multi-depot integrity: reconcile PICKUP stops on every route the move touched — drop a depot
+		// load the SOURCE no longer needs, add the load the TARGET now needs. In this transaction so a
+		// broken plan can never commit; per-route status dispatch handles a live source + draft target
+		// in one pass. A handed-off in-field parcel keeps pickedUpAt, so it never pulls a spurious pickup.
+		for (UUID affectedRouteId : affectedRouteIds) {
+			if (affectedRouteId == null) continue;
+			routeRepository.findById(affectedRouteId).ifPresent(pickupStopReconciler::reconcile);
+		}
+
 		// Custody handoff (parcel already in the field) is opened below, after the
 		// stop has been moved onto the new driver's route — see the event section.
 
@@ -372,7 +389,14 @@ public class ExceptionResolutionService {
                 auditLogService.logAction(principal, "REPLAN_DELIVERY", "DELIVERY", delivery.getId().toString(), auditDetails);
 
                 // Replan means pull the delivery out of the current execution route and return it to dispatch pool.
+                // Capture the source route BEFORE the stop leaves it so we can drop a now-orphaned depot load
+                // (a SCHEDULED remote-depot delivery being replanned may be the last one needing its pickup).
+                UUID replanSourceRouteId = routeStopRepository.findActiveByDeliveryIdWithRoute(delivery.getId())
+                                .map(s -> s.getRoute() != null ? s.getRoute().getId() : null).orElse(null);
                 removeStopFromCurrentRoute(delivery.getId());
+                if (replanSourceRouteId != null) {
+                        routeRepository.findById(replanSourceRouteId).ifPresent(pickupStopReconciler::reconcile);
+                }
 
                 appendHistory(delivery,
                                 DeliveryStatus.UNSCHEDULED,
@@ -450,8 +474,9 @@ public class ExceptionResolutionService {
         delivery.setCancelReason(reason);
         deliveryRepo.save(delivery);
 
-        // Remove the associated route stop (soft-delete)
-        routeStopRepository.findActiveByDeliveryId(deliveryId).ifPresent(stop -> {
+        // Remove the associated route stop (soft-delete). Capture the route so its PICKUP stops can be
+        // reconciled after — cancelling the last delivery from a remote depot orphans that depot's load.
+        UUID cancelRouteId = routeStopRepository.findActiveByDeliveryId(deliveryId).map(stop -> {
             Route route = stop.getRoute();
             if (route != null && (route.getStatus() == RouteStatus.VALIDATED || route.getStatus() == RouteStatus.IN_PROGRESS)) {
                 stop.setStatus(RouteStopStatus.REMOVED_CANCELLED);
@@ -464,10 +489,16 @@ public class ExceptionResolutionService {
                 routeWebSocketService.notifyDriverStopRemoved(
                     route.getDriverId(), route.getId(), route.getName(),
                     clientName, erpOrderId, reason);
+                return route.getId();
             } else if (route != null && route.getStatus() == RouteStatus.DRAFT) {
                 routeStopRepository.delete(stop);
+                return route.getId();
             }
-        });
+            return null;
+        }).orElse(null);
+        if (cancelRouteId != null) {
+            routeRepository.findById(cancelRouteId).ifPresent(pickupStopReconciler::reconcile);
+        }
 
         appendHistory(delivery, DeliveryStatus.CANCELLED, com.asm.delivery.web.ActorContext.changedBy(), com.asm.delivery.web.ActorContext.role(),
                 "DELIVERY_CANCELLED",
@@ -776,43 +807,44 @@ public class ExceptionResolutionService {
                 }
 
                 affectedRouteIds.add(targetRoute.getId());
-                List<RouteStop> targetStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
-                
-                // Determine final windows
+                List<RouteStop> allStops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(targetRoute.getId());
+                // Real sequence only — soft-deleted stops are audit rows, not positions.
+                List<RouteStop> realStops = allStops.stream()
+                        .filter(s -> !REMOVED_STOP_STATUSES.contains(s.getStatus()))
+                        .toList();
+
+                // Determine final windows (requested → else inherit the source stop's window).
                 java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getStartTimeWindow() : null);
                 java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getEndTimeWindow() : null);
 
-                // Chronological check only for DRAFT routes — active routes accept stops without strict ordering
-                if (finalStartTime != null && !targetStops.isEmpty() && targetRoute.getStatus() == RouteStatus.DRAFT) {
-                    int pos = (insertAtOrder != null) ? insertAtOrder : targetStops.size() + 1;
-                    
-                    // Check against previous stop (if any)
-                    if (pos > 1) {
-                        RouteStop prev = targetStops.get(pos - 2);
-                        java.time.LocalTime prevRef = prev.getEndTimeWindow() != null ? prev.getEndTimeWindow() 
-                                          : (prev.getEtaAt() != null ? prev.getEtaAt().toLocalTime() : targetRoute.getPlannedStartTime());
-                        if (prevRef != null && finalStartTime.isBefore(prevRef)) {
-                            throw AppException.badRequest(
-                                "ROUTE_TIME_CONFLICT",
-                                "Time conflict: Previous stop ends at " + prevRef + ". Requested start time (" + finalStartTime + ") is invalid.",
-                                Map.of("limitTime", prevRef.toString(), "requestedTime", finalStartTime.toString(), "conflictType", "PREVIOUS")
-                            );
+                // Decide where the stop lands — manual start/end windows only, no ETA (ADR-028).
+                int targetOrder;
+                if (insertAtOrder != null) {
+                        // Configurable path: the dispatcher chose the position. Enforce only the immovable
+                        // floor — a stop can never precede an already-completed one (livré/partiel/échec).
+                        // Window overlaps are allowed here: a deliberate human choice, and the SLA still
+                        // flags any resulting retard.
+                        int floorOrder = 1;
+                        for (RouteStop s : realStops) {
+                                if (COMPLETED_STOP_STATUSES.contains(s.getStatus())) floorOrder = s.getStopOrder() + 1;
                         }
-                    }
-                    
-                    // Check against next stop (if any)
-                    if (pos <= targetStops.size()) {
-                        RouteStop next = targetStops.get(pos - 1);
-                        java.time.LocalTime nextRef = next.getStartTimeWindow() != null ? next.getStartTimeWindow() 
-                                          : (next.getEtaAt() != null ? next.getEtaAt().toLocalTime() : targetRoute.getPlannedEndTime());
-                        if (nextRef != null && finalEndTime != null && finalEndTime.isAfter(nextRef)) {
-                            throw AppException.badRequest(
-                                "ROUTE_TIME_CONFLICT",
-                                "Time conflict: Next stop starts at " + nextRef + ". Requested end time (" + finalEndTime + ") is invalid.",
-                                Map.of("limitTime", nextRef.toString(), "requestedTime", finalEndTime.toString(), "conflictType", "NEXT")
-                            );
+                        if (insertAtOrder < floorOrder) {
+                                throw AppException.badRequest("INSERT_BEFORE_COMPLETED",
+                                        "Cannot insert before an already-completed stop — earliest allowed position is " + floorOrder + ".",
+                                        Map.of("minOrder", String.valueOf(floorOrder), "requestedOrder", String.valueOf(insertAtOrder), "conflictType", "PAST"));
                         }
-                    }
+                        targetOrder = insertAtOrder;
+                } else {
+                        // One-click path: auto-place. Any conflict (overlap or a window in the frozen past)
+                        // means we refuse so the UI can escalate to the configurable editor — we never
+                        // silently append a doomed stop at the end.
+                        InsertionPlan plan = resolveInsertion(realStops, finalStartTime, finalEndTime);
+                        if (plan.hasConflict()) {
+                                throw AppException.badRequest(plan.conflictCode(), plan.conflictMessage(), plan.conflictDetails());
+                        }
+                        targetOrder = plan.index() < realStops.size()
+                                ? realStops.get(plan.index()).getStopOrder()
+                                : (realStops.isEmpty() ? 1 : realStops.get(realStops.size() - 1).getStopOrder() + 1);
                 }
 
                 // Extend Route boundaries if the newly placed window is outside Current bounds
@@ -829,19 +861,15 @@ public class ExceptionResolutionService {
                         routeRepository.save(targetRoute);
                 }
 
-                int nextOrder;
-                if (insertAtOrder != null && insertAtOrder >= 1 && insertAtOrder <= targetStops.size() + 1) {
-                        nextOrder = insertAtOrder;
-                        // Shift subsequent stops down
-                        for (RouteStop s : targetStops) {
-                                if (s.getStopOrder() >= nextOrder) {
-                                        s.setStopOrder(s.getStopOrder() + 1);
-                                        routeStopRepository.save(s);
-                                }
+                // Shift real stops at/after the target order down to make room (no-op when appending).
+                for (RouteStop s : realStops) {
+                        if (s.getStopOrder() >= targetOrder) {
+                                s.setStopOrder(s.getStopOrder() + 1);
+                                routeStopRepository.save(s);
                         }
-                } else {
-                        nextOrder = targetStops.size() + 1;
                 }
+
+                int nextOrder = targetOrder;
 
                 routeStopRepository.save(RouteStop.builder()
                                 .route(targetRoute)
@@ -855,6 +883,109 @@ public class ExceptionResolutionService {
                                 .build());
 
                 return affectedRouteIds;
+        }
+
+        // Stops that represent a physical visit / recorded outcome — the route's frozen past
+        // (livré / partiel / échec). A new stop can never be inserted before one of these.
+        private static final Set<RouteStopStatus> COMPLETED_STOP_STATUSES = Set.of(
+                RouteStopStatus.COMPLETED, RouteStopStatus.PARTIAL,
+                RouteStopStatus.FAILED, RouteStopStatus.FAILED_ATTEMPT);
+
+        // Soft-deleted stops — audit rows, not part of the live sequence.
+        private static final Set<RouteStopStatus> REMOVED_STOP_STATUSES = Set.of(
+                RouteStopStatus.REMOVED_REPLANNED, RouteStopStatus.REMOVED_CANCELLED);
+
+        /** Where a stop should land. {@code index} is the 0-based insertion point into the *real* stop
+         *  list (0 = front of the pending tail, size = append). When {@code conflictCode != null} the
+         *  placement collides — the one-click path refuses and hands the dispatcher the configurable
+         *  editor instead of silently creating a doomed stop. */
+        private record InsertionPlan(int index, String conflictCode, String conflictMessage, Map<String, Object> conflictDetails) {
+                boolean hasConflict() { return conflictCode != null; }
+                static InsertionPlan ok(int index) { return new InsertionPlan(index, null, null, null); }
+        }
+
+        /**
+         * Decide where a stop with window [{@code startW},{@code endW}] belongs in {@code realStops}
+         * (already filtered of REMOVED_*), using ONLY the manual start/end windows — no ETA (ADR-028):
+         *  1. <b>Floor</b>: never before the last completed stop (livré/partiel/échec) — the past is frozen.
+         *  2. <b>Order</b> by start window, tie-broken by the earliest end window (EDD / Jackson's rule —
+         *     the tighter deadline goes first). Stops with no start window are "anytime" and don't force a slot.
+         *  3. <b>Conflict</b>: the window can only be honoured before the floor, or the chosen slot overlaps a
+         *     neighbour (previous stop still open at our start, or we run past the next stop's start).
+         * The SLA engine still measures every stop against its own window, so a residual overlap surfaces as
+         * a retard rather than being hidden.
+         */
+        private InsertionPlan resolveInsertion(List<RouteStop> realStops, LocalTime startW, LocalTime endW) {
+                int n = realStops.size();
+
+                // 1. Floor — insertion index must be >= the slot right after the last completed stop.
+                int floorIdx = 0;
+                for (int i = 0; i < n; i++) {
+                        if (COMPLETED_STOP_STATUSES.contains(realStops.get(i).getStatus())) floorIdx = i + 1;
+                }
+
+                // 2. Window-ordered index (start window, then EDD on end), clamped to the floor.
+                int idx = n;
+                if (startW != null) {
+                        for (int i = floorIdx; i < n; i++) {
+                                LocalTime s = realStops.get(i).getStartTimeWindow();
+                                if (s == null) continue; // anytime — doesn't force a position
+                                LocalTime e = realStops.get(i).getEndTimeWindow();
+                                boolean after = s.isAfter(startW)
+                                        || (s.equals(startW) && e != null && endW != null && e.isAfter(endW));
+                                if (after) { idx = i; break; }
+                        }
+                }
+                if (idx < floorIdx) idx = floorIdx;
+
+                // 3a. Floor conflict — the window closes before the last completed stop (a window in the past).
+                if (startW != null && endW != null && floorIdx > 0) {
+                        RouteStop lastDone = realStops.get(floorIdx - 1);
+                        LocalTime doneRef = lastDone.getEndTimeWindow() != null ? lastDone.getEndTimeWindow() : lastDone.getStartTimeWindow();
+                        if (doneRef != null && endW.isBefore(doneRef)) {
+                                return new InsertionPlan(idx, "INSERT_BEFORE_COMPLETED",
+                                        "This delivery's window (" + startW + "–" + endW + ") closes before the last completed stop ("
+                                          + doneRef + "). It can't be honoured on this route — change the window or pick another driver.",
+                                        Map.of("limitTime", doneRef.toString(), "requestedTime", endW.toString(), "conflictType", "PAST"));
+                        }
+                }
+
+                // 3b. Overlap with the immediate neighbours at the chosen slot.
+                if (startW != null && idx - 1 >= 0 && idx - 1 < n) {
+                        RouteStop prev = realStops.get(idx - 1);
+                        if (prev.getEndTimeWindow() != null && startW.isBefore(prev.getEndTimeWindow())) {
+                                return new InsertionPlan(idx, "ROUTE_TIME_CONFLICT",
+                                        "Overlaps the previous stop, which stays open until " + prev.getEndTimeWindow() + ".",
+                                        Map.of("limitTime", prev.getEndTimeWindow().toString(), "requestedTime", startW.toString(), "conflictType", "PREVIOUS"));
+                        }
+                }
+                if (endW != null && idx >= 0 && idx < n) {
+                        RouteStop next = realStops.get(idx);
+                        if (next.getStartTimeWindow() != null && endW.isAfter(next.getStartTimeWindow())) {
+                                return new InsertionPlan(idx, "ROUTE_TIME_CONFLICT",
+                                        "Overlaps the next stop, which starts at " + next.getStartTimeWindow() + ".",
+                                        Map.of("limitTime", next.getStartTimeWindow().toString(), "requestedTime", endW.toString(), "conflictType", "NEXT"));
+                        }
+                }
+
+                return InsertionPlan.ok(idx);
+        }
+
+        private static final java.util.regex.Pattern SEQ_ROUTE_NAME = java.util.regex.Pattern.compile("^R(\\d+)$");
+
+        /** Next sequential route code (R001, R002, …) — mirrors RoutePlanningService.nextRouteName so an
+         *  auto-created dispatch draft gets the same clean code as a manually built route, never a raw
+         *  machine label ("Dispatch route <date> <uuid8>"). */
+        private String nextSequentialRouteName() {
+                int max = 0;
+                for (String n : routeRepository.findGeneratedRouteNames()) {
+                        if (n == null) continue;
+                        var mt = SEQ_ROUTE_NAME.matcher(n.trim());
+                        if (mt.matches()) {
+                                try { max = Math.max(max, Integer.parseInt(mt.group(1))); } catch (NumberFormatException ignored) { }
+                        }
+                }
+                return String.format("R%03d", max + 1);
         }
 
         private Route findOrCreateRouteForDriver(UUID driverId, Route sourceRoute, Delivery delivery, String actorName) {
@@ -873,13 +1004,17 @@ public class ExceptionResolutionService {
                 String city = sourceRoute != null ? sourceRoute.getCity() : (delivery.getOrder() != null ? delivery.getOrder().getDropoffCity() : null);
 
                 Route draftRoute = Route.builder()
-                                .name("Dispatch route " + date + " " + driverId.toString().substring(0, 8))
+                                .name(nextSequentialRouteName())
                                 .driverId(driverId)
                                 .vehicleId(null)
                                 .date(date)
                                 .plannedStartTime(sourceRoute != null && sourceRoute.getPlannedStartTime() != null ? sourceRoute.getPlannedStartTime() : LocalTime.of(8, 0))
                                 .plannedEndTime(sourceRoute != null && sourceRoute.getPlannedEndTime() != null ? sourceRoute.getPlannedEndTime() : LocalTime.of(18, 0))
-                                .depotId(sourceRoute != null ? sourceRoute.getDepotId() : null)
+                                // Home the fresh route at the moved parcel's OWN depot, not the source route's:
+                                // a single-box brouillon for a WH2 parcel should start at WH2 (zero pickup detour),
+                                // not inherit WH1 from the route it left. Falls back to the source depot when unknown.
+                                .depotId(delivery.getSourceDepotId() != null ? delivery.getSourceDepotId()
+                                                : (sourceRoute != null ? sourceRoute.getDepotId() : null))
                                 .city(city)
                                 .status(inheritedStatus)
                                 .createdBy(creator)

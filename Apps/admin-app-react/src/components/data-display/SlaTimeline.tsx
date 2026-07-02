@@ -30,7 +30,7 @@ interface SlaTimelineData {
     failureCode?: string; failReason?: string;
     backorderDirection?: 'parent' | 'child'; backorderDeliveryId?: string; backorderBlNumber?: string;
     podComment?: string;
-    itemOutcomes?: { name?: string; outcome?: string; reason?: string; comment?: string }[];
+    itemOutcomes?: { name?: string; outcome?: string; reason?: string; comment?: string; quantity?: number; quantityDone?: number }[];
   };
 }
 
@@ -326,6 +326,7 @@ function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = fal
               {it.name ? `${it.name} · ` : ''}
               {it.outcome ? ((c.motif?.[it.outcome]) || it.outcome) : ''}
               {it.reason ? ` · ${(c.motif?.[it.reason]) || it.reason}` : ''}
+              {it.quantityDone != null && it.quantity != null ? ` · ${it.quantityDone}/${it.quantity}` : ''}
               {it.comment ? ` · ${it.comment}` : ''}
             </span>
           ))}

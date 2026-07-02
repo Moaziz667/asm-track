@@ -279,6 +279,29 @@ class SlaEvaluatorTest {
             assertThat(r.reasonParams()).containsEntry("code", "CLIENT_ABSENT");
         }
 
+        @Test @DisplayName("failed after the deadline → BREACHED (Dépassé), not a blank NONE")
+        void failedOverdue_isBreached() {
+            RouteStop stop = stop(route(today, null), null, java.time.LocalTime.of(11, 39), RouteStopType.DELIVERY, null);
+            Delivery d = delivery(DeliveryStatus.FAILED, orderScheduled(now));
+            d.setFailureCode(FailureCode.CLIENT_ABSENT);
+            stubActiveStop(d, stop);
+            when(delayCalc.calculateStrictStopDelayMinutes(any(), any())).thenReturn(45);
+            SlaEvaluator.Result r = evaluator.evaluate(d, today.atTime(12, 24));
+            assertThat(r.phase()).isEqualTo(SlaPhase.FAILED);
+            assertThat(r.health()).isEqualTo(SlaHealth.BREACHED);
+        }
+
+        @Test @DisplayName("failed within the window → MET (punctual attempt), never NONE")
+        void failedWithinWindow_isMet() {
+            RouteStop stop = stop(route(today, null), null, now.toLocalTime(), RouteStopType.DELIVERY, null);
+            Delivery d = delivery(DeliveryStatus.FAILED, orderScheduled(now));
+            d.setFailureCode(FailureCode.CLIENT_ABSENT);
+            stubActiveStop(d, stop);
+            when(delayCalc.calculateStrictStopDelayMinutes(any(), any())).thenReturn(0);
+            SlaEvaluator.Result r = evaluator.evaluate(d, now);
+            assertThat(r.health()).isEqualTo(SlaHealth.MET);
+        }
+
         @Test @DisplayName("delivered hours late → LATE, not a false 'on time' (regression: completedAt vs window)")
         void deliveredHoursLate_isNotFalselyOnTime() {
             // Window ends 11:39, delivered 23:49 same day → ~730 min late. Must be LATE.

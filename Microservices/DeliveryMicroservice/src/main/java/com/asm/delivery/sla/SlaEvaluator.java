@@ -48,8 +48,7 @@ public class SlaEvaluator {
             case IN_TRANSIT           -> delivery(d, now);
             case DELIVERED            -> terminalDelivered(d, SlaPhase.DELIVERED, "delivered");
             case PARTIALLY_DELIVERED  -> terminalDelivered(d, SlaPhase.PARTIAL, "partial");
-            case FAILED               -> resolved(SlaPhase.FAILED, "failed",
-                    Map.of("code", d.getFailureCode() != null ? d.getFailureCode().name() : "FAILED"));
+            case FAILED               -> terminalFailed(d);
             case CANCELLED            -> resolved(SlaPhase.CANCELLED, "cancelled", Map.of());
         };
     }
@@ -132,6 +131,22 @@ public class SlaEvaluator {
                 stop != null ? windowEnd(stop) : null, lateMin, isLate,
                 prefix + (isLate ? ".late" : ".onTime"),
                 isLate ? Map.of("minutes", String.valueOf(lateMin)) : Map.of());
+    }
+
+    /**
+     * Resolved failure: an échec still has an SLA verdict, not a blank "—". Measured like a delivery —
+     * by when the failed attempt was recorded against the end window: overdue → BREACHED (Dépassé);
+     * within the window → MET (the attempt was punctual, it just didn't succeed).
+     */
+    private Result terminalFailed(Delivery d) {
+        RouteStop stop = activeStop(d);
+        Integer late = (stop != null && stop.getRoute() != null)
+                ? delayCalc.calculateStrictStopDelayMinutes(stop, stop.getRoute()) : null;
+        int lateMin = late != null ? Math.max(0, late) : 0;
+        boolean breached = lateMin > 0;
+        return new Result(SlaPhase.FAILED, breached ? SlaHealth.BREACHED : SlaHealth.MET,
+                stop != null ? windowEnd(stop) : null, breached ? lateMin : null, false,
+                "failed", Map.of("code", d.getFailureCode() != null ? d.getFailureCode().name() : "FAILED"));
     }
 
     private Result resolved(SlaPhase phase, String key, Map<String, String> params) {

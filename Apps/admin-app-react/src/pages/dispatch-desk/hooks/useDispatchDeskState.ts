@@ -13,7 +13,7 @@ import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTa
 import type { ReassignTarget } from '@/components/overlays/ReassignDrawer';
 import { REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, ASSIGNABLE_STATUSES } from '../constants';
 import { formatMotif, formatComment } from '../formatters';
-import { rowId, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
+import { rowId, isPinned, getWeekStart, getMonthStart, sortByRoute, sortQueue, type QueueSortMode } from '../utils';
 
 export interface DispatchDeskContextProps {
   t: ReturnType<typeof useT>;
@@ -395,7 +395,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   }), [allDeliveries, rows, queueRows]);
 
   const allFilteredIds = useMemo(() => {
-    if (dispatchTab === 'queue')  return queueRows.map(q => q.id);
+    // Unpinned deliveries can't be assigned (no coords to route) — keep them out of "select all"
+    // so a batch assign never includes one. The per-row checkbox is disabled too.
+    if (dispatchTab === 'queue')  return queueRows.filter(q => isPinned(q.delivery)).map(q => q.id);
     if (dispatchTab === 'action') return actionRows.map(r => r.deliveryId);
     return deliveryRows.map(d => rowId(d));
   }, [dispatchTab, queueRows, actionRows, deliveryRows]);
@@ -406,12 +408,12 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const selectedTargets = useMemo((): ReassignTarget[] => {
     if (dispatchTab === 'queue')
       return queueRows.filter(q => selectedIds.has(q.id))
-        .map(q => ({ deliveryId: q.id, orderRef: q.delivery.orderRef, erpOrderId: q.delivery.erpOrderId, clientName: q.delivery.clientName, city: q.delivery.dropoffCity, status: q.delivery.status, driverName: q.delivery.driverName, routeId: q.routeId, routeName: q.routeName, timeSlotStartTime: q.delivery.timeSlotStartTime, timeSlotEndTime: q.delivery.timeSlotEndTime, totalWeightKg: q.delivery.totalWeightKg, totalAmount: q.delivery.totalAmount, currency: q.delivery.currency, itemsCount: q.delivery.items?.length, priority: q.delivery.priority, scheduledAt: q.delivery.scheduledAt, dropoffAddress: q.delivery.dropoffAddress }));
+        .map(q => ({ deliveryId: q.id, orderRef: q.delivery.orderRef, erpOrderId: q.delivery.erpOrderId, clientName: q.delivery.clientName, city: q.delivery.dropoffCity, status: q.delivery.status, driverName: q.delivery.driverName, routeId: q.routeId, routeName: q.routeName, routeStatus: q.delivery.routeStatus, timeSlotStartTime: q.delivery.timeSlotStartTime, timeSlotEndTime: q.delivery.timeSlotEndTime, timeSlotName: q.delivery.timeSlotName, requestedDeliveryDate: q.delivery.requestedDeliveryDate, totalWeightKg: q.delivery.totalWeightKg, totalAmount: q.delivery.totalAmount, currency: q.delivery.currency, itemsCount: q.delivery.items?.length, priority: q.delivery.priority, scheduledAt: q.delivery.scheduledAt, dropoffAddress: q.delivery.dropoffAddress }));
     if (dispatchTab === 'action')
       return actionRows.filter(r => selectedIds.has(r.deliveryId))
         .map(r => ({ deliveryId: r.deliveryId, orderRef: r.orderRef, clientName: r.clientName, city: r.city, status: r.status, driverName: r.driverName, routeId: r.routeId, routeName: r.routeName }));
     return deliveryRows.filter(d => selectedIds.has(rowId(d)))
-      .map(d => ({ deliveryId: rowId(d), orderRef: d.orderRef, erpOrderId: d.erpOrderId, clientName: d.clientName, city: d.dropoffCity, status: d.status, driverName: d.driverName, routeId: d.routeId, routeName: d.routeName, timeSlotStartTime: d.timeSlotStartTime, timeSlotEndTime: d.timeSlotEndTime, totalWeightKg: d.totalWeightKg, totalAmount: d.totalAmount, currency: d.currency, itemsCount: d.items?.length, priority: d.priority, scheduledAt: d.scheduledAt, dropoffAddress: d.dropoffAddress }));
+      .map(d => ({ deliveryId: rowId(d), orderRef: d.orderRef, erpOrderId: d.erpOrderId, clientName: d.clientName, city: d.dropoffCity, status: d.status, driverName: d.driverName, routeId: d.routeId, routeName: d.routeName, routeStatus: d.routeStatus, timeSlotStartTime: d.timeSlotStartTime, timeSlotEndTime: d.timeSlotEndTime, timeSlotName: d.timeSlotName, requestedDeliveryDate: d.requestedDeliveryDate, totalWeightKg: d.totalWeightKg, totalAmount: d.totalAmount, currency: d.currency, itemsCount: d.items?.length, priority: d.priority, scheduledAt: d.scheduledAt, dropoffAddress: d.dropoffAddress }));
   }, [dispatchTab, queueRows, actionRows, deliveryRows, selectedIds]);
 
   const batchType: 'assign' | 'reassign' | 'mixed' | 'none' = useMemo(() => {

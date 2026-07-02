@@ -28,7 +28,6 @@ import { useBreadcrumb } from '@/lib/breadcrumb';
 import { GROUP_DEFS } from './Sidebar';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
-import adminLogo from '../../icons/adminlogo.jpg';
 import LanguageSelector from './LanguageSelector';
 
 // Breadcrumbs are derived from GROUP_DEFS — the SAME structure the sidebar renders — so
@@ -168,13 +167,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
   const { locale: activeLocale, setLocale } = useLocaleStore();
 
   const { mapMode, setMapMode } = useGlobalMapStore();
-  const toggleMap = () => {
-    if (mapMode === 'hidden') {
-      setMapMode('collapsed');
-    } else {
-      setMapMode('hidden');
-    }
-  };
+  const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');
 
   useEffect(() => {
     setIsClient(true);
@@ -271,22 +264,22 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
                 <button
                   type="button"
                   onClick={toggleMap}
-                  className={`w-7 h-7 flex items-center justify-center rounded border transition-colors ${
-                    mapMode !== 'hidden'
-                      ? 'bg-[var(--brand)]/10 border-[var(--brand)] text-[var(--brand)]'
-                      : 'border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'
-                  }`}
+                  className="w-7 h-7 flex items-center justify-center rounded border transition-colors"
+                  style={{
+                    background: mapMode !== 'hidden' ? 'var(--brand-bg)' : 'transparent',
+                    borderColor: mapMode !== 'hidden' ? 'var(--brand)' : 'var(--border)',
+                    color: mapMode !== 'hidden' ? 'var(--brand)' : 'var(--text-muted)',
+                  }}
                   aria-label={mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}
                 />
               }
             >
               <IconMap size={14} stroke={2.5} />
             </TooltipTrigger>
-            <TooltipContent>
-              {mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}
-            </TooltipContent>
+            <TooltipContent>{mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}</TooltipContent>
           </Tooltip>
         )}
+
 
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -294,15 +287,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
               type="button"
               className="flex items-center gap-2 px-2 py-1.5 rounded border border-transparent hover:border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
             >
-              <div className="relative w-6 h-6 overflow-hidden rounded-sm border border-[var(--border)] bg-white shrink-0">
-                <img
-                  src={adminLogo}
-                  alt="Admin logo"
-                  width={24} height={24}
-                  className="object-contain"
-                />
-              </div>
-              <span className="hidden md:block text-sm font-bold text-[var(--text-secondary)] max-w-[120px] truncate">
+              <span className="text-sm font-bold text-[var(--text-secondary)] max-w-[120px] truncate">
                 {displayName}
               </span>
               <IconChevronDown size={10} className="text-[var(--text-soft)]" />

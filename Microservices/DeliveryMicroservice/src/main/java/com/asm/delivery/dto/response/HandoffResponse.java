@@ -12,6 +12,9 @@ public class HandoffResponse {
     private String state;
     private String deliveryId;
     private String routeId;
+    private String routeName;
+    private String toRouteId;
+    private String toRouteName;
     private String erpOrderId;
     private String clientName;
     private String dropoffAddress;

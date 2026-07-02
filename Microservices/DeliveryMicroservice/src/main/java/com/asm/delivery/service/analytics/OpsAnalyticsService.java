@@ -500,6 +500,7 @@ public class OpsAnalyticsService {
                                 r.getDepartureTime(),
                                 r.getDate(),
                                 r.getPlannedStartTime(),
+                                routeStop.getStartTimeWindow(),
                                 routeStop.getEndTimeWindow()
                             );
                         },
@@ -527,6 +528,8 @@ public class OpsAnalyticsService {
                 .routeDate(routeInfo != null ? routeInfo.date() : null)
                 .routePlannedStartTime(routeInfo != null ? routeInfo.plannedStartTime() : null)
                 .routeEndTimeWindow(routeInfo != null ? routeInfo.endTimeWindow() : null)
+                .timeSlotStartTime(routeInfo != null && routeInfo.startTimeWindow() != null ? routeInfo.startTimeWindow().toString() : null)
+                .timeSlotEndTime(routeInfo != null && routeInfo.endTimeWindow() != null ? routeInfo.endTimeWindow().toString() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failReason(d.getFailReason())

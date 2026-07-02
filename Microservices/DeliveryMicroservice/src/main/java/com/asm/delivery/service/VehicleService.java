@@ -61,7 +61,10 @@ public class VehicleService {
 
     @Transactional(readOnly = true)
     public List<VehicleResponse> getAvailable(LocalDate date, LocalTime startTime, LocalTime endTime) {
-        Set<UUID> busyIds = routeRepository.findConflictingVehicleIds(date, startTime, endTime, ACTIVE_STATUSES);
+        Set<UUID> busyIds = new java.util.HashSet<>(
+                routeRepository.findConflictingVehicleIds(date, startTime, endTime, ACTIVE_STATUSES));
+        // Plus any vehicle out on the road right now (IN_PROGRESS) — busy regardless of date.
+        busyIds.addAll(routeRepository.findVehicleIdsByStatusIn(List.of(RouteStatus.IN_PROGRESS)));
         return vehicleRepository.findByActiveTrue().stream()
                 .filter(v -> v.getVehicleStatus() == VehicleStatus.AVAILABLE)
                 .filter(v -> !busyIds.contains(v.getId()))

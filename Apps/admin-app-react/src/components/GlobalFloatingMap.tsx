@@ -7,14 +7,17 @@ import { getBusinessDayKey } from '@/lib/sla';
 import { routeColor, routeColorByIndex } from '@/lib/utils';
 import { useGlobalMapStore } from '@/lib/global-map-store';
 import DispatchLiveMap from '@/components/DispatchLiveMap';
-import { useT, useLocaleContext } from '@/lib/LocaleContext';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
+import { useDriverAvatars } from '@/hooks/useDriverAvatars';
+import { useT } from '@/lib/LocaleContext';
 import {
   IconMap,
   IconMinus,
   IconX,
-  IconTruck,
+  IconSearch,
   IconGripVertical,
   IconLayoutSidebar,
+  IconAlertTriangle,
 } from '@tabler/icons-react';
 
 const MAP_SIZES = {
@@ -30,8 +33,6 @@ function isGpsStale(lastLocationAt?: string | null): boolean {
 
 export default function GlobalFloatingMap() {
   const t = useT();
-  const { locale } = useLocaleContext();
-  const isRtl = locale === 'ar';
   const { pathname } = useLocation();
   const queryClient = useQueryClient();
 
@@ -69,8 +70,17 @@ export default function GlobalFloatingMap() {
   const { data: todayRoutes = [] } = useQuery({
     queryKey: ['global-map-routes', todayIso],
     queryFn: async () => {
-      const res = await api.get('/api/admin/routes', { params: { from: todayIso, to: todayIso } });
-      return Array.isArray(res.data) ? res.data : [];
+      // Today's routes (validated/upcoming) UNION every IN_PROGRESS route — a running route is active
+      // regardless of its planned date, so drivers on a route started on a prior day still map correctly.
+      const [todayRes, runningRes] = await Promise.all([
+        api.get('/api/admin/routes', { params: { from: todayIso, to: todayIso } }),
+        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }),
+      ]);
+      const a = Array.isArray(todayRes.data) ? todayRes.data : [];
+      const b = Array.isArray(runningRes.data) ? runningRes.data : [];
+      const byId = new Map<string, any>();
+      [...a, ...b].forEach((r: any) => byId.set(r.id, r));
+      return Array.from(byId.values());
     },
     enabled: !isHiddenPage && mapMode !== 'hidden',
     staleTime: 30_000,
@@ -101,13 +111,15 @@ export default function GlobalFloatingMap() {
     staleTime: 10_000,
   });
 
+  const avatarMap = useDriverAvatars();
   const safeDrivers = useMemo(() => {
     return drivers.map((d: any) => ({
       ...d,
       currentLat: Number(d.currentLat) || null,
       currentLng: Number(d.currentLng) || null,
+      photoUrl: avatarMap[d.id] ?? d.photoUrl ?? null,
     }));
-  }, [drivers]);
+  }, [drivers, avatarMap]);
 
   const driverRoute = useMemo(() => {
     const m = new Map<string, any>();
@@ -249,19 +261,17 @@ export default function GlobalFloatingMap() {
 
   if (mapMode === 'collapsed') {
     return (
-      <div className="fixed bottom-6 right-6 z-50">
+      <div className="fixed bottom-6 right-6 rtl:right-auto rtl:left-6 z-50">
         <button
           type="button"
           onClick={() => setMapMode('floating')}
-          className="group relative w-12 h-12 rounded-[var(--map-radius)] flex items-center justify-center bg-[var(--map-bg)] border border-[var(--map-border)] shadow-[var(--map-shadow)] hover:scale-102 hover:bg-[var(--hover-bg)] active:scale-98 transition-all duration-200 backdrop-blur-md"
+          className="relative flex items-center justify-center w-11 h-11 rounded-full bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] hover:text-[var(--text-primary)] transition-colors"
           title={bubbleTooltipText}
+          aria-label={bubbleTooltipText}
         >
-          <IconMap size={20} className="text-[var(--text-secondary)]" />
-          {activeRoutes.length > 0 && (
-            <span className="absolute top-1 right-1 flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500 border border-[var(--surface)]"></span>
-            </span>
+          <IconMap size={19} />
+          {onlineDriversCount > 0 && (
+            <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[var(--success)] ring-2 ring-[var(--surface)]" />
           )}
         </button>
       </div>
@@ -282,7 +292,7 @@ export default function GlobalFloatingMap() {
   return (
     <div
       ref={containerRef}
-      className={`fixed z-50 flex flex-col bg-[var(--map-bg)]/95 border border-[var(--map-border)] shadow-[var(--map-shadow)] rounded-[var(--map-radius)] overflow-hidden backdrop-blur-md max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)] ${
+      className={`fixed z-50 flex flex-col bg-[var(--surface)] border border-[var(--border)] shadow-[var(--shadow-card)] rounded-[var(--radius-xl)] overflow-hidden max-w-[calc(100vw-48px)] max-h-[calc(100vh-48px)] ${
         position ? '' : 'bottom-6 right-6 rtl:right-auto rtl:left-6'
       } ${MAP_SIZES[mapSize]}`}
       style={style}
@@ -292,95 +302,101 @@ export default function GlobalFloatingMap() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         style={{ cursor: isDragging ? 'grabbing' : 'grab' }}
-        className="h-9 px-3 border-b border-[var(--map-border)] flex items-center justify-between shrink-0 select-none bg-[var(--surface-2)]/90 touch-none active:bg-[var(--hover-bg)]/50 transition-colors"
+        className="h-10 ps-2.5 pe-2 border-b border-[var(--border)] flex items-center justify-between shrink-0 select-none bg-[var(--surface-sunken)] touch-none"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <IconGripVertical size={13} className="text-[var(--text-soft)] shrink-0 cursor-grab active:cursor-grabbing" />
-          <IconTruck size={14} className="text-[var(--brand)] animate-pulse shrink-0" />
-          <span className="text-xs font-mono font-bold text-[var(--text-primary)] shrink-0 uppercase tracking-wide">
-            {t.globalMap.title}
-          </span>
-          <span className="font-mono text-3xs bg-[var(--hover-bg)] border border-[var(--border-strong)] px-1.5 py-0.5 rounded text-[var(--text-secondary)] tracking-tight">
-            {activeRoutes.length} {t.globalMap.routesLabel} · {onlineDriversCount} {t.globalMap.onlineLabel}
+        <div className="flex items-center gap-2.5 min-w-0">
+          <IconGripVertical size={14} className="text-[var(--text-soft)] shrink-0 cursor-grab active:cursor-grabbing" />
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${onlineDriversCount > 0 ? 'bg-[var(--success)]' : 'bg-[var(--text-soft)]'}`} />
+            <span className="text-xs font-bold text-[var(--text-primary)] shrink-0">{t.globalMap.title}</span>
+          </div>
+          <span className="hidden sm:inline-flex items-center gap-1.5 text-2xs font-semibold text-[var(--text-muted)] tabular-nums whitespace-nowrap">
+            <span>{activeRoutes.length} {t.globalMap.routesLabel}</span>
+            <span aria-hidden className="text-[var(--border-strong)]">·</span>
+            <span>{onlineDriversCount} {t.globalMap.onlineLabel}</span>
           </span>
         </div>
 
-        <div className="flex items-center gap-3 shrink-0">
+        <div className="flex items-center gap-2 shrink-0">
           {mapSize !== 'S' && (
             <div className="relative flex items-center">
+              <IconSearch size={12} className="absolute start-2 text-[var(--text-soft)] pointer-events-none" />
               <input
                 type="text"
                 placeholder={t.globalMap.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="font-mono text-3xs w-32 px-2 py-0.5 rounded border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-soft)] focus:outline-none focus:border-[var(--brand)] transition-all pr-5 rtl:pr-2 rtl:pl-5"
+                className="text-2xs w-36 h-7 ps-6 pe-5 rounded-md border border-[var(--border)] bg-[var(--surface)] text-[var(--text-primary)] placeholder-[var(--text-soft)] focus:outline-none focus:border-[var(--brand)] focus:ring-2 focus:ring-[var(--brand-bg)] transition-all"
               />
               {searchQuery && (
                 <button
                   type="button"
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-1.5 rtl:right-auto rtl:left-1.5 text-[var(--text-soft)] hover:text-[var(--text-primary)]"
+                  className="absolute end-1.5 text-[var(--text-soft)] hover:text-[var(--text-primary)]"
                 >
-                  <IconX size={10} />
+                  <IconX size={11} />
                 </button>
               )}
             </div>
           )}
 
-          <div className="flex items-center border border-[var(--border-strong)] rounded overflow-hidden divide-x divide-[var(--border-strong)] font-mono text-3xs">
+          <div className="flex items-center gap-0.5 p-0.5 rounded-md bg-[var(--surface)] border border-[var(--border)]">
             {(['S', 'M', 'L'] as const).map((size) => {
-              const label = size === 'S' ? '380px' : size === 'M' ? '680px' : '1020px';
               const active = mapSize === size;
               return (
                 <button
                   key={size}
                   type="button"
                   onClick={() => setMapSize(size)}
-                  className={`px-2 py-0.5 transition-colors ${
-                    active
-                      ? 'bg-[var(--brand)] text-white font-bold shadow-inner'
-                      : 'bg-[var(--surface)] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]'
-                  }`}
+                  aria-pressed={active}
+                  className="w-6 h-6 rounded text-2xs font-bold transition-colors"
+                  style={{
+                    background: active ? 'var(--surface-sunken)' : 'transparent',
+                    color: active ? 'var(--text-primary)' : 'var(--text-muted)',
+                    border: active ? '1px solid var(--border-strong)' : '1px solid transparent',
+                    boxShadow: active ? 'var(--shadow-xs)' : 'none',
+                  }}
                 >
-                  {label}
+                  {size}
                 </button>
               );
             })}
           </div>
 
-          <div className="h-4 w-px bg-[var(--border-strong)]" />
+          <div className="h-5 w-px bg-[var(--border)]" />
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             {mapSize !== 'S' && (
               <button
                 type="button"
                 onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                className={`p-1 rounded transition-colors ${
-                  isSidebarOpen
-                    ? 'text-[var(--brand)] bg-[var(--brand)]/10 hover:bg-[var(--brand)]/20'
-                    : 'text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)]'
-                }`}
+                aria-pressed={isSidebarOpen}
+                className="w-7 h-7 flex items-center justify-center rounded-md transition-colors"
+                style={{
+                  background: isSidebarOpen ? 'var(--brand-bg)' : 'transparent',
+                  color: isSidebarOpen ? 'var(--brand)' : 'var(--text-soft)',
+                }}
                 title={isSidebarOpen ? t.globalMap.hideList : t.globalMap.showList}
               >
-                <IconLayoutSidebar size={14} />
+                <IconLayoutSidebar size={15} />
               </button>
             )}
 
             <button
               type="button"
               onClick={() => setMapMode('collapsed')}
-              className="p-1 rounded text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] transition-colors"
               title={t.globalMap.minimize}
             >
-              <IconMinus size={14} />
+              <IconMinus size={15} />
             </button>
             <button
               type="button"
               onClick={() => setMapMode('hidden')}
-              className="p-1 rounded text-[var(--text-soft)] hover:text-red-500 hover:bg-red-500/10 transition-colors"
+              className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-soft)] hover:text-[var(--danger)] hover:bg-[var(--danger-bg)] transition-colors"
               title={t.globalMap.hideCompletely}
             >
-              <IconX size={14} />
+              <IconX size={15} />
             </button>
           </div>
         </div>
@@ -401,21 +417,21 @@ export default function GlobalFloatingMap() {
         </div>
 
         {mapSize !== 'S' && isSidebarOpen && (
-          <div className="w-[200px] shrink-0 border-l rtl:border-l-0 rtl:border-r border-[var(--border-strong)] bg-[var(--surface)] flex flex-col h-full overflow-hidden select-none">
-            <div className="px-3 py-2 border-b border-[var(--border-strong)] flex items-center justify-between shrink-0 bg-[var(--surface-2)]">
-              <span className="text-3xs font-mono font-bold text-[var(--text-secondary)] uppercase tracking-wider">
-                {t.pages?.drivers?.title} ({filteredDrivers.length})
+          <div className="w-[216px] shrink-0 border-s border-[var(--border)] bg-[var(--surface)] flex flex-col h-full overflow-hidden select-none">
+            <div className="px-3 h-9 border-b border-[var(--border)] flex items-center shrink-0 bg-[var(--surface-sunken)]">
+              <span className="text-2xs font-bold text-[var(--text-secondary)]">
+                {t.pages?.drivers?.title} <span className="text-[var(--text-muted)] tabular-nums">{filteredDrivers.length}</span>
               </span>
             </div>
-            <div className="flex-1 overflow-y-auto divide-y divide-[var(--border)]/30">
+            <div className="flex-1 overflow-y-auto p-1.5 flex flex-col gap-0.5">
               {filteredDrivers.length === 0 ? (
-                <div className="p-4 text-center font-mono text-3xs text-[var(--text-muted)]">
+                <div className="p-6 text-center text-2xs text-[var(--text-muted)]">
                   {t.globalMap.noDrivers}
                 </div>
               ) : (
                 filteredDrivers.map((driver: any) => {
                   const r = driverRoute.get(driver.id);
-                  const color = r ? routeColorFor(r.id) : '#71717A';
+                  const color = r ? routeColorFor(r.id) : 'var(--text-soft)';
                   const isFocused = driver.id === focusedDriverId;
                   const stale = isGpsStale(driver.lastLocationAt);
                   const online = driver.currentLat && driver.currentLng && driver.onlineStatus !== 'OFFLINE';
@@ -425,41 +441,34 @@ export default function GlobalFloatingMap() {
                       key={driver.id}
                       type="button"
                       onClick={() => setFocusedDriverId(isFocused ? null : driver.id)}
-                      className={`w-full text-left rtl:text-right px-3 py-2 flex flex-col gap-0.5 hover:bg-[var(--hover-bg)]/40 transition-colors border-b border-[var(--border)]/10 ${
-                        isFocused ? 'bg-[var(--brand)]/[0.04]' : ''
+                      className={`w-full text-start px-2 py-1.5 rounded-md flex items-center gap-2.5 transition-colors ${
+                        isFocused ? 'bg-[var(--brand-bg)] ring-1 ring-inset ring-[var(--brand)]' : 'hover:bg-[var(--hover-bg)]'
                       }`}
-                      style={{
-                        borderLeft: !isRtl && isFocused ? `3px solid ${color}` : undefined,
-                        borderRight: isRtl && isFocused ? `3px solid ${color}` : undefined,
-                      }}
                     >
-                      <div className="flex items-center justify-between gap-1 w-full font-mono text-2xs">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${
-                            online ? 'bg-emerald-500' : 'bg-gray-400'
-                          }`} />
-                          <span className="font-semibold text-[var(--text-primary)] truncate">
-                            {driver.name}
-                          </span>
+                      <div className="relative shrink-0">
+                        <DriverAvatarById driverId={driver.id} name={driver.name} size={28} />
+                        <span className={`absolute -bottom-0.5 -end-0.5 w-2.5 h-2.5 rounded-full ring-2 ring-[var(--surface)] ${
+                          online ? 'bg-[var(--success)]' : 'bg-[var(--text-soft)]'
+                        }`} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-xs font-semibold text-[var(--text-primary)] truncate">{driver.name}</span>
+                          {stale && online && (
+                            <span className="inline-flex items-center gap-0.5 text-3xs font-bold px-1 py-0.5 rounded shrink-0" style={{ color: 'var(--danger)', background: 'var(--danger-bg)' }}>
+                              <IconAlertTriangle size={9} /> {t.globalMap.staleGps}
+                            </span>
+                          )}
                         </div>
-                        {stale && online && (
-                          <span className="text-4xs bg-red-500/10 text-red-500 px-1 py-0.2 rounded font-bold uppercase shrink-0">
-                            {t.globalMap.staleGps}
-                          </span>
+                        {r ? (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                            <span className="text-2xs font-medium text-[var(--text-soft)] truncate">{r.name}</span>
+                          </div>
+                        ) : (
+                          <span className="text-2xs text-[var(--text-muted)]">{t.globalMap.offRoute}</span>
                         )}
                       </div>
-                      {r ? (
-                        <div className="flex items-center gap-1 font-mono text-3xs">
-                          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                          <span className="font-medium text-[var(--text-soft)] truncate">
-                            {r.name}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="font-mono text-3xs text-[var(--text-muted)]">
-                          {t.globalMap.offRoute}
-                        </span>
-                      )}
                     </button>
                   );
                 })

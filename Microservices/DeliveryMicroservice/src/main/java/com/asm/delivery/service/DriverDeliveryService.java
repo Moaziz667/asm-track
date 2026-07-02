@@ -4,6 +4,8 @@ import com.asm.delivery.dto.request.ProofOfDeliveryRequest;
 import com.asm.delivery.dto.request.IncidentReportRequest;
 import com.asm.delivery.dto.response.DriverDeliveryResponse;
 import com.asm.delivery.dto.response.HandoffTokenResponse;
+import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
+import com.asm.delivery.dto.response.StatusHistoryResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.security.UserPrincipal;
@@ -959,6 +961,40 @@ public class DriverDeliveryService {
         Order order = delivery.getOrder();
         String orderRef = order != null ? order.resolveRef() : null;
 
+        // Fetch POD when delivery is terminal (completed/partial/failed with photos)
+        ProofOfDeliveryResponse podResponse = null;
+        if (delivery.getStatus() == DeliveryStatus.DELIVERED
+                || delivery.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED) {
+            ProofOfDelivery pod = podRepo.findByDeliveryId(delivery.getId()).orElse(null);
+            if (pod != null) {
+                podResponse = ProofOfDeliveryResponse.builder()
+                        .id(pod.getId())
+                        .deliveryId(pod.getDeliveryId())
+                        .photoUrl(pod.getPhotoUrl())
+                        .signatureUrl(pod.getSignatureUrl())
+                        .bonLivraisonPhotoUrl(pod.getBonLivraisonPhotoUrl())
+                        .comment(pod.getComment())
+                        .collectedAt(pod.getCollectedAt())
+                        .lat(pod.getLat())
+                        .lng(pod.getLng())
+                        .build();
+            }
+        }
+
+        // Fetch status history timeline
+        List<StatusHistoryResponse> historyItems = historyRepo
+                .findByDeliveryIdOrderByChangedAtAsc(delivery.getId())
+                .stream()
+                .map(h -> StatusHistoryResponse.builder()
+                        .id(h.getId().toString())
+                        .status(h.getStatus() != null ? h.getStatus().name() : null)
+                        .eventKey(h.getEventKey())
+                        .eventParams(parseEventParams(h.getEventParams()))
+                        .changedAt(h.getChangedAt())
+                        .changedBy(h.getChangedByRole() != null ? h.getChangedByRole().name() : null)
+                        .build())
+                .toList();
+
         return DriverDeliveryResponse.builder()
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
@@ -996,7 +1032,19 @@ public class DriverDeliveryService {
                 .handoffConfirmedAt(requiresHandoff && activeStop.getHandoffConfirmedAt() != null ? activeStop.getHandoffConfirmedAt() : null)
                 .handoffToDriverId(requiresHandoff && activeStop.getHandoffToDriverId() != null ? activeStop.getHandoffToDriverId().toString() : null)
                 .handoffFromDriverId(requiresHandoff && activeStop.getHandoffFromDriverId() != null ? activeStop.getHandoffFromDriverId().toString() : null)
+                .proofOfDelivery(podResponse)
+                .statusHistory(historyItems)
                 .build();
+    }
+
+    /** Best-effort parse of the JSON eventParams blob; null on absent/malformed (never fails the read). */
+    private Map<String, Object> parseEventParams(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, new com.fasterxml.jackson.core.type.TypeReference<Map<String, Object>>() {});
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            return null;
+        }
     }
 
     private void runAfterCommit(Runnable action) {

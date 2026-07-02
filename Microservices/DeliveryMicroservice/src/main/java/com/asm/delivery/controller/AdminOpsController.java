@@ -52,6 +52,7 @@ public class AdminOpsController {
 
     private final OpsAnalyticsService opsAnalyticsService;
     private final ExceptionResolutionService exceptionResolutionService;
+    private final com.asm.delivery.service.dispatch.NearestDriverService nearestDriverService;
     private final DeliveryRepository deliveryRepository;
 
     @GetMapping("/overview")
@@ -170,6 +171,27 @@ public class AdminOpsController {
             @AuthenticationPrincipal UserPrincipal principal
     ) {
         return ResponseEntity.ok(exceptionResolutionService.reassignException(deliveryId, request, principal));
+    }
+
+    @GetMapping("/exceptions/{deliveryId}/nearest-drivers")
+    @Operation(
+        summary = "Rank drivers by road proximity to a delivery's drop-off",
+        description = "Powers the quick-reassign picker's recommended pick. Returns online drivers that have a "
+            + "live GPS fix, ranked by road travel time (OSRM Table API) from their current position to the "
+            + "delivery's drop-off. A straight-line k-NN pre-filter trims the fleet to a shortlist before the "
+            + "matrix call. Falls back to straight-line ordering when OSRM is disabled or a leg is unroutable; "
+            + "`etaSeconds`/`distanceMeters` are null when unavailable and `source` is \"osrm\" or \"haversine\". "
+            + "The delivery's current driver and offline / GPS-less drivers are excluded."
+    )
+    @ApiResponses({
+        @ApiResponse(responseCode = "200", description = "Ranked drivers (may be empty if the drop-off is ungeocoded or no driver is online with GPS)"),
+        @ApiResponse(responseCode = "404", description = "Delivery not found", content = @Content)
+    })
+    public ResponseEntity<java.util.List<com.asm.delivery.dto.response.NearestDriverResponse>> nearestDrivers(
+            @Parameter(description = "Delivery UUID", required = true) @PathVariable UUID deliveryId,
+            @Parameter(description = "Max drivers to return", example = "5") @RequestParam(required = false, defaultValue = "5") int limit
+    ) {
+        return ResponseEntity.ok(nearestDriverService.nearest(deliveryId, limit));
     }
 
     @PostMapping("/exceptions/{deliveryId}/replan")

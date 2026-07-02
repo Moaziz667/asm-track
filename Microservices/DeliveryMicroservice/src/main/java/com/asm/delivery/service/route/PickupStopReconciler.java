@@ -3,7 +3,6 @@ package com.asm.delivery.service.route;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.Route;
-import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.RouteStopStatus;
 import com.asm.delivery.entity.RouteStopType;
@@ -14,11 +13,13 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 import java.util.function.Function;
@@ -26,9 +27,22 @@ import java.util.stream.Collectors;
 
 /**
  * Multi-depot routing core: keeps a route's PICKUP stops in sync with the depots its DELIVERY stops
- * actually need, orders pickups before their deliveries, and enforces that no delivery is sequenced
- * ahead of its depot load. Extracted from RoutePlanningService so the "what loads where, in what
- * order" concern lives in one cohesive place.
+ * actually need, orders each pickup before the deliveries it loads, and enforces that no delivery is
+ * sequenced ahead of its depot load. The single owner of the "what loads where, in what order"
+ * invariant — every stop-mutating path (route builder, reassign, replan, cancel) calls {@link
+ * #reconcile(Route)} so the invariant can never be left broken.
+ *
+ * <p>Two strategies, by lifecycle:
+ * <ul>
+ *   <li><b>Planning</b> (DRAFT/VALIDATED) — nothing has been actioned yet, so pickups can be freely
+ *       added / hard-removed and the whole sequence re-ordered.</li>
+ *   <li><b>Execution</b> (IN_PROGRESS) — the driver is on the road; the actioned prefix is frozen.
+ *       Orphaned pickups are <i>soft-deleted</i> (audit-preserving) and only while still PENDING; a
+ *       newly-needed depot gets a fresh PENDING pickup (a COMPLETED pickup does <i>not</i> cover a box
+ *       added after that depot was already loaded — it needs a return trip); only the pending tail is
+ *       re-sequenced, never a stop the driver has started or finished.</li>
+ * </ul>
+ * CLOSED / CANCELLED routes are immutable and left untouched.
  */
 @Component
 @RequiredArgsConstructor
@@ -38,97 +52,116 @@ public class PickupStopReconciler {
     private final RouteStopRepository routeStopRepository;
     private final DeliveryRepository deliveryRepository;
 
-    /**
-     * Ensure the route carries exactly the PICKUP stops its remote-depot deliveries require:
-     * drop pickups no longer needed, add pickups for newly-needed depots, then renumber.
-     * No-op once the route has left planning (DRAFT/VALIDATED).
-     */
+    /** Reconcile a route's PICKUP stops against the depots its deliveries need, per lifecycle stage. */
     public void reconcile(Route route) {
-        if (route.getStatus() != RouteStatus.DRAFT && route.getStatus() != RouteStatus.VALIDATED) {
-            return;
+        switch (route.getStatus()) {
+            case DRAFT, VALIDATED -> reconcilePlanning(route);
+            case IN_PROGRESS      -> reconcileExecution(route);
+            default               -> { /* CLOSED / CANCELLED — immutable */ }
         }
+    }
 
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        List<RouteStop> deliveryStops = stops.stream()
-                .filter(s -> !RoutePlanningService.isRemovedStatus(s.getStatus()) && s.getStopType() == RouteStopType.DELIVERY)
-                .toList();
-        List<RouteStop> pickupStops = stops.stream()
-                .filter(s -> !RoutePlanningService.isRemovedStatus(s.getStatus()) && s.getStopType() == RouteStopType.PICKUP)
-                .toList();
+    // ── Planning (pre-departure): free add / hard-remove / reorder ───────────────
 
-        List<UUID> deliveryIds = deliveryStops.stream().map(RouteStop::getDeliveryId).toList();
-        List<Delivery> deliveries = deliveryIds.isEmpty() ? List.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds);
+    private void reconcilePlanning(Route route) {
+        RouteStops stops = loadActiveStops(route);
+        Set<UUID> needed = neededRemoteDepots(route, stops.deliveries());
 
-        Set<UUID> neededDepots = deliveries.stream()
-                .filter(d -> d.getSourceDepotId() != null
-                        && !d.getSourceDepotId().equals(route.getDepotId())
-                        && (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED))
-                .map(Delivery::getSourceDepotId)
-                .collect(Collectors.toSet());
-
-        // Remove unneeded pickups
-        for (RouteStop pickup : pickupStops) {
-            if (!neededDepots.contains(pickup.getSourceDepotId())) {
+        // Drop pickups no longer needed (hard delete — nothing has run yet).
+        for (RouteStop pickup : stops.pickups()) {
+            if (!needed.contains(pickup.getSourceDepotId())) {
                 routeStopRepository.delete(pickup);
             }
         }
-
-        // Add missing pickups
-        Set<UUID> existingPickups = pickupStops.stream().map(RouteStop::getSourceDepotId).collect(Collectors.toSet());
-        for (UUID depotId : neededDepots) {
-            if (!existingPickups.contains(depotId)) {
-                RouteStop newPickup = RouteStop.builder()
-                        .route(route)
-                        .stopType(RouteStopType.PICKUP)
-                        .sourceDepotId(depotId)
-                        .deliveryId(null)
-                        .stopOrder(0)
-                        .status(RouteStopStatus.PENDING)
-                        .build();
-                routeStopRepository.save(newPickup);
+        // Add pickups for newly-needed depots.
+        Set<UUID> existing = stops.pickups().stream().map(RouteStop::getSourceDepotId).collect(Collectors.toSet());
+        for (UUID depotId : needed) {
+            if (!existing.contains(depotId)) {
+                routeStopRepository.save(newPickup(route, depotId));
             }
         }
-
         normalizeStopOrder(route);
     }
 
-    /** Renumber active stops so each remote-depot pickup precedes the deliveries it loads. */
+    // ── Execution (on the road): frozen prefix, soft-delete, tail-only reorder ──
+
+    private void reconcileExecution(Route route) {
+        RouteStops stops = loadActiveStops(route);
+        Set<UUID> needed = neededRemoteDepots(route, stops.deliveries());
+
+        // Depots already covered by a still-PENDING pickup. A COMPLETED pickup does NOT count: a box
+        // added to that depot after the driver already loaded there needs a fresh return-trip pickup.
+        Set<UUID> coveredByPending = stops.pickups().stream()
+                .filter(p -> p.getStatus() == RouteStopStatus.PENDING)
+                .map(RouteStop::getSourceDepotId)
+                .collect(Collectors.toSet());
+
+        // Drop orphaned pickups (soft-delete — keep the audit row), but only while still PENDING.
+        // A COMPLETED pickup is part of the frozen past: the driver really loaded there, leave it.
+        for (RouteStop pickup : stops.pickups()) {
+            if (pickup.getStatus() == RouteStopStatus.PENDING && !needed.contains(pickup.getSourceDepotId())) {
+                softDeleteOrphan(pickup);
+                routeStopRepository.save(pickup);
+            }
+        }
+        // Add a PENDING pickup for every needed depot not already covered by a pending one.
+        for (UUID depotId : needed) {
+            if (!coveredByPending.contains(depotId)) {
+                routeStopRepository.save(newPickup(route, depotId));
+            }
+        }
+        renumberExecutionTail(route);
+    }
+
+    // ── Shared: which remote depots the route's not-yet-loaded deliveries require ──
+
+    private Set<UUID> neededRemoteDepots(Route route, List<RouteStop> deliveryStops) {
+        List<UUID> ids = deliveryStops.stream().map(RouteStop::getDeliveryId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return Set.of();
+        return deliveryRepository.findAllByIdInWithOrder(ids).stream()
+                .filter(d -> d.getSourceDepotId() != null
+                        && !d.getSourceDepotId().equals(route.getDepotId())
+                        && (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED)
+                        // pickedUpAt != null ⇒ the parcel is already in a driver's hands. An in-field
+                        // reassign downgrades it to SCHEDULED but keeps pickedUpAt, and it changes hands
+                        // by driver-to-driver handoff, not a depot load — so it must NOT pull a PICKUP.
+                        && d.getPickedUpAt() == null)
+                .map(Delivery::getSourceDepotId)
+                .collect(Collectors.toSet());
+    }
+
+    // ── Ordering ────────────────────────────────────────────────────────────────
+
+    /** Renumber all active stops so each remote-depot pickup precedes the deliveries it loads. */
     public void normalizeStopOrder(Route route) {
-        List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
-        List<RouteStop> activeStops = stops.stream().filter(s -> !RoutePlanningService.isRemovedStatus(s.getStatus())).toList();
-
-        List<RouteStop> deliveryStops = activeStops.stream().filter(s -> s.getStopType() == RouteStopType.DELIVERY).toList();
-        List<RouteStop> pickupStops = activeStops.stream().filter(s -> s.getStopType() == RouteStopType.PICKUP).toList();
-
-        List<UUID> deliveryIds = deliveryStops.stream().map(RouteStop::getDeliveryId).toList();
-        Map<UUID, UUID> deliveryToDepot = deliveryIds.isEmpty() ? Map.of() : deliveryRepository.findAllByIdInWithOrder(deliveryIds).stream()
-                .filter(d -> d.getSourceDepotId() != null)
-                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
-
-        Map<UUID, RouteStop> pickupByDepot = pickupStops.stream().collect(Collectors.toMap(RouteStop::getSourceDepotId, Function.identity()));
-        Set<UUID> emittedPickups = new HashSet<>();
-
-        List<RouteStop> ordered = new ArrayList<>();
-
-        for (RouteStop deliveryStop : deliveryStops) {
-            UUID depotId = deliveryToDepot.get(deliveryStop.getDeliveryId());
-            if (depotId != null && pickupByDepot.containsKey(depotId) && !emittedPickups.contains(depotId)) {
-                ordered.add(pickupByDepot.get(depotId));
-                emittedPickups.add(depotId);
-            }
-            ordered.add(deliveryStop);
-        }
-
-        for (RouteStop pickup : pickupStops) {
-            if (!emittedPickups.contains(pickup.getSourceDepotId())) {
-                ordered.add(pickup);
-            }
-        }
-
+        RouteStops stops = loadActiveStops(route);
+        List<RouteStop> ordered = groupPickupsBeforeDeliveries(
+                stops.deliveries(), stops.pickups(), depotByDelivery(stops.deliveries()));
         for (int i = 0; i < ordered.size(); i++) {
             ordered.get(i).setStopOrder(i + 1);
         }
         routeStopRepository.saveAll(ordered);
+    }
+
+    /**
+     * Execution renumber: keep the actioned prefix exactly where it is and re-sequence only the pending
+     * tail — each depot's pending pickup grouped immediately before its first pending delivery. Never
+     * reshuffles a stop the driver has already started or finished.
+     */
+    private void renumberExecutionTail(Route route) {
+        RouteStops stops = loadActiveStops(route);
+        List<RouteStop> settled = stops.all().stream().filter(s -> !isReorderable(s)).toList();
+        List<RouteStop> tailDeliveries = stops.deliveries().stream().filter(PickupStopReconciler::isReorderable).toList();
+        List<RouteStop> tailPickups = stops.pickups().stream().filter(PickupStopReconciler::isReorderable).toList();
+
+        List<RouteStop> orderedTail = groupPickupsBeforeDeliveries(
+                tailDeliveries, tailPickups, depotByDelivery(tailDeliveries));
+
+        int order = settled.stream().mapToInt(RouteStop::getStopOrder).max().orElse(0);
+        for (RouteStop stop : orderedTail) {
+            stop.setStopOrder(++order);
+        }
+        routeStopRepository.saveAll(orderedTail);
     }
 
     /** Reject an ordering where a delivery is sequenced before its depot's load stop. */
@@ -159,4 +192,74 @@ public class PickupStopReconciler {
             }
         }
     }
+
+    // ── Helpers ─────────────────────────────────────────────────────────────────
+
+    /** Pure ordering: emit each depot's (single) pickup immediately before its first delivery,
+     *  then any pickup whose deliveries all fell away. */
+    private static List<RouteStop> groupPickupsBeforeDeliveries(List<RouteStop> deliveryStops,
+                                                                List<RouteStop> pickupStops,
+                                                                Map<UUID, UUID> deliveryToDepot) {
+        Map<UUID, RouteStop> pickupByDepot = pickupStops.stream()
+                .collect(Collectors.toMap(RouteStop::getSourceDepotId, Function.identity(), (a, b) -> a));
+        Set<UUID> emitted = new HashSet<>();
+        List<RouteStop> ordered = new ArrayList<>();
+
+        for (RouteStop delivery : deliveryStops) {
+            UUID depotId = deliveryToDepot.get(delivery.getDeliveryId());
+            if (depotId != null && pickupByDepot.containsKey(depotId) && emitted.add(depotId)) {
+                ordered.add(pickupByDepot.get(depotId));
+            }
+            ordered.add(delivery);
+        }
+        for (RouteStop pickup : pickupStops) {
+            if (!emitted.contains(pickup.getSourceDepotId())) {
+                ordered.add(pickup);
+            }
+        }
+        return ordered;
+    }
+
+    private Map<UUID, UUID> depotByDelivery(List<RouteStop> deliveryStops) {
+        List<UUID> ids = deliveryStops.stream().map(RouteStop::getDeliveryId).filter(Objects::nonNull).toList();
+        if (ids.isEmpty()) return Map.of();
+        return deliveryRepository.findAllByIdInWithOrder(ids).stream()
+                .filter(d -> d.getSourceDepotId() != null)
+                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId));
+    }
+
+    private RouteStops loadActiveStops(Route route) {
+        List<RouteStop> active = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId()).stream()
+                .filter(s -> !RoutePlanningService.isRemovedStatus(s.getStatus()))
+                .toList();
+        return new RouteStops(
+                active.stream().filter(s -> s.getStopType() == RouteStopType.DELIVERY).toList(),
+                active.stream().filter(s -> s.getStopType() == RouteStopType.PICKUP).toList(),
+                active);
+    }
+
+    private static RouteStop newPickup(Route route, UUID depotId) {
+        return RouteStop.builder()
+                .route(route)
+                .stopType(RouteStopType.PICKUP)
+                .sourceDepotId(depotId)
+                .deliveryId(null)
+                .stopOrder(0)
+                .status(RouteStopStatus.PENDING)
+                .build();
+    }
+
+    private static void softDeleteOrphan(RouteStop pickup) {
+        pickup.setStatus(RouteStopStatus.REMOVED_REPLANNED);
+        pickup.setRemovedAt(LocalDateTime.now());
+        pickup.setRemovedReason("PICKUP_ORPHANED");
+        pickup.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
+    }
+
+    /** Only not-yet-started stops (PENDING / SCHEDULED) may be re-sequenced during execution. */
+    private static boolean isReorderable(RouteStop stop) {
+        return stop.getStatus() == RouteStopStatus.PENDING || stop.getStatus() == RouteStopStatus.SCHEDULED;
+    }
+
+    private record RouteStops(List<RouteStop> deliveries, List<RouteStop> pickups, List<RouteStop> all) {}
 }

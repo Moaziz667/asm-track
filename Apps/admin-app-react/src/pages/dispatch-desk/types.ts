@@ -61,6 +61,9 @@ export type HandoffItem = {
   state: HandoffState;
   deliveryId?: string;
   routeId?: string;
+  routeName?: string;
+  toRouteId?: string;
+  toRouteName?: string;
   erpOrderId?: string;
   clientName?: string;
   dropoffAddress?: string;

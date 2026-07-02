@@ -2,6 +2,12 @@ export function rowId(d: { id?: string; deliveryId?: string }): string {
   return d.deliveryId ?? d.id ?? '';
 }
 
+/** A delivery is "pinned" once it has dropoff coordinates. Unpinned deliveries can't be routed
+ *  (no navigation, no geofence) so they are flagged + non-selectable for assignment until pinned. */
+export function isPinned(d: { dropoffLat?: number | null; dropoffLng?: number | null }): boolean {
+  return d.dropoffLat != null && d.dropoffLng != null;
+}
+
 // ── Queue sorting ────────────────────────────────────────────────────────────
 export type QueueSortMode = 'sla' | 'route' | 'severity' | 'status' | 'date';
 

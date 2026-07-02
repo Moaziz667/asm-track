@@ -4,7 +4,6 @@ import { IconAssign, IconReassign } from '@/components/icons/DispatchIcons';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { useHandoffs } from '../hooks/useHandoffs';
 import { HandoffCards } from './HandoffCards';
-import { DeliveryCards } from './DeliveryCards';
 import { QueuePanel } from './QueuePanel';
 
 export function DispatchTabs() {
@@ -27,16 +26,14 @@ export function DispatchTabs() {
   const handoffs = useHandoffs();
 
   const isHandoffTab = dispatchTab === 'handoff';
-  const isQueueTab   = dispatchTab === 'queue';
 
   return (
     <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
       {/* Tab bar */}
       <div className="flex items-stretch h-10 shrink-0 flex-nowrap" style={{ background: 'var(--surface)', boxShadow: '0 1px 0 var(--border), var(--shadow-xs)' }}>
         {([
-          { id: 'queue',   label: t.dispatchDeskPage.tabQueue,      count: tabCounts.queue },
-          { id: 'gps',     label: t.dispatchDeskPage.tabMissingGps, count: tabCounts.gps },
-          { id: 'handoff', label: t.dispatchDeskPage.tabHandoff,    count: handoffs.open.length, danger: handoffs.overdueCount > 0 },
+          { id: 'queue',   label: t.dispatchDeskPage.tabQueue,   count: tabCounts.queue },
+          { id: 'handoff', label: t.dispatchDeskPage.tabHandoff, count: handoffs.open.length, danger: handoffs.overdueCount > 0 },
         ] as const).map(tab => {
           const count  = tab.count;
           const active = dispatchTab === tab.id;
@@ -147,10 +144,8 @@ export function DispatchTabs() {
           onCancel={handoffs.cancel}
           t={t}
         />
-      ) : isQueueTab ? (
-        <QueuePanel />
       ) : (
-        <DeliveryCards />
+        <QueuePanel />
       )}
     </div>
   );

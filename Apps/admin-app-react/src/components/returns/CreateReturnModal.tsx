@@ -11,8 +11,7 @@ import {
   IconSearch, IconArrowRight, IconPackageExport,
   IconRecycle, IconTrashX, IconMinus, IconPlus,
 } from '@tabler/icons-react';
-
-type Condition = 'RESELLABLE' | 'DAMAGED';
+import { ConditionPill, conditionColors, type Condition } from '@/components/data-display/ConditionPill';
 
 interface DeliveryLite {
   deliveryId: string; clientName?: string; orderRef?: string;
@@ -250,6 +249,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                     {(['RESELLABLE', 'DAMAGED'] as Condition[]).map((c) => {
                       const active = l.condition === c;
                       const isDamaged = c === 'DAMAGED';
+                      const cc = conditionColors(c);
                       return (
                         <button
                           key={c}
@@ -258,8 +258,8 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                           title={isDamaged ? (mx?.hintDamaged ?? 'Mis au rebut, non restocké') : (mx?.hintResellable ?? 'Remis en stock')}
                           className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold transition-colors"
                           style={{
-                            background: active ? (isDamaged ? 'color-mix(in srgb, var(--danger) 14%, transparent)' : 'color-mix(in srgb, var(--success) 14%, transparent)') : 'transparent',
-                            color: active ? (isDamaged ? 'var(--danger)' : 'var(--success)') : 'var(--text-soft)',
+                            background: active ? cc.bg : 'transparent',
+                            color: active ? cc.text : 'var(--text-soft)',
                           }}
                         >
                           {isDamaged ? <IconTrashX size={12} /> : <IconRecycle size={12} />}
@@ -273,11 +273,11 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
             </div>
 
             {/* condition legend */}
-            <p className="text-2xs text-[var(--text-soft)]">
-              <IconRecycle size={11} className="inline align-[-2px] text-[var(--success)]" /> {mx?.hintResellable ?? 'Revendable → remis en stock'}
-              {'   ·   '}
-              <IconTrashX size={11} className="inline align-[-2px] text-[var(--danger)]" /> {mx?.hintDamaged ?? 'Endommagé → mis au rebut'}
-            </p>
+            <div className="flex items-center gap-2 text-2xs text-[var(--text-soft)]">
+              <ConditionPill condition="RESELLABLE" label={mx?.hintResellable ?? 'Revendable → remis en stock'} />
+              <span>·</span>
+              <ConditionPill condition="DAMAGED" label={mx?.hintDamaged ?? 'Endommagé → mis au rebut'} />
+            </div>
 
             <div className="flex flex-col gap-1.5">
               <label className="text-xs font-bold text-[var(--text-secondary)]">{m?.reasonLabel ?? 'Motif du retour'}</label>

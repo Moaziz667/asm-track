@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import type { Driver, Delivery } from '@/types';
 import type { useT } from '@/lib/LocaleContext';
 import { DriverStatusBadge } from './DriverStatusBadge';
+import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import { SVGPencil, SVGActivity } from './icons';
 import { TERMINAL_STATUSES } from './constants';
 
@@ -102,9 +103,7 @@ export function DriverDetailsModal({
             {activeTab === 'info' && (
               <div className="space-y-6">
                 <div className="flex items-center gap-4 pb-4 border-b border-[var(--border)]/60">
-                  <div className="h-12 w-12 rounded-xs border border-[var(--border)] bg-[var(--hover-bg)] flex items-center justify-center font-mono text-sm font-bold text-[var(--brand)] shrink-0 select-none">
-                    {selected.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
-                  </div>
+                  <DriverAvatar name={selected.name} photoUrl={selected.photoUrl} size={48} />
                   <div className="flex-1 min-w-0">
                     <span className="text-sm font-bold text-[var(--text-primary)] block truncate">{selected.name}</span>
                     <span className="text-xs text-[var(--text-muted)] font-mono block truncate">{selected.email || '—'}</span>

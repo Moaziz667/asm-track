@@ -27,6 +27,8 @@ public record SlaTimelineResponse(Current current, List<Event> timeline, Context
                           String backorderDirection, String backorderDeliveryId, String backorderBlNumber,
                           String podComment, List<ItemOutcome> itemOutcomes) {}
 
-    /** A line item the driver did not deliver cleanly: refused or damaged, with the why. */
-    public record ItemOutcome(String name, String outcome, String reason, String comment) {}
+    /** A line item the driver did not deliver cleanly: refused, damaged, or short/missing, with the why
+     *  and the delivered-vs-ordered quantities. */
+    public record ItemOutcome(String name, String outcome, String reason, String comment,
+                              Integer quantity, Integer quantityDone) {}
 }

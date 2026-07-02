@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconInbox } from '@tabler/icons-react';
+import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -16,7 +16,7 @@ import {
   formatElapsed, formatShortDate,
   needsClientContact, needsDriverContact, needsReturnToDepot,
 } from '../formatters';
-import { rowId } from '../utils';
+import { rowId, isPinned } from '../utils';
 import type { OpsException } from '../types';
 import { formatMoney } from '@/lib/utils';
 
@@ -44,6 +44,7 @@ export function QueueDetail() {
 
   const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
   const canReplan   = (REPLANNABLE_STATUSES as string[]).includes(d.status) && !canReassign;
+  const pinned = isPinned(d); // unpinned → no coords to route; offer "pin first" instead of assign
 
   // SLA slot for the header. Live health is NONE for FAILED/CANCELLED (no on-time verdict), which
   // renders an empty badge. In that case fall back to the worst PAST phase health so a failed-but-
@@ -62,8 +63,9 @@ export function QueueDetail() {
   const target = {
     deliveryId: id, orderRef: d.orderRef, erpOrderId: d.erpOrderId, clientName: d.clientName,
     city: d.dropoffCity, status: d.status, driverName: d.driverName,
-    routeId: d.routeId, routeName: d.routeName,
+    routeId: d.routeId, routeName: d.routeName, routeStatus: d.routeStatus,
     timeSlotStartTime: d.timeSlotStartTime, timeSlotEndTime: d.timeSlotEndTime,
+    timeSlotName: d.timeSlotName, requestedDeliveryDate: d.requestedDeliveryDate,
     totalWeightKg: d.totalWeightKg, totalAmount: d.totalAmount, currency: d.currency,
     itemsCount: d.items?.length, priority: d.priority, scheduledAt: d.scheduledAt,
     dropoffAddress: d.dropoffAddress,
@@ -239,12 +241,20 @@ export function QueueDetail() {
       {/* Action bar — fixed footer, always visible regardless of scroll position */}
       {!isReadOnly && (
         <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
-          {canReassign && (
+          {canReassign && (pinned ? (
             <Button size="sm" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
               {d.driverId ? <IconReassign size={14} /> : <IconAssign size={14} />}
               {d.driverId ? t.dispatchDeskPage.buttonReassign : t.dispatchDeskPage.buttonAssign}
             </Button>
-          )}
+          ) : (
+            <Link
+              to={`/deliveries?pin=${id}`}
+              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
+              style={{ color: 'var(--warning)', borderColor: 'var(--warning)' }}
+            >
+              <IconMapPinOff size={14} /> {t.dispatchDeskPage.pinAddress}
+            </Link>
+          ))}
           {canReplan && (
             <Button
               size="sm" variant="outline" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"

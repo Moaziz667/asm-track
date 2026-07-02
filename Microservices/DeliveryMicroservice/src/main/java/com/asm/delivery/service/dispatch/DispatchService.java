@@ -177,6 +177,7 @@ public class DispatchService {
         return routeStopRepository.findActiveByDeliveryIdWithRoute(deliveryId)
                 .filter(rs -> rs.getRoute() != null)
                 .map(rs -> new RouteInfo(rs.getRoute().getId(), rs.getRoute().getName(),
+                        rs.getRoute().getStatus() != null ? rs.getRoute().getStatus().name() : null,
                         rs.getStartTimeWindow(), rs.getEndTimeWindow()))
                 .orElse(null);
     }
@@ -591,6 +592,7 @@ public class DispatchService {
                 .collect(Collectors.toMap(
                         com.asm.delivery.entity.RouteStop::getDeliveryId,
                         routeStop -> new RouteInfo(routeStop.getRoute().getId(), routeStop.getRoute().getName(),
+                                routeStop.getRoute().getStatus() != null ? routeStop.getRoute().getStatus().name() : null,
                                 routeStop.getStartTimeWindow(), routeStop.getEndTimeWindow()),
                         (existing, replacement) -> existing
                 ));
@@ -636,6 +638,9 @@ public class DispatchService {
                 .erpOrderId(order != null ? order.getErpOrderId() : null)
                 .routeId(routeInfo != null ? routeInfo.routeId() : null)
                 .routeName(routeInfo != null ? routeInfo.routeName() : null)
+                .routeStatus(routeInfo != null ? routeInfo.routeStatus() : null)
+                .timeSlotStartTime(routeInfo != null && routeInfo.startWindow() != null ? routeInfo.startWindow().toString() : null)
+                .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failReason(d.getFailReason())
@@ -686,7 +691,7 @@ public class DispatchService {
                 .build();
     }
 
-        private record RouteInfo(UUID routeId, String routeName,
+        private record RouteInfo(UUID routeId, String routeName, String routeStatus,
                                  java.time.LocalTime startWindow, java.time.LocalTime endWindow) {}
 
         private String normalizeText(String value) {

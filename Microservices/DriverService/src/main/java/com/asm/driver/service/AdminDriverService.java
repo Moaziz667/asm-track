@@ -53,6 +53,7 @@ public class AdminDriverService {
     private final AppBackendIamClient iamClient;
     private final ApplicationEventPublisher eventPublisher;
     private final DriverEventPublisher driverEventPublisher;
+    private final com.asm.driver.storage.AvatarService avatarService;
 
     @Value("${invite.ttl-hours:48}")
     private long inviteTtlHours;
@@ -490,7 +491,9 @@ public class AdminDriverService {
                 .failed(stats != null ? stats.getFailed() : 0)
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
                 .email(d.getEmail())
-                .photoUrl(d.getPhotoUrl())
+                .photoUrl(d.getPhotoUrl() != null && d.getPhotoVersion() != null && d.getPhotoVersion() > 0
+                        ? avatarService.publicUrlFor(d.getId(), d.getPhotoVersion(), "thumb")
+                        : null)
                 .activeDeliveryId(activeDeliveryId)
                 .activeRouteId(activeRouteId)
                 .suspendedReason(d.getSuspendedReason())

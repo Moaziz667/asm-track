@@ -100,13 +100,28 @@ public class SlaTimelineService {
                 .filter(c -> c != null && !c.isBlank())
                 .orElse(null);
 
-        // Per-item outcomes the dispatcher needs to see: only the items NOT delivered cleanly.
+        // Per-item outcomes the dispatcher needs to see: every line NOT delivered cleanly. That means an
+        // explicit non-DELIVERED outcome (refused / damaged / missing) OR a short-quantity line that
+        // stayed DELIVERED but carries a shortfall reason — which the driver models as an ITEM_MISSING
+        // motif (e.g. "Colis introuvable"). The short line is surfaced as MISSING so the timeline reads
+        // exactly like the Articles table; clean full lines are dropped.
         List<SlaTimelineResponse.ItemOutcome> itemOutcomes = java.util.List.of();
         if (d.getOrder() != null && d.getOrder().getItems() != null) {
             itemOutcomes = d.getOrder().getItems().stream()
-                    .filter(it -> it.getOutcome() != null && !"DELIVERED".equalsIgnoreCase(it.getOutcome()))
-                    .map(it -> new SlaTimelineResponse.ItemOutcome(
-                            it.getName(), it.getOutcome(), it.getReason(), it.getComment()))
+                    .map(it -> {
+                        String outcome = it.getOutcome();
+                        int qty = it.getQuantity() != null ? it.getQuantity() : 0;
+                        int done = it.getQuantityDone() != null ? it.getQuantityDone() : qty;
+                        boolean notClean = outcome != null && !"DELIVERED".equalsIgnoreCase(outcome);
+                        boolean shortWithReason = !notClean && done < qty
+                                && (it.getReasonLabel() != null || it.getReason() != null);
+                        if (!notClean && !shortWithReason) return null;
+                        String shown = notClean ? outcome : "MISSING";
+                        String reason = it.getReasonLabel() != null ? it.getReasonLabel() : it.getReason();
+                        return new SlaTimelineResponse.ItemOutcome(
+                                it.getName(), shown, reason, it.getComment(), qty, done);
+                    })
+                    .filter(java.util.Objects::nonNull)
                     .toList();
         }
 

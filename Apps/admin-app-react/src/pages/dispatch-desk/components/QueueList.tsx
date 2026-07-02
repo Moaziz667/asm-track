@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconCheck } from '@tabler/icons-react';
+import { IconCheck, IconMapPinOff, IconPencil } from '@tabler/icons-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
@@ -10,7 +10,7 @@ import { useT } from '@/lib/LocaleContext';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { STATUS_DOT, getDriverStatusTip, SEVERITY_CHIP } from '../constants';
 import { formatMotif, formatElapsed } from '../formatters';
-import { rowId } from '../utils';
+import { rowId, isPinned } from '../utils';
 import type { QueueRow } from '../types';
 
 interface RowProps {
@@ -44,6 +44,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
   const amount = typeof d.totalAmount === 'number' && d.totalAmount > 0
     ? formatMoney(d.totalAmount, d.currency ?? 'TND')
     : null;
+  const pinned = isPinned(d);
 
   return (
     <button
@@ -67,8 +68,10 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
     >
       <input
         type="checkbox"
-        className="w-3.5 h-3.5 mt-1 accent-[var(--brand)] shrink-0"
+        className="w-3.5 h-3.5 mt-1 accent-[var(--brand)] shrink-0 disabled:opacity-40 disabled:cursor-not-allowed"
         checked={checked}
+        disabled={!pinned}
+        title={!pinned ? t.dispatchDeskPage.pinFirstTooltip : undefined}
         onClick={e => e.stopPropagation()}
         onChange={onToggle}
       />
@@ -89,11 +92,25 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
           <span className="text-sm font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
             {d.clientName ?? '—'}
           </span>
+          {!pinned && (
+            <span
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full shrink-0 ms-auto text-2xs font-[600] leading-none"
+              style={{ background: 'color-mix(in srgb, var(--warning) 14%, transparent)', color: 'var(--warning)' }}
+              title={t.dispatchDeskPage.pinFirstTooltip}
+            >
+              <IconMapPinOff size={10} stroke={2.5} />{t.dispatchDeskPage.needsPin}
+            </span>
+          )}
         </div>
 
         {/* Bottom line: status · driver · elapsed · amount */}
         <div className="flex items-center gap-1.5 min-w-0 text-xs" style={{ color: 'var(--text-muted)' }}>
           <StatusBadge status={d.status} size="sm" />
+          {/* A delivery in a DRAFT route is UNSCHEDULED by status but not pool — keep the status and
+              append the standard DRAFT badge (gray) so it reads as "being planned", not "non assigné". */}
+          {d.status === 'UNSCHEDULED' && d.routeStatus === 'DRAFT' && (
+            <StatusBadge status="DRAFT" size="sm" />
+          )}
           <SlaHealthBadge health={d.slaHealth} />
           {d.driverName ? (
             <span className="inline-flex items-center gap-1 truncate" title={getDriverStatusTip(driverOnlineStatus, t)}>
@@ -188,11 +205,11 @@ export function QueueList() {
   }
 
   // Group consecutive rows by route (queueRows are pre-sorted route-major).
-  const groups: { routeId?: string; routeName?: string; rows: QueueRow[] }[] = [];
+  const groups: { routeId?: string; routeName?: string; routeStatus?: string; rows: QueueRow[] }[] = [];
   for (const row of queueRows) {
     const last = groups[groups.length - 1];
     if (last && last.routeName === row.routeName) last.rows.push(row);
-    else groups.push({ routeId: row.routeId, routeName: row.routeName, rows: [row] });
+    else groups.push({ routeId: row.routeId, routeName: row.routeName, routeStatus: row.delivery.routeStatus, rows: [row] });
   }
 
   return (
@@ -208,6 +225,14 @@ export function QueueList() {
             <span className="text-2xs font-[600] uppercase tracking-wide truncate" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.unassignedLabel}
             </span>
+            {group.routeStatus === 'DRAFT' && (
+              <span
+                className="inline-flex items-center gap-1 text-2xs font-[600] px-1.5 rounded-full shrink-0"
+                style={{ background: 'color-mix(in srgb, var(--info) 14%, transparent)', color: 'var(--info)', lineHeight: 1.6 }}
+              >
+                <IconPencil size={10} stroke={2.5} />{t.statusLabels.DRAFT}
+              </span>
+            )}
             <span className="text-2xs font-[500] px-1.5 rounded-full shrink-0" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               {group.rows.length}
             </span>

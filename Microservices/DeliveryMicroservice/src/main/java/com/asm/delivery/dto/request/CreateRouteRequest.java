@@ -1,7 +1,6 @@
 package com.asm.delivery.dto.request;
 
 import io.swagger.v3.oas.annotations.media.Schema;
-import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.Data;
 
@@ -13,8 +12,7 @@ import java.util.UUID;
 @Data
 @Schema(description = "Route creation contract used by admin planning UI")
 public class CreateRouteRequest {
-    @NotBlank
-    @Schema(description = "Route display name", example = "Tunis Morning Route")
+    @Schema(description = "Route display name. Optional — when blank the server assigns the next sequential code (R001, R002, …).", example = "Tunis Morning Route")
     private String name;
 
     @NotNull

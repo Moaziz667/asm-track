@@ -345,11 +345,29 @@ public class HandoffService {
 
     private com.asm.delivery.dto.response.HandoffResponse toResponse(Handoff h) {
         Order order = loadOrder(h);
+        String routeName = null;
+        if (h.getRouteId() != null) {
+            routeName = routeRepository.findById(h.getRouteId()).map(Route::getName).orElse(null);
+        }
+        String toRouteId = null;
+        String toRouteName = null;
+        if (h.getToDriverId() != null) {
+            toRouteId = routeRepository.findByDriverIdAndDateAndStatusIn(
+                    h.getToDriverId(), LocalDate.now(),
+                    List.of(RouteStatus.IN_PROGRESS, RouteStatus.VALIDATED, RouteStatus.DRAFT))
+                    .stream().findFirst().map(r -> r.getId().toString()).orElse(null);
+            if (toRouteId != null) {
+                toRouteName = routeRepository.findById(UUID.fromString(toRouteId)).map(Route::getName).orElse(null);
+            }
+        }
         return com.asm.delivery.dto.response.HandoffResponse.builder()
                 .id(h.getId().toString())
                 .state(h.getState() != null ? h.getState().name() : null)
                 .deliveryId(h.getDeliveryId() != null ? h.getDeliveryId().toString() : null)
                 .routeId(h.getRouteId() != null ? h.getRouteId().toString() : null)
+                .routeName(routeName)
+                .toRouteId(toRouteId)
+                .toRouteName(toRouteName)
                 .erpOrderId(order != null ? order.resolveRef() : null)
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)

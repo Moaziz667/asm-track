@@ -6,6 +6,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
 import { canManageRoutes, getCurrentRole } from '@/lib/auth';
+import { getBusinessDayKey } from '@/lib/sla';
 import { useT } from '@/lib/LocaleContext';
 import type { Driver } from '@/types';
 import type { 
@@ -94,6 +95,8 @@ export function useRouteBuilder() {
   const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
   const [availableDrivers, setAvailableDrivers] = useState<Driver[]>([]);
   const [availableVehicles, setAvailableVehicles] = useState<VehicleItem[]>([]);
+  // True once the availability API answered for the current date — lets an empty list mean "all busy".
+  const [availabilityLoaded, setAvailabilityLoaded] = useState(false);
   const [depots, setDepots] = useState<DepotItem[]>([]);
   const [waitingDeliveries, setWaitingDeliveries] = useState<DeliveryOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
@@ -123,7 +126,7 @@ export function useRouteBuilder() {
 
   // Phase 2: date filter, multi-select, batch optimize
   const [routesDate, setRoutesDate] = useState<string | null>(
-    new Date().toISOString().slice(0, 10),
+    getBusinessDayKey(),
   );
   const [batchSelectedRouteIds, setBatchSelectedRouteIds] = useState<string[]>([]);
   const [batchOptimizing, setBatchOptimizing] = useState(false);
@@ -140,7 +143,7 @@ export function useRouteBuilder() {
 
   const [createForm, setCreateForm] = useState({
     name: '',
-    date: new Date().toISOString().slice(0, 10),
+    date: getBusinessDayKey(),
     driverId: '',
     vehicleId: '',
     depotId: '',
@@ -253,8 +256,10 @@ export function useRouteBuilder() {
       if (!isMounted.current) return;
       setAvailableDrivers(Array.isArray(driversRes.data) ? driversRes.data : []);
       setAvailableVehicles(Array.isArray(vehiclesRes.data) ? vehiclesRes.data : []);
+      setAvailabilityLoaded(true); // success — an empty list now means "all busy", not "unknown"
     } catch {
-      // fall back to full lists silently
+      // fetch failed → don't disable anyone (avoid false "all busy")
+      setAvailabilityLoaded(false);
     }
   }, []);
 
@@ -481,7 +486,7 @@ export function useRouteBuilder() {
   };
 
   const createRoute = async (): Promise<void> => {
-    if (!createForm.name.trim()) { showErrorToast(null, t.routeBuilderPage.toastRouteNameRequired); return; }
+    // Route name is server-assigned (sequential R001…) — no name input.
     if (!createForm.date) { showErrorToast(null, t.routeBuilderPage.toastDateRequired); return; }
     if (!createForm.driverId) { showErrorToast(null, t.routeBuilderPage.toastDriverRequired); return; }
     if (!createForm.depotId) { showErrorToast(null, t.routeBuilderPage.toastDepotRequired); return; }
@@ -496,7 +501,6 @@ export function useRouteBuilder() {
     try {
       setCreating(true);
       const res = await api.post('/api/admin/routes', {
-        name: createForm.name.trim(),
         date: createForm.date,
         driverId: createForm.driverId,
         vehicleId: createForm.vehicleId || null,
@@ -1329,6 +1333,7 @@ export function useRouteBuilder() {
     drivers,
     availableDrivers,
     availableVehicles,
+    availabilityLoaded,
     vehicles,
     depots,
     waitingDeliveries,

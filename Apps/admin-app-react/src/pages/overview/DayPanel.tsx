@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { parseISO, isBefore, isSameDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { format } from 'date-fns';
-import { IconPackage, IconAlertTriangle, IconClockHour4, IconCircleCheck } from '@tabler/icons-react';
-import { KPICard } from '@/components/ui/kpi-card';
+import { IconPackage, IconRoute, IconAlertTriangle, IconClockHour4, IconCircleCheck } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { formatMoney } from '@/lib/utils';
@@ -18,6 +17,34 @@ interface Props {
   routes: RouteItem[];
   driverSlots: number; // available driver capacity for planning
   t: ReturnType<typeof useT>;
+}
+
+type Tone = 'default' | 'success' | 'warning' | 'danger' | 'info';
+const TONE_VAR: Record<Tone, string> = {
+  default: 'var(--text-primary)', success: 'var(--success)', warning: 'var(--warning)',
+  danger: 'var(--danger)', info: 'var(--info)',
+};
+
+/** Compact KPI tile sized for the side panel — small label, a value that fits (truncates, never wraps). */
+function StatTile({ label, value, sub, tone = 'default' }: { label: string; value: string | number; sub?: string; tone?: Tone }) {
+  return (
+    <div className="rounded-[var(--radius)] border border-[var(--border)] bg-[var(--surface)] px-3 py-2 flex flex-col gap-0.5 min-w-0">
+      <span className="text-3xs font-bold uppercase tracking-wider text-[var(--text-muted)] truncate">{label}</span>
+      <span className="text-lg font-bold tabular-nums leading-tight truncate" style={{ color: TONE_VAR[tone] }} title={String(value)}>{value}</span>
+      {sub && <span className="text-3xs text-[var(--text-soft)] truncate">{sub}</span>}
+    </div>
+  );
+}
+
+/** Header count chip: the number is the hero, the unit label is muted. */
+function HeaderStat({ icon, value, label }: { icon: React.ReactNode; value: number; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-[var(--surface-sunken)] border border-[var(--border)]">
+      <span className="text-[var(--text-muted)]">{icon}</span>
+      <span className="text-xs font-bold tabular-nums text-[var(--text-primary)]">{value}</span>
+      <span className="text-2xs text-[var(--text-muted)]">{label}</span>
+    </span>
+  );
 }
 
 /**
@@ -59,7 +86,10 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
           <p className="text-base font-bold text-[var(--text-primary)] capitalize truncate">
             {format(day, 'EEEE d MMMM', { locale: fr })}
           </p>
-          <p className="text-xs text-[var(--text-muted)]">{deliveries.length} livraison(s) · {routes.length} tournée(s)</p>
+          <div className="flex items-center gap-1.5 mt-1.5">
+            <HeaderStat icon={<IconPackage size={12} />} value={deliveries.length} label={t.overviewPage?.delAbbrev ?? 'livr.'} />
+            <HeaderStat icon={<IconRoute size={12} />} value={routes.length} label={t.overviewPage?.routesSuffix ?? 'tournées'} />
+          </div>
         </div>
         <ModeChip mode={mode} live={isToday} t={t} />
       </div>
@@ -68,15 +98,12 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
       <div className="px-3 py-3 border-b border-[var(--border)] shrink-0 bg-[var(--surface-sunken)]">
         {mode === 'outcomes' ? (
           <div className="grid grid-cols-2 gap-2">
-            <KPICard label={t.overviewPage?.kpiCompletion ?? 'Taux de réussite'} value={`${m.completionRate}%`} sub={`${m.delivered} / ${m.total}`}
-              tone={m.completionRate >= 80 ? 'success' : m.completionRate >= 50 ? 'warning' : m.total > 0 ? 'danger' : 'default'}
-              className="pl-4 pr-2.5 py-3 h-[76px]" />
-            <KPICard label={t.overviewPage?.kpiCollected ?? 'Encaissé (COD)'} value={formatMoney(m.codCollected, currency)} sub={`/ ${formatMoney(m.codAll, currency)}`}
-              tone="success" className="pl-4 pr-2.5 py-3 h-[76px]" />
-            <KPICard label={t.overviewPage?.kpiFailures ?? 'Échecs'} value={m.failed} sub={m.failed > 0 ? (t.overviewPage?.kpiFailuresSub ?? 'à analyser') : (t.overviewPage?.kpiNoFailures ?? 'aucun')}
-              tone={m.failed > 0 ? 'danger' : 'success'} className="pl-4 pr-2.5 py-3 h-[76px]" />
-            <KPICard label={t.overviewPage?.kpiWeight ?? 'Poids livré'} value={`${m.weight.toFixed(1)} kg`} sub={`${m.done} ${t.overviewPage?.kpiClosed ?? 'clôturées'}`}
-              tone="info" className="pl-4 pr-2.5 py-3 h-[76px]" />
+            <StatTile label={t.overviewPage?.kpiCompletion ?? 'Taux de réussite'} value={`${m.completionRate}%`} sub={`${m.delivered} / ${m.total}`}
+              tone={m.completionRate >= 80 ? 'success' : m.completionRate >= 50 ? 'warning' : m.total > 0 ? 'danger' : 'default'} />
+            <StatTile label={t.overviewPage?.kpiCollected ?? 'Encaissé (COD)'} value={formatMoney(m.codCollected, currency)} sub={`/ ${formatMoney(m.codAll, currency)}`} tone="success" />
+            <StatTile label={t.overviewPage?.kpiFailures ?? 'Échecs'} value={m.failed} sub={m.failed > 0 ? (t.overviewPage?.kpiFailuresSub ?? 'à analyser') : (t.overviewPage?.kpiNoFailures ?? 'aucun')}
+              tone={m.failed > 0 ? 'danger' : 'success'} />
+            <StatTile label={t.overviewPage?.kpiWeight ?? 'Poids livré'} value={`${m.weight.toFixed(1)} kg`} sub={`${m.done} ${t.overviewPage?.kpiClosed ?? 'clôturées'}`} tone="info" />
           </div>
         ) : (
           <div className="flex flex-col gap-2">
@@ -99,14 +126,11 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
               )}
             </div>
             <div className="grid grid-cols-2 gap-2">
-              <KPICard label={t.overviewPage?.kpiPlanned ?? 'Livr. planifiées'} value={m.total} sub={isToday ? `${m.completionRate}% ${t.overviewPage?.doneSuffix ?? 'fait'}` : `${routes.length} ${t.overviewPage?.routesSuffix ?? 'tournées'}`}
-                tone="default" className="pl-4 pr-2.5 py-3 h-[76px]" />
-              <KPICard label={t.overviewPage?.kpiUnassigned ?? 'Non assignées'} value={m.unassigned} sub={m.unassigned > 0 ? (t.overviewPage?.toDispatch ?? 'à dispatcher') : (t.overviewPage?.allAssigned ?? 'tout assigné')}
-                tone={m.unassigned > 0 ? 'warning' : 'success'} className="pl-4 pr-2.5 py-3 h-[76px]" />
-              <KPICard label={t.overviewPage?.kpiValue ?? 'Valeur colis'} value={formatMoney(m.codAll, currency)} sub={t.overviewPage?.kpiValueSub ?? 'à encaisser'}
-                tone="info" className="pl-4 pr-2.5 py-3 h-[76px]" />
-              <KPICard label={t.overviewPage?.kpiWeightPlanned ?? 'Poids prévu'} value={`${m.weight.toFixed(1)} kg`} sub={t.overviewPage?.kpiLoad ?? 'charge estimée'}
-                tone="default" className="pl-4 pr-2.5 py-3 h-[76px]" />
+              <StatTile label={t.overviewPage?.kpiPlanned ?? 'Livr. planifiées'} value={m.total} sub={isToday ? `${m.completionRate}% ${t.overviewPage?.doneSuffix ?? 'fait'}` : `${routes.length} ${t.overviewPage?.routesSuffix ?? 'tournées'}`} tone="default" />
+              <StatTile label={t.overviewPage?.kpiUnassigned ?? 'Non assignées'} value={m.unassigned} sub={m.unassigned > 0 ? (t.overviewPage?.toDispatch ?? 'à dispatcher') : (t.overviewPage?.allAssigned ?? 'tout assigné')}
+                tone={m.unassigned > 0 ? 'warning' : 'success'} />
+              <StatTile label={t.overviewPage?.kpiValue ?? 'Valeur colis'} value={formatMoney(m.codAll, currency)} sub={t.overviewPage?.kpiValueSub ?? 'à encaisser'} tone="info" />
+              <StatTile label={t.overviewPage?.kpiWeightPlanned ?? 'Poids prévu'} value={`${m.weight.toFixed(1)} kg`} sub={t.overviewPage?.kpiLoad ?? 'charge estimée'} tone="default" />
             </div>
           </div>
         )}

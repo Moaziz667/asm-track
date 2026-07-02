@@ -20,6 +20,7 @@ public class ProofOfDeliveryResponse {
     private String signatureBase64;
     private String signatureUrl;
     private String photoUrl;
+    private String bonLivraisonPhotoUrl; // signed receipt (bon de livraison) photo
     private String comment;
     private LocalDateTime collectedAt;
     private BigDecimal lat;

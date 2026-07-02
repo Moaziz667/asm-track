@@ -225,7 +225,6 @@ function RouteRow({
         {/* Tournée */}
         <div className="flex flex-col gap-0">
           <span className="text-xs font-[700] text-[var(--text-primary)] tracking-tight">{route.name}</span>
-          <span className="text-xs font-[600] text-[var(--text-muted)]">ID: {route.id?.slice(0, 8) ?? 'N/A'}</span>
         </div>
 
         {/* Date */}

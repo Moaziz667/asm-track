@@ -213,6 +213,24 @@ public class RoutePlanningService {
         return self.doCreate(request, createdBy);
     }
 
+    private static final java.util.regex.Pattern SEQ_ROUTE_NAME = java.util.regex.Pattern.compile("^R(\\d+)$");
+
+    /**
+     * Routes are always auto-numbered R001, R002, … (max existing R-number + 1, so deleting a route never
+     * reuses a code). Any client-supplied name is ignored — the name is a system-assigned sequential code.
+     */
+    private String nextRouteName() {
+        int max = 0;
+        for (String n : routeRepository.findGeneratedRouteNames()) {
+            if (n == null) continue;
+            var mt = SEQ_ROUTE_NAME.matcher(n.trim());
+            if (mt.matches()) {
+                try { max = Math.max(max, Integer.parseInt(mt.group(1))); } catch (NumberFormatException ignored) { }
+            }
+        }
+        return String.format("R%03d", max + 1);
+    }
+
     @Transactional
     public RouteResponse doCreate(CreateRouteRequest request, String createdBy) {
         if (request.getVehicleId() != null && !vehicleRepository.existsById(request.getVehicleId())) {
@@ -229,7 +247,7 @@ public class RoutePlanningService {
         routeValidator.ensureNoScheduleConflict(request.getDriverId(), request.getDate(), plannedStartTime, plannedEndTime, null);
         routeValidator.ensureVehicleAvailable(request.getVehicleId());
         routeValidator.ensureNoVehicleConflict(request.getVehicleId(), request.getDate(), plannedStartTime, plannedEndTime, null);        Route route = Route.builder()
-                .name(request.getName().trim())
+                .name(nextRouteName())
                 .driverId(request.getDriverId())
                 .vehicleId(request.getVehicleId())
                 .date(request.getDate())

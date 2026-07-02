@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import {
-  startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, addDays, format,
+  startOfMonth, endOfMonth, startOfWeek, endOfWeek, addMonths, format,
 } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useQuery } from '@tanstack/react-query';
@@ -9,17 +9,17 @@ import { useRoutes, type RouteItem } from '@/hooks/useRoutes';
 import { IconChevronLeft, IconChevronRight, IconCalendar } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
-import { SegmentedControl } from '@/components/ui/SegmentedControl';
-import { CalDelivery, OverviewView, effectiveDate, isoDay } from './overview/shared';
+import { CalDelivery, effectiveDate, isoDay } from './overview/shared';
 import { MonthView } from './overview/MonthView';
-import { DayGridView } from './overview/DayGridView';
-import { TimelineView } from './overview/TimelineView';
 
-const TIMELINE_MONTHS = 6;
-
+/**
+ * Operational planning overview for the dispatcher: a month radar where each day shows planned load,
+ * **unassigned backlog**, and **driver-capacity** at a glance, with an adaptive Planning/Outcomes side
+ * panel on the selected day. (Intentionally one view — "now" lives in the Dispatch Desk, "actuals" in
+ * Performance; this is the time/capacity planning bridge.)
+ */
 export default function OverviewCalendarPage() {
   const t = useT();
-  const [view, setView] = useState<OverviewView>('month');
   const [cursor, setCursor] = useState(() => new Date());
   const [selected, setSelected] = useState<string>(() => isoDay(new Date()));
 
@@ -27,14 +27,8 @@ export default function OverviewCalendarPage() {
   const [filterDriver, setFilterDriver] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
 
-  // Fetch range depends on the active view: month grid, a single day, or a 6-month window.
-  const { rangeFrom, rangeTo } = useMemo(() => {
-    if (view === 'day') return { rangeFrom: selected, rangeTo: selected };
-    if (view === 'timeline') {
-      return { rangeFrom: isoDay(startOfMonth(cursor)), rangeTo: isoDay(endOfMonth(addMonths(cursor, TIMELINE_MONTHS - 1))) };
-    }
-    return { rangeFrom: isoDay(startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 })), rangeTo: isoDay(endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 })) };
-  }, [view, cursor, selected]);
+  const rangeFrom = isoDay(startOfWeek(startOfMonth(cursor), { weekStartsOn: 1 }));
+  const rangeTo = isoDay(endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 }));
 
   const { data: routes = [] } = useRoutes({ from: rangeFrom, to: rangeTo });
   const { data: deliveries = [] } = useQuery<CalDelivery[]>({
@@ -45,7 +39,7 @@ export default function OverviewCalendarPage() {
     },
   });
 
-  // Active-driver capacity for the Planning panel.
+  // Active-driver capacity for the per-day load bar + Planning panel.
   const { data: driverSlots = 0 } = useQuery<number>({
     queryKey: ['overview-driver-slots'],
     queryFn: async () => {
@@ -117,19 +111,6 @@ export default function OverviewCalendarPage() {
     return m;
   }, [filteredRoutes]);
 
-  const dayDeliveries = deliveriesByDay.get(selected) ?? [];
-
-  // Header title + nav step adapt to view.
-  const headerTitle = view === 'day'
-    ? format(new Date(selected), 'EEEE d MMMM yyyy', { locale: fr })
-    : view === 'timeline'
-      ? `${format(cursor, 'MMM', { locale: fr })} – ${format(addMonths(cursor, TIMELINE_MONTHS - 1), 'MMM yyyy', { locale: fr })}`
-      : format(cursor, 'MMMM yyyy', { locale: fr });
-
-  const step = (dir: 1 | -1) => {
-    if (view === 'day') { const d = addDays(new Date(selected), dir); setSelected(isoDay(d)); setCursor(d); }
-    else setCursor(c => addMonths(c, dir));
-  };
   const goToday = () => { const now = new Date(); setCursor(now); setSelected(isoDay(now)); };
 
   return (
@@ -139,18 +120,8 @@ export default function OverviewCalendarPage() {
         <div className="px-6 py-3 flex items-center justify-between gap-4 max-w-[1800px] mx-auto">
           <div className="flex items-center gap-3 min-w-0">
             <IconCalendar size={18} className="text-[var(--brand)] shrink-0" />
-            <h1 className="text-lg font-bold text-[var(--text-primary)] capitalize truncate">{headerTitle}</h1>
+            <h1 className="text-lg font-bold text-[var(--text-primary)] capitalize truncate">{format(cursor, 'MMMM yyyy', { locale: fr })}</h1>
           </div>
-          <SegmentedControl<OverviewView>
-            value={view}
-            onChange={setView}
-            ariaLabel={t.overviewPage?.viewLabel ?? 'Vue'}
-            options={[
-              { value: 'month', label: t.overviewPage?.viewMonth ?? 'Mois' },
-              { value: 'day', label: t.overviewPage?.viewDay ?? 'Jour' },
-              { value: 'timeline', label: t.overviewPage?.viewTimeline ?? 'Frise' },
-            ]}
-          />
         </div>
       </div>
 
@@ -160,22 +131,15 @@ export default function OverviewCalendarPage() {
         onFilterChange={handleFilterChange}
         extraActions={
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={() => step(-1)} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronLeft size={16} /></button>
+            <button onClick={() => setCursor(c => addMonths(c, -1))} aria-label={t.overviewPage?.prev ?? 'Précédent'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronLeft size={16} /></button>
             <button onClick={goToday} className="h-8 px-3 rounded-md border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors">{t.overviewPage?.today ?? "Aujourd'hui"}</button>
-            <button onClick={() => step(1)} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronRight size={16} /></button>
+            <button onClick={() => setCursor(c => addMonths(c, 1))} aria-label={t.overviewPage?.next ?? 'Suivant'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronRight size={16} /></button>
           </div>
         }
       />
 
-      {view === 'month' && (
-        <MonthView cursor={cursor} selected={selected} setSelected={setSelected}
-          deliveriesByDay={deliveriesByDay} routesByDay={routesByDay} driverSlots={driverSlots} t={t} />
-      )}
-      {view === 'day' && <DayGridView selected={selected} deliveries={dayDeliveries} t={t} />}
-      {view === 'timeline' && (
-        <TimelineView cursor={cursor} months={TIMELINE_MONTHS} deliveriesByDay={deliveriesByDay} routesByDay={routesByDay}
-          selected={selected} onPickDay={(iso) => { setSelected(iso); setCursor(new Date(iso)); setView('month'); }} t={t} />
-      )}
+      <MonthView cursor={cursor} selected={selected} setSelected={setSelected}
+        deliveriesByDay={deliveriesByDay} routesByDay={routesByDay} driverSlots={driverSlots} t={t} />
     </div>
   );
 }

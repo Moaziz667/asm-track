@@ -20,5 +20,6 @@ public record RouteInfo(
         LocalDateTime departureTime,
         LocalDate date,
         LocalTime plannedStartTime,
+        LocalTime startTimeWindow,
         LocalTime endTimeWindow
 ) {}

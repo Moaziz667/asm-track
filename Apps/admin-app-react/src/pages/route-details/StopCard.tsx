@@ -17,6 +17,30 @@ import { fmtLong, fmtTimeWindow, mediaSrc } from './helpers';
 import { STOP_STATUS, REMOVABLE_STOP_STATUSES } from './constants';
 import type { RouteDetail, RouteStop } from './types';
 
+const AUTO_GENERATED_NOTES = new Set([
+  'DELIVERY_COMPLETED',
+  'DELIVERY_PARTIALLY_DELIVERED',
+  'Route started and package auto-picked up',
+  'Picked up at depot',
+  'Handoff confirmed — package received',
+  'Returned to sender — handoff reverted',
+  'Moved by dispatch via reassign',
+  'Assigned by dispatch from pool',
+  'Imported from ERP via Adapter',
+  'Route validated and delivery assigned',
+  'Driver started transit',
+  'Delivery completed',
+  'Delivery failed',
+  'Delivery cancelled',
+  'Driver cancelled, reassigning',
+  'Workflow: timeout reset',
+]);
+
+function isRealNote(note?: string | null): boolean {
+  if (!note) return false;
+  return !AUTO_GENERATED_NOTES.has(note.trim());
+}
+
 type Tab = 'details' | 'pod';
 
 type StopCardProps = {
@@ -239,7 +263,7 @@ export function StopCard({
                     </div>
                   )}
                   {stop.order?.deliveryInstructions && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelInstructions}:</strong> {stop.order.deliveryInstructions}</div>}
-                  {stop.notes && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelNote}:</strong> {stop.notes}</div>}
+                  {isRealNote(stop.notes) && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelNote}:</strong> {stop.notes}</div>}
                 </div>
 
                 {/* Items Table */}
@@ -264,18 +288,20 @@ export function StopCard({
                             const isPostPod  = item.quantityDone != null;
                             const qtyDone    = item.quantityDone ?? item.quantity ?? 0;
                             const qtyPlanned = item.quantity ?? 0;
+                            const isPartialQty = isPostPod && qtyDone < qtyPlanned;
                             let inferredOutcome = null;
                             if (isPostPod) {
-                              if (displayStatus === 'DELIVERED' || displayStatus === 'PARTIALLY_DELIVERED') {
-                                inferredOutcome = qtyDone > 0 ? 'DELIVERED' : 'REFUSED';
-                              } else if (displayStatus === 'FAILED') {
+                              if (displayStatus === 'FAILED') {
                                 const fCode = (delivery as any)?.failureCode || (delivery as any)?.failReason || (stop as any)?.failureCode || (stop as any)?.failReason;
                                 if (fCode === 'REFUSED' || fCode === 'CLIENT_REJECTED') {
                                   inferredOutcome = 'REFUSED';
                                 }
                               }
+                              // For DELIVERED / PARTIALLY_DELIVERED: don't infer outcome from qtyDone.
+                              // Use server-side item.outcome when available.
                             }
                             const outcome    = item.outcome ?? inferredOutcome;
+                            const reasonLabel = (item as any).reasonLabel ?? null;
 
                             return (
                               <>
@@ -286,7 +312,11 @@ export function StopCard({
                                     {isPostPod ? `×${qtyDone}` : '—'}
                                   </td>
                                   <td>
-                                    {outcome ? <ItemOutcomeBadge outcome={outcome} reason={item.reason} reasonLabel={item.reasonLabel} /> : '—'}
+                                    {outcome && outcome !== 'DELIVERED' ? (
+                                      <ItemOutcomeBadge outcome={outcome} reason={item.reason} reasonLabel={item.reasonLabel} />
+                                    ) : isPartialQty && reasonLabel ? (
+                                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{reasonLabel}</span>
+                                    ) : '—'}
                                   </td>
                                   <td>{formatMoney(item.unitPrice ?? item.price, stop.order?.currency ?? currency)}</td>
                                 </tr>

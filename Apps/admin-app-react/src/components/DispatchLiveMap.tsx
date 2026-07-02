@@ -5,7 +5,6 @@ import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
 import { useLocaleContext } from '@/lib/LocaleContext';
-import voitureFourgon from '../../icons/voiture-fourgon.png';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type LiveDriver = {
@@ -70,18 +69,27 @@ function makeStopIcon(color: string, label: string, dim: boolean, focused: boole
   });
 }
 
-// Driver van icon — the SAME artwork as the per-route page (voiture-fourgon.png), wrapped in a
-// ring tinted to the route colour so the car matches its route's pins. Stale GPS dims it.
-function makeDriverIcon(ring: string, dim: boolean, focused: boolean) {
+// Driver marker = the driver's avatar photo in a ring tinted to its route colour (so the puck matches
+// its route's pins), with an online/offline status dot. Falls back to mono initials when no photo.
+// All chrome is token-based (surface disc + status tokens) so it reads correctly in light AND dark.
+// Stale GPS dims the whole puck.
+function makeDriverIcon(ring: string, dim: boolean, focused: boolean, photoUrl: string | null | undefined, name: string, online: boolean) {
   const size = focused ? 42 : 36;
-  const opacity = dim ? 0.4 : 1;
+  const wrap = size + 8;
+  const opacity = dim ? 0.45 : 1;
+  const dot = Math.max(10, Math.round(size * 0.3));
+  const initials = (name || '').split(/\s+/).map(p => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '—';
+  const inner = photoUrl
+    ? `<img src="${photoUrl}" alt="" aria-hidden="true" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<span style="font-family:var(--font-sans);font-weight:700;font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary);">${initials}</span>`;
   return L.divIcon({
     className: '',
-    iconSize: [size + 8, size + 8], iconAnchor: [(size + 8) / 2, (size + 8) / 2], popupAnchor: [0, -(size / 2) - 6],
-    html: `<div style="width:${size + 8}px;height:${size + 8}px;display:flex;align-items:center;justify-content:center;opacity:${opacity};transition:opacity 0.15s;">
-  <div style="width:${size + 8}px;height:${size + 8}px;border-radius:50%;background:var(--surface);border:2.5px solid ${ring};box-shadow:0 0 0 2px ${ring}33, var(--shadow-card);display:flex;align-items:center;justify-content:center;">
-    <img src="${voitureFourgon}" alt="" aria-hidden="true" style="width:${Math.round(size * 0.74)}px;height:${Math.round(size * 0.74)}px;object-fit:contain;display:block;" />
+    iconSize: [wrap, wrap], iconAnchor: [wrap / 2, wrap / 2], popupAnchor: [0, -(size / 2) - 6],
+    html: `<div style="position:relative;width:${wrap}px;height:${wrap}px;opacity:${opacity};transition:opacity 0.15s;">
+  <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--surface);border:2.5px solid ${ring};box-shadow:0 0 0 2px ${ring}33, var(--shadow-card);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+    ${inner}
   </div>
+  <span style="position:absolute;bottom:3px;right:3px;width:${dot}px;height:${dot}px;border-radius:50%;background:${online ? 'var(--success)' : 'var(--text-soft)'};border:2px solid var(--surface);"></span>
 </div>`,
   });
 }
@@ -226,11 +234,12 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
       const color = r ? routeColor(r.id) : '#71717A';
       const isFocused = driver.id === focusedDriverId || (!!r && r.id === focusedRouteId);
       const dim = !isFocused && (isGpsStale(driver.lastLocationAt) || !!focusedRouteId || !!focusedDriverId);
+      const online = (driver.onlineStatus ?? 'OFFLINE') !== 'OFFLINE' && !isGpsStale(driver.lastLocationAt);
       return (
         <Marker
           key={driver.id}
           position={[driver.currentLat!, driver.currentLng!]}
-          icon={makeDriverIcon(color, dim, isFocused)}
+          icon={makeDriverIcon(color, dim, isFocused, (driver as LiveDriver & { photoUrl?: string | null }).photoUrl, driver.name, online)}
           eventHandlers={{ click: () => onFocusRoute?.(r ? (focusedRouteId === r.id ? null : r.id) : null) }}
         >
           <Popup>

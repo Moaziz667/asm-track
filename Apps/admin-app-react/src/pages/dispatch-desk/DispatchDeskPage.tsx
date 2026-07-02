@@ -1,5 +1,4 @@
 import React, { Suspense } from 'react';
-import { useNavigate as useRouter } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import StatusBadge from '@/components/StatusBadge';
 import { ReplanModal } from './ReplanModal';
@@ -9,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppModal } from '@/components/overlays/AppModal';
 import { IconReassign, IconReplan } from '@/components/icons/DispatchIcons';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
-import { ReassignDrawer } from '@/components/overlays/ReassignDrawer';
+import { DispatchAssignDrawer } from '@/components/overlays/DispatchAssignDrawer';
 import { cn } from '@/lib/utils';
 
 import { STATUS_DOT, getDriverStatusTip, REPLANNABLE_STATUSES, REASSIGNABLE_STATUSES } from './constants';
@@ -158,7 +157,13 @@ function DispatchDeskContentInner() {
     openActionModal,
   } = useDispatchDeskContext();
 
-  const router = useRouter();
+  // Route-presence comes straight from the fleet DTO's activeRouteId (today's VALIDATED/IN_PROGRESS
+  // route), so it's correct regardless of how the deliveries list is filtered.
+  const driversWithRoute = React.useMemo(() => {
+    const s = new Set<string>();
+    for (const d of drivers) if (d.activeRouteId) s.add(d.id);
+    return s;
+  }, [drivers]);
 
   return (
     <TooltipProvider>
@@ -174,22 +179,20 @@ function DispatchDeskContentInner() {
 
         {/* ── Overlays ───────────────────────────────────────────────────────── */}
 
-        <ReassignDrawer
+        <DispatchAssignDrawer
           open={drawerTargets.length > 0}
           target={drawerTargets[0] ?? null}
           targets={drawerTargets}
           drivers={drivers}
+          driversWithRoute={driversWithRoute}
           onClose={() => setDrawerTargets([])}
-          onSuccess={(routeId) => {
+          onSuccess={() => {
+            // The drawer handles the route-builder redirect itself (new tab). Here we just
+            // clear selection and refresh the desk.
             setDrawerTargets([]);
-            if (routeId && selectedIds.size > 1) {
-              setSelectedIds(new Set());
-              router(`/route-builder?routeId=${routeId}`);
-            } else {
-              setSelectedIds(new Set());
-              void fetchExceptions(true);
-              void fetchAllDeliveries();
-            }
+            setSelectedIds(new Set());
+            void fetchExceptions(true);
+            void fetchAllDeliveries();
           }}
         />
 

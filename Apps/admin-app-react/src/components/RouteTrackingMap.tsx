@@ -5,8 +5,8 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
+import { useDriverAvatars } from '@/hooks/useDriverAvatars';
 import { STATUS_COLORS as BADGE_STATUS_COLORS } from '@/components/StatusBadge';
-import voitureFourgon from '../../icons/voiture-fourgon.png';
 
 type RouteStop = {
   id: string;
@@ -93,15 +93,25 @@ function createStopIcon(label: string, status: string = 'PENDING', selected = fa
   });
 }
 
-// Driver Pin - PNG van icon from the app assets
-function createDriverIcon() {
+// Driver Pin — the driver's avatar photo in a brand-tinted ring with an online status dot (same enterprise
+// puck as the dispatch live map). Falls back to mono initials; all chrome is token-based for light/dark.
+function createDriverIcon(photoUrl: string | null | undefined, name: string, online: boolean) {
+  const size = 40;
+  const wrap = size + 8;
+  const dot = Math.max(11, Math.round(size * 0.3));
+  const ring = 'var(--brand)';
+  const initials = (name || '').split(/\s+/).map(p => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '—';
+  const inner = photoUrl
+    ? `<img src="${photoUrl}" alt="" aria-hidden="true" style="width:100%;height:100%;object-fit:cover;display:block;" />`
+    : `<span style="font-family:var(--font-sans);font-weight:700;font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary);">${initials}</span>`;
   return L.divIcon({
     className: '',
-    iconSize: [36, 36],
-    iconAnchor: [18, 18],
-    popupAnchor: [0, -20],
-    html: `<div style="width:36px;height:36px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 3px rgba(0, 0, 0, 0.2));animation:pulse 2.5s ease-in-out infinite;">
-  <img src="${voitureFourgon}" alt="" aria-hidden="true" style="width:36px;height:36px;object-fit:contain;display:block;" />
+    iconSize: [wrap, wrap], iconAnchor: [wrap / 2, wrap / 2], popupAnchor: [0, -(size / 2) - 6],
+    html: `<div style="position:relative;width:${wrap}px;height:${wrap}px;">
+  <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--surface);border:2.5px solid ${ring};box-shadow:0 0 0 2px color-mix(in srgb, ${ring} 22%, transparent), var(--shadow-card);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+    ${inner}
+  </div>
+  <span style="position:absolute;bottom:3px;right:3px;width:${dot}px;height:${dot}px;border-radius:50%;background:${online ? 'var(--success)' : 'var(--text-soft)'};border:2px solid var(--surface);"></span>
 </div>`,
   });
 }
@@ -232,6 +242,7 @@ function RouteTrackingMapInner({
 }: Props) {
   const [flyTarget, setFlyTarget] = useState<[number, number] | null>(null);
   const isDark = useIsDark();
+  const avatarMap = useDriverAvatars();
 
   const pinnedStops = stops
     .filter((s) => s.dropoffLat != null && s.dropoffLng != null
@@ -369,7 +380,7 @@ function RouteTrackingMapInner({
 
         {/* Driver */}
         {driver?.lat != null && driver?.lng != null && (
-          <Marker position={[driver.lat, driver.lng]} icon={createDriverIcon()}>
+          <Marker position={[driver.lat, driver.lng]} icon={createDriverIcon(avatarMap[driver.id], driver.name, !isGpsStaleIso(driver.lastLocationAt))}>
             <Popup>
               <div style={{ fontWeight: 700, fontSize: 13 }}>{driver.name}</div>
               <div style={{ fontSize: 11, color: '#6b7280' }}>

@@ -210,9 +210,16 @@ public class RouteResponseMapper {
         // Capacity context for capacity-aware reassignment: vehicle payload + current planned load
         // (sum of non-removed delivery weights). Lets the dispatch desk show a load/capacity bar.
         Integer payloadKg = null;
+        String vehicleName = null;
+        String vehiclePlate = null;
         if (route.getVehicleId() != null) {
             Vehicle v = vehicleRepository.findById(route.getVehicleId()).orElse(null);
-            if (v != null) payloadKg = v.getPayloadKg();
+            if (v != null) {
+                payloadKg = v.getPayloadKg();
+                vehicleName = (v.getMake() != null ? v.getMake() : "") + " " + (v.getModel() != null ? v.getModel() : "");
+                vehicleName = vehicleName.trim();
+                vehiclePlate = v.getPlate();
+            }
         }
         java.math.BigDecimal loadKg = java.math.BigDecimal.ZERO;
         for (RouteStop s : activeStops) {
@@ -230,6 +237,8 @@ public class RouteResponseMapper {
                 .name(route.getName())
                 .driverId(route.getDriverId())
                 .vehicleId(route.getVehicleId())
+                .vehicleName(vehicleName)
+                .vehiclePlate(vehiclePlate)
                 .payloadKg(payloadKg)
                 .currentLoadKg(loadKg.doubleValue())
                 .date(route.getDate())

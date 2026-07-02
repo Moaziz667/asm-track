@@ -67,4 +67,10 @@ public class DriverDeliveryResponse {
     private LocalDateTime handoffConfirmedAt;
     private String        handoffToDriverId;
     private String        handoffFromDriverId;
+
+    // proof of delivery (populated when status = DELIVERED / PARTIALLY_DELIVERED)
+    private ProofOfDeliveryResponse proofOfDelivery;
+
+    // status history (full lifecycle timeline for the driver to review)
+    private List<StatusHistoryResponse> statusHistory;
 }

@@ -27,6 +27,12 @@ public class RouteResponse {
     @Schema(description = "Assigned vehicle id")
     private UUID vehicleId;
 
+    @Schema(description = "Assigned vehicle display name (make + model)")
+    private String vehicleName;
+
+    @Schema(description = "Assigned vehicle plate number")
+    private String vehiclePlate;
+
     @Schema(description = "Assigned vehicle payload capacity in kg (null if no vehicle/capacity)")
     private Integer payloadKg;
 

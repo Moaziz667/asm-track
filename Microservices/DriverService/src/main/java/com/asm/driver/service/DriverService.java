@@ -152,6 +152,11 @@ public class DriverService {
     }
 
     private DriverProfileResponse mapToProfile(Driver d) {
+        // Regenerate photo URL at read time so MINIO_PUBLIC_URL changes take effect immediately.
+        String photoUrl = null;
+        if (d.getPhotoUrl() != null && d.getPhotoVersion() != null && d.getPhotoVersion() > 0) {
+            photoUrl = avatarService.publicUrlFor(d.getId(), d.getPhotoVersion(), "thumb");
+        }
         return DriverProfileResponse.builder()
                 .id(d.getId().toString())
                 .name(d.getName())
@@ -161,7 +166,7 @@ public class DriverService {
                 .currentLng(d.getCurrentLng())
                 .lastLocationAt(d.getLastLocationAt())
                 .onlineStatus(d.getOnlineStatus() != null ? d.getOnlineStatus().name() : "OFFLINE")
-                .photoUrl(d.getPhotoUrl())
+                .photoUrl(photoUrl)
                 .onboardingStatus(d.getOnboardingStatus())
                 .build();
     }

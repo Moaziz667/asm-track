@@ -182,6 +182,12 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Route stop end time window")
     private java.time.LocalTime routeEndTimeWindow;
 
+    @Schema(description = "Committed delivery window start (HH:mm) — the route stop's start window, mirrors the detail endpoint")
+    private String timeSlotStartTime;
+
+    @Schema(description = "Committed delivery window end (HH:mm) — the route stop's end window, mirrors the detail endpoint")
+    private String timeSlotEndTime;
+
     @Schema(description = "Total number of items in the order")
     private Integer totalQuantity;
 
