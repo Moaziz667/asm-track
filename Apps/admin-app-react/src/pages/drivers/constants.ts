@@ -17,7 +17,7 @@ export const DRIVER_COLUMNS: ColumnDef[] = [
 ];
 
 export const DRIVER_STATUS_COLORS: Record<string, { dot: string; bg: string; text: string; ribbon: string }> = {
-  ACTIVE:        { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E', ribbon: '#4CAF82' },
-  SUSPENDED:     { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24', ribbon: '#C7372F' },
-  PENDING_SETUP: { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10', ribbon: '#C4881A' },
+  ACTIVE:        { dot: 'var(--success)', bg: 'var(--success-bg)', text: 'var(--success)', ribbon: 'var(--success)' },
+  SUSPENDED:     { dot: 'var(--danger)',  bg: 'var(--danger-bg)',  text: 'var(--danger)',  ribbon: 'var(--danger)' },
+  PENDING_SETUP: { dot: 'var(--warning)', bg: 'var(--warning-bg)', text: 'var(--warning)', ribbon: 'var(--warning)' },
 };

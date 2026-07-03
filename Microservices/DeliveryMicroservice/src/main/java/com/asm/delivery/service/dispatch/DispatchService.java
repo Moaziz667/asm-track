@@ -82,9 +82,11 @@ public class DispatchService {
             String q,
             Boolean assigned,
             String bucket,
+            LocalDate dateFrom,
+            LocalDate dateTo,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, pageable);
+        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
@@ -118,13 +120,14 @@ public class DispatchService {
     @Transactional(readOnly = true)
     public Page<Delivery> doSearch(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
                                   UUID zoneId, Boolean unpinned, String q, Boolean assigned, String bucket,
+                                  LocalDate dateFrom, LocalDate dateTo,
                                   Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
+        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -135,7 +138,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -464,7 +467,9 @@ public class DispatchService {
                                             Boolean unpinned,
                                             String q,
                                             Boolean assigned,
-                                            String bucket) {
+                                            String bucket,
+                                            LocalDate dateFrom,
+                                            LocalDate dateTo) {
         List<Predicate> predicates = new ArrayList<>();
         if (status != null) {
             predicates.add(cb.equal(root.get("status"), status));
@@ -479,8 +484,9 @@ public class DispatchService {
         String trimmedQ = (q == null) ? null : q.trim();
         boolean hasQ = trimmedQ != null && !trimmedQ.isEmpty();
         boolean hasBucket = bucket != null && !bucket.isBlank();
+        boolean hasRange = dateFrom != null || dateTo != null;
         // Date filter on Planifié (effective scheduledAt = rescheduledAt ?? scheduledAt)
-        boolean needsOrderJoin = date != null || source != null || zoneId != null
+        boolean needsOrderJoin = date != null || hasRange || source != null || zoneId != null
                 || Boolean.TRUE.equals(unpinned) || hasQ || hasBucket;
         if (needsOrderJoin) {
             Join<Delivery, Order> orderJoin = root.join("order", JoinType.INNER);
@@ -491,6 +497,18 @@ public class DispatchService {
                     cb.between(orderJoin.get("scheduledAt"), start, end),
                     cb.between(orderJoin.get("rescheduledAt"), start, end)
                 ));
+            }
+            // De/A range on the effective scheduled date (Planifié). Either bound is optional:
+            // dateFrom only → from that day onward; dateTo only → up to and including that day.
+            if (hasRange) {
+                var effSched = cb.coalesce(orderJoin.<LocalDateTime>get("rescheduledAt"),
+                                           orderJoin.<LocalDateTime>get("scheduledAt"));
+                if (dateFrom != null) {
+                    predicates.add(cb.greaterThanOrEqualTo(effSched, dateFrom.atStartOfDay()));
+                }
+                if (dateTo != null) {
+                    predicates.add(cb.lessThan(effSched, dateTo.plusDays(1).atStartOfDay()));
+                }
             }
             if (source != null) {
                 predicates.add(cb.equal(orderJoin.get("source"), source));
@@ -556,7 +574,7 @@ public class DispatchService {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<Delivery> root = cq.from(Delivery.class);
-        List<Predicate> ps = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket);
+        List<Predicate> ps = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, null, null);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }
@@ -707,6 +725,22 @@ public class DispatchService {
                 }
                 return value.trim().replaceAll("\\s+", "");
         }
+    /**
+     * The admin failure motif label, without the driver's appended comment. fail_reason is stored
+     * flattened as "label — comment"; because the comment is now also persisted on its own field, we
+     * can strip it back off reliably (the naive " — " split is ambiguous — the admin label itself may
+     * contain " — "). Legacy rows (no failure_comment) return fail_reason unchanged.
+     */
+    private static String failureMotifLabel(Delivery d) {
+        String reason = d.getFailReason();
+        String comment = d.getFailureComment();
+        if (reason != null && comment != null && !comment.isBlank()) {
+            String suffix = " — " + comment.trim();
+            if (reason.endsWith(suffix)) return reason.substring(0, reason.length() - suffix.length());
+        }
+        return reason;
+    }
+
     private AdminDeliveryDetailResponse toDetailResponse(Delivery d,
                                                          DriverDTO driver,
                                                          List<StatusHistoryResponse> history,
@@ -732,7 +766,8 @@ public class DispatchService {
                 .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
-                .failureComment(d.getFailReason())
+                .failReason(failureMotifLabel(d))
+                .failureComment(d.getFailureComment())
                 .driverId(d.getDriverId())
                 .driverName(driver != null ? driver.getName() : null)
                 .driverPhone(driver != null ? driver.getPhone() : null)

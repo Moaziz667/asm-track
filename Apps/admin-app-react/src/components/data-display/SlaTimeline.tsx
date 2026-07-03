@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import {
   IconPackageImport, IconRoute, IconTruckLoading, IconTruckDelivery,
   IconArrowsExchange, IconCircleCheck, IconCircleX, IconAlertTriangle,
@@ -7,6 +7,7 @@ import {
 import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
 /**
  * Unified SLA timeline — the single enterprise view of a delivery's journey.
@@ -51,6 +52,9 @@ const TONE = {
   done:    { fg: '#2D8A5E', bg: 'rgba(76,175,130,0.10)',  dot: '#4CAF82' },
   pending: { fg: '#6B7280', bg: 'rgba(138,143,152,0.08)', dot: '#8A8F98' },
   neutral: { fg: '#4C56B8', bg: 'rgba(94,106,210,0.09)',  dot: '#5E6AD2' },
+  // Partial outcome — its own identity (matches the PARTIAL StatusBadge), NOT the amber severity ramp:
+  // SLA health lives on the health badge/tooltip, so amber here only collided with delivered-late.
+  partial: { fg: '#6055A8', bg: 'rgba(123,111,204,0.10)', dot: '#7B6FCC' },
 };
 
 function healthTone(h?: Health) {
@@ -75,9 +79,16 @@ export interface SlaTimelineProps {
   /** Suppress the driver's POD note here when the host page renders it once elsewhere
    *  (dedup — see DeliveryDetailsPage's "Driver note" callout). */
   hidePodComment?: boolean;
+  /** Suppress the per-item outcome list when the host already shows it (the delivery-details Articles
+   *  table owns per-line status). The dispatch desk keeps it — it has no items table. */
+  hideItemOutcomes?: boolean;
+  /** Suppress the delivery-level failure motif banner ("Refusée · …") when the host surfaces it
+   *  elsewhere — the delivery-details Articles table shows the failure motif per line. The dispatch
+   *  desk keeps it (no table). */
+  hideFailureContext?: boolean;
 }
 
-export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodComment = false }: SlaTimelineProps) {
+export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodComment = false, hideItemOutcomes = false, hideFailureContext = false }: SlaTimelineProps) {
   const t = useT() as any;
   const c = t.slaTimeline ?? {};
   const [data, setData] = useState<SlaTimelineData | null>(null);
@@ -142,22 +153,17 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
   const cur = data.current;
   const terminal = TERMINALS.includes(cur.phase);
 
+  const attribution = cur.attributableToDriver && c.driverAttributed ? ` · ${c.driverAttributed}` : '';
+  const join = (...parts: (string | false | undefined)[]) => parts.filter(Boolean).join(' · ');
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      {/* Headline: current phase + health + reason */}
-      <Headline
-        phaseLabel={phaseLabel(cur.phase)}
-        healthLabel={healthLabel(cur.health)}
-        tone={terminal ? terminalTone(cur.phase, cur.health) : healthTone(cur.health)}
-        phase={cur.phase}
-        reason={reasonText(cur.reasonKey, cur.reasonParams)}
-        attributable={cur.attributableToDriver}
-        attributionCopy={c.driverAttributed}
-      />
-
-      {/* Phase stepper — fills the available width without horizontal scroll. Each node flexes
-          to share the row evenly so 4–5 phases fit a narrow rail; connectors stay between them. */}
+      {/* Phase stepper — the node COLOUR is the at-a-glance health; hover a node for the detail
+          (reason + due / outcome), same tooltip pattern as the item table. No redundant headline card:
+          the phase + health already read from the panel badges, and the "reason" for a terminal state
+          just restates them — so it lives in the popup where it stays useful for live phases. */}
       <div style={{ display: 'flex', alignItems: 'flex-start', gap: 0, paddingBottom: 4, width: '100%' }}>
+        <TooltipProvider>
         {FLOW.map((p, i) => {
           const state = cur.phase === p ? 'current' : i < reachedIndex ? 'done' : 'pending';
           // A passed ('done') phase keeps the worst health it actually reached, so a late
@@ -167,12 +173,16 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
           const doneTone = pastHealth && (pastHealth === 'BREACHED' || pastHealth === 'LATE' || pastHealth === 'AT_RISK')
             ? healthTone(pastHealth) : TONE.done;
           const tone = state === 'current' ? healthTone(cur.health) : state === 'done' ? doneTone : TONE.pending;
+          const tip = state === 'current'
+            ? join(reasonText(cur.reasonKey, cur.reasonParams), cur.dueAt && `${c.due ?? 'Due'} ${fmtTime(cur.dueAt)}`) + attribution
+            : state === 'done' && pastHealth ? healthLabel(pastHealth)
+            : '';
           return (
             <StepNode
               key={p}
               icon={PHASE_ICON[p]}
               label={phaseLabel(p)}
-              sub={state === 'current' && cur.dueAt ? `${c.due ?? 'Due'} ${fmtTime(cur.dueAt)}` : ''}
+              tooltip={tip.trim() || undefined}
               tone={tone}
               pulse={state === 'current' && (cur.health === 'AT_RISK' || cur.health === 'BREACHED')}
               connector={i < FLOW.length - 1}
@@ -184,19 +194,22 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
           <StepNode
             icon={PHASE_ICON[cur.phase]}
             label={phaseLabel(cur.phase)}
-            sub={cur.health === 'LATE' && cur.lateMinutes
-              ? (c.lateBy ?? 'Late {n}m').replace('{n}', String(cur.lateMinutes))
-              : cur.health === 'MET' ? (c.onTime ?? 'On time') : ''}
+            tooltip={(join(
+              reasonText(cur.reasonKey, cur.reasonParams),
+              cur.health === 'LATE' && cur.lateMinutes ? (c.lateBy ?? 'Late {n}m').replace('{n}', String(cur.lateMinutes))
+                : cur.health === 'MET' ? (c.onTime ?? 'On time') : '',
+            ) + attribution).trim() || undefined}
             tone={terminalTone(cur.phase, cur.health)}
             pulse={false}
             connector={false}
             connectorDone={false}
           />
         )}
+        </TooltipProvider>
       </div>
 
       {variant === 'detailed' && (
-        <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} hidePodComment={hidePodComment} />
+        <DetailedSection data={data} c={c} eventLabel={eventLabel} actorLabel={actorLabel} hidePodComment={hidePodComment} hideItemOutcomes={hideItemOutcomes} hideFailureContext={hideFailureContext} />
       )}
     </div>
   );
@@ -204,57 +217,40 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
 
 function terminalTone(phase: Phase, health?: Health) {
   if (phase === 'DELIVERED') return health === 'LATE' ? TONE.risk : TONE.done;
-  if (phase === 'PARTIAL') return TONE.risk;
+  if (phase === 'PARTIAL') return TONE.partial;
   if (phase === 'FAILED') return TONE.breach;
   if (phase === 'CANCELLED') return TONE.pending;
   return healthTone(health);
 }
 
-function Headline({ phaseLabel, healthLabel, tone, phase, reason, attributable, attributionCopy }: {
-  phaseLabel: string; healthLabel: string; tone: typeof TONE.ok; phase: Phase;
-  reason: string; attributable?: boolean; attributionCopy?: string;
-}) {
-  const Icon = PHASE_ICON[phase] ?? IconCircle;
-  return (
-    <div style={{
-      display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px',
-      background: tone.bg, border: `1px solid ${tone.dot}33`, borderRadius: 10,
-    }}>
-      <Icon size={18} color={tone.fg} stroke={1.8} />
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: tone.fg }}>{phaseLabel}</span>
-          <span style={{
-            fontSize: 10.5, fontWeight: 600, color: tone.fg, background: '#fff',
-            border: `1px solid ${tone.dot}55`, borderRadius: 99, padding: '1px 7px', textTransform: 'uppercase', letterSpacing: 0.3,
-          }}>{healthLabel}</span>
-        </div>
-        {reason && <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-          {reason}{attributable && attributionCopy ? ` · ${attributionCopy}` : ''}
-        </span>}
-      </div>
-    </div>
-  );
-}
-
-function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDone }: {
-  icon: typeof IconCircle; label: string; sub: string; tone: typeof TONE.ok;
+function StepNode({ icon: Icon, label, tooltip, tone, pulse, connector, connectorDone }: {
+  icon: typeof IconCircle; label: string; tooltip?: string; tone: typeof TONE.ok;
   pulse: boolean; connector: boolean; connectorDone: boolean;
 }) {
+  const colStyle: CSSProperties = { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 };
+  const circle = (
+    <div style={{
+      width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: tone.bg, border: `1.5px solid ${tone.dot}`, flexShrink: 0,
+      animation: pulse ? 'asm-pulse 2s infinite' : undefined,
+    }}>
+      <Icon size={16} color={tone.fg} stroke={1.9} />
+    </div>
+  );
+  const label_ = <span style={{ fontSize: 11, fontWeight: 600, color: tone.fg, textAlign: 'center', lineHeight: 1.2 }}>{label}</span>;
   return (
     // flex:1 so nodes share the row width evenly (no fixed 96px → no overflow/scroll).
     <div style={{ display: 'flex', alignItems: 'flex-start', flex: 1, minWidth: 0 }}>
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flex: 1, minWidth: 0 }}>
-        <div style={{
-          width: 30, height: 30, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center',
-          background: tone.bg, border: `1.5px solid ${tone.dot}`, flexShrink: 0,
-          animation: pulse ? 'asm-pulse 2s infinite' : undefined,
-        }}>
-          <Icon size={16} color={tone.fg} stroke={1.9} />
-        </div>
-        <span style={{ fontSize: 11, fontWeight: 600, color: tone.fg, textAlign: 'center', lineHeight: 1.2 }}>{label}</span>
-        {sub && <span style={{ fontSize: 10, color: 'var(--text-muted)', textAlign: 'center', lineHeight: 1.2 }}>{sub}</span>}
-      </div>
+      {tooltip ? (
+        <Tooltip>
+          <TooltipTrigger render={<div style={{ ...colStyle, cursor: 'help' }} aria-label={tooltip} />}>
+            {circle}{label_}
+          </TooltipTrigger>
+          <TooltipContent>{tooltip}</TooltipContent>
+        </Tooltip>
+      ) : (
+        <div style={colStyle}>{circle}{label_}</div>
+      )}
       {connector && (
         <div style={{
           flex: '0 0 12px', height: 2, marginTop: 14,
@@ -265,20 +261,22 @@ function StepNode({ icon: Icon, label, sub, tone, pulse, connector, connectorDon
   );
 }
 
-function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = false }: {
+function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = false, hideItemOutcomes = false, hideFailureContext = false }: {
   data: SlaTimelineData; c: any;
   eventLabel: (e: { eventKey?: string; status?: string; params?: string }) => string;
   actorLabel: (e: { actor?: string; actorRole?: string }) => string;
   hidePodComment?: boolean;
+  hideItemOutcomes?: boolean;
+  hideFailureContext?: boolean;
 }) {
   const by = c.by ?? 'by';
   const ctx = data.context;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
       {/* Driver context: failure motif + backorder link */}
-      {(ctx?.failureCode || ctx?.backorderDirection) && (
+      {((!hideFailureContext && ctx?.failureCode) || ctx?.backorderDirection) && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {ctx?.failureCode && (
+          {!hideFailureContext && ctx?.failureCode && (
             <span style={{
               display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 11.5, color: TONE.breach.fg,
               background: TONE.breach.bg, border: `1px solid ${TONE.breach.dot}33`, borderRadius: 8, padding: '4px 9px',
@@ -312,7 +310,7 @@ function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = fal
       )}
 
       {/* Per-item outcomes: only items not delivered cleanly (refused / damaged) */}
-      {ctx?.itemOutcomes && ctx.itemOutcomes.length > 0 && (
+      {!hideItemOutcomes && ctx?.itemOutcomes && ctx.itemOutcomes.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', color: 'var(--text-muted)' }}>
             {c.itemsNotDelivered ?? 'Items not delivered'}

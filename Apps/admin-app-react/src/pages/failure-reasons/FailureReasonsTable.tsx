@@ -309,18 +309,14 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
                   );
                   if (col.id === 'category') return (
                     <td key="category" className="px-4 align-middle">
-                      <span className="text-2xs px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-secondary)] bg-[var(--app-bg)] whitespace-nowrap">
-                        {catLabel(r.category)}
-                      </span>
+                      <StatusBadge status={r.category} label={catLabel(r.category)} size="sm" />
                     </td>
                   );
                   if (col.id === 'appliesTo') return (
                     <td key="appliesTo" className="px-4 align-middle">
                       <div className="flex flex-wrap gap-1">
                         {r.appliesTo.map(c => (
-                          <span key={c} className="text-2xs px-1.5 py-0.5 rounded border border-[var(--border)] text-[var(--text-secondary)] bg-[var(--app-bg)] whitespace-nowrap">
-                            {ctxLabel(c)}
-                          </span>
+                          <StatusBadge key={c} status={c} label={ctxLabel(c)} size="sm" />
                         ))}
                       </div>
                     </td>

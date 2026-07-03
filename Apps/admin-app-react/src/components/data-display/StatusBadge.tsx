@@ -1,13 +1,21 @@
 
 
 import { useT } from '@/lib/LocaleContext';
+import {
+  IconPencil, IconChecks, IconPlayerPlay, IconCircleCheck, IconCircleMinus, IconBan, IconCircleX,
+  IconAlertTriangle, IconCalendarOff, IconCalendarCheck, IconPackage, IconTruckDelivery,
+  IconPackages, IconArrowBackUp, IconClock, IconPackageImport, IconBuildingWarehouse,
+  IconRefresh, IconCircleOff, IconTruck, IconUserOff, IconMapPinOff,
+  IconPackageOff, IconDots, IconAlertOctagon, IconHistory,
+} from '@tabler/icons-react';
 
 export type StatusValue =
   | 'DRAFT' | 'VALIDATED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED'
   | 'FAILED' | 'SLA_BREACH'
   | 'UNSCHEDULED' | 'SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT'
   | 'DELIVERED' | 'PARTIALLY_DELIVERED' | 'COMPLETED' | 'PARTIAL'
-  | 'REMOVED_REPLANNED' | 'REMOVED_CANCELLED' | 'FAILED_ATTEMPT';
+  | 'REMOVED_REPLANNED' | 'REMOVED_CANCELLED' | 'FAILED_ATTEMPT'
+  | 'BACKORDER' | 'RESCHEDULED';
 
 interface StatusConfig {
   dot: string;
@@ -51,6 +59,9 @@ const CONFIG: Record<string, StatusConfig> = {
   PENDING:             { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
   SYNC_FAILED:         { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
   NOT_SYNCED:          { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
+  // ── Delivery modifiers ────────────────────────────────────────────────
+  BACKORDER:           { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
+  RESCHEDULED:         { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
   // ── Generic active/inactive (failure reasons, toggles…) ───────────────
   ACTIVE:              { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
   INACTIVE:            { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
@@ -65,6 +76,53 @@ const CONFIG: Record<string, StatusConfig> = {
   DAMAGED:             { dot: '#7B6FCC', bg: 'rgba(123,111,204,0.09)', text: '#6055A8' },
   MISSING:             { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
   OTHER:               { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
+  // ── Failure contexts (S'applique à) — unique tones, distinct from categories ──
+  FAILURE:             { dot: '#64748B', bg: 'rgba(100,116,139,0.09)', text: '#475569' },
+  ITEM_REFUSED:        { dot: '#BE4963', bg: 'rgba(190,73,99,0.09)',   text: '#9C3651' },
+  ITEM_DAMAGED:        { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
+  ITEM_MISSING:        { dot: '#7D8B2A', bg: 'rgba(125,139,42,0.09)',  text: '#657220' },
+  // ── SLA health (timeline + settings legend) — tones MUST mirror SlaTimeline's TONE ──
+  ON_TRACK:            { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  MET:                 { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
+  AT_RISK:             { dot: '#D4772C', bg: 'rgba(212,119,44,0.09)',  text: '#B05A18' },
+  LATE:                { dot: '#D4772C', bg: 'rgba(212,119,44,0.09)',  text: '#B05A18' },
+  BREACHED:            { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+};
+
+// Per-status glyph (icon + label + tone — never a bare dot; see .ai/anti-slop.md). Icons may repeat
+// across kindred states (all "success" terminals = a check, all "rejected/failed" = a cross); the tone
+// and label disambiguate. Any status without an entry falls back to the legacy dot below.
+const ICON: Record<string, typeof IconCircleCheck> = {
+  // Route
+  DRAFT: IconPencil, VALIDATED: IconChecks, IN_PROGRESS: IconPlayerPlay,
+  CLOSED: IconCircleCheck, COMPLETED: IconCircleCheck, CANCELLED: IconBan,
+  FAILED: IconCircleX, SLA_BREACH: IconAlertTriangle,
+  // Delivery
+  UNSCHEDULED: IconCalendarOff, SCHEDULED: IconCalendarCheck, PICKED_UP: IconPackage,
+  IN_TRANSIT: IconTruckDelivery, DELIVERED: IconCircleCheck,
+  PARTIALLY_DELIVERED: IconPackages, PARTIAL: IconPackages,
+  // Stop removal
+  REMOVED_REPLANNED: IconArrowBackUp, REMOVED_CANCELLED: IconBan, FAILED_ATTEMPT: IconAlertTriangle,
+  // Returns (RMA)
+  REQUESTED: IconClock, APPROVED: IconCircleCheck, RECEIVED: IconPackageImport,
+  RESTOCKED: IconBuildingWarehouse, REJECTED: IconCircleX,
+  // ERP sync
+  SYNCED: IconCircleCheck, SYNCING: IconRefresh, PENDING: IconClock,
+  SYNC_FAILED: IconAlertTriangle, NOT_SYNCED: IconCircleOff,
+  // Delivery modifiers
+  BACKORDER: IconArrowBackUp, RESCHEDULED: IconHistory,
+  // Generic active/inactive
+  ACTIVE: IconCircleCheck, INACTIVE: IconCircleMinus,
+  // Vehicle
+  AVAILABLE: IconCircleCheck, ENGAGED: IconTruck, RETIRED: IconCircleX,
+  // Failure categories / item outcomes
+  CLIENT_ABSENT: IconUserOff, REFUSED: IconCircleX, WRONG_ADDRESS: IconMapPinOff,
+  DAMAGED: IconAlertTriangle, MISSING: IconPackageOff, OTHER: IconDots,
+  // Failure contexts
+  FAILURE: IconCircleX, ITEM_REFUSED: IconCircleX, ITEM_DAMAGED: IconAlertTriangle, ITEM_MISSING: IconPackageOff,
+  // SLA health
+  ON_TRACK: IconCircleCheck, MET: IconCircleCheck, AT_RISK: IconAlertTriangle,
+  LATE: IconClock, BREACHED: IconAlertOctagon,
 };
 
 const PULSE_STATUSES = new Set(['IN_PROGRESS', 'IN_TRANSIT', 'PICKED_UP']);
@@ -83,10 +141,12 @@ export function StatusBadge({ status, label, size = 'md', pulse }: StatusBadgePr
   const displayLabel = label ?? (t.statusLabels as any)[status] ?? status;
 
   const dotPx = size === 'sm' ? 5 : 5.5;
+  const iconPx = size === 'sm' ? 13 : 14;
   const fontSize = size === 'sm' ? 11 : 11;
   const height = size === 'sm' ? 18 : 20;
   const px = size === 'sm' ? 7 : 8;
   const gap = 5;
+  const Icon = ICON[status];
 
   return (
     <span
@@ -105,14 +165,16 @@ export function StatusBadge({ status, label, size = 'md', pulse }: StatusBadgePr
     >
       <span
         style={{
-          width: dotPx,
-          height: dotPx,
-          borderRadius: '50%',
-          background: cfg.dot,
+          display: 'inline-flex',
+          alignItems: 'center',
           flexShrink: 0,
           ...(shouldPulse ? { animation: 'asm-pulse 2s ease-in-out infinite' } : {}),
         }}
-      />
+      >
+        {Icon
+          ? <Icon size={iconPx} color={cfg.dot} stroke={1.9} />
+          : <span style={{ width: dotPx, height: dotPx, borderRadius: '50%', background: cfg.dot, display: 'block' }} />}
+      </span>
       <span
         style={{
           fontFamily: "'Clear Sans', system-ui, sans-serif",

@@ -243,6 +243,9 @@ public class RouteReportService {
         int onTime = 0, late = 0, early = 0;
 
         for (RouteReportResponse.StopRow r : stopRows) {
+            // Pickup (multi-depot load) stops carry no deliveryId — they're logistics steps, not
+            // deliveries, so they must not inflate completed/attempted/completion-rate.
+            if (r.getDeliveryId() == null) continue;
             switch (r.getFinalStatus() == null ? "" : r.getFinalStatus()) {
                 case "COMPLETED"          -> completed++;
                 case "PARTIAL"            -> partial++;
@@ -311,7 +314,10 @@ public class RouteReportService {
         counts.put("REPLANNED", 0);
         counts.put("CANCELLED", 0);
 
+        int total = 0;
         for (RouteReportResponse.StopRow r : rows) {
+            if (r.getDeliveryId() == null) continue; // exclude pickup (load) stops from the delivery donut
+            total++;
             switch (r.getFinalStatus() == null ? "" : r.getFinalStatus()) {
                 case "COMPLETED"          -> counts.merge("COMPLETED", 1, Integer::sum);
                 case "PARTIAL"            -> counts.merge("PARTIAL", 1, Integer::sum);
@@ -321,11 +327,11 @@ public class RouteReportService {
                 default -> {}
             }
         }
-        int total = rows.size();
+        final int deliveryTotal = total;
         List<RouteReportResponse.StatusBucket> buckets = new ArrayList<>();
         counts.forEach((key, count) -> {
-            BigDecimal pct = total > 0
-                    ? BigDecimal.valueOf(count * 100.0 / total).setScale(1, RoundingMode.HALF_UP)
+            BigDecimal pct = deliveryTotal > 0
+                    ? BigDecimal.valueOf(count * 100.0 / deliveryTotal).setScale(1, RoundingMode.HALF_UP)
                     : BigDecimal.ZERO;
             buckets.add(RouteReportResponse.StatusBucket.builder()
                     .key(key)

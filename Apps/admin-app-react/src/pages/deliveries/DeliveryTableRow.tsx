@@ -100,20 +100,14 @@ export function DeliveryTableRow({
                 else colorClass = 'text-[var(--info)] bg-blue-50 border-blue-200';
               }
               return (
-                <div className="inline-flex items-center gap-1">
+                <div className="inline-flex items-center gap-1.5 flex-wrap">
                   <span className={cn('text-xs font-bold', colorClass.split(' ')[0])}>
                     {new Date(item.scheduledAt).toLocaleDateString(dateTag)}
                     <span className="mr-0.5">,</span>
                     {new Date(item.scheduledAt).toLocaleTimeString(dateTag, { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   {item.rescheduledAt && (
-                    <span
-                      title={t.deliveryPage.rescheduledTooltip}
-                      className="text-2xs font-bold px-1 py-0.5 rounded-xs"
-                      style={{ color: '#0891B2', background: 'rgba(8,145,178,0.12)' }}
-                    >
-                      {t.deliveryPage.rescheduledBadge}
-                    </span>
+                    <StatusBadge status="RESCHEDULED" size="sm" label={t.deliveryPage.rescheduledBadge} />
                   )}
                 </div>
               );
@@ -142,18 +136,22 @@ export function DeliveryTableRow({
             </div>
           </td>
         );
-        if (col.id === 'zone') return (
+          if (col.id === 'zone') return (
           <td key="zone" className="px-6">
             <div className="flex justify-center">
-              <span
-                className="text-xs font-[500] px-2 py-0.5 rounded-full"
-                style={{
-                  color: item.zoneColor || 'var(--text-muted)',
-                  backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
-                }}
-              >
-                {item.zoneName || t.deliveriesPage.outOfZone}
-              </span>
+              {item.zoneName ? (
+                <span
+                  className="text-xs font-[500] px-2 py-0.5 rounded-full"
+                  style={{
+                    color: item.zoneColor || 'var(--text-muted)',
+                    backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
+                  }}
+                >
+                  {item.zoneName}
+                </span>
+              ) : (
+                <span className="text-xs text-[var(--text-muted)]">—</span>
+              )}
             </div>
           </td>
         );
@@ -339,15 +337,19 @@ export function DeliveryMobileCard({
             <span className="text-2xs text-[var(--text-muted)]">{t.deliveriesPage.notAssigned}</span>
           )}
 
-          <span
-            className="text-2xs font-[500] px-1.5 py-0.5 rounded-full"
-            style={{
-              color: item.zoneColor || 'var(--text-muted)',
-              backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
-            }}
-          >
-            {item.zoneName || t.deliveriesPage.outOfZone}
-          </span>
+          {item.zoneName ? (
+            <span
+              className="text-2xs font-[500] px-1.5 py-0.5 rounded-full"
+              style={{
+                color: item.zoneColor || 'var(--text-muted)',
+                backgroundColor: item.zoneColor ? `${item.zoneColor}12` : 'rgba(161,161,170,0.10)',
+              }}
+            >
+              {item.zoneName}
+            </span>
+          ) : (
+            <span className="text-2xs text-[var(--text-muted)]">—</span>
+          )}
         </div>
 
         {item.scheduledAt && (

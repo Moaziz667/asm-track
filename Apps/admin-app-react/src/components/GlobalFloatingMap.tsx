@@ -4,18 +4,23 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { getBusinessDayKey } from '@/lib/sla';
-import { routeColor, routeColorByIndex } from '@/lib/utils';
+import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
 import { useGlobalMapStore } from '@/lib/global-map-store';
 import DispatchLiveMap from '@/components/DispatchLiveMap';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { useDriverAvatars } from '@/hooks/useDriverAvatars';
 import { useT } from '@/lib/LocaleContext';
 import {
-  IconMap,
-  IconMinus,
+  IconMap2,
   IconX,
   IconSearch,
   IconGripVertical,
+  IconMinus,
+  IconMaximize,
+  IconChevronRight,
+  IconChevronLeft,
+  IconSquare,
+  IconList,
   IconLayoutSidebar,
   IconAlertTriangle,
 } from '@tabler/icons-react';
@@ -90,14 +95,8 @@ export default function GlobalFloatingMap() {
     return todayRoutes.filter((r: any) => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS');
   }, [todayRoutes]);
 
-  // Distinct colour per active route by position, so two routes never share a colour
-  // (the hash-based routeColor could collide). Falls back to the hash for unknown ids.
-  const routeColorFor = useMemo(() => {
-    const idx = new Map<string, number>();
-    activeRoutes.forEach((r: any, i: number) => idx.set(r.id, i));
-    return (routeId?: string | null) =>
-      routeId != null && idx.has(routeId) ? routeColorByIndex(idx.get(routeId)!) : routeColor(routeId);
-  }, [activeRoutes]);
+  // Stable colour per active route by position — two routes never share a colour.
+  const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
 
   const { data: drivers = [] } = useQuery({
     queryKey: ['global-map-drivers'],
@@ -269,7 +268,7 @@ export default function GlobalFloatingMap() {
           title={bubbleTooltipText}
           aria-label={bubbleTooltipText}
         >
-          <IconMap size={19} />
+          <IconMap2 size={19} />
           {onlineDriversCount > 0 && (
             <span className="absolute top-1 right-1 w-2.5 h-2.5 rounded-full bg-[var(--success)] ring-2 ring-[var(--surface)]" />
           )}
@@ -412,7 +411,7 @@ export default function GlobalFloatingMap() {
             focusedDriverId={focusedDriverId}
             onFocusRoute={setFocusedRouteId}
             onFocusDriver={setFocusedDriverId}
-            routeColor={routeColorFor}
+            routeColorMap={routeColorMap}
           />
         </div>
 
@@ -431,7 +430,7 @@ export default function GlobalFloatingMap() {
               ) : (
                 filteredDrivers.map((driver: any) => {
                   const r = driverRoute.get(driver.id);
-                  const color = r ? routeColorFor(r.id) : 'var(--text-soft)';
+                  const color = r ? routeColorFromMap(routeColorMap, r.id) : 'var(--text-soft)';
                   const isFocused = driver.id === focusedDriverId;
                   const stale = isGpsStale(driver.lastLocationAt);
                   const online = driver.currentLat && driver.currentLng && driver.onlineStatus !== 'OFFLINE';

@@ -59,6 +59,7 @@ function KpiCard({ label, value, sub, isAlert, icon, driverStatus }: KpiCardProp
 interface RouteStatsProps {
   completed: number;
   failed: number;
+  partial?: number;
   total: number;
   progressPercent: number;
   driverId?: string;
@@ -80,6 +81,7 @@ interface RouteStatsProps {
 export function RouteStats({
   completed,
   failed,
+  partial = 0,
   total,
   progressPercent,
   driverId,
@@ -120,7 +122,7 @@ export function RouteStats({
         {/* Progression */}
         <KpiCard
           label={t.routeDetailPage?.labelProgress || 'Progression'}
-          value={`${completed}/${total}`}
+          value={`${completed + failed + partial}/${total}`}
           sub={failed > 0 ? `${failed} ${t.routeDetailPage?.failed || 'échoué(s)'}` : `${total} ${t.routeDetailPage?.stops || 'arrêts'}`}
           isAlert={failed > 0}
         />

@@ -8,7 +8,7 @@ import { useRoutes } from '@/hooks/useRoutes';
 import { getBusinessDayKey } from '@/lib/sla';
 import { deriveHealthSummary } from '@/lib/system-health';
 import { useGlobalMapStore } from '@/lib/global-map-store';
-import { DISPATCH_STATUSES, DASHBOARD_EVENTS, STATUS_COLOR_MAP } from './constants';
+import { DISPATCH_STATUSES, DASHBOARD_EVENTS, STATUS_TONE_MAP } from './constants';
 
 type Period = 'day' | 'week' | 'month' | 'all';
 
@@ -112,9 +112,9 @@ export function useDashboardData(period: Period) {
     return d ? d.name : id;
   }, [drivers]);
 
-  const getStatusConfig = useCallback((status: DeliveryStatus): { label: string; color: string } => ({
+  const getStatusConfig = useCallback((status: DeliveryStatus): { label: string; tone: string } => ({
     label: t.statusLabels[status] || status,
-    color: STATUS_COLOR_MAP[status],
+    tone: STATUS_TONE_MAP[status],
   }), [t]);
 
   const today = stats?.today;

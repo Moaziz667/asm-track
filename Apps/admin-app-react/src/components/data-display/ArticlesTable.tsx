@@ -1,0 +1,95 @@
+import { formatMoney } from '@/lib/utils';
+import { useT } from '@/lib/LocaleContext';
+import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
+import { TooltipProvider } from '@/components/ui/tooltip';
+
+/**
+ * The order-lines table shown on the delivery-details page AND the dispatch desk — single source of
+ * truth for per-line status so the two surfaces can't drift. The "Motif" column is the per-line
+ * exception only (delivered-clean / not-yet-actioned lines stay blank):
+ *   • an explicit per-item outcome (refused / damaged / missing) wins;
+ *   • else, on a wholly-FAILED delivery, every line carries the delivery-level failure motif
+ *     (failureCode badge + full admin label in the tooltip) — never "Partielle";
+ *   • else a short line reads MISSING (with a captured reason) or PARTIAL.
+ */
+export function ArticlesTable({ items, status, failureCode, failMotif, currency }: {
+  items: any[];
+  status?: string | null;
+  failureCode?: string | null;
+  /** Admin failure-reason label, shown in the line tooltip on a failed delivery. */
+  failMotif?: string | null;
+  currency?: string | null;
+}) {
+  const t = useT();
+  const deliveryFailed = status === 'FAILED';
+  const actioned = ['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED'].includes(status ?? '');
+  const headers = [
+    t.deliveryPage.tableDesignation, t.deliveryPage.tableSku, t.deliveryPage.tableQty,
+    t.deliveryPage.tableQtyDone, t.deliveryPage.tableReason, t.deliveryPage.tableUnitPrice, t.deliveryPage.tableTotal,
+  ];
+  return (
+    <TooltipProvider>
+      <div className="overflow-x-auto">
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ borderBottom: '1px solid var(--border)', background: 'transparent' }}>
+              {headers.map(h => (
+                <th key={h} style={{ padding: '10px 12px', textAlign: 'left', fontSize: 10, fontWeight: 500, color: 'var(--text-muted)', border: 'none' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {items.map((item, i) => {
+              const short = item.quantityDone != null && item.quantityDone < (item.quantity ?? 0);
+              const reasonLabel = item.reasonLabel as string | undefined;
+              const perItemOutcome = item.outcome && item.outcome !== 'DELIVERED' ? item.outcome : null;
+              const deliveryFailLine = deliveryFailed && !perItemOutcome;
+              const lineStatus = perItemOutcome
+                ? perItemOutcome
+                : !actioned ? null
+                : deliveryFailLine ? (failureCode ?? 'FAILED')
+                : short && reasonLabel ? 'MISSING'
+                : short ? 'PARTIAL'
+                : null;
+              return (
+                <tr key={i} style={{ borderBottom: '1px solid var(--border)/30' }} className="hover:bg-[var(--app-bg)]/40 transition-colors">
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-sm font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-2xs font-mono text-[var(--text-muted)]">{item.sku ?? '—'}</span>
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-sm text-[var(--text-primary)]">{item.quantity ?? '—'}</span>
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-sm font-medium" style={{ color: !actioned ? 'var(--text-muted)' : short ? 'var(--danger)' : 'var(--success)' }}>
+                      {actioned ? (item.quantityDone ?? '—') : '—'}
+                    </span>
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    {lineStatus == null
+                      ? <span className="text-xs text-[var(--text-muted)]">—</span>
+                      : <ItemOutcomeBadge
+                          outcome={lineStatus}
+                          reason={deliveryFailLine ? null : item.reason}
+                          reasonLabel={deliveryFailLine ? failMotif : reasonLabel}
+                          reasonInTooltip />}
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-xs text-[var(--text-primary)]">{formatMoney(item.unitPrice, currency ?? undefined)}</span>
+                  </td>
+                  <td style={{ padding: '10px 12px', border: 'none' }}>
+                    <span className="text-xs font-semibold text-[var(--text-primary)]">
+                      {item.unitPrice != null && item.quantity != null ? formatMoney(item.unitPrice * item.quantity, currency ?? undefined) : '—'}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </TooltipProvider>
+  );
+}

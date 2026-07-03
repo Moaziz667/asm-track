@@ -125,6 +125,8 @@ type EnrichedRoute = RouteItem & {
   zoneLabel:      string;
   clientNames:    string[];
   completedStops: number;
+  failedStops:    number;
+  partialStops:   number;
 };
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -204,7 +206,9 @@ function RouteRow({
 
   const { stops, loadingStops } = useRouteStops(route, expanded);
   const total    = route.totalStops ?? stops.length;
-  const done     = route.completedStops;
+  // Progression counts every terminal stop as done — delivered, partial AND failed (échec) —
+  // matching the per-route page's progress bar so an all-attempted route reads 100%.
+  const done     = (route.completedStops ?? 0) + (route.failedStops ?? 0) + (route.partialStops ?? 0);
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
   const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
   const canClose = route.status === 'IN_PROGRESS';
@@ -375,7 +379,9 @@ function RouteMobileCard({
 
   const { stops, loadingStops } = useRouteStops(route, expanded);
   const total    = route.totalStops ?? stops.length;
-  const done     = route.completedStops;
+  // Progression counts every terminal stop as done — delivered, partial AND failed (échec) —
+  // matching the per-route page's progress bar so an all-attempted route reads 100%.
+  const done     = (route.completedStops ?? 0) + (route.failedStops ?? 0) + (route.partialStops ?? 0);
   const pct      = total > 0 ? Math.round((done / total) * 100) : 0;
   const config   = STATUS_STYLE[route.status] || { color: 'gray', ribbon: '#A1A1AA' };
   const canClose = route.status === 'IN_PROGRESS';
@@ -608,6 +614,8 @@ function RoutesTablePageContent() {
           stops: [],                                  // lazy-loaded on expand (kills the old /full fan-out)
           totalStops: r.totalStops ?? 0,
           completedStops: r.completedStops ?? 0,
+          failedStops: r.failedStops ?? 0,
+          partialStops: r.partialStops ?? 0,
           zoneLabel: r.detectedZoneLabel ?? r.city ?? '',
           clientNames: [],
         }));

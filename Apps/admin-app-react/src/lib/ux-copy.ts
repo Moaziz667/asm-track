@@ -410,6 +410,8 @@ export const FR_COPY = {
     RECEIVED: 'Reçu',
     RESTOCKED: 'Restocké',
     REJECTED: 'Refusé',
+    BACKORDER: 'Reliquat',
+    RESCHEDULED: 'Reprogrammé',
   } as Record<string, string>,
 
   // ── Codes d'échec de livraison ────────────────────────────────────────
@@ -489,8 +491,12 @@ export const FR_COPY = {
     RETURNED:            'Retourné',
     WRONG_ITEM:          'Mauvais article',
     NOT_HOME:            'Client absent',
+    CLIENT_ABSENT:       'Client absent',
+    WRONG_ADDRESS:       'Adresse incorrecte',
     EXPIRED:             'Périmé',
     POSTPONED:           'Reporté',
+    FAILED:              'Échec',
+    OTHER:               'Autre motif',
   } as Record<string, string>,
 
   // ── Statut SLA / délai ────────────────────────────────────────────────
@@ -966,6 +972,7 @@ export const FR_COPY = {
     // Detail modal
     detailTitle: 'Détail',
     orderLabel: 'Commande',
+    addressLabel: 'Adresse',
     openLink: 'Ouvrir →',
     driverLabel: 'Chauffeur',
     replanButton: 'Reprogrammer',
@@ -1231,6 +1238,7 @@ export const FR_COPY = {
     newStop: 'Nouvelle livraison',
     noWindow: 'Sans fenêtre',
     currentRouteLabel: 'Tournée actuelle',
+    pickupStop: 'Chargement',
   },
 
   reassignCommandOverlay: {
@@ -1314,6 +1322,7 @@ export const FR_COPY = {
     tableSku: 'SKU',
     tableQty: 'Qté',
     tableQtyDone: 'Qté livrée',
+    tableReason: 'Motif',
     tableUnitPrice: 'P.U.',
     tableTotal: 'Total',
     // Section: Timeline
@@ -2221,6 +2230,10 @@ export const FR_COPY = {
     legendHealthy: 'Bien livré',
     legendMixed: 'Échecs partiels',
     legendFailing: 'Échecs élevés',
+    driverHeader: 'Chauffeur',
+    noDrivers: 'Aucun chauffeur',
+    monthView: 'Mois',
+    weekView: 'Semaine',
   },
   performancePage: {
     pageSubtitle: 'Performance Flux',
@@ -3447,6 +3460,7 @@ export const FR_COPY = {
   systemHealthPage: {
     title: 'Santé du système',
     subtitle: '· actualisé automatiquement',
+    loading: 'Chargement…',
     allGoodTitle: 'Tout fonctionne normalement',
     allGoodSub: 'Aucun problème détecté sur les services et les synchronisations.',
     statusOperational: 'Opérationnel',

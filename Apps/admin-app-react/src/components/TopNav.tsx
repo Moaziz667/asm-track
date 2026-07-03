@@ -7,12 +7,11 @@ import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
 
 import {
-  IconChevronRight, IconChevronDown, IconUserCircle, IconLogout,
-  IconSun, IconMoon, IconCalendarEvent,
-  IconBuildingWarehouse, IconSettings, IconMap,
+  IconBuildingWarehouse, IconSettings, IconMap2, IconLayoutSidebar,
+  IconCalendarEvent, IconChevronRight, IconSun, IconMoon,
+  IconChevronDown, IconUserCircle, IconLogout,
 } from '@tabler/icons-react';
 import { useGlobalMapStore } from '@/lib/global-map-store';
-import { IconLayoutSidebar } from '@tabler/icons-react';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -274,7 +273,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
                 />
               }
             >
-              <IconMap size={14} stroke={2.5} />
+              <IconMap2 size={14} stroke={2.5} />
             </TooltipTrigger>
             <TooltipContent>{mapMode !== 'hidden' ? t.topNav.hideMap : t.topNav.showMap}</TooltipContent>
           </Tooltip>

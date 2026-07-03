@@ -94,6 +94,11 @@ public class Delivery {
     @Column(name = "fail_reason", columnDefinition = "TEXT")
     private String failReason;
 
+    // The driver's free-text failure comment, kept apart from the admin reason label (fail_reason
+    // remains the flattened "label — comment" form for ERP/analytics). Null when none was entered.
+    @Column(name = "failure_comment", columnDefinition = "TEXT")
+    private String failureComment;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "failure_code", length = 30)
     private FailureCode failureCode;

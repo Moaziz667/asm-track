@@ -163,10 +163,15 @@ public class RouteResponseMapper {
                     .build());
         }
 
-                int totalStops = stops.size();
-                int completedStops = (int) stops.stream().filter(s -> s.getStatus() == RouteStopStatus.COMPLETED).count();
-                int failedStops = (int) stops.stream().filter(s -> s.getStatus() == RouteStopStatus.FAILED).count();
-                int partialStops = (int) stops.stream().filter(s -> s.getStatus() == RouteStopStatus.PARTIAL).count();
+                // Delivery stops only — pickup (multi-depot load) stops aren't deliveries and must not
+                // inflate the total or completed counts driving the progression bar.
+                List<RouteStopResponse> deliveryStops = stops.stream()
+                        .filter(s -> s.getStopType() == RouteStopType.DELIVERY)
+                        .toList();
+                int totalStops = deliveryStops.size();
+                int completedStops = (int) deliveryStops.stream().filter(s -> s.getStatus() == RouteStopStatus.COMPLETED).count();
+                int failedStops = (int) deliveryStops.stream().filter(s -> s.getStatus() == RouteStopStatus.FAILED).count();
+                int partialStops = (int) deliveryStops.stream().filter(s -> s.getStatus() == RouteStopStatus.PARTIAL).count();
                 int pendingStops = Math.max(totalStops - completedStops - failedStops - partialStops, 0);
                 double progressPercent = totalStops == 0
                     ? 0.0
@@ -327,15 +332,20 @@ public class RouteResponseMapper {
                 .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById))
                 .toList();
 
-        int totalActiveStops = activeStops.size();
+        // Progression counts DELIVERY stops only — pickup (multi-depot load) stops are logistics
+        // steps, not deliveries, so they must not inflate the total or the completed count.
+        List<RouteStop> deliveryStops = activeStops.stream()
+                .filter(s -> s.getStopType() == RouteStopType.DELIVERY)
+                .toList();
+        int totalActiveStops = deliveryStops.size();
 
-        long completed = activeStops.stream()
+        long completed = deliveryStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.COMPLETED)
                 .count();
-        long failed = activeStops.stream()
+        long failed = deliveryStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.FAILED)
                 .count();
-        long partial = activeStops.stream()
+        long partial = deliveryStops.stream()
                 .filter(s -> s.getStatus() == RouteStopStatus.PARTIAL)
                 .count();
         long pending = totalActiveStops - (completed + failed + partial);

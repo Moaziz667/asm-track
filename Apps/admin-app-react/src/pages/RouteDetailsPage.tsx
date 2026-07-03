@@ -78,8 +78,11 @@ export default function RouteDetailsPage() {
 
   const completed = route.completedStops ?? 0;
   const failed = route.failedStops ?? 0;
+  const partial = (route as any).partialStops ?? 0;
   const total = route.totalStops ?? d.orderedStops.length;
-  const pct = route.progressPercent ?? (total > 0 ? ((completed + failed) / total * 100) : 0);
+  // "Done" = every terminal stop: delivered, partial AND failed (échec). A failed stop is finished,
+  // so a 1-stop route that failed reads 1/1, not 0/1.
+  const pct = route.progressPercent ?? (total > 0 ? ((completed + failed + partial) / total * 100) : 0);
   const currency = d.orderedStops.find((s) => s.order?.currency)?.order?.currency ?? 'TND';
   const isActiveRoute = route.status === 'VALIDATED' || route.status === 'IN_PROGRESS';
   const isClosed = route?.status === 'CLOSED';
@@ -97,9 +100,13 @@ export default function RouteDetailsPage() {
         isRefreshing={loading}
       />
 
+      {/* Active route → live detail (KPI strip + map + editable stops). Closed route → the closure
+          report only (it already carries KPIs, stops table, POD & audit), so we don't duplicate them. */}
+      {!isClosed && (<>
       <RouteStats
         completed={completed}
         failed={failed}
+        partial={partial}
         total={total}
         progressPercent={pct}
         driverId={route.driver?.id}
@@ -199,7 +206,7 @@ export default function RouteDetailsPage() {
               <Badge variant="secondary" className="text-2xs font-mono">{d.orderedStops.length}</Badge>
             </div>
             <div className="flex items-center gap-2">
-              <p className="text-xs font-mono font-semibold text-[var(--text-muted)]">{completed}/{total}</p>
+              <p className="text-xs font-mono font-semibold text-[var(--text-muted)]">{completed + failed + partial}/{total}</p>
               {failed > 0 && (
                 <Badge variant="destructive" className="text-2xs">
                   {failed}
@@ -219,8 +226,6 @@ export default function RouteDetailsPage() {
                 currency={currency}
                 isActiveRoute={isActiveRoute}
                 isExpanded={d.expandedStops.has(stop.id)}
-                tab={d.activeTab[stop.id] ?? 'details'}
-                setActiveTab={d.setActiveTab}
                 stopRefs={d.stopRefs}
                 toggleStop={d.toggleStop}
                 downloadBL={d.downloadBL}
@@ -235,6 +240,7 @@ export default function RouteDetailsPage() {
           </div>
         </div>
       </div>
+      </>)}
 
       {route?.status === 'CLOSED' && typeof routeId === 'string' && (
         <RouteReportSection routeId={routeId} />

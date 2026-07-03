@@ -24,9 +24,26 @@ export interface CalDelivery {
   currency?: string;
 }
 
-export const STATUS_COLOR: Record<string, string> = {
-  UNSCHEDULED: '#C4881A', SCHEDULED: '#5E6AD2', PICKED_UP: '#2594B8', IN_TRANSIT: '#D4772C',
-  DELIVERED: '#4CAF82', PARTIALLY_DELIVERED: '#7B6FCC', FAILED: '#C7372F', CANCELLED: '#8A8F98',
+export type StatusTone = 'warning' | 'info' | 'brand' | 'success' | 'danger' | 'muted';
+
+export const STATUS_TONE_MAP: Record<string, StatusTone> = {
+  UNSCHEDULED:         'warning',
+  SCHEDULED:           'info',
+  PICKED_UP:           'info',
+  IN_TRANSIT:          'brand',
+  DELIVERED:           'success',
+  PARTIALLY_DELIVERED: 'success',
+  FAILED:              'danger',
+  CANCELLED:           'muted',
+};
+
+export const TONE_VAR: Record<StatusTone, string> = {
+  warning: 'var(--warning)',
+  info:    'var(--info)',
+  brand:   'var(--brand)',
+  success: 'var(--success)',
+  danger:  'var(--danger)',
+  muted:   'var(--text-muted)',
 };
 
 // Terminal (outcome) statuses — used to decide whether a day is "done".

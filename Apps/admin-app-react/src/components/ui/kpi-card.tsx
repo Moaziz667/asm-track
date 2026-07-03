@@ -24,15 +24,15 @@ interface KPICardProps {
   sparklineData?: number[];
 }
 
-const TONE_DOT: Record<string, string> = {
-  default: 'bg-[var(--text-soft)]',
-  success: 'bg-[var(--success)]',
-  warning: 'bg-[var(--warning)]',
-  danger:  'bg-[var(--danger)]',
-  info:    'bg-[var(--info)]',
+const TONE_TEXT: Record<string, string> = {
+  default: 'text-[var(--text-soft)]',
+  success: 'text-[var(--success)]',
+  warning: 'text-[var(--warning)]',
+  danger:  'text-[var(--danger)]',
+  info:    'text-[var(--info)]',
 };
 
-function TrendPill({ trend }: { trend: KpiTrend }) {
+function TrendPill({ trend, tone = 'default' }: { trend: KpiTrend; tone?: string }) {
   const goodUp = (trend.goodWhen ?? 'up') === 'up';
   const isUp = trend.delta > 0;
   const isFlat = trend.delta === 0;
@@ -63,14 +63,12 @@ export function KPICard({ label, value, sub, trend, icon, tone = 'default', clas
       return `${x},${y}`;
     }).join(' ');
 
-    const strokeColor = tone === 'success' ? 'var(--success)' : tone === 'warning' ? 'var(--warning)' : tone === 'danger' ? 'var(--danger)' : tone === 'info' ? 'var(--info)' : 'var(--brand)';
-
     return (
-      <div className="absolute bottom-2 right-4 opacity-60 pointer-events-none">
+      <div className="absolute bottom-2 right-4 opacity-40 pointer-events-none">
         <svg width={width} height={height}>
           <polyline
             fill="none"
-            stroke={strokeColor}
+            stroke="var(--brand)"
             strokeWidth="1.5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -85,27 +83,21 @@ export function KPICard({ label, value, sub, trend, icon, tone = 'default', clas
     <div
       onClick={onClick}
       className={cn(
-        'card pl-10 pr-4 py-4 flex flex-col justify-center h-full relative overflow-hidden',
+        'card pl-6 pr-4 py-4 flex flex-col justify-center h-full relative overflow-hidden',
         onClick && 'cursor-pointer',
         className,
       )}
     >
-      {tone !== 'default' && (
-        <div className={cn('absolute top-0 left-0 right-0 h-[3px]', TONE_DOT[tone])} />
-      )}
-      <div className="flex items-start justify-between mb-3 shrink-0 relative z-10">
-        <span className="text-sm font-medium text-[var(--text-muted)]">{label}</span>
-        <div className="flex items-center gap-2 text-[var(--text-muted)]">
-          {icon}
-          {tone !== 'default' && <span className={cn('w-2 h-2 rounded-full', TONE_DOT[tone])} />}
-        </div>
+      <div className="flex items-start justify-between mb-2 shrink-0 relative z-10">
+        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)]">{label}</span>
+        {icon && <div className={cn('text-[var(--text-muted)]', TONE_TEXT[tone])}>{icon}</div>}
       </div>
-      <div className="font-mono text-[2.5rem] font-bold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
+      <div className="font-mono text-[2rem] font-bold leading-none tabular-nums text-[var(--text-primary)] relative z-10 text-left rtl:text-right" dir="ltr">
         {value}
       </div>
       {trend ? (
         <div className="mt-1.5 relative z-10 text-left rtl:text-right" dir="ltr">
-          <TrendPill trend={trend} />
+          <TrendPill trend={trend} tone={tone} />
         </div>
       ) : sub ? (
         <div className="text-xs text-[var(--text-muted)] mt-1.5 font-normal relative z-10 text-left rtl:text-right" dir="ltr">

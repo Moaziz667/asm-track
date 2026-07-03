@@ -107,9 +107,15 @@ public class AdminDeliveryController {
             @Parameter(description = "Scheduled-date quick view: OVERDUE | TODAY | FUTURE (pending deliveries only)")
             @RequestParam(required = false) String bucket,
 
+            @Parameter(description = "Planifié range start (inclusive, ISO yyyy-MM-dd) — filters on effective scheduled date")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateFrom,
+
+            @Parameter(description = "Planifié range end (inclusive, ISO yyyy-MM-dd) — filters on effective scheduled date")
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
+
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable));
     }
 
     @GetMapping("/calendar")

@@ -5,6 +5,7 @@ import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/theme';
 import { useLocaleContext } from '@/lib/LocaleContext';
+import { routeColorFromMap } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type LiveDriver = {
@@ -41,7 +42,7 @@ interface Props {
   focusedDriverId?: string | null;
   onFocusRoute?: (routeId: string | null) => void;
   onFocusDriver?: (driverId: string | null) => void;
-  routeColor: (routeId?: string | null) => string;
+  routeColorMap: Map<string, string>;
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ function Camera({ routes, drivers, focusedRouteId, focusedDriverId }: { routes: 
 }
 
 // ── Main ─────────────────────────────────────────────────────────────────────────
-function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId, onFocusRoute, routeColor }: Props) {
+function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId, onFocusRoute, routeColorMap }: Props) {
   const { locale } = useLocaleContext();
   const [mounted, setMounted] = useState(false);
   const isDark = useIsDark();
@@ -199,7 +200,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
   const stopMarkers = useMemo(() => {
     const out: any[] = [];
     routes.forEach(route => {
-      const color = routeColor(route.id);
+      const color = routeColorFromMap(routeColorMap, route.id);
       const dim = !!focusedRouteId && focusedRouteId !== route.id;
       let stopNo = 0; // sequential delivery-stop number, like the route detail page
       route.stops.forEach((stop, i) => {
@@ -226,12 +227,12 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
       });
     });
     return out;
-  }, [routes, focusedRouteId, onFocusRoute, routeColor]);
+  }, [routes, focusedRouteId, onFocusRoute, routeColorMap]);
 
   const driverMarkers = useMemo(() => {
     return visibleDrivers.map(driver => {
       const r = driverRoute.get(driver.id);
-      const color = r ? routeColor(r.id) : '#71717A';
+      const color = r ? routeColorFromMap(routeColorMap, r.id) : '#71717A';
       const isFocused = driver.id === focusedDriverId || (!!r && r.id === focusedRouteId);
       const dim = !isFocused && (isGpsStale(driver.lastLocationAt) || !!focusedRouteId || !!focusedDriverId);
       const online = (driver.onlineStatus ?? 'OFFLINE') !== 'OFFLINE' && !isGpsStale(driver.lastLocationAt);
@@ -255,7 +256,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
         </Marker>
       );
     });
-  }, [visibleDrivers, driverRoute, focusedRouteId, focusedDriverId, onFocusRoute, routeColor, locale]);
+  }, [visibleDrivers, driverRoute, focusedRouteId, focusedDriverId, onFocusRoute, routeColorMap, locale]);
 
   if (!mounted) {
     return (

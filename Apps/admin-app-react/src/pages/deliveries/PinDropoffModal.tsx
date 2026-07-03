@@ -233,7 +233,7 @@ export function PinDropoffModal({
               </button>
               <button
                 type="button"
-                className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[500] text-sm rounded-xs flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
+                className="flex-1 h-10 bg-[var(--brand)] hover:opacity-90 text-white font-[600] text-sm rounded flex items-center justify-center gap-2 whitespace-nowrap transition-colors disabled:bg-[var(--brand-soft)] disabled:text-[var(--brand)] disabled:cursor-not-allowed"
                 onClick={confirmPin}
                 disabled={pinLat == null || pinSaving}
               >

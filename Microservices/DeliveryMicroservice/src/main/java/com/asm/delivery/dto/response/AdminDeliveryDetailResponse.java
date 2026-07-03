@@ -38,7 +38,10 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Failure classification when delivery failed", example = "ADDRESS_NOT_FOUND")
     private String failureCode;
 
-    @Schema(description = "Failure comment/details")
+    @Schema(description = "Admin failure-reason label (motif), without the driver's appended comment")
+    private String failReason;
+
+    @Schema(description = "Driver's free-text failure comment only (never the admin motif)")
     private String failureComment;
 
     @Schema(description = "Assigned driver id")

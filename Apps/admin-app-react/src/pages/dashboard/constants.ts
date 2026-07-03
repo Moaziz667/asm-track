@@ -1,24 +1,28 @@
 import type { DeliveryStatus } from '@/types';
 
-// Kanban card status colors.
-export const STATUS_COLOR_MAP: Record<DeliveryStatus, string> = {
-  UNSCHEDULED:          '#C4881A',
-  SCHEDULED:            '#5E6AD2',
-  PICKED_UP:            '#2594B8',
-  IN_TRANSIT:           '#D4772C',
-  DELIVERED:            '#4CAF82',
-  PARTIALLY_DELIVERED:  '#7B6FCC',
-  FAILED:               '#C7372F',
-  CANCELLED:            '#8A8F98',
+export type StatusTone = 'warning' | 'info' | 'brand' | 'success' | 'danger' | 'muted';
+
+// Semantic tone map for the dispatch-flow kanban. Replaces the old per-status hex palette
+// so columns/cards follow the design-system token ramp and stay anti-slop compliant.
+export const STATUS_TONE_MAP: Record<DeliveryStatus, StatusTone> = {
+  UNSCHEDULED:         'warning',
+  SCHEDULED:           'info',
+  PICKED_UP:           'info',
+  IN_TRANSIT:          'brand',
+  DELIVERED:           'success',
+  PARTIALLY_DELIVERED: 'success',
+  FAILED:              'danger',
+  CANCELLED:           'muted',
 };
 
-export const KANBAN_GRADIENT_MAP: Record<string, string> = {
-  UNSCHEDULED:          'var(--gradient-orange)',
-  SCHEDULED:            'var(--gradient-purple)',
-  PICKED_UP:            'var(--gradient-teal)',
-  IN_TRANSIT:           'var(--gradient-blue)',
-  FAILED:               'var(--gradient-fuchsia)',
-  DELIVERED:            'var(--gradient-blue)',
+// CSS variable for each tone — used for column header accents and card metadata.
+export const TONE_VAR: Record<StatusTone, string> = {
+  warning: 'var(--warning)',
+  info:    'var(--info)',
+  brand:   'var(--brand)',
+  success: 'var(--success)',
+  danger:  'var(--danger)',
+  muted:   'var(--text-muted)',
 };
 
 export const DISPATCH_STATUSES: DeliveryStatus[] = [

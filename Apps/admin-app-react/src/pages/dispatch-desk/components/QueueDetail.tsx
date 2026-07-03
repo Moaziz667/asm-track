@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox } from '@tabler/icons-react';
+import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,9 +8,14 @@ import { Separator } from '@/components/ui/separator';
 import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
+import { ArticlesTable } from '@/components/data-display/ArticlesTable';
+import { DriverNote } from '@/components/data-display/DriverNote';
+import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import {
-  REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, STATUS_DOT, getDriverStatusTip,
+  REASSIGNABLE_STATUSES, REPLANNABLE_STATUSES, getDriverStatusTip,
 } from '../constants';
 import {
   formatElapsed, formatShortDate,
@@ -18,7 +23,13 @@ import {
 } from '../formatters';
 import { rowId, isPinned } from '../utils';
 import type { OpsException } from '../types';
-import { formatMoney } from '@/lib/utils';
+import { cn, formatMoney } from '@/lib/utils';
+
+const driverStatusTone = (status?: string) => {
+  if (status === 'ONLINE') return 'text-[var(--success)]';
+  if (status === 'ON_BREAK') return 'text-[var(--warning)]';
+  return 'text-[var(--text-muted)]';
+};
 
 export function QueueDetail() {
   const {
@@ -26,11 +37,28 @@ export function QueueDetail() {
     setDrawerTargets, openActionModal, setReturnTarget,
   } = useDispatchDeskContext();
 
+  const selectedId = selectedQueueRow ? rowId(selectedQueueRow.delivery) : '';
+  const { data: detail } = useQuery({
+    queryKey: ['queue-delivery-detail', selectedId],
+    enabled: !!selectedId,
+    staleTime: 15000,
+    queryFn: async () => {
+      const [dRes, podRes] = await Promise.allSettled([
+        api.get(`/api/admin/deliveries/${selectedId}`),
+        api.get(`/api/admin/deliveries/${selectedId}/pod`),
+      ]);
+      return {
+        delivery: dRes.status === 'fulfilled' ? dRes.value.data : null,
+        pod: podRes.status === 'fulfilled' ? podRes.value.data : null,
+      };
+    },
+  });
+
   if (!selectedQueueRow) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center gap-2 px-6 text-center">
-        <IconInbox size={28} stroke={1.5} style={{ color: 'var(--text-soft)' }} />
-        <p className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>
+        <IconInbox size={24} stroke={1.5} className="text-[var(--text-soft)]" />
+        <p className="text-sm font-medium text-[var(--text-muted)]">
           {t.dispatchDeskPage.queueSelectPrompt}
         </p>
       </div>
@@ -41,20 +69,20 @@ export function QueueDetail() {
   const id = rowId(d);
   const driver = drivers.find(dr => dr.id === d.driverId);
   const motif = (alert?.motif ?? '').toUpperCase().trim();
+  const detailDelivery: any = detail?.delivery ?? null;
+  const detailItems: any[] = detailDelivery?.items ?? d.items ?? [];
+  const failMotif: string | null = detailDelivery?.failReason ?? null;
+  const driverNote: string | null = detail?.pod?.comment ?? detailDelivery?.failureComment ?? null;
 
   const canReassign = (REASSIGNABLE_STATUSES as string[]).includes(d.status);
   const canReplan   = (REPLANNABLE_STATUSES as string[]).includes(d.status) && !canReassign;
-  const pinned = isPinned(d); // unpinned → no coords to route; offer "pin first" instead of assign
+  const pinned = isPinned(d);
 
-  // SLA slot for the header. Live health is NONE for FAILED/CANCELLED (no on-time verdict), which
-  // renders an empty badge. In that case fall back to the worst PAST phase health so a failed-but-
-  // also-late delivery still shows its lateness instead of going blank.
   const liveHealth = d.slaHealth ?? alert?.slaHealth;
   const worstHealth = d.slaWorstHealth;
   const effectiveSlaHealth = (!liveHealth || liveHealth === 'NONE')
     ? (worstHealth && worstHealth !== 'NONE' ? worstHealth : liveHealth)
     : liveHealth;
-  // "était en retard +Xmin" — only when the delivery is terminal AND a phase actually breached/ran late.
   const wasLatePastPhase = (worstHealth === 'BREACHED' || worstHealth === 'LATE');
   const lateNote = (wasLatePastPhase && (liveHealth === 'NONE' || !liveHealth) && (d.slaLateMinutes ?? 0) > 0)
     ? (t.dispatchDeskPage.wasLateBy ?? 'était en retard +{n}min').replace('{n}', String(d.slaLateMinutes))
@@ -87,160 +115,159 @@ export function QueueDetail() {
     createdAt: d.createdAt, updatedAt: d.updatedAt, scheduledAt: d.scheduledAt,
   });
 
+  const scheduledDateTime = d.scheduledAt
+    ? `${new Date(d.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} ${new Date(d.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}`
+    : null;
+
   return (
-    <div className="flex-1 flex flex-col min-h-0">
-      {/* Two-column cockpit. LEFT = order/client/driver context (what & who).
-          RIGHT = the full activity timeline (what happened & why) — fills the
-          space a single 680px column used to leave empty on wide screens.
-          Stacks to one column below xl so it stays usable on laptops/tablets. */}
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col xl:flex-row xl:items-stretch gap-5 xl:gap-6 p-5">
 
           {/* ── LEFT: context ──────────────────────────────────────────────── */}
           <div className="flex flex-col gap-5 min-w-0 xl:flex-1 xl:max-w-[620px]">
-          {/* Header — client hero with avatar + grouped status/health */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-center gap-3 min-w-0">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold shrink-0"
-                style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}
-              >
-                {(d.clientName ?? '?').slice(0, 1).toUpperCase()}
-              </div>
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
               <div className="min-w-0">
-                <span className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-                  {t.dispatchDeskPage.clientLabel ?? 'Client'}
-                </span>
-                <p className="text-xl font-bold truncate leading-tight" style={{ color: 'var(--text-primary)' }}>
+                <p className="text-xl font-bold text-[var(--text-primary)] truncate leading-tight">
                   {d.clientName ?? '—'}
                 </p>
-                <Link to={`/deliveries/${id}`} className="font-mono text-xs font-[600] hover:underline" style={{ color: 'var(--brand)' }}>
-                  {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
+                <div className="flex items-center gap-2 mt-1">
+                  <Link to={`/deliveries/${id}`} className="font-mono text-xs font-semibold text-[var(--brand)] hover:underline">
+                    {d.orderRef ?? d.erpOrderId ?? id.slice(0, 8)}
+                  </Link>
+                  {lateNote && (
+                    <span className="text-2xs font-semibold text-[var(--danger)]">{lateNote}</span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1.5 shrink-0">
+                <div className="flex items-center gap-1.5">
+                  <StatusBadge status={d.status} size="sm" />
+                  <SlaHealthBadge health={effectiveSlaHealth} size="sm" />
+                </div>
+                <Link to={`/deliveries/${id}`} className="text-2xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-0.5">
+                  {t.dispatchDeskPage.openLink} →
                 </Link>
               </div>
             </div>
-            <div className="flex flex-col items-end gap-1.5 shrink-0">
-              <div className="flex items-center gap-1.5">
-                <StatusBadge status={d.status} size="sm" />
-                {/* SLA slot. A FAILED/CANCELLED delivery has live health NONE (no on-time verdict),
-                    so instead of an empty badge we surface its worst PAST phase health — i.e. it
-                    was already late before it failed. Non-terminal rows show their live health. */}
-                <SlaHealthBadge health={effectiveSlaHealth} size="md" />
-              </div>
-              {lateNote && (
-                <span className="text-2xs font-[600]" style={{ color: 'var(--danger)' }}>{lateNote}</span>
-              )}
-              <Link to={`/deliveries/${id}`} className="text-xs font-[500] hover:underline" style={{ color: 'var(--text-secondary)' }}>
-                {t.dispatchDeskPage.openLink}
-              </Link>
-            </div>
-          </div>
 
-          {/* Failure motif is shown in the Activité panel (alert banner + "Échec" timeline entry),
-              so it is intentionally NOT repeated here. */}
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Driver */}
-            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-                {t.dispatchDeskPage.driverLabel}
-              </span>
-              {d.driverName ? (
-                <div className="flex items-center gap-2">
-                  <span style={{ width: 8, height: 8, borderRadius: '50%', background: STATUS_DOT[driver?.onlineStatus ?? 'OFFLINE'], flexShrink: 0 }} />
-                  <div className="min-w-0">
-                    <p className="text-base font-[600]" style={{ color: 'var(--text-primary)' }}>{d.driverName}</p>
-                    {(d.driverPhone || driver?.phone) && (
-                      <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{d.driverPhone ?? driver?.phone}</p>
-                    )}
+            {/* Driver + Address — side-by-side on sm+, stacked on mobile */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Driver */}
+              <div className="flex flex-col gap-2">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
+                  {t.dispatchDeskPage.driverLabel}
+                </span>
+                {d.driverName ? (
+                  <div className="flex items-center gap-2">
+                    <DriverAvatarById driverId={d.driverId} name={d.driverName} size={28} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{d.driverName}</p>
+                      {(d.driverPhone || driver?.phone) && (
+                        <p className="text-2xs text-[var(--text-muted)]">{d.driverPhone ?? driver?.phone}</p>
+                      )}
+                    </div>
+                    <span className={cn('text-2xs font-medium shrink-0', driverStatusTone(driver?.onlineStatus))}>
+                      {getDriverStatusTip(driver?.onlineStatus, t)}
+                    </span>
                   </div>
-                  <span className="ms-auto text-2xs font-[500] shrink-0" style={{ color: 'var(--text-muted)' }}>
-                    {getDriverStatusTip(driver?.onlineStatus, t)}
+                ) : (
+                  <span className="text-sm font-medium text-[var(--text-muted)]">
+                    {t.dispatchDeskPage.unassignedLabel}
                   </span>
-                </div>
-              ) : (
-                <span className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>
-                  {t.dispatchDeskPage.unassignedLabel}
+                )}
+              </div>
+
+              {/* Address */}
+              <div className="flex flex-col gap-2">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
+                  {t.dispatchDeskPage.addressLabel ?? 'Adresse'}
+                </span>
+                {(d.dropoffAddress || d.dropoffCity || d.zoneName) ? (
+                  <div className="flex items-start gap-1.5 text-[var(--text-secondary)]">
+                    <IconMapPin size={13} stroke={2.5} className="mt-0.5 shrink-0 text-[var(--text-muted)]" />
+                    <span className="text-sm leading-snug">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-medium text-[var(--text-muted)]">—</span>
+                )}
+                {d.clientPhone && (
+                  <p className="text-2xs font-mono text-[var(--text-muted)] inline-flex items-center gap-1">
+                    <IconPhone size={10} stroke={2} /> {d.clientPhone}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Meta line */}
+            <div className="flex flex-wrap items-center gap-3 text-2xs text-[var(--text-muted)]">
+              <span className="inline-flex items-center gap-1" title={formatShortDate(d.createdAt)}>
+                <IconClock size={11} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(d.createdAt, t))}
+              </span>
+              {scheduledDateTime && (
+                <span className="inline-flex items-center gap-1">
+                  <IconCalendar size={11} stroke={2.5} /> {scheduledDateTime}
                 </span>
               )}
+              {slot && <span className="inline-flex items-center gap-1"><IconCalendar size={11} stroke={2.5} /> {slot}</span>}
+              {amount && <span className="font-semibold text-[var(--brand)]">{amount}</span>}
             </div>
 
-            {/* Address / client */}
-            <div className="rounded-[var(--radius)] p-3 flex flex-col gap-1.5 border" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
-              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-                {t.dispatchDeskPage.orderLabel}
-              </span>
-              {(d.dropoffAddress || d.dropoffCity || d.zoneName) ? (
-                <div className="flex items-start gap-1.5" style={{ color: 'var(--text-secondary)' }}>
-                  <IconMapPin size={13} stroke={2.5} className="mt-0.5 shrink-0" style={{ color: 'var(--text-muted)' }} />
-                  <span className="text-sm leading-snug">{d.dropoffAddress ?? d.dropoffCity ?? d.zoneName}</span>
+            {/* Items */}
+            {detailItems.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
+                  {t.dispatchDeskPage.queueItemsLabel}
+                </span>
+                <div className="rounded-md overflow-hidden border border-[var(--border)]">
+                  <ArticlesTable
+                    items={detailItems}
+                    status={d.status}
+                    failureCode={detailDelivery?.failureCode}
+                    failMotif={failMotif}
+                    currency={detailDelivery?.currency ?? (d as any).currency}
+                  />
                 </div>
-              ) : (
-                <span className="text-sm font-[500]" style={{ color: 'var(--text-muted)' }}>—</span>
-              )}
-              {d.clientPhone && (
-                <p className="text-sm font-mono" style={{ color: 'var(--text-muted)' }}>{d.clientPhone}</p>
-              )}
-            </div>
-          </div>
-
-          {/* Schedule / slot / amount — subtle meta pills */}
-          <div className="flex flex-wrap items-center gap-2 text-xs">
-            <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }} title={formatShortDate(d.createdAt)}>
-              <IconClock size={12} stroke={2.5} /> {t.dispatchDeskPage.cardCreated.replace('{time}', formatElapsed(d.createdAt, t))}
-            </span>
-            {d.scheduledAt && (
-              <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }}>
-                <IconCalendar size={12} stroke={2.5} />
-                {new Date(d.scheduledAt).toLocaleDateString(undefined, { day: '2-digit', month: 'short' })} {new Date(d.scheduledAt).toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit', hour12: false })}
-              </span>
-            )}
-            {slot && <span className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)' }}><IconCalendar size={12} stroke={2.5} /> {slot}</span>}
-            {amount && <span className="inline-flex items-center px-2 py-1 rounded-full font-[700]" style={{ background: 'var(--brand-soft)', color: 'var(--brand)' }}>{amount}</span>}
-          </div>
-
-          {/* Items */}
-          {d.items && d.items.length > 0 && (
-            <div className="flex flex-col gap-1.5">
-              <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-                {t.dispatchDeskPage.queueItemsLabel}
-              </span>
-              <div className="rounded-[var(--radius)] divide-y overflow-hidden border" style={{ background: 'var(--hover-bg)', borderColor: 'var(--border)' }}>
-                {d.items.map((item, idx) => (
-                  <div key={idx} className="flex items-center justify-between text-sm px-3 py-2" style={{ borderColor: 'var(--border)' }}>
-                    <span className="truncate pr-2 font-[500]" style={{ color: 'var(--text-secondary)' }}>{item.name}</span>
-                    <span className="font-mono font-semibold shrink-0" style={{ color: 'var(--text-primary)' }}>×{item.quantity}</span>
-                  </div>
-                ))}
               </div>
-            </div>
-          )}
+            )}
           </div>
 
-          {/* Divider between the two columns — horizontal when stacked, vertical when side-by-side */}
           <Separator className="xl:hidden" />
 
-          {/* ── RIGHT: activity rail (what happened & why) ─────────────────── */}
-          <div className="flex flex-col gap-2 min-w-0 xl:w-[420px] xl:shrink-0 xl:border-s xl:ps-6" style={{ borderColor: 'var(--border)' }}>
-            <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-soft)' }}>
-              {t.dispatchDeskPage.activityLabel ?? 'Activité'}
-            </span>
-            {id
-              ? <SlaTimeline deliveryId={id} variant="detailed" />
-              : (
-                <div className="rounded-[var(--radius)] p-3.5" style={{ background: 'var(--hover-bg)', borderInlineStart: '3px solid var(--border)' }}>
-                  <p className="text-base leading-relaxed font-[500]" style={{ color: 'var(--text-secondary)' }}>
-                    {t.dispatchDeskPage.queueNoAlerts}
-                  </p>
-                </div>
-              )}
+          {/* ── RIGHT: activity rail ───────────────────────────────────────── */}
+          <div className="flex flex-col gap-4 min-w-0 xl:w-[420px] xl:shrink-0 xl:border-s xl:ps-6 border-[var(--border)]">
+            {driverNote && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
+                  {t.deliveryPage.driverNoteLabel}
+                </span>
+                <DriverNote comment={driverNote} driverName={d.driverName} emptyLabel={t.deliveryPage.driverNoteEmpty} />
+              </div>
+            )}
+            <div className="flex flex-col gap-2">
+                <span className="text-2xs font-medium text-[var(--text-muted)]">
+                  {t.dispatchDeskPage.activityLabel ?? 'Activité'}
+                </span>
+              {id
+                ? <SlaTimeline deliveryId={id} variant="detailed" hideItemOutcomes hidePodComment hideFailureContext />
+                : (
+                  <div className="rounded-md p-3 bg-[var(--hover-bg)]">
+                    <p className="text-sm leading-relaxed font-medium text-[var(--text-secondary)]">
+                      {t.dispatchDeskPage.queueNoAlerts}
+                    </p>
+                  </div>
+                )}
+            </div>
           </div>
         </div>
       </ScrollArea>
 
-      {/* Action bar — fixed footer, always visible regardless of scroll position */}
+      {/* Action bar */}
       {!isReadOnly && (
-        <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t" style={{ background: 'var(--surface-sunken)', borderColor: 'var(--border)' }}>
+        <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t bg-[var(--surface)] border-[var(--border)]">
           {canReassign && (pinned ? (
             <Button size="sm" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
               {d.driverId ? <IconReassign size={14} /> : <IconAssign size={14} />}
@@ -249,26 +276,28 @@ export function QueueDetail() {
           ) : (
             <Link
               to={`/deliveries?pin=${id}`}
-              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
-              style={{ color: 'var(--warning)', borderColor: 'var(--warning)' }}
+              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
+              style={{ ['--accent' as any]: 'var(--warning)' }}
             >
               <IconMapPinOff size={14} /> {t.dispatchDeskPage.pinAddress}
             </Link>
           ))}
           {canReplan && (
-            <Button
-              size="sm" variant="outline" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"
+            <button
+              type="button"
+              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
+              style={{ ['--accent' as any]: 'var(--brand)' }}
               onClick={() => openActionModal('replan', alert ?? exceptionFromDelivery())}
             >
               <IconReplan size={14} />
               {t.dispatchDeskPage.buttonReplan}
-            </Button>
+            </button>
           )}
           {needsClientContact(motif) && d.clientPhone && (
             <a
               href={`tel:${d.clientPhone}`}
-              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
-              style={{ color: '#059669', borderColor: '#059669' }}
+              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
+              style={{ ['--accent' as any]: 'var(--success)' }}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallClient}
             </a>
@@ -276,17 +305,22 @@ export function QueueDetail() {
           {needsDriverContact(motif) && d.driverId && (d.driverPhone ?? driver?.phone) && (
             <a
               href={`tel:${d.driverPhone ?? driver?.phone}`}
-              className="h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md border transition-colors hover:opacity-80"
-              style={{ color: '#6366F1', borderColor: '#6366F1' }}
+              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
+              style={{ ['--accent' as any]: 'var(--info)' }}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>
           )}
           {alert && needsReturnToDepot(motif) && (
-            <Button size="sm" variant="outline" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setReturnTarget(alert)}>
+            <button
+              type="button"
+              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
+              style={{ ['--accent' as any]: 'var(--danger)' }}
+              onClick={() => setReturnTarget(alert)}
+            >
               <IconArrowBack size={14} stroke={2.5} />
               {t.dispatchDeskPage.buttonReturnToDepot}
-            </Button>
+            </button>
           )}
         </div>
       )}

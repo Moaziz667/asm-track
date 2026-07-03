@@ -11,7 +11,7 @@ import {
   IconPlus, IconLock, IconClock, IconShieldCheck, IconChevronRight,
   IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
   IconHourglass, IconAlertTriangle, IconArrowBackUp, IconInfoCircle, IconRouter,
-  IconBuildingStore, IconCheck, IconSettings,
+  IconBuildingStore, IconCheck, IconSettings, IconRoute, IconChartBar, IconCircleCheck,
 } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { tw } from '@/lib/typography';
@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { SectionCard } from '@/components/ui/section-card';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
 
@@ -49,6 +50,9 @@ type TSettings = Record<string, string>;
 
 const ROLE_TONE: Record<string, string> = {
   ADMIN: 'var(--danger)', DISPATCHER: 'var(--brand)', MANAGER: 'var(--info)',
+};
+const ROLE_ICON: Record<string, typeof IconShieldCheck> = {
+  ADMIN: IconShieldCheck, DISPATCHER: IconRoute, MANAGER: IconChartBar,
 };
 
 export default function SettingsPage() {
@@ -390,14 +394,21 @@ export default function SettingsPage() {
                       </div>
                       <div>
                         <p className={cn(tw.labelSm, 'mb-2')}>{sp.slaHealthHeading}</p>
-                        <ul className="flex flex-col gap-1.5 text-xs leading-relaxed text-[var(--text-primary)]">
-                          {[['var(--success)', 'slaHealthOnTrack'], ['var(--warning)', 'slaHealthAtRisk'],
-                            ['var(--danger)', 'slaHealthBreached'], ['var(--info)', 'slaHealthMet'],
-                            ['var(--warning)', 'slaHealthLate']].map(([c, k]) => (
-                            <li key={k} className="flex items-start gap-2">
-                              <span className="mt-1 w-2 h-2 rounded-full shrink-0" style={{ background: c }} />{sp[k]}
-                            </li>
-                          ))}
+                        <ul className="flex flex-col gap-2 text-xs leading-relaxed text-[var(--text-primary)]">
+                          {[['ON_TRACK', 'slaHealthOnTrack'], ['AT_RISK', 'slaHealthAtRisk'],
+                            ['BREACHED', 'slaHealthBreached'], ['MET', 'slaHealthMet'],
+                            ['LATE', 'slaHealthLate']].map(([status, k]) => {
+                            const full = sp[k] ?? '';
+                            const dash = full.indexOf('—');
+                            const explanation = dash >= 0 ? full.slice(dash + 1).trim() : full;
+                            const label = (t.slaTimeline as Record<string, any>)?.health?.[status] ?? status;
+                            return (
+                              <li key={status} className="flex items-start gap-2">
+                                <StatusBadge status={status} label={label} size="sm" />
+                                <span className="text-[var(--text-muted)]">{explanation}</span>
+                              </li>
+                            );
+                          })}
                         </ul>
                       </div>
                     </div>
@@ -455,76 +466,81 @@ export default function SettingsPage() {
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)]">
-                          <TableHead className={tw.labelSm}>{sp.actor}</TableHead>
-                          <TableHead className={tw.labelSm}>{sp.authorization}</TableHead>
-                          <TableHead className={tw.labelSm}>{sp.statusLabel}</TableHead>
-                          <TableHead className={tw.labelSm}>{sp.creationDate}</TableHead>
-                          <TableHead className="text-end" />
+                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.actor}</TableHead>
+                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.authorization}</TableHead>
+                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.statusLabel}</TableHead>
+                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.creationDate}</TableHead>
+                          <TableHead />
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {adminUsers.map((u) => (
-                          <TableRow key={u.id}>
-                            <TableCell>
-                              <p className="text-sm font-semibold text-[var(--text-primary)]">{u.name}</p>
-                              <p className="text-xs text-[var(--text-muted)]">{u.email}</p>
-                            </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
-                                    style={{ color: ROLE_TONE[u.role] ?? 'var(--text-muted)', background: `color-mix(in srgb, ${ROLE_TONE[u.role] ?? 'var(--text-soft)'} 12%, transparent)` }}>
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: ROLE_TONE[u.role] ?? 'var(--text-soft)' }} />
-                                {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
-                              </span>
-                            </TableCell>
-                            <TableCell>
-                              <span className="inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-semibold"
-                                    style={{ color: u.active ? 'var(--success)' : 'var(--danger)', background: `color-mix(in srgb, ${u.active ? 'var(--success)' : 'var(--danger)'} 12%, transparent)` }}>
-                                <span className="w-1.5 h-1.5 rounded-full" style={{ background: u.active ? 'var(--success)' : 'var(--danger)' }} />
-                                {u.active ? (t.driversPage.statusActive ?? 'Active') : (t.driversPage.statusInactive ?? 'Inactive')}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-xs text-[var(--text-muted)]">{u.createdAt ? formatDate(u.createdAt) : '—'}</TableCell>
-                            <TableCell className="text-end">
-                              {canManage && (
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <button type="button" className="w-7 h-7 inline-flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--text-primary)] transition-all">
-                                      <IconDotsVertical size={14} />
-                                    </button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-md p-1">
-                                    <DropdownMenuItem
-                                      onClick={() => { setEditingUser(u); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role); setEditOpen(true); }}
-                                      className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5">
-                                      <IconPencil size={13} /> {t.driversPage.modifyButton ?? 'Edit'}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleToggleStatus(u)}
-                                      className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                      style={{ color: u.active ? 'var(--danger)' : 'var(--success)' }}>
-                                      {u.active ? <><IconBan size={13} /> {t.driversPage.suspendDriverButton ?? 'Suspend'}</>
-                                                : <><IconCheck size={13} /> {t.driversPage.activateTooltip ?? 'Activate'}</>}
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem
-                                      onClick={() => handleResetPassword(u)}
-                                      className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                      style={{ color: 'var(--warning)' }}>
-                                      <IconLock size={13} /> {sp.resetPassword}
-                                    </DropdownMenuItem>
-                                    {u.active && (
+                        {adminUsers.map((u) => {
+                          const RoleIcon = ROLE_ICON[u.role] ?? IconShieldCheck;
+                          return (
+                            <TableRow key={u.id} className="border-b border-[var(--border)] last:border-0">
+                              <TableCell>
+                                <p className="text-sm font-semibold text-[var(--text-primary)]">{u.name}</p>
+                                <p className="text-xs text-[var(--text-muted)]">{u.email}</p>
+                              </TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold"
+                                      style={{ color: ROLE_TONE[u.role] ?? 'var(--text-muted)' }}>
+                                  <RoleIcon size={13} />
+                                  {u.role.charAt(0) + u.role.slice(1).toLowerCase()}
+                                </span>
+                              </TableCell>
+                              <TableCell>
+                                <span className="inline-flex items-center gap-1.5 text-xs font-semibold"
+                                      style={{ color: u.active ? 'var(--success)' : 'var(--danger)' }}>
+                                  {u.active
+                                    ? <IconCircleCheck size={13} />
+                                    : <IconBan size={13} />}
+                                  {u.active ? (t.driversPage.statusActive ?? 'Actif') : (t.driversPage.statusInactive ?? 'Inactif')}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-xs text-[var(--text-muted)] tabular-nums">{u.createdAt ? formatDate(u.createdAt) : '—'}</TableCell>
+                              <TableCell>
+                                {canManage && (
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <button type="button" className="w-7 h-7 inline-flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--app-bg)] hover:text-[var(--text-primary)] transition-all">
+                                        <IconDotsVertical size={14} />
+                                      </button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-md p-1">
                                       <DropdownMenuItem
-                                        onClick={() => handleForceLogout(u)}
-                                        className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
-                                        style={{ color: 'var(--danger)' }}>
-                                        <IconLogout size={13} /> {t.driversPage.forceLogoutButton ?? 'Force Logout'}
+                                        onClick={() => { setEditingUser(u); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role); setEditOpen(true); }}
+                                        className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5">
+                                        <IconPencil size={13} /> {t.driversPage.modifyButton ?? 'Edit'}
                                       </DropdownMenuItem>
-                                    )}
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
+                                      <DropdownMenuItem
+                                        onClick={() => handleToggleStatus(u)}
+                                        className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                        style={{ color: u.active ? 'var(--danger)' : 'var(--success)' }}>
+                                        {u.active ? <><IconBan size={13} /> {t.driversPage.suspendDriverButton ?? 'Suspend'}</>
+                                                  : <><IconCheck size={13} /> {t.driversPage.activateTooltip ?? 'Activate'}</>}
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem
+                                        onClick={() => handleResetPassword(u)}
+                                        className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                        style={{ color: 'var(--warning)' }}>
+                                        <IconLock size={13} /> {sp.resetPassword}
+                                      </DropdownMenuItem>
+                                      {u.active && (
+                                        <DropdownMenuItem
+                                          onClick={() => handleForceLogout(u)}
+                                          className="text-xs font-semibold gap-2 cursor-pointer rounded px-2.5 py-1.5"
+                                          style={{ color: 'var(--danger)' }}>
+                                          <IconLogout size={13} /> {t.driversPage.forceLogoutButton ?? 'Force Logout'}
+                                        </DropdownMenuItem>
+                                      )}
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
                       </TableBody>
                     </Table>
                   </div>

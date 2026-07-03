@@ -388,6 +388,8 @@ export const AR_COPY = {
     RECEIVED: 'تم الاستلام',
     RESTOCKED: 'أُعيد للمخزون',
     REJECTED: 'مرفوض',
+    BACKORDER: 'طلب متبقٍ',
+    RESCHEDULED: 'أُعيدت جدولته',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -467,8 +469,12 @@ export const AR_COPY = {
     RETURNED:            'مرتجع',
     WRONG_ITEM:          'منتج خاطئ',
     NOT_HOME:            'العميل غائب',
+    CLIENT_ABSENT:       'العميل غائب',
+    WRONG_ADDRESS:       'عنوان خاطئ',
     EXPIRED:             'منتهي الصلاحية',
     POSTPONED:           'مؤجل',
+    FAILED:              'فشل',
+    OTHER:               'سبب آخر',
   } as Record<string, string>,
 
   // ── SLA Status / Delay ────────────────────────────────────────────────
@@ -942,6 +948,7 @@ export const AR_COPY = {
     // Detail modal
     detailTitle: 'التفاصيل',
     orderLabel: 'الطلب',
+    addressLabel: 'العنوان',
     openLink: 'فتح →',
     driverLabel: 'السائق',
     replanButton: 'إعادة الجدولة',
@@ -1206,6 +1213,7 @@ export const AR_COPY = {
     newStop: 'توصيلة جديدة',
     noWindow: 'بدون نافذة',
     currentRouteLabel: 'الرحلة الحالية',
+    pickupStop: 'تحميل',
   },
 
   reassignCommandOverlay: {
@@ -1278,6 +1286,7 @@ export const AR_COPY = {
     tableSku: 'SKU',
     tableQty: 'الكمية',
     tableQtyDone: 'الكمية المسلمة',
+    tableReason: 'السبب',
     tableUnitPrice: 'سعر الوحدة',
     tableTotal: 'الإجمالي',
     // Section: Timeline
@@ -2130,6 +2139,10 @@ export const AR_COPY = {
     legendHealthy: 'تسليم جيد',
     legendMixed: 'إخفاقات جزئية',
     legendFailing: 'إخفاقات مرتفعة',
+    driverHeader: 'السائق',
+    noDrivers: 'لا يوجد سائقون',
+    monthView: 'شهر',
+    weekView: 'أسبوع',
   },
   performancePage: {
     pageSubtitle: 'تدفق الأداء',
@@ -3390,6 +3403,7 @@ export const AR_COPY = {
   systemHealthPage: {
     title: 'صحة النظام',
     subtitle: '· تحديث تلقائي',
+    loading: 'جاري التحميل…',
     allGoodTitle: 'جميع الأنظمة تعمل بشكل طبيعي',
     allGoodSub: 'لم يتم العثور على أي مشاكل في الخدمات والمزامنة.',
     statusOperational: 'تعمل',

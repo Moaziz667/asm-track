@@ -19,7 +19,7 @@ import type { ReassignTarget } from './ReassignDrawer';
 // ── Shapes ───────────────────────────────────────────────────────────────────────
 interface NearestInfo { etaSeconds: number | null; distanceMeters: number | null; rank: number; }
 interface Stop {
-  id: string; deliveryId: string; stopOrder: number; status: string;
+  id: string; deliveryId: string | null; stopOrder: number; status: string;
   startTimeWindow?: string; endTimeWindow?: string; clientName?: string; orderRef?: string; deliveryCity?: string;
 }
 interface RouteData { id: string; name: string; status: string; date: string; stops: Stop[]; payloadKg?: number; currentLoadKg?: number; }
@@ -666,7 +666,8 @@ function Timeline({ stops, effectiveOrder, target, winLabelText, onPick, t }: {
 
 function StopRow({ stop, done, current, t }: { stop: Stop; done: boolean; current: boolean; t: ReturnType<typeof useT> }) {
   const w = winLabel(stop.startTimeWindow, stop.endTimeWindow);
-  const ref = stop.orderRef || stop.deliveryId.slice(0, 8).toUpperCase();
+  // Pickup (multi-depot load) stops carry no deliveryId/orderRef — label them as a load, don't crash.
+  const ref = stop.orderRef || (stop.deliveryId ? stop.deliveryId.slice(0, 8).toUpperCase() : t.configureInsertion.pickupStop);
   return (
     <div className={cn('flex items-center gap-2.5 py-1.5', current && 'rounded-md px-1.5 -mx-1.5')} style={{ opacity: done ? 0.5 : 1, background: current ? 'var(--surface-sunken)' : undefined }}>
       <span className="flex items-center justify-center w-6 h-6 rounded-full text-2xs font-bold shrink-0 tabular-nums text-[var(--text-muted)]" style={{ background: 'var(--surface-sunken)' }}>

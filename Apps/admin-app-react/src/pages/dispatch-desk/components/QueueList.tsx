@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconCheck, IconMapPinOff, IconPencil } from '@tabler/icons-react';
+import { IconCheck, IconMapPinOff } from '@tabler/icons-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLoader } from '@/components/AppLoader';
 import StatusBadge from '@/components/StatusBadge';
@@ -94,11 +94,11 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
           </span>
           {!pinned && (
             <span
-              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full shrink-0 ms-auto text-2xs font-[600] leading-none"
-              style={{ background: 'color-mix(in srgb, var(--warning) 14%, transparent)', color: 'var(--warning)' }}
+              className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full shrink-0 ms-auto text-2xs font-[500] leading-none"
+              style={{ border: '1px solid color-mix(in srgb, var(--warning) 32%, transparent)', color: 'var(--warning)' }}
               title={t.dispatchDeskPage.pinFirstTooltip}
             >
-              <IconMapPinOff size={10} stroke={2.5} />{t.dispatchDeskPage.needsPin}
+              <IconMapPinOff size={10} stroke={2} />{t.dispatchDeskPage.needsPin}
             </span>
           )}
         </div>
@@ -136,22 +136,40 @@ export function QueueList() {
   } = useDispatchDeskContext();
 
   const dd = t.dispatchDeskPage;
+  const sortOptions: { value: typeof queueSort; label: string }[] = [
+    { value: 'sla',      label: dd.sortSla ?? 'Risque SLA' },
+    { value: 'route',    label: dd.sortRoute ?? 'Tournée' },
+    { value: 'severity', label: dd.sortSeverity ?? 'Sévérité' },
+    { value: 'status',   label: dd.sortStatus ?? 'Statut' },
+    { value: 'date',     label: dd.sortDate ?? 'Date' },
+  ];
+  const selectStyle: React.CSSProperties = {
+    height: 26,
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--border)',
+    background: 'var(--surface)',
+    fontSize: 12,
+    fontWeight: 500,
+    color: 'var(--text-primary)',
+    padding: '0 8px',
+    outline: 'none',
+    cursor: 'pointer',
+  };
+
   const SortBar = (
-    <div className="flex items-center gap-2 px-3 py-1.5 shrink-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <span className="text-2xs font-[600] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
+    <div className="flex items-center gap-1.5 px-3 py-2 shrink-0 min-w-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <span className="text-2xs font-[600] uppercase tracking-wide shrink-0 me-0.5" style={{ color: 'var(--text-muted)' }}>
         {dd.sortBy ?? 'Trier par'}
       </span>
       <select
         value={queueSort}
         onChange={(e) => setQueueSort(e.target.value as typeof queueSort)}
-        className="text-xs font-[500] rounded-md px-2 py-1 outline-none cursor-pointer"
-        style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+        className="flex-1 min-w-0"
+        style={selectStyle}
       >
-        <option value="sla">{dd.sortSla ?? 'Risque SLA'}</option>
-        <option value="route">{dd.sortRoute ?? 'Tournée'}</option>
-        <option value="severity">{dd.sortSeverity ?? 'Sévérité'}</option>
-        <option value="status">{dd.sortStatus ?? 'Statut'}</option>
-        <option value="date">{dd.sortDate ?? 'Date'}</option>
+        {sortOptions.map(opt => (
+          <option key={opt.value} value={opt.value}>{opt.label}</option>
+        ))}
       </select>
     </div>
   );
@@ -220,18 +238,13 @@ export function QueueList() {
         <div key={`${group.routeName ?? 'none'}-${gi}`}>
           <div
             className="sticky top-0 z-10 flex items-center gap-2 px-3 py-1.5"
-            style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)' }}
+            style={{ background: 'var(--surface-sunken)', borderBottom: '1px solid var(--border)', borderInlineStart: '3px solid transparent' }}
           >
             <span className="text-2xs font-[600] uppercase tracking-wide truncate" style={{ color: 'var(--text-secondary)' }}>
               {group.routeName ?? t.dispatchDeskPage.unassignedLabel}
             </span>
             {group.routeStatus === 'DRAFT' && (
-              <span
-                className="inline-flex items-center gap-1 text-2xs font-[600] px-1.5 rounded-full shrink-0"
-                style={{ background: 'color-mix(in srgb, var(--info) 14%, transparent)', color: 'var(--info)', lineHeight: 1.6 }}
-              >
-                <IconPencil size={10} stroke={2.5} />{t.statusLabels.DRAFT}
-              </span>
+              <span className="shrink-0"><StatusBadge status="DRAFT" size="sm" /></span>
             )}
             <span className="text-2xs font-[500] px-1.5 rounded-full shrink-0" style={{ background: 'var(--hover-bg)', color: 'var(--text-muted)', lineHeight: 1.6 }}>
               {group.rows.length}

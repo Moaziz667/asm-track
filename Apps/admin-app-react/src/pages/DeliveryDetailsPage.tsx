@@ -19,7 +19,9 @@ import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
-import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
+import { ArticlesTable } from '@/components/data-display/ArticlesTable';
+import { DriverNote } from '@/components/data-display/DriverNote';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { CreateReturnModal } from '@/components/returns/CreateReturnModal';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
@@ -66,23 +68,6 @@ function ColumnHeader({ label }: { label: string }) {
     <h2 className="text-2xs font-bold uppercase tracking-[0.08em] text-[var(--text-muted)] pb-2 border-b border-[var(--border)]">
       {label}
     </h2>
-  );
-}
-
-function DriverNote({ comment, driverName, emptyLabel }: { comment?: string | null; driverName?: string | null; emptyLabel: string }) {
-  if (!comment) {
-    return <p className="text-xs italic text-[var(--text-muted)]">{emptyLabel}</p>;
-  }
-  return (
-    <div className="flex gap-3 rounded-md border border-[var(--border)] bg-[var(--app-bg)] p-4">
-      <IconQuote size={18} className="shrink-0 text-[var(--brand)] opacity-60" />
-      <div className="flex flex-col gap-2 min-w-0">
-        <p className="text-sm leading-relaxed italic text-[var(--text-primary)]">“{comment}”</p>
-        {driverName && (
-          <span className="text-2xs font-semibold text-[var(--text-muted)]">— {driverName}</span>
-        )}
-      </div>
-    </div>
   );
 }
 
@@ -190,17 +175,16 @@ export default function DeliveryDetailPage() {
     ? (slotName ? `${slotName} · ${winStart}–${winEnd}` : `${winStart}–${winEnd}`)
     : (slotName ?? null);
 
-  // The driver's own words. For completed deliveries that's the POD comment; a FAILED
-  // delivery has no POD — the free text is stored on failReason as "Catalog label — driver
-  // comment" (see DispatchService.toDetailResponse → failureComment(failReason)). Take only
-  // the part after " — " so the note shows the driver's words; the catalog motif stays in the SLA.
-  const failText: string | null = (delivery as any).failureComment ?? (delivery as any).failReason ?? delivery.failureReason ?? null;
-  const failComment = failText && failText.includes(' — ') ? failText.slice(failText.indexOf(' — ') + 3).trim() : null;
-  const driverNoteText: string | null = pod?.comment ?? failComment ?? null;
+  // Note du livreur = the driver's own words: the POD handover comment, else the driver's failure
+  // comment (now persisted on its own field — no longer parsed out of the flattened failReason).
+  const driverNoteText: string | null = pod?.comment ?? (delivery as any).failureComment ?? null;
+  // Admin failure-reason label (motif), shown per line in the Articles table's Motif tooltip.
+  const failMotif: string | null = (delivery as any).failReason ?? delivery.failureReason ?? null;
 
   return (
-    <div className="h-full overflow-y-auto bg-[var(--app-bg)] dispatch-card" style={{ scrollbarWidth: 'thin' }}>
-      <div className="max-w-[960px] mx-auto px-6 py-8 pb-12">
+    <div className="h-full flex flex-col bg-[var(--app-bg)] dispatch-card">
+      <ScrollArea className="flex-1 min-h-0">
+      <div className="px-6 py-8 pb-12">
         <div className="flex flex-col gap-6">
 
           {/* ── Entity header ──────────────────────────────────────────── */}
@@ -301,11 +285,11 @@ export default function DeliveryDetailPage() {
             )}
           </div>
 
-          {/* ── Two-column body: order info (left) · status & tracking (right) ── */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-0">
+          {/* ── Two-column body: order info (left ~65%) · status & tracking (sidebar ~35%) ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
 
             {/* ════ LEFT — Order information ════ */}
-            <div className="flex flex-col gap-8 md:pr-10">
+            <div className="flex flex-col gap-8">
               <ColumnHeader label={t.deliveryPage.columnInfo} />
 
               {/* Client */}
@@ -366,57 +350,13 @@ export default function DeliveryDetailPage() {
               {/* Items table */}
               {items.length > 0 && (
                 <Section title={t.deliveryPage.itemsCount.replace('{count}', String(items.length)).replace('{plural}', items.length > 1 ? 's' : '')} icon={<IconPackage size={12} />}>
-                  <div className="overflow-x-auto">
-                    <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)', background: 'transparent' }}>
-                          {[t.deliveryPage.tableDesignation, t.deliveryPage.tableSku, t.deliveryPage.tableQty, t.deliveryPage.tableQtyDone, t.deliveryPage.tableUnitPrice, t.deliveryPage.tableTotal].map(h => (
-                            <th key={h} style={{
-                              padding: '10px 12px', textAlign: 'left', fontSize: 10,
-                              fontWeight: 500, color: 'var(--text-muted)', border: 'none',
-                            }}>{h}</th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {items.map((item, i) => (
-                          <tr key={i} style={{ borderBottom: '1px solid var(--border)/30' }} className="hover:bg-[var(--app-bg)]/40 transition-colors">
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-sm font-medium text-[var(--text-primary)]">{item.name ?? '—'}</span>
-                              {item.outcome && item.outcome !== 'DELIVERED' ? (
-                                <div className="mt-1"><ItemOutcomeBadge outcome={item.outcome} reason={item.reason} reasonLabel={(item as any).reasonLabel} /></div>
-                              ) : (item as any).reasonLabel && item.quantityDone != null && item.quantityDone < (item.quantity ?? 0) ? (
-                                // Short-quantity DELIVERED line: outcome stays DELIVERED by design (driver app),
-                                // the shortfall reason is carried in reasonLabel — badge it as MISSING (same
-                                // context/tone the driver app itself uses for a stock shortfall).
-                                <div className="mt-1"><ItemOutcomeBadge outcome="MISSING" reasonLabel={(item as any).reasonLabel} /></div>
-                              ) : null}
-                            </td>
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-2xs font-mono text-[var(--text-muted)]">{item.sku ?? '—'}</span>
-                            </td>
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-sm text-[var(--text-primary)]">{item.quantity ?? '—'}</span>
-                            </td>
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-sm font-medium" style={{ color: item.quantityDone != null && item.quantityDone < (item.quantity ?? 0) ? 'var(--danger)' : 'var(--success)' }}>
-                                {item.quantityDone ?? '—'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-xs text-[var(--text-primary)]">{formatMoney(item.unitPrice, (delivery as any).currency)}</span>
-                            </td>
-                            <td style={{ padding: '10px 12px', border: 'none' }}>
-                              <span className="text-xs font-semibold text-[var(--text-primary)]">
-                                {item.unitPrice != null && item.quantity != null
-                                  ? formatMoney(item.unitPrice * item.quantity, (delivery as any).currency) : '—'}
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <ArticlesTable
+                    items={items}
+                    status={(delivery as any).status}
+                    failureCode={(delivery as any).failureCode}
+                    failMotif={failMotif}
+                    currency={(delivery as any).currency}
+                  />
                 </Section>
               )}
 
@@ -460,8 +400,8 @@ export default function DeliveryDetailPage() {
               </Section>
             </div>{/* ════ /LEFT ════ */}
 
-            {/* ════ RIGHT — Status & tracking (vertical hairline divider) ════ */}
-            <div className="flex flex-col gap-8 md:pl-10 md:border-l md:border-[var(--border)]">
+            {/* ════ RIGHT — Status & tracking (sticky sidebar) ════ */}
+            <div className="flex flex-col gap-8 lg:sticky lg:top-8 lg:self-start">
               <ColumnHeader label={t.deliveryPage.columnStatus} />
 
             {/* Driver + Route */}
@@ -510,7 +450,7 @@ export default function DeliveryDetailPage() {
             {/* SLA journey — single source of truth (phase + health + per-phase event log).
                 hidePodComment: the driver's note is rendered once below as a friendly callout. */}
             <Section title={t.deliveryPage.sectionTimeline} icon={<IconClock size={12} />}>
-              <SlaTimeline deliveryId={delivery.id || id} variant="detailed" hidePodComment />
+              <SlaTimeline deliveryId={delivery.id || id} variant="detailed" hidePodComment hideItemOutcomes hideFailureContext />
             </Section>
 
             {/* Driver note — the driver's POD comment, shown once, in a friendly callout */}
@@ -582,6 +522,7 @@ export default function DeliveryDetailPage() {
           </div>{/* ── Two-column body */}
         </div>{/* ── Page stack */}
       </div>
+      </ScrollArea>
 
       {/* ── Image viewer ─────────────────────────────────────────────────── */}
       <AppModal

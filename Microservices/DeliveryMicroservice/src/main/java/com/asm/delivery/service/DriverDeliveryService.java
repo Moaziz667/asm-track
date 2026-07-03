@@ -655,6 +655,9 @@ public class DriverDeliveryService {
         delivery.setStatus(DeliveryStatus.FAILED);
         delivery.setFailedAt(LocalDateTime.now());
         delivery.setFailReason(storedReason);
+        // Keep the driver's words on their own field too, so the admin motif label and the driver
+        // comment can be shown separately (fail_reason stays flattened for ERP/analytics/tracking).
+        delivery.setFailureComment(failureComment != null && !failureComment.isBlank() ? failureComment.trim() : null);
         delivery.setFailureCode(failureCode);
         // B5 — A failure is also pushed to the ERP, so the order must be PENDING_SYNC for the
         // reconciliation sweep to recover it if the ERP result is ever lost.

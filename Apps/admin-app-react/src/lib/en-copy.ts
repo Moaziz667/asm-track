@@ -377,6 +377,8 @@ export const EN_COPY = {
     RECEIVED: 'Received',
     RESTOCKED: 'Restocked',
     REJECTED: 'Rejected',
+    BACKORDER: 'Backorder',
+    RESCHEDULED: 'Rescheduled',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -456,8 +458,12 @@ export const EN_COPY = {
     RETURNED:            'Returned',
     WRONG_ITEM:          'Wrong Item',
     NOT_HOME:            'Client Absent',
+    CLIENT_ABSENT:       'Client Absent',
+    WRONG_ADDRESS:       'Wrong Address',
     EXPIRED:             'Expired',
     POSTPONED:           'Postponed',
+    FAILED:              'Failed',
+    OTHER:               'Other',
   } as Record<string, string>,
 
   // ── SLA Status / Delay ────────────────────────────────────────────────
@@ -883,6 +889,7 @@ export const EN_COPY = {
     // Detail modal
     detailTitle: 'Details',
     orderLabel: 'Order',
+    addressLabel: 'Address',
     openLink: 'Open →',
     driverLabel: 'Driver',
     replanButton: 'Reschedule',
@@ -1147,6 +1154,7 @@ export const EN_COPY = {
     newStop: 'New delivery',
     noWindow: 'No window',
     currentRouteLabel: 'Current route',
+    pickupStop: 'Pickup',
   },
 
   reassignCommandOverlay: {
@@ -1219,6 +1227,7 @@ export const EN_COPY = {
     tableSku: 'SKU',
     tableQty: 'Qty',
     tableQtyDone: 'Qty Delivered',
+    tableReason: 'Reason',
     tableUnitPrice: 'Unit Price',
     tableTotal: 'Total',
     // Section: Timeline
@@ -2071,6 +2080,10 @@ export const EN_COPY = {
     legendHealthy: 'Delivered well',
     legendMixed: 'Some failures',
     legendFailing: 'High failures',
+    driverHeader: 'Driver',
+    noDrivers: 'No drivers',
+    monthView: 'Month',
+    weekView: 'Week',
   },
   performancePage: {
     pageSubtitle: 'Performance Flow',
@@ -3381,6 +3394,7 @@ export const EN_COPY = {
   systemHealthPage: {
     title: 'System Health',
     subtitle: '· automatically refreshed',
+    loading: 'Loading…',
     allGoodTitle: 'All systems operational',
     allGoodSub: 'No issues detected on services and synchronizations.',
     statusOperational: 'Operational',

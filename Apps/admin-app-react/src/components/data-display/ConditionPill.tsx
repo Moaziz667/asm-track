@@ -1,3 +1,5 @@
+import { IconRecycle, IconTrashX } from '@tabler/icons-react';
+
 export type Condition = 'RESELLABLE' | 'DAMAGED';
 
 interface ConditionConfig {
@@ -7,8 +9,13 @@ interface ConditionConfig {
 }
 
 const CONFIG: Record<Condition, ConditionConfig> = {
-  RESELLABLE: { dot: '#2A8F8F', bg: 'rgba(42,143,143,0.09)', text: '#1E7070' },
-  DAMAGED:    { dot: '#C2506A', bg: 'rgba(194,80,106,0.09)', text: '#A43E56' },
+  RESELLABLE: { dot: 'var(--success)', bg: 'var(--success-bg)', text: 'var(--success)' },
+  DAMAGED:    { dot: 'var(--danger)',  bg: 'var(--danger-bg)',  text: 'var(--danger)' },
+};
+
+const ICON: Record<Condition, typeof IconRecycle> = {
+  RESELLABLE: IconRecycle,
+  DAMAGED: IconTrashX,
 };
 
 /** Raw colour access for toggle buttons that need active/inactive states. */
@@ -24,36 +31,25 @@ interface ConditionPillProps {
 
 export function ConditionPill({ condition, label, size = 'sm' }: ConditionPillProps) {
   const cfg = CONFIG[condition];
-  const dotPx = size === 'sm' ? 5 : 5.5;
-  const fontSize = size === 'sm' ? 11 : 11;
+  const Icon = ICON[condition];
+  const iconPx = size === 'sm' ? 13 : 14;
   const height = size === 'sm' ? 18 : 20;
   const px = size === 'sm' ? 7 : 8;
 
   return (
     <span
+      className="inline-flex items-center shrink-0 rounded-full border"
       style={{
-        display: 'inline-flex',
-        alignItems: 'center',
         gap: 5,
         height,
         padding: `0 ${px}px`,
-        borderRadius: 99,
         background: cfg.bg,
-        flexShrink: 0,
+        color: cfg.text,
+        borderColor: `color-mix(in srgb, ${cfg.dot} 18%, transparent)`,
       }}
     >
-      <span style={{ width: dotPx, height: dotPx, borderRadius: '50%', background: cfg.dot, flexShrink: 0 }} />
-      <span
-        style={{
-          fontFamily: "'Clear Sans', system-ui, sans-serif",
-          fontSize,
-          fontWeight: 500,
-          color: cfg.text,
-          letterSpacing: '-0.01em',
-          lineHeight: 1,
-          whiteSpace: 'nowrap',
-        }}
-      >
+      <Icon size={iconPx} color={cfg.dot} stroke={1.9} />
+      <span className="text-2xs font-medium whitespace-nowrap">
         {label ?? condition}
       </span>
     </span>

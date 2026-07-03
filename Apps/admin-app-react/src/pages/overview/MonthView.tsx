@@ -4,7 +4,7 @@ import { IconRoute, IconAlertTriangle } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import type { useT } from '@/lib/LocaleContext';
 import type { RouteItem } from '@/hooks/useRoutes';
-import { CalDelivery, STATUS_COLOR, isoDay } from './shared';
+import { CalDelivery, STATUS_TONE_MAP, TONE_VAR, isoDay } from './shared';
 import { DayPanel } from './DayPanel';
 
 interface Props {
@@ -81,17 +81,20 @@ export function MonthView({ cursor, selected, setSelected, deliveriesByDay, rout
                 {dels.length > 0 && (
                   <>
                     <div className="flex flex-wrap gap-0.5 mt-1.5">
-                      {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => (
-                        <span key={s} className="inline-flex items-center gap-0.5 text-2xs font-bold px-1 rounded"
-                          style={{ background: `${STATUS_COLOR[s] ?? '#888'}1a`, color: STATUS_COLOR[s] ?? '#888' }}>{n}</span>
-                      ))}
+                      {Object.entries(statusCounts).slice(0, 4).map(([s, n]) => {
+                        const tone = STATUS_TONE_MAP[s] ?? 'muted';
+                        return (
+                          <span key={s} className="inline-flex items-center gap-0.5 text-2xs font-bold px-1 rounded bg-[var(--hover-bg)]"
+                            style={{ color: TONE_VAR[tone] }}>{n}</span>
+                        );
+                      })}
                     </div>
                     <span className="mt-auto text-2xs font-semibold text-[var(--text-muted)]">{dels.length} {t.overviewPage?.delAbbrev ?? 'livr.'}</span>
                   </>
                 )}
                 {/* Capacity load bar (only when relevant — future/today with routes) */}
                 {rts.length > 0 && !isPast && driverSlots > 0 && (
-                  <div className="w-full h-[3px] rounded-full mt-1 bg-[var(--surface-sunken)] overflow-hidden"
+                  <div className="w-full h-[3px] rounded-full mt-1 bg-[var(--hover-bg)] overflow-hidden"
                     title={`${rts.length}/${driverSlots} ${t.overviewPage?.capacityLabel ?? 'capacité'}`}>
                     <div className="h-full rounded-full" style={{ width: `${(over ? 1 : capPct) * 100}%`, background: over ? 'var(--danger)' : capPct >= 0.8 ? 'var(--warning)' : 'var(--success)' }} />
                   </div>

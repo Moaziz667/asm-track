@@ -5,13 +5,15 @@ import { Delivery, ProofOfDelivery } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
-  IconAlertCircle, IconBan, IconBuildingWarehouse, IconChevronDown,
+  IconBan, IconBuildingWarehouse, IconChevronDown,
   IconClock, IconFileText, IconMapPin, IconPencil, IconPhone, IconX,
 } from '@tabler/icons-react';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
-import { FailureInfo } from '@/components/data-display/FailureInfo';
-import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
+import { ArticlesTable } from '@/components/data-display/ArticlesTable';
+import { DriverNote } from '@/components/data-display/DriverNote';
+import { useQuery } from '@tanstack/react-query';
+import { api } from '@/lib/api';
 import stopTabsStyles from '@/styles/stop-tabs.module.scss';
 import { fmtLong, fmtTimeWindow, mediaSrc } from './helpers';
 import { STOP_STATUS, REMOVABLE_STOP_STATUSES } from './constants';
@@ -41,8 +43,6 @@ function isRealNote(note?: string | null): boolean {
   return !AUTO_GENERATED_NOTES.has(note.trim());
 }
 
-type Tab = 'details' | 'pod';
-
 type StopCardProps = {
   stop: RouteStop;
   delivery: Delivery | undefined;
@@ -51,8 +51,6 @@ type StopCardProps = {
   currency: string;
   isActiveRoute: boolean;
   isExpanded: boolean;
-  tab: Tab;
-  setActiveTab: React.Dispatch<React.SetStateAction<Record<string, Tab>>>;
   stopRefs: React.MutableRefObject<Record<string, HTMLDivElement | null>>;
   toggleStop: (id: string) => void;
   downloadBL: (delivery: Delivery | undefined, pod: ProofOfDelivery | null) => void;
@@ -65,8 +63,8 @@ type StopCardProps = {
 };
 
 export function StopCard({
-  stop, delivery, pod, route, currency, isActiveRoute, isExpanded, tab,
-  setActiveTab, stopRefs, toggleStop, downloadBL,
+  stop, delivery, pod, route, currency, isActiveRoute, isExpanded,
+  stopRefs, toggleStop, downloadBL,
   openEditWindow, setRemoveStopTarget, setCancelStopTarget, setCancelStopReason,
   setViewerTitle, setViewerImage,
 }: StopCardProps) {
@@ -78,13 +76,23 @@ export function StopCard({
   const weight = stop.order?.totalWeightKg ?? delivery?.totalWeightKg ?? 0;
   const addr = stop.deliveryAddress ?? stop.order?.dropoffAddress ?? delivery?.dropoffAddress ?? '—';
   const orderItems = stop.order?.items ?? delivery?.items ?? [];
-  const orderReference = stop.order?.id ?? delivery?.orderId;
   const erpReference = stop.order?.erpOrderId ?? stop.order?.erpExternalRef ?? delivery?.erpId;
   const canRemove = route.status === 'DRAFT' && REMOVABLE_STOP_STATUSES.has(displayStatus);
   const canCancelStop = isActiveRoute && (displayStatus === 'PENDING' || displayStatus === 'SCHEDULED' || displayStatus === 'ARRIVED' || displayStatus === 'PICKED_UP');
   const canEditWindow = route.status === 'VALIDATED' && (displayStatus === 'PENDING' || displayStatus === 'SCHEDULED');
 
   const isPickup = stop.stopType === 'PICKUP';
+
+  // Pull the full delivery detail on expand (same AdminDeliveryDetailResponse the delivery page uses)
+  // so the stop renders the SAME Articles table + driver note — the routes/full payload lacks the
+  // split failReason/failureComment. Hook stays above the pickup early-return (rules of hooks).
+  const deliveryId = delivery?.id ?? stop.deliveryId;
+  const { data: stopDetail } = useQuery<any>({
+    queryKey: ['stop-delivery-detail', deliveryId],
+    enabled: isExpanded && !!deliveryId && !isPickup,
+    staleTime: 15000,
+    queryFn: async () => (await api.get(`/api/admin/deliveries/${deliveryId}`)).data,
+  });
 
   if (isPickup) {
     const pickupLabel = stop.parcelCount
@@ -158,6 +166,13 @@ export function StopCard({
     );
   }
 
+  // Detail-backed line data (falls back to the routes/full payload until the detail loads).
+  const detailItems: any[] = stopDetail?.items ?? orderItems;
+  const failCode: string | null = stopDetail?.failureCode ?? (delivery as any)?.failureCode ?? (stop as any)?.failureCode ?? null;
+  const failMotif: string | null = stopDetail?.failReason ?? (delivery as any)?.failReason ?? (stop as any)?.failReason ?? null;
+  const stopDriverNote: string | null = pod?.comment ?? stopDetail?.failureComment ?? null;
+  const stopCurrency = stopDetail?.currency ?? stop.order?.currency ?? currency;
+
   return (
     <div
       ref={(el) => { if (el) stopRefs.current[stop.id] = el; }}
@@ -177,15 +192,6 @@ export function StopCard({
             <IconMapPin size={12} />
             <p className="truncate">{addr}</p>
           </div>
-          {displayStatus === 'FAILED' && ((delivery as any)?.failureCode || (delivery as any)?.failReason || (stop as any)?.failureCode || (stop as any)?.failReason) && (
-            <div className="mt-1.5">
-              <FailureInfo
-                code={(delivery as any)?.failureCode ?? (stop as any)?.failureCode}
-                reason={(delivery as any)?.failReason ?? (stop as any)?.failReason}
-                size="xs"
-              />
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-2 ml-2">
           <p className="text-xs font-mono font-bold">{formatMoney(amount, stop.order?.currency ?? currency)}</p>
@@ -195,47 +201,23 @@ export function StopCard({
 
       {isExpanded && (
         <div className={stopTabsStyles.expandedContainer}>
-          {/* Tab Bar */}
-          <div className={stopTabsStyles.tabBar}>
-            {(['details', 'pod'] as const).map((tb) => (
-              <button
-                key={tb}
-                onClick={(e) => { e.stopPropagation(); setActiveTab(prev => ({ ...prev, [stop.id]: tb })); }}
-                className={`${stopTabsStyles.tab} ${tab === tb ? stopTabsStyles.active : ''}`}
-              >
-                {tb === 'details' && (t.routeBuilderPage.tabDetails)}
-                {tb === 'pod' && (t.routeBuilderPage.tabProof)}
-              </button>
-            ))}
-          </div>
-
-          {/* Tab Content */}
+          {/* One consolidated panel — no tabs. Operational essentials inline (outcome, note, proof);
+              the exhaustive record lives on the delivery page (Ouvrir la livraison →). */}
           <div className={stopTabsStyles.tabContent}>
-            {tab === 'details' && (
               <div>
                 {/* Ref Links */}
-                {(erpReference || stop.deliveryId) && (
-                  <div style={{ display: 'flex', gap: 8, marginBottom: 12, flexWrap: 'wrap' }} onClick={(e) => e.stopPropagation()}>
-                    {erpReference && (
-                      <a href={`/deliveries/${stop.deliveryId}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', padding: '4px 8px', borderRadius: 3, background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a' }}>
-                          {t.routeDetailPage?.refERP || 'ERP'} · {erpReference}
-                        </div>
-                      </a>
-                    )}
-                    {stop.deliveryId && (
-                      <a href={`/deliveries/${stop.deliveryId}`} target="_blank" rel="noreferrer" style={{ textDecoration: 'none' }}>
-                        <div style={{ fontSize: 10, fontWeight: 700, fontFamily: 'monospace', padding: '4px 8px', borderRadius: 3, background: 'var(--surface-3)', color: 'var(--text-soft)', border: '1px solid var(--border-color)' }}>
-                          {t.routeDetailPage?.refDelivery || 'LIV'} · {stop.deliveryId.slice(0, 8).toUpperCase()}
-                        </div>
-                      </a>
-                    )}
+                {erpReference && (
+                  <div className="flex flex-wrap gap-2 mb-3" onClick={(e) => e.stopPropagation()}>
+                    <a href={`/deliveries/${stop.deliveryId}`} target="_blank" rel="noreferrer" className="no-underline">
+                      <span className="inline-flex items-center gap-1 px-2 py-1 rounded text-2xs font-semibold font-mono border bg-[var(--warning-bg)] text-[var(--warning)] border-[var(--warning)]/20">
+                        {t.routeDetailPage?.refERP || 'ERP'} · {erpReference}
+                      </span>
+                    </a>
                   </div>
                 )}
 
                 {/* Info Grid */}
                 <div className={stopTabsStyles.infoGrid}>
-                  {orderReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeBuilderPage.labelOrder}:</span><span className={stopTabsStyles.value}>{orderReference}</span></div>}
                   {erpReference && <div className={stopTabsStyles.infoRow}><span className={stopTabsStyles.label}>{t.routeBuilderPage.labelErpRef}:</span><span className={stopTabsStyles.value}>{erpReference}</span></div>}
                   {stop.order?.clientPhone && (
                     <div className={`${stopTabsStyles.infoRow} ${stopTabsStyles.soft}`}>
@@ -266,76 +248,33 @@ export function StopCard({
                   {isRealNote(stop.notes) && <div className={stopTabsStyles.box}><strong>{t.routeBuilderPage.labelNote}:</strong> {stop.notes}</div>}
                 </div>
 
-                {/* Items Table */}
-                {orderItems && orderItems.length > 0 && (
-                  <div>
-                    <div style={{ fontSize: 11, fontWeight: 700, marginTop: 12, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--text-strong)', opacity: 0.85 }}>
-                      {t.routeBuilderPage.sectionArticles} ({orderItems.length})
+                {/* Driver note — the driver's own words (POD handover comment, else failure comment) */}
+                {stopDriverNote && (
+                  <div className="mt-3">
+                    <div className="text-2xs font-medium text-[var(--text-muted)] mb-2">
+                      {t.deliveryPage.driverNoteLabel}
                     </div>
-                    <div className={stopTabsStyles.itemsTableWrapper}>
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>{t.routeBuilderPage.labelArticle}</th>
-                            <th>{t.routeBuilderPage.labelOrdered}</th>
-                            <th>{t.routeBuilderPage.labelDelivered}</th>
-                            <th>{t.routeBuilderPage.labelStatus}</th>
-                            <th>{t.routeBuilderPage.labelUnitPrice}</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {orderItems.map((item, idx) => {
-                            const isPostPod  = item.quantityDone != null;
-                            const qtyDone    = item.quantityDone ?? item.quantity ?? 0;
-                            const qtyPlanned = item.quantity ?? 0;
-                            const isPartialQty = isPostPod && qtyDone < qtyPlanned;
-                            let inferredOutcome = null;
-                            if (isPostPod) {
-                              if (displayStatus === 'FAILED') {
-                                const fCode = (delivery as any)?.failureCode || (delivery as any)?.failReason || (stop as any)?.failureCode || (stop as any)?.failReason;
-                                if (fCode === 'REFUSED' || fCode === 'CLIENT_REJECTED') {
-                                  inferredOutcome = 'REFUSED';
-                                }
-                              }
-                              // For DELIVERED / PARTIALLY_DELIVERED: don't infer outcome from qtyDone.
-                              // Use server-side item.outcome when available.
-                            }
-                            const outcome    = item.outcome ?? inferredOutcome;
-                            const reasonLabel = (item as any).reasonLabel ?? null;
+                    <DriverNote comment={stopDriverNote} driverName={delivery?.driverName} emptyLabel={t.deliveryPage.driverNoteEmpty} />
+                  </div>
+                )}
 
-                            return (
-                              <>
-                                <tr key={`${item.name}-${idx}`}>
-                                  <td className={stopTabsStyles.articleName}>{item.name}</td>
-                                  <td>×{qtyPlanned}</td>
-                                  <td style={{ color: isPostPod && qtyDone < qtyPlanned ? '#d97706' : 'var(--text-soft)' }}>
-                                    {isPostPod ? `×${qtyDone}` : '—'}
-                                  </td>
-                                  <td>
-                                    {outcome && outcome !== 'DELIVERED' ? (
-                                      <ItemOutcomeBadge outcome={outcome} reason={item.reason} reasonLabel={item.reasonLabel} />
-                                    ) : isPartialQty && reasonLabel ? (
-                                      <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{reasonLabel}</span>
-                                    ) : '—'}
-                                  </td>
-                                  <td>{formatMoney(item.unitPrice ?? item.price, stop.order?.currency ?? currency)}</td>
-                                </tr>
-                                {item.comment && (
-                                  <tr key={`${item.name}-${idx}-comment`} className={stopTabsStyles.commentRow}>
-                                    <td colSpan={5}>{item.comment}</td>
-                                  </tr>
-                                )}
-                              </>
-                            );
-                          })}
-                        </tbody>
-                        <tfoot>
-                          <tr>
-                            <td colSpan={4}>{t.routeBuilderPage.labelTotal}</td>
-                            <td>{formatMoney(amount, stop.order?.currency ?? currency)}</td>
-                          </tr>
-                        </tfoot>
-                      </table>
+                {/* Items — the SAME Articles table as the delivery page & dispatch desk (single source
+                    of truth for per-line status + failure motif) */}
+                {detailItems.length > 0 && (
+                  <div>
+                    <div className="text-2xs font-medium text-[var(--text-muted)] mt-3 mb-2">
+                      {t.routeBuilderPage.sectionArticles} ({detailItems.length})
+                    </div>
+                    <ArticlesTable
+                      items={detailItems}
+                      status={displayStatus}
+                      failureCode={failCode}
+                      failMotif={failMotif}
+                      currency={stopCurrency}
+                    />
+                    <div className="flex justify-end gap-3 mt-2 pe-3 text-xs">
+                      <span style={{ color: 'var(--text-muted)' }}>{t.routeBuilderPage.labelTotal}</span>
+                      <span className="font-semibold font-mono" style={{ color: 'var(--text-primary)' }}>{formatMoney(amount, stop.order?.currency ?? currency)}</span>
                     </div>
                   </div>
                 )}
@@ -343,16 +282,13 @@ export function StopCard({
                 {/* Backorder is no longer created here. When a partial delivery syncs, Odoo creates the
                     backorder picking; the operator imports it from the Import page (per-BL import). */}
               </div>
-            )}
 
-            {tab === 'pod' && (
-              <div>
-                {!pod ? (
-                  <div className={stopTabsStyles.emptyState}>
-                    <IconAlertCircle size={12} />
-                    <span>{t.routeBuilderPage.noProof}</span>
-                  </div>
-                ) : (
+            {/* Preuve de livraison — inline, only when captured */}
+            {pod && (
+              <div style={{ marginTop: 12 }}>
+                <div className="text-2xs font-medium text-[var(--text-muted)] mb-2">
+                  {t.routeBuilderPage.tabProof}
+                </div>
                   <div className={stopTabsStyles.podContainer}>
                     <div className={stopTabsStyles.metadata}>
                       <div className={stopTabsStyles.timestamp}>{fmtLong(pod.timestamp)}</div>
@@ -361,7 +297,6 @@ export function StopCard({
                           {Number(pod.latitude).toFixed(5)}, {Number(pod.longitude).toFixed(5)}
                         </div>
                       )}
-                      {pod.comment && <div className={stopTabsStyles.comment}>{pod.comment}</div>}
                     </div>
 
                     {(mediaSrc(pod.signatureUrl, pod.signatureBase64) || mediaSrc(pod.photoUrl, pod.photoBase64)) && (
@@ -396,7 +331,6 @@ export function StopCard({
                       </div>
                     )}
                   </div>
-                )}
               </div>
             )}
           </div>

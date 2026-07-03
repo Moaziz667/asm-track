@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveOrderRef, shortId, formatMoney, formatMinutes, routeColor } from './utils';
+import { resolveOrderRef, shortId, formatMoney, formatMinutes, createRouteColorMap, routeColorFromMap, ROUTE_PALETTE } from './utils';
 
 describe('resolveOrderRef', () => {
   it('prefers orderRef, then erp fallbacks, in order', () => {
@@ -57,13 +57,36 @@ describe('formatMinutes', () => {
   });
 });
 
-describe('routeColor', () => {
-  it('is deterministic for the same id', () => {
-    expect(routeColor('route-abc')).toBe(routeColor('route-abc'));
+describe('createRouteColorMap', () => {
+  it('assigns distinct palette colours by position', () => {
+    const routes = [{ id: 'a' }, { id: 'b' }, { id: 'c' }];
+    const map = createRouteColorMap(routes);
+    expect(map.get('a')).toBe(ROUTE_PALETTE[0]);
+    expect(map.get('b')).toBe(ROUTE_PALETTE[1]);
+    expect(map.get('c')).toBe(ROUTE_PALETTE[2]);
   });
-  it('returns a palette hex for an id and neutral grey for none', () => {
-    expect(routeColor('route-abc')).toMatch(/^#[0-9A-Fa-f]{6}$/);
-    expect(routeColor(null)).toBe('#71717A');
-    expect(routeColor(undefined)).toBe('#71717A');
+  it('wraps around the palette for more routes than colours', () => {
+    const routes = Array.from({ length: 12 }, (_, i) => ({ id: `r${i}` }));
+    const map = createRouteColorMap(routes);
+    expect(map.get('r0')).toBe(ROUTE_PALETTE[0]);
+    expect(map.get('r10')).toBe(ROUTE_PALETTE[0]);
+    expect(map.get('r11')).toBe(ROUTE_PALETTE[1]);
+  });
+  it('returns an empty map for an empty array', () => {
+    expect(createRouteColorMap([]).size).toBe(0);
+  });
+});
+
+describe('routeColorFromMap', () => {
+  it('returns the palette colour when the route is in the map', () => {
+    const map = createRouteColorMap([{ id: 'x' }]);
+    expect(routeColorFromMap(map, 'x')).toBe(ROUTE_PALETTE[0]);
+  });
+  it('returns fallback grey for an unknown route', () => {
+    expect(routeColorFromMap(new Map(), 'unknown')).toBe('#71717A');
+  });
+  it('returns fallback grey for null/undefined id', () => {
+    expect(routeColorFromMap(new Map(), null)).toBe('#71717A');
+    expect(routeColorFromMap(new Map())).toBe('#71717A');
   });
 });

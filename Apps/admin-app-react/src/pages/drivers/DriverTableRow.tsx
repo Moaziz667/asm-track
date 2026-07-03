@@ -43,8 +43,6 @@ function DriverActivity({
 
   const label = (routeId && routeNameById?.[routeId])
     || (routeId ? routeId.slice(0, 8).toUpperCase() : drv.activeDeliveryId!.slice(0, 8).toUpperCase());
-  const chipBase =
-    'font-mono text-2xs font-bold px-1.5 py-0.5 rounded border border-[var(--border)] bg-[var(--surface-sunken)] max-w-[160px] truncate';
 
   return (
     <div className="flex items-center gap-1.5 flex-nowrap min-w-0">
@@ -58,12 +56,12 @@ function DriverActivity({
           type="button"
           onClick={(e) => { e.stopPropagation(); onOpenRoute(routeId); }}
           title={label}
-          className={cn(chipBase, 'not-italic font-sans text-[var(--brand)] hover:underline hover:bg-[var(--brand-bg)] transition-colors cursor-pointer')}
+          className="text-xs font-medium text-[var(--brand)] hover:underline truncate max-w-[160px] cursor-pointer"
         >
           {label}
         </button>
       ) : (
-        <span title={label} className={cn(chipBase, 'text-[var(--text-muted)]')}>{label}</span>
+        <span title={label} className="text-xs font-medium text-[var(--text-muted)] truncate max-w-[160px]">{label}</span>
       )}
     </div>
   );

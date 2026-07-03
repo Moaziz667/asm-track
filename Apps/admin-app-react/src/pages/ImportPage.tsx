@@ -22,8 +22,8 @@ import {
   IconAlertCircle,
   IconClock,
   IconCloudDownload,
-  IconArrowBackUp,
 } from '@tabler/icons-react';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn, formatMoney } from '@/lib/utils';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
@@ -434,18 +434,15 @@ function ImportErpPageContent() {
                                     </span>
                                   )}
                                   {row.backorder && (() => {
-                                    const badgeCls = 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--warning-bg)] text-[var(--warning)] text-2xs font-[600]';
-                                    const inner = <><IconArrowBackUp size={11} stroke={2.5} />{t.importPage.backorderBadge}</>;
+                                    const badge = <StatusBadge status="BACKORDER" size="sm" label={t.importPage.backorderBadge} />;
                                     return row.originBl ? (
                                       <Tooltip>
-                                        <TooltipTrigger render={<span className={cn(badgeCls, 'cursor-default')} />}>
-                                          {inner}
+                                        <TooltipTrigger render={<span className="cursor-default inline-flex" />}>
+                                          {badge}
                                         </TooltipTrigger>
                                         <TooltipContent>{`${t.importPage.backorderOf} ${row.originBl}`}</TooltipContent>
                                       </Tooltip>
-                                    ) : (
-                                      <span className={badgeCls}>{inner}</span>
-                                    );
+                                    ) : badge;
                                   })()}
                                 </div>
                                 {row.blNumber && row.erpOrderId && (

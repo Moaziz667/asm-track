@@ -1,5 +1,6 @@
+import { useMemo } from 'react';
 import {
-  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell,
+  AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import {
   IconChartBar, IconPackage, IconAlertTriangle, IconArrowUpRight, IconRoute, IconMapPin,
@@ -7,9 +8,10 @@ import {
 } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
-import { routeColor } from '@/lib/utils';
+import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
 import { formatElapsed } from '@/lib/sla';
 import { dispatchDeskQueueLink } from '@/lib/dispatch-link';
+import { cn } from '@/lib/utils';
 import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { SectionCard } from '@/components/ui/section-card';
@@ -19,12 +21,12 @@ export function TrendChartWidget({ trend }: { trend: Array<{ count: number; deli
   const t = useT();
   return (
     <div className="card overflow-hidden flex flex-col h-full">
-      <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconChartBar size={16} style={{ color: 'var(--brand)' }} />
-          <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.performancePage.volumeCurve}</span>
+          <IconChartBar size={15} className="text-[var(--brand)]" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
         </div>
-        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{t.performancePage.lastSevenDays}</span>
+        <span className="text-2xs font-medium text-[var(--text-muted)]">{t.performancePage.lastSevenDays}</span>
       </div>
       <div className="p-4 flex-1 min-h-0 w-full">
         {trend.length === 0 ? (
@@ -64,10 +66,10 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
   const { locale } = useLocaleStore();
   return (
     <div className="card overflow-hidden flex flex-col h-full">
-      <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangle size={16} className="text-[var(--danger)]" />
-          <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
+          <IconAlertTriangle size={15} className="text-[var(--danger)]" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
           <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--danger-bg)] text-[var(--danger)] font-mono leading-none">{items.length}</span>
         </div>
         <button onClick={() => navigate('/dispatch-desk?tab=queue')} className="text-xs font-medium text-[var(--brand)] hover:underline flex items-center gap-1 cursor-pointer transition-colors">
@@ -77,27 +79,23 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         <div className="divide-y divide-[var(--border)]">
           {items.map((exc: any, idx: number) => {
-            const exHealth = (exc.slaHealth && exc.slaHealth !== 'NONE') ? exc.slaHealth : exc.slaWorstHealth;
-            const isCrit = exHealth === 'BREACHED' || exHealth === 'LATE' || exc.severity === 'CRITICAL';
-            const accent = isCrit ? 'var(--danger)' : 'var(--warning)';
             const timeRef = exc.scheduledAt || exc.createdAt;
             const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
             return (
               <div
                 key={idx}
                 onClick={() => navigate(dispatchDeskQueueLink({ orderRef: exc.orderRef, orderId: exc.orderId, deliveryId: exc.deliveryId }))}
-                className="flex items-stretch hover:bg-[var(--hover-bg)] transition-colors cursor-pointer overflow-hidden group"
+                className="flex items-stretch hover:bg-[var(--hover-bg)] transition-colors cursor-pointer overflow-hidden group border-b border-[var(--border)] last:border-0"
               >
-                <span className="w-[3px] shrink-0" style={{ background: accent }} />
-                <div className="flex flex-col min-w-0 flex-1 gap-1.5 p-3.5">
+                <div className="flex flex-col min-w-0 flex-1 gap-1 p-3">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="font-mono text-2xs font-bold" style={{ color: 'var(--brand)' }}>{exc.orderRef || exc.deliveryId?.slice(0, 8) || 'Alert'}</span>
+                    <span className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
+                      {exc.clientName || '—'}{exc.city ? <span className="font-normal text-[var(--text-muted)]"> · {exc.city}</span> : null}
+                    </span>
                     <span className="text-3xs font-mono text-[var(--text-soft)] shrink-0">{timeStr}</span>
                   </div>
-                  <span className="text-xs font-semibold text-[var(--text-primary)] truncate leading-tight">
-                    {exc.clientName || '—'}{exc.city ? <span className="font-normal text-[var(--text-muted)]"> · {exc.city}</span> : null}
-                  </span>
                   <div className="flex items-center gap-1.5 flex-wrap">
+                    {exc.orderRef && <span className="font-mono text-2xs text-[var(--brand)]">{exc.orderRef}</span>}
                     <StatusBadge status={exc.status} size="sm" />
                     <SlaHealthBadge health={exc.slaHealth} />
                     {exc.driverName && <span className="text-3xs text-[var(--text-muted)] truncate">· {exc.driverName}</span>}
@@ -116,29 +114,29 @@ export function TopItemsWidget({ stats }: { stats: any }) {
   const t = useT();
   return (
     <div className="card overflow-hidden flex flex-col h-full">
-      <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconPackage size={16} style={{ color: 'var(--brand)' }} />
-          <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
+          <IconPackage size={15} className="text-[var(--brand)]" />
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
         </div>
       </div>
-      <div className="p-5 flex flex-col gap-3.5 flex-1 overflow-y-auto">
+      <div className="p-4 flex flex-col gap-2.5 flex-1 overflow-y-auto">
         {!stats?.topItems || stats.topItems.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">{t.dashboardPage.noData || 'Aucune donnée disponible'}</div>
         ) : (() => {
           const maxCount = Math.max(...stats.topItems.map((item: any) => item.count), 1);
           return stats.topItems.map((item: any, idx: number) => (
-            <div key={item.sku} className="flex flex-col gap-1.5">
+            <div key={item.sku} className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="bg-[var(--hover-bg)] border border-[var(--border)] text-[var(--text-secondary)] w-4.5 h-4.5 flex items-center justify-center rounded-md font-mono text-2xs font-[500] shrink-0">{idx + 1}</span>
-                  <span className="text-xs font-[500] text-[var(--text-secondary)] truncate" title={item.name}>
+                  <span className="text-2xs font-mono text-[var(--text-muted)] w-4">{idx + 1}</span>
+                  <span className="text-xs font-medium text-[var(--text-secondary)] truncate" title={item.name}>
                     {item.name} <span className="text-2xs text-[var(--text-muted)]">({item.sku})</span>
                   </span>
                 </div>
-                <span className="text-xs font-[500] font-mono text-[var(--text-primary)] shrink-0">{item.count} u</span>
+                <span className="text-xs font-mono text-[var(--text-primary)] shrink-0">{item.count} u</span>
               </div>
-              <div className="h-[3px] w-full bg-[var(--hover-bg)] overflow-hidden rounded-full">
+              <div className="h-[2px] w-full bg-[var(--hover-bg)] overflow-hidden rounded-full">
                 <div className="h-full transition-all duration-300 rounded-full bg-[var(--brand)]" style={{ width: `${(item.count / maxCount) * 100}%` }} />
               </div>
             </div>
@@ -153,51 +151,29 @@ export function FailureCausesWidget({ stats }: { stats: any }) {
   const t = useT();
   return (
     <div className="card overflow-hidden flex flex-col h-full">
-      <div className="pl-10 pr-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangle size={16} className="text-[var(--danger)]" />
-          <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
+          <IconAlertTriangle size={15} className="text-[var(--danger)]" />
+          <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
         </div>
       </div>
-      <div className="p-2 flex flex-col sm:flex-row gap-5 flex-1 overflow-hidden min-h-0">
+      <div className="p-4 flex flex-col gap-3 flex-1 overflow-hidden min-h-0">
         {!stats?.byFailureCode || stats.byFailureCode.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">{t.dashboardPage.noData || 'Aucune donnée disponible'}</div>
         ) : (() => {
           const totalFailures = stats.byFailureCode.reduce((acc: number, curr: any) => acc + curr.count, 0) || 1;
           const data = stats.byFailureCode.map((fail: any) => ({ name: t.failureCodes?.[fail.code] || fail.code, value: fail.count, pct: (fail.count / totalFailures) * 100 }));
-          const COLORS = ['#EF4444', '#F97316', '#F59E0B', '#10B981', '#6366F1', '#8B5CF6'];
-          return (
-            <>
-              <div className="flex-1 min-w-0 h-full relative flex items-center justify-center">
-                <ResponsiveContainer width="100%" height="100%">
-                  <PieChart margin={{ top: 0, right: 0, bottom: 0, left: 0 }}>
-                    <Pie data={data} cx="50%" cy="50%" innerRadius="70%" outerRadius="95%" paddingAngle={2} dataKey="value">
-                      {data.map((_entry: any, index: number) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip
-                      formatter={(value: any, name: any, props: any) => [`${value} (${props.payload.pct.toFixed(0)}%)`, name]}
-                      contentStyle={{ background: 'var(--surface)', borderColor: 'var(--border-strong)', borderRadius: '6px', fontSize: '11px', color: 'var(--text-primary)' }}
-                    />
-                  </PieChart>
-                </ResponsiveContainer>
-                <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                  <span className="text-3xs uppercase font-bold tracking-wider text-[var(--text-muted)] font-mono">Total</span>
-                  <span className="text-md font-bold text-[var(--text-primary)] font-mono">{totalFailures}</span>
-                </div>
+          return data.map((item: any) => (
+            <div key={item.name} className="flex flex-col gap-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-[var(--text-secondary)] font-medium truncate" title={item.name}>{item.name}</span>
+                <span className="font-mono text-[var(--text-muted)] font-[500] shrink-0">{item.value} <span className="text-2xs">({item.pct.toFixed(0)}%)</span></span>
               </div>
-              <div className="flex flex-col justify-center gap-2 min-w-[140px] pr-2 select-none shrink-0">
-                {data.map((item: any, index: number) => (
-                  <div key={item.name} className="flex items-center justify-between gap-2 text-xs">
-                    <div className="flex items-center gap-1.5 min-w-0">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                      <span className="text-[var(--text-secondary)] font-medium truncate" title={item.name}>{item.name}</span>
-                    </div>
-                    <span className="font-mono text-[var(--text-muted)] font-[500] shrink-0">{item.value} ({item.pct.toFixed(0)}%)</span>
-                  </div>
-                ))}
+              <div className="h-[3px] w-full bg-[var(--hover-bg)] overflow-hidden rounded-full">
+                <div className="h-full transition-all duration-300 rounded-full bg-[var(--danger)]" style={{ width: `${item.pct}%` }} />
               </div>
-            </>
-          );
+            </div>
+          ));
         })()}
       </div>
     </div>
@@ -208,26 +184,23 @@ export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { onl
   const t = useT();
   return (
     <div className="card p-4 h-full flex flex-col">
-      <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
-      <div className="flex flex-col gap-3 overflow-y-auto pl-2">
+      <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
+      <div className="flex flex-col gap-2 overflow-y-auto">
         {[
-          { group: driverGroups.online, label: 'Online', dotColor: '#4CAF82' },
-          { group: driverGroups.onBreak, label: 'On Break', dotColor: '#D4772C' },
-          { group: driverGroups.offline, label: 'Offline', dotColor: '#8A8F98' },
-        ].map(({ group, label, dotColor }) => (
-          <div key={label} className="flex items-start gap-3">
-            <span className="w-2.5 h-2.5 rounded-full shrink-0 mt-1" style={{ backgroundColor: dotColor }} />
-            <div className="flex flex-col min-w-0 flex-1">
-              <span className="text-base font-bold text-[var(--text-secondary)]">{label} <span className="font-mono text-[var(--text-muted)] ml-1">({group.length})</span></span>
-              {group.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
-                  {group.slice(0, 8).map((d: any, i: number) => (
-                    <span key={i} className="text-xs font-medium px-2 py-1 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">{d.name || d.driverName || '?'}</span>
-                  ))}
-                  {group.length > 8 && <span className="text-xs font-bold text-[var(--text-soft)] px-1 py-1">+{group.length - 8}</span>}
-                </div>
-              )}
-            </div>
+          { group: driverGroups.online, label: t.dashboardPage.driverOnline || 'Online', tone: 'text-[var(--success)]' },
+          { group: driverGroups.onBreak, label: t.dashboardPage.driverOnBreak || 'On Break', tone: 'text-[var(--warning)]' },
+          { group: driverGroups.offline, label: t.dashboardPage.driverOffline || 'Offline', tone: 'text-[var(--text-muted)]' },
+        ].map(({ group, label, tone }) => (
+          <div key={label} className="flex items-start gap-2">
+            <span className={cn('text-xs font-bold shrink-0 min-w-[80px]', tone)}>{label} <span className="font-mono text-[var(--text-muted)]">({group.length})</span></span>
+            {group.length > 0 && (
+              <div className="flex flex-wrap gap-1 flex-1">
+                {group.slice(0, 8).map((d: any, i: number) => (
+                  <span key={i} className="text-2xs font-medium px-1.5 py-0.5 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">{d.name || d.driverName || '?'}</span>
+                ))}
+                {group.length > 8 && <span className="text-2xs font-bold text-[var(--text-soft)] px-1 py-0.5">+{group.length - 8}</span>}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -239,6 +212,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
   activeRoutes: any[]; focusedRouteId: string | null; setFocusedRouteId: (id: string | null) => void; driverName: (id?: string) => string;
 }) {
   const t = useT();
+  const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
   return (
     <SectionCard
       title={<div className="flex items-center gap-2"><span>{t.dashboardPage?.sectionActiveRoutes || 'Tournées actives'}</span></div>}
@@ -252,7 +226,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
       ) : (
         <div className="flex flex-col gap-1 pr-1">
           {activeRoutes.map(route => {
-            const color = routeColor(route.id);
+            const color = routeColorFromMap(routeColorMap, route.id);
             const focused = focusedRouteId === route.id;
             const stopCount = route.totalStops ?? route.stops?.length ?? 0;
             return (
@@ -261,10 +235,10 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
                 type="button"
                 onClick={() => setFocusedRouteId(focused ? null : route.id)}
                 className="flex items-center gap-2.5 py-2 px-2 rounded-md text-left transition-colors"
-                style={{ background: focused ? 'var(--hover-bg)' : 'transparent', boxShadow: focused ? `inset 2px 0 0 ${color}` : undefined }}
+                style={{ background: focused ? 'var(--hover-bg)' : 'transparent' }}
                 title={t.dashboardPage?.focusOnMap || 'Centrer sur la carte'}
               >
-                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: color }} />
+                <IconRoute size={14} style={{ color }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</p>
@@ -293,8 +267,8 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
   const t = useT();
   return (
     <div className="card p-4 h-full flex flex-col">
-      <span className="text-md font-bold text-[var(--text-primary)] block mb-3 pl-6 shrink-0">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
-      <div className="grid grid-cols-2 gap-3 flex-1 min-h-0">
+      <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
+      <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         {[
           { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
           { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconRoute },
@@ -305,10 +279,10 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
             key={path}
             type="button"
             onClick={() => navigate(path)}
-            className="flex items-center gap-3 px-4 py-3 rounded-xl border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] hover:border-[var(--brand-blue)]/30 transition-all cursor-pointer text-left active:scale-[0.98] group"
+            className="flex items-center gap-2 px-3 py-2 rounded-md border border-[var(--border)] bg-[var(--surface)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer text-left active:scale-[0.98] group"
           >
-            <Icon size={18} className="text-[var(--text-muted)] group-hover:text-[var(--brand-blue)] shrink-0 transition-colors" strokeWidth={1.8} />
-            <span className="text-base font-medium text-[var(--text-secondary)] group-hover:text-[var(--brand-blue)] leading-tight transition-colors">{label}</span>
+            <Icon size={14} className="text-[var(--text-muted)] shrink-0" strokeWidth={1.8} />
+            <span className="text-xs font-medium text-[var(--text-secondary)] leading-tight">{label}</span>
           </button>
         ))}
       </div>

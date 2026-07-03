@@ -14,7 +14,8 @@ import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { Button } from '@/components/ui/button';
 import { FieldSelect } from '@/components/ui/field';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { IconScan } from '@tabler/icons-react';
+import { IconScan, IconX } from '@tabler/icons-react';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useGlobalFilters } from '@/lib/global-filters';
 import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { resolveOrderRef } from '@/lib/utils';
@@ -54,7 +55,8 @@ function DeliveriesPageContent() {
 
   const [query, setQuery] = useState(globalFilters.search);
   const [status, setStatus] = useState<string>(globalFilters.status || '');
-  const [date, setDate] = useState(globalFilters.dateFrom);
+  const [dateFrom, setDateFrom] = useState(globalFilters.dateFrom);
+  const [dateTo, setDateTo] = useState(globalFilters.dateTo);
   const [driverId, setDriverId] = useState(globalFilters.driver);
   const [zoneId, setZoneId] = useState(globalFilters.zone);
   const [quickView, setQuickView] = useState<QuickView>('all');
@@ -104,12 +106,13 @@ function DeliveriesPageContent() {
   const queryParams = useMemo(() => {
     const params: any = { page, size };
     if (status) params.status = status;
-    if (date) params.date = date;
+    if (dateFrom) params.dateFrom = dateFrom;
+    if (dateTo) params.dateTo = dateTo;
     if (driverId) params.driverId = driverId;
     if (effectiveZoneId) params.zoneId = effectiveZoneId;
     if (quickView === 'needsPinning') params.unpinned = 'true';
     return params;
-  }, [page, size, status, date, driverId, effectiveZoneId, quickView]);
+  }, [page, size, status, dateFrom, dateTo, driverId, effectiveZoneId, quickView]);
 
   const { data: deliveriesResponse, isLoading: loading, refetch: fetchDeliveries } = useDeliveries(queryParams);
 
@@ -160,17 +163,18 @@ function DeliveriesPageContent() {
   useEffect(() => {
     if (!globalContext) return;
     if (status !== (globalFilters.status || '')) setStatus(globalFilters.status || '');
-    if (date !== globalFilters.dateFrom) setDate(globalFilters.dateFrom);
+    if (dateFrom !== globalFilters.dateFrom) setDateFrom(globalFilters.dateFrom);
+    if (dateTo !== globalFilters.dateTo) setDateTo(globalFilters.dateTo);
     if (driverId !== globalFilters.driver) setDriverId(globalFilters.driver);
     if (zoneId !== globalFilters.zone) setZoneId(globalFilters.zone);
   }, [globalFilters, globalContext]);
 
   useEffect(() => {
-    const hasChanged = query !== globalFilters.search || status !== (globalFilters.status || '') || date !== globalFilters.dateFrom || driverId !== globalFilters.driver || zoneId !== globalFilters.zone;
+    const hasChanged = query !== globalFilters.search || status !== (globalFilters.status || '') || dateFrom !== globalFilters.dateFrom || dateTo !== globalFilters.dateTo || driverId !== globalFilters.driver || zoneId !== globalFilters.zone;
     if (hasChanged) {
-      applyFilters({ search: query, status, dateFrom: date, driver: driverId, zone: zoneId, route: globalFilters.route, dateTo: globalFilters.dateTo });
+      applyFilters({ search: query, status, dateFrom, dateTo, driver: driverId, zone: zoneId, route: globalFilters.route });
     }
-  }, [query, status, date, driverId, zoneId, applyFilters]);
+  }, [query, status, dateFrom, dateTo, driverId, zoneId, applyFilters]);
 
   const { filteredRows, quickCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
 
@@ -196,20 +200,17 @@ function DeliveriesPageContent() {
     { key: 'status', label: t.deliveriesPage.statusHeader, options: DELIVERY_STATUSES.map(s => ({ value: s.value, label: getStatusLabel(s.value) })) },
     { key: 'driver', label: t.deliveriesPage.driverHeader, options: drivers.map(d => ({ value: d.id, label: d.name })) },
     { key: 'zone',   label: t.deliveriesPage.zoneHeader,   options: zones.map(z => ({ value: z.id, label: z.name })) },
-    { key: 'date',   label: t.deliveriesPage.dateLabel,    type: 'date' as const },
   ];
   const activeFiltersState: Record<string, string> = {
     ...(status   && { status }),
     ...(driverId && { driver: driverId }),
     ...(zoneId   && { zone: zoneId }),
-    ...(date     && { date }),
   };
   const handleDeliveryFilterChange = (key: string, value: string | null) => {
     setPage(0);
     if (key === 'status') setStatus(value ?? '');
     if (key === 'driver') setDriverId(value ?? '');
     if (key === 'zone')   setZoneId(value ?? '');
-    if (key === 'date')   { setDate(value ?? ''); setQuickView('all'); }
   };
   const quickFilterList = [
     { value: 'all',         label: t.deliveriesPage.totalFlow,           count: quickCounts.all },
@@ -247,6 +248,24 @@ function DeliveriesPageContent() {
           activeQuickFilter={quickView}
           onQuickFilterChange={v => { setQuickView(v as QuickView); setPage(0); }}
           extraActions={
+            <>
+            {/* Planifié De/A range — same inline picker pattern as the Audit logs page. */}
+            <div className="flex items-center gap-1.5 shrink-0">
+              <DatePickerPopover value={dateFrom || null} onChange={v => { setDateFrom(v ?? ''); setQuickView('all'); setPage(0); }} placeholder={t.dispatchDeskPage.dateFrom} />
+              <span className="text-xs text-[var(--text-muted)]">→</span>
+              <DatePickerPopover value={dateTo || null} onChange={v => { setDateTo(v ?? ''); setQuickView('all'); setPage(0); }} placeholder={t.dispatchDeskPage.dateTo} />
+              {(dateFrom || dateTo) && (
+                <button
+                  type="button"
+                  onClick={() => { setDateFrom(''); setDateTo(''); setPage(0); }}
+                  className="hover:opacity-70 transition-opacity shrink-0"
+                  style={{ color: 'var(--text-muted)' }}
+                  aria-label="Effacer"
+                >
+                  <IconX size={13} />
+                </button>
+              )}
+            </div>
             <ExportCsvButton
               baseName="livraisons"
               rows={filteredRows}
@@ -263,6 +282,7 @@ function DeliveriesPageContent() {
                 { header: 'Créé le', accessor: (r: any) => r.createdAt },
               ]}
             />
+            </>
           }
         />
 

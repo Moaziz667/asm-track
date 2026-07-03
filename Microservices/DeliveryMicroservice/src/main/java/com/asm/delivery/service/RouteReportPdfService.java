@@ -132,28 +132,38 @@ public class RouteReportPdfService extends BasePdfService {
 
             // ── Stops table ───────────────────────────────────────────────────
             doc.add(sectionLabel("DÉTAIL DES ARRÊTS", brand));
-            PdfPTable stopsTbl = new PdfPTable(new float[]{0.35f, 1.6f, 1.0f, 0.9f, 0.75f, 0.9f, 1.0f});
+            PdfPTable stopsTbl = new PdfPTable(new float[]{0.3f, 1.4f, 1.7f, 0.85f, 0.7f, 0.6f, 1.25f, 0.45f});
             stopsTbl.setWidthPercentage(100);
             stopsTbl.setHeaderRows(1);
             stopsTbl.addCell(hdrCell("#", brand));
             stopsTbl.addCell(hdrCell("Client", brand));
+            stopsTbl.addCell(hdrCell("Adresse", brand));
             stopsTbl.addCell(hdrCell("Créneau", brand));
             stopsTbl.addCell(hdrCell("Réalisé", brand));
             stopsTbl.addCell(hdrCellR("Retard", brand));
-            stopsTbl.addCell(hdrCell("Statut", brand));
-            stopsTbl.addCell(hdrCell("Ponctualité", brand));
+            stopsTbl.addCell(hdrCell("Statut / Motif", brand));
+            stopsTbl.addCell(hdrCellR("POD", brand));
 
             alt = false;
             for (var s : r.getStops()) {
+                // Pickup (multi-depot load) stops have no delivery — label them "Chargement", never "Livré".
+                boolean pickup = s.getDeliveryId() == null;
+                String addr = pickup ? "—"
+                        : safe(s.getAddress()) + (s.getCity() != null ? ", " + s.getCity() : "");
+                // Failure rows carry the motif so the closure document says WHY, not just "Échec".
+                String statut = pickup ? "Chargement"
+                        : outcomeLabel(s.getFinalStatus())
+                          + ("FAILED".equals(s.getFinalStatus()) && s.getFailReason() != null ? " · " + s.getFailReason() : "");
                 stopsTbl.addCell(cellAlt(String.valueOf(s.getStopOrder()), alt));
-                stopsTbl.addCell(cellAlt(safe(s.getClientName()), alt));
+                stopsTbl.addCell(cellAlt(pickup ? "Chargement" : safe(s.getClientName()), alt));
+                stopsTbl.addCell(cellAlt(addr, alt));
                 stopsTbl.addCell(cellAlt(buildWindow(s), alt));
                 stopsTbl.addCell(cellAlt(s.getCompletedAt() != null
                         ? s.getCompletedAt().format(TIME_FMT) : "—", alt));
                 stopsTbl.addCell(cellRAlt(s.getDelayMinutes() != null
                         ? fmtMinutes(s.getDelayMinutes()) : "—", alt));
-                stopsTbl.addCell(cellAlt(outcomeLabel(s.getFinalStatus()), alt));
-                stopsTbl.addCell(cellAlt(timingLabel(s.getFinalStatus(), s.getClassification(), s.getDelayMinutes()), alt));
+                stopsTbl.addCell(cellAlt(statut, alt));
+                stopsTbl.addCell(cellRAlt(pickup ? "—" : (s.isHasPod() ? "Oui" : "—"), alt));
                 alt = !alt;
             }
             doc.add(stopsTbl);
@@ -175,6 +185,36 @@ public class RouteReportPdfService extends BasePdfService {
                     alt = !alt;
                 }
                 doc.add(mv);
+            }
+
+            // ── Proof appendix — signatures / photos per delivered stop ───────
+            if (r.getPodGallery() != null && !r.getPodGallery().isEmpty()) {
+                PdfPTable proofTbl = new PdfPTable(3);
+                proofTbl.setWidthPercentage(100);
+                proofTbl.setSpacingBefore(4f);
+                int shots = 0;
+                for (var p : r.getPodGallery()) {
+                    String caption = "#" + p.getStopOrder() + " · " + safe(p.getClientName());
+                    for (String url : new String[]{p.getPhotoUrl(), p.getSignatureUrl(), p.getBonLivraisonUrl()}) {
+                        if (url == null || url.isBlank()) continue;
+                        try {
+                            Image img = Image.getInstance(new java.net.URL(url));
+                            img.scaleToFit(150f, 150f);
+                            PdfPCell cell = new PdfPCell();
+                            cell.setBorderColor(BORDER_GRAY);
+                            cell.setPadding(5f);
+                            cell.addElement(img);
+                            cell.addElement(new Paragraph(caption, muted(7)));
+                            proofTbl.addCell(cell);
+                            shots++;
+                        } catch (Exception ignore) { /* skip an unreadable proof, don't fail the PDF */ }
+                    }
+                }
+                if (shots > 0) {
+                    while (shots % 3 != 0) { proofTbl.addCell(noBorderCell()); shots++; }
+                    doc.add(sectionLabel("PREUVES DE LIVRAISON", brand));
+                    doc.add(proofTbl);
+                }
             }
 
             // ── Footer note ───────────────────────────────────────────────────

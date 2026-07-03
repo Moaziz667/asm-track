@@ -52,16 +52,21 @@ export function formatMinutes(mins?: number | null): string {
 // Shared route palette — the same colour identifies a route's legend row, its stop pins and its
 // driver car on the live map, so a dispatcher can match them at a glance.
 export const ROUTE_PALETTE = ['#5E6AD2', '#2D8A5E', '#D4772C', '#9333EA', '#0891B2', '#DB2777', '#CA8A04', '#4F46E5', '#15803D', '#B45309'];
-export function routeColor(routeId?: string | null): string {
-  if (!routeId) return '#71717A';
-  let h = 0;
-  for (let i = 0; i < routeId.length; i++) h = (h * 31 + routeId.charCodeAt(i)) >>> 0;
-  return ROUTE_PALETTE[h % ROUTE_PALETTE.length];
+
+const ROUTE_COLOR_FALLBACK = '#71717A';
+
+/** Build a stable route→colour map from an ordered route list. Position-based assignment
+ *  guarantees adjacent routes never share a colour. Routes beyond the palette length wrap. */
+export function createRouteColorMap(routes: { id: string }[]): Map<string, string> {
+  const map = new Map<string, string>();
+  const n = ROUTE_PALETTE.length;
+  routes.forEach((r, i) => map.set(r.id, ROUTE_PALETTE[((i % n) + n) % n]));
+  return map;
 }
 
-/** Distinct colour by position — adjacent routes never collide (unlike the hash-based
- *  routeColor). Use when the full ordered route list is available. */
-export function routeColorByIndex(index: number): string {
-  const n = ROUTE_PALETTE.length;
-  return ROUTE_PALETTE[((index % n) + n) % n];
+/** Convenience: look up a route's colour from a pre-built map (returns fallback grey when
+ *  the route is unknown or the map hasn't been built yet). */
+export function routeColorFromMap(map: Map<string, string> | undefined, routeId?: string | null): string {
+  if (!routeId) return ROUTE_COLOR_FALLBACK;
+  return map?.get(routeId) ?? ROUTE_COLOR_FALLBACK;
 }

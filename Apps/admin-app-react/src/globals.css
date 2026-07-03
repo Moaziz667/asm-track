@@ -640,6 +640,19 @@
           border-color: var(--brand) !important;
           transform: none;
         }
+
+        /* Outline action chip — matches the reassign/replan button shape but takes a per-button
+           accent via --accent (border + text in the accent, soft tinted hover). */
+        .action-chip {
+          border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+          color: var(--accent);
+          background: color-mix(in srgb, var(--accent) 6%, transparent);
+          transition: background-color 0.15s ease, border-color 0.15s ease;
+        }
+        .action-chip:hover {
+          background: color-mix(in srgb, var(--accent) 14%, transparent);
+          border-color: color-mix(in srgb, var(--accent) 60%, transparent);
+        }
       }
 
       /* ── Table ──────────────────────────────────────────────────────────────────── */

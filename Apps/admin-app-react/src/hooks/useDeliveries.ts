@@ -28,6 +28,8 @@ export function useDeliveries(params: {
   size: number;
   status?: string;
   date?: string;
+  dateFrom?: string;
+  dateTo?: string;
   driverId?: string;
   zoneId?: string;
   unpinned?: string;
