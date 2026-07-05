@@ -23,4 +23,13 @@ public enum FailureCode {
     public String getLabel() {
         return label;
     }
+
+    /**
+     * A category that can be a per-line item disposition (refused / damaged / missing). The others
+     * (client absent, wrong address, other) only make sense for a whole-delivery failure, so a reason
+     * with such a category can never have an ITEM scope.
+     */
+    public boolean isItemDisposition() {
+        return this == REFUSED || this == DAMAGED || this == MISSING;
+    }
 }

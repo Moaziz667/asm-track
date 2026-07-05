@@ -514,8 +514,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
         // quantity, and zero out lines not in the RMA.
         applyReturnQuantities(wizardId, items);
 
-        // create_returns builds the reverse picking and returns an ir.actions.act_window referencing it.
-        Map<String, Object> returnResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "create_returns",
+        // action_create_returns builds the reverse picking and returns an ir.actions.act_window referencing it.
+        // NOTE: Odoo 19 renamed "create_returns" → "action_create_returns" on stock.return.picking.
+        Map<String, Object> returnResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "action_create_returns",
                 List.of(List.of(wizardId)), Map.of("context", ctx)));
         Integer returnPickingId = extractReturnPickingId(returnResp);
         if (returnPickingId == null) {
@@ -571,7 +572,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
     @SuppressWarnings("unchecked")
     private Integer extractReturnPickingId(Map<String, Object> returnResp) {
         Object result = returnResp != null ? returnResp.get("result") : null;
-        if (!(result instanceof Map<?, ?> action)) return asInt(result);
+        if (!(result instanceof Map<?, ?> action)) {
+            return asInt(result);
+        }
         Integer resId = asInt(action.get("res_id"));
         if (resId != null && resId > 0) return resId;
         Object domain = action.get("domain");
@@ -584,6 +587,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
                 }
             }
         }
+        log.warn("extractReturnPickingId could not extract picking id from returnResp={}", returnResp);
         return null;
     }
 
@@ -1419,60 +1423,92 @@ public class OdooSyncAdapter implements ErpSyncPort {
     private String buildPartialDeliveryNote(List<com.asm.erpadapter.dto.ErpPartialItemDTO> items) {
         if (items == null || items.isEmpty()) return null;
 
-        // Separate items into refused/damaged vs delivered (full or partial)
-        List<com.asm.erpadapter.dto.ErpPartialItemDTO> refused = items.stream()
-                .filter(i -> i != null && ("REFUSED".equalsIgnoreCase(i.getOutcome()) || "DAMAGED".equalsIgnoreCase(i.getOutcome())))
-                .collect(java.util.stream.Collectors.toList());
+        // Two independent sections, built in one pass:
+        //  • "Articles non livrés" — every non-delivered disposition per line. Segment-aware: when the
+        //    driver sent a WMS breakdown we list ALL dispositions (Manquant/Refusé/Endommagé ×qty), not
+        //    just the dominant one; otherwise we fall back to the single legacy outcome field.
+        //  • "Notes chauffeur" — a comment left on a fully/partially DELIVERED line.
+        StringBuilder undelivered = new StringBuilder();
+        StringBuilder driverNotes = new StringBuilder();
 
-        // DELIVERED items that have a driver comment (typically partial-qty deliveries)
-        List<com.asm.erpadapter.dto.ErpPartialItemDTO> deliveredWithComment = items.stream()
-                .filter(i -> i != null
-                        && "DELIVERED".equalsIgnoreCase(i.getOutcome())
-                        && i.getComment() != null && !i.getComment().isBlank())
-                .collect(java.util.stream.Collectors.toList());
+        for (com.asm.erpadapter.dto.ErpPartialItemDTO item : items) {
+            if (item == null) continue;
+            String label = (item.getItemName() != null && !item.getItemName().isBlank())
+                    ? item.getItemName() : item.getReferenceKey();
 
-        if (refused.isEmpty() && deliveredWithComment.isEmpty()) return null;
-
-        StringBuilder sb = new StringBuilder("<b>ASM Track — Livraison partielle</b><br/>");
-
-        if (!refused.isEmpty()) {
-            sb.append("<b>Articles non livrés :</b><ul>");
-            for (com.asm.erpadapter.dto.ErpPartialItemDTO item : refused) {
-                String label = (item.getItemName() != null && !item.getItemName().isBlank())
-                        ? item.getItemName() : item.getReferenceKey();
-                sb.append("<li><b>").append(label).append("</b>");
-                if ("DAMAGED".equalsIgnoreCase(item.getOutcome())) {
-                    sb.append(" — Endommagé");
-                } else {
-                    sb.append(" — Refusé");
+            // Collect the non-delivered segments (segment-aware path).
+            List<com.asm.erpadapter.dto.ErpItemSegmentDTO> nonDelivered = new java.util.ArrayList<>();
+            if (item.hasSegments()) {
+                for (com.asm.erpadapter.dto.ErpItemSegmentDTO seg : item.getSegments()) {
+                    if (seg == null) continue;
+                    if (!"DELIVERED".equalsIgnoreCase(seg.getDisposition())) nonDelivered.add(seg);
                 }
-                // Prefer the platform-resolved catalog label; fall back to humanizing the raw code.
+            }
+
+            if (!nonDelivered.isEmpty()) {
+                // One bullet per line, every non-delivered disposition listed beneath it.
+                undelivered.append("<li><b>").append(label).append("</b>");
+                for (com.asm.erpadapter.dto.ErpItemSegmentDTO seg : nonDelivered) {
+                    undelivered.append("<br/>&bull; ").append(dispositionLabel(seg.getDisposition()));
+                    int q = seg.getQuantity() != null ? seg.getQuantity() : 0;
+                    if (q > 0) undelivered.append(" ×").append(q);
+                    String reasonText = (seg.getReasonLabel() != null && !seg.getReasonLabel().isBlank())
+                            ? seg.getReasonLabel() : humanizeReason(seg.getReasonCode());
+                    if (reasonText != null && !reasonText.isBlank()) {
+                        undelivered.append(" (").append(reasonText).append(")");
+                    }
+                    if (seg.getComment() != null && !seg.getComment().isBlank()) {
+                        undelivered.append(" — <i>").append(seg.getComment()).append("</i>");
+                    }
+                }
+                undelivered.append("</li>");
+            } else if ("REFUSED".equalsIgnoreCase(item.getOutcome()) || "DAMAGED".equalsIgnoreCase(item.getOutcome())) {
+                // Legacy single-field fallback (driver sent no per-unit breakdown).
+                undelivered.append("<li><b>").append(label).append("</b> — ")
+                        .append("DAMAGED".equalsIgnoreCase(item.getOutcome()) ? "Endommagé" : "Refusé");
                 String reasonText = (item.getReasonLabel() != null && !item.getReasonLabel().isBlank())
-                        ? item.getReasonLabel()
-                        : humanizeReason(item.getReason());
+                        ? item.getReasonLabel() : humanizeReason(item.getReason());
                 if (reasonText != null && !reasonText.isBlank()) {
-                    sb.append(" (").append(reasonText).append(")");
+                    undelivered.append(" (").append(reasonText).append(")");
                 }
                 if (item.getComment() != null && !item.getComment().isBlank()) {
-                    sb.append("<br/><i>").append(item.getComment()).append("</i>");
+                    undelivered.append("<br/><i>").append(item.getComment()).append("</i>");
                 }
-                sb.append("</li>");
+                undelivered.append("</li>");
             }
-            sb.append("</ul>");
+
+            // Driver comment on a delivered line (partial-qty). Skipped when the line already appears
+            // in "non livrés" (its comment then belongs to a non-delivered segment, shown above).
+            if (nonDelivered.isEmpty()
+                    && "DELIVERED".equalsIgnoreCase(item.getOutcome())
+                    && item.getComment() != null && !item.getComment().isBlank()) {
+                driverNotes.append("<li><b>").append(label).append("</b> — Livré : <i>")
+                        .append(item.getComment()).append("</i></li>");
+            }
         }
 
-        if (!deliveredWithComment.isEmpty()) {
-            sb.append("<b>Notes chauffeur :</b><ul>");
-            for (com.asm.erpadapter.dto.ErpPartialItemDTO item : deliveredWithComment) {
-                String label = (item.getItemName() != null && !item.getItemName().isBlank())
-                        ? item.getItemName() : item.getReferenceKey();
-                sb.append("<li><b>").append(label).append("</b>");
-                sb.append(" — Livré : <i>").append(item.getComment()).append("</i></li>");
-            }
-            sb.append("</ul>");
-        }
+        if (undelivered.length() == 0 && driverNotes.length() == 0) return null;
 
+        StringBuilder sb = new StringBuilder("<b>ASM Track — Livraison partielle</b><br/>");
+        if (undelivered.length() > 0) {
+            sb.append("<b>Articles non livrés :</b><ul>").append(undelivered).append("</ul>");
+        }
+        if (driverNotes.length() > 0) {
+            sb.append("<b>Notes chauffeur :</b><ul>").append(driverNotes).append("</ul>");
+        }
         return sb.toString();
+    }
+
+    /** Maps a per-unit disposition code to its French label for the Odoo chatter note. */
+    private String dispositionLabel(String disposition) {
+        if (disposition == null) return "";
+        return switch (disposition.toUpperCase()) {
+            case "MISSING"   -> "Manquant";
+            case "REFUSED"   -> "Refusé";
+            case "DAMAGED"   -> "Endommagé";
+            case "DELIVERED" -> "Livré";
+            default          -> disposition;
+        };
     }
 
     private Integer asInt(Object o) { return o instanceof Number n ? n.intValue() : null; }

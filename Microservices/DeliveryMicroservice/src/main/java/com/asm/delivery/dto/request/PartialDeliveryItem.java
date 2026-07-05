@@ -37,6 +37,15 @@ public class PartialDeliveryItem {
     /** Human label for {@link #reason}, resolved server-side from the catalog for Odoo notes. */
     private String reasonLabel;
 
+    /**
+     * Per-unit disposition breakdown sent by the driver (WMS mode). When present, the server derives
+     * {@code quantityDone} (Σ DELIVERED) and the dominant {@code outcome}/{@code reason} from it and
+     * persists the full breakdown. When absent, the legacy single fields above are used as-is.
+     */
+    private java.util.List<com.asm.delivery.entity.ItemSegment> segments;
+
+    public boolean hasSegments() { return segments != null && !segments.isEmpty(); }
+
     public PartialDeliveryItem(String sku, Integer quantityDone) {
         this.sku = sku;
         this.quantityDone = quantityDone;

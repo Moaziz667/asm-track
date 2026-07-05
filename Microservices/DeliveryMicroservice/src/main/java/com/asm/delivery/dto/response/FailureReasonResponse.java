@@ -1,12 +1,11 @@
 package com.asm.delivery.dto.response;
 
 import com.asm.delivery.entity.FailureCode;
-import com.asm.delivery.entity.FailureContext;
 import com.asm.delivery.entity.FailureReason;
+import com.asm.delivery.entity.ReasonScope;
 import lombok.Builder;
 import lombok.Data;
 
-import java.util.Set;
 import java.util.UUID;
 
 @Data
@@ -16,7 +15,7 @@ public class FailureReasonResponse {
     private String code;
     private String label;
     private FailureCode category;
-    private Set<FailureContext> appliesTo;
+    private ReasonScope scope;
     private boolean active;
     private int sortOrder;
 
@@ -26,7 +25,7 @@ public class FailureReasonResponse {
                 .code(r.getCode())
                 .label(r.getLabel())
                 .category(r.getCategory())
-                .appliesTo(r.getAppliesTo())
+                .scope(r.getScope())
                 .active(r.isActive())
                 .sortOrder(r.getSortOrder())
                 .build();

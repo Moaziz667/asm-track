@@ -28,4 +28,13 @@ public class ErpPartialItemDTO {
 
     /** Optional driver comment for this item. */
     private String comment;
+
+    /**
+     * Per-unit disposition breakdown (WMS mode). When present, the Odoo note lists every non-delivered
+     * disposition (Manquant/Refusé/Endommagé ×qty) instead of just the dominant {@link #outcome}.
+     * Null/empty for legacy single-outcome submissions.
+     */
+    private java.util.List<ErpItemSegmentDTO> segments;
+
+    public boolean hasSegments() { return segments != null && !segments.isEmpty(); }
 }

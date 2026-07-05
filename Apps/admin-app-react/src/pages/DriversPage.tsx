@@ -26,6 +26,7 @@ import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
+import { TablePagination } from '@/components/data-display/TablePagination';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -102,6 +103,8 @@ function DriversPageContent() {
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const [operationalFilter, setOperationalFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'busy' | 'available'>('all');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -140,6 +143,17 @@ function DriversPageContent() {
       return true;
     });
   }, [drivers, searchTerm, operationalFilter, activityFilter, isDriverEnLivraison]);
+
+  // Client-side pagination: the drivers list is bounded (dozens–hundreds) and the busy/activity filter
+  // is cross-service enrichment, so we page the already-filtered set in-memory — instant, and Export/
+  // filters keep operating over the whole set. Reset to page 1 whenever the filtered shape changes.
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  useEffect(() => { setPage(0); }, [searchTerm, operationalFilter, activityFilter, pageSize]);
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = useMemo(
+    () => filtered.slice(safePage * pageSize, safePage * pageSize + pageSize),
+    [filtered, safePage, pageSize],
+  );
 
   // ── CRUD handlers ─────────────────────────────────────────────────────────
   const openCreate = () => { setEditingDriver(null); setForm({ name: '', phone: '', email: '' }); setCrudOpen(true); };
@@ -303,7 +317,7 @@ function DriversPageContent() {
                 ) : filtered.length === 0 ? (
                   <EmptyState icon={<SVGUser size={32} />} message={t.empty?.drivers || 'Aucun chauffeur enregistré pour le moment.'} />
                 ) : (
-                  filtered.map((drv) => (
+                  pageRows.map((drv) => (
                     <DriverMobileCard
                       key={drv.id}
                       drv={drv}
@@ -351,7 +365,7 @@ function DriversPageContent() {
                 ) : filtered.length === 0 ? (
                   <EmptyState icon={<SVGUser size={32} />} message={t.empty?.drivers || 'Aucun chauffeur enregistré pour le moment.'} />
                 ) : (
-                  filtered.map((drv) => (
+                  pageRows.map((drv) => (
                     <DriverTableRow
                       key={drv.id}
                       drv={drv}
@@ -378,6 +392,14 @@ function DriversPageContent() {
               </div>
             )}
           </div>
+          <TablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalElements={filtered.length}
+            size={pageSize}
+            onPageChange={setPage}
+            onSizeChange={setPageSize}
+          />
         </div>
       </div>
 

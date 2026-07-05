@@ -32,18 +32,29 @@ export function DriverStatusBadge({ status, size = 'md' }: Props) {
     <span
       role="status"
       aria-label={displayLabel}
-      className="inline-flex items-center shrink-0 rounded-full border"
       style={{
-        gap: 4,
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 5,
         height,
         padding: `0 ${px}px`,
+        borderRadius: 99,
         background: cfg.bg,
-        color: cfg.text,
-        borderColor: `color-mix(in srgb, ${cfg.dot} 18%, transparent)`,
+        flexShrink: 0,
       }}
     >
-      {Icon && <Icon size={iconPx} color={cfg.dot} stroke={2} />}
-      <span className="text-2xs font-medium whitespace-nowrap">
+      {Icon && <Icon size={iconPx} color={cfg.dot} stroke={1.9} />}
+      <span
+        style={{
+          fontFamily: "'Clear Sans', system-ui, sans-serif",
+          fontSize: size === 'sm' ? 11 : 11,
+          fontWeight: 500,
+          color: cfg.text,
+          letterSpacing: '-0.01em',
+          lineHeight: 1,
+          whiteSpace: 'nowrap',
+        }}
+      >
         {displayLabel}
       </span>
     </span>

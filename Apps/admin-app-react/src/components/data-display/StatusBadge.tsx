@@ -6,7 +6,7 @@ import {
   IconAlertTriangle, IconCalendarOff, IconCalendarCheck, IconPackage, IconTruckDelivery,
   IconPackages, IconArrowBackUp, IconClock, IconPackageImport, IconBuildingWarehouse,
   IconRefresh, IconCircleOff, IconTruck, IconUserOff, IconMapPinOff,
-  IconPackageOff, IconDots, IconAlertOctagon, IconHistory,
+  IconPackageOff, IconDots, IconAlertOctagon, IconHistory, IconArrowsExchange,
 } from '@tabler/icons-react';
 
 export type StatusValue =
@@ -15,7 +15,7 @@ export type StatusValue =
   | 'UNSCHEDULED' | 'SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT'
   | 'DELIVERED' | 'PARTIALLY_DELIVERED' | 'COMPLETED' | 'PARTIAL'
   | 'REMOVED_REPLANNED' | 'REMOVED_CANCELLED' | 'FAILED_ATTEMPT'
-  | 'BACKORDER' | 'RESCHEDULED';
+  | 'BACKORDER' | 'RESCHEDULED' | 'REASSIGNED';
 
 interface StatusConfig {
   dot: string;
@@ -62,6 +62,7 @@ const CONFIG: Record<string, StatusConfig> = {
   // ── Delivery modifiers ────────────────────────────────────────────────
   BACKORDER:           { dot: '#C4881A', bg: 'rgba(196,136,26,0.09)',  text: '#A06D10' },
   RESCHEDULED:         { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
+  REASSIGNED:          { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
   // ── Generic active/inactive (failure reasons, toggles…) ───────────────
   ACTIVE:              { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
   INACTIVE:            { dot: '#8A8F98', bg: 'rgba(138,143,152,0.07)', text: '#6B7280' },
@@ -110,7 +111,7 @@ const ICON: Record<string, typeof IconCircleCheck> = {
   SYNCED: IconCircleCheck, SYNCING: IconRefresh, PENDING: IconClock,
   SYNC_FAILED: IconAlertTriangle, NOT_SYNCED: IconCircleOff,
   // Delivery modifiers
-  BACKORDER: IconArrowBackUp, RESCHEDULED: IconHistory,
+  BACKORDER: IconArrowBackUp, RESCHEDULED: IconHistory, REASSIGNED: IconArrowsExchange,
   // Generic active/inactive
   ACTIVE: IconCircleCheck, INACTIVE: IconCircleMinus,
   // Vehicle

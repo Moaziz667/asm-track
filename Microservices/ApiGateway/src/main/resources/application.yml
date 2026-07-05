@@ -194,6 +194,16 @@ spring:
           predicates:
             - Path=/api/driver/routes/**
 
+        - id: delivery-driver-handoffs
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/driver/handoffs/**
+
+        - id: delivery-driver-vehicles
+          uri: ${DELIVERY_SERVICE_URL:http://localhost:8082}
+          predicates:
+            - Path=/api/driver/vehicles/**
+
         - id: driver-service
           uri: ${DRIVER_SERVICE_URL:http://localhost:8086}
           predicates:

@@ -39,4 +39,12 @@ public class OrderItem {
 
     /** Odoo product type: "product" (storable), "consu" (consumable), "service". Null for legacy items. */
     private String productType;
+
+    /**
+     * Per-unit disposition breakdown (WMS-grade). A line can split into DELIVERED / REFUSED / DAMAGED /
+     * MISSING segments, each with its own motif. Null/empty for a clean full delivery. The single fields
+     * above ({@code quantityDone}, {@code outcome}, {@code reason}…) are derived from this and remain the
+     * ERP contract; this list is additive admin metadata.
+     */
+    private java.util.List<ItemSegment> segments;
 }

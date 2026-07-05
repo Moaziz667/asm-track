@@ -3,8 +3,8 @@ package com.asm.delivery.service;
 import com.asm.delivery.dto.request.FailureReasonRequest;
 import com.asm.delivery.dto.response.FailureReasonResponse;
 import com.asm.delivery.entity.FailureCode;
-import com.asm.delivery.entity.FailureContext;
 import com.asm.delivery.entity.FailureReason;
+import com.asm.delivery.entity.ReasonScope;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.FailureReasonRepository;
 import lombok.RequiredArgsConstructor;
@@ -12,10 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
-import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -25,11 +23,6 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class FailureReasonService {
-
-    /** Contexts an item-outcome picker depends on — must never be left without an active motif. */
-    private static final Set<FailureContext> GUARDED_CONTEXTS = EnumSet.of(
-            FailureContext.FAILURE, FailureContext.ITEM_REFUSED,
-            FailureContext.ITEM_DAMAGED, FailureContext.ITEM_MISSING);
 
     private final FailureReasonRepository repository;
 
@@ -69,7 +62,7 @@ public class FailureReasonService {
                 .code(code)
                 .label(req.getLabel().trim())
                 .category(req.getCategory())
-                .appliesTo(resolveAppliesTo(req))
+                .scope(resolveScope(req))
                 .active(req.getActive() == null || req.getActive())
                 .sortOrder(req.getSortOrder() == null ? 100 : req.getSortOrder())
                 .build());
@@ -81,7 +74,7 @@ public class FailureReasonService {
         FailureReason reason = getOrThrow(id);
         reason.setLabel(req.getLabel().trim());
         reason.setCategory(req.getCategory());
-        reason.setAppliesTo(resolveAppliesTo(req));
+        reason.setScope(resolveScope(req));
         if (req.getActive() != null) reason.setActive(req.getActive());
         if (req.getSortOrder() != null) reason.setSortOrder(req.getSortOrder());
         return FailureReasonResponse.from(repository.save(reason));
@@ -92,15 +85,25 @@ public class FailureReasonService {
     public void deactivate(UUID id) {
         FailureReason reason = getOrThrow(id);
         if (!reason.isActive()) return;
-        // Guard: a context an item/failure picker relies on must keep at least one active motif.
+        // Guard: never empty a picker. The failure sheet needs ≥1 active DELIVERY motif; each item
+        // disposition (a category) needs ≥1 active ITEM motif of that same category.
         List<FailureReason> active = repository.findByActiveTrueOrderBySortOrderAscLabelAsc();
-        for (FailureContext ctx : reason.getAppliesTo()) {
-            if (!GUARDED_CONTEXTS.contains(ctx)) continue;
+        if (reason.getScope().coversDelivery()) {
             boolean another = active.stream()
-                    .anyMatch(r -> !r.getId().equals(id) && r.getAppliesTo().contains(ctx));
+                    .anyMatch(r -> !r.getId().equals(id) && r.getScope().coversDelivery());
             if (!another) {
-                throw AppException.conflict("FAILURE_REASON_LAST_IN_CONTEXT",
-                        "Impossible de désactiver le dernier motif actif du contexte " + ctx + ".");
+                throw AppException.conflict("FAILURE_REASON_LAST_DELIVERY",
+                        "Impossible de désactiver le dernier motif actif de la fiche d'échec.");
+            }
+        }
+        if (reason.getScope().coversItem()) {
+            boolean another = active.stream()
+                    .anyMatch(r -> !r.getId().equals(id) && r.getScope().coversItem()
+                            && r.getCategory() == reason.getCategory());
+            if (!another) {
+                throw AppException.conflict("FAILURE_REASON_LAST_ITEM",
+                        "Impossible de désactiver le dernier motif article de la catégorie "
+                                + reason.getCategory().getLabel() + ".");
             }
         }
         reason.setActive(false);
@@ -112,11 +115,14 @@ public class FailureReasonService {
                 .orElseThrow(() -> AppException.notFound("FAILURE_REASON_NOT_FOUND", "Motif introuvable."));
     }
 
-    private Set<FailureContext> resolveAppliesTo(FailureReasonRequest req) {
-        if (req.getAppliesTo() == null || req.getAppliesTo().isEmpty()) {
-            return EnumSet.of(FailureContext.FAILURE);
+    /** Resolve + validate the scope. ITEM/BOTH is only valid for a per-item disposition category. */
+    private ReasonScope resolveScope(FailureReasonRequest req) {
+        ReasonScope scope = req.getScope() == null ? ReasonScope.DELIVERY : req.getScope();
+        if (scope.coversItem() && (req.getCategory() == null || !req.getCategory().isItemDisposition())) {
+            throw AppException.badRequest(
+                    "La portée « Article » n'est possible que pour les catégories Refusé, Endommagé ou Manquant.");
         }
-        return EnumSet.copyOf(req.getAppliesTo());
+        return scope;
     }
 
     /**

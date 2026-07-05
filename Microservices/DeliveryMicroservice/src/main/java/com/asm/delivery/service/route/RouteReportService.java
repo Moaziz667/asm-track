@@ -70,11 +70,19 @@ public class RouteReportService {
         Depot depot = route.getDepotId() != null
                 ? depotRepository.findById(route.getDepotId()).orElse(null) : null;
 
+        // Depot PICKUP stops are loading operations, not deliveries — keep them out of the
+        // delivery-centric sections (table, KPIs, punctuality) so they don't leak as blank rows or
+        // skew the counts (was: "4 arrêts" table vs "3/3 tentés" KPI). Movements / POD / audit already
+        // self-filter on deliveryId, so they keep the full list.
+        List<RouteStop> deliveryStops = stops.stream()
+                .filter(s -> s.getStopType() != com.asm.delivery.entity.RouteStopType.PICKUP)
+                .toList();
+
         // Build sub-sections
-        List<RouteReportResponse.StopRow> stopRows = buildStopRows(stops, deliveriesById);
-        RouteReportResponse.Kpis kpis = computeKpis(route, stops, stopRows);
+        List<RouteReportResponse.StopRow> stopRows = buildStopRows(deliveryStops, deliveriesById);
+        RouteReportResponse.Kpis kpis = computeKpis(route, deliveryStops, stopRows);
         List<RouteReportResponse.StatusBucket> breakdown = buildStatusBreakdown(stopRows);
-        List<RouteReportResponse.TimelinePoint> timeline = buildTimeline(stops, stopRows, deliveriesById);
+        List<RouteReportResponse.TimelinePoint> timeline = buildTimeline(deliveryStops, stopRows, deliveriesById);
         List<RouteReportResponse.MovementEvent> movements = buildMovements(stops, stopRows, deliveriesById);
         List<RouteReportResponse.PodEntry> podGallery = buildPodGallery(stops, deliveriesById);
         List<RouteReportResponse.AuditEntry> auditTrail = buildAuditTrail(stops);
@@ -209,6 +217,7 @@ public class RouteReportService {
                     .stopId(s.getId())
                     .deliveryId(s.getDeliveryId())
                     .stopOrder(s.getStopOrder())
+                    .orderRef(order != null ? order.resolveRef() : null)
                     .clientName(order != null ? order.getClientName() : null)
                     .address(order != null ? order.getDropoffAddress() : null)
                     .city(order != null ? order.getDropoffCity() : null)
@@ -383,13 +392,21 @@ public class RouteReportService {
             if (s.getRemovedAt() != null) {
                 String type = "REMOVED_REPLANNED".equals(s.getStatus().name())
                         ? "STOP_REMOVED_REPLANNED" : "STOP_REMOVED_CANCELLED";
-                String detail = type.equals("STOP_REMOVED_REPLANNED")
-                        ? "Arrêt #" + s.getStopOrder() + " retiré · Replanifié"
-                          + (row != null && row.getMovementTarget() != null
-                                ? " vers «" + row.getMovementTarget() + "»" : "")
-                        : "Arrêt #" + s.getStopOrder() + " annulé"
-                          + (s.getRemovedReason() != null && !s.getRemovedReason().isBlank()
-                                ? " · " + s.getRemovedReason() : "");
+                String movementTarget = row != null ? row.getMovementTarget() : null;
+                String detail;
+                String targetSuffix = movementTarget != null ? " vers «" + movementTarget + "»" : "";
+                if (type.equals("STOP_REMOVED_CANCELLED")) {
+                    detail = "Arrêt #" + s.getStopOrder() + " annulé"
+                            + (s.getRemovedReason() != null && !s.getRemovedReason().isBlank()
+                                    ? " · " + s.getRemovedReason() : "");
+                } else if ("REASSIGNED".equals(s.getRemovedReason())) {
+                    // Reassigned to another driver — distinguished by the reason stamped at removal time
+                    // (not by the live target, which a later replan-then-reassign could also produce).
+                    detail = "Arrêt #" + s.getStopOrder() + " réassigné" + targetSuffix;
+                } else {
+                    // Sent back to the dispatch pool for replanning.
+                    detail = "Arrêt #" + s.getStopOrder() + " retiré · Replanifié" + targetSuffix;
+                }
                 events.add(RouteReportResponse.MovementEvent.builder()
                         .at(s.getRemovedAt())
                         .type(type)
@@ -581,38 +598,6 @@ public class RouteReportService {
         }
     }
 
-    /** Map raw DeliveryStatus enum names to French labels for audit display. */
-    private static String deliveryStatusFr(String status) {
-        if (status == null) return "—";
-        return switch (status) {
-            case "UNSCHEDULED"          -> "Non planifiée";
-            case "SCHEDULED"            -> "Planifiée";
-            case "PICKED_UP"            -> "Récupérée";
-            case "IN_TRANSIT"           -> "En transit";
-            case "DELIVERED"            -> "Livrée";
-            case "PARTIALLY_DELIVERED"  -> "Partiellement livrée";
-            case "FAILED"               -> "Échouée";
-            case "CANCELLED"            -> "Annulée";
-            default                      -> status;
-        };
-    }
-
-    /** Translate the common English notes baked into the DB by legacy code. */
-    private static String translateNoteFr(String note) {
-        if (note == null || note.isBlank()) return null;
-        return switch (note) {
-            case "Imported from ERP via Adapter"            -> "Importée depuis l'ERP";
-            case "Route validated and delivery assigned"    -> "Tournée validée et livraison assignée";
-            case "Route started and package auto-picked up" -> "Tournée démarrée, colis pris en charge";
-            case "Driver started transit"                   -> "Départ en transit";
-            case "Delivery completed"                       -> "Livraison terminée";
-            case "Delivery failed"                          -> "Livraison échouée";
-            case "Delivery cancelled"                       -> "Livraison annulée";
-            case "Driver cancelled, reassigning"            -> "Annulée par le chauffeur, à réassigner";
-            case "Workflow: timeout reset"                  -> "Réinitialisation auto (timeout)";
-            default                                         -> note;
-        };
-    }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -624,9 +609,13 @@ public class RouteReportService {
         if (s.getStatus() == null) return null;
         return switch (s.getStatus()) {
             case COMPLETED -> {
-                if (delayMinutes == null) yield "ON_TIME";
-                if (delayMinutes > 0) yield "LATE";
-                if (delayMinutes < -5) yield "EARLY";
+                if (delayMinutes == null) yield "ON_TIME";     // no window to judge against
+                if (delayMinutes > 0) yield "LATE";            // completed after the window closed
+                // Completed at/before the window end: "early" only when it landed before the window
+                // even opened; anything delivered INSIDE [start, end] counts as on time.
+                java.time.LocalTime start = s.getStartTimeWindow();
+                if (start != null && s.getCompletedAt() != null
+                        && s.getCompletedAt().toLocalTime().isBefore(start)) yield "EARLY";
                 yield "ON_TIME";
             }
             case PARTIAL              -> "PARTIAL";

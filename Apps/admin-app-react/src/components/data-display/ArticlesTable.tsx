@@ -51,6 +51,11 @@ export function ArticlesTable({ items, status, failureCode, failMotif, currency 
                 : short && reasonLabel ? 'MISSING'
                 : short ? 'PARTIAL'
                 : null;
+              // Per-unit breakdown (WMS): show every non-delivered disposition with its qty + motif.
+              const segs: any[] | null = Array.isArray(item.segments) ? item.segments : null;
+              const shortSegs = segs
+                ? segs.filter(sg => sg && sg.disposition && sg.disposition !== 'DELIVERED' && (sg.quantity ?? 0) > 0)
+                : null;
               return (
                 <tr key={i} style={{ borderBottom: '1px solid var(--border)/30' }} className="hover:bg-[var(--app-bg)]/40 transition-colors">
                   <td style={{ padding: '10px 12px', border: 'none' }}>
@@ -68,13 +73,24 @@ export function ArticlesTable({ items, status, failureCode, failMotif, currency 
                     </span>
                   </td>
                   <td style={{ padding: '10px 12px', border: 'none' }}>
-                    {lineStatus == null
-                      ? <span className="text-xs text-[var(--text-muted)]">—</span>
-                      : <ItemOutcomeBadge
-                          outcome={lineStatus}
-                          reason={deliveryFailLine ? null : item.reason}
-                          reasonLabel={deliveryFailLine ? failMotif : reasonLabel}
-                          reasonInTooltip />}
+                    {shortSegs && shortSegs.length > 0 ? (
+                      <div className="flex flex-col gap-1 items-start">
+                        {shortSegs.map((sg, si) => (
+                          <span key={si} className="inline-flex items-center gap-1">
+                            <ItemOutcomeBadge outcome={sg.disposition} reason={sg.reasonCode} reasonLabel={sg.reasonLabel} reasonInTooltip />
+                            <span className="text-2xs font-mono text-[var(--text-muted)]">×{sg.quantity}</span>
+                          </span>
+                        ))}
+                      </div>
+                    ) : lineStatus == null ? (
+                      <span className="text-xs text-[var(--text-muted)]">—</span>
+                    ) : (
+                      <ItemOutcomeBadge
+                        outcome={lineStatus}
+                        reason={deliveryFailLine ? null : item.reason}
+                        reasonLabel={deliveryFailLine ? failMotif : reasonLabel}
+                        reasonInTooltip />
+                    )}
                   </td>
                   <td style={{ padding: '10px 12px', border: 'none' }}>
                     <span className="text-xs text-[var(--text-primary)]">{formatMoney(item.unitPrice, currency ?? undefined)}</span>

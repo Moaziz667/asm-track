@@ -147,7 +147,7 @@ export function QueueDetail() {
                   <SlaHealthBadge health={effectiveSlaHealth} size="sm" />
                 </div>
                 <Link to={`/deliveries/${id}`} className="text-2xs font-semibold text-[var(--brand)] hover:underline inline-flex items-center gap-0.5">
-                  {t.dispatchDeskPage.openLink} →
+                  {t.dispatchDeskPage.openLink}
                 </Link>
               </div>
             </div>

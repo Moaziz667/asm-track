@@ -98,6 +98,9 @@ public class ErpSyncCommandPublisher {
             if (item.getReason() != null)           m.put("reason", item.getReason());
             if (item.getReasonLabel() != null)      m.put("reasonLabel", item.getReasonLabel());
             if (item.getComment() != null)          m.put("comment", item.getComment());
+            // WMS breakdown: forward the full per-unit disposition segments so the Odoo chatter note
+            // can list every outcome (Manquant/Refusé/Endommagé ×qty), not just the dominant one.
+            if (item.hasSegments())                 m.put("segments", item.getSegments());
             out.add(m);
         }
         return out;

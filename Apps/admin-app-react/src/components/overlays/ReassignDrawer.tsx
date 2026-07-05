@@ -39,6 +39,7 @@ interface RouteStop {
   etaAt?: string;
   startTimeWindow?: string;
   endTimeWindow?: string;
+  stopType?: string;   // DELIVERY | PICKUP — pickups are depot loads, not insertion positions
 }
 
 interface RouteOption {
@@ -416,7 +417,17 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
     }
 
     // Window is optional: pre-filled from the slot and editable. If left empty the backend
-    // inherits the delivery's current window — so we no longer hard-block on it.
+    // inherits the delivery's current window — so we no longer hard-block on it. BUT if both
+    // ends are set, an inverted/zero window (start ≥ end, e.g. 08:00 → 07:55) is always invalid —
+    // hard-block it here regardless of assign/reassign mode so we never push a nonsensical window.
+    {
+      const s = parseHHMM(startTimeWindow);
+      const e = parseHHMM(endTimeWindow);
+      if (s !== null && e !== null && s >= e) {
+        showErrorToast(t.reassignDrawer.timeWindowErrorDesc);
+        return;
+      }
+    }
 
     setSubmitting(true);
     try {
@@ -480,7 +491,8 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
 
   const selectedDriver = drivers.find(d => d.id === selectedDriverId);
   const dateGroups = groupByDate(routes);
-  const activeStops = selectedRoute?.stops.filter(s => !STOP_STATUS_DONE.has(s.status)).sort((a, b) => a.stopOrder - b.stopOrder) ?? [];
+  // Exclude depot PICKUP stops — they're loading operations, not insertion positions for a delivery.
+  const activeStops = selectedRoute?.stops.filter(s => !STOP_STATUS_DONE.has(s.status) && s.stopType !== 'PICKUP').sort((a, b) => a.stopOrder - b.stopOrder) ?? [];
 
   function parseHHMM(t: string): number | null {
     const parts = t.trim().split(':');
@@ -547,7 +559,7 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
           <Button
             size="sm"
             onClick={submit}
-            disabled={submitting || (!isAssignMode && !isBatch && selectedRoute?.status !== 'DRAFT' && !note.trim()) || (!isAssignMode && hasTimeConflict) || (!!capacityInfo?.over && !acknowledgeOverload)}
+            disabled={submitting || (!isAssignMode && !isBatch && selectedRoute?.status !== 'DRAFT' && !note.trim()) || hasTimeConflict || (!!capacityInfo?.over && !acknowledgeOverload)}
           >
             {submitting && (
               <svg className="animate-spin -ml-0.5 mr-1.5 h-3 w-3" fill="none" viewBox="0 0 24 24">

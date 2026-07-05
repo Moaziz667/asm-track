@@ -379,6 +379,7 @@ export const EN_COPY = {
     REJECTED: 'Rejected',
     BACKORDER: 'Backorder',
     RESCHEDULED: 'Rescheduled',
+    REASSIGNED: 'Reassigned',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -392,11 +393,10 @@ export const EN_COPY = {
   } as Record<string, string>,
 
   // Where a failure motif is offered (applicability, not analytics).
-  failureContexts: {
-    FAILURE:      'Full failure',
-    ITEM_REFUSED: 'Refused item',
-    ITEM_DAMAGED: 'Damaged item',
-    ITEM_MISSING: 'Missing item',
+  failureScopes: {
+    DELIVERY: 'Delivery',
+    ITEM:     'Item',
+    BOTH:     'Both',
   } as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────

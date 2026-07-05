@@ -4,8 +4,6 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.time.LocalDateTime;
-import java.util.EnumSet;
-import java.util.Set;
 import java.util.UUID;
 
 /**
@@ -44,11 +42,12 @@ public class FailureReason {
     @Column(name = "category", nullable = false, length = 30)
     private FailureCode category;
 
-    /** Where this motif is offered (full failure / per-item refused/damaged/missing). */
-    @Convert(converter = FailureContextSetConverter.class)
-    @Column(name = "applies_to", nullable = false, length = 120)
+    /** Where this motif is usable: whole-delivery failure, per-line item disposition, or both. The
+     *  disposition itself (refused/damaged/missing) comes from {@link #category}. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "scope", nullable = false, length = 20)
     @Builder.Default
-    private Set<FailureContext> appliesTo = EnumSet.of(FailureContext.FAILURE);
+    private ReasonScope scope = ReasonScope.DELIVERY;
 
     @Column(name = "active", nullable = false)
     @Builder.Default

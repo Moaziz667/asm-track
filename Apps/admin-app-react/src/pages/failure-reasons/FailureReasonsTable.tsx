@@ -6,26 +6,35 @@ import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { useT } from '@/lib/LocaleContext';
-import { IconPlus, IconPencil, IconBan, IconCheck, IconSearch, IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
+import { IconPencil, IconBan, IconCheck, IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings, ColumnDef } from '@/hooks/useColumnSettings';
 import { DisplaySettingsDropdown } from '@/components/ui/DisplaySettingsDropdown';
+import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { AddButton } from '@/components/ui/AddButton';
+import { TablePagination } from '@/components/data-display/TablePagination';
 import { cn } from '@/lib/utils';
 
 // Analytics categories (mirror backend FailureCode enum). Labels come from i18n (t.failureCodes).
 const CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'MISSING', 'OTHER'] as const;
 type Category = typeof CATEGORIES[number];
 
-// Applicability contexts (mirror backend FailureContext enum). Labels from i18n (t.failureContexts).
-const CONTEXTS = ['FAILURE', 'ITEM_REFUSED', 'ITEM_DAMAGED', 'ITEM_MISSING'] as const;
-type Context = typeof CONTEXTS[number];
+// Scope (mirror backend ReasonScope enum). Category drives the disposition; scope only says WHERE the
+// reason is usable. DELIVERY = failure sheet, ITEM = per-line disposition, BOTH = both.
+const SCOPES = ['DELIVERY', 'ITEM', 'BOTH'] as const;
+type Scope = typeof SCOPES[number];
+
+// Only these categories are per-item dispositions — so ITEM / BOTH scope is only valid for them.
+const ITEM_CATEGORIES: readonly Category[] = ['REFUSED', 'DAMAGED', 'MISSING'];
+const isItemCategory = (c: Category) => ITEM_CATEGORIES.includes(c);
+const allowedScopes = (c: Category): Scope[] => (isItemCategory(c) ? ['DELIVERY', 'ITEM', 'BOTH'] : ['DELIVERY']);
 
 interface FailureReason {
   id: string;
   code: string;
   label: string;
   category: Category;
-  appliesTo: Context[];
+  scope: Scope;
   active: boolean;
   sortOrder: number;
 }
@@ -34,13 +43,13 @@ interface FormState {
   id?: string;
   label: string;
   category: Category;
-  appliesTo: Context[];
+  scope: Scope;
   sortOrder: number;
   active: boolean;
 }
 
 // Code is auto-generated server-side from the label (and deduped) — not an editable field.
-const EMPTY_FORM: FormState = { label: '', category: 'OTHER', appliesTo: ['FAILURE'], sortOrder: 100, active: true };
+const EMPTY_FORM: FormState = { label: '', category: 'OTHER', scope: 'DELIVERY', sortOrder: 100, active: true };
 
 const REASON_ROW_H = {
   compact: 'h-9',
@@ -53,16 +62,18 @@ type StatusFilter = 'all' | 'active' | 'inactive';
 
 export default function FailureReasonsTable({ canManage }: { canManage: boolean }) {
   const t = useT();
+  const s = t.failureReasonsSettings;
   const catLabel = (c: string) => (t.failureCodes as Record<string, string>)[c] ?? c;
-  const ctxLabel = (c: string) => (t.failureContexts as Record<string, string>)?.[c] ?? c;
+  const scopeLabel = (sc: string) =>
+    (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Livraison', ITEM: 'Article', BOTH: 'Les deux' } as Record<string, string>)[sc] ?? sc;
 
   const REASON_COLUMNS = useMemo<ColumnDef[]>(() => [
-    { id: 'label', label: t.failureReasonsSettings.tableLabel || 'Motif', pinned: true },
-    { id: 'code', label: t.failureReasonsSettings.tableCode || 'Code' },
-    { id: 'category', label: t.failureReasonsSettings.tableCategory || 'Catégorie' },
-    { id: 'appliesTo', label: t.failureReasonsSettings.tableAppliesTo || "S'applique à" },
-    { id: 'order', label: t.failureReasonsSettings.formOrder || 'Ordre' },
-    { id: 'status', label: t.failureReasonsSettings.tableStatus || 'Statut' },
+    { id: 'label', label: s.tableLabel || 'Motif', pinned: true },
+    { id: 'code', label: s.tableCode || 'Code' },
+    { id: 'category', label: s.tableCategory || 'Catégorie' },
+    { id: 'scope', label: (s as any).tableScope || 'Portée' },
+    { id: 'order', label: s.formOrder || 'Ordre' },
+    { id: 'status', label: s.tableStatus || 'Statut' },
   ], [t]);
 
   const { density, setDensity } = useDensity('failure-reasons', 'comfortable');
@@ -76,9 +87,11 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   // Toolbar state
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<'all' | Category>('all');
-  const [contextFilter, setContextFilter] = useState<'all' | Context>('all');
+  const [scopeFilter, setScopeFilter] = useState<'all' | Scope>('all');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [sort, setSort] = useState<{ key: SortKey; dir: 'asc' | 'desc' }>({ key: 'order', dir: 'asc' });
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
 
   const fetchReasons = useCallback(async () => {
     setLoading(true);
@@ -86,11 +99,11 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
       const res = await api.get('/api/admin/failure-reasons');
       const rows: FailureReason[] = (Array.isArray(res.data) ? res.data : []).map((r: any) => ({
         ...r,
-        appliesTo: Array.isArray(r.appliesTo) ? r.appliesTo : (r.appliesTo ? [...r.appliesTo] : []),
+        scope: (r.scope ?? 'DELIVERY') as Scope,
       }));
       setReasons(rows);
     } catch {
-      showErrorToast(null, t.failureReasonsSettings.toastLoadFailed);
+      showErrorToast(null, s.toastLoadFailed);
     } finally {
       setLoading(false);
     }
@@ -100,38 +113,33 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
 
   const openCreate = () => { setForm(EMPTY_FORM); setModalOpen(true); };
   const openEdit = (r: FailureReason) => {
-    setForm({ id: r.id, label: r.label, category: r.category, appliesTo: [...r.appliesTo], sortOrder: r.sortOrder, active: r.active });
+    setForm({ id: r.id, label: r.label, category: r.category, scope: r.scope, sortOrder: r.sortOrder, active: r.active });
     setModalOpen(true);
   };
 
-  const toggleFormContext = (ctx: Context) => setForm(f => ({
+  // Changing the category re-clamps the scope: a non-item category can only be DELIVERY.
+  const setCategory = (category: Category) => setForm(f => ({
     ...f,
-    appliesTo: f.appliesTo.includes(ctx) ? f.appliesTo.filter(c => c !== ctx) : [...f.appliesTo, ctx],
+    category,
+    scope: allowedScopes(category).includes(f.scope) ? f.scope : 'DELIVERY',
   }));
 
   const submit = async () => {
-    if (!form.label.trim()) { showErrorToast(null, t.failureReasonsSettings.toastLabelRequired); return; }
-    if (form.appliesTo.length === 0) { showErrorToast(null, t.failureReasonsSettings.formAppliesToRequired); return; }
+    if (!form.label.trim()) { showErrorToast(null, s.toastLabelRequired); return; }
     setSubmitting(true);
     try {
-      const payload = {
-        label: form.label.trim(),
-        category: form.category,
-        appliesTo: form.appliesTo,
-        sortOrder: form.sortOrder,
-        active: form.active,
-      };
+      const payload = { label: form.label.trim(), category: form.category, scope: form.scope, sortOrder: form.sortOrder, active: form.active };
       if (form.id) {
         await api.put(`/api/admin/failure-reasons/${form.id}`, payload);
-        showSuccessToast(t.failureReasonsSettings.toastUpdated);
+        showSuccessToast(s.toastUpdated);
       } else {
         await api.post('/api/admin/failure-reasons', payload);
-        showSuccessToast(t.failureReasonsSettings.toastCreated);
+        showSuccessToast(s.toastCreated);
       }
       setModalOpen(false);
       await fetchReasons();
     } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.failureReasonsSettings.toastSaveFailed);
+      showErrorToast(err?.response?.data?.message, s.toastSaveFailed);
     } finally {
       setSubmitting(false);
     }
@@ -140,22 +148,22 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const deactivate = async (r: FailureReason) => {
     try {
       await api.delete(`/api/admin/failure-reasons/${r.id}`);
-      showSuccessToast(t.failureReasonsSettings.toastDeactivated);
+      showSuccessToast(s.toastDeactivated);
       await fetchReasons();
     } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.failureReasonsSettings.toastDeactivateFailed);
+      showErrorToast(err?.response?.data?.message, s.toastDeactivateFailed);
     }
   };
 
   const reactivate = async (r: FailureReason) => {
     try {
       await api.put(`/api/admin/failure-reasons/${r.id}`, {
-        label: r.label, category: r.category, appliesTo: r.appliesTo, sortOrder: r.sortOrder, active: true,
+        label: r.label, category: r.category, scope: r.scope, sortOrder: r.sortOrder, active: true,
       });
-      showSuccessToast(t.failureReasonsSettings.toastReactivated);
+      showSuccessToast(s.toastReactivated);
       await fetchReasons();
     } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.failureReasonsSettings.toastReactivateFailed);
+      showErrorToast(err?.response?.data?.message, s.toastReactivateFailed);
     }
   };
 
@@ -167,12 +175,12 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     if (!neighbour) return;
     try {
       await Promise.all([
-        api.put(`/api/admin/failure-reasons/${r.id}`, { label: r.label, category: r.category, appliesTo: r.appliesTo, active: r.active, sortOrder: neighbour.sortOrder }),
-        api.put(`/api/admin/failure-reasons/${neighbour.id}`, { label: neighbour.label, category: neighbour.category, appliesTo: neighbour.appliesTo, active: neighbour.active, sortOrder: r.sortOrder }),
+        api.put(`/api/admin/failure-reasons/${r.id}`, { label: r.label, category: r.category, scope: r.scope, active: r.active, sortOrder: neighbour.sortOrder }),
+        api.put(`/api/admin/failure-reasons/${neighbour.id}`, { label: neighbour.label, category: neighbour.category, scope: neighbour.scope, active: neighbour.active, sortOrder: r.sortOrder }),
       ]);
       await fetchReasons();
     } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.failureReasonsSettings.toastReorderFailed);
+      showErrorToast(err?.response?.data?.message, s.toastReorderFailed);
     }
   };
 
@@ -191,7 +199,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     const filtered = reasons.filter(r => {
       if (q && !(r.label.toLowerCase().includes(q) || r.code.toLowerCase().includes(q))) return false;
       if (categoryFilter !== 'all' && r.category !== categoryFilter) return false;
-      if (contextFilter !== 'all' && !r.appliesTo.includes(contextFilter)) return false;
+      if (scopeFilter !== 'all' && r.scope !== scopeFilter) return false;
       if (statusFilter === 'active' && !r.active) return false;
       if (statusFilter === 'inactive' && r.active) return false;
       return true;
@@ -207,222 +215,233 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
         default: return dir * ((a.sortOrder - b.sortOrder) || a.label.localeCompare(b.label));
       }
     });
-  }, [reasons, search, categoryFilter, contextFilter, statusFilter, sort, t]);
+  }, [reasons, search, categoryFilter, scopeFilter, statusFilter, sort, t]);
 
-  const toggleSort = (key: SortKey) => setSort(s => s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
+  // Client-side pagination over the filtered set (bounded reference catalog), same primitive as the
+  // Drivers/Vehicles/Users tables.
+  const totalPages = Math.max(1, Math.ceil(visible.length / pageSize));
+  useEffect(() => { setPage(0); }, [search, categoryFilter, scopeFilter, statusFilter, pageSize]);
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = useMemo(
+    () => visible.slice(safePage * pageSize, safePage * pageSize + pageSize),
+    [visible, safePage, pageSize],
+  );
+
+  const toggleSort = (key: SortKey) => setSort(st => st.key === key ? { key, dir: st.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: 'asc' });
   const sortIcon = (key: SortKey) => sort.key !== key
     ? <IconSelector size={12} className="opacity-40" />
     : (sort.dir === 'asc' ? <IconChevronUp size={12} /> : <IconChevronDown size={12} />);
   const SORTABLE: Record<string, SortKey> = { label: 'label', code: 'code', category: 'category', order: 'order', status: 'status' };
 
+  const scopeOptions = allowedScopes(form.category);
+
   return (
-    <div className="flex flex-col gap-4 animate-fade-in">
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-md font-bold text-[var(--text-primary)]">{t.failureReasonsSettings.title}</h2>
-          <p className="text-xs text-[var(--text-muted)]">{t.failureReasonsSettings.subtitle}</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <DisplaySettingsDropdown
-            columns={orderedColumns}
-            visibleIds={visibleIds}
-            onToggle={toggleColumn}
-            onReorder={moveColumn}
-            onReset={resetColumns}
-            density={density}
-            onDensityChange={setDensity}
-          />
-          {canManage && (
-            <Button size="sm" onClick={openCreate} className="gap-1.5">
-              <IconPlus size={14} /> {t.failureReasonsSettings.addButton}
-            </Button>
-          )}
-        </div>
-      </div>
+    <div className="h-[calc(100vh-64px)] overflow-hidden bg-[var(--app-bg)] flex flex-col">
+      <PageFilterBar
+        search={search}
+        onSearch={setSearch}
+        searchPlaceholder={s.searchPlaceholder}
+        attributes={[
+          { key: 'category', label: s.tableCategory || 'Catégorie', options: CATEGORIES.map(c => ({ value: c, label: catLabel(c) })) },
+          { key: 'scope', label: (s as any).tableScope || 'Portée', options: SCOPES.map(sc => ({ value: sc, label: scopeLabel(sc) })) },
+          { key: 'status', label: s.tableStatus || 'Statut', options: [
+            { value: 'active', label: s.active },
+            { value: 'inactive', label: s.inactive },
+          ]},
+        ]}
+        activeFilters={{
+          ...(categoryFilter !== 'all' && { category: categoryFilter }),
+          ...(scopeFilter !== 'all' && { scope: scopeFilter }),
+          ...(statusFilter !== 'all' && { status: statusFilter }),
+        }}
+        onFilterChange={(key, val) => {
+          if (key === 'category') setCategoryFilter((val ?? 'all') as 'all' | Category);
+          if (key === 'scope') setScopeFilter((val ?? 'all') as 'all' | Scope);
+          if (key === 'status') setStatusFilter((val ?? 'all') as StatusFilter);
+        }}
+        onRefresh={fetchReasons}
+        refreshing={loading}
+        extraActions={canManage ? <AddButton label={s.addButton} onClick={openCreate} /> : undefined}
+      />
 
-      {/* Toolbar: search + filters */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <div className="relative flex-1 min-w-[200px]">
-          <IconSearch size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder={t.failureReasonsSettings.searchPlaceholder}
-            className="w-full h-9 ps-9 pe-3 text-sm rounded-md bg-[var(--surface)] border border-[var(--border)] text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)]"
-          />
-        </div>
-        <FieldSelect
-          value={categoryFilter}
-          onChange={e => setCategoryFilter(e.target.value as 'all' | Category)}
-          options={[{ value: 'all', label: t.failureReasonsSettings.filterAllCategories }, ...CATEGORIES.map(c => ({ value: c, label: catLabel(c) }))]}
-        />
-        <FieldSelect
-          value={contextFilter}
-          onChange={e => setContextFilter(e.target.value as 'all' | Context)}
-          options={[{ value: 'all', label: t.failureReasonsSettings.filterAllContexts }, ...CONTEXTS.map(c => ({ value: c, label: ctxLabel(c) }))]}
-        />
-        <FieldSelect
-          value={statusFilter}
-          onChange={e => setStatusFilter(e.target.value as StatusFilter)}
-          options={[
-            { value: 'all', label: t.failureReasonsSettings.filterAllStatuses },
-            { value: 'active', label: t.failureReasonsSettings.active },
-            { value: 'inactive', label: t.failureReasonsSettings.inactive },
-          ]}
-        />
-      </div>
+      <div className="flex flex-1 min-h-0 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
+          {/* Toolbar */}
+          <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
+            <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
+              {visible.length} {(s as any).countLabel || 'motif'}{visible.length !== 1 ? 's' : ''}
+            </span>
+            <DisplaySettingsDropdown
+              columns={orderedColumns}
+              visibleIds={visibleIds}
+              onToggle={toggleColumn}
+              onReorder={moveColumn}
+              onReset={resetColumns}
+              density={density}
+              onDensityChange={setDensity}
+            />
+          </div>
 
-      <div className="rounded-lg overflow-x-auto" style={{ border: '1px solid var(--border)', background: 'var(--surface)' }}>
-        <table className="w-full text-sm border-collapse min-w-[720px]">
-          <thead>
-            <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
-              {orderedColumns.map(col => {
-                if (!visibleIds.has(col.id)) return null;
-                const sk = SORTABLE[col.id];
-                return (
-                  <th key={col.id} className="text-start font-bold px-4 align-middle">
-                    {sk ? (
-                      <button type="button" onClick={() => toggleSort(sk)} className="inline-flex items-center gap-1 hover:text-[var(--text-primary)]">
-                        {col.label} {sortIcon(sk)}
-                      </button>
-                    ) : col.label}
-                  </th>
-                );
-              })}
-              <th className="px-4 align-middle" />
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-[var(--border)]">
-            {loading ? (
-              <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.loading}</td></tr>
-            ) : visible.length === 0 ? (
-              <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{t.failureReasonsSettings.empty}</td></tr>
-            ) : visible.map(r => (
-              <tr key={r.id} className={cn('group hover:bg-[var(--hover-bg)] transition-all', REASON_ROW_H[density])}>
-                {orderedColumns.map(col => {
-                  if (!visibleIds.has(col.id)) return null;
-                  if (col.id === 'label') return (
-                    <td key="label" className="px-4 font-semibold text-[var(--text-primary)] align-middle">{r.label}</td>
-                  );
-                  if (col.id === 'code') return (
-                    <td key="code" className="px-4 font-mono text-xs text-[var(--text-muted)] align-middle">{r.code}</td>
-                  );
-                  if (col.id === 'category') return (
-                    <td key="category" className="px-4 align-middle">
-                      <StatusBadge status={r.category} label={catLabel(r.category)} size="sm" />
-                    </td>
-                  );
-                  if (col.id === 'appliesTo') return (
-                    <td key="appliesTo" className="px-4 align-middle">
-                      <div className="flex flex-wrap gap-1">
-                        {r.appliesTo.map(c => (
-                          <StatusBadge key={c} status={c} label={ctxLabel(c)} size="sm" />
-                        ))}
-                      </div>
-                    </td>
-                  );
-                  if (col.id === 'order') return (
-                    <td key="order" className="px-4 align-middle">
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs text-[var(--text-muted)] w-6">{r.sortOrder}</span>
+          <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm border-collapse min-w-[720px]">
+                <thead className="sticky top-0 z-10">
+                  <tr className="text-2xs uppercase tracking-wider text-[var(--text-muted)] h-10 border-b border-[var(--border)]" style={{ background: 'var(--surface-sunken)', boxShadow: 'var(--shadow-inset)' }}>
+                    {orderedColumns.map(col => {
+                      if (!visibleIds.has(col.id)) return null;
+                      const sk = SORTABLE[col.id];
+                      return (
+                        <th key={col.id} className="text-start font-bold px-4 align-middle">
+                          {sk ? (
+                            <button type="button" onClick={() => toggleSort(sk)} className="inline-flex items-center gap-1 hover:text-[var(--text-primary)]">
+                              {col.label} {sortIcon(sk)}
+                            </button>
+                          ) : col.label}
+                        </th>
+                      );
+                    })}
+                    <th className="px-4 align-middle" />
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[var(--border)]">
+                  {loading ? (
+                    <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{s.loading}</td></tr>
+                  ) : visible.length === 0 ? (
+                    <tr><td colSpan={visibleIds.size + 1} className="px-4 py-8 text-center text-[var(--text-muted)]">{s.empty}</td></tr>
+                  ) : pageRows.map(r => (
+                    <tr key={r.id} className={cn('group hover:bg-[var(--hover-bg)] transition-all', REASON_ROW_H[density])}>
+                      {orderedColumns.map(col => {
+                        if (!visibleIds.has(col.id)) return null;
+                        if (col.id === 'label') return (
+                          <td key="label" className="px-4 font-semibold text-[var(--text-primary)] align-middle">{r.label}</td>
+                        );
+                        if (col.id === 'code') return (
+                          <td key="code" className="px-4 font-mono text-xs text-[var(--text-muted)] align-middle">{r.code}</td>
+                        );
+                        if (col.id === 'category') return (
+                          <td key="category" className="px-4 align-middle">
+                            <StatusBadge status={r.category} label={catLabel(r.category)} size="sm" />
+                          </td>
+                        );
+                        if (col.id === 'scope') return (
+                          <td key="scope" className="px-4 align-middle">
+                            <span className="text-2xs font-medium px-2 py-0.5 rounded" style={{ background: 'var(--hover-bg)', color: 'var(--text-secondary)' }}>
+                              {scopeLabel(r.scope)}
+                            </span>
+                          </td>
+                        );
+                        if (col.id === 'order') return (
+                          <td key="order" className="px-4 align-middle">
+                            <div className="flex items-center gap-1.5">
+                              <span className="font-mono text-xs text-[var(--text-muted)] w-6">{r.sortOrder}</span>
+                              {canManage && (
+                                <span className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button type="button" disabled={!canMoveUp(r)} onClick={() => move(r, -1)}
+                                          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed" title={s.moveUp}>
+                                    <IconChevronUp size={14} />
+                                  </button>
+                                  <button type="button" disabled={!canMoveDown(r)} onClick={() => move(r, 1)}
+                                          className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed" title={s.moveDown}>
+                                    <IconChevronDown size={14} />
+                                  </button>
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                        );
+                        if (col.id === 'status') return (
+                          <td key="status" className="px-4 align-middle">
+                            <StatusBadge
+                              status={r.active ? 'ACTIVE' : 'INACTIVE'}
+                              label={r.active ? s.active : s.inactive}
+                              size="sm"
+                            />
+                          </td>
+                        );
+                        return null;
+                      })}
+                      <td className="px-4 text-end align-middle">
                         {canManage && (
-                          <span className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button type="button" disabled={!canMoveUp(r)} onClick={() => move(r, -1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed" title={t.failureReasonsSettings.moveUp}>
-                              <IconChevronUp size={14} />
+                          <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button type="button" onClick={() => openEdit(r)}
+                                    className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]" title={s.editTooltip}>
+                              <IconPencil size={13} />
                             </button>
-                            <button type="button" disabled={!canMoveDown(r)} onClick={() => move(r, 1)}
-                                    className="w-6 h-6 flex items-center justify-center rounded text-[var(--text-muted)] hover:bg-[var(--hover-bg)] disabled:opacity-30 disabled:cursor-not-allowed" title={t.failureReasonsSettings.moveDown}>
-                              <IconChevronDown size={14} />
-                            </button>
-                          </span>
+                            {r.active ? (
+                              <button type="button" onClick={() => deactivate(r)}
+                                      className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]" title={s.deactivateTooltip}>
+                                <IconBan size={13} />
+                              </button>
+                            ) : (
+                              <button type="button" onClick={() => reactivate(r)}
+                                      className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--success)] hover:bg-[var(--hover-bg)]" title={s.reactivateTooltip}>
+                                <IconCheck size={13} />
+                              </button>
+                            )}
+                          </div>
                         )}
-                      </div>
-                    </td>
-                  );
-                  if (col.id === 'status') return (
-                    <td key="status" className="px-4 align-middle">
-                      <StatusBadge
-                        status={r.active ? 'ACTIVE' : 'INACTIVE'}
-                        label={r.active ? t.failureReasonsSettings.active : t.failureReasonsSettings.inactive}
-                        size="sm"
-                      />
-                    </td>
-                  );
-                  return null;
-                })}
-                <td className="px-4 text-end align-middle">
-                  {canManage && (
-                    <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button type="button" onClick={() => openEdit(r)}
-                              className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.editTooltip}>
-                        <IconPencil size={13} />
-                      </button>
-                      {r.active ? (
-                        <button type="button" onClick={() => deactivate(r)}
-                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--danger)] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.deactivateTooltip}>
-                          <IconBan size={13} />
-                        </button>
-                      ) : (
-                        <button type="button" onClick={() => reactivate(r)}
-                                className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--success)] hover:bg-[var(--hover-bg)]" title={t.failureReasonsSettings.reactivateTooltip}>
-                          <IconCheck size={13} />
-                        </button>
-                      )}
-                    </div>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      <AppModal opened={modalOpen} onClose={() => setModalOpen(false)} title={form.id ? t.failureReasonsSettings.editTitle : t.failureReasonsSettings.createTitle} size="sm">
-        <div className="flex flex-col gap-4">
-          <FieldInput
-            label={t.failureReasonsSettings.formLabel}
-            value={form.label}
-            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
-            placeholder={t.failureReasonsSettings.formLabelPlaceholder}
-          />
-          <FieldSelect
-            label={t.failureReasonsSettings.formCategory}
-            value={form.category}
-            onChange={e => setForm(f => ({ ...f, category: e.target.value as Category }))}
-            options={CATEGORIES.map(c => ({ value: c, label: catLabel(c) }))}
-          />
-          <div className="flex flex-col gap-1.5">
-            <span className="text-sm font-semibold text-[var(--text-secondary)]">{t.failureReasonsSettings.formAppliesTo}</span>
-            <span className="text-2xs text-[var(--text-muted)] -mt-1">{t.failureReasonsSettings.formAppliesToHint}</span>
-            <div className="flex flex-col gap-1.5 mt-1">
-              {CONTEXTS.map(ctx => (
-                <label key={ctx} className="flex items-center gap-2 cursor-pointer text-sm">
-                  <input type="checkbox" checked={form.appliesTo.includes(ctx)} onChange={() => toggleFormContext(ctx)}
-                         className="w-4 h-4 accent-[var(--brand)]" />
-                  <span className="text-[var(--text-secondary)]">{ctxLabel(ctx)}</span>
-                </label>
-              ))}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
+
+          <TablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalElements={visible.length}
+            size={pageSize}
+            onPageChange={setPage}
+            onSizeChange={setPageSize}
+          />
+        </div>
+      </div>
+
+      <AppModal opened={modalOpen} onClose={() => setModalOpen(false)} title={form.id ? s.editTitle : s.createTitle} size="sm">
+        <div className="flex flex-col gap-4">
+          <FieldInput
+            label={s.formLabel}
+            value={form.label}
+            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            placeholder={s.formLabelPlaceholder}
+          />
+          <FieldSelect
+            label={s.formCategory}
+            value={form.category}
+            onChange={e => setCategory(e.target.value as Category)}
+            options={CATEGORIES.map(c => ({ value: c, label: catLabel(c) }))}
+          />
+          <FieldSelect
+            label={(s as any).formScope || 'Portée'}
+            value={form.scope}
+            onChange={e => setForm(f => ({ ...f, scope: e.target.value as Scope }))}
+            options={scopeOptions.map(sc => ({ value: sc, label: scopeLabel(sc) }))}
+          />
+          {!isItemCategory(form.category) && (
+            <span className="text-2xs text-[var(--text-muted)] -mt-2">
+              {(s as any).formScopeItemHint || 'La portée « Article » n’est disponible que pour les catégories Refusé, Endommagé ou Manquant.'}
+            </span>
+          )}
           <div className="flex items-end gap-4">
             <FieldInput
               wrapperClassName="flex-1"
               type="number"
-              label={t.failureReasonsSettings.formOrder}
+              label={s.formOrder}
               value={form.sortOrder}
               onChange={e => setForm(f => ({ ...f, sortOrder: Number(e.target.value) || 0 }))}
             />
             <label className="flex items-center gap-2 h-9 cursor-pointer">
               <input type="checkbox" checked={form.active} onChange={e => setForm(f => ({ ...f, active: e.target.checked }))}
                      className="w-4 h-4 accent-[var(--brand)]" />
-              <span className="text-sm font-semibold text-[var(--text-secondary)]">{t.failureReasonsSettings.formActive}</span>
+              <span className="text-sm font-semibold text-[var(--text-secondary)]">{s.formActive}</span>
             </label>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
-            <Button variant="outline" size="sm" onClick={() => setModalOpen(false)} className="h-8 px-3 text-xs">{t.failureReasonsSettings.cancelButton}</Button>
+            <Button variant="outline" size="sm" onClick={() => setModalOpen(false)} className="h-8 px-3 text-xs">{s.cancelButton}</Button>
             <Button size="sm" onClick={submit} disabled={submitting} className="px-4">
-              {submitting ? t.failureReasonsSettings.savingButton : t.failureReasonsSettings.saveButton}
+              {submitting ? s.savingButton : s.saveButton}
             </Button>
           </div>
         </div>

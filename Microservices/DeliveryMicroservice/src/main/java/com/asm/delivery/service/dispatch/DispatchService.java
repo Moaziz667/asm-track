@@ -62,6 +62,7 @@ public class DispatchService {
     private final GeocodingService geocodingService;
     private final VehicleRepository vehicleRepository;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
+    private final com.asm.delivery.service.route.PickupStopReconciler pickupStopReconciler;
     private final com.asm.delivery.service.AuditLogService auditLogService;
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.service.HandoffService handoffService;
@@ -931,6 +932,7 @@ public class DispatchService {
         List<UUID> handoffDeliveryIds = new ArrayList<>();
 
         int currentOrder = startOrder;
+        UUID firstMovedDepot = null; // seeds a brand-new target route's home depot (ADR-029 parity)
         for (UUID stopId : req.getStopIds()) {
             RouteStop stop = sourceStopMap.get(stopId);
             if (stop == null) {
@@ -963,6 +965,9 @@ public class DispatchService {
 
             Delivery delivery = deliveryRepo.findById(stop.getDeliveryId()).orElse(null);
             if (delivery != null) {
+                if (firstMovedDepot == null && delivery.getSourceDepotId() != null) {
+                    firstMovedDepot = delivery.getSourceDepotId();
+                }
                 delivery.setDriverId(targetRoute.getDriverId());
                 if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
                     delivery.setStatus(DeliveryStatus.SCHEDULED);
@@ -976,6 +981,18 @@ public class DispatchService {
 
         // Validate Capacity if target is active
         validateCapacity(targetRoute, req.getAcknowledgeWarnings());
+
+        // ADR-029 parity for the unified transfer path. Seed a brand-new target route's home depot from
+        // the moved deliveries so it won't later pull a spurious self-pickup, then reconcile PICKUP stops
+        // on BOTH routes: the source may now hold orphaned pickups (their delivery left) and the target
+        // may need new ones. Without this, transfer-stops left an orphaned source pickup that blocked
+        // route close ("stops still active — #N PENDING"). The reconciler queries stops fresh, so it sees
+        // the post-move state correctly.
+        if (targetRoute.getDepotId() == null && firstMovedDepot != null) {
+            targetRoute.setDepotId(firstMovedDepot);
+        }
+        pickupStopReconciler.reconcile(sourceRoute);
+        pickupStopReconciler.reconcile(targetRoute);
 
         sourceRoute.setRouteVersion(sourceRoute.getRouteVersion() != null ? sourceRoute.getRouteVersion() + 1 : 2);
         routeRepository.save(sourceRoute);

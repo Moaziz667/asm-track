@@ -9,11 +9,7 @@ import FailureReasonsTable from './failure-reasons/FailureReasonsTable';
 export default function FailureReasonsPage() {
   const canManage = canManageSettings(getCurrentRole());
 
-  return (
-    <div className="w-full h-full overflow-y-auto bg-[var(--app-bg)]">
-      <div className="max-w-[1100px] mx-auto px-6 py-6">
-        <FailureReasonsTable canManage={canManage} />
-      </div>
-    </div>
-  );
+  // The table now owns the full-height admin shell (PageFilterBar + toolbar + paginated table),
+  // identical to Drivers / Vehicles / Deliveries — so this page just renders it edge-to-edge.
+  return <FailureReasonsTable canManage={canManage} />;
 }

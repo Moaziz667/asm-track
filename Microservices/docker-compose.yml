@@ -108,6 +108,12 @@ services:
       KC_DB_PASSWORD: ${KC_DB_PASS}
       KC_HOSTNAME_STRICT: "false"
       KC_HTTP_ENABLED: "true"
+      # This container has no mem limit, so Keycloak's image-default heap sizing
+      # (-XX:MaxRAMPercentage=70) is computed against the whole ~2G Docker VM → the build/augment JVM
+      # tries to reserve ~1.4G heap, which the oversubscribed VM can't grant → the kernel OOM-kills the
+      # build, leaving a truncated quarkus-application.dat that fails every later start-dev (EOFException).
+      # Pin a fixed, modest heap that fits so the build completes deterministically.
+      JAVA_OPTS_KC_HEAP: "-Xms256m -Xmx768m"
       KEYCLOAK_ADMIN: admin
       KEYCLOAK_ADMIN_PASSWORD: ${KC_ADMIN_PASSWORD}
       # Client secrets injected for realm JSON interpolation
@@ -301,6 +307,12 @@ services:
     environment:
       TZ: Africa/Tunis
       SPRING_PROFILES_ACTIVE: prod
+      # JVM sizing: the Java-17 default (MaxRAMPercentage=25% ≈ 128M heap under the old 512M cap) starved
+      # this Spring Boot app's ~300M working set into permanent full-GCs, pegging the CPUs and making boot
+      # crawl (5+ min). With OSRM out of the VM there's room, so the cap is raised to 768M (below) and the
+      # heap set to a balanced ~65% (leaving ~250M for metaspace/code-cache/threads so it can't cgroup-OOM),
+      # with the single-threaded collector so GC never fans out across cores. No image rebuild needed.
+      JAVA_TOOL_OPTIONS: "-XX:MaxRAMPercentage=65.0 -XX:+UseSerialGC"
       DB_HOST: postgres-delivery
       DB_PORT: "5432"
       DB_NAME: delivery_db
@@ -336,12 +348,17 @@ services:
       FCM_SERVICE_ACCOUNT_PATH: /app/firebase-service-account.json
     volumes:
       - ./DeliveryMicroservice/firebase-service-account.json:/app/firebase-service-account.json:ro
+    deploy:
+      resources:
+        limits:
+          cpus: "1.5"
+          memory: 768M
     healthcheck:
       test: ["CMD-SHELL", "nc -z localhost 8082"]
       interval: 10s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 60s
     depends_on:
       postgres-delivery:
         condition: service_healthy

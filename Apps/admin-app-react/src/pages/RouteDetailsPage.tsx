@@ -16,7 +16,7 @@ import { IconAlertCircle } from '@tabler/icons-react';
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
-import RouteReportSection from '@/features/routes/RouteReportSection';
+import RouteClosureReport from '@/features/routes/RouteClosureReport';
 import { RouteHeader } from '@/components/route/RouteHeader';
 import { RouteStats } from '@/components/route/RouteStats';
 import { useRouteData } from './route-details/useRouteData';
@@ -243,7 +243,7 @@ export default function RouteDetailsPage() {
       </>)}
 
       {route?.status === 'CLOSED' && typeof routeId === 'string' && (
-        <RouteReportSection routeId={routeId} />
+        <RouteClosureReport routeId={routeId} />
       )}
 
       <ConfirmModal

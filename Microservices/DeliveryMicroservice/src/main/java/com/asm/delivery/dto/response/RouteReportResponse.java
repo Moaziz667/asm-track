@@ -97,6 +97,7 @@ public class RouteReportResponse {
         private UUID stopId;
         private UUID deliveryId;
         private Integer stopOrder;
+        private String orderRef;        // human-readable ERP reference (e.g. WH/OUT/00268, S00091)
         private String clientName;
         private String address;
         private String city;

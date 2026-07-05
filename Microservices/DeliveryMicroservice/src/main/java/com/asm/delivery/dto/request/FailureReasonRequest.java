@@ -1,13 +1,11 @@
 package com.asm.delivery.dto.request;
 
 import com.asm.delivery.entity.FailureCode;
-import com.asm.delivery.entity.FailureContext;
+import com.asm.delivery.entity.ReasonScope;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
-
-import java.util.Set;
 
 @Data
 public class FailureReasonRequest {
@@ -24,8 +22,9 @@ public class FailureReasonRequest {
     @NotNull
     private FailureCode category;
 
-    /** Where the motif is offered (full failure / per-item). Defaults to FAILURE when omitted. */
-    private Set<FailureContext> appliesTo;
+    /** Where the motif is usable: DELIVERY / ITEM / BOTH. Defaults to DELIVERY when omitted.
+     *  ITEM/BOTH is only valid when {@link #category} is a per-item disposition (REFUSED/DAMAGED/MISSING). */
+    private ReasonScope scope;
 
     private Boolean active;
 

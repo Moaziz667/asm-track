@@ -61,6 +61,7 @@ export interface RouteReport {
     stopId: string;
     deliveryId: string;
     stopOrder: number;
+    orderRef: string | null;
     clientName: string | null;
     address: string | null;
     city: string | null;

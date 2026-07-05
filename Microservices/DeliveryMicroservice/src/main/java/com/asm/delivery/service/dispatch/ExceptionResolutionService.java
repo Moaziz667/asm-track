@@ -105,7 +105,7 @@ public class ExceptionResolutionService {
 		//    initialized before mapActionResult() accesses order.getZoneId() outside a session.
 		Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
 				.orElseThrow(() -> AppException.notFound("Delivery not found"));
-		return mapActionResult(delivery, "WARNING", "RESCHEDULED", "Delivery reassigned successfully");
+		return mapActionResult(delivery, "WARNING", "REASSIGNED", "Delivery reassigned successfully");
 	}
 
 	/** Best-effort driver display name. Returns null on any failure so callers fall back
@@ -790,7 +790,21 @@ public class ExceptionResolutionService {
 
                             UUID sourceRouteId = sourceRoute.getId();
                             affectedRouteIds.add(sourceRouteId);
-                            routeStopRepository.delete(currentStop);
+                            // Soft-delete on active source routes so the closure report can trace the
+                            // reassign (keeps a REMOVED_REPLANNED tombstone). Hard-delete only on DRAFT —
+                            // pure planning has no history. Mirrors removeStopFromCurrentRoute (replan path).
+                            if (sourceRoute.getStatus() == RouteStatus.VALIDATED || sourceRoute.getStatus() == RouteStatus.IN_PROGRESS) {
+                                // Reassign (moved to another driver) — distinct from replan (back to pool).
+                                // Status stays REMOVED_REPLANNED (the tombstone enum); the reason records
+                                // the real intent so the report/PDF/audit read "réassigné", not "replanifié".
+                                currentStop.setStatus(RouteStopStatus.REMOVED_REPLANNED);
+                                currentStop.setRemovedAt(LocalDateTime.now());
+                                currentStop.setRemovedReason("REASSIGNED");
+                                currentStop.setRemovedBy(com.asm.delivery.web.ActorContext.changedBy());
+                                routeStopRepository.save(currentStop);
+                            } else {
+                                routeStopRepository.delete(currentStop);
+                            }
                             repackStopOrder(sourceRouteId);
                         }
                 }

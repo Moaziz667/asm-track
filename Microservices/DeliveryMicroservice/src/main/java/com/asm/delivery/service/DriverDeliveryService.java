@@ -258,6 +258,7 @@ public class DriverDeliveryService {
                 item.setOutcome("DELIVERED");
                 item.setReason(null);
                 item.setComment(null);
+                item.setSegments(null);
             }
         }
 
@@ -374,24 +375,29 @@ public class DriverDeliveryService {
             String resolvedSku = (matched != null && matched.getSku() != null && !matched.getSku().isBlank())
                     ? matched.getSku().trim()
                     : (matched != null && matched.getName() != null ? matched.getName().trim() : raw);
-            // C2 — Clamp to [0, orderedQty] right here, so the items forwarded to Odoo can never carry
-            // an over-delivery (e.g. 12 done on a line of 10). The same clamp is applied again in
-            // applyPartialQuantities for the persisted order lines; this one guards the ERP payload.
+            int orderedQty = (matched != null && matched.getQuantity() != null) ? Math.max(matched.getQuantity(), 0) : 0;
+            // WMS mode: collapse the per-unit segment breakdown into the single denormalized fields
+            // (quantityDone = Σ DELIVERED, dominant outcome/reason) that the ERP payload + admin read.
+            if (input.hasSegments()) collapseSegments(input, orderedQty);
+
+            // C2 — Clamp to [0, orderedQty] so the items forwarded to Odoo can never carry an
+            // over-delivery. The same clamp is applied again in applyPartialQuantities for persistence.
             int rawDone = Math.max(input.getQuantityDone() != null ? input.getQuantityDone() : 0, 0);
-            int orderedQty = (matched != null && matched.getQuantity() != null) ? Math.max(matched.getQuantity(), 0) : rawDone;
+            if (orderedQty <= 0) orderedQty = rawDone;
             int qtyDone = Math.min(rawDone, orderedQty);
 
             com.asm.delivery.dto.request.PartialDeliveryItem normalizedItem =
                     new com.asm.delivery.dto.request.PartialDeliveryItem(resolvedSku, qtyDone);
-            // Preserve per-item outcome, reason, and comment supplied by the driver app
+            // Preserve per-item outcome, reason, comment and the per-unit segment breakdown.
             normalizedItem.setOutcome(input.effectiveOutcome());
             normalizedItem.setReason(input.getReason());
-            // Resolve the catalog label so the ERP note shows a human motif, not a raw code.
             if (input.getReason() != null) {
-                normalizedItem.setReasonLabel(failureReasonService.findLabel(input.getReason()).orElse(null));
+                normalizedItem.setReasonLabel(input.getReasonLabel() != null && !input.getReasonLabel().isBlank()
+                        ? input.getReasonLabel()
+                        : failureReasonService.findLabel(input.getReason()).orElse(null));
             }
             normalizedItem.setComment(input.getComment());
-            // Set item display name from matched OrderItem for readable Odoo notes
+            normalizedItem.setSegments(input.getSegments());
             if (matched != null && matched.getName() != null) {
                 normalizedItem.setName(matched.getName());
             }
@@ -401,14 +407,49 @@ public class DriverDeliveryService {
         return normalized;
     }
 
+    /**
+     * Collapse a per-unit segment breakdown into the single denormalized fields the ERP + admin read:
+     * quantityDone = Σ DELIVERED, and outcome/reason/label/comment from the largest non-delivered
+     * ("dominant") segment. Snapshots each segment's reasonLabel. Mutates {@code in} in place; no-op
+     * when the item carries no segments (legacy single-field path stays as-is).
+     */
+    private void collapseSegments(com.asm.delivery.dto.request.PartialDeliveryItem in, int orderedQty) {
+        int delivered = 0;
+        com.asm.delivery.entity.ItemSegment dominant = null;
+        for (com.asm.delivery.entity.ItemSegment seg : in.getSegments()) {
+            if (seg == null) continue;
+            int q = seg.getQuantity() != null ? Math.max(seg.getQuantity(), 0) : 0;
+            String disp = seg.getDisposition() != null ? seg.getDisposition().trim().toUpperCase() : "DELIVERED";
+            seg.setDisposition(disp);
+            if ("DELIVERED".equals(disp)) { delivered += q; continue; }
+            if (seg.getReasonCode() != null && (seg.getReasonLabel() == null || seg.getReasonLabel().isBlank())) {
+                seg.setReasonLabel(failureReasonService.findLabel(seg.getReasonCode()).orElse(null));
+            }
+            int domQ = (dominant != null && dominant.getQuantity() != null) ? dominant.getQuantity() : 0;
+            if (dominant == null || q > domQ) dominant = seg;
+        }
+        in.setQuantityDone(orderedQty > 0 ? Math.min(delivered, orderedQty) : delivered);
+        if (dominant == null) {
+            in.setOutcome("DELIVERED");
+            in.setReason(null);
+            in.setReasonLabel(null);
+        } else {
+            in.setOutcome(dominant.getDisposition());
+            in.setReason(dominant.getReasonCode());
+            in.setReasonLabel(dominant.getReasonLabel());
+            if (dominant.getComment() != null && !dominant.getComment().isBlank()) in.setComment(dominant.getComment());
+        }
+    }
+
     private void applyPartialQuantities(Order order, List<com.asm.delivery.dto.request.PartialDeliveryItem> partialItems) {
         if (order.getItems() == null || order.getItems().isEmpty()) return;
 
-        // Build lookup maps keyed by SKU: quantity done, outcome, reason, and comment
+        // Build lookup maps keyed by SKU: quantity done, outcome, reason, comment, and segment breakdown
         Map<String, Integer> doneBySku     = new HashMap<>();
         Map<String, String>  outcomeBySku  = new HashMap<>();
         Map<String, String>  reasonBySku   = new HashMap<>();
         Map<String, String>  commentBySku  = new HashMap<>();
+        Map<String, java.util.List<com.asm.delivery.entity.ItemSegment>> segmentsBySku = new HashMap<>();
 
         partialItems.forEach(item -> {
             String ref = item != null ? item.referenceKey() : null;
@@ -421,6 +462,7 @@ public class DriverDeliveryService {
             if (item.getComment() != null && !item.getComment().isBlank()) {
                 commentBySku.put(ref, item.getComment().trim());
             }
+            if (item.hasSegments()) segmentsBySku.put(ref, item.getSegments());
         });
 
         order.getItems().forEach(item -> {
@@ -440,10 +482,12 @@ public class DriverDeliveryService {
                 // Snapshot the human label from the catalog (stable for history); null for non-catalog codes.
                 item.setReasonLabel(reasonCode != null ? failureReasonService.findLabel(reasonCode).orElse(null) : null);
                 item.setComment(commentBySku.get(key));
+                item.setSegments(segmentsBySku.get(key)); // per-unit breakdown (null when the driver sent none)
             } else {
                 // Item not mentioned by driver → infer as REFUSED with qty 0
                 item.setQuantityDone(0);
                 item.setOutcome("REFUSED");
+                item.setSegments(null);
             }
         });
     }

@@ -85,7 +85,7 @@ function ImportErpPageContent() {
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'all' | 'ready' | 'done'>(() => {
     const tab = searchParams.get('tab');
-    return tab === 'ready' || tab === 'done' ? tab : 'all';
+    return tab === 'all' || tab === 'done' ? tab : 'ready';
   });
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkImporting, setBulkImporting] = useState(false);

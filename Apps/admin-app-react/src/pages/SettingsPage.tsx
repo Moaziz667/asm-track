@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
@@ -7,6 +7,7 @@ import { canManageSettings, getCurrentRole } from '@/lib/auth';
 import { AdminUser } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { formatDate } from '@/lib/date';
+import { TablePagination } from '@/components/data-display/TablePagination';
 import {
   IconPlus, IconLock, IconClock, IconShieldCheck, IconChevronRight,
   IconFingerprint, IconEye, IconEyeOff, IconDotsVertical, IconPencil, IconBan, IconLogout,
@@ -63,6 +64,15 @@ export default function SettingsPage() {
   const [section, setSection] = useState<SettingSection>('COMPANY');
   const [role, setRole] = useState<'ADMIN' | 'DISPATCHER' | 'MANAGER' | 'UNKNOWN'>('UNKNOWN');
   const [adminUsers, setAdminUsers] = useState<AdminUser[]>([]);
+  const [userPage, setUserPage] = useState(0);
+  const [userPageSize, setUserPageSize] = useState(25);
+  // Client-side pagination for the admin-users table (bounded reference data).
+  const userTotalPages = Math.max(1, Math.ceil(adminUsers.length / userPageSize));
+  const userSafePage = Math.min(userPage, userTotalPages - 1);
+  const pageUsers = useMemo(
+    () => adminUsers.slice(userSafePage * userPageSize, userSafePage * userPageSize + userPageSize),
+    [adminUsers, userSafePage, userPageSize],
+  );
   const [slaSettings, setSlaSettings] = useState<Record<string, string>>({});
   const [addOpen, setAddOpen] = useState(false);
 
@@ -474,7 +484,7 @@ export default function SettingsPage() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {adminUsers.map((u) => {
+                        {pageUsers.map((u) => {
                           const RoleIcon = ROLE_ICON[u.role] ?? IconShieldCheck;
                           return (
                             <TableRow key={u.id} className="border-b border-[var(--border)] last:border-0">
@@ -543,6 +553,14 @@ export default function SettingsPage() {
                         })}
                       </TableBody>
                     </Table>
+                    <TablePagination
+                      page={userSafePage}
+                      totalPages={userTotalPages}
+                      totalElements={adminUsers.length}
+                      size={userPageSize}
+                      onPageChange={setUserPage}
+                      onSizeChange={(s) => { setUserPageSize(s); setUserPage(0); }}
+                    />
                   </div>
                 </div>
               )}

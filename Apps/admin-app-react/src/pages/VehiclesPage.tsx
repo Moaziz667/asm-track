@@ -35,6 +35,7 @@ import {
   useReactivateVehicle,
   VehicleItem
 } from '@/hooks/useVehicles';
+import { TablePagination } from '@/components/data-display/TablePagination';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -292,6 +293,8 @@ function VehiclesPageContent() {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('ALL');
+  const [page, setPage] = useState(0);
+  const [pageSize, setPageSize] = useState(25);
   const [modalOpen, setModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
@@ -322,6 +325,15 @@ function VehiclesPageContent() {
       return matchesSearch;
     });
   }, [vehicles, searchTerm, statusFilter]);
+
+  // Client-side pagination over the filtered fleet (bounded data; keeps instant search/filter + full stats).
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  useEffect(() => { setPage(0); }, [searchTerm, statusFilter, pageSize]);
+  const safePage = Math.min(page, totalPages - 1);
+  const pageRows = useMemo(
+    () => filtered.slice(safePage * pageSize, safePage * pageSize + pageSize),
+    [filtered, safePage, pageSize],
+  );
 
   const stats = useMemo(() => {
     const total = vehicles.length;
@@ -502,7 +514,7 @@ function VehiclesPageContent() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filtered.map((v) => {
+                  {pageRows.map((v) => {
                     const isBusy = v.assigned ?? Boolean(v.driverId);
                     const isRetired = !v.active;
                     const statusColor = isRetired ? '#A52B24' : isBusy ? '#4C56B8' : '#2D8A5E';
@@ -615,6 +627,14 @@ function VehiclesPageContent() {
             </div>
             )}
           </div>
+          <TablePagination
+            page={safePage}
+            totalPages={totalPages}
+            totalElements={filtered.length}
+            size={pageSize}
+            onPageChange={setPage}
+            onSizeChange={setPageSize}
+          />
         </div>
       </div>
 

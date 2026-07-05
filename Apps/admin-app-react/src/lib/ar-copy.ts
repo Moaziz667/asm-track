@@ -390,6 +390,7 @@ export const AR_COPY = {
     REJECTED: 'مرفوض',
     BACKORDER: 'طلب متبقٍ',
     RESCHEDULED: 'أُعيدت جدولته',
+    REASSIGNED: 'أُعيد الإسناد',
   } as Record<string, string>,
 
   // ── Delivery Failure Codes ────────────────────────────────────────
@@ -403,11 +404,10 @@ export const AR_COPY = {
   } as Record<string, string>,
 
   // أين يُعرض سبب الفشل (الانطباق، وليس التحليل).
-  failureContexts: {
-    FAILURE:      'فشل كامل',
-    ITEM_REFUSED: 'صنف مرفوض',
-    ITEM_DAMAGED: 'صنف تالف',
-    ITEM_MISSING: 'صنف مفقود',
+  failureScopes: {
+    DELIVERY: 'التوصيل',
+    ITEM:     'صنف',
+    BOTH:     'كلاهما',
   } as Record<string, string>,
 
   // ── Order Source ─────────────────────────────────────────────
