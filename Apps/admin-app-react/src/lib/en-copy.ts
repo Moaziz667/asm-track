@@ -405,6 +405,22 @@ export const EN_COPY = {
     podTitle: 'Proof of delivery',
     auditTitle: 'Full audit', auditEvents: 'events',
     colTime: 'Time', colRef: 'Ref', colEvent: 'Event', colActor: 'Actor',
+    // Journal labels — mapped client-side from the raw event key (actionKey) for full i18n;
+    // falls back to the backend label when the key is unknown.
+    eventLabels: {
+      DELIVERY_CREATED: 'Created', DELIVERY_IMPORTED: 'Imported', DELIVERY_SCHEDULED: 'Scheduled',
+      DELIVERY_SCHEDULED_BY_DRIVER: 'Scheduled by driver', DELIVERY_PICKED_UP: 'Picked up',
+      DELIVERY_TRANSIT_STARTED: 'In transit', DELIVERY_COMPLETED: 'Delivered',
+      DELIVERY_PARTIALLY_DELIVERED: 'Partially delivered', DELIVERY_FAILED: 'Failed',
+      DELIVERY_CANCELLED: 'Cancelled', DELIVERY_REPLANNED: 'Replanned', DELIVERY_REASSIGNED: 'Reassigned',
+      DELIVERY_ASSIGNED: 'Assigned', DELIVERY_ASSIGNED_TO_DRAFT: 'Added to draft',
+      DEPOT_PICKUP_CONFIRMED: 'Depot pickup confirmed', HANDOFF_REQUESTED: 'Handoff requested',
+      HANDOFF_CONFIRMED: 'Handoff confirmed', HANDOFF_EXPIRED: 'Handoff expired',
+      REPLACEMENT_CREATED: 'Replacement created', ROUTE_VALIDATED_ASSIGNED: 'Route validated · assigned',
+      ROUTE_STARTED_AUTO_PICKUP: 'Auto-pickup at departure', ROUTE_STOP_ADDED: 'Added to route',
+      ROUTE_STOP_REMOVED: 'Removed from route', ROUTE_STOP_CANCELLED: 'Stop cancelled',
+      ROUTE_CANCELLED: 'Route cancelled', RETURN_TO_ORIGIN_CONFIRMED: 'Return to depot confirmed',
+    } as Record<string, string>,
   },
 
   // ── Delivery Failure Codes ────────────────────────────────────────

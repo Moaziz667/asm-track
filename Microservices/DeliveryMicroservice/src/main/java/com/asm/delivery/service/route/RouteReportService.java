@@ -527,6 +527,10 @@ public class RouteReportService {
                     .orderRef(r.orderRef())
                     .actor(actor)
                     .role(r.role)
+                    // actionKey = raw event key so the admin UI can localize the label per viewer
+                    // locale (fr/en/ar). action stays as the backend French label — a safe fallback
+                    // for older snapshots / unknown keys.
+                    .actionKey(r.eventKey)
                     .action(buildActionFromEventKey(r.eventKey))
                     .detail(extractEventDetail(r.eventParams))
                     .build());
@@ -566,6 +570,7 @@ public class RouteReportService {
             case "DEPOT_PICKUP_CONFIRMED"        -> "Ramassage dépôt confirmé";
             case "HANDOFF_REQUESTED"             -> "Transfert demandé";
             case "HANDOFF_CONFIRMED"             -> "Transfert confirmé";
+            case "HANDOFF_EXPIRED"               -> "Transfert expiré";
             case "REPLACEMENT_CREATED"           -> "Réexpédition créée";
             case "ROUTE_VALIDATED_ASSIGNED"      -> "Tournée validée · affectée";
             case "ROUTE_STARTED_AUTO_PICKUP"     -> "Ramassage auto au départ";

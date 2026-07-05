@@ -159,6 +159,7 @@ public class RouteReportResponse {
         private String orderRef;        // human ERP reference of that stop's order
         private String actor;
         private String role;
+        private String actionKey;       // raw event key — the admin UI maps it to a localized label (fr/en/ar)
         private String action;          // event label only (no "Arrêt #N ·" prefix — the column carries it)
         private String detail;
     }

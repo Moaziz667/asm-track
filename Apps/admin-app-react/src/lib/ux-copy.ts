@@ -438,6 +438,22 @@ export const FR_COPY = {
     podTitle: 'Preuves de livraison',
     auditTitle: 'Audit complet', auditEvents: 'événements',
     colTime: 'Heure', colRef: 'Réf', colEvent: 'Événement', colActor: 'Acteur',
+    // Libellés du journal — mappés côté client depuis la clé d'événement brute (actionKey)
+    // pour un support i18n complet ; repli sur le libellé backend si la clé est inconnue.
+    eventLabels: {
+      DELIVERY_CREATED: 'Créée', DELIVERY_IMPORTED: 'Importée', DELIVERY_SCHEDULED: 'Planifiée',
+      DELIVERY_SCHEDULED_BY_DRIVER: 'Planifiée par le chauffeur', DELIVERY_PICKED_UP: 'Récupérée',
+      DELIVERY_TRANSIT_STARTED: 'Départ en transit', DELIVERY_COMPLETED: 'Livrée',
+      DELIVERY_PARTIALLY_DELIVERED: 'Livrée partiellement', DELIVERY_FAILED: 'Échouée',
+      DELIVERY_CANCELLED: 'Annulée', DELIVERY_REPLANNED: 'Replanifiée', DELIVERY_REASSIGNED: 'Réassignée',
+      DELIVERY_ASSIGNED: 'Affectée', DELIVERY_ASSIGNED_TO_DRAFT: 'Ajoutée au brouillon',
+      DEPOT_PICKUP_CONFIRMED: 'Ramassage dépôt confirmé', HANDOFF_REQUESTED: 'Transfert demandé',
+      HANDOFF_CONFIRMED: 'Transfert confirmé', HANDOFF_EXPIRED: 'Transfert expiré',
+      REPLACEMENT_CREATED: 'Réexpédition créée', ROUTE_VALIDATED_ASSIGNED: 'Tournée validée · affectée',
+      ROUTE_STARTED_AUTO_PICKUP: 'Ramassage auto au départ', ROUTE_STOP_ADDED: 'Ajoutée à la tournée',
+      ROUTE_STOP_REMOVED: 'Retirée de la tournée', ROUTE_STOP_CANCELLED: 'Arrêt annulé',
+      ROUTE_CANCELLED: 'Tournée annulée', RETURN_TO_ORIGIN_CONFIRMED: 'Retour au dépôt confirmé',
+    } as Record<string, string>,
   },
 
   // ── Codes d'échec de livraison ────────────────────────────────────────

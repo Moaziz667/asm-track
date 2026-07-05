@@ -199,8 +199,8 @@ function StopsTable({ report, c }: { report: RouteReport; c: C }) {
       <Bar title={c.stopsTitle} meta={`${report.stops.length} ${c.deliveries} · ${k.completedStops} ${c.deliveredShort} · ${k.failedStops + k.failedAttemptStops} ${c.failuresShort}`} />
       <table className="w-full border-collapse text-xs table-fixed">
         <colgroup>
-          <col className="w-[26px]" /><col /><col className="w-[76px]" /><col className="w-[52px]" />
-          <col className="w-[58px]" /><col className="w-[58px]" /><col className="w-[70px]" /><col className="w-[110px]" />
+          <col className="w-[26px]" /><col /><col className="w-[70px]" /><col className="w-[50px]" />
+          <col className="w-[56px]" /><col className="w-[54px]" /><col className="w-[100px]" /><col className="w-[104px]" />
         </colgroup>
         <thead>
           <tr className="bg-[var(--surface-sunken)]">
@@ -391,7 +391,7 @@ function AuditFold({ report, c }: { report: RouteReport; c: C }) {
       </button>
       {open && (
         <table className="w-full border-collapse text-2xs table-fixed">
-          <colgroup><col className="w-[104px]" /><col className="w-[104px]" /><col /><col className="w-[120px]" /></colgroup>
+          <colgroup><col className="w-[112px]" /><col className="w-[128px]" /><col /><col className="w-[120px]" /></colgroup>
           <thead>
             <tr className="bg-[var(--surface-sunken)]">
               <th className={th}>{c.colTime}</th>
@@ -403,10 +403,13 @@ function AuditFold({ report, c }: { report: RouteReport; c: C }) {
           <tbody className="font-mono">
             {rows.map((a, i) => (
               <tr key={i}>
-                <td className={`${td} text-[var(--text-muted)]`}>{fmtDT(a.at)}</td>
-                <td className={td}>{a.stopOrder != null && <span className="text-[var(--text-muted)]">#{a.stopOrder} </span>}{a.orderRef ?? ''}</td>
-                <td className={`${td} font-sans text-[var(--text-secondary)]`}>{a.action ?? '—'}{a.detail && <span className="text-[var(--text-muted)]"> — {a.detail}</span>}</td>
-                <td className={`${td} font-sans border-r-0 text-[var(--text-muted)]`}>{a.actor ?? '—'}</td>
+                <td className={`${td} text-[var(--text-muted)] whitespace-nowrap`}>{fmtDT(a.at)}</td>
+                <td className={`${td} overflow-hidden`}>
+                  {a.stopOrder != null && <span className="text-[var(--text-muted)]">#{a.stopOrder}</span>}
+                  {a.orderRef && <div className="whitespace-nowrap text-[var(--text-secondary)]">{a.orderRef}</div>}
+                </td>
+                <td className={`${td} font-sans text-[var(--text-secondary)] break-words`}>{c.eventLabels[a.actionKey ?? ''] ?? a.action ?? '—'}{a.detail && <span className="text-[var(--text-muted)]"> — {a.detail}</span>}</td>
+                <td className={`${td} font-sans border-r-0 text-[var(--text-muted)] break-words`}>{a.actor ?? '—'}</td>
               </tr>
             ))}
           </tbody>

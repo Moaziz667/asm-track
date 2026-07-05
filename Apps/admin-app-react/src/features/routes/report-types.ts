@@ -115,7 +115,8 @@ export interface RouteReport {
     orderRef: string | null;
     actor: string | null;
     role: string | null;
-    action: string | null;
+    actionKey: string | null;   // raw event key — mapped to a localized label client-side
+    action: string | null;      // backend-localized label (fallback when actionKey is unknown/absent)
     detail: string | null;
   }>;
   generatedAt: string | null;

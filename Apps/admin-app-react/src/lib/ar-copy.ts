@@ -416,6 +416,22 @@ export const AR_COPY = {
     podTitle: 'إثباتات التسليم',
     auditTitle: 'السجل الكامل', auditEvents: 'أحداث',
     colTime: 'الوقت', colRef: 'المرجع', colEvent: 'الحدث', colActor: 'الفاعل',
+    // مسميات السجل — تُترجم من مفتاح الحدث الخام (actionKey) لدعم كامل لتعدد اللغات،
+    // مع الرجوع إلى المسمى القادم من الخادم عند عدم معرفة المفتاح.
+    eventLabels: {
+      DELIVERY_CREATED: 'تم الإنشاء', DELIVERY_IMPORTED: 'تم الاستيراد', DELIVERY_SCHEDULED: 'مُجدولة',
+      DELIVERY_SCHEDULED_BY_DRIVER: 'مُجدولة من طرف السائق', DELIVERY_PICKED_UP: 'تم الاستلام',
+      DELIVERY_TRANSIT_STARTED: 'قيد النقل', DELIVERY_COMPLETED: 'تم التسليم',
+      DELIVERY_PARTIALLY_DELIVERED: 'تسليم جزئي', DELIVERY_FAILED: 'فشلت',
+      DELIVERY_CANCELLED: 'أُلغيت', DELIVERY_REPLANNED: 'إعادة جدولة', DELIVERY_REASSIGNED: 'إعادة إسناد',
+      DELIVERY_ASSIGNED: 'تم الإسناد', DELIVERY_ASSIGNED_TO_DRAFT: 'أُضيفت إلى المسودة',
+      DEPOT_PICKUP_CONFIRMED: 'تأكيد الاستلام من المستودع', HANDOFF_REQUESTED: 'طلب تحويل',
+      HANDOFF_CONFIRMED: 'تأكيد التحويل', HANDOFF_EXPIRED: 'انتهت صلاحية التحويل',
+      REPLACEMENT_CREATED: 'تم إنشاء إعادة إرسال', ROUTE_VALIDATED_ASSIGNED: 'تم التحقق من الجولة · مُسندة',
+      ROUTE_STARTED_AUTO_PICKUP: 'استلام تلقائي عند الانطلاق', ROUTE_STOP_ADDED: 'أُضيفت إلى الجولة',
+      ROUTE_STOP_REMOVED: 'أُزيلت من الجولة', ROUTE_STOP_CANCELLED: 'أُلغيت المحطة',
+      ROUTE_CANCELLED: 'أُلغيت الجولة', RETURN_TO_ORIGIN_CONFIRMED: 'تأكيد الإرجاع إلى المستودع',
+    } as Record<string, string>,
   },
 
   // ── Delivery Failure Codes ────────────────────────────────────────
