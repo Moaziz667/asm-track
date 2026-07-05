@@ -560,6 +560,13 @@ public class RouteReportService {
             case "DELIVERY_FAILED"               -> "Échouée";
             case "DELIVERY_CANCELLED"            -> "Annulée";
             case "DELIVERY_REPLANNED"            -> "Replanifiée";
+            case "DELIVERY_REASSIGNED"           -> "Réassignée";
+            case "DELIVERY_ASSIGNED"             -> "Affectée";
+            case "DELIVERY_ASSIGNED_TO_DRAFT"    -> "Ajoutée au brouillon";
+            case "DEPOT_PICKUP_CONFIRMED"        -> "Ramassage dépôt confirmé";
+            case "HANDOFF_REQUESTED"             -> "Transfert demandé";
+            case "HANDOFF_CONFIRMED"             -> "Transfert confirmé";
+            case "REPLACEMENT_CREATED"           -> "Réexpédition créée";
             case "ROUTE_VALIDATED_ASSIGNED"      -> "Tournée validée · affectée";
             case "ROUTE_STARTED_AUTO_PICKUP"     -> "Ramassage auto au départ";
             case "ROUTE_STOP_ADDED"              -> "Ajoutée à la tournée";

@@ -116,7 +116,12 @@ public class RouteExecutionService {
             deliveryRepository.findById(stop.getDeliveryId()).ifPresent(delivery -> {
                 boolean homeSourced = delivery.getSourceDepotId() == null
                         || (homeDepotId != null && homeDepotId.equals(delivery.getSourceDepotId()));
-                if (delivery.getStatus() == DeliveryStatus.SCHEDULED && homeSourced) {
+                // pickedUpAt != null ⟹ the parcel is already in the field (reassigned in-field via a
+                // driver-to-driver handoff): it changes hands through the handoff, it is NOT re-loaded at
+                // this route's departure. Skipping it keeps the handoff as the custody path, avoids a
+                // spurious "auto-pickup", and preserves the original pickup time. Same discriminator the
+                // multi-depot PICKUP reconciler uses.
+                if (delivery.getStatus() == DeliveryStatus.SCHEDULED && homeSourced && delivery.getPickedUpAt() == null) {
                     delivery.setStatus(DeliveryStatus.PICKED_UP);
                     delivery.setPickedUpAt(now);
                     delivery.setAssignSlaMinutes(delayCalculationService.calculateAssignSlaMinutes(delivery));
