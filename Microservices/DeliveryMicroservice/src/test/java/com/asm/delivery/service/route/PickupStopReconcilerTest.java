@@ -72,8 +72,29 @@ class PickupStopReconcilerTest {
     }
 
     @Test
-    void execution_addsNoPickupForHomeDepotDelivery() {
+    void execution_addsReturnPickupForHomeDeliveryAddedAfterDeparture() {
+        // A home-depot parcel still SCHEDULED (pickedUpAt == null) on an IN_PROGRESS route can only have
+        // been added AFTER the start-load (reassign onto a route that already left its depot). It needs a
+        // return-trip PICKUP at the home depot — the driver must revisit the depot to load it.
         Route route = route(RouteStatus.IN_PROGRESS);
+        RouteStop deliveryStop = deliveryStop(1);
+        Delivery d = delivery(deliveryStop.getDeliveryId(), homeDepot, DeliveryStatus.SCHEDULED, null);
+        stubStops(deliveryStop);
+        stubDeliveries(d);
+
+        reconciler.reconcile(route);
+
+        RouteStop added = captureSavedNewPickup();
+        assertThat(added).isNotNull();
+        assertThat(added.getSourceDepotId()).isEqualTo(homeDepot);
+        assertThat(added.getStopType()).isEqualTo(RouteStopType.PICKUP);
+        assertThat(added.getStatus()).isEqualTo(RouteStopStatus.PENDING);
+    }
+
+    @Test
+    void planning_addsNoPickupForHomeDepotDelivery() {
+        // Pre-departure (DRAFT/VALIDATED): a home-depot parcel loads at route start — never a PICKUP stop.
+        Route route = route(RouteStatus.VALIDATED);
         RouteStop deliveryStop = deliveryStop(1);
         Delivery d = delivery(deliveryStop.getDeliveryId(), homeDepot, DeliveryStatus.SCHEDULED, null);
         stubStops(deliveryStop);

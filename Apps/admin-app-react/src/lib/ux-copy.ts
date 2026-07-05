@@ -415,6 +415,31 @@ export const FR_COPY = {
     REASSIGNED: 'Réassignée',
   } as Record<string, string>,
 
+  // ── Rapport de clôture de tournée ─────────────────────────────────────
+  routeReport: {
+    loadError: 'Impossible de charger le rapport',
+    networkError: 'Erreur réseau',
+    subtitle: 'Rapport de clôture',
+    closed: 'Clôturée',
+    print: 'Imprimer',
+    driver: 'Chauffeur', vehicle: 'Véhicule', depot: 'Dépôt', date: 'Date', execution: 'Exécution',
+    started: 'démarrée', endedAt: 'clôturée', duration: 'durée', plan: 'plan',
+    verdictDelivered: 'livrés', verdictOnTime: 'à l’heure', verdictFailures: 'échecs', verdictReassigned: 'réassignés',
+    kpiCompletion: 'Complétion', kpiPunctuality: 'Ponctualité', kpiCumDelay: 'Retard cumulé',
+    kpiDistance: 'Distance', kpiActive: 'Durée active', kpiStartDelay: 'Retard départ',
+    stopsTitle: 'Détail des arrêts', deliveries: 'livraisons', deliveredShort: 'livrés', failuresShort: 'échecs',
+    colClient: 'Client', colWindow: 'Créneau', colArrival: 'Arrivée', colDelivered: 'Livré',
+    colDelay: 'Retard', colStatus: 'Statut', colMotif: 'Motif / preuve',
+    onTimeShort: 'à l’heure', dwellSuffix: 'sur place', reassigned: 'Réassigné', replanned: 'Replanifié', proof: 'Preuve',
+    syntheseTitle: 'Synthèse',
+    synDeparture: 'Départ', synResults: 'Résultats', synReassigned: 'Réassignés', synFailures: 'Échecs', synClosure: 'Clôture',
+    synOnPlan: 'sur le plan', synStops: 'arrêts', synDelivered: 'livrés', synPartial: 'partiels', synFailed: 'échecs',
+    highlightsTitle: 'Faits marquants', noExceptions: 'Aucune exception — tournée nominale.',
+    podTitle: 'Preuves de livraison',
+    auditTitle: 'Audit complet', auditEvents: 'événements',
+    colTime: 'Heure', colRef: 'Réf', colEvent: 'Événement', colActor: 'Acteur',
+  },
+
   // ── Codes d'échec de livraison ────────────────────────────────────────
   failureCodes: {
     CLIENT_ABSENT:   'Client absent',

@@ -85,7 +85,7 @@ public class RouteReportService {
         List<RouteReportResponse.TimelinePoint> timeline = buildTimeline(deliveryStops, stopRows, deliveriesById);
         List<RouteReportResponse.MovementEvent> movements = buildMovements(stops, stopRows, deliveriesById);
         List<RouteReportResponse.PodEntry> podGallery = buildPodGallery(stops, deliveriesById);
-        List<RouteReportResponse.AuditEntry> auditTrail = buildAuditTrail(stops);
+        List<RouteReportResponse.AuditEntry> auditTrail = buildAuditTrail(stops, deliveriesById);
 
         return RouteReportResponse.builder()
                 .header(buildHeader(route, driver, vehicle, depot))
@@ -489,14 +489,16 @@ public class RouteReportService {
         return gallery;
     }
 
-    private List<RouteReportResponse.AuditEntry> buildAuditTrail(List<RouteStop> stops) {
+    private List<RouteReportResponse.AuditEntry> buildAuditTrail(List<RouteStop> stops, Map<UUID, Delivery> deliveriesById) {
         // Step 1 — collect all events
-        record Raw(LocalDateTime at, String actor, String role, Integer stopOrder, String eventKey, String eventParams) {}
+        record Raw(LocalDateTime at, String actor, String role, Integer stopOrder, String orderRef, String eventKey, String eventParams) {}
         List<Raw> raw = new ArrayList<>();
         List<DeliveryStatusHistory> allRows = new ArrayList<>();
 
         for (RouteStop s : stops) {
             if (s.getDeliveryId() == null) continue;
+            Delivery d = deliveriesById.get(s.getDeliveryId());
+            String orderRef = (d != null && d.getOrder() != null) ? d.getOrder().resolveRef() : null;
             for (DeliveryStatusHistory h : statusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(s.getDeliveryId())) {
                 allRows.add(h);
                 raw.add(new Raw(
@@ -504,6 +506,7 @@ public class RouteReportService {
                         h.getChangedBy(),
                         h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
                         s.getStopOrder(),
+                        orderRef,
                         h.getEventKey(),
                         h.getEventParams()
                 ));
@@ -520,9 +523,11 @@ public class RouteReportService {
             String actor = actorNameResolver.resolve(r.actor(), null, actorNames);
             entries.add(RouteReportResponse.AuditEntry.builder()
                     .at(r.at)
+                    .stopOrder(r.stopOrder())
+                    .orderRef(r.orderRef())
                     .actor(actor)
                     .role(r.role)
-                    .action("Arrêt #" + r.stopOrder + " · " + buildActionFromEventKey(r.eventKey))
+                    .action(buildActionFromEventKey(r.eventKey))
                     .detail(extractEventDetail(r.eventParams))
                     .build());
         }

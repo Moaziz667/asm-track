@@ -111,6 +111,8 @@ export interface RouteReport {
   }>;
   auditTrail: Array<{
     at: string | null;
+    stopOrder: number | null;
+    orderRef: string | null;
     actor: string | null;
     role: string | null;
     action: string | null;

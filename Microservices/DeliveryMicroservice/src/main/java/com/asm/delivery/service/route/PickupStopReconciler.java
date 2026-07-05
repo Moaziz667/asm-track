@@ -65,7 +65,8 @@ public class PickupStopReconciler {
 
     private void reconcilePlanning(Route route) {
         RouteStops stops = loadActiveStops(route);
-        Set<UUID> needed = neededRemoteDepots(route, stops.deliveries());
+        // Pre-departure: home-depot parcels are loaded at route start, so only REMOTE depots need a pickup.
+        Set<UUID> needed = neededDepots(route, stops.deliveries(), false);
 
         // Drop pickups no longer needed (hard delete — nothing has run yet).
         for (RouteStop pickup : stops.pickups()) {
@@ -87,7 +88,12 @@ public class PickupStopReconciler {
 
     private void reconcileExecution(Route route) {
         RouteStops stops = loadActiveStops(route);
-        Set<UUID> needed = neededRemoteDepots(route, stops.deliveries());
+        // After departure (IN_PROGRESS ⟹ start-load already ran): a not-yet-loaded parcel for ANY depot —
+        // home included — needs a load stop. The start-load moment is gone, so a home-depot parcel added
+        // now (e.g. a reassign onto a route that already left its depot) requires a return trip, exactly
+        // like a remote one. Parcels loaded at start are PICKED_UP (pickedUpAt set) and stay excluded, so
+        // this never conjures a spurious home pickup.
+        Set<UUID> needed = neededDepots(route, stops.deliveries(), true);
 
         // Depots already covered by a still-PENDING pickup. A COMPLETED pickup does NOT count: a box
         // added to that depot after the driver already loaded there needs a fresh return-trip pickup.
@@ -113,14 +119,21 @@ public class PickupStopReconciler {
         renumberExecutionTail(route);
     }
 
-    // ── Shared: which remote depots the route's not-yet-loaded deliveries require ──
+    // ── Shared: which depots the route's not-yet-loaded deliveries require a load stop for ──
 
-    private Set<UUID> neededRemoteDepots(Route route, List<RouteStop> deliveryStops) {
+    /**
+     * Depots that need a PICKUP stop for the route's not-yet-loaded parcels.
+     * @param afterDeparture when false (planning) home-depot parcels are excluded — they load at route
+     *        start; when true (execution) the home depot is included too, because a not-yet-loaded parcel
+     *        added after departure needs a return trip to its depot just like a remote one.
+     */
+    private Set<UUID> neededDepots(Route route, List<RouteStop> deliveryStops, boolean afterDeparture) {
         List<UUID> ids = deliveryStops.stream().map(RouteStop::getDeliveryId).filter(Objects::nonNull).toList();
         if (ids.isEmpty()) return Set.of();
         return deliveryRepository.findAllByIdInWithOrder(ids).stream()
                 .filter(d -> d.getSourceDepotId() != null
-                        && !d.getSourceDepotId().equals(route.getDepotId())
+                        // Home depot only needs a pickup once the route has departed (start-load is gone).
+                        && (afterDeparture || !d.getSourceDepotId().equals(route.getDepotId()))
                         && (d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED)
                         // pickedUpAt != null ⇒ the parcel is already in a driver's hands. An in-field
                         // reassign downgrades it to SCHEDULED but keeps pickedUpAt, and it changes hands

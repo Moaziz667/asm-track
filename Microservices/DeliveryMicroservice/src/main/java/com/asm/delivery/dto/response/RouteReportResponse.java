@@ -155,9 +155,11 @@ public class RouteReportResponse {
     @Data @Builder
     public static class AuditEntry {
         private LocalDateTime at;
+        private Integer stopOrder;      // the stop this event belongs to (for the Réf column)
+        private String orderRef;        // human ERP reference of that stop's order
         private String actor;
         private String role;
-        private String action;
+        private String action;          // event label only (no "Arrêt #N ·" prefix — the column carries it)
         private String detail;
     }
 }

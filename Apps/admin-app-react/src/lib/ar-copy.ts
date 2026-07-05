@@ -393,6 +393,31 @@ export const AR_COPY = {
     REASSIGNED: 'أُعيد الإسناد',
   } as Record<string, string>,
 
+  // ── تقرير إغلاق الجولة ────────────────────────────────────────────────
+  routeReport: {
+    loadError: 'تعذّر تحميل التقرير',
+    networkError: 'خطأ في الشبكة',
+    subtitle: 'تقرير الإغلاق',
+    closed: 'مُغلقة',
+    print: 'طباعة',
+    driver: 'السائق', vehicle: 'المركبة', depot: 'المستودع', date: 'التاريخ', execution: 'التنفيذ',
+    started: 'بدأت', endedAt: 'أُغلقت', duration: 'المدة', plan: 'المخطط',
+    verdictDelivered: 'مُسلّمة', verdictOnTime: 'في الوقت', verdictFailures: 'إخفاقات', verdictReassigned: 'أُعيد إسنادها',
+    kpiCompletion: 'الإنجاز', kpiPunctuality: 'الالتزام بالوقت', kpiCumDelay: 'التأخير التراكمي',
+    kpiDistance: 'المسافة', kpiActive: 'المدة الفعلية', kpiStartDelay: 'تأخير الانطلاق',
+    stopsTitle: 'تفاصيل المحطات', deliveries: 'عمليات تسليم', deliveredShort: 'مُسلّمة', failuresShort: 'إخفاقات',
+    colClient: 'العميل', colWindow: 'النافذة', colArrival: 'الوصول', colDelivered: 'سُلّمت',
+    colDelay: 'التأخير', colStatus: 'الحالة', colMotif: 'السبب / الإثبات',
+    onTimeShort: 'في الوقت', dwellSuffix: 'في الموقع', reassigned: 'أُعيد الإسناد', replanned: 'أُعيدت الجدولة', proof: 'إثبات',
+    syntheseTitle: 'الملخّص',
+    synDeparture: 'الانطلاق', synResults: 'النتائج', synReassigned: 'أُعيد إسنادها', synFailures: 'الإخفاقات', synClosure: 'الإغلاق',
+    synOnPlan: 'مقابل المخطط', synStops: 'محطات', synDelivered: 'مُسلّمة', synPartial: 'جزئية', synFailed: 'فاشلة',
+    highlightsTitle: 'أبرز الأحداث', noExceptions: 'لا استثناءات — جولة اعتيادية.',
+    podTitle: 'إثباتات التسليم',
+    auditTitle: 'السجل الكامل', auditEvents: 'أحداث',
+    colTime: 'الوقت', colRef: 'المرجع', colEvent: 'الحدث', colActor: 'الفاعل',
+  },
+
   // ── Delivery Failure Codes ────────────────────────────────────────
   failureCodes: {
     CLIENT_ABSENT:   'العميل غائب',

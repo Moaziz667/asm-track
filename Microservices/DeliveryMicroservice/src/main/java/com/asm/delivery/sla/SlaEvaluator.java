@@ -206,7 +206,11 @@ public class SlaEvaluator {
     /** Multi-depot: for a secondary-depot delivery, true once the driver has reached (or is due at) that depot. */
     private boolean depotReached(Delivery d, RouteStop stop, LocalDateTime now) {
         if (stop == null || stop.getRoute() == null || d.getSourceDepotId() == null) return true;
-        if (d.getSourceDepotId().equals(stop.getRoute().getDepotId())) return true; // home depot
+        // Home-depot parcels normally load at route start (no PICKUP stop) → "reached" immediately.
+        // But a parcel added AFTER departure (reassign onto a route that already left its depot) gets a
+        // return-trip PICKUP even at the home depot — so we DON'T short-circuit home here; the general
+        // gating below returns "reached" only once that load stop is done. No PICKUP ⇒ pickup==null ⇒
+        // reached, so a normal home delivery is unaffected.
         RouteStop pickup = pickupStopFor(stop.getRoute().getId(), d.getSourceDepotId());
         if (pickup == null) return true;
         if (pickup.getCompletedAt() != null) return true;

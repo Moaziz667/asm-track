@@ -382,6 +382,31 @@ export const EN_COPY = {
     REASSIGNED: 'Reassigned',
   } as Record<string, string>,
 
+  // ── Route closure report ──────────────────────────────────────────────
+  routeReport: {
+    loadError: 'Could not load the report',
+    networkError: 'Network error',
+    subtitle: 'Closure report',
+    closed: 'Closed',
+    print: 'Print',
+    driver: 'Driver', vehicle: 'Vehicle', depot: 'Depot', date: 'Date', execution: 'Execution',
+    started: 'started', endedAt: 'closed', duration: 'duration', plan: 'plan',
+    verdictDelivered: 'delivered', verdictOnTime: 'on time', verdictFailures: 'failures', verdictReassigned: 'reassigned',
+    kpiCompletion: 'Completion', kpiPunctuality: 'Punctuality', kpiCumDelay: 'Cumulative delay',
+    kpiDistance: 'Distance', kpiActive: 'Active time', kpiStartDelay: 'Start delay',
+    stopsTitle: 'Stop detail', deliveries: 'deliveries', deliveredShort: 'delivered', failuresShort: 'failures',
+    colClient: 'Client', colWindow: 'Window', colArrival: 'Arrival', colDelivered: 'Delivered',
+    colDelay: 'Delay', colStatus: 'Status', colMotif: 'Reason / proof',
+    onTimeShort: 'on time', dwellSuffix: 'on site', reassigned: 'Reassigned', replanned: 'Replanned', proof: 'Proof',
+    syntheseTitle: 'Summary',
+    synDeparture: 'Departure', synResults: 'Results', synReassigned: 'Reassigned', synFailures: 'Failures', synClosure: 'Closure',
+    synOnPlan: 'vs plan', synStops: 'stops', synDelivered: 'delivered', synPartial: 'partial', synFailed: 'failed',
+    highlightsTitle: 'Highlights', noExceptions: 'No exceptions — nominal route.',
+    podTitle: 'Proof of delivery',
+    auditTitle: 'Full audit', auditEvents: 'events',
+    colTime: 'Time', colRef: 'Ref', colEvent: 'Event', colActor: 'Actor',
+  },
+
   // ── Delivery Failure Codes ────────────────────────────────────────
   failureCodes: {
     CLIENT_ABSENT:   'Client Absent',
