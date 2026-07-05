@@ -20,6 +20,9 @@ import { AppModal } from '@/components/overlays/AppModal';
 const fmtDate = (iso?: string | null) => (iso ? new Date(iso).toLocaleDateString('fr-FR') : '—');
 const fmtTime = (iso?: string | null) => (iso ? new Date(iso).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—');
 const fmtDT = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { dateStyle: 'short', timeStyle: 'short' }) : '—');
+// Compact audit timestamp: day/month + time, no year — keeps the Heure column narrow so it never
+// bleeds into the Réf column (e.g. "05/07 02:12" instead of "05/07/2026 02:12").
+const fmtAuditAt = (iso?: string | null) => (iso ? new Date(iso).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—');
 const clock = (t?: string | null) => (t ?? '').slice(0, 5) || '—';
 const absMin = (m: number) => formatMinutes(Math.abs(m));
 const signed = (m?: number | null) => (m == null ? '—' : m === 0 ? absMin(0) : `${m > 0 ? '+' : '−'}${absMin(m)}`);
@@ -376,6 +379,18 @@ function PodStrip({ report, c }: { report: RouteReport; c: C }) {
 }
 
 // ── full audit (collapsed, columnar) ──────────────────────────────────────────
+// Build the event detail from resolved params with locale-aware prefixes ("Motif: …" /
+// "Reason: …" / "السبب: …"). Falls back to the backend detail string for old snapshots.
+function auditDetail(a: RouteReport['auditTrail'][number], c: C): string | null {
+  const p = a.detailParams;
+  if (p) {
+    const parts = (['route', 'driver', 'reason', 'note'] as const)
+      .filter(k => p[k])
+      .map(k => `${c.detailLabels[k]}: ${p[k]}`);
+    if (parts.length) return parts.join(' | ');
+  }
+  return a.detail ?? null;
+}
 function AuditFold({ report, c }: { report: RouteReport; c: C }) {
   const [open, setOpen] = useState(false);
   const rows = report.auditTrail;
@@ -401,17 +416,21 @@ function AuditFold({ report, c }: { report: RouteReport; c: C }) {
             </tr>
           </thead>
           <tbody className="font-mono">
-            {rows.map((a, i) => (
-              <tr key={i}>
-                <td className={`${td} text-[var(--text-muted)] whitespace-nowrap`}>{fmtDT(a.at)}</td>
-                <td className={`${td} overflow-hidden`}>
-                  {a.stopOrder != null && <span className="text-[var(--text-muted)]">#{a.stopOrder}</span>}
-                  {a.orderRef && <div className="whitespace-nowrap text-[var(--text-secondary)]">{a.orderRef}</div>}
-                </td>
-                <td className={`${td} font-sans text-[var(--text-secondary)] break-words`}>{c.eventLabels[a.actionKey ?? ''] ?? a.action ?? '—'}{a.detail && <span className="text-[var(--text-muted)]"> — {a.detail}</span>}</td>
-                <td className={`${td} font-sans border-r-0 text-[var(--text-muted)] break-words`}>{a.actor ?? '—'}</td>
-              </tr>
-            ))}
+            {rows.map((a, i) => {
+              const label = c.eventLabels[a.actionKey ?? ''] ?? a.action ?? '—';
+              const detail = auditDetail(a, c);
+              return (
+                <tr key={i}>
+                  <td className={`${td} text-[var(--text-muted)] whitespace-nowrap`}>{fmtAuditAt(a.at)}</td>
+                  <td className={`${td} overflow-hidden`}>
+                    {a.stopOrder != null && <span className="text-[var(--text-muted)]">#{a.stopOrder}</span>}
+                    {a.orderRef && <div className="whitespace-nowrap text-[var(--text-secondary)]">{a.orderRef}</div>}
+                  </td>
+                  <td className={`${td} font-sans text-[var(--text-secondary)] break-words`}>{label}{detail && <span className="text-[var(--text-muted)]"> — {detail}</span>}</td>
+                  <td className={`${td} font-sans border-r-0 text-[var(--text-muted)] break-words`}>{a.actor ?? '—'}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

@@ -161,6 +161,7 @@ public class RouteReportResponse {
         private String role;
         private String actionKey;       // raw event key — the admin UI maps it to a localized label (fr/en/ar)
         private String action;          // event label only (no "Arrêt #N ·" prefix — the column carries it)
-        private String detail;
+        private java.util.Map<String, String> detailParams; // resolved values (route/driver/reason/note) — labelled by the UI
+        private String detail;          // French detail string (fallback for old snapshots / non-localizing clients)
     }
 }

@@ -454,6 +454,8 @@ export const FR_COPY = {
       ROUTE_STOP_REMOVED: 'Retirée de la tournée', ROUTE_STOP_CANCELLED: 'Arrêt annulé',
       ROUTE_CANCELLED: 'Tournée annulée', RETURN_TO_ORIGIN_CONFIRMED: 'Retour au dépôt confirmé',
     } as Record<string, string>,
+    // Préfixes du détail d'événement (valeurs résolues côté backend, préfixe localisé ici)
+    detailLabels: { route: 'Tournée', driver: 'Chauffeur', reason: 'Motif', note: 'Note' } as Record<string, string>,
   },
 
   // ── Codes d'échec de livraison ────────────────────────────────────────

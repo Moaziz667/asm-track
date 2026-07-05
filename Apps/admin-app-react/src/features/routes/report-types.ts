@@ -117,7 +117,8 @@ export interface RouteReport {
     role: string | null;
     actionKey: string | null;   // raw event key — mapped to a localized label client-side
     action: string | null;      // backend-localized label (fallback when actionKey is unknown/absent)
-    detail: string | null;
+    detailParams: Record<string, string> | null;  // resolved values (route/driver/reason/note) — labelled client-side
+    detail: string | null;      // backend-localized detail string (fallback)
   }>;
   generatedAt: string | null;
 }

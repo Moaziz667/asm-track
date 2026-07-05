@@ -521,6 +521,9 @@ public class RouteReportService {
         List<RouteReportResponse.AuditEntry> entries = new ArrayList<>();
         for (Raw r : raw) {
             String actor = actorNameResolver.resolve(r.actor(), null, actorNames);
+            // Resolve the detail values once (driver lookup is a remote call) — the UI localizes the
+            // prefixes from detailParams; frenchDetail() is the fallback string for older snapshots.
+            java.util.Map<String, String> detailParams = extractEventDetailParams(r.eventParams);
             entries.add(RouteReportResponse.AuditEntry.builder()
                     .at(r.at)
                     .stopOrder(r.stopOrder())
@@ -532,7 +535,8 @@ public class RouteReportService {
                     // for older snapshots / unknown keys.
                     .actionKey(r.eventKey)
                     .action(buildActionFromEventKey(r.eventKey))
-                    .detail(extractEventDetail(r.eventParams))
+                    .detailParams(detailParams.isEmpty() ? null : detailParams)
+                    .detail(frenchDetail(detailParams))
                     .build());
         }
 
@@ -583,17 +587,23 @@ public class RouteReportService {
         };
     }
 
-    /** Extract relevant details from structured event payload (driver UUID → name, route, reason, note). */
-    private String extractEventDetail(String eventParams) {
+    /**
+     * Resolve the structured event detail (route / driver-name / reason / note) with values already
+     * looked up (driver UUID → name). The admin UI prefixes each with a localized label (fr/en/ar), so
+     * we return VALUES only, in a stable order — never French prefixes here. Returns an empty map when
+     * there is nothing to show. {@link #frenchDetail} joins the same values into a French string
+     * kept as a backward-compat fallback for older snapshots.
+     */
+    private java.util.Map<String, String> extractEventDetailParams(String eventParams) {
+        var out = new java.util.LinkedHashMap<String, String>();
         if (eventParams == null || eventParams.isBlank() || eventParams.equals("{}")) {
-            return null;
+            return out;
         }
         try {
             var params = objectMapper.readValue(eventParams, java.util.Map.class);
-            var details = new java.util.ArrayList<String>();
             Object routeName = params.get("routeName");
             if (routeName != null && !routeName.toString().isBlank()) {
-                details.add("Tournée: " + routeName);
+                out.put("route", routeName.toString());
             }
             if (params.get("driverId") != null) {
                 String id = String.valueOf(params.get("driverId"));
@@ -601,18 +611,23 @@ public class RouteReportService {
                 String name = (d != null && d.getName() != null && !d.getName().isBlank())
                         ? d.getName()
                         : (looksLikeUuid(id) ? id.substring(0, 8) : id);
-                details.add("Chauffeur: " + name);
+                out.put("driver", name);
             }
-            if (params.get("reason") != null) {
-                details.add("Motif: " + params.get("reason"));
-            }
-            if (params.get("note") != null) {
-                details.add("Note: " + params.get("note"));
-            }
-            return details.isEmpty() ? null : String.join(" | ", details);
-        } catch (Exception e) {
-            return null;
-        }
+            if (params.get("reason") != null) out.put("reason", String.valueOf(params.get("reason")));
+            if (params.get("note") != null)   out.put("note", String.valueOf(params.get("note")));
+        } catch (Exception ignored) { /* malformed payload → no detail */ }
+        return out;
+    }
+
+    /** French detail string (fallback for the admin UI when it can't localize from detailParams). */
+    private static String frenchDetail(java.util.Map<String, String> p) {
+        if (p == null || p.isEmpty()) return null;
+        var details = new java.util.ArrayList<String>();
+        if (p.containsKey("route"))  details.add("Tournée: " + p.get("route"));
+        if (p.containsKey("driver")) details.add("Chauffeur: " + p.get("driver"));
+        if (p.containsKey("reason")) details.add("Motif: " + p.get("reason"));
+        if (p.containsKey("note"))   details.add("Note: " + p.get("note"));
+        return details.isEmpty() ? null : String.join(" | ", details);
     }
 
 

@@ -432,6 +432,8 @@ export const AR_COPY = {
       ROUTE_STOP_REMOVED: 'أُزيلت من الجولة', ROUTE_STOP_CANCELLED: 'أُلغيت المحطة',
       ROUTE_CANCELLED: 'أُلغيت الجولة', RETURN_TO_ORIGIN_CONFIRMED: 'تأكيد الإرجاع إلى المستودع',
     } as Record<string, string>,
+    // بادئات تفاصيل الحدث (القيم تُحلّ في الخادم، والبادئة تُترجم هنا)
+    detailLabels: { route: 'الجولة', driver: 'السائق', reason: 'السبب', note: 'ملاحظة' } as Record<string, string>,
   },
 
   // ── Delivery Failure Codes ────────────────────────────────────────

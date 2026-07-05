@@ -421,6 +421,8 @@ export const EN_COPY = {
       ROUTE_STOP_REMOVED: 'Removed from route', ROUTE_STOP_CANCELLED: 'Stop cancelled',
       ROUTE_CANCELLED: 'Route cancelled', RETURN_TO_ORIGIN_CONFIRMED: 'Return to depot confirmed',
     } as Record<string, string>,
+    // Event detail prefixes (values resolved backend-side, prefix localized here)
+    detailLabels: { route: 'Route', driver: 'Driver', reason: 'Reason', note: 'Note' } as Record<string, string>,
   },
 
   // ── Delivery Failure Codes ────────────────────────────────────────
