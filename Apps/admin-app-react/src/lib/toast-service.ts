@@ -183,8 +183,8 @@ function getTranslatedErrorMessage(
   const copy = getCopy(activeLocale);
 
   if (!errorMessage) {
-    return tlabel(copy.apiMessages, fallbackKey)
-      ?? (fallbackKey as string) || tlabel(copy.apiMessages, 'errorUnknownError') || 'Une erreur est survenue';
+    return (tlabel(copy.apiMessages, fallbackKey) ?? (fallbackKey as string))
+      || tlabel(copy.apiMessages, 'errorUnknownError') || 'Une erreur est survenue';
   }
 
   // 1. Try as direct key lookup first
