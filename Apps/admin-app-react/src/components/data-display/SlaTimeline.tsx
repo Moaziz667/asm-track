@@ -115,7 +115,11 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
   };
   // Rich, human-readable audit line: localized template + interpolated params (driver, route, reason…).
   const eventLabel = (ev: { eventKey?: string; status?: string; params?: string }) => {
+    // Prefer the narrative template (slaTimeline.event). If a key was only added to the audit map,
+    // fall back to routeReport.eventLabels (the shared, terse label) so a raw KEY never leaks — the
+    // two maps use different registers on purpose, this just keeps them from drifting into raw keys.
     const tpl = (ev.eventKey && c.event?.[ev.eventKey]) || (ev.status && c.event?.[ev.status])
+      || (ev.eventKey && t.routeReport?.eventLabels?.[ev.eventKey])
       || ev.eventKey || ev.status || '';
     let params: Record<string, string> = {};
     try { params = ev.params ? JSON.parse(ev.params) : {}; } catch { /* keep template as-is */ }
