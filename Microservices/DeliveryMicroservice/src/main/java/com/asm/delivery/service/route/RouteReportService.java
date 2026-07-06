@@ -499,15 +499,20 @@ public class RouteReportService {
             if (s.getDeliveryId() == null) continue;
             Delivery d = deliveriesById.get(s.getDeliveryId());
             String orderRef = (d != null && d.getOrder() != null) ? d.getOrder().resolveRef() : null;
+            boolean fromErp = d != null && d.getOrder() != null && d.getOrder().isFromErp();
             for (DeliveryStatusHistory h : statusHistoryRepository.findByDeliveryIdOrderByChangedAtAsc(s.getDeliveryId())) {
                 allRows.add(h);
+                // An ERP order's creation IS an import — promote the label so the journal reads
+                // "Importée", never "Créée" (mirrors SlaTimelineService's timeline promotion).
+                String eventKey = ("DELIVERY_CREATED".equals(h.getEventKey()) && fromErp)
+                        ? "DELIVERY_IMPORTED" : h.getEventKey();
                 raw.add(new Raw(
                         h.getChangedAt(),
                         h.getChangedBy(),
                         h.getChangedByRole() != null ? h.getChangedByRole().name() : null,
                         s.getStopOrder(),
                         orderRef,
-                        h.getEventKey(),
+                        eventKey,
                         h.getEventParams()
                 ));
             }

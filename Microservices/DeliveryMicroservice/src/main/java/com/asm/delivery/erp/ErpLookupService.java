@@ -225,11 +225,14 @@ public class ErpLookupService {
                 .build();
         delivery = deliveryRepository.save(delivery);
 
+        // Stamp the REAL actor: an ERP import is triggered by an admin/dispatcher hitting the import
+        // page — the audit must read "importé par {name}", not "Système". ActorContext resolves the
+        // X-User-* headers of the current request; it falls back to SYSTEM for a headless webhook/poller.
         historyRepository.save(DeliveryStatusHistory.builder()
                 .deliveryId(delivery.getId())
                 .status(DeliveryStatus.UNSCHEDULED)
-                .changedBy("SYSTEM")
-                .changedByRole(Role.SYSTEM)
+                .changedBy(com.asm.delivery.web.ActorContext.changedBy())
+                .changedByRole(com.asm.delivery.web.ActorContext.role())
                 .eventKey("DELIVERY_CREATED")
                 .eventParams("{}")
                 .build());

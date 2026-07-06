@@ -58,7 +58,7 @@ export function ReplanModal({
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={loading || !actionNote.trim()}
+            disabled={loading || !actionNote.trim() || (isReplan && !scheduledAt)}
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export function ReplanModal({
           {isReplan && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-[var(--text-muted)] select-none">
-                {t.dispatchDeskPage.replanModalScheduledLabel}
+                {t.dispatchDeskPage.replanModalScheduledLabel} <span className="text-[var(--danger)]">*</span>
               </label>
               <div className="flex gap-2">
                 <DatePickerPopover
