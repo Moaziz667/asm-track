@@ -1,6 +1,7 @@
 import { useLocaleStore, getLocaleFromCookie } from './i18n';
 import { EN_COPY } from './en-copy';
 import { AR_COPY } from './ar-copy';
+import type { MsgParams } from './i18n-dict';
 import { humanizeMinutes } from './sla';
 
 export { EN_COPY, AR_COPY };
@@ -19,7 +20,7 @@ const fmtEtaEn = fmtEtaFor('en-US');
 const fmtEtaAr = fmtEtaFor('ar');
 // Format a monetary amount with grouped thousands + currency (default TND).
 // Returns '' for missing/invalid values so callers can concatenate safely.
-const fmtMoneyFor = (locale: string) => (amount: any, currency?: string): string => {
+const fmtMoneyFor = (locale: string) => (amount: number | string | null | undefined, currency?: string): string => {
   if (amount == null || amount === '') return '';
   const n = Number(amount);
   if (!isFinite(n)) return '';
@@ -30,27 +31,27 @@ const fmtMoneyFr = fmtMoneyFor('fr-FR');
 const fmtMoneyEn = fmtMoneyFor('en-US');
 const fmtMoneyAr = fmtMoneyFor('ar');
 // "HH:mm" from a backend LocalTime string ("HH:mm:ss"); '' for anything else.
-const fmtClock = (v: any): string => {
+const fmtClock = (v: unknown): string => {
   if (typeof v !== 'string') return '';
   const m = /^(\d{2}):(\d{2})/.exec(v);
   return m ? `${m[1]}:${m[2]}` : '';
 };
 // "08:00–12:00" when both ends are present, else a single time, else ''.
-const fmtWindow = (start: any, end: any): string => {
+const fmtWindow = (start: unknown, end: unknown): string => {
   const s = fmtClock(start);
   const e = fmtClock(end);
   if (s && e) return `${s}–${e}`;
   return s || e || '';
 };
 // Prefix a notification body with the ERP order ref when present.
-const refTag = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+const refTag = (p: MsgParams): string => p?.orderId ? `${p.orderId} · ` : '';
 // Human label for a failure CODE in notifications (the backend now sends the bare code in p.motif,
 // never a raw "CODE — comment" string). Keep in sync with the failureCodes map below.
 const FR_FAILURE_LABEL: Record<string, string> = {
   CLIENT_ABSENT: 'Client absent', REFUSED: 'Refusé', DAMAGED: 'Endommagé',
   WRONG_ADDRESS: 'Adresse incorrecte', POSTPONED: 'Reporté', OTHER: 'Autre motif',
 };
-const motifLabelFr = (p: any): string => (p?.motif ? (FR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
+const motifLabelFr = (p: MsgParams): string => (p?.motif ? (FR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
 // Pluralize a stop count for FR/EN; AR is gender/number aware separately.
 const stopsFr = (n: number) => `${n} arrêt${n > 1 ? 's' : ''}`;
 const stopsEn = (n: number) => `${n} stop${n > 1 ? 's' : ''}`;
@@ -3154,15 +3155,15 @@ export const FR_COPY = {
   notifications: {
     FAILED: {
       title: 'Échec de livraison',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — livraison échouée${p.motif ? ` · ${p.motif}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — livraison échouée${p.motif ? ` · ${p.motif}` : ''}`,
     },
     DELIVERED: {
       title: 'Livraison réussie',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — livrée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — livrée`,
     },
     'delivery.created': {
       title: 'Nouvelle livraison',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const base = p.orderId
           ? `Commande ${p.orderId} créée${p.clientName ? ` · ${p.clientName}` : ''}`
           : `Nouvelle commande${p.clientName ? ` · ${p.clientName}` : ''}`;
@@ -3171,7 +3172,7 @@ export const FR_COPY = {
     },
     'delivery.scheduled': {
       title: 'Livraison planifiée',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'Client'} — planifiée`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
@@ -3180,11 +3181,11 @@ export const FR_COPY = {
     },
     'delivery.picked_up': {
       title: 'Colis récupéré',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — pris en charge`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — pris en charge`,
     },
     'delivery.in_transit': {
       title: 'En livraison',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const eta = fmtEtaFr(p.etaAt);
         const parts = [`${p.clientName || 'Client'} — en route`];
         if (p.driverName) parts.push(p.driverName);
@@ -3195,11 +3196,11 @@ export const FR_COPY = {
     },
     'delivery.completed': {
       title: 'Livraison réussie',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — livrée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — livrée`,
     },
     'delivery.failed': {
       title: 'Échec livraison',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'Client'} — échouée`];
         const motif = motifLabelFr(p);           // translated label, never a raw enum code
         if (motif) parts.push(motif);
@@ -3210,27 +3211,27 @@ export const FR_COPY = {
     },
     'delivery.cancelled': {
       title: 'Livraison annulée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — annulée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — annulée`,
     },
     'delivery.reassigned': {
       title: 'Livraison réassignée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — nouveau livreur${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — nouveau livreur${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.reassigned_away': {
       title: 'Livraison retirée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — retirée de la tournée du livreur`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — retirée de la tournée du livreur`,
     },
     'delivery.handoff_required': {
       title: 'Passation requise',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — passation de colis requise${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — passation de colis requise${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.replanned': {
       title: 'Livraison replanifiée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — reportée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — reportée`,
     },
     'route.validated': {
       title: 'Tournée validée',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const win = fmtWindow(p.plannedStartTime, p.plannedEndTime);
         const parts = [`«${p.routeName || 'Tournée'}» — prête à démarrer`];
@@ -3242,7 +3243,7 @@ export const FR_COPY = {
     },
     'ROUTE_STARTED': {
       title: 'Tournée démarrée',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const parts = [`${p.driverName || 'Le livreur'} a démarré «${p.routeName || 'la tournée'}»`];
         if (Number.isFinite(n) && n > 0) parts.push(stopsFr(n));
@@ -3251,7 +3252,7 @@ export const FR_COPY = {
     },
     'PICKUP_CONFIRMED': {
       title: 'Chargement confirmé',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.parcelCount);
         const colis = Number.isFinite(n) && n > 0 ? `${n} colis` : 'colis';
         const depot = p.depotName ? ` au dépôt ${p.depotName}` : '';
@@ -3260,7 +3261,7 @@ export const FR_COPY = {
     },
     'route.schedule_changed': {
       title: 'Planning modifié',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const win = fmtWindow(p.plannedStartTime, p.plannedEndTime);
         return win
           ? `«${p.routeName || 'Tournée'}» — nouveau créneau ${win}`
@@ -3269,30 +3270,30 @@ export const FR_COPY = {
     },
     'route.stop_added': {
       title: 'Arrêt ajouté',
-      message: (p: any) => p.clientName ? `${p.clientName} ajouté à «${p.routeName || 'la tournée'}»` : `«${p.routeName || 'Tournée'}» — nouvel arrêt`,
+      message: (p: MsgParams) => p.clientName ? `${p.clientName} ajouté à «${p.routeName || 'la tournée'}»` : `«${p.routeName || 'Tournée'}» — nouvel arrêt`,
     },
     'route.stop_removed': {
       title: 'Arrêt retiré',
-      message: (p: any) => p.clientName ? `${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} retiré de «${p.routeName || 'la tournée'}»${p.reason ? ` — ${p.reason}` : ''}` : `«${p.routeName || 'Tournée'}» — arrêt supprimé`,
+      message: (p: MsgParams) => p.clientName ? `${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} retiré de «${p.routeName || 'la tournée'}»${p.reason ? ` — ${p.reason}` : ''}` : `«${p.routeName || 'Tournée'}» — arrêt supprimé`,
     },
     'delivery.handoff_confirmed': {
       title: 'Transfert colis confirmé',
-      message: (p: any) => `Colis${p.clientName ? ` de ${p.clientName}` : ''} remis au nouveau livreur`,
+      message: (p: MsgParams) => `Colis${p.clientName ? ` de ${p.clientName}` : ''} remis au nouveau livreur`,
     },
     'handoff.requested': {
       title: 'Passation requise',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — passation ${p.fromDriverName || '—'} → ${p.toDriverName || '—'}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — passation ${p.fromDriverName || '—'} → ${p.toDriverName || '—'}`,
     },
     'handoff.overdue': {
       title: 'Passation en retard',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — passation non confirmée (${p.fromDriverName || '—'} → ${p.toDriverName || '—'})`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — passation non confirmée (${p.fromDriverName || '—'} → ${p.toDriverName || '—'})`,
     },
     'handoff.cancelled': {
       title: 'Passation annulée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — passation annulée${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — passation annulée${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'sla.breach': {
-      title: (p: any) => {
+      title: (p: MsgParams) => {
         const m = p.motif || '';
         const msg = p.message || '';
         if (m === 'SLA_WAITING' || msg.includes('Attente') || msg.includes('Affectation')) return "Affectation en retard";
@@ -3301,7 +3302,7 @@ export const FR_COPY = {
         if (m === 'SLA_TRANSIT' || msg.includes('trajet') || msg.includes('créneau')) return "Livraison en retard";
         return "Dépassement SLA";
       },
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const head = `${refTag(p)}${p.clientName || 'Client'} — `;
         if (p.motif === 'SLA_WAITING') {
           return `${head}En attente d'affectation depuis ${humanizeMinutes(p.elapsed, 'fr')} (limite ${p.limit} min)`;
@@ -3320,38 +3321,38 @@ export const FR_COPY = {
     },
     'STOPS_TRANSFERRED_OUT': {
       title: 'Arrêts transférés',
-      message: (p: any) => `Des arrêts ont été retirés de «${p.routeName || 'la tournée'}»`,
+      message: (p: MsgParams) => `Des arrêts ont été retirés de «${p.routeName || 'la tournée'}»`,
     },
     'STOPS_TRANSFERRED_IN': {
       title: 'Arrêts reçus',
-      message: (p: any) => `Des arrêts ont été ajoutés à «${p.routeName || 'la tournée'}»`,
+      message: (p: MsgParams) => `Des arrêts ont été ajoutés à «${p.routeName || 'la tournée'}»`,
     },
     'erp.sync_failed': {
       title: 'Échec de synchronisation ERP',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const op = ({ STOCK: 'mise à jour de stock', CANCELLATION: 'annulation', FAILURE_REPORT: "rapport d'échec" } as Record<string, string>)[p.motif] || '';
         return `${refTag(p)}${p.clientName || 'Commande'} — échec de synchronisation ERP${op ? ` (${op})` : ''}. Intervention requise.`;
       },
     },
     'erp.orders_ready': {
       title: 'Commandes ERP prêtes',
-      message: (p: any) => `${p.count || 'Nouvelles'} commande${Number(p.count) > 1 ? 's' : ''} ERP en attente d'import — à valider`,
+      message: (p: MsgParams) => `${p.count || 'Nouvelles'} commande${Number(p.count) > 1 ? 's' : ''} ERP en attente d'import — à valider`,
     },
     'pickup.overdue': {
       title: 'Enlèvement en retard',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — enlèvement en retard${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — enlèvement en retard${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.backorder_created': {
       title: 'Reliquat créé',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — reliquat créé${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — reliquat créé${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
     },
     'delivery.redelivery_scheduled': {
       title: 'Re-livraison programmée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Client'} — refusé (défaut) · re-livraison programmée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Client'} — refusé (défaut) · re-livraison programmée`,
     },
     'sla.alert': {
-      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA dépassé' : 'SLA à risque',
-      message: (p: any) => {
+      title: (p: MsgParams) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA dépassé' : 'SLA à risque',
+      message: (p: MsgParams) => {
         const phase = ({ WAITING: "en attente d'affectation", ASSIGNMENT: 'démarrage', PICKUP: 'chargement', TRANSIT: 'livraison' } as Record<string, string>)[p.motif] || 'délai';
         const verb = (p.health === 'BREACHED') ? 'dépassé' : 'à risque';
         return `${refTag(p)}${p.clientName || 'Client'} — ${phase} : délai ${verb}`;
@@ -3359,27 +3360,27 @@ export const FR_COPY = {
     },
     'erp.conflict': {
       title: 'Conflit Odoo',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Commande'} — modifiée dans Odoo alors que la livraison était déjà partie${p.field ? ` (${p.field})` : ''}. À vérifier.`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Commande'} — modifiée dans Odoo alors que la livraison était déjà partie${p.field ? ` (${p.field})` : ''}. À vérifier.`,
     },
     'route.cancelled': {
       title: 'Tournée annulée',
-      message: (p: any) => `«${p.routeName || 'Tournée'}» annulée${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `«${p.routeName || 'Tournée'}» annulée${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'Passation confirmée',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — passation confirmée`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Colis'} — passation confirmée`,
     },
     'handoff.incoming': {
       title: 'Passation entrante',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — colis à recevoir${p.driverName ? ` · de ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Colis'} — colis à recevoir${p.driverName ? ` · de ${p.driverName}` : ''}`,
     },
     'handoff.outgoing': {
       title: 'Passation sortante',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — colis à remettre${p.driverName ? ` · à ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Colis'} — colis à remettre${p.driverName ? ` · à ${p.driverName}` : ''}`,
     },
     'handoff.code_ready': {
       title: 'Code de passation',
-      message: (p: any) => `${refTag(p)}${p.clientName || 'Colis'} — code de passation prêt`,
+      message: (p: MsgParams) => `${refTag(p)}${p.clientName || 'Colis'} — code de passation prêt`,
     },
   },
   landingPage: {

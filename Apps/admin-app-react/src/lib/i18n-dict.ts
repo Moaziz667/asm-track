@@ -10,6 +10,13 @@
  * hand back a typed `string | undefined`, so call sites stay `any`-free.
  */
 
+/**
+ * Params passed to a copy message template (`(p) => \`…${p.clientName}…\``).
+ * The notification/event payload is delivered as string key/values, so templates
+ * only ever interpolate strings.
+ */
+export type MsgParams = Record<string, string>;
+
 /** Look up `key` in a label dict, returning the string label or undefined. */
 export function tlabel(dict: unknown, key: string | null | undefined): string | undefined {
   if (dict == null || key == null) return undefined;

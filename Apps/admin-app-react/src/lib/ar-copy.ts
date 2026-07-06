@@ -1,5 +1,6 @@
 // ── Notification template helpers (local to avoid a cycle with ux-copy) ─────
 import { humanizeMinutes } from './sla';
+import type { MsgParams } from './i18n-dict';
 
 const _ar_fmtEta = (iso: string): string => {
   if (!iso) return '';
@@ -8,13 +9,13 @@ const _ar_fmtEta = (iso: string): string => {
   // 24h clock keeps the digits scannable on mobile RTL.
   return d.toLocaleTimeString('ar', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
-const _ar_ref = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+const _ar_ref = (p: MsgParams): string => p?.orderId ? `${p.orderId} · ` : '';
 // Human label for a failure CODE in notifications (backend sends the bare code in p.motif).
 const _AR_FAILURE_LABEL: Record<string, string> = {
   CLIENT_ABSENT: 'العميل غائب', REFUSED: 'مرفوض', DAMAGED: 'تالف',
   WRONG_ADDRESS: 'عنوان خاطئ', POSTPONED: 'مؤجل', OTHER: 'سبب آخر',
 };
-const _ar_motif = (p: any): string => (p?.motif ? (_AR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
+const _ar_motif = (p: MsgParams): string => (p?.motif ? (_AR_FAILURE_LABEL[p.motif] ?? p.motif) : '');
 // Arabic stop counting: 1=محطة، 2=محطتان، 3-10=N محطات، 11+=N محطة
 const _ar_stops = (n: number): string => {
   if (n <= 0) return '';
@@ -23,19 +24,19 @@ const _ar_stops = (n: number): string => {
   if (n >= 3 && n <= 10) return `${n} محطات`;
   return `${n} محطة`;
 };
-const _ar_money = (amount: any, currency?: string): string => {
+const _ar_money = (amount: number | string | null | undefined, currency?: string): string => {
   if (amount == null || amount === '') return '';
   const n = Number(amount);
   if (!isFinite(n)) return '';
   const cur = (currency && String(currency).trim()) || 'TND';
   return `${n.toLocaleString('ar', { maximumFractionDigits: 2 })} ${cur}`;
 };
-const _ar_clock = (v: any): string => {
+const _ar_clock = (v: unknown): string => {
   if (typeof v !== 'string') return '';
   const m = /^(\d{2}):(\d{2})/.exec(v);
   return m ? `${m[1]}:${m[2]}` : '';
 };
-const _ar_window = (start: any, end: any): string => {
+const _ar_window = (start: unknown, end: unknown): string => {
   const s = _ar_clock(start);
   const e = _ar_clock(end);
   if (s && e) return `${s}–${e}`;
@@ -3099,15 +3100,15 @@ export const AR_COPY = {
   notifications: {
     FAILED: {
       title: 'فشل التوصيل',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — فشل التوصيل${p.motif ? ` · ${p.motif}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — فشل التوصيل${p.motif ? ` · ${p.motif}` : ''}`,
     },
     DELIVERED: {
       title: 'توصيل ناجح',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التوصيل`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التوصيل`,
     },
     'delivery.created': {
       title: 'شحنة جديدة',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const base = p.orderId
           ? `تم إنشاء الطلب ${p.orderId}${p.clientName ? ` · ${p.clientName}` : ''}`
           : `طلب جديد${p.clientName ? ` · ${p.clientName}` : ''}`;
@@ -3116,7 +3117,7 @@ export const AR_COPY = {
     },
     'delivery.scheduled': {
       title: 'تمت جدولة الشحنة',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'العميل'} — تمت الجدولة`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
@@ -3125,11 +3126,11 @@ export const AR_COPY = {
     },
     'delivery.picked_up': {
       title: 'تم استلام الطرد',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم الاستلام`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم الاستلام`,
     },
     'delivery.in_transit': {
       title: 'جاري التوصيل',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const eta = _ar_fmtEta(p.etaAt);
         const parts = [`${p.clientName || 'العميل'} — السائق في الطريق`];
         if (p.driverName) parts.push(p.driverName);
@@ -3140,11 +3141,11 @@ export const AR_COPY = {
     },
     'delivery.completed': {
       title: 'توصيل ناجح',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التوصيل`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التوصيل`,
     },
     'delivery.failed': {
       title: 'فشل التوصيل',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'العميل'} — فشل`];
         const motif = _ar_motif(p);
         if (motif) parts.push(motif);
@@ -3155,27 +3156,27 @@ export const AR_COPY = {
     },
     'delivery.cancelled': {
       title: 'تم إلغاء الشحنة',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم الإلغاء`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم الإلغاء`,
     },
     'delivery.reassigned': {
       title: 'إعادة تعيين الشحنة',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — سائق جديد${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — سائق جديد${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.reassigned_away': {
       title: 'إزالة الشحنة',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — أُزيلت من مسار السائق`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — أُزيلت من مسار السائق`,
     },
     'delivery.handoff_required': {
       title: 'تسليم مطلوب',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تسليم الطرد مطلوب${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تسليم الطرد مطلوب${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.replanned': {
       title: 'تأجيل الشحنة',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التأجيل`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم التأجيل`,
     },
     'route.validated': {
       title: 'تأكيد الرحلة',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const win = _ar_window(p.plannedStartTime, p.plannedEndTime);
         const parts = [`"${p.routeName || 'الرحلة'}" — جاهزة للبدء`];
@@ -3187,7 +3188,7 @@ export const AR_COPY = {
     },
     'ROUTE_STARTED': {
       title: 'انطلقت الجولة',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const parts = [`${p.driverName || 'السائق'} بدأ "${p.routeName || 'الجولة'}"`];
         if (Number.isFinite(n) && n > 0) parts.push(_ar_stops(n));
@@ -3196,7 +3197,7 @@ export const AR_COPY = {
     },
     'PICKUP_CONFIRMED': {
       title: 'تم تأكيد التحميل',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.parcelCount);
         const parcels = Number.isFinite(n) && n > 0 ? `${n} طرد` : 'الطرود';
         const depot = p.depotName ? ` في مستودع ${p.depotName}` : '';
@@ -3205,7 +3206,7 @@ export const AR_COPY = {
     },
     'route.schedule_changed': {
       title: 'تحديث الجدول الزمني',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const win = _ar_window(p.plannedStartTime, p.plannedEndTime);
         return win
           ? `"${p.routeName || 'الرحلة'}" — موعد جديد ${win}`
@@ -3214,30 +3215,30 @@ export const AR_COPY = {
     },
     'route.stop_added': {
       title: 'إضافة إيقاف',
-      message: (p: any) => p.clientName ? `تمت إضافة ${p.clientName} إلى "${p.routeName || 'الرحلة'}"` : `"${p.routeName || 'الرحلة'}" — إيقاف جديد`,
+      message: (p: MsgParams) => p.clientName ? `تمت إضافة ${p.clientName} إلى "${p.routeName || 'الرحلة'}"` : `"${p.routeName || 'الرحلة'}" — إيقاف جديد`,
     },
     'route.stop_removed': {
       title: 'إزالة إيقاف',
-      message: (p: any) => p.clientName ? `تمت إزالة ${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} من "${p.routeName || 'الرحلة'}"${p.reason ? ` — ${p.reason}` : ''}` : `"${p.routeName || 'الرحلة'}" — تم إزالة إيقاف`,
+      message: (p: MsgParams) => p.clientName ? `تمت إزالة ${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} من "${p.routeName || 'الرحلة'}"${p.reason ? ` — ${p.reason}` : ''}` : `"${p.routeName || 'الرحلة'}" — تم إزالة إيقاف`,
     },
     'delivery.handoff_confirmed': {
       title: 'تأكيد تسليم الطرد',
-      message: (p: any) => `تم تسليم طرد ${p.clientName || 'العميل'} إلى السائق الجديد`,
+      message: (p: MsgParams) => `تم تسليم طرد ${p.clientName || 'العميل'} إلى السائق الجديد`,
     },
     'handoff.requested': {
       title: 'تسليم مطلوب',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تسليم ${p.fromDriverName || '—'} ← ${p.toDriverName || '—'}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تسليم ${p.fromDriverName || '—'} ← ${p.toDriverName || '—'}`,
     },
     'handoff.overdue': {
       title: 'تأخّر التسليم',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — لم يتم تأكيد التسليم (${p.fromDriverName || '—'} ← ${p.toDriverName || '—'})`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — لم يتم تأكيد التسليم (${p.fromDriverName || '—'} ← ${p.toDriverName || '—'})`,
     },
     'handoff.cancelled': {
       title: 'أُلغي التسليم',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — أُلغي التسليم${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — أُلغي التسليم${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'sla.breach': {
-      title: (p: any) => {
+      title: (p: MsgParams) => {
         const m = p.motif || '';
         const msg = p.message || '';
         if (m === 'SLA_WAITING' || msg.includes('Attente') || msg.includes('Affectation')) return "تأخر إسناد الطلب";
@@ -3246,7 +3247,7 @@ export const AR_COPY = {
         if (m === 'SLA_TRANSIT' || msg.includes('trajet') || msg.includes('créneau')) return "تأخر تسليم الطلب";
         return "تجاوز اتفاقية الخدمة (SLA)";
       },
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const head = `${_ar_ref(p)}${p.clientName || 'العميل'} — `;
         if (p.motif === 'SLA_WAITING') {
           return `${head}في انتظار الإسناد منذ ${humanizeMinutes(p.elapsed, 'ar')} (الحد ${p.limit} دقيقة)`;
@@ -3265,38 +3266,38 @@ export const AR_COPY = {
     },
     'STOPS_TRANSFERRED_OUT': {
       title: 'تم نقل الإيقافات للخارج',
-      message: (p: any) => `تمت إزالة بعض الإيقافات من "${p.routeName || 'الرحلة'}"`,
+      message: (p: MsgParams) => `تمت إزالة بعض الإيقافات من "${p.routeName || 'الرحلة'}"`,
     },
     'STOPS_TRANSFERRED_IN': {
       title: 'تم استلام إيقافات',
-      message: (p: any) => `تمت إضافة إيقافات إلى "${p.routeName || 'الرحلة'}"`,
+      message: (p: MsgParams) => `تمت إضافة إيقافات إلى "${p.routeName || 'الرحلة'}"`,
     },
     'erp.sync_failed': {
       title: 'فشل مزامنة ERP',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const op = ({ STOCK: 'تحديث المخزون', CANCELLATION: 'إلغاء', FAILURE_REPORT: 'تقرير الفشل' } as Record<string, string>)[p.motif] || '';
         return `${_ar_ref(p)}${p.clientName || 'الطلب'} — فشلت مزامنة ERP${op ? ` (${op})` : ''}. يلزم التدخل.`;
       },
     },
     'erp.orders_ready': {
       title: 'طلبات ERP جاهزة',
-      message: (p: any) => `${p.count || 'طلبات'} ERP في انتظار الاستيراد — بحاجة إلى مراجعة`,
+      message: (p: MsgParams) => `${p.count || 'طلبات'} ERP في انتظار الاستيراد — بحاجة إلى مراجعة`,
     },
     'pickup.overdue': {
       title: 'تأخر الاستلام',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تأخر الاستلام${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تأخر الاستلام${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.backorder_created': {
       title: 'تم إنشاء طلب متأخر',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم إنشاء طلب متأخر${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — تم إنشاء طلب متأخر${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
     },
     'delivery.redelivery_scheduled': {
       title: 'إعادة توصيل مُبرمجة',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'العميل'} — مرفوض (تلف) · إعادة توصيل مُبرمجة`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'العميل'} — مرفوض (تلف) · إعادة توصيل مُبرمجة`,
     },
     'sla.alert': {
-      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'تجاوز اتفاقية الخدمة' : 'اتفاقية الخدمة في خطر',
-      message: (p: any) => {
+      title: (p: MsgParams) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'تجاوز اتفاقية الخدمة' : 'اتفاقية الخدمة في خطر',
+      message: (p: MsgParams) => {
         const phase = ({ WAITING: 'في انتظار الإسناد', ASSIGNMENT: 'البدء', PICKUP: 'التحميل', TRANSIT: 'التوصيل' } as Record<string, string>)[p.motif] || 'المهلة';
         const verb = (p.health === 'BREACHED') ? 'تم تجاوزها' : 'في خطر';
         return `${_ar_ref(p)}${p.clientName || 'العميل'} — ${phase}: المهلة ${verb}`;
@@ -3304,27 +3305,27 @@ export const AR_COPY = {
     },
     'erp.conflict': {
       title: 'تعارض Odoo',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطلب'} — تم تعديله في Odoo بعد مغادرة الشحنة${p.field ? ` (${p.field})` : ''}. يرجى المراجعة.`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطلب'} — تم تعديله في Odoo بعد مغادرة الشحنة${p.field ? ` (${p.field})` : ''}. يرجى المراجعة.`,
     },
     'route.cancelled': {
       title: 'تم إلغاء الجولة',
-      message: (p: any) => `«${p.routeName || 'الجولة'}» أُلغيت${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `«${p.routeName || 'الجولة'}» أُلغيت${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'تأكيد التسليم',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — تم تأكيد التسليم`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — تم تأكيد التسليم`,
     },
     'handoff.incoming': {
       title: 'تسليم وارد',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لاستلامه${p.driverName ? ` · من ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لاستلامه${p.driverName ? ` · من ${p.driverName}` : ''}`,
     },
     'handoff.outgoing': {
       title: 'تسليم صادر',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لتسليمه${p.driverName ? ` · إلى ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — طرد لتسليمه${p.driverName ? ` · إلى ${p.driverName}` : ''}`,
     },
     'handoff.code_ready': {
       title: 'رمز التسليم',
-      message: (p: any) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — رمز التسليم جاهز`,
+      message: (p: MsgParams) => `${_ar_ref(p)}${p.clientName || 'الطرد'} — رمز التسليم جاهز`,
     },
   },
   landingPage: {

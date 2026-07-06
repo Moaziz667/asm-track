@@ -1,5 +1,6 @@
 // ── Notification template helpers (kept local to avoid a cycle with ux-copy) ─
 import { humanizeMinutes } from './sla';
+import type { MsgParams } from './i18n-dict';
 
 const _en_fmtEta = (iso: string): string => {
   if (!iso) return '';
@@ -7,27 +8,27 @@ const _en_fmtEta = (iso: string): string => {
   if (isNaN(d.getTime())) return '';
   return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: false });
 };
-const _en_ref = (p: any): string => p?.orderId ? `${p.orderId} · ` : '';
+const _en_ref = (p: MsgParams): string => p?.orderId ? `${p.orderId} · ` : '';
 const _en_stops = (n: number): string => `${n} stop${n > 1 ? 's' : ''}`;
 // Human label for a failure CODE in notifications (backend sends the bare code in p.motif).
 const _EN_FAILURE_LABEL: Record<string, string> = {
   CLIENT_ABSENT: 'Customer absent', REFUSED: 'Refused', DAMAGED: 'Damaged',
   WRONG_ADDRESS: 'Wrong address', POSTPONED: 'Postponed', OTHER: 'Other reason',
 };
-const _en_motif = (p: any): string => (p?.motif ? (_EN_FAILURE_LABEL[p.motif] ?? p.motif) : '');
-const _en_money = (amount: any, currency?: string): string => {
+const _en_motif = (p: MsgParams): string => (p?.motif ? (_EN_FAILURE_LABEL[p.motif] ?? p.motif) : '');
+const _en_money = (amount: number | string | null | undefined, currency?: string): string => {
   if (amount == null || amount === '') return '';
   const n = Number(amount);
   if (!isFinite(n)) return '';
   const cur = (currency && String(currency).trim()) || 'TND';
   return `${n.toLocaleString('en-US', { maximumFractionDigits: 2 })} ${cur}`;
 };
-const _en_clock = (v: any): string => {
+const _en_clock = (v: unknown): string => {
   if (typeof v !== 'string') return '';
   const m = /^(\d{2}):(\d{2})/.exec(v);
   return m ? `${m[1]}:${m[2]}` : '';
 };
-const _en_window = (start: any, end: any): string => {
+const _en_window = (start: unknown, end: unknown): string => {
   const s = _en_clock(start);
   const e = _en_clock(end);
   if (s && e) return `${s}–${e}`;
@@ -2892,15 +2893,15 @@ export const EN_COPY = {
   notifications: {
     FAILED: {
       title: 'Delivery Failed',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivery failed${p.motif ? ` · ${p.motif}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — delivery failed${p.motif ? ` · ${p.motif}` : ''}`,
     },
     DELIVERED: {
       title: 'Delivery Successful',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
     },
     'delivery.created': {
       title: 'New Delivery',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const base = p.orderId
           ? `Order ${p.orderId} created${p.clientName ? ` · ${p.clientName}` : ''}`
           : `New order${p.clientName ? ` · ${p.clientName}` : ''}`;
@@ -2909,7 +2910,7 @@ export const EN_COPY = {
     },
     'delivery.scheduled': {
       title: 'Delivery Scheduled',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'Client'} — scheduled`];
         if (p.driverName) parts.push(p.driverName);
         if (p.dropoffAddress) parts.push(p.dropoffAddress);
@@ -2918,11 +2919,11 @@ export const EN_COPY = {
     },
     'delivery.picked_up': {
       title: 'Package Loaded',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — loaded`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — loaded`,
     },
     'delivery.in_transit': {
       title: 'En Route',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const eta = _en_fmtEta(p.etaAt);
         const parts = [`${p.clientName || 'Client'} — en route`];
         if (p.driverName) parts.push(p.driverName);
@@ -2933,11 +2934,11 @@ export const EN_COPY = {
     },
     'delivery.completed': {
       title: 'Delivery Successful',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — delivered`,
     },
     'delivery.failed': {
       title: 'Delivery Failed',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const parts = [`${p.clientName || 'Client'} — failed`];
         const motif = _en_motif(p);
         if (motif) parts.push(motif);
@@ -2948,27 +2949,27 @@ export const EN_COPY = {
     },
     'delivery.cancelled': {
       title: 'Delivery Cancelled',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — cancelled`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — cancelled`,
     },
     'delivery.reassigned': {
       title: 'Delivery Reassigned',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — new driver${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — new driver${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.reassigned_away': {
       title: 'Delivery Removed',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — removed from driver's route`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — removed from driver's route`,
     },
     'delivery.handoff_required': {
       title: 'Handover Required',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — package handover required${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — package handover required${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.replanned': {
       title: 'Delivery Postponed',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — postponed`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — postponed`,
     },
     'route.validated': {
       title: 'Route Validated',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const win = _en_window(p.plannedStartTime, p.plannedEndTime);
         const parts = [`"${p.routeName || 'Route'}" — ready to start`];
@@ -2980,7 +2981,7 @@ export const EN_COPY = {
     },
     'ROUTE_STARTED': {
       title: 'Route started',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.stopCount);
         const parts = [`${p.driverName || 'Driver'} started "${p.routeName || 'route'}"`];
         if (Number.isFinite(n) && n > 0) parts.push(_en_stops(n));
@@ -2989,7 +2990,7 @@ export const EN_COPY = {
     },
     'PICKUP_CONFIRMED': {
       title: 'Loading confirmed',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const n = Number(p.parcelCount);
         const parcels = Number.isFinite(n) && n > 0 ? `${n} parcel${n > 1 ? 's' : ''}` : 'parcels';
         const depot = p.depotName ? ` at ${p.depotName}` : '';
@@ -2998,7 +2999,7 @@ export const EN_COPY = {
     },
     'route.schedule_changed': {
       title: 'Schedule Updated',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const win = _en_window(p.plannedStartTime, p.plannedEndTime);
         return win
           ? `"${p.routeName || 'Route'}" — new window ${win}`
@@ -3007,30 +3008,30 @@ export const EN_COPY = {
     },
     'route.stop_added': {
       title: 'Stop Added',
-      message: (p: any) => p.clientName ? `${p.clientName} added to "${p.routeName || 'Route'}"` : `"${p.routeName || 'Route'}" — new stop`,
+      message: (p: MsgParams) => p.clientName ? `${p.clientName} added to "${p.routeName || 'Route'}"` : `"${p.routeName || 'Route'}" — new stop`,
     },
     'route.stop_removed': {
       title: 'Stop Removed',
-      message: (p: any) => p.clientName ? `${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} removed from "${p.routeName || 'Route'}"${p.reason ? ` — ${p.reason}` : ''}` : `"${p.routeName || 'Route'}" — stop removed`,
+      message: (p: MsgParams) => p.clientName ? `${p.clientName}${p.erpOrderId ? ` [${p.erpOrderId}]` : ''} removed from "${p.routeName || 'Route'}"${p.reason ? ` — ${p.reason}` : ''}` : `"${p.routeName || 'Route'}" — stop removed`,
     },
     'delivery.handoff_confirmed': {
       title: 'Handoff Confirmed',
-      message: (p: any) => `Package for ${p.clientName || 'Client'} handed over to new driver`,
+      message: (p: MsgParams) => `Package for ${p.clientName || 'Client'} handed over to new driver`,
     },
     'handoff.requested': {
       title: 'Handover Required',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover ${p.fromDriverName || '—'} → ${p.toDriverName || '—'}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — handover ${p.fromDriverName || '—'} → ${p.toDriverName || '—'}`,
     },
     'handoff.overdue': {
       title: 'Handover Overdue',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover not confirmed (${p.fromDriverName || '—'} → ${p.toDriverName || '—'})`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — handover not confirmed (${p.fromDriverName || '—'} → ${p.toDriverName || '—'})`,
     },
     'handoff.cancelled': {
       title: 'Handover Cancelled',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — handover cancelled${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — handover cancelled${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'sla.breach': {
-      title: (p: any) => {
+      title: (p: MsgParams) => {
         const m = p.motif || '';
         const msg = p.message || '';
         if (m === 'SLA_WAITING' || msg.includes('Attente') || msg.includes('Affectation')) return "Assignment Overdue";
@@ -3039,7 +3040,7 @@ export const EN_COPY = {
         if (m === 'SLA_TRANSIT' || msg.includes('trajet') || msg.includes('créneau')) return "Delivery Overdue";
         return "SLA Breach";
       },
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const head = `${_en_ref(p)}${p.clientName || 'Client'} — `;
         if (p.motif === 'SLA_WAITING') {
           return `${head}Awaiting assignment for ${humanizeMinutes(p.elapsed, 'en')} (limit ${p.limit} min)`;
@@ -3058,38 +3059,38 @@ export const EN_COPY = {
     },
     'STOPS_TRANSFERRED_OUT': {
       title: 'Stops Transferred Out',
-      message: (p: any) => `Stops were removed from "${p.routeName || 'Route'}"`,
+      message: (p: MsgParams) => `Stops were removed from "${p.routeName || 'Route'}"`,
     },
     'STOPS_TRANSFERRED_IN': {
       title: 'Stops Transferred In',
-      message: (p: any) => `Stops were added to "${p.routeName || 'Route'}"`,
+      message: (p: MsgParams) => `Stops were added to "${p.routeName || 'Route'}"`,
     },
     'erp.sync_failed': {
       title: 'ERP Sync Failed',
-      message: (p: any) => {
+      message: (p: MsgParams) => {
         const op = ({ STOCK: 'stock update', CANCELLATION: 'cancellation', FAILURE_REPORT: 'failure report' } as Record<string, string>)[p.motif] || '';
         return `${_en_ref(p)}${p.clientName || 'Order'} — ERP sync failed${op ? ` (${op})` : ''}. Action required.`;
       },
     },
     'erp.orders_ready': {
       title: 'ERP Orders Ready',
-      message: (p: any) => `${p.count || 'New'} ERP order${Number(p.count) > 1 ? 's' : ''} awaiting import — review required`,
+      message: (p: MsgParams) => `${p.count || 'New'} ERP order${Number(p.count) > 1 ? 's' : ''} awaiting import — review required`,
     },
     'pickup.overdue': {
       title: 'Pickup Overdue',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — pickup overdue${p.driverName ? ` · ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — pickup overdue${p.driverName ? ` · ${p.driverName}` : ''}`,
     },
     'delivery.backorder_created': {
       title: 'Backorder Created',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — backorder created${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — backorder created${p.blNumber ? ` · BL ${p.blNumber}` : ''}`,
     },
     'delivery.redelivery_scheduled': {
       title: 'Re-delivery Scheduled',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Client'} — refused (defect) · re-delivery scheduled`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Client'} — refused (defect) · re-delivery scheduled`,
     },
     'sla.alert': {
-      title: (p: any) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA Breached' : 'SLA At Risk',
-      message: (p: any) => {
+      title: (p: MsgParams) => (p.severity === 'critical' || p.health === 'BREACHED') ? 'SLA Breached' : 'SLA At Risk',
+      message: (p: MsgParams) => {
         const phase = ({ WAITING: 'awaiting assignment', ASSIGNMENT: 'start', PICKUP: 'loading', TRANSIT: 'delivery' } as Record<string, string>)[p.motif] || 'deadline';
         const verb = (p.health === 'BREACHED') ? 'breached' : 'at risk';
         return `${_en_ref(p)}${p.clientName || 'Client'} — ${phase}: deadline ${verb}`;
@@ -3097,27 +3098,27 @@ export const EN_COPY = {
     },
     'erp.conflict': {
       title: 'Odoo Conflict',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Order'} — changed in Odoo after the delivery had already left${p.field ? ` (${p.field})` : ''}. Please review.`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Order'} — changed in Odoo after the delivery had already left${p.field ? ` (${p.field})` : ''}. Please review.`,
     },
     'route.cancelled': {
       title: 'Route Cancelled',
-      message: (p: any) => `"${p.routeName || 'Route'}" cancelled${p.reason ? ` · ${p.reason}` : ''}`,
+      message: (p: MsgParams) => `"${p.routeName || 'Route'}" cancelled${p.reason ? ` · ${p.reason}` : ''}`,
     },
     'handoff.confirmed': {
       title: 'Handoff Confirmed',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff confirmed`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff confirmed`,
     },
     'handoff.incoming': {
       title: 'Incoming Handoff',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to receive${p.driverName ? ` · from ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to receive${p.driverName ? ` · from ${p.driverName}` : ''}`,
     },
     'handoff.outgoing': {
       title: 'Outgoing Handoff',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to hand over${p.driverName ? ` · to ${p.driverName}` : ''}`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Parcel'} — parcel to hand over${p.driverName ? ` · to ${p.driverName}` : ''}`,
     },
     'handoff.code_ready': {
       title: 'Handoff Code',
-      message: (p: any) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff code ready`,
+      message: (p: MsgParams) => `${_en_ref(p)}${p.clientName || 'Parcel'} — handoff code ready`,
     },
   },
   landingPage: {
