@@ -63,7 +63,10 @@ function clearSession(): void {
   safeStorage.removeItem('role');
 }
 
-export const oidcConfig: AuthProviderProps = {
+// `useRefreshToken` is a valid oidc-client-ts UserManagerSettings option (refresh-token
+// grant for silent renew) but isn't surfaced on this version's AuthProviderProps typing —
+// widen the annotation rather than drop the runtime setting.
+export const oidcConfig: AuthProviderProps & { useRefreshToken?: boolean } = {
   authority: AUTHORITY,
   client_id: CLIENT_ID,
   redirect_uri: REDIRECT_URI,

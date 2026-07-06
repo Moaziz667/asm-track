@@ -53,18 +53,18 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   const ord = STATUS_ORDER[rma.status];
   if (rma.status === 'REJECTED' || rma.status === 'CANCELLED') {
     return [
-      { label: c?.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+      { label: tlabel(c, 'stepRequested') ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
       {
-        label: rma.status === 'REJECTED' ? (c?.stepRejected ?? 'Rejeté') : (c?.stepCancelled ?? 'Annulé'),
+        label: rma.status === 'REJECTED' ? (tlabel(c, 'stepRejected') ?? 'Rejeté') : (tlabel(c, 'stepCancelled') ?? 'Annulé'),
         by: rma.resolutionNote ?? undefined, reached: true, dotColor: 'var(--danger)',
       },
     ];
   }
   return [
-    { label: c?.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
-    { label: c?.stepApproved ?? 'Approuvé', reached: ord >= 1, dotColor: 'var(--brand)' },
-    { label: c?.stepReceived ?? 'Reçu', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
-    { label: c?.stepRestocked ?? 'Restocké', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
+    { label: tlabel(c, 'stepRequested') ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+    { label: tlabel(c, 'stepApproved') ?? 'Approuvé', reached: ord >= 1, dotColor: 'var(--brand)' },
+    { label: tlabel(c, 'stepReceived') ?? 'Reçu', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
+    { label: tlabel(c, 'stepRestocked') ?? 'Restocké', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
   ];
 }
 
@@ -74,7 +74,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
     : 0;
   const steps = rma ? lifecycleSteps(rma, t) : [];
-  const byLabel = t.returnsPage?.byLabel ?? 'par';
+  const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'par';
 
   const title = rma ? (
     <div className="flex items-center gap-2">
@@ -110,7 +110,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
       open={open}
       onClose={onClose}
       title={title}
-      subtitle={rma ? `${t.returnsPage?.drawerSubtitle ?? 'Retour'} · ${ref}` : undefined}
+      subtitle={rma ? `${tlabel(t.returnsPage, 'drawerSubtitle') ?? 'Retour'} · ${ref}` : undefined}
       width={560}
       footer={footer}
     >
@@ -118,15 +118,15 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
         <div className="flex flex-col">
           {/* Summary grid */}
           <div className="grid grid-cols-2 gap-x-4 gap-y-3 px-5 py-4 border-b" style={{ borderColor: 'var(--border)' }}>
-            <Metric label={t.returnsPage?.colBl ?? 'BL / Réf ERP'} value={rma.blNumber || rma.erpOrderId || '—'} mono />
-            <Metric label={t.returnsPage?.drawerUnits ?? 'Unités · lignes'} value={`${rma.totalUnits} · ${rma.items.length}`} mono />
+            <Metric label={tlabel(t.returnsPage, 'colBl') ?? 'BL / Réf ERP'} value={rma.blNumber || rma.erpOrderId || '—'} mono />
+            <Metric label={tlabel(t.returnsPage, 'drawerUnits') ?? 'Unités · lignes'} value={`${rma.totalUnits} · ${rma.items.length}`} mono />
             <Metric
-              label={t.returnsPage?.drawerValue ?? 'Valeur retournée'}
+              label={tlabel(t.returnsPage, 'drawerValue') ?? 'Valeur retournée'}
               value={returnValue > 0 ? formatMoney(returnValue, 'TND') : '—'}
               mono
             />
             <Metric
-              label={t.returnsPage?.drawerCreated ?? 'Créé'}
+              label={tlabel(t.returnsPage, 'drawerCreated') ?? 'Créé'}
               value={
                 <span className="inline-flex items-center gap-1">
                   <IconUser size={11} stroke={2} style={{ color: 'var(--text-soft)' }} />
@@ -142,7 +142,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                   style={{ color: 'var(--brand)' }}
                 >
                   <IconTruckReturn size={13} stroke={2} />
-                  {t.returnsPage?.drawerViewDelivery ?? 'Voir la livraison'}
+                  {tlabel(t.returnsPage, 'drawerViewDelivery') ?? 'Voir la livraison'}
                   <IconExternalLink size={11} stroke={2} />
                 </Link>
               </div>
@@ -154,15 +154,15 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="flex items-center gap-1.5 mb-2.5">
               <IconPackage size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
-                {t.returnsPage?.drawerItemsTitle ?? 'Articles retournés'}
+                {tlabel(t.returnsPage, 'drawerItemsTitle') ?? 'Articles retournés'}
               </span>
             </div>
             <table className="w-full border-collapse">
               <thead>
                 <tr className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                  <th className="text-left pb-1.5 font-[600]">{t.returnsPage?.colItemSku ?? 'SKU / Article'}</th>
-                  <th className="text-right pb-1.5 font-[600]">{t.returnsPage?.colItemQty ?? 'Qté'}</th>
-                  <th className="text-left pb-1.5 pl-3 font-[600]">{t.returnsPage?.colItemCondition ?? 'État'}</th>
+                  <th className="text-left pb-1.5 font-[600]">{tlabel(t.returnsPage, 'colItemSku') ?? 'SKU / Article'}</th>
+                  <th className="text-right pb-1.5 font-[600]">{tlabel(t.returnsPage, 'colItemQty') ?? 'Qté'}</th>
+                  <th className="text-left pb-1.5 pl-3 font-[600]">{tlabel(t.returnsPage, 'colItemCondition') ?? 'État'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -184,10 +184,10 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                     </td>
                     <td className="py-2 pl-3">
                       <ConditionPill
-                        condition={it.condition}
+                        condition={it.condition ?? 'RESELLABLE'}
                         label={it.condition === 'DAMAGED'
-                          ? (t.returnsPage?.conditionDamaged ?? 'Endommagé')
-                          : (t.returnsPage?.conditionResellable ?? 'Revendable')}
+                          ? (tlabel(t.returnsPage, 'conditionDamaged') ?? 'Endommagé')
+                          : (tlabel(t.returnsPage, 'conditionResellable') ?? 'Revendable')}
                       />
                     </td>
                   </tr>
@@ -202,7 +202,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               {rma.reason && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                    {t.returnsPage?.colReason ?? 'Motif'}
+                    {tlabel(t.returnsPage, 'colReason') ?? 'Motif'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.reason}</span>
                 </div>
@@ -210,7 +210,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               {rma.resolutionNote && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                    {t.returnsPage?.drawerResolution ?? 'Note de résolution'}
+                    {tlabel(t.returnsPage, 'drawerResolution') ?? 'Note de résolution'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.resolutionNote}</span>
                 </div>
@@ -223,7 +223,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="px-5 py-4 border-b flex items-center justify-between gap-3" style={{ borderColor: 'var(--border)' }}>
               <div className="flex flex-col gap-1 min-w-0">
                 <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                  {t.returnsPage?.colSync ?? 'Sync ERP'}
+                  {tlabel(t.returnsPage, 'colSync') ?? 'Sync ERP'}
                 </span>
                 <div className="flex items-center gap-2">
                   <StatusBadge status={rma.erpSyncStatus} label={tlabel(t.returnsPage?.syncLabels, rma.erpSyncStatus) ?? rma.erpSyncStatus} size="sm" />
@@ -243,7 +243,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                   className="h-7 gap-1.5 px-2.5 text-xs font-[600] shrink-0"
                   style={{ color: 'var(--brand)' }}
                 >
-                  <IconReload size={12} /> {t.returnsPage?.resync ?? 'Resynchroniser'}
+                  <IconReload size={12} /> {tlabel(t.returnsPage, 'resync') ?? 'Resynchroniser'}
                 </Button>
               )}
             </div>
@@ -254,7 +254,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="flex items-center gap-1.5 mb-3">
               <IconClock size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
-                {t.returnsPage?.drawerTimeline ?? 'Chronologie'}
+                {tlabel(t.returnsPage, 'drawerTimeline') ?? 'Chronologie'}
               </span>
             </div>
             {steps.map((s, i) => (

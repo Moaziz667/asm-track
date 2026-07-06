@@ -62,7 +62,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
   const [stepIndex, setStepIndex] = useState(0);
 
   const patchCfg = (id: string, patch: Partial<Cfg>) =>
-    setCfg(prev => ({ ...prev, [id]: { start: '', end: '', order: null, touched: false, ...prev[id], ...patch } }));
+    setCfg(prev => ({ ...prev, [id]: { ...(prev[id] ?? { start: '', end: '', order: null, touched: false }), ...patch } }));
 
   // Reset everything shortly after close (keeps the slide-out clean).
   useEffect(() => {
@@ -229,7 +229,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
       catch (err: unknown) { fail++; const data = (err as { response?: { data?: { message?: string } } })?.response?.data; if (data?.message) lastMsg = data.message; }
     }
     setSubmitting(false);
-    if (ok > 0) { showSuccessToast(fail === 0 ? 'successReassignToActive' : undefined); if (fail > 0) showErrorToast(undefined, 'errorReassignPartialSuccess'); onSuccess(route.id); onClose(); }
+    if (ok > 0) { if (fail === 0) showSuccessToast('successReassignToActive'); else showErrorToast(undefined, 'errorReassignPartialSuccess'); onSuccess(route.id); onClose(); }
     else setServerError(lastMsg ?? t.configureInsertion.genericError);
   };
 
@@ -245,7 +245,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
     }
     setSubmitting(false);
     if (ok > 0) {
-      showSuccessToast(fail === 0 ? 'successReassignToActive' : undefined);
+      if (fail === 0) showSuccessToast('successReassignToActive');
       if (routeId) window.open(`/route-builder?routeId=${routeId}`, '_blank', 'noopener');
       onSuccess(routeId); onClose();
     } else setServerError(lastMsg ?? t.configureInsertion.genericError);

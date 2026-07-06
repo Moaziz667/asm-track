@@ -107,7 +107,8 @@ function localizeParamValues(
   copy: Copy,
 ): Record<string, unknown> | undefined {
   if (!params) return params;
-  const labels = copy.returnStatusLabels;
+  // NB: returnStatusLabels lives under trackingPage in the copy schema (not root).
+  const labels = copy.trackingPage.returnStatusLabels;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(params)) {
     out[k] = typeof v === 'string' ? (tlabel(labels, v) ?? v) : v;
