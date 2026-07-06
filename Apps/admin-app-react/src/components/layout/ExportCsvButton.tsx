@@ -15,7 +15,7 @@ export function ExportCsvButton<T>({
   columns: CsvColumn<T>[];
   className?: string;
 }) {
-  const t = useT() as any;
+  const t = useT();
   const disabled = rows.length === 0;
   const tip = disabled
     ? (t.actions?.nothingToExport ?? 'Rien à exporter')

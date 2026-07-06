@@ -1,5 +1,6 @@
 import { IconCircleCheck, IconClockExclamation, IconAlertTriangle, IconCircle } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 
 /**
  * Compact SLA health chip for list rows — reads the backend's single (phase, health) truth.
@@ -32,11 +33,11 @@ function IconFor({ h, color }: { h?: Health; color: string }) {
 }
 
 export default function SlaHealthBadge({ health, size = 'sm' }: { health?: string; size?: 'sm' | 'md' }) {
-  const t = useT() as any;
+  const t = useT();
   const h = health as Health | undefined;
   const tone = toneFor(h);
   if (!tone || !h) return null;
-  const label = t.slaTimeline?.health?.[h] ?? h;
+  const label = tlabel(t.slaTimeline?.health, h) ?? h;
   const fs = size === 'md' ? 11.5 : 10.5;
   return (
     <span style={{

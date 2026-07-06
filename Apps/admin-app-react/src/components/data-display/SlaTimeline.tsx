@@ -6,6 +6,7 @@ import {
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 
@@ -89,8 +90,8 @@ export interface SlaTimelineProps {
 }
 
 export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodComment = false, hideItemOutcomes = false, hideFailureContext = false }: SlaTimelineProps) {
-  const t = useT() as any;
-  const c = t.slaTimeline ?? {};
+  const t = useT();
+  const c = t.slaTimeline;
   const [data, setData] = useState<SlaTimelineData | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -105,11 +106,11 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
     return () => { alive = false; };
   }, [deliveryId]);
 
-  const phaseLabel = (p?: string) => (p && c.phase?.[p]) || p || '';
-  const healthLabel = (h?: string) => (h && c.health?.[h]) || h || '';
+  const phaseLabel = (p?: string) => tlabel(c?.phase, p) || p || '';
+  const healthLabel = (h?: string) => tlabel(c?.health, h) || h || '';
   const reasonText = (key?: string, params?: Record<string, string>) => {
     if (!key) return '';
-    const raw = c.reason?.[key];
+    const raw = tlabel(c?.reason, key);
     if (!raw) return key.split('.').pop() || key;
     return raw.replace(/\{(\w+)\}/g, (_: string, k: string) => params?.[k] ?? '');
   };
@@ -118,8 +119,8 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
     // Prefer the narrative template (slaTimeline.event). If a key was only added to the audit map,
     // fall back to routeReport.eventLabels (the shared, terse label) so a raw KEY never leaks — the
     // two maps use different registers on purpose, this just keeps them from drifting into raw keys.
-    const tpl = (ev.eventKey && c.event?.[ev.eventKey]) || (ev.status && c.event?.[ev.status])
-      || (ev.eventKey && t.routeReport?.eventLabels?.[ev.eventKey])
+    const tpl = tlabel(c?.event, ev.eventKey) || tlabel(c?.event, ev.status)
+      || tlabel(t.routeReport?.eventLabels, ev.eventKey)
       || ev.eventKey || ev.status || '';
     let params: Record<string, string> = {};
     try { params = ev.params ? JSON.parse(ev.params) : {}; } catch { /* keep template as-is */ }
@@ -129,7 +130,7 @@ export default function SlaTimeline({ deliveryId, variant = 'detailed', hidePodC
   };
   // "by {driver name}" for driver actions, otherwise the role label (Admin / System / Client).
   const actorLabel = (ev: { actor?: string; actorRole?: string }) =>
-    ev.actor || (ev.actorRole ? (c.actor?.[ev.actorRole] ?? '') : '');
+    ev.actor || (ev.actorRole ? (tlabel(c?.actor, ev.actorRole) ?? '') : '');
 
   // Furthest phase the journey has reached, to mark nodes done/current/pending.
   const reachedIndex = useMemo(() => {
@@ -286,7 +287,7 @@ function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = fal
               background: TONE.breach.bg, border: `1px solid ${TONE.breach.dot}33`, borderRadius: 8, padding: '4px 9px',
             }}>
               <IconAlertTriangle size={13} stroke={1.8} />
-              {(c.motif?.[ctx.failureCode]) || ctx.failureCode}{ctx.failReason ? ` · ${ctx.failReason}` : ''}
+              {tlabel(c?.motif, ctx.failureCode) || ctx.failureCode}{ctx.failReason ? ` · ${ctx.failReason}` : ''}
             </span>
           )}
           {ctx?.backorderDirection && (
@@ -326,8 +327,8 @@ function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = fal
             }}>
               <IconPackages size={13} stroke={1.8} />
               {it.name ? `${it.name} · ` : ''}
-              {it.outcome ? ((c.motif?.[it.outcome]) || it.outcome) : ''}
-              {it.reason ? ` · ${(c.motif?.[it.reason]) || it.reason}` : ''}
+              {it.outcome ? (tlabel(c?.motif, it.outcome) || it.outcome) : ''}
+              {it.reason ? ` · ${tlabel(c?.motif, it.reason) || it.reason}` : ''}
               {it.quantityDone != null && it.quantity != null ? ` · ${it.quantityDone}/${it.quantity}` : ''}
               {it.comment ? ` · ${it.comment}` : ''}
             </span>

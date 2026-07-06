@@ -3,6 +3,10 @@
 import { toast } from '@/lib/toast';
 import { getCopy } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
+import { getApiError } from '@/lib/errors';
+import { tlabel } from '@/lib/i18n-dict';
+
+type Copy = ReturnType<typeof getCopy>;
 
 export interface ToastContext {
   orderId?: string;
@@ -22,7 +26,18 @@ interface FormattedToastResult {
 /**
  * Extract context from API response data
  */
-export function extractContextFromResponse(data: any): ToastContext {
+interface ExtractableResponse {
+  order?: { referenceId?: string; erpOrderId?: string; clientName?: string };
+  referenceId?: string;
+  erpOrderId?: string;
+  clientName?: string;
+  routeName?: string;
+  driverName?: string;
+  id?: string;
+  deliveryId?: string;
+}
+
+export function extractContextFromResponse(data?: ExtractableResponse): ToastContext {
   return {
     orderId: data?.order?.referenceId || data?.referenceId,
     erpId: data?.order?.erpOrderId || data?.erpOrderId,
@@ -89,14 +104,13 @@ function interpolate(template: string, params?: Record<string, unknown>): string
  */
 function localizeParamValues(
   params: Record<string, unknown> | undefined,
-  copy: any,
+  copy: Copy,
 ): Record<string, unknown> | undefined {
   if (!params) return params;
-  const labels = copy?.returnStatusLabels as Record<string, string> | undefined;
-  if (!labels) return params;
+  const labels = copy.returnStatusLabels;
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(params)) {
-    out[k] = typeof v === 'string' && labels[v] ? labels[v] : v;
+    out[k] = typeof v === 'string' ? (tlabel(labels, v) ?? v) : v;
   }
   return out;
 }
@@ -104,10 +118,9 @@ function localizeParamValues(
 /**
  * Map error messages to translation keys
  */
-function mapErrorToKey(errorMessage?: string, copy?: any): string | null {
+function mapErrorToKey(errorMessage?: string): string | null {
   if (!errorMessage) return null;
 
-  const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
   const lowerMsg = errorMessage.toLowerCase();
 
   const mapping: Record<string, string> = {
@@ -170,16 +183,13 @@ function getTranslatedErrorMessage(
   const copy = getCopy(activeLocale);
 
   if (!errorMessage) {
-    if (fallbackKey && fallbackKey in copy.apiMessages) {
-      return (copy.apiMessages as any)[fallbackKey];
-    }
-    return (fallbackKey as string) || (copy.apiMessages as any).errorUnknownError || 'Une erreur est survenue';
+    return tlabel(copy.apiMessages, fallbackKey)
+      ?? (fallbackKey as string) || tlabel(copy.apiMessages, 'errorUnknownError') || 'Une erreur est survenue';
   }
 
   // 1. Try as direct key lookup first
-  if (errorMessage in copy.apiMessages) {
-    return (copy.apiMessages as any)[errorMessage];
-  }
+  const direct = tlabel(copy.apiMessages, errorMessage);
+  if (direct) return direct;
 
   // 2. If it is already a translated message in the apiMessages dictionary, return it as-is
   const translations = Object.values(copy.apiMessages) as string[];
@@ -189,18 +199,16 @@ function getTranslatedErrorMessage(
 
   // 3. Try mapping backend error message
   if (isError) {
-    const translationKey = mapErrorToKey(errorMessage, copy);
-    if (translationKey && (copy.apiMessages as any)?.[translationKey]) {
-      return (copy.apiMessages as any)[translationKey];
-    }
+    const translationKey = mapErrorToKey(errorMessage);
+    const mapped = translationKey ? tlabel(copy.apiMessages, translationKey) : undefined;
+    if (mapped) return mapped;
   }
 
   // 4. Try fallback key
-  if (fallbackKey && fallbackKey in copy.apiMessages) {
-    return (copy.apiMessages as any)[fallbackKey];
-  }
+  const fb = tlabel(copy.apiMessages, fallbackKey);
+  if (fb) return fb;
 
-  return errorMessage || (fallbackKey as string) || (copy.apiMessages as any).errorUnknownError || 'Une erreur est survenue';
+  return errorMessage || (fallbackKey as string) || tlabel(copy.apiMessages, 'errorUnknownError') || 'Une erreur est survenue';
 }
 
 /**
@@ -244,22 +252,20 @@ export function showSuccessToast(
 }
 
 export function showErrorToast(
-  errorMessage?: any,
+  errorMessage?: unknown,
   fallbackKey?: keyof ReturnType<typeof getCopy>['apiMessages'] | string,
   context?: ToastContext,
 ): void {
   // Prefer the backend's stable errorCode contract over fuzzy message matching.
-  const data =
-    errorMessage && typeof errorMessage === 'object'
-      ? errorMessage.response?.data
-      : undefined;
-  const errorCode: string | undefined = data?.errorCode;
-  const codeKey = errorCode ? ERROR_CODE_KEYS[errorCode] : undefined;
+  const apiErr = errorMessage != null && typeof errorMessage === 'object'
+    ? getApiError(errorMessage)
+    : undefined;
+  const codeKey = apiErr?.errorCode ? ERROR_CODE_KEYS[apiErr.errorCode] : undefined;
   if (codeKey) {
     const copy = getCopy(useLocaleStore.getState().locale || 'fr');
-    const resolved = (copy.apiMessages as any)?.[codeKey];
+    const resolved = tlabel(copy.apiMessages, codeKey);
     if (resolved) {
-      const withParams = interpolate(resolved, localizeParamValues(data?.errorParams, copy));
+      const withParams = interpolate(resolved, localizeParamValues(apiErr?.errorParams, copy));
       const formatted = formatToastMessage(withParams, context);
       toast.error(formatted.title, { description: formatted.description });
       return;
@@ -268,13 +274,7 @@ export function showErrorToast(
 
   const msgStr = typeof errorMessage === 'string'
     ? errorMessage
-    : (errorMessage && typeof errorMessage === 'object' && (errorMessage.response?.data?.message || errorMessage.response?.data?.error))
-      ? String(errorMessage.response.data.message || errorMessage.response.data.error)
-      : (errorMessage && typeof errorMessage === 'object' && 'message' in errorMessage)
-        ? String(errorMessage.message)
-        : errorMessage
-          ? String(errorMessage)
-          : null;
+    : apiErr?.message ?? null;
   const translatedMessage = getTranslatedErrorMessage(msgStr, fallbackKey, true);
   const formatted = formatToastMessage(translatedMessage, context);
   toast.error(formatted.title, { description: formatted.description });

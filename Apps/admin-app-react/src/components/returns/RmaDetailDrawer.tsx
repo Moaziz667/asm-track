@@ -8,7 +8,11 @@ import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ConditionPill } from '@/components/data-display/ConditionPill';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/utils';
+import { tlabel } from '@/lib/i18n-dict';
+import type { useT } from '@/lib/LocaleContext';
 import { NEXT, STATUS_TOKENS, TRANSITION_ICON, type Rma, type RmaStatus } from '@/pages/ReturnsPage';
+
+type Copy = ReturnType<typeof useT>;
 
 interface Props {
   rma: Rma | null;
@@ -18,7 +22,7 @@ interface Props {
   busyId: string | null;
   onTransition: (r: Rma, target: RmaStatus) => void;
   onResync: (r: Rma) => void;
-  t: any;
+  t: Copy;
 }
 
 function fmtDate(iso?: string): string {
@@ -44,30 +48,30 @@ function Metric({ label, value, mono }: { label: string; value: React.ReactNode;
 
 type Step = { label: string; at?: string; by?: string; reached: boolean; dotColor: string };
 
-function lifecycleSteps(rma: Rma, t: any): Step[] {
-  const c = t.returnsPage ?? {};
+function lifecycleSteps(rma: Rma, t: Copy): Step[] {
+  const c = t.returnsPage;
   const ord = STATUS_ORDER[rma.status];
   if (rma.status === 'REJECTED' || rma.status === 'CANCELLED') {
     return [
-      { label: c.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+      { label: c?.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
       {
-        label: rma.status === 'REJECTED' ? (c.stepRejected ?? 'Rejeté') : (c.stepCancelled ?? 'Annulé'),
+        label: rma.status === 'REJECTED' ? (c?.stepRejected ?? 'Rejeté') : (c?.stepCancelled ?? 'Annulé'),
         by: rma.resolutionNote ?? undefined, reached: true, dotColor: 'var(--danger)',
       },
     ];
   }
   return [
-    { label: c.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
-    { label: c.stepApproved ?? 'Approuvé', reached: ord >= 1, dotColor: 'var(--brand)' },
-    { label: c.stepReceived ?? 'Reçu', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
-    { label: c.stepRestocked ?? 'Restocké', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
+    { label: c?.stepRequested ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+    { label: c?.stepApproved ?? 'Approuvé', reached: ord >= 1, dotColor: 'var(--brand)' },
+    { label: c?.stepReceived ?? 'Reçu', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
+    { label: c?.stepRestocked ?? 'Restocké', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
   ];
 }
 
 export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, t }: Props) {
   const ref = rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
   const returnValue = rma
-    ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number((it as any).unitPrice) || 0), 0)
+    ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
     : 0;
   const steps = rma ? lifecycleSteps(rma, t) : [];
   const byLabel = t.returnsPage?.byLabel ?? 'par';
@@ -171,7 +175,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                         </span>
                         <span className="text-2xs font-mono truncate" style={{ color: 'var(--text-soft)' }}>
                           {it.sku ?? '—'}
-                          {(it as any).reason ? <span style={{ color: 'var(--text-muted)' }}> · {(it as any).reason}</span> : null}
+                          {it.reason ? <span style={{ color: 'var(--text-muted)' }}> · {it.reason}</span> : null}
                         </span>
                       </div>
                     </td>
@@ -180,8 +184,8 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                     </td>
                     <td className="py-2 pl-3">
                       <ConditionPill
-                        condition={(it as any).condition}
-                        label={(it as any).condition === 'DAMAGED'
+                        condition={it.condition}
+                        label={it.condition === 'DAMAGED'
                           ? (t.returnsPage?.conditionDamaged ?? 'Endommagé')
                           : (t.returnsPage?.conditionResellable ?? 'Revendable')}
                       />
@@ -222,7 +226,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                   {t.returnsPage?.colSync ?? 'Sync ERP'}
                 </span>
                 <div className="flex items-center gap-2">
-                  <StatusBadge status={rma.erpSyncStatus} label={(t.returnsPage?.syncLabels as any)?.[rma.erpSyncStatus] ?? rma.erpSyncStatus} size="sm" />
+                  <StatusBadge status={rma.erpSyncStatus} label={tlabel(t.returnsPage?.syncLabels, rma.erpSyncStatus) ?? rma.erpSyncStatus} size="sm" />
                   {rma.erpSyncStatus === 'SYNC_FAILED' && rma.erpSyncError && (
                     <span className="text-2xs truncate" style={{ color: 'var(--danger)' }} title={rma.erpSyncError}>
                       {rma.erpSyncError}
