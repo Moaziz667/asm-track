@@ -237,7 +237,8 @@ public class RmaService {
     private void assertTransition(RmaStatus from, RmaStatus to) {
         Set<RmaStatus> terminal = EnumSet.of(RmaStatus.RESTOCKED, RmaStatus.REJECTED, RmaStatus.CANCELLED);
         if (terminal.contains(from)) {
-            throw AppException.conflict("RMA_TERMINAL", "Ce retour est clôturé (" + from + ").");
+            throw AppException.conflict("RMA_TERMINAL", "Ce retour est clôturé (" + from + ").",
+                    Map.of("from", from.name()));
         }
         if (to == RmaStatus.REJECTED || to == RmaStatus.CANCELLED) return;
         boolean ok = switch (from) {
@@ -247,7 +248,8 @@ public class RmaService {
             default        -> false;
         };
         if (!ok) {
-            throw AppException.conflict("RMA_INVALID_TRANSITION", "Transition invalide : " + from + " → " + to);
+            throw AppException.conflict("RMA_INVALID_TRANSITION", "Transition invalide : " + from + " → " + to,
+                    Map.of("from", from.name(), "to", to.name()));
         }
     }
 }

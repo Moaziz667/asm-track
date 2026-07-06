@@ -55,6 +55,10 @@ public class AppException extends RuntimeException {
         return new AppException(HttpStatus.CONFLICT, errorCode, message);
     }
 
+    public static AppException conflict(String errorCode, String message, Map<String, Object> params) {
+        return new AppException(HttpStatus.CONFLICT, errorCode, message, params);
+    }
+
     public static AppException forbidden(String message) {
         return new AppException(HttpStatus.FORBIDDEN, "ACCESS_DENIED", message);
     }

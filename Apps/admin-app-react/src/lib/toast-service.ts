@@ -82,6 +82,26 @@ function interpolate(template: string, params?: Record<string, unknown>): string
 }
 
 /**
+ * Translate param values that name a known enum (e.g. an RMA status returned as
+ * "RESTOCKED") into their localized label, so interpolated tokens never leak a
+ * raw enum name into a toast. Generic: any value matching a returnStatusLabels
+ * key is swapped for the label regardless of the param name.
+ */
+function localizeParamValues(
+  params: Record<string, unknown> | undefined,
+  copy: any,
+): Record<string, unknown> | undefined {
+  if (!params) return params;
+  const labels = copy?.returnStatusLabels as Record<string, string> | undefined;
+  if (!labels) return params;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params)) {
+    out[k] = typeof v === 'string' && labels[v] ? labels[v] : v;
+  }
+  return out;
+}
+
+/**
  * Map error messages to translation keys
  */
 function mapErrorToKey(errorMessage?: string, copy?: any): string | null {
@@ -239,7 +259,7 @@ export function showErrorToast(
     const copy = getCopy(useLocaleStore.getState().locale || 'fr');
     const resolved = (copy.apiMessages as any)?.[codeKey];
     if (resolved) {
-      const withParams = interpolate(resolved, data?.errorParams);
+      const withParams = interpolate(resolved, localizeParamValues(data?.errorParams, copy));
       const formatted = formatToastMessage(withParams, context);
       toast.error(formatted.title, { description: formatted.description });
       return;
