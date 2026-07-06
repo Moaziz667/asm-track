@@ -144,16 +144,20 @@ public class RouteReportService {
                 log.warn("RouteReport payload parse failed route={} — recomputing", route.getId(), e);
             }
         }
-        // Recompute and persist
+        // Recompute. Only FREEZE a snapshot for a CLOSED route — persisting for a live
+        // (DRAFT/VALIDATED/IN_PROGRESS) route would freeze the report on the first view, so stops,
+        // statuses and deliveries added afterwards would never appear. Live routes always rebuild.
         RouteReportResponse payload = buildReport(route);
-        try {
-            JsonNode json = objectMapper.valueToTree(payload);
-            routeReportRepository.save(RouteReport.builder()
-                    .routeId(route.getId())
-                    .payload(json)
-                    .build());
-        } catch (Exception e) {
-            log.warn("RouteReport persist after recompute failed route={}: {}", route.getId(), e.getMessage());
+        if (route.getStatus() == com.asm.delivery.entity.RouteStatus.CLOSED) {
+            try {
+                JsonNode json = objectMapper.valueToTree(payload);
+                routeReportRepository.save(RouteReport.builder()
+                        .routeId(route.getId())
+                        .payload(json)
+                        .build());
+            } catch (Exception e) {
+                log.warn("RouteReport persist after recompute failed route={}: {}", route.getId(), e.getMessage());
+            }
         }
         return payload;
     }

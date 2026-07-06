@@ -359,14 +359,14 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
     if (inField) { selectDriver(driverId); return; }
     setSubmitting(true);
     try {
-      let ok = 0, fail = 0;
+      let ok = 0, fail = 0, lastError: string | undefined;
       for (const x of allTargets) {
         try { await api.post(`/api/admin/ops/exceptions/${x.deliveryId}/reassign`, { driverId, note: '' }); ok++; }
-        catch { fail++; }
+        catch (err: unknown) { fail++; const m = (err as { response?: { data?: { message?: string } } })?.response?.data?.message; if (m) lastError = m; }
       }
       if (ok > 0 && fail === 0) showSuccessToast('successReassignToActive');
-      else if (ok > 0) showErrorToast(undefined, 'errorReassignPartialSuccess');
-      else showErrorToast(undefined, 'errorReassignFailed');
+      else if (ok > 0) showErrorToast(lastError, 'errorReassignPartialSuccess');
+      else showErrorToast(lastError, 'errorReassignFailed');
       onSuccess();
       onClose();
     } finally {
@@ -456,12 +456,17 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
 
       let successCount = 0;
       let failCount = 0;
+      let lastError: string | undefined;
       for (const t of allTargets) {
         try {
           await api.post(`/api/admin/ops/exceptions/${t.deliveryId}/reassign`, basePayload);
           successCount++;
-        } catch {
+        } catch (err: unknown) {
           failCount++;
+          // Surface the backend's structured reason (ORDER_NOT_PINNED, ROUTE_TIME_CONFLICT,
+          // INSERT_BEFORE_COMPLETED, capacity, pickup-precedence…) instead of a blind "failed".
+          const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+          if (msg) lastError = msg;
         }
       }
 
@@ -474,10 +479,10 @@ export function ReassignDrawer({ open, target, targets, drivers, onClose, onSucc
         }
       } else if (successCount > 0 && failCount > 0) {
         // Partial success
-        showErrorToast(undefined, 'errorReassignPartialSuccess');
+        showErrorToast(lastError, 'errorReassignPartialSuccess');
       } else if (failCount > 0) {
         // All failed
-        showErrorToast(undefined, 'errorReassignFailed');
+        showErrorToast(lastError, 'errorReassignFailed');
       }
 
       onSuccess(selectedRoute.id);

@@ -85,7 +85,10 @@ public class OrderService {
         auditLogService.logAction(null, "ODOO_RECV_ORDER", "DELIVERY", order.getId().toString(),
             java.util.Map.of("erpId", erpOrderId != null ? erpOrderId : "N/A", "source", "Odoo", "action", "Import commande ERP"));
 
-        Delivery delivery = createDeliveryTask(order, "SYSTEM", "DELIVERY_CREATED", Map.of());
+        // Stamp the real actor when a human triggered the import (ActorContext reads the request's
+        // X-User-* headers); falls back to SYSTEM for the headless Odoo webhook/poller. Consistent
+        // with ErpLookupService so the audit never reads a hardcoded "Système" for a manual import.
+        Delivery delivery = createDeliveryTask(order, com.asm.delivery.web.ActorContext.changedBy(), "DELIVERY_CREATED", Map.of());
         eventPublisher.publishDeliveryCreated(order, delivery);
         erpLookupService.invalidateCache();
 
