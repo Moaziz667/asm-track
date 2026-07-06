@@ -161,9 +161,7 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
 
       <div className="flex flex-col gap-0">
         <span className="text-xs font-[600] text-[var(--text-primary)] truncate">
-          {stop.stopType === 'PICKUP'
-            ? `${t.routesTablePage.pickupLoad}${stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}`
-            : (stop.clientName || '—')}
+          {stop.stopType === 'PICKUP' ? t.routesTablePage.pickupLoad : (stop.clientName || '—')}
         </span>
         <span className="text-xs font-[700] font-mono text-[var(--text-muted)]">
           {stop.stopType === 'PICKUP' ? t.routesTablePage.pickupHint : `#${shortId}`}
@@ -173,10 +171,12 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
       <div className="flex items-center gap-1 flex-nowrap">
         <IconMapPin size={10} className="text-[var(--text-muted)] shrink-0" />
         <span className="text-2xs font-[500] text-[var(--text-soft)] truncate">
-          {[stop.dropoffAddress, stop.dropoffCity]
-            .filter(Boolean)
-            .join(', ')
-            .replace('Address not provided', t.routesTablePage.addressNotProvided) || '—'}
+          {stop.stopType === 'PICKUP'
+            ? (stop.sourceDepotName || '—')
+            : ([stop.dropoffAddress, stop.dropoffCity]
+                .filter(Boolean)
+                .join(', ')
+                .replace('Address not provided', t.routesTablePage.addressNotProvided) || '—')}
         </span>
       </div>
 
@@ -533,9 +533,7 @@ function RouteMobileCard({
                       <div className="flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-2xs font-bold text-[var(--text-muted)]">{i + 1}</span>
                         <span className="text-xs font-bold text-[var(--text-primary)]">
-                          {stop.stopType === 'PICKUP'
-                            ? `${t.routesTablePage.pickupLoad}${stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}`
-                            : (stop.clientName || '—')}
+                          {stop.stopType === 'PICKUP' ? t.routesTablePage.pickupLoad : (stop.clientName || '—')}
                         </span>
                       </div>
                       <StatusBadge status={stop.status || 'PENDING'} size="sm" />
@@ -543,14 +541,16 @@ function RouteMobileCard({
                     <div className="flex items-center gap-1 text-2xs text-[var(--text-soft)]">
                       <IconMapPin size={10} className="text-[var(--text-muted)] shrink-0" />
                       <span className="truncate">
-                        {[stop.dropoffAddress, stop.dropoffCity]
-                          .filter(Boolean)
-                          .join(', ')
-                          .replace('Address not provided', t.routesTablePage.addressNotProvided) || '—'}
+                        {stop.stopType === 'PICKUP'
+                          ? (stop.sourceDepotName || '—')
+                          : ([stop.dropoffAddress, stop.dropoffCity]
+                              .filter(Boolean)
+                              .join(', ')
+                              .replace('Address not provided', t.routesTablePage.addressNotProvided) || '—')}
                       </span>
                     </div>
                     <div className="flex items-center justify-between gap-2 border-t border-[var(--border)] pt-1.5">
-                      <span className="text-3xs font-mono font-semibold text-[var(--text-muted)]">#{shortId}</span>
+                      <span className="text-3xs font-mono font-semibold text-[var(--text-muted)]">{stop.stopType === 'PICKUP' ? t.routesTablePage.pickupHint : `#${shortId}`}</span>
                       <div className="flex items-center gap-2">
                         {odooRef && <span className="text-3xs font-mono text-[var(--brand)]">ERP: {odooRef}</span>}
                         {stop.totalWeightKg != null && <span className="text-3xs font-mono font-bold text-[var(--text-muted)]">{stop.totalWeightKg.toFixed(1)}kg</span>}
