@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, Suspense } from 'react';
 import { lazy as dynamic } from 'react';
+import { z } from 'zod';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT, getCopy } from '@/lib/LocaleContext';
@@ -80,6 +81,10 @@ export default function ZonesPage() {
   const [editorOpen, setEditorOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  // zod validation for the single text input; postalCodes/geometry are map-driven
+  // (imperative) so their checks stay as pre-submit guards below, not RHF fields.
+  const [nameError, setNameError] = useState<string | undefined>(undefined);
+  const nameSchema = useMemo(() => z.string().trim().min(1, t.validation.required), [t]);
   const [knownCoords, setKnownCoords] = useState<CoordMap>({});
   const [manualCode, setManualCode] = useState('');
   const [addingManual, setAddingManual] = useState(false);
@@ -93,11 +98,13 @@ export default function ZonesPage() {
     setForm({ ...emptyForm, color: autoColor });
     setKnownCoords({});
     setManualCode('');
+    setNameError(undefined);
     setEditorOpen(true);
   };
 
   const openEdit = (zone: Zone) => {
     if (readOnly) return;
+    setNameError(undefined);
     setEditingId(zone.id);
     setForm({
       name: zone.name,
@@ -155,9 +162,12 @@ export default function ZonesPage() {
   };
 
   const save = async () => {
-    if (!form.name.trim()) {
-      return showErrorToast(null, 'errorZoneNameRequired');
+    const nameCheck = nameSchema.safeParse(form.name);
+    if (!nameCheck.success) {
+      setNameError(nameCheck.error.issues[0].message);
+      return;
     }
+    setNameError(undefined);
     if (form.postalCodes.length === 0) {
       return showErrorToast(null, 'errorZoneMinPostalCodesRequired');
     }
@@ -433,12 +443,14 @@ export default function ZonesPage() {
                 <label className="block text-xs font-semibold mb-2" style={{ color: 'var(--text-muted)' }}>{t.zonesPage.sectorNameLabel}</label>
                 <input
                   className="w-full h-9 px-3 text-sm rounded-md outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                  style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}
+                  style={{ background: 'var(--app-bg)', border: `1px solid ${nameError ? 'var(--danger)' : 'var(--border)'}`, color: 'var(--text-primary)' }}
                   placeholder={t.zonesPage.sectorNamePlaceholder}
                   value={form.name}
-                  onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                  onChange={(e) => { setForm((p) => ({ ...p, name: e.target.value })); if (nameError) setNameError(undefined); }}
+                  aria-invalid={!!nameError || undefined}
                   required
                 />
+                {nameError && <p className="text-xs text-[var(--danger)] mt-1" role="alert">{nameError}</p>}
               </div>
 
               {/* Color picker */}
