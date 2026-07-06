@@ -2829,6 +2829,8 @@ export const FR_COPY = {
     errorUnauthorized: 'Vous n\'êtes pas autorisé à effectuer cette action',
     errorForbidden: 'Accès refusé',
     errorConflict: 'Conflit de données - l\'objet a peut-être été modifié',
+    errorConcurrentUpdate: 'Cette action vient d\'être modifiée ailleurs. Actualisez puis réessayez.',
+    errorInspectionRequired: 'Inspection du véhicule requise avant cette action',
     errorServerError: 'Erreur serveur - veuillez réessayer',
     errorNetworkError: 'Erreur réseau - vérifiez votre connexion',
     errorTimeoutError: 'La requête a dépassé le délai d\'attente',

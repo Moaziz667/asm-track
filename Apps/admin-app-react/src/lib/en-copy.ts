@@ -2714,6 +2714,8 @@ export const EN_COPY = {
     errorUnauthorized: 'You are not authorized to perform this action',
     errorForbidden: 'Access denied',
     errorConflict: 'Data conflict - the object may have been modified',
+    errorConcurrentUpdate: 'This action was just updated elsewhere. Refresh and try again.',
+    errorInspectionRequired: 'Vehicle inspection required before this action',
     errorServerError: 'Server error - please try again',
     errorNetworkError: 'Network error - check your connection',
     errorTimeoutError: 'Request timeout',

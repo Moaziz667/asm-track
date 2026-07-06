@@ -2773,6 +2773,8 @@ export const AR_COPY = {
     errorUnauthorized: 'أنت غير مصرح بإجراء هذه العملية',
     errorForbidden: 'تم منع الوصول',
     errorConflict: 'تضارب في البيانات - قد يكون الكائن قد تم تعديله',
+    errorConcurrentUpdate: 'تم تحديث هذا الإجراء للتو في مكان آخر. حدّث الصفحة ثم أعد المحاولة.',
+    errorInspectionRequired: 'يلزم فحص المركبة قبل هذا الإجراء',
     errorServerError: 'خطأ في الخادم - الرجاء المحاولة مرة أخرى',
     errorNetworkError: 'خطأ الشبكة - تحقق من اتصالك',
     errorTimeoutError: 'انتهت مهلة الانتظار',

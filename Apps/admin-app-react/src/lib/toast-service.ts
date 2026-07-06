@@ -34,6 +34,36 @@ export function extractContextFromResponse(data: any): ToastContext {
 }
 
 /**
+ * Stable backend errorCode → apiMessages key.
+ *
+ * The backend (GlobalExceptionHandler / AppException) returns a stable
+ * `errorCode` alongside the human message. Preferring the code over fuzzy
+ * English-substring matching of the message makes localization deterministic
+ * and immune to backend wording changes.
+ *
+ * Only *specific* codes belong here — codes that are more precise than a
+ * caller's contextual `fallbackKey` (e.g. `errorDriverCreateFailed`). Generic
+ * codes (BAD_REQUEST, VALIDATION_FAILED, STATE_CONFLICT…) are intentionally
+ * omitted so they don't clobber the richer caller fallback; they still resolve
+ * via the status-code path.
+ */
+const ERROR_CODE_KEYS: Record<string, string> = {
+  CONCURRENT_UPDATE: 'errorConcurrentUpdate',
+  CONNECTION_FAILED: 'errorNetworkError',
+  INSPECTION_REQUIRED: 'errorInspectionRequired',
+  GPS_REQUIRED: 'errorMissingGPS',
+  DELIVERY_NOT_FOUND: 'errorDeliveryNotFound',
+};
+
+/** Fill {placeholder} tokens from the backend errorParams map. */
+function interpolate(template: string, params?: Record<string, unknown>): string {
+  if (!params || !template.includes('{')) return template;
+  return template.replace(/\{(\w+)\}/g, (m, k) =>
+    params[k] != null ? String(params[k]) : m,
+  );
+}
+
+/**
  * Map error messages to translation keys
  */
 function mapErrorToKey(errorMessage?: string, copy?: any): string | null {
@@ -180,6 +210,24 @@ export function showErrorToast(
   fallbackKey?: keyof ReturnType<typeof getCopy>['apiMessages'] | string,
   context?: ToastContext,
 ): void {
+  // Prefer the backend's stable errorCode contract over fuzzy message matching.
+  const data =
+    errorMessage && typeof errorMessage === 'object'
+      ? errorMessage.response?.data
+      : undefined;
+  const errorCode: string | undefined = data?.errorCode;
+  const codeKey = errorCode ? ERROR_CODE_KEYS[errorCode] : undefined;
+  if (codeKey) {
+    const copy = getCopy(useLocaleStore.getState().locale || 'fr');
+    const resolved = (copy.apiMessages as any)?.[codeKey];
+    if (resolved) {
+      const withParams = interpolate(resolved, data?.errorParams);
+      const formatted = formatToastMessage(withParams, context);
+      toast.error(formatted.title, { description: formatted.description });
+      return;
+    }
+  }
+
   const msgStr = typeof errorMessage === 'string'
     ? errorMessage
     : (errorMessage && typeof errorMessage === 'object' && (errorMessage.response?.data?.message || errorMessage.response?.data?.error))
