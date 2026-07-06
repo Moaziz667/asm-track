@@ -4,6 +4,7 @@ import { useRef, useCallback } from 'react';
 import { toast } from '@/lib/toast';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 
 interface UndoableOptions<T> {
@@ -40,9 +41,7 @@ export function useUndoableAction<T>(
 
     let undone = false;
 
-    const translatedMessage = message in t.apiMessages 
-      ? (t.apiMessages as any)[message] 
-      : message;
+    const translatedMessage = tlabel(t.apiMessages, message) ?? message;
 
     const undoLabel = useLocaleStore.getState().locale === 'ar' 
       ? 'تراجع' 

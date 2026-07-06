@@ -9,6 +9,13 @@ import { useLocaleStore } from '@/lib/i18n';
 import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
 import { AR_COPY } from '@/lib/ar-copy';
+import { dget } from '@/lib/i18n-dict';
+
+/** Shape of a per-event notification copy entry (title/message may be templated). */
+type NotifCopyEntry = {
+  title?: string | ((p: Record<string, unknown>) => string);
+  message?: (p: Record<string, unknown>) => string;
+};
 import { api } from '@/lib/api';
 import { notifDestination } from '@/lib/dispatch-link';
 
@@ -266,9 +273,9 @@ export default function NotificationsProvider({ children }: { children: ReactNod
     const ts = Date.now();
     const activeLocale = useLocaleStore.getState().locale || 'fr';
     const copyDict = activeLocale === 'ar' ? AR_COPY : (activeLocale === 'en' ? EN_COPY : FR_COPY);
-    const eventCopy = (copyDict.notifications as any)[event];
+    const eventCopy = dget<NotifCopyEntry>(copyDict.notifications, event);
 
-    const title = eventCopy?.title || event;
+    const title = (typeof eventCopy?.title === 'string' ? eventCopy.title : undefined) || event;
     const message = typeof eventCopy?.message === 'function' ? eventCopy.message(p) : '';
 
     const notif: Notification = {
@@ -393,11 +400,11 @@ export function getLocalizedNotif(n: Notification, locale: string) {
     return { title: `${phase}${health ? ' · ' + health : ''}`, message };
   }
 
-  const cfg = (copyDict.notifications as any)[n.event];
+  const cfg = dget<NotifCopyEntry>(copyDict.notifications, n.event);
   if (!cfg) {
     return { title: n.title, message: n.message };
   }
-  const ep = (n.eventParams || {}) as Record<string, any>;
+  const ep = (n.eventParams || {}) as Record<string, unknown>;
   const p = {
     ...ep,
     clientName: ep.clientName ?? n.clientName ?? '',

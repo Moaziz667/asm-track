@@ -21,3 +21,13 @@ export function tlabel(dict: unknown, key: string | null | undefined): string | 
 export function tlabelOr(dict: unknown, key: string | null | undefined): string {
   return tlabel(dict, key) ?? (key ?? '');
 }
+
+/**
+ * Look up `key` in a dict of *arbitrary* values (not just strings) — e.g. copy
+ * entries shaped `{ title, message }`. Returns the typed value or undefined.
+ * Same single-cast boundary as {@link tlabel}, for object-valued maps.
+ */
+export function dget<V = unknown>(dict: unknown, key: string | null | undefined): V | undefined {
+  if (dict == null || key == null) return undefined;
+  return (dict as Record<string, V>)[key];
+}

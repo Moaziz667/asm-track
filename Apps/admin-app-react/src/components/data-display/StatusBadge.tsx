@@ -1,6 +1,7 @@
 
 
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import {
   IconPencil, IconChecks, IconPlayerPlay, IconCircleCheck, IconCircleMinus, IconBan, IconCircleX,
   IconAlertTriangle, IconCalendarOff, IconCalendarCheck, IconPackage, IconTruckDelivery,
@@ -139,7 +140,7 @@ export function StatusBadge({ status, label, size = 'md', pulse }: StatusBadgePr
   const t = useT();
   const cfg = CONFIG[status] ?? { dot: '#A1A1AA', bg: 'rgba(161,161,170,0.10)', text: '#71717A' };
   const shouldPulse = pulse ?? PULSE_STATUSES.has(status);
-  const displayLabel = label ?? (t.statusLabels as any)[status] ?? status;
+  const displayLabel = label ?? tlabel(t.statusLabels, status) ?? status;
 
   const dotPx = size === 'sm' ? 5 : 5.5;
   const iconPx = size === 'sm' ? 13 : 14;

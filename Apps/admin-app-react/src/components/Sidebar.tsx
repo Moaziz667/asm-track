@@ -16,6 +16,7 @@ import {
 } from '@/lib/auth';
 import { AdminRole } from '@/types';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAlerts } from '@/components/AlertsProvider';
@@ -170,11 +171,11 @@ export function AppSidebar() {
   const groups = useMemo(() =>
     GROUP_DEFS.map((g) => ({
       labelKey: g.groupKey,
-      label: (t.sidebar.groups as any)[g.groupKey] || g.groupKey,
+      label: tlabel(t.sidebar.groups, g.groupKey) || g.groupKey,
       Icon: g.Icon,
       items: g.items.map((item) => ({
         labelKey: item.labelKey,
-        label: (t.sidebar.items as any)[item.labelKey] || item.labelKey,
+        label: tlabel(t.sidebar.items, item.labelKey) || item.labelKey,
         href:  item.href,
         Icon:  item.Icon,
         roleCheck: item.roleCheck,
@@ -354,11 +355,11 @@ export function AppSidebar() {
                 className={s.group__header}
                 onClick={() => toggleGroup('settings')}
                 aria-expanded={expandedGroups.settings}
-                aria-label={(t.sidebar.items as any)['settings'] || 'Settings'}
+                aria-label={tlabel(t.sidebar.items, 'settings') || 'Settings'}
               >
                 <div className="flex items-center gap-2 min-w-0">
                   <IconSettings size={12} className="text-[var(--sb-label)] opacity-70 shrink-0" />
-                  <span className={s.group__label}>{(t.sidebar.items as any)['settings'] || 'Settings'}</span>
+                  <span className={s.group__label}>{tlabel(t.sidebar.items, 'settings') || 'Settings'}</span>
                 </div>
                 <div className="flex items-center gap-1.5 shrink-0">
                   {expandedGroups.settings ? (
@@ -391,10 +392,10 @@ export function AppSidebar() {
                 <span className={s.item__icon}>
                   <IconDatabase size={16} stroke={(pathname === '/settings/erp') ? 2 : 1.5} />
                 </span>
-                <span className={s.item__label}>{(t.sidebar.items as any)['erpIntegration'] || 'Intégration ERP'}</span>
+                <span className={s.item__label}>{tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}</span>
                 {isCollapsed && (
                   <span className={s.item__tooltip}>
-                    {(t.sidebar.items as any)['erpIntegration'] || 'Intégration ERP'}
+                    {tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}
                   </span>
                 )}
               </Link>

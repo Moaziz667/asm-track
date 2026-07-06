@@ -3,6 +3,7 @@ import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -313,7 +314,7 @@ export default function ReturnsPage() {
                       {r.erpSyncStatus ? (
                         <div className="flex items-center gap-1.5">
                           <span title={r.erpSyncStatus === 'SYNC_FAILED' && r.erpSyncError ? `${t.returnsPage?.syncErrorLabel ?? 'Erreur'} : ${r.erpSyncError}` : undefined}>
-                            <StatusBadge status={r.erpSyncStatus} label={(t.returnsPage?.syncLabels as any)?.[r.erpSyncStatus] ?? r.erpSyncStatus} size="sm" />
+                            <StatusBadge status={r.erpSyncStatus} label={tlabel(t.returnsPage?.syncLabels, r.erpSyncStatus) ?? r.erpSyncStatus} size="sm" />
                           </span>
                           {r.erpSyncStatus === 'SYNC_FAILED' && (
                             <Button

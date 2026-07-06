@@ -1,5 +1,6 @@
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { cn } from '@/lib/utils';
 
 /**
@@ -23,7 +24,7 @@ export function FailureInfo({
   const t = useT();
   if (!code && !reason) return null;
 
-  const label = code ? ((t.failureCodes as any)?.[code] ?? code) : null;
+  const label = code ? (tlabel(t.failureCodes, code) ?? code) : null;
   // Prefer the specific motif; fall back to the category. One chip, no duplication.
   const text = reason || label;
   if (!text) return null;
