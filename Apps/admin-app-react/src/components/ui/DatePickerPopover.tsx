@@ -12,9 +12,11 @@ interface DatePickerPopoverProps {
   onChange: (iso: string | null) => void;
   placeholder?: string;
   className?: string;
+  /** Earliest selectable day — days strictly before this are disabled (e.g. no past dates). */
+  minDate?: Date;
 }
 
-export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une date', className }: DatePickerPopoverProps) {
+export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une date', className, minDate }: DatePickerPopoverProps) {
   const selected = value ? parseISO(value) : undefined;
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -83,6 +85,7 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
               onChange(day ? format(day, 'yyyy-MM-dd') : null);
               setOpen(false);
             }}
+            disabled={minDate ? { before: minDate } : undefined}
             locale={fr}
             className="[--cell-size:28px] text-xs"
           />

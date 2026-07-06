@@ -42,6 +42,10 @@ export function ReplanModal({
   const t = useT();
   const isReplan = pendingAction?.kind === 'replan';
   const row = pendingAction?.row;
+  const todayStr = new Date().toISOString().slice(0, 10);
+  const todayStart = new Date(`${todayStr}T00:00:00`);
+  // Guard: a replan re-baselines the SLA — the new date can never be in the past.
+  const pastDate = isReplan && !!scheduledAt && scheduledAt.split('T')[0] < todayStr;
 
   return (
     <AppModal
@@ -58,7 +62,7 @@ export function ReplanModal({
           </Button>
           <Button
             onClick={onConfirm}
-            disabled={loading || !actionNote.trim() || (isReplan && !scheduledAt)}
+            disabled={loading || !actionNote.trim() || (isReplan && !scheduledAt) || pastDate}
           >
             {loading ? (
               <span className="flex items-center gap-2">
@@ -119,6 +123,7 @@ export function ReplanModal({
                     const timePart = scheduledAt.includes('T') ? scheduledAt.split('T')[1] : '08:00';
                     onScheduledAtChange?.(val ? `${val}T${timePart}` : '');
                   }}
+                  minDate={todayStart}
                   placeholder="Choisir une date"
                   className="flex-1 !h-[38px] !px-3 bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]"
                 />
