@@ -6,6 +6,7 @@ import { api } from '@/lib/api';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { isAbortError } from '@/lib/errors';
 import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
@@ -418,8 +419,8 @@ export default function AuditLogsPage() {
       setLogs(data.content);
       setTotalElements(data.totalElements);
       setTotalPages(data.totalPages);
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') showErrorToast(e, 'errorDataLoadFailed');
+    } catch (e) {
+      if (!isAbortError(e)) showErrorToast(e, 'errorDataLoadFailed');
     } finally {
       setLoading(false);
     }

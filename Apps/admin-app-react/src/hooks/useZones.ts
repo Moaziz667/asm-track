@@ -39,7 +39,7 @@ export function useCreateZone() {
       showSuccessToast('successZoneCreated');
       queryClient.invalidateQueries({ queryKey: ZONES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorZoneCreateFailed');
     }
   });
@@ -57,7 +57,7 @@ export function useUpdateZone() {
       showSuccessToast('successZoneUpdated');
       queryClient.invalidateQueries({ queryKey: ZONES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorZoneUpdateFailed');
     }
   });
@@ -75,7 +75,7 @@ export function useDeleteZone() {
       showSuccessToast('successZoneDeleted');
       queryClient.invalidateQueries({ queryKey: ZONES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorZoneDeleteFailed');
     }
   });
@@ -93,7 +93,7 @@ export function useSyncZones() {
       showSuccessToast('successZonesSynced');
       queryClient.invalidateQueries({ queryKey: ZONES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorZonesSyncFailed');
     }
   });

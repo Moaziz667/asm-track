@@ -266,8 +266,8 @@ export default function SystemHealthPage() {
       const res = await api.post(`/api/admin/dlq/${encodeURIComponent(queue)}/replay`, null, { params: { max: 100 } });
       showSuccessToast(dd.toastReplaySuccess.replace('{count}', String(res.data?.replayed ?? 0)));
       await fetchHealth(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, dd.toastReplayError);
+    } catch (err) {
+      showErrorToast(err, dd.toastReplayError);
     } finally {
       setReplaying(null);
     }
@@ -282,8 +282,8 @@ export default function SystemHealthPage() {
         showErrorToast(res.data?.reason, dd.resync.toastNotQueued);
       }
       await fetchHealth(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, dd.resync.toastError);
+    } catch (err) {
+      showErrorToast(err, dd.resync.toastError);
     } finally {
       setResyncing(null);
     }
@@ -294,8 +294,8 @@ export default function SystemHealthPage() {
       const res = await api.post('/api/admin/system/erp-sync/resync-all');
       showSuccessToast(dd.resync.toastAllQueued.replace('{count}', String(res.data?.queued ?? 0)));
       await fetchHealth(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, dd.resync.toastError);
+    } catch (err) {
+      showErrorToast(err, dd.resync.toastError);
     } finally {
       setResyncing(null);
     }

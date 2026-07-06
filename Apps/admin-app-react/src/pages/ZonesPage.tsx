@@ -191,7 +191,7 @@ export default function ZonesPage() {
         await createZoneMutation.mutateAsync(payload);
       }
       setEditorOpen(false);
-    } catch (err: any) {
+    } catch (err) {
       // Errors are handled by query mutation callbacks
     }
   };

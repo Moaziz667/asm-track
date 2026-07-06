@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, Suspense } from 'rea
 import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
 import { formatDateTime } from '@/lib/date';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { getApiError } from '@/lib/errors';
 import { api } from '@/lib/api';
 import {
   ErpPendingOrderPreviewDTO,
@@ -241,8 +242,8 @@ function ImportErpPageContent() {
       setPreview(null);
       await loadPendingOrders(true);
       window.open('/deliveries', '_blank');
-    } catch (err: any) {
-      const status = err?.response?.status;
+    } catch (err) {
+      const status = getApiError(err).status;
       if (status === 409) {
         showErrorToast(null, 'errorImportAlreadyExists');
       } else {

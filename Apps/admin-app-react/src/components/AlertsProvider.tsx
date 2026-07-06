@@ -10,6 +10,7 @@ import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
 import { AR_COPY } from '@/lib/ar-copy';
 import { dget } from '@/lib/i18n-dict';
+import { getApiError } from '@/lib/errors';
 
 /** Shape of a per-event notification copy entry (title/message may be templated). */
 type NotifCopyEntry = {
@@ -186,10 +187,10 @@ export default function NotificationsProvider({ children }: { children: ReactNod
       if (res.data && Array.isArray(res.data.content)) {
         setNotifs(res.data.content.map(mapResponseToNotification));
       }
-    } catch (err: any) {
+    } catch (err) {
       // The persistent-history endpoint may not be deployed yet; degrade to the
       // live (in-session) feed instead of throwing an uncaught rejection.
-      if (err?.response?.status === 404) {
+      if (getApiError(err).status === 404) {
         console.warn('[Notifications] History endpoint unavailable (404) — live feed only.');
         return;
       }

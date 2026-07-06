@@ -43,7 +43,7 @@ export function useSyncDepotsFromErp() {
       showSuccessToast('successDepotSynced');
       queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDepotSyncFailed');
     },
   });
@@ -66,7 +66,7 @@ export function usePatchDepotLocation() {
       showSuccessToast('successDepotUpdated');
       queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDepotUpdateFailed');
     },
   });
@@ -85,7 +85,7 @@ export function useGeolocateDepot() {
       showSuccessToast('successDepotGeolocate');
       queryClient.invalidateQueries({ queryKey: DEPOTS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDepotGeolocateFailed');
     },
   });

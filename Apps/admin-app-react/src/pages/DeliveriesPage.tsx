@@ -190,8 +190,8 @@ function DeliveriesPageContent() {
       showSuccessToast(t.deliveriesPage.deliveryCancelled);
       setCancelTarget(null);
       setCancelReason('');
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     }
   };
 

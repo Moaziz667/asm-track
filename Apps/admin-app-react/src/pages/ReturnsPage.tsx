@@ -137,8 +137,8 @@ export default function ReturnsPage() {
       });
       showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
       await fetchAll();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.returnsPage?.transitionError ?? 'Transition impossible');
+    } catch (err) {
+      showErrorToast(err, t.returnsPage?.transitionError ?? 'Transition impossible');
     } finally {
       setBusyId(null);
     }
@@ -151,8 +151,8 @@ export default function ReturnsPage() {
       await api.post(`/api/admin/returns/${r.id}/resync`);
       showSuccessToast(t.returnsPage?.resyncDone ?? 'Resynchronisation lancée');
       await fetchAll();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.returnsPage?.resyncError ?? 'Resynchronisation impossible');
+    } catch (err) {
+      showErrorToast(err, t.returnsPage?.resyncError ?? 'Resynchronisation impossible');
     } finally {
       setBusyId(null);
     }
@@ -171,8 +171,8 @@ export default function ReturnsPage() {
       showSuccessToast(`${t.returnsPage?.transitionDone ?? 'Retour'} → ${statusLabel(target)}`);
       setReasonModal(null);
       await fetchAll();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.returnsPage?.transitionError ?? 'Transition impossible');
+    } catch (err) {
+      showErrorToast(err, t.returnsPage?.transitionError ?? 'Transition impossible');
     } finally {
       setBusyId(null);
     }

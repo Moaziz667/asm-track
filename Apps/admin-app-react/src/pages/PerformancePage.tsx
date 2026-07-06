@@ -16,6 +16,7 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { isAbortError } from '@/lib/errors';
 import { KpiCard } from './DashboardPage';
 
 // ── Types ──────────────────────────────────────────────────────────────────
@@ -129,8 +130,8 @@ export default function PerformancePage() {
         setStats(r2.data);
         setLastUpdated(new Date());
       }
-    } catch (e: any) {
-      if (e?.name === 'AbortError' || e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED') return;
+    } catch (e) {
+      if (isAbortError(e)) return;
       console.error(e);
     } finally {
       if (!signal.aborted) setLoading(false);

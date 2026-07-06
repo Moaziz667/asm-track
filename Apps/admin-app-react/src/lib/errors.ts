@@ -43,3 +43,9 @@ export function getApiError(err: unknown): ApiError {
 export function getApiErrorMessage(err: unknown, fallback?: string): string | undefined {
   return getApiError(err).message ?? fallback;
 }
+
+/** True when a thrown value is an aborted/cancelled request (fetch abort or axios cancel). */
+export function isAbortError(err: unknown): boolean {
+  const e = err as { name?: string; code?: string } | null;
+  return e?.name === 'AbortError' || e?.name === 'CanceledError' || e?.code === 'ERR_CANCELED';
+}

@@ -137,8 +137,8 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
       });
       showSuccessToast(m?.created ?? 'Retour créé');
       onCreated();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, m?.createError ?? 'Échec de la création');
+    } catch (err) {
+      showErrorToast(err, m?.createError ?? 'Échec de la création');
     } finally {
       setSubmitting(false);
     }

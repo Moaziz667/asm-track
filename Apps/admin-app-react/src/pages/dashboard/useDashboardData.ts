@@ -158,7 +158,7 @@ export function useDashboardData(period: Period) {
 
   const needsAttention = useMemo(() => {
     if (!ops?.exceptions) return [];
-    const rank = (e: any): number => {
+    const rank = (e: { slaHealth?: string; slaWorstHealth?: string; severity?: string }): number => {
       const h = (e.slaHealth && e.slaHealth !== 'NONE') ? e.slaHealth : e.slaWorstHealth;
       if (h === 'BREACHED' || h === 'LATE' || e.severity === 'CRITICAL') return 0;
       if (h === 'AT_RISK' || e.severity === 'WARNING') return 1;

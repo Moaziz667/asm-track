@@ -201,8 +201,8 @@ function DriversPageContent() {
       await resendInviteMutation.mutateAsync(drv.id);
       setResendCooldown(60);
       const interval = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; }); }, 1000);
-    } catch (err: any) {
-      const retryAfter = err?.response?.data?.retryAfterSeconds;
+    } catch (err) {
+      const retryAfter = (err as { response?: { data?: { retryAfterSeconds?: number } } })?.response?.data?.retryAfterSeconds;
       if (typeof retryAfter === 'number' && retryAfter > 0) {
         setResendCooldown(retryAfter);
         const interval = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; }); }, 1000);

@@ -515,8 +515,8 @@ export function useRouteBuilder() {
       setCreateForm((prev) => ({ ...prev, name: '' }));
       await refreshAll(true);
       if (createdId) setSelectedRouteId(createdId);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setCreating(false);
     }
@@ -597,8 +597,8 @@ export function useRouteBuilder() {
             nextStopOrder += 1;
           }
           assignedIds.push(deliveryId);
-        } catch (err: any) {
-          showErrorToast(err?.response?.data?.message ?? err?.message);
+        } catch (err) {
+          showErrorToast(err);
         }
       }
       setSelectedOrderIds((prev) => prev.filter((id) => !assignedIds.includes(id)));
@@ -755,8 +755,8 @@ export function useRouteBuilder() {
       setSuggestion(null);
       setSelectedStopIds([]);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setOptimizing(false);
     }
@@ -770,8 +770,8 @@ export function useRouteBuilder() {
       await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(t.routeBuilderPage.toastStopRemoved);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setRemovingStopId(null);
     }
@@ -863,8 +863,8 @@ export function useRouteBuilder() {
       await api.post(`/api/admin/routes/${selectedRoute.id}/recalculate`).catch(() => undefined);
       showSuccessToast(t.routeBuilderPage.toastTimeWindowsSaved);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setSavingWindows(false);
     }
@@ -911,8 +911,8 @@ export function useRouteBuilder() {
       showSuccessToast(t.routeBuilderPage.toastSettingsSaved);
       setSettingsOpen(false);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setSavingSettings(false);
     }
@@ -932,8 +932,8 @@ export function useRouteBuilder() {
       showSuccessToast(t.routeBuilderPage.toastItineraryClear);
       setConfirmDeleteRouteId(null);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setDeletingRouteId(null);
     }
@@ -946,8 +946,8 @@ export function useRouteBuilder() {
       showSuccessToast(t.routeBuilderPage.toastRouteValidated);
       setConfirmValidateRouteId(null);
       await refreshAll(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     } finally {
       setValidatingRouteId(null);
     }
@@ -979,8 +979,8 @@ export function useRouteBuilder() {
         }
         successCount += 1;
         assignedIds.push(id);
-      } catch (err: any) {
-        showErrorToast(err?.response?.data?.message ?? err?.message);
+      } catch (err) {
+        showErrorToast(err);
       }
     }
 
@@ -1028,8 +1028,8 @@ export function useRouteBuilder() {
           }
           successCount += 1;
           assignedIds.push(id);
-        } catch (err: any) {
-          showErrorToast(err?.response?.data?.message ?? err?.message);
+        } catch (err) {
+          showErrorToast(err);
         }
       }
 
@@ -1046,8 +1046,8 @@ export function useRouteBuilder() {
       removeFromUnscheduled(assignedIds);
       await refreshAll(true);
       await api.post(`/api/admin/routes/${routeId}/recalculate`).catch(() => undefined);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message);
+    } catch (err) {
+      showErrorToast(err);
     }
   };
 
@@ -1096,7 +1096,7 @@ export function useRouteBuilder() {
       });
       showSuccessToast(t.routeBuilderPage.toastStopTransferred);
       await refreshAll(true);
-    } catch (err: any) {
+    } catch (err) {
       setRoutes(snapshotRoutes);
       showErrorToast(null, t.routeBuilderPage.toastTransferFailed);
     }

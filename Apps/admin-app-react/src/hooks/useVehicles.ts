@@ -79,7 +79,7 @@ export function useCreateVehicle() {
       showSuccessToast('successVehicleCreated');
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorVehicleCreateFailed');
     }
   });
@@ -97,7 +97,7 @@ export function useUpdateVehicle() {
       showSuccessToast('successVehicleUpdated');
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorVehicleUpdateFailed');
     }
   });
@@ -115,7 +115,7 @@ export function useDeleteVehicle() {
       showSuccessToast('successVehicleDeleted');
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorVehicleDeleteFailed');
     }
   });
@@ -133,7 +133,7 @@ export function useReactivateVehicle() {
       showSuccessToast('successVehicleReactivated');
       queryClient.invalidateQueries({ queryKey: VEHICLES_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorVehicleReactivateFailed');
     }
   });

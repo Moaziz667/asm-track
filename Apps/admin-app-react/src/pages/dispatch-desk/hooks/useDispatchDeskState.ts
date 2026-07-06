@@ -500,8 +500,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       await api.post(`/api/admin/ops/exceptions/${deliveryId}/replan`, payload);
       showSuccessToast(t.apiMessages.successDeliveryRescheduled);
       await fetchExceptions(true);
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.dispatchDeskPage.errorReplan);
+    } catch (err) {
+      showErrorToast(err, t.dispatchDeskPage.errorReplan);
     } finally {
       setRunningAction(null);
     }
@@ -530,8 +530,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       setCancelReason('');
       await fetchExceptions(true);
       await fetchAllDeliveries();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.dispatchDeskPage.errorCancel, { clientName: cancelTarget?.clientName });
+    } catch (err) {
+      showErrorToast(err, t.dispatchDeskPage.errorCancel, { clientName: cancelTarget?.clientName });
     } finally {
       setCancelling(false);
     }
@@ -548,8 +548,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       setReturnNote('');
       await fetchExceptions(true);
       await fetchAllDeliveries();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, t.dispatchDeskPage.errorReturnConfirm, { clientName: returnTarget?.clientName });
+    } catch (err) {
+      showErrorToast(err, t.dispatchDeskPage.errorReturnConfirm, { clientName: returnTarget?.clientName });
     } finally {
       setConfirmingReturn(false);
     }

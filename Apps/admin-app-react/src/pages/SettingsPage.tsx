@@ -202,7 +202,7 @@ export default function SettingsPage() {
       setAddOpen(false);
       addForm.reset();
       fetchAdminUsers();
-    } catch (err: any) {
+    } catch (err) {
       showErrorToast(err, 'errorSaveFailed');
     } finally {
       setSubmitting(false);
@@ -220,7 +220,7 @@ export default function SettingsPage() {
       fetchAdminUsers();
       // If the edited user is the signed-in one, refresh the live profile so the top bar updates now.
       queryClient.invalidateQueries({ queryKey: ['me'] });
-    } catch (err: any) {
+    } catch (err) {
       showErrorToast(err, 'errorUserUpdateFailed');
     } finally {
       setSubmitting(false);
@@ -232,7 +232,7 @@ export default function SettingsPage() {
       await api.patch(`/api/admin/users/${user.id}/status`, { active: !user.active });
       showSuccessToast('successUserUpdated');
       fetchAdminUsers();
-    } catch (err: any) {
+    } catch (err) {
       showErrorToast(err, 'errorUserUpdateFailed');
     }
   };
@@ -241,7 +241,7 @@ export default function SettingsPage() {
     try {
       await api.post(`/api/admin/users/${user.id}/reset-password-email`);
       showSuccessToast('successUserPasswordResetEmail');
-    } catch (err: any) {
+    } catch (err) {
       showErrorToast(err, 'errorUserPasswordResetEmailFailed');
     }
   };
@@ -250,7 +250,7 @@ export default function SettingsPage() {
     try {
       await api.post(`/api/admin/users/${user.id}/logout`);
       showSuccessToast('successUserForceLogout');
-    } catch (err: any) {
+    } catch (err) {
       showErrorToast(err, 'errorUserForceLogoutFailed');
     }
   };

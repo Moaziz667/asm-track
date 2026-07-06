@@ -138,8 +138,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
       }
       setModalOpen(false);
       await fetchReasons();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, s.toastSaveFailed);
+    } catch (err) {
+      showErrorToast(err, s.toastSaveFailed);
     } finally {
       setSubmitting(false);
     }
@@ -150,8 +150,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
       await api.delete(`/api/admin/failure-reasons/${r.id}`);
       showSuccessToast(s.toastDeactivated);
       await fetchReasons();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, s.toastDeactivateFailed);
+    } catch (err) {
+      showErrorToast(err, s.toastDeactivateFailed);
     }
   };
 
@@ -162,8 +162,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
       });
       showSuccessToast(s.toastReactivated);
       await fetchReasons();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, s.toastReactivateFailed);
+    } catch (err) {
+      showErrorToast(err, s.toastReactivateFailed);
     }
   };
 
@@ -179,8 +179,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
         api.put(`/api/admin/failure-reasons/${neighbour.id}`, { label: neighbour.label, category: neighbour.category, scope: neighbour.scope, active: neighbour.active, sortOrder: r.sortOrder }),
       ]);
       await fetchReasons();
-    } catch (err: any) {
-      showErrorToast(err?.response?.data?.message, s.toastReorderFailed);
+    } catch (err) {
+      showErrorToast(err, s.toastReorderFailed);
     }
   };
 

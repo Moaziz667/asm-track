@@ -126,7 +126,7 @@ export function PinDropoffModal({
       showSuccessToast(t.deliveriesPage.pinModalConfirm);
       onPinned?.(target.routeId);
       onClose();
-    } catch (err: any) { showErrorToast(err?.response?.data?.message); }
+    } catch (err) { showErrorToast(err); }
   };
 
   return (

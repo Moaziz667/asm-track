@@ -44,7 +44,7 @@ export function useCreateDriver() {
       showSuccessToast('successDriverCreated');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDriverCreateFailed');
     },
   });
@@ -62,7 +62,7 @@ export function useUpdateDriver() {
       showSuccessToast('successDriverUpdated');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDriverUpdateFailed');
     },
   });
@@ -109,7 +109,7 @@ export function useCancelDriverInvite() {
       showSuccessToast('successDriverInviteCancelled');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDriverCancelInviteFailed');
     },
   });
@@ -129,7 +129,7 @@ export function useResendDriverInvite() {
       showSuccessToast('successDriverInviteResent');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDriverInviteResendFailed');
     },
   });
@@ -147,7 +147,7 @@ export function useForceLogoutDriver() {
       showSuccessToast('successDriverForceLogout');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorDriverForceLogoutFailed');
     },
   });
@@ -167,7 +167,7 @@ export function useImportDrivers() {
       showSuccessToast('successDriversImported');
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any) => {
+    onError: (err: unknown) => {
       showErrorToast(err, 'errorImportFailed');
     },
   });

@@ -211,10 +211,10 @@ export function useRouteData(routeId: string | undefined) {
       setCancelStopTarget(null);
       setCancelStopReason('');
       await fetchData();
-    } catch (err: any) {
+    } catch (err) {
       const delivery = route.stops?.find(s => s.id === cancelStopTarget.stopId)?.delivery;
       showErrorToast(
-        err?.response?.data?.message,
+        err,
         t.routeDetailPage?.stopCancelError,
         { routeName: route.name, clientName: delivery?.clientName },
       );
@@ -241,10 +241,10 @@ export function useRouteData(routeId: string | undefined) {
       setRemoveStopTarget(null);
       setRemoveStopReason('');
       await fetchData();
-    } catch (err: any) {
+    } catch (err) {
       const delivery = route.stops?.find(s => s.id === removeStopTarget.stopId)?.delivery;
       showErrorToast(
-        err?.response?.data?.message,
+        err,
         t.routeDetailPage?.stopRemoveError,
         { routeName: route.name, clientName: delivery?.clientName },
       );
@@ -302,10 +302,10 @@ export function useRouteData(routeId: string | undefined) {
       });
       setEditWindowTarget(null);
       await fetchData();
-    } catch (err: any) {
+    } catch (err) {
       const delivery = route.stops?.find(s => s.id === editWindowTarget.stopId)?.delivery;
       showErrorToast(
-        err?.response?.data?.message,
+        err,
         t.routeDetailPage?.updateError,
         { routeName: route.name, clientName: delivery?.clientName },
       );
