@@ -91,7 +91,6 @@ function DriversPageContent() {
 
   const [crudOpen, setCrudOpen] = useState(false);
   const [editingDriver, setEditingDriver] = useState<Driver | null>(null);
-  const [form, setForm] = useState<DriverCrud>({ name: '', phone: '', email: '' });
   const csvInputRef = useRef<HTMLInputElement>(null);
 
   const [confirmCancel, setConfirmCancel] = useState<Driver | null>(null);
@@ -156,17 +155,15 @@ function DriversPageContent() {
   );
 
   // ── CRUD handlers ─────────────────────────────────────────────────────────
-  const openCreate = () => { setEditingDriver(null); setForm({ name: '', phone: '', email: '' }); setCrudOpen(true); };
-  const openEdit = (drv: Driver) => { setEditingDriver(drv); setForm({ id: drv.id, name: drv.name, phone: drv.phone, email: drv.email || '' }); setCrudOpen(true); };
+  const openCreate = () => { setEditingDriver(null); setCrudOpen(true); };
+  const openEdit = (drv: Driver) => { setEditingDriver(drv); setCrudOpen(true); };
 
-  const saveDriver = async () => {
-    if (!form.name.trim() || !form.phone.trim()) return showErrorToast(null, 'errorDriverNameRequired');
-    if (!form.email.trim()) return showErrorToast(null, 'errorDriverEmailRequired');
+  const saveDriver = async (data: DriverCrud) => {
     try {
       if (editingDriver) {
-        await updateDriverMutation.mutateAsync({ id: editingDriver.id, payload: { name: form.name, phone: form.phone, email: form.email } });
+        await updateDriverMutation.mutateAsync({ id: editingDriver.id, payload: { name: data.name, phone: data.phone, email: data.email } });
       } else {
-        await createDriverMutation.mutateAsync({ name: form.name, phone: form.phone, email: form.email });
+        await createDriverMutation.mutateAsync({ name: data.name, phone: data.phone, email: data.email });
       }
       setCrudOpen(false);
     } catch (err) { /* toast handled in hook */ }
@@ -425,9 +422,7 @@ function DriversPageContent() {
         open={crudOpen}
         onClose={() => setCrudOpen(false)}
         editingDriver={editingDriver}
-        form={form}
-        setForm={setForm}
-        onSave={saveDriver}
+        onSubmit={saveDriver}
         saving={saving}
         t={t}
       />

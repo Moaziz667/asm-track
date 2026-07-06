@@ -1,3 +1,7 @@
+import { useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
@@ -10,14 +14,37 @@ interface Props {
   open: boolean;
   onClose: () => void;
   editingDriver: Driver | null;
-  form: DriverCrud;
-  setForm: (f: DriverCrud) => void;
-  onSave: () => void;
+  onSubmit: (data: DriverCrud) => void | Promise<void>;
   saving: boolean;
   t: ReturnType<typeof useT>;
 }
 
-export function DriverFormModal({ open, onClose, editingDriver, form, setForm, onSave, saving, t }: Props) {
+export function DriverFormModal({ open, onClose, editingDriver, onSubmit, saving, t }: Props) {
+  const schema = useMemo(() => z.object({
+    name: z.string().trim().min(1, t.validation.required),
+    phone: z.string().trim().min(1, t.validation.required),
+    email: z.string().trim().min(1, t.validation.required).email(t.validation.invalidEmail),
+  }), [t]);
+
+  type FormT = z.infer<typeof schema>;
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormT>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: '', phone: '', email: '' },
+  });
+
+  // Rehydrate on open (create → blank, edit → driver values).
+  useEffect(() => {
+    if (!open) return;
+    reset(editingDriver
+      ? { name: editingDriver.name, phone: editingDriver.phone, email: editingDriver.email || '' }
+      : { name: '', phone: '', email: '' });
+  }, [open, editingDriver, reset]);
+
+  const submit = handleSubmit(async (data) => {
+    await onSubmit(editingDriver ? { id: editingDriver.id, ...data } : data);
+  });
+
   return (
     <AppModal
       open={open}
@@ -30,7 +57,7 @@ export function DriverFormModal({ open, onClose, editingDriver, form, setForm, o
           <Button variant="ghost" size="sm" className="h-7 px-3 text-xs font-bold rounded-md" onClick={onClose}>{t.driversPage.cancelButton}</Button>
           <Button
             size="sm"
-            onClick={onSave}
+            onClick={submit}
             disabled={saving}
             className="h-7 px-3 text-xs font-bold rounded-md bg-[var(--brand)] hover:opacity-90 text-white border-none"
           >
@@ -49,9 +76,9 @@ export function DriverFormModal({ open, onClose, editingDriver, form, setForm, o
             </div>
           </div>
         )}
-        <FieldInput label={t.driversPage.nameLabel} placeholder={t.driversPage.namePlaceholder} required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-        <FieldInput label={t.driversPage.phoneLabel} placeholder={t.driversPage.phonePlaceholder} required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} className="font-mono" />
-        <FieldInput label={t.driversPage.emailLabel} placeholder={t.driversPage.emailPlaceholder} type="email" required value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} hint={t.driversPage.invitationEmailHelp} />
+        <FieldInput label={t.driversPage.nameLabel} placeholder={t.driversPage.namePlaceholder} required {...register('name')} error={errors.name?.message} />
+        <FieldInput label={t.driversPage.phoneLabel} placeholder={t.driversPage.phonePlaceholder} required className="font-mono" {...register('phone')} error={errors.phone?.message} />
+        <FieldInput label={t.driversPage.emailLabel} placeholder={t.driversPage.emailPlaceholder} type="email" required {...register('email')} error={errors.email?.message} hint={t.driversPage.invitationEmailHelp} />
       </div>
     </AppModal>
   );
