@@ -19,7 +19,6 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
-import { ReassignDrawer, type ReassignTarget } from '@/components/overlays/reassign';
 import { getCurrentRole, canDispatch, isReadOnlyRole } from '@/lib/auth';
 import { useT } from '@/lib/LocaleContext';
 import { useRoutes, type RouteItem } from '@/hooks/useRoutes';
@@ -96,7 +95,6 @@ export default function SchedulePage() {
     else void refetchWeek();
   };
 
-  const [assignTarget, setAssignTarget] = useState<ReassignTarget | null>(null);
 
   const weekDays = weekDaysComputed;
 
@@ -544,14 +542,6 @@ export default function SchedulePage() {
           </div>
         </TabsContent>
       </Tabs>
-
-      <ReassignDrawer
-        open={assignTarget !== null}
-        target={assignTarget}
-        drivers={allDrivers}
-        onClose={() => setAssignTarget(null)}
-        onSuccess={() => { setAssignTarget(null); void refetchToday(); }}
-      />
     </div>
   );
 }
