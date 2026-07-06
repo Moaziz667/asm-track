@@ -20,6 +20,9 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { SectionCard } from '@/components/ui/section-card';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
@@ -81,20 +84,35 @@ export default function SettingsPage() {
   const [editingSla, setEditingSla] = useState<{ key: string; label: string; value: string } | null>(null);
   const [newSlaValue, setNewSlaValue] = useState('');
 
-  // Add-user form
-  const [formName, setFormName] = useState('');
-  const [formEmail, setFormEmail] = useState('');
-  const [formPassword, setFormPassword] = useState('');
-  const [formRole, setFormRole] = useState('ADMIN');
   const [submitting, setSubmitting] = useState(false);
   const [showAdminPass, setShowAdminPass] = useState(false);
 
-  // Edit-user form
+  // Add-user form (RHF + zod)
+  const addUserSchema = useMemo(() => z.object({
+    name: z.string().trim().min(1, t.validation.required),
+    email: z.string().trim().min(1, t.validation.required).email(t.validation.invalidEmail),
+    password: z.string().min(6, t.validation.minLength),
+    role: z.string(),
+  }), [t]);
+  type AddUserForm = z.infer<typeof addUserSchema>;
+  const addForm = useForm<AddUserForm>({
+    resolver: zodResolver(addUserSchema),
+    defaultValues: { name: '', email: '', password: '', role: 'ADMIN' },
+  });
+
+  // Edit-user form (RHF + zod)
   const [editOpen, setEditOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<AdminUser | null>(null);
-  const [editName, setEditName] = useState('');
-  const [editEmail, setEditEmail] = useState('');
-  const [editRole, setEditRole] = useState('ADMIN');
+  const editUserSchema = useMemo(() => z.object({
+    name: z.string().trim().min(1, t.validation.required),
+    email: z.string().trim().min(1, t.validation.required).email(t.validation.invalidEmail),
+    role: z.string(),
+  }), [t]);
+  type EditUserForm = z.infer<typeof editUserSchema>;
+  const editForm = useForm<EditUserForm>({
+    resolver: zodResolver(editUserSchema),
+    defaultValues: { name: '', email: '', role: 'ADMIN' },
+  });
 
   // Company branding
   const [company, setCompany] = useState<{ name: string; supportEmail?: string; address?: string; primaryColor?: string } | null>(null);
@@ -176,28 +194,26 @@ export default function SettingsPage() {
     }
   };
 
-  const handleAddUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleAddUser = addForm.handleSubmit(async (data) => {
     setSubmitting(true);
     try {
-      await api.post('/api/admin/users', { name: formName, email: formEmail, password: formPassword, role: formRole });
+      await api.post('/api/admin/users', data);
       showSuccessToast('successUserCreated');
       setAddOpen(false);
-      setFormName(''); setFormEmail(''); setFormPassword('');
+      addForm.reset();
       fetchAdminUsers();
     } catch (err: any) {
       showErrorToast(err, 'errorSaveFailed');
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
-  const handleEditUser = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleEditUser = editForm.handleSubmit(async (data) => {
     if (!editingUser) return;
     setSubmitting(true);
     try {
-      await api.put(`/api/admin/users/${editingUser.id}`, { name: editName, email: editEmail, role: editRole });
+      await api.put(`/api/admin/users/${editingUser.id}`, data);
       showSuccessToast('successUserUpdated');
       setEditOpen(false);
       setEditingUser(null);
@@ -209,7 +225,7 @@ export default function SettingsPage() {
     } finally {
       setSubmitting(false);
     }
-  };
+  });
 
   const handleToggleStatus = async (user: AdminUser) => {
     try {
@@ -467,7 +483,7 @@ export default function SettingsPage() {
                 <div className="flex flex-col gap-4">
                   <div className="flex items-center justify-end">
                     {canManage && (
-                      <Button size="sm" onClick={() => setAddOpen(true)} className="gap-1.5">
+                      <Button size="sm" onClick={() => { addForm.reset(); setAddOpen(true); }} className="gap-1.5">
                         <IconPlus size={15} /> {sp.newUser}
                       </Button>
                     )}
@@ -519,7 +535,7 @@ export default function SettingsPage() {
                                     </DropdownMenuTrigger>
                                     <DropdownMenuContent align="end" className="w-48 bg-[var(--surface)] border border-[var(--border)] shadow-lg rounded-md p-1">
                                       <DropdownMenuItem
-                                        onClick={() => { setEditingUser(u); setEditName(u.name); setEditEmail(u.email); setEditRole(u.role); setEditOpen(true); }}
+                                        onClick={() => { setEditingUser(u); editForm.reset({ name: u.name, email: u.email, role: u.role }); setEditOpen(true); }}
                                         className="text-xs font-semibold text-[var(--text-soft)] hover:text-[var(--text-primary)] hover:bg-[var(--hover-bg)] gap-2 cursor-pointer rounded px-2.5 py-1.5">
                                         <IconPencil size={13} /> {t.driversPage.modifyButton ?? 'Edit'}
                                       </DropdownMenuItem>
@@ -583,14 +599,14 @@ export default function SettingsPage() {
         }
       >
         <form id="add-user-form" onSubmit={handleAddUser} className="flex flex-col gap-4">
-          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} value={formName} onChange={(e) => setFormName(e.target.value)} required />
-          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} value={formEmail} onChange={(e) => setFormEmail(e.target.value)} required />
+          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} required {...addForm.register('name')} error={addForm.formState.errors.name?.message} />
+          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} required {...addForm.register('email')} error={addForm.formState.errors.email?.message} />
           <FieldInput
             type={showAdminPass ? 'text' : 'password'}
             label={sp.temporaryPassword}
-            value={formPassword}
-            onChange={(e) => setFormPassword(e.target.value)}
             required
+            {...addForm.register('password')}
+            error={addForm.formState.errors.password?.message}
             rightSection={
               <button type="button" className="text-[var(--text-muted)] hover:text-[var(--text-primary)]" onClick={() => setShowAdminPass(!showAdminPass)}>
                 {showAdminPass ? <IconEyeOff size={14} /> : <IconEye size={14} />}
@@ -599,8 +615,7 @@ export default function SettingsPage() {
           />
           <FieldSelect
             label={sp.profilePrivileges}
-            value={formRole}
-            onChange={(e) => setFormRole(e.target.value)}
+            {...addForm.register('role')}
             disabled={submitting}
             options={[{ value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' }, { value: 'MANAGER', label: 'Manager' }]}
           />
@@ -621,12 +636,11 @@ export default function SettingsPage() {
         }
       >
         <form id="edit-user-form" onSubmit={handleEditUser} className="flex flex-col gap-4">
-          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} value={editName} onChange={(e) => setEditName(e.target.value)} required />
-          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} value={editEmail} onChange={(e) => setEditEmail(e.target.value)} required />
+          <FieldInput label={sp.fullName} placeholder={sp.fullNameExample} required {...editForm.register('name')} error={editForm.formState.errors.name?.message} />
+          <FieldInput type="email" label={sp.loginEmail} placeholder={sp.loginEmailExample} required {...editForm.register('email')} error={editForm.formState.errors.email?.message} />
           <FieldSelect
             label={sp.profilePrivileges}
-            value={editRole}
-            onChange={(e) => setEditRole(e.target.value)}
+            {...editForm.register('role')}
             disabled={submitting}
             options={[{ value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' }, { value: 'MANAGER', label: 'Manager' }]}
           />
