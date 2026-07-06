@@ -2697,6 +2697,16 @@ export const AR_COPY = {
     pageLoading: 'جاري تحميل التسليمات...',
   },
 
+  // ── التحقق من النماذج (react-hook-form + zod) ────────────────────────────
+  validation: {
+    required: 'هذا الحقل مطلوب',
+    positiveNumber: 'يجب أن يكون رقمًا أكبر من 0',
+    invalidYear: 'سنة غير صالحة',
+    invalidEmail: 'عنوان بريد إلكتروني غير صالح',
+    invalidNumber: 'يجب أن يكون رقمًا صالحًا',
+    minLength: 'قصير جدًا',
+  },
+
   // ── رسائل API والأخطاء ──────────────────────────────────────────────
   apiMessages: {
     successStopCancelled: 'تم إزالة الإيقاف من الرحلة',

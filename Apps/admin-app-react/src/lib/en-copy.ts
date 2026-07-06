@@ -2638,6 +2638,16 @@ export const EN_COPY = {
     pageLoading: 'Loading deliveries...',
   },
 
+  // ── Form validation (react-hook-form + zod) ────────────────────────────
+  validation: {
+    required: 'This field is required',
+    positiveNumber: 'Must be a number greater than 0',
+    invalidYear: 'Invalid year',
+    invalidEmail: 'Invalid email address',
+    invalidNumber: 'Must be a valid number',
+    minLength: 'Too short',
+  },
+
   // ── API Messages & Errors ──────────────────────────────────────────────
   apiMessages: {
     successStopCancelled: 'Stop removed from route',

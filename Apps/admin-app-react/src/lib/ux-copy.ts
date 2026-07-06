@@ -2744,6 +2744,16 @@ export const FR_COPY = {
     pageLoading: 'Chargement des livraisons...',
   },
 
+  // ── Form validation (react-hook-form + zod) ────────────────────────────
+  validation: {
+    required: 'Ce champ est obligatoire',
+    positiveNumber: 'Doit être un nombre supérieur à 0',
+    invalidYear: 'Année invalide',
+    invalidEmail: 'Adresse email invalide',
+    invalidNumber: 'Doit être un nombre valide',
+    minLength: 'Trop court',
+  },
+
   // ── API Messages & Errors ──────────────────────────────────────────────
   apiMessages: {
     // Success messages

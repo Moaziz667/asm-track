@@ -1,6 +1,9 @@
 
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import {
@@ -10,7 +13,6 @@ import {
   IconGauge, IconX,
   IconPoint, IconPackage
 } from '@tabler/icons-react';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import type { Driver } from '@/types';
 import { getCurrentRole, isReadOnlyRole } from '@/lib/auth';
 import { cn } from '@/lib/utils';
@@ -304,11 +306,39 @@ function VehiclesPageContent() {
 
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState({
+  // Image is kept outside the validated form (file/preview, not a schema field).
+  const [image, setImage] = useState({ base64: '', previewUrl: '' });
+
+  const vehicleSchema = useMemo(() => z.object({
+    make: z.string().trim().min(1, t.validation.required),
+    model: z.string().trim().min(1, t.validation.required),
+    plate: z.string().trim().min(1, t.validation.required),
+    payloadKg: z.string().trim().min(1, t.validation.required)
+      .refine((v) => Number(v) > 0, t.validation.positiveNumber),
+    volumeM3: z.string().optional()
+      .refine((v) => !v || Number(v) > 0, t.validation.invalidNumber),
+    manufactureYear: z.string().optional()
+      .refine((v) => !v || (/^\d{4}$/.test(v) && Number(v) >= 1950 && Number(v) <= new Date().getFullYear() + 1),
+        t.validation.invalidYear),
+    type: z.string(),
+    active: z.string(),
+    color: z.string().optional(),
+    vin: z.string().optional(),
+    fuelType: z.string().optional(),
+    mileageKm: z.string().optional(),
+  }), [t]);
+
+  type VehicleForm = z.infer<typeof vehicleSchema>;
+
+  const VEHICLE_DEFAULTS: VehicleForm = {
     make: '', model: '', manufactureYear: String(new Date().getFullYear()),
     color: '', vin: '', fuelType: '', payloadKg: '', volumeM3: '',
-    mileageKm: '', plate: '', type: 'VAN' as VehicleType, active: true,
-    imageBase64: '', imagePreviewUrl: '',
+    mileageKm: '', plate: '', type: 'VAN', active: 'true',
+  };
+
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<VehicleForm>({
+    resolver: zodResolver(vehicleSchema),
+    defaultValues: VEHICLE_DEFAULTS,
   });
 
   const filtered = useMemo(() => {
@@ -345,38 +375,37 @@ function VehiclesPageContent() {
   }, [vehicles]);
 
   const resetForm = () => {
-    setForm({
-      make: '', model: '', manufactureYear: String(new Date().getFullYear()),
-      color: '', vin: '', fuelType: '', payloadKg: '', volumeM3: '',
-      mileageKm: '', plate: '', type: 'VAN', active: true,
-      imageBase64: '', imagePreviewUrl: '',
-    });
+    reset(VEHICLE_DEFAULTS);
+    setImage({ base64: '', previewUrl: '' });
     setEditingId(null);
     setModalOpen(false);
   };
 
   const openEdit = (v: VehicleItem) => {
     setEditingId(v.id);
-    setForm({
+    reset({
       make: v.make, model: v.model, manufactureYear: String(v.manufactureYear || ''),
       color: v.color || '', vin: v.vin || '', fuelType: v.fuelType || '',
       payloadKg: String(v.payloadKg || ''), volumeM3: String(v.volumeM3 || ''),
       mileageKm: String(v.mileageKm || ''), plate: v.plate,
-      type: v.type, active: v.active, imageBase64: '',
-      imagePreviewUrl: v.imageUrl || '',
+      type: v.type, active: v.active ? 'true' : 'false',
     });
+    setImage({ base64: '', previewUrl: v.imageUrl || '' });
     setModalOpen(true);
   };
 
-  const saveVehicle = async () => {
-    if (!form.make || !form.plate || !form.payloadKg) return showErrorToast(null, 'errorVehiclePlateRequired');
+  const saveVehicle = handleSubmit(async (data) => {
     try {
       const payload = {
-        ...form,
-        manufactureYear: Number(form.manufactureYear),
-        payloadKg: Number(form.payloadKg),
-        volumeM3: form.volumeM3 ? Number(form.volumeM3) : null,
-        mileageKm: form.mileageKm ? Number(form.mileageKm) : null,
+        make: data.make, model: data.model, plate: data.plate,
+        type: data.type as VehicleType,
+        color: data.color, vin: data.vin, fuelType: data.fuelType,
+        manufactureYear: Number(data.manufactureYear),
+        payloadKg: Number(data.payloadKg),
+        volumeM3: data.volumeM3 ? Number(data.volumeM3) : null,
+        mileageKm: data.mileageKm ? Number(data.mileageKm) : null,
+        active: data.active === 'true',
+        imageBase64: image.base64 || undefined,
       };
       if (editingId) {
         await updateVehicleMutation.mutateAsync({ id: editingId, payload });
@@ -387,7 +416,7 @@ function VehiclesPageContent() {
     } catch (err) {
       // Errors are handled by query mutation callbacks
     }
-  };
+  });
 
   const deleteVehicle = (v: VehicleItem) => {
     setPendingDelete(v);
@@ -422,7 +451,7 @@ function VehiclesPageContent() {
       const reader = new FileReader();
       reader.onload = (ev) => {
         const result = ev.target?.result as string;
-        setForm(f => ({ ...f, imageBase64: result, imagePreviewUrl: result }));
+        setImage({ base64: result, previewUrl: result });
       };
       reader.readAsDataURL(file);
     }
@@ -678,8 +707,8 @@ function VehiclesPageContent() {
                   background: 'var(--app-bg)',
                 }}
               >
-                {form.imagePreviewUrl ? (
-                  <img src={form.imagePreviewUrl} alt="Preview" className="w-full h-full object-cover" />
+                {image.previewUrl ? (
+                  <img src={image.previewUrl} alt="Preview" className="w-full h-full object-cover" />
                 ) : (
                   <IconPlus size={32} style={{ color: 'var(--border)' }} />
                 )}
@@ -697,7 +726,7 @@ function VehiclesPageContent() {
                     className="text-2xs font-bold px-2 py-1 rounded-md shadow-sm border border-[var(--border)]"
                     style={{ background: 'var(--app-bg)', color: 'var(--text-primary)' }}
                   >
-                    {form.imagePreviewUrl ? t.vehiclesPage.imageChangeButton : t.vehiclesPage.imageUploadButton}
+                    {image.previewUrl ? t.vehiclesPage.imageChangeButton : t.vehiclesPage.imageUploadButton}
                   </button>
                 </div>
               </div>
@@ -708,58 +737,56 @@ function VehiclesPageContent() {
               <div className="grid grid-cols-2 gap-3">
                 <FieldInput
                   label={t.vehiclesPage.makeLabel}
-                  value={form.make}
-                  onChange={(e) => setForm({ ...form, make: e.target.value })}
                   required
+                  {...register('make')}
+                  error={errors.make?.message}
                 />
                 <FieldInput
                   label={t.vehiclesPage.modelLabel}
-                  value={form.model}
-                  onChange={(e) => setForm({ ...form, model: e.target.value })}
                   required
+                  {...register('model')}
+                  error={errors.model?.message}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <FieldInput
                   label={t.vehiclesPage.plateLabel}
-                  value={form.plate}
-                  onChange={(e) => setForm({ ...form, plate: e.target.value })}
                   required
                   className="font-mono font-black"
+                  {...register('plate')}
+                  error={errors.plate?.message}
                 />
                 <FieldSelect
                   label={t.vehiclesPage.typeLabel}
-                  value={form.type}
-                  onChange={(e) => setForm({ ...form, type: (e.target as HTMLSelectElement).value as VehicleType })}
+                  {...register('type')}
                   options={VEHICLE_TYPES.map(t => ({ value: t, label: typeLabel[t] }))}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <FieldInput
                   label={t.vehiclesPage.capacityKgLabel}
-                  value={form.payloadKg}
-                  onChange={(e) => setForm({ ...form, payloadKg: e.target.value })}
                   required
                   leftSection={<IconWeight size={14} />}
+                  {...register('payloadKg')}
+                  error={errors.payloadKg?.message}
                 />
                 <FieldInput
                   label={t.vehiclesPage.volumeM3Label}
-                  value={form.volumeM3}
-                  onChange={(e) => setForm({ ...form, volumeM3: e.target.value })}
                   leftSection={<IconPackage size={14} />}
+                  {...register('volumeM3')}
+                  error={errors.volumeM3?.message}
                 />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <FieldInput
                   label={t.vehiclesPage.yearLabel}
-                  value={form.manufactureYear}
-                  onChange={(e) => setForm({ ...form, manufactureYear: e.target.value })}
                   leftSection={<IconCalendar size={14} />}
+                  {...register('manufactureYear')}
+                  error={errors.manufactureYear?.message}
                 />
                 <FieldSelect
                   label={t.vehiclesPage.statusLabel}
-                  value={form.active ? 'true' : 'false'}
-                  onChange={(e) => setForm({ ...form, active: (e.target as HTMLSelectElement).value === 'true' })}
+                  {...register('active')}
                   options={[
                     { value: 'true', label: t.vehiclesPage.operationalStatus },
                     { value: 'false', label: t.vehiclesPage.statusOutOfService },
