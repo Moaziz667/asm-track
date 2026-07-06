@@ -21,6 +21,7 @@ interface NearestInfo { etaSeconds: number | null; distanceMeters: number | null
 interface Stop {
   id: string; deliveryId: string | null; stopOrder: number; status: string;
   startTimeWindow?: string; endTimeWindow?: string; clientName?: string; orderRef?: string; deliveryCity?: string;
+  stopType?: string; // DELIVERY | PICKUP — pickups are depot loads, not insertion positions
 }
 interface RouteData { id: string; name: string; status: string; date: string; stops: Stop[]; payloadKg?: number; currentLoadKg?: number; }
 type Cfg = { start: string; end: string; order: number | null; touched: boolean };
@@ -268,7 +269,9 @@ export function DispatchAssignDrawer({ open, target, targets, drivers, driversWi
   const selectedDriver = selectedId ? drivers.find(d => d.id === selectedId) ?? null : null;
   const hasActiveRoute = !!route && ACTIVE_ROUTE.has(route.status);
   const routeStops = useMemo(
-    () => (route?.stops ?? []).filter(s => !REMOVED.has(s.status)).sort((a, b) => a.stopOrder - b.stopOrder),
+    // Exclude depot PICKUP stops — they're loading operations, not insertion positions for a
+    // delivery (mirrors ReassignDrawer). Otherwise a "Chargement" row leaks into the picker.
+    () => (route?.stops ?? []).filter(s => !REMOVED.has(s.status) && s.stopType !== 'PICKUP').sort((a, b) => a.stopOrder - b.stopOrder),
     [route],
   );
 
