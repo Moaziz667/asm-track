@@ -22,6 +22,7 @@ interface Stop {
   id: string; deliveryId: string | null; stopOrder: number; status: string;
   startTimeWindow?: string; endTimeWindow?: string; clientName?: string; orderRef?: string; deliveryCity?: string;
   stopType?: string; // DELIVERY | PICKUP — pickups are depot loads, not insertion positions
+  sourceDepotName?: string;
 }
 interface RouteData { id: string; name: string; status: string; date: string; stops: Stop[]; payloadKg?: number; currentLoadKg?: number; }
 type Cfg = { start: string; end: string; order: number | null; touched: boolean };
@@ -269,9 +270,10 @@ export function DispatchAssignDrawer({ open, target, targets, drivers, driversWi
   const selectedDriver = selectedId ? drivers.find(d => d.id === selectedId) ?? null : null;
   const hasActiveRoute = !!route && ACTIVE_ROUTE.has(route.status);
   const routeStops = useMemo(
-    // Exclude depot PICKUP stops — they're loading operations, not insertion positions for a
-    // delivery (mirrors ReassignDrawer). Otherwise a "Chargement" row leaks into the picker.
-    () => (route?.stops ?? []).filter(s => !REMOVED.has(s.status) && s.stopType !== 'PICKUP').sort((a, b) => a.stopOrder - b.stopOrder),
+    // Keep PICKUP stops in the list so the sequence prediction/conflict math matches the backend
+    // (which counts them as real stops) and the dispatcher keeps the depot-load as a visual landmark.
+    // The pickup renders as a greyed, non-selectable context row (see StopRow) — never a drop target.
+    () => (route?.stops ?? []).filter(s => !REMOVED.has(s.status)).sort((a, b) => a.stopOrder - b.stopOrder),
     [route],
   );
 
@@ -669,6 +671,22 @@ function Timeline({ stops, effectiveOrder, target, winLabelText, onPick, t }: {
 
 function StopRow({ stop, done, current, t }: { stop: Stop; done: boolean; current: boolean; t: ReturnType<typeof useT> }) {
   const w = winLabel(stop.startTimeWindow, stop.endTimeWindow);
+  // Depot PICKUP: a load operation, not a delivery. Render it as a greyed, non-selectable context
+  // landmark (keeps the sequence readable) — the InsertSlots around it stay the only drop targets.
+  if (stop.stopType === 'PICKUP') {
+    return (
+      <div className="flex items-center gap-2.5 py-1.5" style={{ opacity: 0.55 }}>
+        <span className="flex items-center justify-center w-6 h-6 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)' }}>
+          <IconPackage size={12} className="text-[var(--text-muted)]" />
+        </span>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">
+            {t.configureInsertion.pickupStop}{stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}
+          </span>
+        </div>
+      </div>
+    );
+  }
   // Pickup (multi-depot load) stops carry no deliveryId/orderRef — label them as a load, don't crash.
   const ref = stop.orderRef || (stop.deliveryId ? stop.deliveryId.slice(0, 8).toUpperCase() : t.configureInsertion.pickupStop);
   return (
