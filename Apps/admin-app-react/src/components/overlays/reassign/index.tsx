@@ -1,129 +1,23 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
-  IconAlertTriangle, IconArrowLeft, IconArrowRight, IconArrowsExchange, IconBolt, IconCheck,
-  IconChevronLeft, IconChevronRight, IconCornerDownRight, IconExternalLink, IconMapPin,
-  IconPackage, IconPlus, IconSearch, IconTruck,
+  IconAlertTriangle, IconArrowLeft, IconArrowRight, IconArrowsExchange, IconBolt,
+  IconChevronLeft, IconChevronRight, IconExternalLink, IconMapPin, IconPackage, IconPlus, IconSearch,
 } from '@tabler/icons-react';
-import { AppDrawer } from './AppDrawer';
+import { AppDrawer } from '../AppDrawer';
 import StatusBadge from '@/components/StatusBadge';
-import { FieldInput, FieldTextarea } from '@/components/ui/field';
+import { FieldInput } from '@/components/ui/field';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import type { Driver } from '@/types';
-import type { ReassignTarget } from './ReassignDrawer';
+import type { ReassignTarget, RouteData, NearestInfo, Cfg } from './types';
+import { ACTIVE_ROUTE, REMOVED, haversineKm, hhmm, toMin, toLocalTime, winLabel, insertPseudo, predictSlot, conflictAt, loadDriverRoute } from './helpers';
+import { Timeline } from './Timeline';
+import { NoteField, BatchProgress, DriverRow, PresenceDot, Section } from './parts';
 
-// ── Shapes ───────────────────────────────────────────────────────────────────────
-interface NearestInfo { etaSeconds: number | null; distanceMeters: number | null; rank: number; }
-interface Stop {
-  id: string; deliveryId: string | null; stopOrder: number; status: string;
-  startTimeWindow?: string; endTimeWindow?: string; clientName?: string; orderRef?: string; deliveryCity?: string;
-  stopType?: string; // DELIVERY | PICKUP — pickups are depot loads, not insertion positions
-  sourceDepotName?: string;
-}
-interface RouteData { id: string; name: string; status: string; date: string; stops: Stop[]; payloadKg?: number; currentLoadKg?: number; }
-type Cfg = { start: string; end: string; order: number | null; touched: boolean };
-
-const DONE = new Set(['COMPLETED', 'FAILED', 'PARTIAL', 'FAILED_ATTEMPT']);
-const REMOVED = new Set(['REMOVED_CANCELLED', 'REMOVED_REPLANNED']);
-const CURRENT = new Set(['PICKED_UP', 'IN_TRANSIT', 'ARRIVED']);
-const ACTIVE_ROUTE = new Set(['IN_PROGRESS', 'VALIDATED']);
-
-// ── Pure helpers ───────────────────────────────────────────────────────────────────
-const fmtEta = (s?: number | null) => s == null ? null : s < 60 ? '<1 min' : s < 3600 ? `${Math.round(s / 60)} min` : `${Math.floor(s / 3600)}h${String(Math.round((s % 3600) / 60)).padStart(2, '0')}`;
-const fmtKm = (m?: number | null) => m == null ? null : m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
-const haversineKm = (a: number, b: number, c: number, d: number) => {
-  const R = 6371, dLat = (c - a) * Math.PI / 180, dLng = (d - b) * Math.PI / 180;
-  const x = Math.sin(dLat / 2) ** 2 + Math.cos(a * Math.PI / 180) * Math.cos(c * Math.PI / 180) * Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
-};
-const fmtSeen = (iso?: string | null): { text: string; fresh: boolean } | null => {
-  if (!iso) return null;
-  const mins = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
-  if (mins < 1) return { text: 'MAJ à l’instant', fresh: true };
-  if (mins < 60) return { text: `${mins <= 5 ? 'MAJ' : 'GPS'} ${mins} min`, fresh: mins <= 5 };
-  return { text: `GPS ${Math.floor(mins / 60)} h`, fresh: false };
-};
-const hhmm = (t?: string | null) => (t ? t.slice(0, 5) : '');
-const toMin = (t?: string | null) => { const v = t ? t.slice(0, 5) : ''; if (!v) return null; const [h, m] = v.split(':').map(Number); return h * 60 + m; };
-const winLabel = (s?: string, e?: string) => { const a = hhmm(s), b = hhmm(e); return a && b ? `${a}–${b}` : a ? `dès ${a}` : b ? `→ ${b}` : null; };
-const toLocalTime = (t: string) => (t.trim().length === 5 ? `${t.trim()}:00` : t.trim());
-const slotLabel = (x: { timeSlotStartTime?: string; timeSlotEndTime?: string; timeSlotName?: string; requestedDeliveryDate?: string }): string | null =>
-  x.timeSlotStartTime && x.timeSlotEndTime ? `${x.timeSlotStartTime.slice(0, 5)}–${x.timeSlotEndTime.slice(0, 5)}`
-    : x.timeSlotName || (x.requestedDeliveryDate ? x.requestedDeliveryDate.slice(0, 10) : null);
-
-/** Insert a pseudo-stop at `order`, shifting real stops ≥ order down by one — mirrors how the backend
- *  `moveStopToDriverRoute` shifts stops on insert. Used to build the progressive working list so each
- *  batch delivery is conflict-checked against the siblings already placed before it. */
-function insertPseudo(stops: Stop[], order: number, pseudo: Stop): Stop[] {
-  const shifted = stops.map(s => (s.stopOrder >= order ? { ...s, stopOrder: s.stopOrder + 1 } : s));
-  return [...shifted, { ...pseudo, stopOrder: order }].sort((a, b) => a.stopOrder - b.stopOrder);
-}
-
-/** Client mirror of the backend insertion (ADR-028): window-ordered slot in the pending tail plus the
- *  conflict (overlap prev/next, or window before a completed stop). Returns the 1-based stopOrder. */
-function predictSlot(realStops: Stop[], startMin: number | null, endMin: number | null): { order: number; conflict: 'prev' | 'next' | 'past' | null } {
-  let floorOrder = 1;
-  for (const s of realStops) if (DONE.has(s.status)) floorOrder = s.stopOrder + 1;
-  let order = realStops.length ? realStops[realStops.length - 1].stopOrder + 1 : 1;
-  if (startMin != null) {
-    for (const s of realStops) {
-      if (s.stopOrder < floorOrder) continue;
-      const sMin = toMin(s.startTimeWindow);
-      if (sMin == null) continue;
-      const eMin = toMin(s.endTimeWindow);
-      if (sMin > startMin || (sMin === startMin && eMin != null && endMin != null && eMin > endMin)) { order = s.stopOrder; break; }
-    }
-  }
-  if (order < floorOrder) order = floorOrder;
-  const prev = [...realStops].reverse().find(s => s.stopOrder < order);
-  const next = realStops.find(s => s.stopOrder >= order);
-  if (floorOrder > 1 && endMin != null) {
-    const lastDone = realStops.filter(s => DONE.has(s.status)).slice(-1)[0];
-    const dref = toMin(lastDone?.endTimeWindow) ?? toMin(lastDone?.startTimeWindow);
-    if (dref != null && endMin < dref) return { order, conflict: 'past' };
-  }
-  if (prev && startMin != null) { const pe = toMin(prev.endTimeWindow); if (pe != null && startMin < pe) return { order, conflict: 'prev' }; }
-  if (next && endMin != null) { const ns = toMin(next.startTimeWindow); if (ns != null && endMin > ns) return { order, conflict: 'next' }; }
-  return { order, conflict: null };
-}
-
-/** Conflict for placing a stop at `order` with the given window — unified for the auto-placed and the
- *  manually-moved slot. Returns the kind AND the neighbour time, so the warning can name it. */
-function conflictAt(stops: Stop[], order: number, startMin: number | null, endMin: number | null): { kind: 'prev' | 'next' | 'past' | null; time: string | null } {
-  let floorOrder = 1;
-  for (const s of stops) if (DONE.has(s.status)) floorOrder = s.stopOrder + 1;
-  if (floorOrder > 1 && endMin != null) {
-    const lastDone = stops.filter(s => DONE.has(s.status)).slice(-1)[0];
-    const dref = toMin(lastDone?.endTimeWindow) ?? toMin(lastDone?.startTimeWindow);
-    if (dref != null && endMin < dref) return { kind: 'past', time: null };
-  }
-  const prev = [...stops].reverse().find(s => s.stopOrder < order);
-  const next = stops.find(s => s.stopOrder >= order);
-  if (prev && startMin != null) { const pe = toMin(prev.endTimeWindow); if (pe != null && startMin < pe) return { kind: 'prev', time: hhmm(prev.endTimeWindow) }; }
-  if (next && endMin != null) { const ns = toMin(next.startTimeWindow); if (ns != null && endMin > ns) return { kind: 'next', time: hhmm(next.startTimeWindow) }; }
-  return { kind: null, time: null };
-}
-
-/** The driver's most relevant executable route today: prefer IN_PROGRESS, then VALIDATED, then any
- *  live draft — CLOSED/CANCELLED excluded. Only IN_PROGRESS/VALIDATED count as an "active route". */
-const loadDriverRoute = async (driverId: string): Promise<RouteData | null> => {
-  const from = new Date().toISOString().slice(0, 10);
-  const to = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
-  const [up, run] = await Promise.all([
-    api.get(`/api/admin/routes/driver/${driverId}`, { params: { from, to } }).catch(() => ({ data: [] })),
-    api.get('/api/admin/routes', { params: { driverId, status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
-  ]);
-  const byId = new Map<string, RouteData>();
-  [...(Array.isArray(up.data) ? up.data : []), ...(Array.isArray(run.data) ? run.data : [])].forEach((r: RouteData) => byId.set(r.id, r));
-  const rank = (s: string) => (s === 'IN_PROGRESS' ? 0 : s === 'VALIDATED' ? 1 : 2);
-  return Array.from(byId.values())
-    .filter(r => r.status !== 'CLOSED' && r.status !== 'CANCELLED')
-    .sort((a, b) => rank(a.status) - rank(b.status))[0] ?? null;
-};
+export type { ReassignTarget } from './types';
 
 interface Props {
   open: boolean;
@@ -145,7 +39,7 @@ interface Props {
  * Batch into an active route is configured one-by-one (a stepper): each delivery is conflict-checked
  * against the route plus the siblings already placed before it.
  */
-export function DispatchAssignDrawer({ open, target, targets, drivers, driversWithRoute, onClose, onSuccess }: Props) {
+export function ReassignDrawer({ open, target, targets, drivers, driversWithRoute, onClose, onSuccess }: Props) {
   const t = useT();
   const isBatch = (targets?.length ?? 0) > 1;
   const allTargets = useMemo(() => (isBatch ? targets! : (target ? [target] : [])), [isBatch, targets, target]);
@@ -551,189 +445,5 @@ export function DispatchAssignDrawer({ open, target, targets, drivers, driversWi
         </div>
       )}
     </AppDrawer>
-  );
-}
-
-// ── Note field ──────────────────────────────────────────────────────────────────────
-function NoteField({ t, inField, note, setNote }: { t: ReturnType<typeof useT>; inField: boolean; note: string; setNote: (v: string) => void }) {
-  return (
-    <FieldTextarea
-      label={`${t.reassignDrawer.noteForDriver} ${t.reassignDrawer.noteOptional}`}
-      placeholder={inField ? t.reassignDrawer.notePlaceholder : t.reassignDrawer.noteInternalPlaceholder}
-      value={note} onChange={e => setNote(e.currentTarget.value)} rows={2} wrapperClassName="mt-4"
-    />
-  );
-}
-
-// ── Batch stepper progress ──────────────────────────────────────────────────────────
-function BatchProgress({ targets, stepIndex, cfg, t }: { targets: ReassignTarget[]; stepIndex: number; cfg: Record<string, Cfg>; t: ReturnType<typeof useT> }) {
-  return (
-    <div className="mb-3">
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-2xs text-[var(--text-secondary)]">{t.assignFlow.placeOneByOne}</span>
-        <span className="text-2xs font-semibold text-[var(--text-primary)] tabular-nums">{stepIndex + 1} <span className="text-[var(--text-muted)] font-normal">/ {targets.length}</span></span>
-      </div>
-      <div className="flex gap-1">
-        {targets.map((x, i) => {
-          const done = i < stepIndex || (cfg[x.deliveryId]?.touched && i !== stepIndex);
-          const cur = i === stepIndex;
-          return <div key={x.deliveryId} className="flex-1 h-[3px] rounded-full" style={{ background: cur ? 'var(--brand)' : done ? 'var(--text-secondary)' : 'var(--border-strong)' }} />;
-        })}
-      </div>
-      <div className="flex gap-x-3 gap-y-1 flex-wrap mt-2">
-        {targets.map((x, i) => {
-          const done = i < stepIndex || (cfg[x.deliveryId]?.touched && i !== stepIndex);
-          const cur = i === stepIndex;
-          const ref = x.orderRef || x.deliveryId.slice(0, 6).toUpperCase();
-          return (
-            <span key={x.deliveryId} className={cn('inline-flex items-center gap-1 text-2xs', cur ? 'font-semibold text-[var(--brand)]' : done ? 'text-[var(--text-muted)]' : 'text-[var(--text-soft)]')}>
-              {done && <IconCheck size={12} />}{ref}
-            </span>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ── Phase 1 driver row ────────────────────────────────────────────────────────────
-function DriverRow({ driver, hero = false, dimmed = false, hasRoute = false, summary, nearest, havKm, onSelect, t }: {
-  driver: Driver; hero?: boolean; dimmed?: boolean; hasRoute?: boolean; summary?: RouteData | null;
-  nearest: Record<string, NearestInfo>; havKm: (d: Driver) => number | null;
-  onSelect: (id: string) => void; t: ReturnType<typeof useT>;
-}) {
-  const near = nearest[driver.id];
-  const hav = havKm(driver);
-  const proximity = [fmtEta(near?.etaSeconds), fmtKm(near?.distanceMeters) ?? (hav != null ? `${hav.toFixed(1)} km` : null)].filter(Boolean).join(' · ');
-  const statusCfg = DRIVER_STATUS_COLOR[(driver.onlineStatus ?? 'OFFLINE') as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
-  const seen = fmtSeen(driver.lastLocationAt);
-  return (
-    <button type="button" onClick={() => onSelect(driver.id)}
-      className={cn('w-full text-start rounded-lg p-2.5 flex items-center gap-2.5 border border-transparent hover:bg-[var(--hover-bg)] transition-colors mb-1')}
-      style={{ opacity: dimmed ? 0.6 : 1, background: hero ? 'var(--surface-sunken)' : undefined }}>
-      <span className="relative shrink-0">
-        <DriverAvatarById driverId={driver.id} name={driver.name} size={hero ? 38 : 32} />
-        <PresenceDot status={driver.onlineStatus} />
-      </span>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5">
-          <p className={cn('truncate text-[var(--text-primary)]', hero ? 'text-sm font-bold' : 'text-sm font-semibold')}>{driver.name}</p>
-          {proximity && <span className="ms-auto shrink-0 text-2xs font-semibold text-[var(--text-secondary)] tabular-nums">{proximity}</span>}
-        </div>
-        <div className="flex items-center gap-x-1.5 flex-wrap text-2xs mt-0.5">
-          <span className="font-medium" style={{ color: statusCfg.text }}>{statusCfg.label}</span>
-          {seen && <><span className="text-[var(--text-soft)]">·</span><span style={{ color: seen.fresh ? 'var(--success)' : 'var(--text-muted)' }}>{seen.text}</span></>}
-          <span className="text-[var(--text-soft)]">·</span>
-          {summary ? (
-            <span className="inline-flex items-center gap-1 min-w-0">
-              <span className="inline-flex items-center gap-0.5 text-[var(--text-muted)] truncate max-w-[80px]"><IconTruck size={10} />{summary.name}</span>
-              <StatusBadge status={summary.status} size="sm" />
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-0.5 text-[var(--text-muted)]"><IconTruck size={10} />{hasRoute ? t.reassignDrawer.routeInProgress : t.reassignDrawer.noRoutes}</span>
-          )}
-        </div>
-      </div>
-      <IconChevronRight size={14} className="shrink-0 text-[var(--text-soft)]" />
-    </button>
-  );
-}
-
-// ── Insertion timeline ────────────────────────────────────────────────────────────
-function Timeline({ stops, effectiveOrder, target, winLabelText, onPick, t }: {
-  stops: Stop[]; effectiveOrder: number; target: ReassignTarget | null; winLabelText: string | null;
-  onPick: (order: number) => void; t: ReturnType<typeof useT>;
-}) {
-  const floorOrder = stops.reduce((m, s) => DONE.has(s.status) ? s.stopOrder + 1 : m, 1);
-  const appendOrder = (stops[stops.length - 1]?.stopOrder ?? 0) + 1;
-  const newCard = (
-    <div className="flex items-center gap-2 py-1.5 ps-1 my-0.5 rounded-md" style={{ background: 'var(--brand-bg)' }}>
-      <span className="flex items-center justify-center w-6 h-6 rounded-full bg-[var(--brand)] text-white shrink-0"><IconMapPin size={12} /></span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs font-semibold text-[var(--brand)] truncate">{target?.orderRef || target?.clientName || t.configureInsertion.newStop} · {t.assignFlow.insertPosition.replace('{pos}', String(effectiveOrder))}</p>
-      </div>
-      {winLabelText && <span className="text-2xs font-medium text-[var(--brand)] tabular-nums shrink-0">{winLabelText}</span>}
-    </div>
-  );
-  const slot = (order: number) => <InsertSlot active={effectiveOrder === order} onPick={() => onPick(order)} label={t.configureInsertion.insertHere} />;
-  return (
-    <div className="flex flex-col rounded-xl border border-[var(--border)] p-2">
-      {stops.map((s) => (
-        <div key={s.id}>
-          {s.stopOrder >= floorOrder && (effectiveOrder === s.stopOrder ? newCard : slot(s.stopOrder))}
-          <StopRow stop={s} done={DONE.has(s.status)} current={CURRENT.has(s.status)} t={t} />
-        </div>
-      ))}
-      {effectiveOrder === appendOrder ? newCard : slot(appendOrder)}
-    </div>
-  );
-}
-
-function StopRow({ stop, done, current, t }: { stop: Stop; done: boolean; current: boolean; t: ReturnType<typeof useT> }) {
-  const w = winLabel(stop.startTimeWindow, stop.endTimeWindow);
-  // Depot PICKUP: a load operation, not a delivery. Render it as a greyed, non-selectable context
-  // landmark (keeps the sequence readable) — the InsertSlots around it stay the only drop targets.
-  if (stop.stopType === 'PICKUP') {
-    return (
-      <div className="flex items-center gap-2.5 py-1.5" style={{ opacity: 0.55 }}>
-        <span className="flex items-center justify-center w-6 h-6 rounded-full shrink-0" style={{ background: 'var(--surface-sunken)' }}>
-          <IconPackage size={12} className="text-[var(--text-muted)]" />
-        </span>
-        <div className="flex-1 min-w-0">
-          <span className="text-xs font-semibold text-[var(--text-secondary)] truncate">
-            {t.configureInsertion.pickupStop}{stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}
-          </span>
-        </div>
-      </div>
-    );
-  }
-  // Pickup (multi-depot load) stops carry no deliveryId/orderRef — label them as a load, don't crash.
-  const ref = stop.orderRef || (stop.deliveryId ? stop.deliveryId.slice(0, 8).toUpperCase() : t.configureInsertion.pickupStop);
-  return (
-    <div className={cn('flex items-center gap-2.5 py-1.5', current && 'rounded-md px-1.5 -mx-1.5')} style={{ opacity: done ? 0.5 : 1, background: current ? 'var(--surface-sunken)' : undefined }}>
-      <span className="flex items-center justify-center w-6 h-6 rounded-full text-2xs font-bold shrink-0 tabular-nums text-[var(--text-muted)]" style={{ background: 'var(--surface-sunken)' }}>
-        {done ? <IconCheck size={12} /> : stop.stopOrder}
-      </span>
-      <div className="flex-1 min-w-0">
-        <span className="text-xs font-semibold text-[var(--text-primary)] truncate font-mono">{ref}</span>
-        <p className="text-2xs text-[var(--text-muted)] truncate">{stop.clientName || stop.deliveryCity || '—'}</p>
-      </div>
-      <div className="text-end shrink-0">
-        {w && <p className="text-2xs font-medium text-[var(--text-secondary)] tabular-nums">{w}</p>}
-        <p className="text-2xs text-[var(--text-soft)]">{done ? t.configureInsertion.statusDone : current ? t.configureInsertion.statusCurrent : t.configureInsertion.statusPending}</p>
-      </div>
-    </div>
-  );
-}
-
-function InsertSlot({ active, onPick, label }: { active: boolean; onPick: () => void; label: string }) {
-  return (
-    <button type="button" onClick={onPick} className={cn('group flex items-center gap-2 py-1 w-full transition-colors', active ? 'text-[var(--brand)]' : 'text-[var(--text-soft)] hover:text-[var(--text-secondary)]')}>
-      <span className="flex-1 h-px" style={{ background: active ? 'var(--brand)' : 'var(--border)' }} />
-      <span className={cn('inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-full border', active ? 'border-[var(--brand)] bg-[var(--brand)] text-white' : 'border-[var(--border)]')}>
-        {active ? <IconCheck size={11} /> : <IconCornerDownRight size={11} />}{label}
-      </span>
-      <span className="flex-1 h-px" style={{ background: active ? 'var(--brand)' : 'var(--border)' }} />
-    </button>
-  );
-}
-
-// Online/offline presence indicator, bottom-right of the driver avatar. A filled ring when active,
-// a hollow ring when offline — the one dot we keep (it reads as presence, not decoration).
-function PresenceDot({ status, size = 10 }: { status?: Driver['onlineStatus']; size?: number }) {
-  const cfg = DRIVER_STATUS_COLOR[(status ?? 'OFFLINE') as keyof typeof DRIVER_STATUS_COLOR] ?? DRIVER_STATUS_COLOR.OFFLINE;
-  const offline = !status || status === 'OFFLINE';
-  return (
-    <span className="absolute -bottom-0.5 -end-0.5 rounded-full" aria-hidden
-      style={{ width: size, height: size, background: offline ? 'var(--surface)' : cfg.dot, boxShadow: `0 0 0 2px var(--surface)${offline ? `, inset 0 0 0 1.5px ${cfg.dot}` : ''}` }} />
-  );
-}
-
-function Section({ label, icon, children }: { label: string; icon?: ReactNode; children: ReactNode }) {
-  return (
-    <div className="mt-3 first:mt-0">
-      <p className="text-2xs font-semibold uppercase tracking-wide text-[var(--text-muted)] mb-1 flex items-center gap-1">{icon}{label}</p>
-      {children}
-    </div>
   );
 }

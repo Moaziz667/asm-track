@@ -8,7 +8,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { AppModal } from '@/components/overlays/AppModal';
 import { IconReassign, IconReplan } from '@/components/icons/DispatchIcons';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
-import { DispatchAssignDrawer } from '@/components/overlays/DispatchAssignDrawer';
+import { ReassignDrawer } from '@/components/overlays/reassign';
 import { cn } from '@/lib/utils';
 
 import { STATUS_DOT, getDriverStatusTip, REPLANNABLE_STATUSES, REASSIGNABLE_STATUSES } from './constants';
@@ -179,7 +179,7 @@ function DispatchDeskContentInner() {
 
         {/* ── Overlays ───────────────────────────────────────────────────────── */}
 
-        <DispatchAssignDrawer
+        <ReassignDrawer
           open={drawerTargets.length > 0}
           target={drawerTargets[0] ?? null}
           targets={drawerTargets}

@@ -1200,7 +1200,7 @@ export const AR_COPY = {
     timeWindowEndHint: 'هدف الالتزام بالوقت — نهاية النافذة',
   },
 
-  // ── DispatchAssignDrawer (assign / reassign, 2-phase) ─────────────────────
+  // ── Reassign drawer (assign / reassign, 2-phase) ─────────────────────
   assignFlow: {
     currentlyLabel: 'حالياً',
     backToDrivers: 'السائقون',

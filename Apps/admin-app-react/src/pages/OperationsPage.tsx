@@ -18,7 +18,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import {
   Table, TableHeader, TableBody, TableRow, TableHead, TableCell,
 } from '@/components/ui/table';
-import { ReassignDrawer, type ReassignTarget } from '@/components/overlays/ReassignDrawer';
+import { ReassignDrawer, type ReassignTarget } from '@/components/overlays/reassign';
 import { getCurrentRole, canDispatch, isReadOnlyRole } from '@/lib/auth';
 import { useT } from '@/lib/LocaleContext';
 import { useRoutes, type RouteItem } from '@/hooks/useRoutes';

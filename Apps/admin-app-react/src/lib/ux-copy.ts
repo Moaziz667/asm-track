@@ -1225,7 +1225,7 @@ export const FR_COPY = {
     timeWindowEndHint: 'Objectif de ponctualité — fin du créneau',
   },
 
-  // ── DispatchAssignDrawer (assign / reassign, 2-phase) ─────────────────────
+  // ── Reassign drawer (assign / reassign, 2-phase) ─────────────────────
   assignFlow: {
     currentlyLabel: 'Actuellement',
     backToDrivers: 'Chauffeurs',

@@ -1141,7 +1141,7 @@ export const EN_COPY = {
     timeWindowEndHint: 'On-time target — end of window',
   },
 
-  // ── DispatchAssignDrawer (assign / reassign, 2-phase) ─────────────────────
+  // ── Reassign drawer (assign / reassign, 2-phase) ─────────────────────
   assignFlow: {
     currentlyLabel: 'Currently',
     backToDrivers: 'Drivers',
