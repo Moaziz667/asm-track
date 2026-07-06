@@ -46,6 +46,8 @@ type DeliveryDetail = {
   orderId?: string;
   priority?: string;
   items?: DeliveryItem[];
+  stopType?: 'PICKUP' | 'DELIVERY';
+  sourceDepotName?: string;
 };
 
 type RouteItem = {
@@ -80,6 +82,8 @@ function mapFullStop(s: any): DeliveryDetail {
     orderId:       o.id ?? d.orderId ?? '',
     priority:      o.priority ?? d.priority ?? '',
     items:         o.items ?? d.items ?? s.items ?? [],
+    stopType:      s.stopType,
+    sourceDepotName: s.sourceDepotName ?? s.depotName ?? '',
   };
 }
 
@@ -156,8 +160,14 @@ function StopDetailRow({ stop, index }: { stop: DeliveryDetail; index: number })
       <span className="text-2xs font-[700] text-[var(--text-muted)]">{index + 1}</span>
 
       <div className="flex flex-col gap-0">
-        <span className="text-xs font-[600] text-[var(--text-primary)] truncate">{stop.clientName || '—'}</span>
-        <span className="text-xs font-[700] font-mono text-[var(--text-muted)]">#{shortId}</span>
+        <span className="text-xs font-[600] text-[var(--text-primary)] truncate">
+          {stop.stopType === 'PICKUP'
+            ? `${t.routesTablePage.pickupLoad}${stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}`
+            : (stop.clientName || '—')}
+        </span>
+        <span className="text-xs font-[700] font-mono text-[var(--text-muted)]">
+          {stop.stopType === 'PICKUP' ? t.routesTablePage.pickupHint : `#${shortId}`}
+        </span>
       </div>
 
       <div className="flex items-center gap-1 flex-nowrap">
@@ -522,7 +532,11 @@ function RouteMobileCard({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-1.5">
                         <span className="w-4 h-4 rounded-full bg-[var(--surface-sunken)] flex items-center justify-center text-2xs font-bold text-[var(--text-muted)]">{i + 1}</span>
-                        <span className="text-xs font-bold text-[var(--text-primary)]">{stop.clientName || '—'}</span>
+                        <span className="text-xs font-bold text-[var(--text-primary)]">
+                          {stop.stopType === 'PICKUP'
+                            ? `${t.routesTablePage.pickupLoad}${stop.sourceDepotName ? ` — ${stop.sourceDepotName}` : ''}`
+                            : (stop.clientName || '—')}
+                        </span>
                       </div>
                       <StatusBadge status={stop.status || 'PENDING'} size="sm" />
                     </div>

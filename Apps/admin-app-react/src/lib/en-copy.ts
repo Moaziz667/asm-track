@@ -1842,6 +1842,7 @@ export const EN_COPY = {
     movementLabel: 'movement',
     notAssigned: 'Not assigned',
     addressNotProvided: 'Address not provided',
+    pickupLoad: 'Load', pickupHint: 'Depot pickup',
 
     // Close route tooltip
     closeRouteTooltip: 'Close',

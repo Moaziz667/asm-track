@@ -1901,6 +1901,7 @@ export const AR_COPY = {
     movementLabel: 'حركة',
     notAssigned: 'غير معين',
     addressNotProvided: 'العنوان غير متوفر',
+    pickupLoad: 'تحميل', pickupHint: 'استلام من المستودع',
 
     // Close route tooltip
     closeRouteTooltip: 'إغلاق',

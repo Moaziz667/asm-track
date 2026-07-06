@@ -1938,6 +1938,7 @@ export const FR_COPY = {
     movementLabel: 'mouvement',
     notAssigned: 'Non assigné',
     addressNotProvided: 'Adresse non renseignée',
+    pickupLoad: 'Chargement', pickupHint: 'Ramassage dépôt',
 
     // Close route tooltip
     closeRouteTooltip: 'Clôturer',
