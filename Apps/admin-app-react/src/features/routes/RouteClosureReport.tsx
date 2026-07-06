@@ -7,8 +7,7 @@ import {
 import { useRouteReport, downloadRouteReportPdf } from './hooks/useRouteReport';
 import { REPORT_LABELS as L } from './report-labels';
 import type { RouteReport } from './report-types';
-import { toast } from '@/lib/toast';
-import { messages } from '@/lib/toast-messages';
+import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { formatMinutes } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { Button } from '@/components/ui/button';
@@ -58,10 +57,9 @@ export default function RouteClosureReport({ routeId }: { routeId: string }) {
     setDownloading(true);
     try {
       await downloadRouteReportPdf(routeId, `rapport-tournee-${data.header.routeName ?? routeId}.pdf`);
-      toast.success(messages.routes.reportDownloaded.title);
+      showSuccessToast('successReportDownloaded');
     } catch {
-      const m = messages.routes.reportFailed;
-      toast.error(m.title, { description: m.description });
+      showErrorToast(null, 'errorReportDownloadFailed');
     } finally {
       setDownloading(false);
     }

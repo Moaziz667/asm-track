@@ -2836,6 +2836,7 @@ export const FR_COPY = {
 
     // Generic/Common
     errorDataLoadFailed: 'Impossible de charger les données',
+    errorRoutesLoadFailed: 'Impossible de charger les tournées',
     errorSaveFailed: 'Impossible de sauvegarder les modifications',
     errorDeleteFailed: 'Impossible de supprimer l\'élément',
     errorExportFailed: 'Erreur lors de l\'exportation',

@@ -1,7 +1,8 @@
 
 
 import { ReactNode, useState, useEffect } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
+import { showErrorToast } from '@/lib/toast-service';
 import { Toaster } from '@/ui/feedback/Toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ModalRenderer } from '@/lib/modal-manager/ModalRenderer';
@@ -47,6 +48,23 @@ function AuthSync() {
 export default function Providers({ children }: ProvidersProps) {
   const [queryClient] = useState(
     () => new QueryClient({
+      // Query failures (list/detail loads) were previously silent: on error the
+      // hooks fall back to [] and most pages render an empty state, so a failed
+      // fetch looked identical to "no data". Surface it once, centrally, so the
+      // user sees a real error instead of a misleading empty table. Mutations
+      // keep their own onError toasts; QueryCache.onError never fires for them.
+      // A query opts out with meta.silent (e.g. background polls) or overrides
+      // the copy with meta.errorKey.
+      queryCache: new QueryCache({
+        onError: (_err, query) => {
+          const meta = query.meta as { silent?: boolean; errorKey?: string } | undefined;
+          if (meta?.silent) return;
+          // 401 is handled by the axios layer (silent renew / logout redirect).
+          const status = (_err as { response?: { status?: number } })?.response?.status;
+          if (status === 401) return;
+          showErrorToast(null, meta?.errorKey ?? 'errorDataLoadFailed');
+        },
+      }),
       defaultOptions: {
         queries: {
           retry: 1,

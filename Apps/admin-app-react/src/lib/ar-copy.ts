@@ -2779,6 +2779,9 @@ export const AR_COPY = {
     errorUnknownError: 'حدث خطأ',
 
     errorDataLoadFailed: 'فشل تحميل البيانات',
+    errorRoutesLoadFailed: 'تعذّر تحميل الجولات',
+    successReportDownloaded: 'تم تنزيل تقرير الجولة بنجاح',
+    errorReportDownloadFailed: 'تعذّر تنزيل تقرير الجولة',
     errorSaveFailed: 'فشل حفظ التغييرات',
     errorDeleteFailed: 'فشل حذف العنصر',
     errorExportFailed: 'فشل التصدير',

@@ -1,9 +1,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { api } from '@/lib/api';
-import { toast } from '@/lib/toast';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { messages } from '@/lib/toast-messages';
+import { showErrorToast } from '@/lib/toast-service';
 
 export type RouteStatus = 'DRAFT' | 'VALIDATED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED';
 
@@ -95,8 +93,7 @@ export function useRoutes(initialFilters: RoutesFilters = {}) {
       setRoutes(Array.isArray(res.data) ? res.data : []);
     } catch {
       if (!silent) {
-        const msg = messages.routes.loadFailed;
-        toast.error(msg.title, { description: msg.description });
+        showErrorToast(null, 'errorRoutesLoadFailed');
       }
       setRoutes([]);
     } finally {

@@ -2720,6 +2720,9 @@ export const EN_COPY = {
     errorUnknownError: 'An error occurred',
 
     errorDataLoadFailed: 'Failed to load data',
+    errorRoutesLoadFailed: 'Failed to load routes',
+    successReportDownloaded: 'Route report downloaded successfully',
+    errorReportDownloadFailed: 'Unable to download the route report',
     errorSaveFailed: 'Failed to save changes',
     errorDeleteFailed: 'Failed to delete item',
     errorExportFailed: 'Export failed',
