@@ -48,11 +48,29 @@ export function extractContextFromResponse(data: any): ToastContext {
  * via the status-code path.
  */
 const ERROR_CODE_KEYS: Record<string, string> = {
+  // Generic-but-specific (infra)
   CONCURRENT_UPDATE: 'errorConcurrentUpdate',
   CONNECTION_FAILED: 'errorNetworkError',
   INSPECTION_REQUIRED: 'errorInspectionRequired',
   GPS_REQUIRED: 'errorMissingGPS',
   DELIVERY_NOT_FOUND: 'errorDeliveryNotFound',
+  // Route ops
+  INSERT_BEFORE_COMPLETED: 'errorInsertBeforeCompleted',
+  // Failure reasons
+  FAILURE_REASON_EXISTS: 'errorFailureReasonExists',
+  FAILURE_REASON_LAST_DELIVERY: 'errorFailureReasonLastDelivery',
+  FAILURE_REASON_LAST_ITEM: 'errorFailureReasonLastItem',
+  FAILURE_REASON_NOT_FOUND: 'errorFailureReasonNotFound',
+  // Returns / RMA
+  DELIVERY_NOT_RETURNABLE: 'errorDeliveryNotReturnable',
+  RMA_EMPTY: 'errorRmaEmpty',
+  RMA_ALREADY_OPEN: 'errorRmaAlreadyOpen',
+  RMA_REASON_REQUIRED: 'errorRmaReasonRequired',
+  RMA_NOT_RESTOCKED: 'errorRmaNotRestocked',
+  RMA_NOT_FAILED: 'errorRmaNotFailed',
+  RMA_NOT_FOUND: 'errorRmaNotFound',
+  RMA_TERMINAL: 'errorRmaTerminal',
+  RMA_INVALID_TRANSITION: 'errorRmaInvalidTransition',
 };
 
 /** Fill {placeholder} tokens from the backend errorParams map. */
