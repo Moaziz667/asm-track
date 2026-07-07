@@ -17,9 +17,10 @@ import java.time.format.DateTimeFormatter;
 import java.util.UUID;
 
 /**
- * Server-side PDF for the closure report (rapport de tournée).
- * Reuses BasePdfService helpers and the company-branded header/footer used by the
- * existing AnalyticsPdfService / RoutePdfService.
+ * Server-side PDF for the completion report (rapport de tournée).
+ * Enterprise-grade, brand-neutral: a fixed ASM Track icon + a monochrome graphite accent (no company
+ * color/logo — unlike AnalyticsPdfService / RoutePdfService, which stay company-branded). Colour is used
+ * only where it carries meaning (delivered / late / failed).
  */
 @Service
 @RequiredArgsConstructor
@@ -27,9 +28,23 @@ public class RouteReportPdfService extends BasePdfService {
 
     private final RouteRepository routeRepository;
     private final RouteReportService routeReportService;
-    private final CompanyBrandingResolver brandingResolver;
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
+    private static final DateTimeFormatter REPORT_NO_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+    /** Neutral graphite accent — the whole report reads monochrome, the ASM Track icon keeps its colour. */
+    private static final Color GRAPHITE = new Color(38, 38, 36);
+
+    /** ASM Track icon (classpath), loaded once. Replaces the per-company logo for this report. */
+    private static final byte[] ASM_ICON = loadAsmIcon();
+
+    private static byte[] loadAsmIcon() {
+        try (var is = RouteReportPdfService.class.getResourceAsStream("/report/asm-track-icon.png")) {
+            return is != null ? is.readAllBytes() : null;
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     public byte[] generate(UUID routeId) {
         Route route = routeRepository.findById(routeId)
@@ -45,17 +60,21 @@ public class RouteReportPdfService extends BasePdfService {
             if (r.getHeader().getDriverName() != null) subtitle += "  ·  " + r.getHeader().getDriverName();
             if (r.getKpis() != null) subtitle += "  ·  " + r.getKpis().getAttemptedStops() + " arrêts";
 
-            ReportPageEvent event = brandingResolver.resolve("RAPPORT DE TOURNÉE", subtitle);
+            // Brand-neutral header: ASM Track icon + graphite accent (no company branding for this report).
+            ReportPageEvent event = new ReportPageEvent("RAPPORT DE TOURNÉE", subtitle, "ASM Track", ASM_ICON, GRAPHITE);
             writer.setPageEvent(event);
-            Color brand = event.getPrimaryColor();
+            Color brand = GRAPHITE;
 
             doc.open();
 
-            // Title
+            // Title + report number (traceability).
+            String reportNo = "RT-"
+                    + (r.getHeader().getDate() != null ? r.getHeader().getDate().format(REPORT_NO_FMT) : "--------")
+                    + "-" + route.getId().toString().substring(0, 4).toUpperCase();
             Paragraph title = new Paragraph("Rapport de Tournée", bold(18));
             title.setSpacingAfter(3f);
             doc.add(title);
-            doc.add(new Paragraph(safe(r.getHeader().getRouteName()), muted(9)));
+            doc.add(new Paragraph("N° " + reportNo + "  ·  " + safe(r.getHeader().getRouteName()), muted(9)));
 
             doc.add(divider());
 
@@ -68,7 +87,7 @@ public class RouteReportPdfService extends BasePdfService {
                     {"Nom",         safe(r.getHeader().getRouteName())},
                     {"Date",        r.getHeader().getDate() != null ? r.getHeader().getDate().format(DATE_FR) : "-"},
                     {"Démarrée à",  r.getHeader().getStartedAt() != null ? r.getHeader().getStartedAt().format(DT_FR) : "-"},
-                    {"Clôturée à",  r.getHeader().getClosedAt() != null ? r.getHeader().getClosedAt().format(DT_FR) : "-"},
+                    {"Terminée à",  r.getHeader().getClosedAt() != null ? r.getHeader().getClosedAt().format(DT_FR) : "-"},
                     {"Durée",       fmtMinutes(r.getHeader().getDurationMinutes())},
             }, brand));
 
@@ -77,7 +96,7 @@ public class RouteReportPdfService extends BasePdfService {
                     {"Véhicule",    safe(r.getHeader().getVehicleType())},
                     {"Plaque",      safe(r.getHeader().getVehiclePlate())},
                     {"Dépôt",       safe(r.getHeader().getDepotName())},
-                    {"Statut",      "Clôturée"},
+                    {"Statut",      "Terminée"},
             }, brand));
 
             doc.add(infoRow);

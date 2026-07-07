@@ -98,6 +98,7 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
   return (
     <div className="flex items-center justify-between gap-3 px-2.5 py-1.5 bg-[var(--surface-sunken)] border-b border-[var(--border-strong)]">
       <div className="flex items-center gap-2 min-w-0">
+        <img src="/AppLogo.png" alt="ASM Track" className="h-5 w-5 rounded-[4px] shrink-0" />
         <span className="font-mono text-sm font-semibold text-[var(--text-primary)]">{h.routeName ?? 'Tournée'}</span>
         <span className="text-2xs text-[var(--text-muted)] truncate">— {c.subtitle}</span>
         <StatusBadge status="CLOSED" label={c.closed} size="sm" />
