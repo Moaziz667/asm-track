@@ -45,9 +45,9 @@ export function DeliveryTableRow({
       <td className="p-0">
         {(() => {
           const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes((item.status ?? '').toUpperCase());
-          const bucket = getDayBucket((item as any).scheduledAt);
-          const h = ((item as any).slaHealth && (item as any).slaHealth !== 'NONE')
-            ? (item as any).slaHealth : (item as any).slaWorstHealth;
+          const bucket = getDayBucket(item.scheduledAt);
+          const h = (item.slaHealth && item.slaHealth !== 'NONE')
+            ? item.slaHealth : item.slaWorstHealth;
           const ribbon =
             (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) ? 'var(--danger)'
             : (h === 'AT_RISK' || (pending && bucket === 'today')) ? 'var(--warning)'
@@ -286,9 +286,9 @@ export function DeliveryMobileCard({
       {/* SLA Ribbon Indicator on the left border */}
       {(() => {
         const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes((item.status ?? '').toUpperCase());
-        const bucket = getDayBucket((item as any).scheduledAt);
-        const h = ((item as any).slaHealth && (item as any).slaHealth !== 'NONE')
-          ? (item as any).slaHealth : (item as any).slaWorstHealth;
+        const bucket = getDayBucket(item.scheduledAt);
+        const h = (item.slaHealth && item.slaHealth !== 'NONE')
+          ? item.slaHealth : item.slaWorstHealth;
         const ribbon =
           (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) ? 'var(--danger)'
           : (h === 'AT_RISK' || (pending && bucket === 'today')) ? 'var(--warning)'

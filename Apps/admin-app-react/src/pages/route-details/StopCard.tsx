@@ -1,7 +1,7 @@
 import React from 'react';
 import { useT } from '@/lib/LocaleContext';
 import { formatMoney, formatMinutes as fmtMins } from '@/lib/utils';
-import { Delivery, ProofOfDelivery } from '@/types';
+import { Delivery, DeliveryItem, ProofOfDelivery } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import {
@@ -69,7 +69,7 @@ export function StopCard({
   setViewerTitle, setViewerImage,
 }: StopCardProps) {
   const t = useT();
-  const displayStatus = (delivery?.status ?? stop.status) as any;
+  const displayStatus = (delivery?.status ?? stop.status) as string;
   const sc2 = STOP_STATUS[displayStatus] ?? STOP_STATUS.SCHEDULED;
   const client = stop.order?.clientName ?? delivery?.clientName ?? '—';
   const amount = stop.order?.totalAmount ?? delivery?.totalAmount ?? 0;
@@ -87,7 +87,7 @@ export function StopCard({
   // so the stop renders the SAME Articles table + driver note — the routes/full payload lacks the
   // split failReason/failureComment. Hook stays above the pickup early-return (rules of hooks).
   const deliveryId = delivery?.id ?? stop.deliveryId;
-  const { data: stopDetail } = useQuery<any>({
+  const { data: stopDetail } = useQuery<Delivery>({
     queryKey: ['stop-delivery-detail', deliveryId],
     enabled: isExpanded && !!deliveryId && !isPickup,
     staleTime: 15000,
@@ -167,9 +167,9 @@ export function StopCard({
   }
 
   // Detail-backed line data (falls back to the routes/full payload until the detail loads).
-  const detailItems: any[] = stopDetail?.items ?? orderItems;
-  const failCode: string | null = stopDetail?.failureCode ?? (delivery as any)?.failureCode ?? (stop as any)?.failureCode ?? null;
-  const failMotif: string | null = stopDetail?.failReason ?? (delivery as any)?.failReason ?? (stop as any)?.failReason ?? null;
+  const detailItems: DeliveryItem[] = stopDetail?.items ?? orderItems;
+  const failCode: string | null = stopDetail?.failureCode ?? delivery?.failureCode ?? (stop as { failureCode?: string })?.failureCode ?? null;
+  const failMotif: string | null = stopDetail?.failReason ?? delivery?.failReason ?? (stop as { failReason?: string })?.failReason ?? null;
   const stopDriverNote: string | null = pod?.comment ?? stopDetail?.failureComment ?? null;
   const stopCurrency = stopDetail?.currency ?? stop.order?.currency ?? currency;
 

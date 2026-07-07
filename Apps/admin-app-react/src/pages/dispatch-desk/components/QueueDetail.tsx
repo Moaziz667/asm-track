@@ -1,4 +1,5 @@
 import React from 'react';
+import type { Delivery, DeliveryItem } from '@/types';
 import { Link } from 'react-router-dom';
 import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
@@ -69,8 +70,8 @@ export function QueueDetail() {
   const id = rowId(d);
   const driver = drivers.find(dr => dr.id === d.driverId);
   const motif = (alert?.motif ?? '').toUpperCase().trim();
-  const detailDelivery: any = detail?.delivery ?? null;
-  const detailItems: any[] = detailDelivery?.items ?? d.items ?? [];
+  const detailDelivery = (detail?.delivery ?? null) as Delivery | null;
+  const detailItems: DeliveryItem[] = detailDelivery?.items ?? d.items ?? [];
   const failMotif: string | null = detailDelivery?.failReason ?? null;
   const driverNote: string | null = detail?.pod?.comment ?? detailDelivery?.failureComment ?? null;
 
@@ -228,7 +229,7 @@ export function QueueDetail() {
                     status={d.status}
                     failureCode={detailDelivery?.failureCode}
                     failMotif={failMotif}
-                    currency={detailDelivery?.currency ?? (d as any).currency}
+                    currency={detailDelivery?.currency ?? d.currency}
                   />
                 </div>
               </div>

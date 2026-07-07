@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { tlabel } from '@/lib/i18n-dict';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
@@ -71,7 +72,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     { id: 'label', label: s.tableLabel || 'Motif', pinned: true },
     { id: 'code', label: s.tableCode || 'Code' },
     { id: 'category', label: s.tableCategory || 'Catégorie' },
-    { id: 'scope', label: (s as any).tableScope || 'Portée' },
+    { id: 'scope', label: tlabel(s, 'tableScope') || 'Portée' },
     { id: 'order', label: s.formOrder || 'Ordre' },
     { id: 'status', label: s.tableStatus || 'Statut' },
   ], [t]);
@@ -97,7 +98,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
     setLoading(true);
     try {
       const res = await api.get('/api/admin/failure-reasons');
-      const rows: FailureReason[] = (Array.isArray(res.data) ? res.data : []).map((r: any) => ({
+      const rows: FailureReason[] = ((Array.isArray(res.data) ? res.data : []) as FailureReason[]).map((r) => ({
         ...r,
         scope: (r.scope ?? 'DELIVERY') as Scope,
       }));
@@ -243,7 +244,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
         searchPlaceholder={s.searchPlaceholder}
         attributes={[
           { key: 'category', label: s.tableCategory || 'Catégorie', options: CATEGORIES.map(c => ({ value: c, label: catLabel(c) })) },
-          { key: 'scope', label: (s as any).tableScope || 'Portée', options: SCOPES.map(sc => ({ value: sc, label: scopeLabel(sc) })) },
+          { key: 'scope', label: tlabel(s, 'tableScope') || 'Portée', options: SCOPES.map(sc => ({ value: sc, label: scopeLabel(sc) })) },
           { key: 'status', label: s.tableStatus || 'Statut', options: [
             { value: 'active', label: s.active },
             { value: 'inactive', label: s.inactive },
@@ -269,7 +270,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {visible.length} {(s as any).countLabel || 'motif'}{visible.length !== 1 ? 's' : ''}
+              {visible.length} {tlabel(s, 'countLabel') || 'motif'}{visible.length !== 1 ? 's' : ''}
             </span>
             <DisplaySettingsDropdown
               columns={orderedColumns}
@@ -414,14 +415,14 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
             options={CATEGORIES.map(c => ({ value: c, label: catLabel(c) }))}
           />
           <FieldSelect
-            label={(s as any).formScope || 'Portée'}
+            label={tlabel(s, 'formScope') || 'Portée'}
             value={form.scope}
             onChange={e => setForm(f => ({ ...f, scope: e.target.value as Scope }))}
             options={scopeOptions.map(sc => ({ value: sc, label: scopeLabel(sc) }))}
           />
           {!isItemCategory(form.category) && (
             <span className="text-2xs text-[var(--text-muted)] -mt-2">
-              {(s as any).formScopeItemHint || 'La portée « Article » n’est disponible que pour les catégories Refusé, Endommagé ou Manquant.'}
+              {tlabel(s, 'formScopeItemHint') || 'La portée « Article » n’est disponible que pour les catégories Refusé, Endommagé ou Manquant.'}
             </span>
           )}
           <div className="flex items-end gap-4">
