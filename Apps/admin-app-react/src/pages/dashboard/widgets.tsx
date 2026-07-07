@@ -16,6 +16,16 @@ import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import { SectionCard } from '@/components/ui/section-card';
 import { Badge } from '@/components/ui/badge';
+import type { DashboardStats } from '@/types';
+
+// Minimal shapes for the dashboard aggregates (server sends loose summary rows).
+type AttentionItem = {
+  deliveryId?: string; orderId?: string; orderRef?: string; clientName?: string;
+  driverName?: string; city?: string; status?: string; slaHealth?: string;
+  scheduledAt?: string; createdAt?: string;
+};
+type DriverLite = { name?: string; driverName?: string };
+type RouteLite = { id: string; name?: string; status?: string; driverId?: string; totalStops?: number; stops?: unknown[] };
 
 export function TrendChartWidget({ trend }: { trend: Array<{ count: number; delivered: number; failed: number }> }) {
   const t = useT();
@@ -61,7 +71,7 @@ export function TrendChartWidget({ trend }: { trend: Array<{ count: number; deli
   );
 }
 
-export function NeedsAttentionWidget({ items, navigate }: { items: any[]; navigate: (p: string) => void }) {
+export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem[]; navigate: (p: string) => void }) {
   const t = useT();
   const { locale } = useLocaleStore();
   return (
@@ -78,7 +88,7 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
       </div>
       <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
         <div className="divide-y divide-[var(--border)]">
-          {items.map((exc: any, idx: number) => {
+          {items.map((exc, idx) => {
             const timeRef = exc.scheduledAt || exc.createdAt;
             const timeStr = timeRef ? formatElapsed(timeRef, locale) : '—';
             return (
@@ -96,7 +106,7 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
                   </div>
                   <div className="flex items-center gap-1.5 flex-wrap">
                     {exc.orderRef && <span className="font-mono text-2xs text-[var(--brand)]">{exc.orderRef}</span>}
-                    <StatusBadge status={exc.status} size="sm" />
+                    <StatusBadge status={exc.status ?? ""} size="sm" />
                     <SlaHealthBadge health={exc.slaHealth} />
                     {exc.driverName && <span className="text-3xs text-[var(--text-muted)] truncate">· {exc.driverName}</span>}
                   </div>
@@ -110,8 +120,9 @@ export function NeedsAttentionWidget({ items, navigate }: { items: any[]; naviga
   );
 }
 
-export function TopItemsWidget({ stats }: { stats: any }) {
+export function TopItemsWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
+  if (!stats) return null;
   return (
     <div className="card overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
@@ -124,8 +135,8 @@ export function TopItemsWidget({ stats }: { stats: any }) {
         {!stats?.topItems || stats.topItems.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">{t.dashboardPage.noData || 'Aucune donnée disponible'}</div>
         ) : (() => {
-          const maxCount = Math.max(...stats.topItems.map((item: any) => item.count), 1);
-          return stats.topItems.map((item: any, idx: number) => (
+          const maxCount = Math.max(...stats.topItems.map((item) => item.count), 1);
+          return stats.topItems.map((item, idx) => (
             <div key={item.sku} className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 min-w-0">
@@ -147,8 +158,9 @@ export function TopItemsWidget({ stats }: { stats: any }) {
   );
 }
 
-export function FailureCausesWidget({ stats }: { stats: any }) {
+export function FailureCausesWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
+  if (!stats) return null;
   return (
     <div className="card overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
@@ -161,9 +173,9 @@ export function FailureCausesWidget({ stats }: { stats: any }) {
         {!stats?.byFailureCode || stats.byFailureCode.length === 0 ? (
           <div className="flex-1 flex items-center justify-center text-xs text-[var(--text-muted)]">{t.dashboardPage.noData || 'Aucune donnée disponible'}</div>
         ) : (() => {
-          const totalFailures = stats.byFailureCode.reduce((acc: number, curr: any) => acc + curr.count, 0) || 1;
-          const data = stats.byFailureCode.map((fail: any) => ({ name: t.failureCodes?.[fail.code] || fail.code, value: fail.count, pct: (fail.count / totalFailures) * 100 }));
-          return data.map((item: any) => (
+          const totalFailures = stats.byFailureCode.reduce((acc: number, curr) => acc + curr.count, 0) || 1;
+          const data = stats.byFailureCode.map((fail) => ({ name: t.failureCodes?.[fail.code] || fail.code, value: fail.count, pct: (fail.count / totalFailures) * 100 }));
+          return data.map((item) => (
             <div key={item.name} className="flex flex-col gap-1">
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[var(--text-secondary)] font-medium truncate" title={item.name}>{item.name}</span>
@@ -180,7 +192,7 @@ export function FailureCausesWidget({ stats }: { stats: any }) {
   );
 }
 
-export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: any[]; onBreak: any[]; offline: any[] } }) {
+export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: DriverLite[]; onBreak: DriverLite[]; offline: DriverLite[] } }) {
   const t = useT();
   return (
     <div className="card p-4 h-full flex flex-col">
@@ -195,7 +207,7 @@ export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { onl
             <span className={cn('text-xs font-bold shrink-0 min-w-[80px]', tone)}>{label} <span className="font-mono text-[var(--text-muted)]">({group.length})</span></span>
             {group.length > 0 && (
               <div className="flex flex-wrap gap-1 flex-1">
-                {group.slice(0, 8).map((d: any, i: number) => (
+                {group.slice(0, 8).map((d, i) => (
                   <span key={i} className="text-2xs font-medium px-1.5 py-0.5 rounded bg-[var(--hover-bg)] text-[var(--text-secondary)] border border-[var(--border)] truncate max-w-[100px]">{d.name || d.driverName || '?'}</span>
                 ))}
                 {group.length > 8 && <span className="text-2xs font-bold text-[var(--text-soft)] px-1 py-0.5">+{group.length - 8}</span>}
@@ -209,7 +221,7 @@ export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { onl
 }
 
 export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRouteId, driverName }: {
-  activeRoutes: any[]; focusedRouteId: string | null; setFocusedRouteId: (id: string | null) => void; driverName: (id?: string) => string;
+  activeRoutes: RouteLite[]; focusedRouteId: string | null; setFocusedRouteId: (id: string | null) => void; driverName: (id?: string) => string;
 }) {
   const t = useT();
   const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
@@ -242,7 +254,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</p>
-                    <StatusBadge status={route.status} size="sm" />
+                    <StatusBadge status={route.status ?? ""} size="sm" />
                   </div>
                   <p className="text-xs text-[var(--text-muted)] truncate">{driverName(route.driverId)} · {stopCount} {t.dashboardPage?.stopsLabel || 'arrêts'}</p>
                 </div>

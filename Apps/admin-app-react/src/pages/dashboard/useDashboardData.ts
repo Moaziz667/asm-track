@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { AdminOpsOverview, DashboardStats, DeliveryStatus } from '@/types';
+import type { AdminOpsOverview, DashboardStats, DeliveryStatus, Driver } from '@/types';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useT } from '@/lib/LocaleContext';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -36,7 +36,7 @@ export function useDashboardData(period: Period) {
         stats: (sR.data ?? null) as DashboardStats | null,
         ops: (oR.data ?? null) as AdminOpsOverview | null,
         kpi: kR.data ?? null,
-        drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as any[],
+        drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as Driver[],
         activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
         health: healthRes.data,
       };
@@ -56,11 +56,11 @@ export function useDashboardData(period: Period) {
   const healthProblemsSummary = useMemo(() => {
     if (!healthData) return '';
     const downCbs = (healthData.circuitBreakers ?? []).filter(
-      (cb: any) => cb.state === 'OPEN' || cb.state === 'FORCED_OPEN' || cb.reachable === false
+      (cb: { state?: string; reachable?: boolean; name: string }) => cb.state === 'OPEN' || cb.state === 'FORCED_OPEN' || cb.reachable === false
     );
     const parts: string[] = [];
     if (downCbs.length > 0) {
-      const names = Array.from(new Set(downCbs.map((cb: any) => {
+      const names = Array.from(new Set(downCbs.map((cb: { state?: string; reachable?: boolean; name: string }) => {
         const n = cb.name.toLowerCase();
         if (n.includes('erp') || n.includes('odoo')) return t.dashboardPage.systemHealthCategoryErp || 'ERP';
         if (n.includes('keycloak') || n.includes('auth')) return t.dashboardPage.systemHealthCategoryAuth || 'Auth';
@@ -118,7 +118,7 @@ export function useDashboardData(period: Period) {
   }), [t]);
 
   const today = stats?.today;
-  const overdueCount = (ops?.sla as any)?.slaBreached ?? 0;
+  const overdueCount = ops?.sla?.totalBreaches ?? 0;
   const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
 
   const trend = useMemo(
@@ -154,7 +154,7 @@ export function useDashboardData(period: Period) {
     const srv = ops?.lanes?.find(l => l.status === s);
     acc[s] = { count: srv?.count ?? 0, items: srv?.items ?? [] };
     return acc;
-  }, {} as Record<DeliveryStatus, { count: number; items: any[] }>), [ops]);
+  }, {} as Record<DeliveryStatus, { count: number; items: AdminOpsOverview['lanes'][number]['items'] }>), [ops]);
 
   const needsAttention = useMemo(() => {
     if (!ops?.exceptions) return [];

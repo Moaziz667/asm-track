@@ -7,6 +7,15 @@ import { getDayBucket } from '@/lib/sla';
 import StatusBadge from '@/components/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import type { DeliveryStatus } from '@/types';
+import type { TranslationSchema } from '@/lib/LocaleContext';
+
+// Loose queue-card row shape (dashboard summary + nested sub-deliveries for lots).
+type CardItem = {
+  deliveryId?: string; orderRef?: string; clientName?: string; city?: string;
+  driverName?: string; routeId?: string; routeName?: string; routeRef?: string;
+  scheduledAt?: string; slaHealth?: string; status?: string; deliveriesCount?: number;
+  subDeliveries?: CardItem[];
+};
 
 const formatCardDate = (dateStr?: string) => {
   if (!dateStr) return '';
@@ -31,7 +40,7 @@ function Chip({ icon, label, muted }: { icon: React.ReactNode; label: string; mu
   );
 }
 
-function ScheduledLine({ scheduledAt, status, t }: { scheduledAt?: string; status: DeliveryStatus; t: any }) {
+function ScheduledLine({ scheduledAt, status, t }: { scheduledAt?: string; status: DeliveryStatus; t: TranslationSchema }) {
   if (!scheduledAt) return null;
   const bucket = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'].includes(status)
     ? getDayBucket(scheduledAt)
@@ -53,7 +62,7 @@ function ScheduledLine({ scheduledAt, status, t }: { scheduledAt?: string; statu
 }
 
 /** Single delivery card in the dispatch kanban. */
-export function DeliveryCard({ d, status }: { d: any; status: DeliveryStatus }) {
+export function DeliveryCard({ d, status }: { d: CardItem; status: DeliveryStatus }) {
   const t = useT();
   const handleClick = () => {
     let url = '';
@@ -108,11 +117,11 @@ export function DeliveryCard({ d, status }: { d: any; status: DeliveryStatus }) 
 }
 
 /** Lot (multi-delivery) card in the dispatch kanban. */
-export function LotCard({ d, status }: { d: any; status: DeliveryStatus }) {
+export function LotCard({ d, status }: { d: CardItem; status: DeliveryStatus }) {
   const t = useT();
   const deliveries = d.subDeliveries || [];
   const totalCount = d.deliveriesCount || deliveries.length;
-  const completedCount = deliveries.filter((x: any) => x.status === 'DELIVERED').length;
+  const completedCount = deliveries.filter((x: CardItem) => x.status === 'DELIVERED').length;
   const progress = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
 
   const handleClick = () => {
@@ -141,7 +150,7 @@ export function LotCard({ d, status }: { d: any; status: DeliveryStatus }) {
 
       {/* Client list */}
       <div className="flex flex-col gap-1 mb-2.5 min-w-0">
-        {deliveries.slice(0, 2).map((x: any, i: number) => (
+        {deliveries.slice(0, 2).map((x: CardItem, i: number) => (
           <p key={i} className="text-sm font-semibold text-[var(--text-primary)] leading-snug truncate">{x.clientName}</p>
         ))}
         {deliveries.length > 2 && (
