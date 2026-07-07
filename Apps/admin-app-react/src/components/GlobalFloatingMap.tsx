@@ -6,7 +6,7 @@ import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { getBusinessDayKey } from '@/lib/sla';
 import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
 import { useGlobalMapStore } from '@/lib/global-map-store';
-import DispatchLiveMap from '@/components/DispatchLiveMap';
+import DispatchLiveMap, { type MapRoute, type LiveDriver } from '@/components/DispatchLiveMap';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { useDriverAvatars } from '@/hooks/useDriverAvatars';
 import { useT } from '@/lib/LocaleContext';
@@ -72,7 +72,7 @@ export default function GlobalFloatingMap() {
 
   const todayIso = useMemo(() => getBusinessDayKey(), []);
 
-  const { data: todayRoutes = [] } = useQuery({
+  const { data: todayRoutes = [] } = useQuery<MapRoute[]>({
     queryKey: ['global-map-routes', todayIso],
     queryFn: async () => {
       // Today's routes (validated/upcoming) UNION every IN_PROGRESS route — a running route is active
@@ -83,8 +83,8 @@ export default function GlobalFloatingMap() {
       ]);
       const a = Array.isArray(todayRes.data) ? todayRes.data : [];
       const b = Array.isArray(runningRes.data) ? runningRes.data : [];
-      const byId = new Map<string, any>();
-      [...a, ...b].forEach((r: any) => byId.set(r.id, r));
+      const byId = new Map<string, MapRoute>();
+      [...a, ...b].forEach((r: MapRoute) => byId.set(r.id, r));
       return Array.from(byId.values());
     },
     enabled: !isHiddenPage && mapMode !== 'hidden',
@@ -92,13 +92,13 @@ export default function GlobalFloatingMap() {
   });
 
   const activeRoutes = useMemo(() => {
-    return todayRoutes.filter((r: any) => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS');
+    return todayRoutes.filter((r) => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS');
   }, [todayRoutes]);
 
   // Stable colour per active route by position — two routes never share a colour.
   const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
 
-  const { data: drivers = [] } = useQuery({
+  const { data: drivers = [] } = useQuery<LiveDriver[]>({
     queryKey: ['global-map-drivers'],
     queryFn: async () => {
       const res = await api.get('/api/admin/fleet/drivers');
@@ -112,16 +112,16 @@ export default function GlobalFloatingMap() {
 
   const avatarMap = useDriverAvatars();
   const safeDrivers = useMemo(() => {
-    return drivers.map((d: any) => ({
+    return drivers.map((d) => ({
       ...d,
       currentLat: Number(d.currentLat) || null,
       currentLng: Number(d.currentLng) || null,
-      photoUrl: avatarMap[d.id] ?? d.photoUrl ?? null,
+      photoUrl: avatarMap[d.id] ?? (d as LiveDriver & { photoUrl?: string | null }).photoUrl ?? null,
     }));
   }, [drivers, avatarMap]);
 
   const driverRoute = useMemo(() => {
-    const m = new Map<string, any>();
+    const m = new Map<string, MapRoute>();
     activeRoutes.forEach(r => { if (r.driverId) m.set(r.driverId, r); });
     return m;
   }, [activeRoutes]);
@@ -129,16 +129,16 @@ export default function GlobalFloatingMap() {
   const filteredDrivers = useMemo(() => {
     if (!searchQuery.trim()) return safeDrivers;
     const q = searchQuery.toLowerCase();
-    return safeDrivers.filter((d: any) => d.name.toLowerCase().includes(q));
+    return safeDrivers.filter((d) => d.name.toLowerCase().includes(q));
   }, [safeDrivers, searchQuery]);
 
   const filteredRoutes = useMemo(() => {
     if (!searchQuery.trim()) return activeRoutes;
     const q = searchQuery.toLowerCase();
-    return activeRoutes.filter((r: any) =>
+    return activeRoutes.filter((r) =>
       r.name.toLowerCase().includes(q) ||
       (r.driverName && r.driverName.toLowerCase().includes(q)) ||
-      r.stops.some((s: any) => s.clientName && s.clientName.toLowerCase().includes(q))
+      r.stops.some((s) => s.clientName && s.clientName.toLowerCase().includes(q))
     );
   }, [activeRoutes, searchQuery]);
 
@@ -245,7 +245,7 @@ export default function GlobalFloatingMap() {
   }, [mapSize]);
 
   const onlineDriversCount = safeDrivers.filter(
-    (d: any) => d.currentLat && d.currentLng && d.onlineStatus !== 'OFFLINE'
+    (d) => d.currentLat && d.currentLng && d.onlineStatus !== 'OFFLINE'
   ).length;
 
   const bubbleTooltipText = useMemo(() => {
@@ -405,8 +405,8 @@ export default function GlobalFloatingMap() {
         <div className="flex-1 h-full min-w-0 relative">
           <DispatchLiveMap
             key={mapSize}
-            routes={filteredRoutes as any}
-            drivers={filteredDrivers as any}
+            routes={filteredRoutes}
+            drivers={filteredDrivers}
             focusedRouteId={focusedRouteId}
             focusedDriverId={focusedDriverId}
             onFocusRoute={setFocusedRouteId}
@@ -428,7 +428,7 @@ export default function GlobalFloatingMap() {
                   {t.globalMap.noDrivers}
                 </div>
               ) : (
-                filteredDrivers.map((driver: any) => {
+                filteredDrivers.map((driver) => {
                   const r = driverRoute.get(driver.id);
                   const color = r ? routeColorFromMap(routeColorMap, r.id) : 'var(--text-soft)';
                   const isFocused = driver.id === focusedDriverId;

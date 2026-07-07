@@ -11,10 +11,15 @@ import { IconSearch } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import ErrorBoundary from '@/components/ErrorBoundary';
 
+// Minimal typing for the untyped leaflet-draw plugin surface we use.
+type DrawEvent = { layer: L.Layer };
+type LeafletDraw = { Control: { Draw: new (opts: unknown) => L.Control } };
+const LDraw = L as unknown as LeafletDraw;
+
 // ── Leaflet icon fix for Next.js ────────────────────────────────────────────
 if (typeof window !== 'undefined') {
   // Fix for leaflet-draw ReferenceError: type is not defined in strict mode
-  (window as any).type = '';
+  (window as unknown as { type: string }).type = '';
 
   // @ts-ignore
   delete L.Icon.Default.prototype._getIconUrl;
@@ -63,7 +68,7 @@ async function detectCodes(
   onProgress: (pct: number, msg: string) => void,
 ): Promise<CodeResult[]> {
   const layers: L.Polygon[] = [];
-  fg.eachLayer((l: any) => { if (l.getLatLngs && l.getBounds) layers.push(l); });
+  fg.eachLayer((l: L.Layer & { getLatLngs?: () => unknown; getBounds?: () => unknown }) => { if (l.getLatLngs && l.getBounds) layers.push(l as unknown as L.Polygon); });
   if (layers.length === 0) return [];
 
   onProgress(10, 'Recherche des codes postaux dans la zone…');
@@ -177,7 +182,7 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
       } catch (e) { console.error('Geometry parse error:', e); }
     }
 
-    const drawCtrl = new (L as any).Control.Draw({
+    const drawCtrl = new LDraw.Control.Draw({
       draw: {
         polyline: false, marker: false, circlemarker: false, circle: false,
         rectangle: { shapeOptions: { color: zoneColor, fillOpacity: 0, opacity: 0 } },
@@ -200,7 +205,7 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
       procRef.current(false);
     };
 
-    const onCreated = (e: any) => { fg.addLayer(e.layer); runUpdate(fg); };
+    const onCreated = (e: DrawEvent) => { fg.addLayer(e.layer); runUpdate(fg); };
     const onEdited  = () => runUpdate(fg);
     const onDeleted = () => runUpdate(fg);
 

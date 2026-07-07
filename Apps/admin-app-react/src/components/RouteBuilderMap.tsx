@@ -12,9 +12,17 @@ import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import { useRouteBuilderContext } from '@/pages/route-builder/hooks/useRouteBuilder';
 
+// Minimal typing for the untyped leaflet-draw plugin surface we use.
+type DrawEvent = { layer: L.Layer };
+type LeafletDraw = {
+  Control: { Draw: new (opts: unknown) => L.Control };
+  Draw: { Event: { CREATED: string; DELETED: string } };
+};
+const LDraw = L as unknown as LeafletDraw;
+
 if (typeof window !== 'undefined') {
   // Fix for leaflet-draw ReferenceError: type is not defined in strict mode
-  (window as any).type = '';
+  (window as unknown as { type: string }).type = '';
 }
 
 type BuilderOrder = {
@@ -163,14 +171,14 @@ function pointInPolygon(point: { lat: number; lng: number }, polygon: Array<{ la
 function DrawSelector({ orders, onSelectionChange }: { orders: BuilderOrder[]; onSelectionChange: (ids: string[]) => void }) {
   const map = useMap();
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
-  const drawControlRef = useRef<any>(null);
+  const drawControlRef = useRef<L.Control | null>(null);
 
   useEffect(() => {
     const fg = new L.FeatureGroup();
     featureGroupRef.current = fg;
     map.addLayer(fg);
 
-    const drawControl = new (L as any).Control.Draw({
+    const drawControl = new LDraw.Control.Draw({
       draw: {
         polyline: false, circle: false, marker: false, circlemarker: false,
         rectangle: true,
@@ -181,7 +189,7 @@ function DrawSelector({ orders, onSelectionChange }: { orders: BuilderOrder[]; o
     drawControlRef.current = drawControl;
     map.addControl(drawControl);
 
-    const onCreated = (event: any) => {
+    const onCreated = (event: DrawEvent) => {
       fg.clearLayers();
       fg.addLayer(event.layer);
       const selected = orders.filter((order) => {
@@ -200,11 +208,11 @@ function DrawSelector({ orders, onSelectionChange }: { orders: BuilderOrder[]; o
     };
     const onDeleted = () => onSelectionChange([]);
 
-    map.on((L as any).Draw.Event.CREATED, onCreated);
-    map.on((L as any).Draw.Event.DELETED, onDeleted);
+    map.on(LDraw.Draw.Event.CREATED, onCreated);
+    map.on(LDraw.Draw.Event.DELETED, onDeleted);
     return () => {
-      map.off((L as any).Draw.Event.CREATED, onCreated);
-      map.off((L as any).Draw.Event.DELETED, onDeleted);
+      map.off(LDraw.Draw.Event.CREATED, onCreated);
+      map.off(LDraw.Draw.Event.DELETED, onDeleted);
       if (drawControlRef.current) map.removeControl(drawControlRef.current);
       if (featureGroupRef.current) map.removeLayer(featureGroupRef.current);
     };
@@ -217,7 +225,7 @@ function BaseTiles({ mapLayer }: { mapLayer?: 'street' | 'satellite' | 'hot' }) 
   const map = useMap();
   const isDark = useIsDark();
   useEffect(() => {
-    const panes = (map as any)?._panes;
+    const panes = (map as unknown as { _panes?: Record<string, HTMLElement> })._panes;
     if (!panes || !panes.tilePane) return;
 
     let url: string;
@@ -381,7 +389,7 @@ function RouteBuilderMapInner({
       if (!Array.isArray(parsed)) return [];
       return parsed
         .filter((point: unknown) => Array.isArray(point) && point.length >= 2)
-        .map((point: any) => [Number(point[0]), Number(point[1])] as [number, number])
+        .map((point: number[]) => [Number(point[0]), Number(point[1])] as [number, number])
         .filter(([lat, lng]) => Number.isFinite(lat) && Number.isFinite(lng));
     } catch { return []; }
   };

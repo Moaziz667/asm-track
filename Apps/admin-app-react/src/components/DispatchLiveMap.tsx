@@ -32,6 +32,7 @@ export type MapRoute = {
   name: string;
   status: string;
   driverId?: string;
+  driverName?: string;
   stops: MapRouteStop[];
 };
 
@@ -198,7 +199,7 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
   }, [routes]);
 
   const stopMarkers = useMemo(() => {
-    const out: any[] = [];
+    const out: React.ReactElement[] = [];
     routes.forEach(route => {
       const color = routeColorFromMap(routeColorMap, route.id);
       const dim = !!focusedRouteId && focusedRouteId !== route.id;
