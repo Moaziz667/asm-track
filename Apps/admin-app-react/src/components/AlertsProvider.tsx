@@ -155,7 +155,13 @@ export function useAlerts() {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-const mapResponseToNotification = (item: any): Notification => {
+type RawNotif = {
+  id: string; event: string; severity?: string; title: string; message: string;
+  deliveryId?: string; routeId?: string; driverId?: string; driverName?: string;
+  orderId?: string; clientName?: string; routeName?: string; timestamp: number;
+  read: boolean; eventParams?: Record<string, string>;
+};
+const mapResponseToNotification = (item: RawNotif): Notification => {
   const cfg = EVENT_MAP[item.event];
   return {
     id: item.id,

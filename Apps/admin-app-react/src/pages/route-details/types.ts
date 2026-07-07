@@ -51,7 +51,7 @@ export type RouteStop = {
   delayReason?: string;
   transitSlaMinutesComputed?: number;
   order?: StopOrder;
-  delivery?: any;
+  delivery?: import('@/types').Delivery & { order?: { referenceId?: string; erpOrderId?: string } };
   clientName?: string;
   removedAt?: string;
   removedReason?: string;

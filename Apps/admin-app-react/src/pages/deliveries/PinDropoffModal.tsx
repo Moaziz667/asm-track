@@ -38,7 +38,7 @@ export function PinDropoffModal({
   const [pinPostalCode, setPinPostalCode] = useState('');
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [addressSearch, setAddressSearch] = useState('');
-  const [addressResults, setAddressResults] = useState<any[]>([]);
+  const [addressResults, setAddressResults] = useState<Array<{ lat: string; lon: string; display_name: string }>>([]);
   const [showAddressResults, setShowAddressResults] = useState(false);
   const [searchingAddress, setSearchingAddress] = useState(false);
   const [flyCenter, setFlyCenter] = useState<[number, number] | undefined>(undefined);
@@ -109,7 +109,7 @@ export function PinDropoffModal({
     }, 400);
   };
 
-  const pickAddressSuggestion = (r: any) => {
+  const pickAddressSuggestion = (r: { lat: string; lon: string; display_name: string }) => {
     setFlyCenter([parseFloat(r.lat), parseFloat(r.lon)]);
     setAddressSearch(r.display_name.split(',')[0]);
     setShowAddressResults(false);

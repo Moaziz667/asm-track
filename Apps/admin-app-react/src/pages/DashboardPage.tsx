@@ -16,7 +16,7 @@ import type { DeliveryStatus } from '@/types';
 
 import { DISPATCH_STATUSES, TONE_VAR } from './dashboard/constants';
 import { useDashboardData } from './dashboard/useDashboardData';
-import { DeliveryCard, LotCard } from './dashboard/cards';
+import { DeliveryCard, LotCard, type CardItem } from './dashboard/cards';
 import {
   TrendChartWidget, NeedsAttentionWidget, TopItemsWidget, FailureCausesWidget,
   DriverAvailabilityWidget, ActiveRoutesWidget, QuickActionsWidget,
@@ -188,8 +188,8 @@ export default function DashboardPage() {
                           <span className="text-2xs font-bold text-[var(--text-soft)]">{t.dashboardPage.emptyState || 'Vide'}</span>
                         </div>
                       ) : (
-                        items.map((d: any, idx: number) => {
-                          const isLot = d.isLot || d.deliveriesCount > 1 || d.orderRef?.startsWith('LOT');
+                        items.map((d: CardItem, idx: number) => {
+                          const isLot = d.isLot || (d.deliveriesCount ?? 0) > 1 || d.orderRef?.startsWith('LOT');
                           return isLot
                             ? <LotCard key={idx} d={d} status={status} />
                             : <DeliveryCard key={idx} d={d} status={status} />;

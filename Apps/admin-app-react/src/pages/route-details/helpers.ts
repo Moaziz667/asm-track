@@ -52,7 +52,7 @@ export function cleanNote(note?: string, copy?: TranslationSchema): string | und
   }
   return s;
 }
-export function normalizePod(raw: any): ProofOfDelivery | null {
+export function normalizePod(raw: Partial<ProofOfDelivery> | null | undefined): ProofOfDelivery | null {
   if (!raw || typeof raw !== 'object') return null;
   return {
     signatureBase64: raw.signatureBase64, photoBase64: raw.photoBase64,

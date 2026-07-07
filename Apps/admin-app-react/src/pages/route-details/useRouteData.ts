@@ -5,9 +5,23 @@ import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast, showInfoToast } from '@/lib/toast-service';
-import { Delivery, ProofOfDelivery, TimelineEvent } from '@/types';
+import { Delivery, DeliverySource, ProofOfDelivery, TimelineEvent } from '@/types';
 import { normalizeTimeline, normalizePod } from './helpers';
 import type { RouteDetail, RouteStop } from './types';
+
+// Raw `/full` stop payload — carries richer fields (statusHistory, POD, nested order) than RouteStop.
+type RawFullStop = {
+  id?: string; deliveryId?: string;
+  delivery?: Delivery;
+  order?: {
+    id?: string; erpOrderId?: string; priority?: string; source?: DeliverySource;
+    totalAmount?: number; totalWeightKg?: number; clientName?: string; clientPhone?: string;
+    items?: Delivery['items']; referenceId?: string;
+  };
+  statusHistory?: TimelineEvent[];
+  proofOfDelivery?: ProofOfDelivery | null;
+  [k: string]: unknown;
+};
 
 /** All data, realtime, derived metrics and mutation handlers for the route-details page.
  *  Extracted verbatim from RouteDetailsPage so the page is a pure layout/orchestrator.
@@ -44,13 +58,14 @@ export function useRouteData(routeId: string | undefined) {
     setLoading(true);
     try {
       const res = await api.get(`/api/admin/routes/${routeId}/full`);
-      const data = res.data as any;
+      const data = res.data as RouteDetail;
       setRoute(data);
       const dm: Record<string, Delivery> = {};
       const tm: Record<string, TimelineEvent[]> = {};
       const pm: Record<string, ProofOfDelivery | null> = {};
-      (data.stops ?? []).forEach((stop: any) => {
+      ((data.stops ?? []) as unknown as RawFullStop[]).forEach((stop) => {
         const did = stop.delivery?.id || stop.deliveryId || stop.id;
+        if (!did) return;
         stop.deliveryId = did;
         if (stop.delivery) {
           dm[did] = {

@@ -190,7 +190,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
 
   // ── Misc ──────────────────────────────────────────────────────────────────
-  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<{ name?: string } | null>(null);
   const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);

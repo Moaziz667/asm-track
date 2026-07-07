@@ -3789,7 +3789,8 @@ export const FR_COPY = {
 
 // ── Recursive Locale Proxy (SaaS Grade) ─────────────────────────────────
 
-const createLocaleProxy = (frObj: any, enObj: any, arObj: any): any => {
+type LocaleObj = Record<string | symbol, unknown>;
+const createLocaleProxy = (frObj: LocaleObj, enObj: LocaleObj, arObj: LocaleObj): unknown => {
   return new Proxy(frObj, {
     get(target, prop) {
       let locale = 'fr';
@@ -3808,7 +3809,7 @@ const createLocaleProxy = (frObj: any, enObj: any, arObj: any): any => {
 
       const val = activeObj[prop];
       if (val && typeof val === 'object' && !Array.isArray(val)) {
-        return createLocaleProxy(frObj[prop], enObj[prop], arObj[prop]);
+        return createLocaleProxy(frObj[prop] as LocaleObj, enObj[prop] as LocaleObj, arObj[prop] as LocaleObj);
       }
       return val;
     }

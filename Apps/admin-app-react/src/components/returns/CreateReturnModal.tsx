@@ -78,7 +78,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
         orderRef: d.orderRef ?? prev?.orderRef,
         dropoffCity: d.dropoffCity ?? data.dropoffCity ?? prev?.dropoffCity,
       }));
-      const items: any[] = data.items ?? [];
+      const items: Array<{ sku?: string; name?: string; quantity?: number; quantityDone?: number }> = data.items ?? [];
       // returnable = what was actually delivered (quantityDone), falling back to ordered qty
       setLines(items.map((it) => {
         const max = Math.max(it.quantityDone ?? it.quantity ?? 1, 1);

@@ -12,8 +12,15 @@ import { TooltipProvider } from '@/components/ui/tooltip';
  *     (failureCode badge + full admin label in the tooltip) — never "Partielle";
  *   • else a short line reads MISSING (with a captured reason) or PARTIAL.
  */
+type ArticleSegment = { disposition?: string; quantity?: number; reasonCode?: string; reasonLabel?: string };
+type ArticleItem = {
+  name?: string; sku?: string; quantity?: number; quantityDone?: number;
+  reasonLabel?: string; outcome?: string; reason?: string; unitPrice?: number;
+  segments?: ArticleSegment[];
+};
+
 export function ArticlesTable({ items, status, failureCode, failMotif, currency }: {
-  items: any[];
+  items: ArticleItem[];
   status?: string | null;
   failureCode?: string | null;
   /** Admin failure-reason label, shown in the line tooltip on a failed delivery. */
@@ -52,7 +59,7 @@ export function ArticlesTable({ items, status, failureCode, failMotif, currency 
                 : short ? 'PARTIAL'
                 : null;
               // Per-unit breakdown (WMS): show every non-delivered disposition with its qty + motif.
-              const segs: any[] | null = Array.isArray(item.segments) ? item.segments : null;
+              const segs: ArticleSegment[] | null = Array.isArray(item.segments) ? item.segments : null;
               const shortSegs = segs
                 ? segs.filter(sg => sg && sg.disposition && sg.disposition !== 'DELIVERED' && (sg.quantity ?? 0) > 0)
                 : null;

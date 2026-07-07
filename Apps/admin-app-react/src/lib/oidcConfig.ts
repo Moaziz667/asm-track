@@ -36,7 +36,10 @@ export function syncSession(user: User | null | undefined): void {
   safeStorage.setItem('access_token', user.access_token);
 
   try {
-    const decoded: any = jwtDecode(user.access_token);
+    const decoded = jwtDecode<{
+      realm_access?: { roles?: string[] };
+      name?: string; preferred_username?: string; email?: string;
+    }>(user.access_token);
     const roles: string[] = decoded.realm_access?.roles ?? [];
 
     let role = 'ADMIN';

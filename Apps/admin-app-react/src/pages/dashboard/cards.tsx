@@ -10,7 +10,8 @@ import type { DeliveryStatus } from '@/types';
 import type { TranslationSchema } from '@/lib/LocaleContext';
 
 // Loose queue-card row shape (dashboard summary + nested sub-deliveries for lots).
-type CardItem = {
+export type CardItem = {
+  isLot?: boolean;
   deliveryId?: string; orderRef?: string; clientName?: string; city?: string;
   driverName?: string; routeId?: string; routeName?: string; routeRef?: string;
   scheduledAt?: string; slaHealth?: string; status?: string; deliveriesCount?: number;

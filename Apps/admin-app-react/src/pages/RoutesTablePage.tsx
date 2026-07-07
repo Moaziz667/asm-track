@@ -65,10 +65,23 @@ type RouteItem = {
   city?: string;
 };
 
+// Loose shapes for the route `/full` payload (fields arrive flat, under .delivery, or under .order).
+type RawRouteOrder = {
+  clientName?: string; dropoffAddress?: string; dropoffCity?: string; totalWeightKg?: number;
+  erpOrderId?: string; erpId?: string; id?: string; priority?: string; items?: DeliveryItem[];
+};
+type RawRouteStop = {
+  id?: string; stopId?: string; deliveryId?: string; orderId?: string; stopOrder?: number; sequenceOrder?: number;
+  deliveryStatus?: string; status?: string; clientName?: string; deliveryAddress?: string;
+  deliveryCity?: string; items?: DeliveryItem[]; stopType?: DeliveryDetail['stopType']; sourceDepotName?: string; depotName?: string;
+  delivery?: RawRouteStop & RawRouteOrder & { order?: RawRouteOrder };
+  order?: RawRouteOrder;
+};
+
 /** Maps one stop from the route `/full` payload to the flat DeliveryDetail the expand row renders. */
-function mapFullStop(s: any): DeliveryDetail {
-  const d = s.delivery ?? {};
-  const o = d.order ?? s.order ?? {};
+function mapFullStop(s: RawRouteStop): DeliveryDetail {
+  const d = (s.delivery ?? {}) as RawRouteStop & RawRouteOrder & { order?: RawRouteOrder };
+  const o = (d.order ?? s.order ?? {}) as RawRouteOrder;
   return {
     id:            s.id ?? s.stopId ?? '',
     deliveryId:    s.deliveryId ?? d.id ?? '',
@@ -622,7 +635,7 @@ function RoutesTablePageContent() {
         ]);
 
         const pageData = routesRes.data ?? {};
-        const content: any[] = Array.isArray(pageData.content) ? pageData.content : [];
+        const content = (Array.isArray(pageData.content) ? pageData.content : []) as Array<RouteItem & { completedStops?: number; failedStops?: number; partialStops?: number }>;
         const enriched: EnrichedRoute[] = content.map((r) => ({
           ...r,
           stops: [],                                  // lazy-loaded on expand (kills the old /full fan-out)
