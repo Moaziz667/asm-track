@@ -3010,6 +3010,7 @@ export const AR_COPY = {
     reactivateTooltip: 'إعادة تنشيط',
     toastLoadFailed: 'فشل تحميل الأسباب',
     toastLabelRequired: 'التسمية مطلوبة',
+    formCodeExists: 'يوجد بالفعل سبب بهذا الرمز',
     toastUpdated: 'تم تحديث السبب',
     toastCreated: 'تم إنشاء السبب',
     toastDeactivated: 'تم تعطيل السبب',

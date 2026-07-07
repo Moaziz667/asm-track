@@ -3065,6 +3065,7 @@ export const FR_COPY = {
     reactivateTooltip: 'Réactiver',
     toastLoadFailed: 'Échec du chargement des motifs',
     toastLabelRequired: 'Le libellé est requis',
+    formCodeExists: 'Un motif avec ce code existe déjà',
     toastUpdated: 'Motif mis à jour',
     toastCreated: 'Motif créé',
     toastDeactivated: 'Motif désactivé',

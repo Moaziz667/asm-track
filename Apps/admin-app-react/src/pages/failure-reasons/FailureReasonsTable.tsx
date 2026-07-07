@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { getApiError } from '@/lib/errors';
 import { tlabel } from '@/lib/i18n-dict';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
@@ -84,6 +85,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const [modalOpen, setModalOpen] = useState(false);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [submitting, setSubmitting] = useState(false);
+  // Field-level error for a code/label conflict (FAILURE_REASON_EXISTS) — shown under the label input.
+  const [labelError, setLabelError] = useState<string | null>(null);
 
   // Toolbar state
   const [search, setSearch] = useState('');
@@ -112,9 +115,10 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
 
   useEffect(() => { void fetchReasons(); }, [fetchReasons]);
 
-  const openCreate = () => { setForm(EMPTY_FORM); setModalOpen(true); };
+  const openCreate = () => { setForm(EMPTY_FORM); setLabelError(null); setModalOpen(true); };
   const openEdit = (r: FailureReason) => {
     setForm({ id: r.id, label: r.label, category: r.category, scope: r.scope, sortOrder: r.sortOrder, active: r.active });
+    setLabelError(null);
     setModalOpen(true);
   };
 
@@ -126,7 +130,8 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   }));
 
   const submit = async () => {
-    if (!form.label.trim()) { showErrorToast(null, s.toastLabelRequired); return; }
+    if (!form.label.trim()) { setLabelError(s.toastLabelRequired); return; }
+    setLabelError(null);
     setSubmitting(true);
     try {
       const payload = { label: form.label.trim(), category: form.category, scope: form.scope, sortOrder: form.sortOrder, active: form.active };
@@ -140,7 +145,12 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
       setModalOpen(false);
       await fetchReasons();
     } catch (err) {
-      showErrorToast(err, s.toastSaveFailed);
+      // A duplicate code shows under the label field (the code is derived from it), not as a toast.
+      if (getApiError(err).errorCode === 'FAILURE_REASON_EXISTS') {
+        setLabelError(tlabel(s, 'formCodeExists') ?? 'Un motif avec ce code existe déjà');
+      } else {
+        showErrorToast(err, s.toastSaveFailed);
+      }
     } finally {
       setSubmitting(false);
     }
@@ -405,8 +415,9 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
           <FieldInput
             label={s.formLabel}
             value={form.label}
-            onChange={e => setForm(f => ({ ...f, label: e.target.value }))}
+            onChange={e => { setForm(f => ({ ...f, label: e.target.value })); if (labelError) setLabelError(null); }}
             placeholder={s.formLabelPlaceholder}
+            error={labelError ?? undefined}
           />
           <FieldSelect
             label={s.formCategory}

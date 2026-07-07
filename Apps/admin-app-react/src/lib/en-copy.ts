@@ -3372,6 +3372,7 @@ export const EN_COPY = {
     reactivateTooltip: 'Reactivate',
     toastLoadFailed: 'Failed to load failure reasons',
     toastLabelRequired: 'Label is required',
+    formCodeExists: 'A reason with this code already exists',
     toastUpdated: 'Reason updated',
     toastCreated: 'Reason created',
     toastDeactivated: 'Reason deactivated',
