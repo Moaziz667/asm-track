@@ -773,7 +773,7 @@ function RoutesTablePageContent() {
                   { header: 'Chauffeur', accessor: r => drivers.find(d => d.id === r.driverId)?.name ?? '' },
                   { header: 'Arrêts', accessor: r => r.totalStops ?? r.stops?.length ?? 0 },
                   { header: 'Statut', accessor: r => r.status },
-                  { header: 'Zone', accessor: r => (r as any).zoneLabel },
+                  { header: 'Zone', accessor: r => (r as { zoneLabel?: string }).zoneLabel },
                   { header: 'Date', accessor: r => r.date },
                 ]}
               />

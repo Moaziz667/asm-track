@@ -45,9 +45,9 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
     // uses worst past health so it still ranks urgent.
     const riskRank = (d: DeliveryRow): number => {
       const pending = !['DELIVERED', 'CANCELLED', 'FAILED'].includes(d.status ?? '');
-      const bucket = getDayBucket((d as any).scheduledAt);
-      const h = ((d as any).slaHealth && (d as any).slaHealth !== 'NONE')
-        ? (d as any).slaHealth : (d as any).slaWorstHealth;
+      const bucket = getDayBucket(d.scheduledAt);
+      const h = (d.slaHealth && d.slaHealth !== 'NONE')
+        ? d.slaHealth : d.slaWorstHealth;
       if (h === 'BREACHED' || h === 'LATE' || (pending && bucket === 'overdue')) return 0;
       if (h === 'AT_RISK' || (pending && bucket === 'today')) return 1;
       return 2;

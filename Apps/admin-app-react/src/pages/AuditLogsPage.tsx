@@ -7,6 +7,8 @@ import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { isAbortError } from '@/lib/errors';
+import type { TranslationSchema } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { getCurrentRole, canDispatch } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
@@ -44,16 +46,16 @@ function displayActor(name: string | undefined, role: string): string {
 
 /** Verb phrase for an action code, e.g. "a activé un compte". Falls back to a humanized code
  *  ("a effectué TOGGLE_ADMIN_USER_STATUS") rather than a meaningless "Audit Système". */
-function actionVerb(action: string, t: any): string {
-  const verbs = t.auditLogsPage?.verbs ?? {};
-  if (verbs[action]) return verbs[action];
+function actionVerb(action: string, t: TranslationSchema): string {
+  const verb = tlabel(t.auditLogsPage?.verbs, action);
+  if (verb) return verb;
   // Humanize the raw code as a last resort.
   const human = action.replace(/_/g, ' ').toLowerCase();
   return `${t.auditLogsPage?.didAction ?? 'a effectué'} ${human}`;
 }
 
 /** A short, human resource label — prefers a name from the payload, else "ENTITY a1b2c3c4". */
-function resourceLabel(log: AuditLog, t: any): string | null {
+function resourceLabel(log: AuditLog, t: TranslationSchema): string | null {
   // Try to pull a friendly name/ref out of the JSON details.
   if (log.details) {
     try {
@@ -63,7 +65,7 @@ function resourceLabel(log: AuditLog, t: any): string | null {
     } catch { /* not JSON */ }
   }
   if (!log.resourceId) return null;
-  const ent = log.targetEntity ? (t.auditLogsPage?.entities?.[log.targetEntity] ?? log.targetEntity) : '';
+  const ent = log.targetEntity ? (tlabel(t.auditLogsPage?.entities, log.targetEntity) ?? log.targetEntity) : '';
   const shortId = log.resourceId.slice(0, 8);
   return ent ? `${ent} ${shortId}` : shortId;
 }
@@ -269,7 +271,7 @@ function DateRangeControl({
 }: {
   from: string; to: string;
   onFrom: (v: string) => void; onTo: (v: string) => void;
-  t: any;
+  t: TranslationSchema;
 }) {
   return (
     <div className="flex items-center gap-1.5 shrink-0">
@@ -300,7 +302,7 @@ function FeedItem({
   isExpanded: boolean;
   onToggle: () => void;
   locale: string;
-  t: any;
+  t: TranslationSchema;
 }) {
   const tone = actionTone(log.action);
   const toneColor = TONE_VAR[tone];

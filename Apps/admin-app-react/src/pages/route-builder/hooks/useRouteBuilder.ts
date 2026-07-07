@@ -57,6 +57,24 @@ export const ROUTE_COLORS = [
 
 export const colorForRouteIndex = (idx: number) => ROUTE_COLORS[idx % ROUTE_COLORS.length];
 
+// Loose, self-nesting shape for the raw delivery/order payloads the API returns in
+// several shapes (flat, under .delivery, under .order). Index signature covers the rest.
+interface RawDelivery {
+  id?: string; deliveryId?: string; orderId?: string; reference?: string; externalId?: string;
+  clientName?: string; recipientName?: string; dropoffLat?: number; dropoffLng?: number;
+  erpOrderId?: string; orderRef?: string; name?: string;
+  order?: RawDelivery; delivery?: RawDelivery;
+  [k: string]: unknown;
+}
+
+// Loose shape for weight extraction across the several nesting variants the API returns.
+type WeighedStop = {
+  totalWeightKg?: unknown;
+  order?: { totalWeightKg?: unknown };
+  delivery?: { totalWeightKg?: unknown; order?: { totalWeightKg?: unknown } };
+  [k: string]: unknown;
+};
+
 export const SERVICE_MINUTES = 10;
 
 export const toShortTime = (value?: string) => (value ? String(value).slice(0, 5) : '');
@@ -194,7 +212,7 @@ export function useRouteBuilder() {
     return null;
   };
 
-  const extractStopWeight = (stop: any): number => {
+  const extractStopWeight = (stop: WeighedStop): number => {
     const candidates = [
       stop?.delivery?.order?.totalWeightKg,
       stop?.order?.totalWeightKg,
@@ -218,7 +236,7 @@ export function useRouteBuilder() {
       items.map(async (route) => {
         const res = await api.get(`/api/admin/routes/${route.id}/full`);
         const rawStops = Array.isArray(res.data?.stops) ? res.data.stops : [];
-        const totalWeight = rawStops.reduce((sum: number, stop: any) => sum + extractStopWeight(stop), 0);
+        const totalWeight = rawStops.reduce((sum: number, stop: WeighedStop) => sum + extractStopWeight(stop), 0);
         return { routeId: route.id, totalWeight };
       }),
     );
@@ -279,7 +297,7 @@ export function useRouteBuilder() {
     const raw = waitingRes.data?.content ?? waitingRes.data;
     const deliveries: DeliveryOption[] = Array.isArray(raw)
       ? raw
-          .map((item: any) => {
+          .map((item: RawDelivery) => {
             const id =
               item?.id ??
               item?.deliveryId ??
@@ -447,7 +465,7 @@ export function useRouteBuilder() {
       try {
         const res = await api.get(`/api/admin/routes/${selectedRouteId}/full`);
         if (!active) return;
-        const data = res.data as any;
+        const data = res.data as { detectedZoneLabel?: string; city?: string };
         setSelectedRouteZoneLabel(data?.detectedZoneLabel ?? data?.city ?? '');
       } catch {
         if (active) setSelectedRouteZoneLabel('');
@@ -461,7 +479,7 @@ export function useRouteBuilder() {
 
   const isVehicleBusy = (vehicle?: VehicleItem) => {
     if (!vehicle) return false;
-    return Boolean((vehicle as any).assigned);
+    return Boolean(vehicle.assigned);
   };
 
   // A driver is busy if they're already assigned to another route in today's builder list.

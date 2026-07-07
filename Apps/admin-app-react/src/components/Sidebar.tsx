@@ -145,14 +145,14 @@ export function AppSidebar() {
         if (!active) return;
 
         const pendingList = Array.isArray(erpRes.data) ? erpRes.data : [];
-        const erpPending = pendingList.filter((x: any) => !x.alreadyImported).length;
+        const erpPending = pendingList.filter((x: { alreadyImported?: boolean }) => !x.alreadyImported).length;
 
         const routesList = Array.isArray(routesRes.data) ? routesRes.data : [];
-        const activeRoutes = routesList.filter((r: any) => r.status === 'IN_PROGRESS').length;
+        const activeRoutes = routesList.filter((r: { status?: string }) => r.status === 'IN_PROGRESS').length;
 
         const exceptionsList = Array.isArray(exceptionsRes.data?.items) ? exceptionsRes.data.items : [];
         // Align with the dispatch desk queue: cancelled deliveries are excluded there.
-        const opsExceptions = exceptionsList.filter((x: any) => x.status !== 'CANCELLED').length;
+        const opsExceptions = exceptionsList.filter((x: { status?: string }) => x.status !== 'CANCELLED').length;
 
         setTelemetry({ erpPending, activeRoutes, opsExceptions });
       } catch (err) {
