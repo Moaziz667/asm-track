@@ -191,6 +191,43 @@ public class RouteReportPdfService extends BasePdfService {
             }
             doc.add(stopsTbl);
 
+            // ── Per-delivery item detail — what was ordered / delivered / short ──
+            boolean anyItems = r.getStops().stream().anyMatch(s -> s.getItems() != null && !s.getItems().isEmpty());
+            if (anyItems) {
+                doc.add(sectionLabel("DÉTAIL PAR LIVRAISON", brand));
+                for (var s : r.getStops()) {
+                    if (s.getItems() == null || s.getItems().isEmpty()) continue;
+
+                    Paragraph sh = new Paragraph();
+                    sh.add(new Chunk("#" + s.getStopOrder() + "  ", bold(9)));
+                    sh.add(new Chunk(safe(s.getClientName()), bold(9)));
+                    if (s.getOrderRef() != null) sh.add(new Chunk("   " + s.getOrderRef(), muted(8)));
+                    sh.add(new Chunk("   " + outcomeLabel(s.getFinalStatus(), s.getRemovedReason()), muted(8)));
+                    sh.setSpacingBefore(9f);
+                    sh.setSpacingAfter(3f);
+                    doc.add(sh);
+
+                    PdfPTable itbl = new PdfPTable(new float[]{3.2f, 0.6f, 0.6f, 3f});
+                    itbl.setWidthPercentage(100);
+                    itbl.setHeaderRows(1);
+                    itbl.addCell(hdrCell("Article", brand));
+                    itbl.addCell(hdrCellR("Cmd", brand));
+                    itbl.addCell(hdrCellR("Livré", brand));
+                    itbl.addCell(hdrCell("Écart", brand));
+                    boolean ialt = false;
+                    for (var line : s.getItems()) {
+                        String article = safe(line.getName())
+                                + (line.getSku() != null && !line.getSku().isBlank() ? "  (" + line.getSku() + ")" : "");
+                        itbl.addCell(cellAlt(article, ialt));
+                        itbl.addCell(cellRAlt(String.valueOf(line.getQuantity()), ialt));
+                        itbl.addCell(cellRAlt(String.valueOf(line.getQuantityDone()), ialt));
+                        itbl.addCell(cellAlt(shortfallText(line.getShortfalls()), ialt));
+                        ialt = !ialt;
+                    }
+                    doc.add(itbl);
+                }
+            }
+
             // ── Movements ─────────────────────────────────────────────────────
             if (r.getMovements() != null && !r.getMovements().isEmpty()) {
                 doc.add(sectionLabel("MOUVEMENTS ET EXCEPTIONS", brand));
@@ -347,6 +384,25 @@ public class RouteReportPdfService extends BasePdfService {
             case "REPLANNED"  -> new Color(200, 198, 188);
             case "CANCELLED"  -> new Color(184, 182, 171);
             default           -> new Color(150, 149, 142);
+        };
+    }
+
+    /** Shortfall column text: "Refusé ×1 · Client absent | Abîmé ×1"; "—" when the line is complete. */
+    private static String shortfallText(java.util.List<RouteReportResponse.ItemShortfall> shorts) {
+        if (shorts == null || shorts.isEmpty()) return "—";
+        return shorts.stream()
+                .map(sf -> dispoFr(sf.getDisposition()) + " ×" + sf.getQuantity()
+                        + (sf.getReasonLabel() != null && !sf.getReasonLabel().isBlank() ? " · " + sf.getReasonLabel() : ""))
+                .collect(java.util.stream.Collectors.joining("   |   "));
+    }
+
+    private static String dispoFr(String d) {
+        if (d == null) return "—";
+        return switch (d) {
+            case "MISSING" -> "Manquant";
+            case "REFUSED" -> "Refusé";
+            case "DAMAGED" -> "Abîmé";
+            default        -> d;
         };
     }
 

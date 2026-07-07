@@ -125,6 +125,26 @@ public class RouteReportResponse {
         // Failure details
         private String failureCode;
         private String failReason;
+
+        /** Per-line item breakdown (ordered / delivered / short). Null for pickup stops. */
+        private java.util.List<ItemLine> items;
+    }
+
+    /** One order line in the per-delivery detail: ordered vs delivered, plus any shortfall dispositions. */
+    @Data @Builder
+    public static class ItemLine {
+        private String sku;
+        private String name;
+        private Integer quantity;       // ordered
+        private Integer quantityDone;   // delivered
+        private java.util.List<ItemShortfall> shortfalls;   // non-delivered slices (missing/refused/damaged)
+    }
+
+    @Data @Builder
+    public static class ItemShortfall {
+        private String disposition;     // MISSING | REFUSED | DAMAGED
+        private int quantity;
+        private String reasonLabel;     // human motif (snapshotted from the failure-reason catalog)
     }
 
     @Data @Builder

@@ -245,8 +245,48 @@ public class RouteReportService {
                     .handoffToDriverName(handoffToName)
                     .failureCode(d != null && d.getFailureCode() != null ? d.getFailureCode().name() : null)
                     .failReason(d != null ? d.getFailReason() : null)
+                    .items(buildItemLines(order))
                     .build();
         }).toList();
+    }
+
+    /** Per-line item detail for a delivery: ordered vs delivered + shortfall dispositions (from the
+     *  WMS per-unit POD breakdown, falling back to the denormalized single-outcome fields). */
+    private List<RouteReportResponse.ItemLine> buildItemLines(Order order) {
+        if (order == null || order.getItems() == null || order.getItems().isEmpty()) return null;
+        List<RouteReportResponse.ItemLine> lines = new ArrayList<>();
+        for (com.asm.delivery.entity.OrderItem it : order.getItems()) {
+            int qty = it.getQuantity() != null ? it.getQuantity() : 0;
+            Integer done = it.getQuantityDone();
+            List<RouteReportResponse.ItemShortfall> shorts = new ArrayList<>();
+            if (it.getSegments() != null && !it.getSegments().isEmpty()) {
+                for (com.asm.delivery.entity.ItemSegment seg : it.getSegments()) {
+                    if (seg.getDisposition() != null && !"DELIVERED".equalsIgnoreCase(seg.getDisposition())
+                            && seg.getQuantity() != null && seg.getQuantity() > 0) {
+                        shorts.add(RouteReportResponse.ItemShortfall.builder()
+                                .disposition(seg.getDisposition().toUpperCase())
+                                .quantity(seg.getQuantity())
+                                .reasonLabel(seg.getReasonLabel())
+                                .build());
+                    }
+                }
+                if (done == null) {
+                    int sum = shorts.stream().mapToInt(RouteReportResponse.ItemShortfall::getQuantity).sum();
+                    done = qty - sum;
+                }
+            } else if (done != null && done < qty) {
+                String disp = it.getOutcome() != null && !"DELIVERED".equalsIgnoreCase(it.getOutcome())
+                        ? it.getOutcome().toUpperCase() : "MISSING";
+                shorts.add(RouteReportResponse.ItemShortfall.builder()
+                        .disposition(disp).quantity(qty - done).reasonLabel(it.getReasonLabel()).build());
+            }
+            if (done == null) done = qty;
+            lines.add(RouteReportResponse.ItemLine.builder()
+                    .sku(it.getSku()).name(it.getName()).quantity(qty).quantityDone(done)
+                    .shortfalls(shorts.isEmpty() ? null : shorts)
+                    .build());
+        }
+        return lines;
     }
 
     private RouteReportResponse.Kpis computeKpis(
