@@ -15,6 +15,7 @@ import { useT } from '@/lib/LocaleContext';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
 import { useLocaleStore } from '@/lib/i18n';
+import { tlabel } from '@/lib/i18n-dict';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
 import type { Delivery, TimelineEvent, DeliveryItem, ProofOfDelivery } from '@/types';
 import StatusBadge from '@/components/StatusBadge';
@@ -158,7 +159,7 @@ export default function DeliveryDetailPage() {
     </div>
   );
 
-  const items: DeliveryItem[] = (delivery as any).items ?? [];
+  const items: DeliveryItem[] = delivery.items ?? [];
   const orderRef = (delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
   const isCancelled = delivery.status === 'CANCELLED';
 
@@ -177,9 +178,9 @@ export default function DeliveryDetailPage() {
 
   // Note du livreur = the driver's own words: the POD handover comment, else the driver's failure
   // comment (now persisted on its own field — no longer parsed out of the flattened failReason).
-  const driverNoteText: string | null = pod?.comment ?? (delivery as any).failureComment ?? null;
+  const driverNoteText: string | null = pod?.comment ?? delivery.failureComment ?? null;
   // Admin failure-reason label (motif), shown per line in the Articles table's Motif tooltip.
-  const failMotif: string | null = (delivery as any).failReason ?? delivery.failureReason ?? null;
+  const failMotif: string | null = delivery.failReason ?? delivery.failureReason ?? null;
 
   return (
     <div className="h-full flex flex-col bg-[var(--app-bg)] dispatch-card">
@@ -256,16 +257,16 @@ export default function DeliveryDetailPage() {
               {items.length > 0 && (
                 <StatChip icon={<IconPackage size={11} />} label={`${items.length} article${items.length > 1 ? 's' : ''}`} />
               )}
-              {(delivery as any).totalWeightKg && (
-                <StatChip icon={<IconWeight size={11} />} label={`${(delivery as any).totalWeightKg} kg`} />
+              {delivery.totalWeightKg && (
+                <StatChip icon={<IconWeight size={11} />} label={`${delivery.totalWeightKg} kg`} />
               )}
-              {(delivery as any).totalAmount && (
-                <StatChip icon={<IconCurrencyDollar size={11} />} label={formatMoney((delivery as any).totalAmount, (delivery as any).currency)} highlight />
+              {delivery.totalAmount && (
+                <StatChip icon={<IconCurrencyDollar size={11} />} label={formatMoney(delivery.totalAmount, delivery.currency)} highlight />
               )}
-              {(delivery as any).zoneName && (
-                <StatChip icon={<IconMapPin size={11} />} label={(delivery as any).zoneName} />
+              {delivery.zoneName && (
+                <StatChip icon={<IconMapPin size={11} />} label={delivery.zoneName} />
               )}
-              {!((delivery as any).zoneName) && delivery.dropoffCity && (
+              {!(delivery.zoneName) && delivery.dropoffCity && (
                 <StatChip icon={<IconMapPin size={11} />} label={delivery.dropoffCity} />
               )}
               {delivery.routeId && (
@@ -277,10 +278,10 @@ export default function DeliveryDetailPage() {
 
             {/* Failure motif already shown at the top (FailureInfo) + in the SLA timeline history;
                 only the cancellation notice stays here. */}
-            {isCancelled && (delivery as any).cancelReason && (
+            {isCancelled && delivery.cancelReason && (
               <div className="px-3 py-2 rounded-xs border border-gray-200 bg-gray-50 flex items-start gap-2">
                 <IconX size={12} style={{ color: 'var(--text-muted)', flexShrink: 0, marginTop: 1 }} />
-                <span className="text-xs text-[var(--text-muted)]">{(delivery as any).cancelReason}</span>
+                <span className="text-xs text-[var(--text-muted)]">{delivery.cancelReason}</span>
               </div>
             )}
           </div>
@@ -300,7 +301,7 @@ export default function DeliveryDetailPage() {
                   <InfoRow label={t.deliveryPage.labelAddress}  value={delivery.dropoffAddress} />
                   <InfoRow label={t.deliveryPage.labelCity}     value={delivery.dropoffCity} />
                   <InfoRow label={t.deliveryPage.labelPostalCode} value={delivery.dropoffPostalCode} />
-                  <InfoRow label={t.deliveryPage.labelZone}     value={(delivery as any).zoneName} />
+                  <InfoRow label={t.deliveryPage.labelZone}     value={delivery.zoneName} />
                 </div>
               </Section>
 
@@ -309,11 +310,11 @@ export default function DeliveryDetailPage() {
                 <div className="flex flex-col">
                   <InfoRow label={t.deliveryPage.labelReference}   value={delivery.orderRef} mono />
                   <InfoRow label={t.deliveryPage.labelInternalId}  value={delivery.id} mono />
-                  <InfoRow label={t.deliveryPage.labelTotalWeight} value={(delivery as any).totalWeightKg ? `${(delivery as any).totalWeightKg} kg` : null} />
-                  <InfoRow label={t.deliveryPage.labelAmount}     value={(delivery as any).totalAmount ? formatMoney((delivery as any).totalAmount, (delivery as any).currency) : null} />
-                  <InfoRow label={t.deliveryPage.labelSource}     value={t.sources[(delivery as any).source] ?? (delivery as any).source} />
-                  {(delivery as any).odooSyncStatus && (delivery as any).odooSyncStatus !== 'SYNCED' && (
-                    <InfoRow label={t.deliveryPage.labelSyncErp} value={t.syncStatus[(delivery as any).odooSyncStatus] ?? (delivery as any).odooSyncStatus} />
+                  <InfoRow label={t.deliveryPage.labelTotalWeight} value={delivery.totalWeightKg ? `${delivery.totalWeightKg} kg` : null} />
+                  <InfoRow label={t.deliveryPage.labelAmount}     value={delivery.totalAmount ? formatMoney(delivery.totalAmount, delivery.currency) : null} />
+                  <InfoRow label={t.deliveryPage.labelSource}     value={tlabel(t.sources, delivery.source) ?? delivery.source} />
+                  {delivery.odooSyncStatus && delivery.odooSyncStatus !== 'SYNCED' && (
+                    <InfoRow label={t.deliveryPage.labelSyncErp} value={t.syncStatus[delivery.odooSyncStatus] ?? delivery.odooSyncStatus} />
                   )}
                   <InfoRow label={t.deliveryPage.labelCreatedAt}  value={delivery.createdAt ? new Date(delivery.createdAt).toLocaleString('fr-FR') : null} />
                   <InfoRow label={t.deliveryPage.labelUpdatedAt}  value={delivery.updatedAt ? new Date(delivery.updatedAt).toLocaleString('fr-FR') : null} />
@@ -321,13 +322,13 @@ export default function DeliveryDetailPage() {
               </Section>
 
               {/* Shipments of the same sale order (original + backorder(s) / multi-depot splits) */}
-              {Array.isArray((delivery as any).relatedShipments) && (delivery as any).relatedShipments.length > 1 && (
+              {Array.isArray(delivery.relatedShipments) && delivery.relatedShipments.length > 1 && (
                 <Section
-                  title={`${t.deliveryPage.relatedShipmentsTitle}${(delivery as any).erpExternalRef ? ' · ' + (delivery as any).erpExternalRef : ''}`}
+                  title={`${t.deliveryPage.relatedShipmentsTitle}${delivery.erpExternalRef ? ' · ' + delivery.erpExternalRef : ''}`}
                   icon={<IconPackage size={12} />}
                 >
                   <div className="flex flex-col">
-                    {((delivery as any).relatedShipments as Array<{ deliveryId: string; blNumber?: string; status: string; current: boolean }>).map((s) => (
+                    {(delivery.relatedShipments ?? []).map((s) => (
                       s.current ? (
                         <div key={s.deliveryId} className="flex items-center justify-between py-2 border-b border-[var(--border)]/30">
                           <span className="text-xs font-semibold text-[var(--text-primary)] font-mono">{s.blNumber || '—'}</span>
@@ -352,10 +353,10 @@ export default function DeliveryDetailPage() {
                 <Section title={t.deliveryPage.itemsCount.replace('{count}', String(items.length)).replace('{plural}', items.length > 1 ? 's' : '')} icon={<IconPackage size={12} />}>
                   <ArticlesTable
                     items={items}
-                    status={(delivery as any).status}
-                    failureCode={(delivery as any).failureCode}
+                    status={delivery.status}
+                    failureCode={delivery.failureCode}
                     failMotif={failMotif}
-                    currency={(delivery as any).currency}
+                    currency={delivery.currency}
                   />
                 </Section>
               )}
@@ -365,20 +366,20 @@ export default function DeliveryDetailPage() {
                 <div className="flex flex-col">
                   <InfoRow
                     label={t.deliveryPage.scheduledLabel}
-                    value={(delivery as any).scheduledAt
-                      ? new Date((delivery as any).scheduledAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
-                        + ((delivery as any).rescheduledAt ? ` · ${t.deliveryPage.rescheduledBadge}` : '')
+                    value={delivery.scheduledAt
+                      ? new Date(delivery.scheduledAt).toLocaleString('fr-FR', { dateStyle: 'medium', timeStyle: 'short' })
+                        + (delivery.rescheduledAt ? ` · ${t.deliveryPage.rescheduledBadge}` : '')
                       : '—'}
                   />
                   {/* Delivery time window (start–end) for scheduled orders */}
                   <InfoRow label={t.deliveryPage.windowLabel} value={deliveryWindow} />
-                  <InfoRow label={t.deliveryPage.blNumberLabel} value={(delivery as any).blNumber} mono />
+                  <InfoRow label={t.deliveryPage.blNumberLabel} value={delivery.blNumber} mono />
                   <InfoRow
                     label={t.deliveryPage.sourceDepotLabel}
-                    value={(delivery as any).sourceDepotName ?? (delivery as any).warehouseCode}
+                    value={delivery.sourceDepotName ?? delivery.warehouseCode}
                   />
                 </div>
-                {(delivery as any).blNumber && (
+                {delivery.blNumber && (
                   <button
                     type="button"
                     onClick={async () => {

@@ -96,6 +96,15 @@ export interface Delivery {
   updatedAt?: string;
   failureReason?: string;
   currency?: string;
+  /** Failure detail (driver motif + free comment) for FAILED/PARTIAL. */
+  failureCode?: string;
+  failReason?: string;
+  failureComment?: string;
+  /** Cancellation reason for CANCELLED. */
+  cancelReason?: string;
+  /** ERP grouping ref + sibling shipments for multi-parcel orders. */
+  erpExternalRef?: string;
+  relatedShipments?: Array<{ deliveryId: string; blNumber?: string; status: string; current: boolean }>;
 }
 
 export type DriverAccountStatus = 'PENDING_SETUP' | 'ACTIVE' | 'SUSPENDED';

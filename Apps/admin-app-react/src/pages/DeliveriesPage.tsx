@@ -104,7 +104,7 @@ function DeliveriesPageContent() {
   }, [zoneId, zones]);
 
   const queryParams = useMemo(() => {
-    const params: any = { page, size };
+    const params: Parameters<typeof useDeliveries>[0] = { page, size };
     if (status) params.status = status;
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo) params.dateTo = dateTo;
@@ -156,7 +156,7 @@ function DeliveriesPageContent() {
   useEffect(() => { if (pinParam) setQuickView('needsPinning'); }, [pinParam]);
   useEffect(() => {
     if (!pinParam || pinConsumedRef.current) return;
-    const row = rows.find((r: DeliveryRow) => r.rowId === pinParam || (r as any).deliveryId === pinParam || (r as any).id === pinParam);
+    const row = rows.find((r: DeliveryRow) => r.rowId === pinParam || r.deliveryId === pinParam || r.id === pinParam);
     if (row) { setPinTarget(row); pinConsumedRef.current = true; }
   }, [pinParam, rows]);
 
@@ -270,16 +270,16 @@ function DeliveriesPageContent() {
               baseName="livraisons"
               rows={filteredRows}
               columns={[
-                { header: 'Référence', accessor: (r: any) => resolveOrderRef(r) },
-                { header: 'Client', accessor: (r: any) => r.clientName },
-                { header: 'Adresse', accessor: (r: any) => r.dropoffAddress },
-                { header: 'Zone', accessor: (r: any) => r.zoneName },
-                { header: 'Chauffeur', accessor: (r: any) => r.driverName },
-                { header: 'Statut', accessor: (r: any) => r.status },
-                { header: 'SLA', accessor: (r: any) => (r as any).slaHealth },
-                { header: 'Planifié', accessor: (r: any) => (r as any).scheduledAt },
-                { header: 'Montant', accessor: (r: any) => (r as any).totalAmount },
-                { header: 'Créé le', accessor: (r: any) => r.createdAt },
+                { header: 'Référence', accessor: (r: DeliveryRow) => resolveOrderRef(r) },
+                { header: 'Client', accessor: (r: DeliveryRow) => r.clientName },
+                { header: 'Adresse', accessor: (r: DeliveryRow) => r.dropoffAddress },
+                { header: 'Zone', accessor: (r: DeliveryRow) => r.zoneName },
+                { header: 'Chauffeur', accessor: (r: DeliveryRow) => r.driverName },
+                { header: 'Statut', accessor: (r: DeliveryRow) => r.status },
+                { header: 'SLA', accessor: (r: DeliveryRow) => r.slaHealth },
+                { header: 'Planifié', accessor: (r: DeliveryRow) => r.scheduledAt },
+                { header: 'Montant', accessor: (r: DeliveryRow) => r.totalAmount },
+                { header: 'Créé le', accessor: (r: DeliveryRow) => r.createdAt },
               ]}
             />
             </>
@@ -366,7 +366,7 @@ function DeliveriesPageContent() {
                           return (
                             <th key={col.id} className={`h-10 px-6 ${align} text-xs font-[450] text-[var(--text-muted)]`}>
                               {sortable ? (
-                                <button onClick={() => headerSort(col.id as any)} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
+                                <button onClick={() => headerSort(col.id as 'ref' | 'client' | 'status' | 'zone')} className="inline-flex items-center gap-1 hover:text-[var(--text-strong)] transition-colors cursor-pointer">
                                   {labelMap[col.id]}
                                   <span className="text-2xs">{col.id === 'ref' ? (sortAsc ? '▲' : '▼') : (groupActive[col.id] ? (sortAsc ? '▲' : '▼') : '⇅')}</span>
                                 </button>
