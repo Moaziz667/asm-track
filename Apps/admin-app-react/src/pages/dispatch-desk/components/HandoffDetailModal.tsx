@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import type { TranslationSchema } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import {
   IconCheck, IconX, IconAlertTriangle, IconArrowNarrowRight,
   IconClock, IconMapPin, IconRoute,
@@ -14,7 +16,7 @@ interface Props {
   onClose: () => void;
   phase: Phase;
   accent: string;
-  t: any;
+  t: TranslationSchema;
 }
 
 function fmtTs(iso?: string): string {
@@ -31,7 +33,7 @@ function fmtMinutes(mins: number): string {
 
 type Step = { label: string; at?: string; by?: string; reached: boolean; dotColor: string };
 
-function lifecycleSteps(h: HandoffItem, t: any): Step[] {
+function lifecycleSteps(h: HandoffItem, t: TranslationSchema): Step[] {
   const c = t.dispatchDeskPage;
   const steps: Step[] = [
     { label: c.handoffStepRequested, at: h.requestedAt, by: h.requestedBy, reached: true, dotColor: 'var(--info)' },
@@ -53,7 +55,7 @@ function lifecycleSteps(h: HandoffItem, t: any): Step[] {
 
 /** Large-format custody connector for the modal — sender and receiver with avatars,
  *  the line encodes the terminal state. No animation (read-only). */
-function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string; phase: Phase; t: any }) {
+function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string; phase: Phase; t: TranslationSchema }) {
   const solid = phase === 'confirmed' || phase === 'overdue';
   const broken = phase === 'expired' || phase === 'cancelled';
 
@@ -72,7 +74,7 @@ function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string
       <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
         <div className="min-w-0 text-right">
           <p className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>{h.fromDriverName ?? '—'}</p>
-          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.handoffFromLabel ?? 'Envoyé par'}</p>
+          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Envoyé par'}</p>
         </div>
         <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={32} />
       </div>
@@ -81,7 +83,7 @@ function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string
       <div className="relative flex items-center justify-center" style={{ minWidth: 56 }}>
         <span
           className={`ho-conn${solid ? ' ho-conn--solid' : ''}${broken ? ' ho-conn--broken' : ''}`}
-          style={{ ['--ho-c' as any]: accent }}
+          style={{ '--ho-c': accent } as React.CSSProperties}
           aria-hidden
         />
         <span
@@ -97,7 +99,7 @@ function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string
         <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={32} />
         <div className="min-w-0">
           <p className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>{h.toDriverName ?? '—'}</p>
-          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.dispatchDeskPage.handoffToLabel ?? 'Reçu par'}</p>
+          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Reçu par'}</p>
         </div>
       </div>
     </div>
@@ -145,7 +147,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
           </span>
         </div>
       }
-      subtitle={`${t.dispatchDeskPage.handoffSubtitle ?? 'Transfert'} · ${ref}`}
+      subtitle={`${tlabel(t.dispatchDeskPage, 'handoffSubtitle') ?? 'Transfert'} · ${ref}`}
       size="lg"
     >
       <div className="flex flex-col">
@@ -206,7 +208,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
         {/* Lifecycle timeline */}
         <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs font-[700] mb-2" style={{ color: 'var(--text-primary)' }}>
-            {t.dispatchDeskPage.handoffLifecycle ?? 'Chronologie'}
+            {tlabel(t.dispatchDeskPage, 'handoffLifecycle') ?? 'Chronologie'}
           </p>
           {steps.map((s, i) => (
             <div key={i} className="flex items-start gap-2.5">

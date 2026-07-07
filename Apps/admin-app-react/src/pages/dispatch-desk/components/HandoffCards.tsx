@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import type { TranslationSchema } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { Link } from 'react-router-dom';
 import {
   IconClock, IconX, IconChevronDown, IconMapPin, IconCheck,
@@ -21,7 +23,7 @@ interface Props {
   isReadOnly: boolean;
   cancellingId: string | null;
   onCancel: (id: string, reason: string) => Promise<boolean>;
-  t: any;
+  t: TranslationSchema;
 }
 
 type Segment = 'open' | 'history';
@@ -54,7 +56,7 @@ export interface CardView {
   phase: Phase;
 }
 
-export function cardView(h: HandoffItem, t: any): CardView {
+export function cardView(h: HandoffItem, t: TranslationSchema): CardView {
   const c = t.dispatchDeskPage;
   const phase = phaseOf(h);
   switch (phase) {
@@ -80,7 +82,7 @@ function fmtMinutes(mins: number): string {
 }
 
 /** "Bouclé en X" for a confirmed transfer (confirmedAt − requestedAt). */
-function durationLabel(h: HandoffItem, t: any): string | null {
+function durationLabel(h: HandoffItem, t: TranslationSchema): string | null {
   if (h.state !== 'CONFIRMED' || !h.requestedAt || !h.confirmedAt) return null;
   const mins = Math.max(0, Math.round((new Date(h.confirmedAt).getTime() - new Date(h.requestedAt).getTime()) / 60000));
   return (t.dispatchDeskPage.handoffDuration ?? 'Completed in {d}').replace('{d}', fmtMinutes(mins));
@@ -115,7 +117,7 @@ function CustodyTrail({ h, view }: { h: HandoffItem; view: CardView }) {
       <div className="relative flex-1 flex items-center justify-center" style={{ minWidth: 40 }}>
         <span
           className={`ho-conn${animated ? ' ho-conn--march' : ''}${solid ? ' ho-conn--solid' : ''}${broken ? ' ho-conn--broken' : ''}`}
-          style={{ ['--ho-c' as any]: accent }}
+          style={{ '--ho-c': accent } as React.CSSProperties}
           aria-hidden
         />
         <span
@@ -154,7 +156,7 @@ function DriverNode({ driverId, name, role }: { driverId?: string; name?: string
 }
 
 /** Live countdown to the one-time code expiry (only while IN_PROGRESS). */
-function Countdown({ to, t }: { to: string; t: any }) {
+function Countdown({ to, t }: { to: string; t: TranslationSchema }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -175,7 +177,7 @@ function Countdown({ to, t }: { to: string; t: any }) {
 type Step = { label: string; at?: string; by?: string; status: StatusValue };
 
 /** The full lifecycle trail: Requested → Code ready → Accepted / Expired / Cancelled. */
-function lifecycle(h: HandoffItem, t: any): Step[] {
+function lifecycle(h: HandoffItem, t: TranslationSchema): Step[] {
   const c = t.dispatchDeskPage;
   const steps: Step[] = [
     { label: c.handoffStepRequested, at: h.requestedAt, by: h.requestedBy, status: 'REQUESTED' as StatusValue },
@@ -197,7 +199,7 @@ function lifecycle(h: HandoffItem, t: any): Step[] {
 
 /** Vertical dot+line lifecycle trail — each step is a filled/hollow dot with a connecting
  *  rail, label, actor, and timestamp. No StatusBadge — the dot colour + text weight carry meaning. */
-function LifecycleTrail({ h, t }: { h: HandoffItem; t: any }) {
+function LifecycleTrail({ h, t }: { h: HandoffItem; t: TranslationSchema }) {
   const steps = lifecycle(h, t);
   const by = t.dispatchDeskPage.handoffByLabel ?? 'by';
 
@@ -283,7 +285,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
   isReadOnly: boolean;
   cancellingId: string | null;
   onCancelClick: (h: HandoffItem) => void;
-  t: any;
+  t: TranslationSchema;
 }) {
   const [expanded, setExpanded] = useState(false);
   const view = cardView(h, t);
@@ -336,7 +338,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3" style={{ background: 'var(--surface-sunken)' }}>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {t.dispatchDeskPage.handoffFromLabel ?? 'Envoyé par'}
+                {tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Envoyé par'}
               </span>
               <span className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
                 {h.fromDriverName ?? '—'}
@@ -344,7 +346,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {t.dispatchDeskPage.handoffToLabel ?? 'Reçu par'}
+                {tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Reçu par'}
               </span>
               <span className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
                 {h.toDriverName ?? '—'}
@@ -352,7 +354,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {t.dispatchDeskPage.handoffRequestedAt ?? 'Demandé le'}
+                {tlabel(t.dispatchDeskPage, 'handoffRequestedAt') ?? 'Demandé le'}
               </span>
               <span className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
                 {fmtTs(h.requestedAt)}
@@ -361,7 +363,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             {duration && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                  {t.dispatchDeskPage.handoffDurationLabel ?? 'Durée'}
+                  {tlabel(t.dispatchDeskPage, 'handoffDurationLabel') ?? 'Durée'}
                 </span>
                 <span className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
                   {duration}

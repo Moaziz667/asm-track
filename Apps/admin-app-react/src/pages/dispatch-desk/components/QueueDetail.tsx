@@ -277,7 +277,7 @@ export function QueueDetail() {
             <Link
               to={`/deliveries?pin=${id}`}
               className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ ['--accent' as any]: 'var(--warning)' }}
+              style={{ '--accent': 'var(--warning)' } as React.CSSProperties}
             >
               <IconMapPinOff size={14} /> {t.dispatchDeskPage.pinAddress}
             </Link>
@@ -286,7 +286,7 @@ export function QueueDetail() {
             <button
               type="button"
               className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ ['--accent' as any]: 'var(--brand)' }}
+              style={{ '--accent': 'var(--brand)' } as React.CSSProperties}
               onClick={() => openActionModal('replan', alert ?? exceptionFromDelivery())}
             >
               <IconReplan size={14} />
@@ -297,7 +297,7 @@ export function QueueDetail() {
             <a
               href={`tel:${d.clientPhone}`}
               className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ ['--accent' as any]: 'var(--success)' }}
+              style={{ '--accent': 'var(--success)' } as React.CSSProperties}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallClient}
             </a>
@@ -306,7 +306,7 @@ export function QueueDetail() {
             <a
               href={`tel:${d.driverPhone ?? driver?.phone}`}
               className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ ['--accent' as any]: 'var(--info)' }}
+              style={{ '--accent': 'var(--info)' } as React.CSSProperties}
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>
@@ -315,7 +315,7 @@ export function QueueDetail() {
             <button
               type="button"
               className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ ['--accent' as any]: 'var(--danger)' }}
+              style={{ '--accent': 'var(--danger)' } as React.CSSProperties}
               onClick={() => setReturnTarget(alert)}
             >
               <IconArrowBack size={14} stroke={2.5} />

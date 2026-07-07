@@ -1,4 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import type { TranslationSchema } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { Link } from 'react-router-dom';
 import { IconClock, IconArrowRight, IconX } from '@tabler/icons-react';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
@@ -12,7 +14,7 @@ import type { ColumnDef } from '@/hooks/useColumnSettings';
 
 interface Props {
   items: HandoffItem[];
-  t: any;
+  t: TranslationSchema;
   isReadOnly: boolean;
   cancellingId: string | null;
   onCancel: (h: HandoffItem) => void;
@@ -98,7 +100,7 @@ function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
 }
 
 /** Floating tooltip shown on row hover — quick preview without clicking. */
-function HoverTooltip({ h, t, rect }: { h: HandoffItem; t: any; rect: DOMRect }) {
+function HoverTooltip({ h, t, rect }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect }) {
   const view = cardView(h, t);
   const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'par';
 
@@ -179,7 +181,7 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
             <div className="grid flex-1 items-center" style={{ gridTemplateColumns: gridCols }}>
               {orderedColumns.filter(c => c.pinned || visibleIds.has(c.id)).map(col => (
                 <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
-                  {t.dispatchDeskPage[`handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`] ?? col.label}
+                  {tlabel(t.dispatchDeskPage, `handoffCol${col.id.charAt(0).toUpperCase() + col.id.slice(1)}`) ?? col.label}
                 </span>
               ))}
             </div>
