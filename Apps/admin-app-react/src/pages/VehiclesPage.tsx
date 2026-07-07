@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/LocaleContext';
+import { applyFieldError } from '@/lib/form-errors';
 import {
   IconRefresh, IconPlus, IconSearch,
   IconTruck, IconCar, IconUserCheck,
@@ -338,7 +339,7 @@ function VehiclesPageContent() {
     mileageKm: '', plate: '', type: 'VAN', active: 'true',
   };
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<VehicleForm>({
+  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<VehicleForm>({
     resolver: zodResolver(vehicleSchema),
     defaultValues: VEHICLE_DEFAULTS,
   });
@@ -416,7 +417,11 @@ function VehiclesPageContent() {
       }
       resetForm();
     } catch (err) {
-      // Errors are handled by query mutation callbacks
+      // Show a taken plate under the field; the generic toast (in the mutation hook) is suppressed
+      // for this code, so there's no disconnected toast.
+      applyFieldError(err, setError, {
+        VEHICLE_PLATE_EXISTS: { field: 'plate', message: t.validation.plateTaken },
+      });
     }
   });
 

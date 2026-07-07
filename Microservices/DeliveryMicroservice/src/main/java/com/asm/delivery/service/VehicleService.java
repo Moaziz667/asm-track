@@ -78,7 +78,7 @@ public class VehicleService {
 
         String normalizedPlate = normalizePlate(request.getPlate());
         if (vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
-            throw AppException.conflict("Vehicle plate already exists");
+            throw AppException.conflict("VEHICLE_PLATE_EXISTS", "Vehicle plate already exists");
         }
 
 
@@ -136,7 +136,7 @@ public class VehicleService {
             String normalizedPlate = normalizePlate(request.getPlate());
             if (!normalizedPlate.equalsIgnoreCase(vehicle.getPlate())
                     && vehicleRepository.existsByPlateIgnoreCase(normalizedPlate)) {
-                throw AppException.conflict("Vehicle plate already exists");
+                throw AppException.conflict("VEHICLE_PLATE_EXISTS", "Vehicle plate already exists");
             }
             vehicle.setPlate(normalizedPlate);
         }

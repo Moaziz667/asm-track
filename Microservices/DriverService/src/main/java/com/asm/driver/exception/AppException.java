@@ -8,14 +8,21 @@ public class AppException extends RuntimeException {
 
     private final HttpStatus status;
     private final long retryAfterSeconds;
+    /** Stable machine code for the client to map an error to a field/action (envelope contract). */
+    private final String errorCode;
 
     public AppException(HttpStatus status, String message) {
         this(status, message, 0L);
     }
 
     public AppException(HttpStatus status, String message, long retryAfterSeconds) {
+        this(status, null, message, retryAfterSeconds);
+    }
+
+    public AppException(HttpStatus status, String errorCode, String message, long retryAfterSeconds) {
         super(message);
         this.status = status;
+        this.errorCode = errorCode;
         this.retryAfterSeconds = retryAfterSeconds;
     }
 
@@ -31,8 +38,16 @@ public class AppException extends RuntimeException {
         return new AppException(HttpStatus.CONFLICT, message);
     }
 
+    public static AppException conflict(String errorCode, String message) {
+        return new AppException(HttpStatus.CONFLICT, errorCode, message, 0L);
+    }
+
     public static AppException badRequest(String message) {
         return new AppException(HttpStatus.BAD_REQUEST, message);
+    }
+
+    public static AppException badRequest(String errorCode, String message) {
+        return new AppException(HttpStatus.BAD_REQUEST, errorCode, message, 0L);
     }
 
     public static AppException forbidden(String message) {

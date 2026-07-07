@@ -17,7 +17,13 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<Map<String, Object>> handleAppException(AppException ex) {
         Map<String, Object> body = new LinkedHashMap<>();
+        // `error` kept for backward compat; `message` + `errorCode` align with the shared error
+        // envelope so the client can map a failure to a specific field/action.
         body.put("error", ex.getMessage());
+        body.put("message", ex.getMessage());
+        if (ex.getErrorCode() != null) {
+            body.put("errorCode", ex.getErrorCode());
+        }
         body.put("status", ex.getStatus().value());
         if (ex.getRetryAfterSeconds() > 0) {
             body.put("retryAfterSeconds", ex.getRetryAfterSeconds());

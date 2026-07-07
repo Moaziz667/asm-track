@@ -166,7 +166,12 @@ function DriversPageContent() {
         await createDriverMutation.mutateAsync({ name: data.name, phone: data.phone, email: data.email });
       }
       setCrudOpen(false);
-    } catch (err) { /* toast handled in hook */ }
+    } catch (err) {
+      // Propagate so the modal can surface field-level errors (e.g. email/phone taken) under the
+      // field. The generic toast is already handled in the mutation hook (and suppressed for
+      // field-mapped codes), so no double feedback.
+      throw err;
+    }
   };
 
   const toggleActive = async (drv: Driver) => {

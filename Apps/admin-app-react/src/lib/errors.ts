@@ -30,7 +30,11 @@ export function getApiError(err: unknown): ApiError {
   const data = (e.response?.data ?? {}) as Record<string, unknown>;
   return {
     status: e.response?.status,
-    message: typeof data.message === 'string' ? data.message : e.message,
+    // `message` is the shared envelope key; `error` is the legacy key some services still emit.
+    message:
+      typeof data.message === 'string' ? data.message
+      : typeof data.error === 'string' ? data.error
+      : e.message,
     errorCode: typeof data.errorCode === 'string' ? data.errorCode : undefined,
     errorParams:
       data.errorParams && typeof data.errorParams === 'object'

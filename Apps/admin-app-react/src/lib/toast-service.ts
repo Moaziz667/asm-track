@@ -89,6 +89,17 @@ const ERROR_CODE_KEYS: Record<string, string> = {
   RMA_INVALID_TRANSITION: 'errorRmaInvalidTransition',
 };
 
+/**
+ * Codes shown as a *field-level* error under a form input (via applyFieldError), never as a toast.
+ * showErrorToast suppresses these globally so no form gets a disconnected toast for a taken email/plate.
+ */
+const FIELD_ERROR_CODES = new Set<string>([
+  'DRIVER_EMAIL_EXISTS', 'DRIVER_PHONE_EXISTS',
+  'USER_EMAIL_EXISTS',
+  'VEHICLE_PLATE_EXISTS',
+  'EMAIL_INVALID', 'EMAIL_REQUIRED',
+]);
+
 /** Fill {placeholder} tokens from the backend errorParams map. */
 function interpolate(template: string, params?: Record<string, unknown>): string {
   if (!params || !template.includes('{')) return template;
@@ -262,6 +273,9 @@ export function showErrorToast(
   const apiErr = errorMessage != null && typeof errorMessage === 'object'
     ? getApiError(errorMessage)
     : undefined;
+  // Field-level codes are shown *under the form field* (see applyFieldError) — never as a toast,
+  // so the two feedbacks don't collide. Global suppression means every form is covered automatically.
+  if (apiErr?.errorCode && FIELD_ERROR_CODES.has(apiErr.errorCode)) return;
   const codeKey = apiErr?.errorCode ? ERROR_CODE_KEYS[apiErr.errorCode] : undefined;
   if (codeKey) {
     const copy = getCopy(useLocaleStore.getState().locale || 'fr');

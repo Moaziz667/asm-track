@@ -6,6 +6,7 @@ import { useT } from '@/lib/LocaleContext';
 import { canManageSettings, getCurrentRole } from '@/lib/auth';
 import { AdminUser } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { applyFieldError } from '@/lib/form-errors';
 import { formatDate } from '@/lib/date';
 import { TablePagination } from '@/components/data-display/TablePagination';
 import {
@@ -203,6 +204,8 @@ export default function SettingsPage() {
       addForm.reset();
       fetchAdminUsers();
     } catch (err) {
+      // Taken email → under the field; the toast self-suppresses for this code.
+      applyFieldError(err, addForm.setError, { USER_EMAIL_EXISTS: { field: 'email', message: t.validation.emailTaken } });
       showErrorToast(err, 'errorSaveFailed');
     } finally {
       setSubmitting(false);
@@ -221,6 +224,7 @@ export default function SettingsPage() {
       // If the edited user is the signed-in one, refresh the live profile so the top bar updates now.
       queryClient.invalidateQueries({ queryKey: ['me'] });
     } catch (err) {
+      applyFieldError(err, editForm.setError, { USER_EMAIL_EXISTS: { field: 'email', message: t.validation.emailTaken } });
       showErrorToast(err, 'errorUserUpdateFailed');
     } finally {
       setSubmitting(false);

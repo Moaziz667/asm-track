@@ -8,6 +8,7 @@ import { FieldInput } from '@/components/ui/field';
 import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import type { Driver } from '@/types';
 import type { useT } from '@/lib/LocaleContext';
+import { applyFieldError } from '@/lib/form-errors';
 import type { DriverCrud } from './constants';
 
 interface Props {
@@ -28,7 +29,7 @@ export function DriverFormModal({ open, onClose, editingDriver, onSubmit, saving
 
   type FormT = z.infer<typeof schema>;
 
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<FormT>({
+  const { register, handleSubmit, reset, setError, formState: { errors } } = useForm<FormT>({
     resolver: zodResolver(schema),
     defaultValues: { name: '', phone: '', email: '' },
   });
@@ -42,7 +43,16 @@ export function DriverFormModal({ open, onClose, editingDriver, onSubmit, saving
   }, [open, editingDriver, reset]);
 
   const submit = handleSubmit(async (data) => {
-    await onSubmit(editingDriver ? { id: editingDriver.id, ...data } : data);
+    try {
+      await onSubmit(editingDriver ? { id: editingDriver.id, ...data } : data);
+    } catch (err) {
+      // Surface a taken email/phone under the field (the generic toast is suppressed for these codes).
+      applyFieldError(err, setError, {
+        DRIVER_EMAIL_EXISTS: { field: 'email', message: t.validation.emailTaken },
+        EMAIL_INVALID: { field: 'email', message: t.validation.invalidEmail },
+        DRIVER_PHONE_EXISTS: { field: 'phone', message: t.validation.phoneTaken },
+      });
+    }
   });
 
   return (

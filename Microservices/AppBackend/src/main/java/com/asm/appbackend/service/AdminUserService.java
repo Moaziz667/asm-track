@@ -34,7 +34,7 @@ public class AdminUserService {
     @Transactional
     public AdminUserResponse createUser(CreateAdminUserRequest req) {
         if (adminUserRepo.existsByEmail(req.email())) {
-            throw new AppException(HttpStatus.CONFLICT, "Email already in use");
+            throw AppException.conflict("USER_EMAIL_EXISTS", "Email already in use");
         }
         AdminUser user = AdminUser.builder()
                 .name(req.name())
@@ -118,7 +118,7 @@ public class AdminUserService {
         String trimmedEmail = email.trim();
 
         if (!trimmedEmail.equalsIgnoreCase(oldEmail) && adminUserRepo.existsByEmail(trimmedEmail)) {
-            throw new AppException(HttpStatus.CONFLICT, "Email already in use");
+            throw AppException.conflict("USER_EMAIL_EXISTS", "Email already in use");
         }
 
         String oldName = user.getName();

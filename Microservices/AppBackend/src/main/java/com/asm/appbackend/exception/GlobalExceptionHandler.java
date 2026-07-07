@@ -20,7 +20,7 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AppException.class)
     public ResponseEntity<ErrorResponse> handleApp(AppException ex) {
         return ResponseEntity.status(ex.getStatus())
-                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage()));
+                .body(new ErrorResponse(ex.getStatus().value(), ex.getMessage(), ex.getErrorCode()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -46,7 +46,11 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse(HttpStatus.INTERNAL_SERVER_ERROR.value(), "Internal server error"));
     }
 
-    public record ErrorResponse(int status, String message) {
+    public record ErrorResponse(int status, String message, String errorCode) {
+        /** Back-compat: callers without a machine code. */
+        public ErrorResponse(int status, String message) {
+            this(status, message, null);
+        }
         public LocalDateTime timestamp() {
             return LocalDateTime.now();
         }

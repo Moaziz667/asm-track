@@ -121,17 +121,17 @@ public class AdminDriverService {
     @Transactional
     public AdminDriverResponse invite(String name, String phone, String email, UserPrincipal actor) {
         if (driverRepo.existsByPhone(phone)) {
-            throw AppException.conflict("Phone already registered");
+            throw AppException.conflict("DRIVER_PHONE_EXISTS", "Phone already registered");
         }
         if (email == null || email.isBlank()) {
-            throw AppException.badRequest("Email is required");
+            throw AppException.badRequest("EMAIL_REQUIRED", "Email is required");
         }
         String trimmedEmail = email.trim();
         if (!trimmedEmail.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
-            throw AppException.badRequest("Invalid email format");
+            throw AppException.badRequest("EMAIL_INVALID", "Invalid email format");
         }
         if (driverRepo.existsByEmail(trimmedEmail)) {
-            throw AppException.conflict("Email already registered");
+            throw AppException.conflict("DRIVER_EMAIL_EXISTS", "Email already registered");
         }
 
         Driver driver = Driver.builder()
@@ -311,17 +311,17 @@ public class AdminDriverService {
         }
         if (phone != null && !phone.isBlank()) {
             if (!phone.equals(driver.getPhone()) && driverRepo.existsByPhone(phone)) {
-                throw AppException.conflict("Phone already in use");
+                throw AppException.conflict("DRIVER_PHONE_EXISTS", "Phone already in use");
             }
             driver.setPhone(phone.trim());
         }
         if (email != null && !email.isBlank() && !email.equalsIgnoreCase(driver.getEmail())) {
             String trimmedEmail = email.trim();
             if (!trimmedEmail.matches("^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,6}$")) {
-                throw AppException.badRequest("Invalid email format");
+                throw AppException.badRequest("EMAIL_INVALID", "Invalid email format");
             }
             if (driverRepo.existsByEmail(trimmedEmail)) {
-                throw AppException.conflict("Email already in use");
+                throw AppException.conflict("DRIVER_EMAIL_EXISTS", "Email already in use");
             }
             driver.setEmail(trimmedEmail);
             outboxProcessor.enqueue(OutboxProcessor.IAM_UPDATE_EMAIL, Map.of(
