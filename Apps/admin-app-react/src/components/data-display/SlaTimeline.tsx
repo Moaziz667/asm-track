@@ -267,7 +267,7 @@ function StepNode({ icon: Icon, label, tooltip, tone, pulse, connector, connecto
 }
 
 function DetailedSection({ data, c, eventLabel, actorLabel, hidePodComment = false, hideItemOutcomes = false, hideFailureContext = false }: {
-  data: SlaTimelineData; c: any;
+  data: SlaTimelineData; c: ReturnType<typeof useT>['slaTimeline'];
   eventLabel: (e: { eventKey?: string; status?: string; params?: string }) => string;
   actorLabel: (e: { actor?: string; actorRole?: string }) => string;
   hidePodComment?: boolean;

@@ -1,3 +1,4 @@
+import type { TranslationSchema } from '@/lib/LocaleContext';
 import type { DeliveryStatus } from '@/types';
 
 export const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'];
@@ -14,7 +15,7 @@ export const STATUS_TIP: Record<string, string> = {
   ONLINE: 'En service', ON_BREAK: 'En pause', OFFLINE: 'Hors ligne',
 };
 
-export function getDriverStatusTip(status: string | undefined, t: any): string {
+export function getDriverStatusTip(status: string | undefined, t: TranslationSchema): string {
   const map: Record<string, string> = {
     ONLINE: t.dispatchDeskPage.driverOnline,
     ON_BREAK: t.dispatchDeskPage.driverOnBreak,

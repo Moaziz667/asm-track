@@ -86,7 +86,7 @@ export function useToggleDriverStatus() {
       }
       queryClient.invalidateQueries({ queryKey: DRIVERS_QUERY_KEY });
     },
-    onError: (err: any, variables) => {
+    onError: (err: unknown, variables) => {
       const isSuspend = variables.isRegistered === false;
       showErrorToast(
         err,

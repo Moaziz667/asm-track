@@ -1,3 +1,5 @@
+import type { TranslationSchema } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { format } from 'date-fns';
 import { getCopy } from '@/lib/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
@@ -33,7 +35,7 @@ export function normalizeTimeline(raw?: TimelineEvent[]): TimelineEvent[] {
     .filter((e) => Boolean(e.timestamp))
     .sort((a, b) => +new Date(a.timestamp) - +new Date(b.timestamp));
 }
-export function cleanNote(note?: string, copy?: any): string | undefined {
+export function cleanNote(note?: string, copy?: TranslationSchema): string | undefined {
   if (!note) return undefined;
   const t = note.trim();
   if (!t) return undefined;
@@ -42,9 +44,9 @@ export function cleanNote(note?: string, copy?: any): string | undefined {
   if (s.startsWith('ADMIN_ACTION:')) {
     const r = s.match(/ - (.*?) \|/)?.[1]?.trim();
     const resolvedCopy = copy || getCopy(useLocaleStore.getState().locale || 'fr');
-    let msg: string = resolvedCopy.routeBuilderPage?.dispatchActionRecorded || resolvedCopy.routeDetailPage?.dispatchActionRecorded || 'Action de dispatch enregistrée.';
-    if (s.includes('REPLAN')) msg = resolvedCopy.routeBuilderPage?.deliveryReplanned || resolvedCopy.routeDetailPage?.deliveryReplanned || 'Livraison remise en file de planification.';
-    else if (s.includes('REASSIGN')) msg = resolvedCopy.routeBuilderPage?.deliveryReassigned || resolvedCopy.routeDetailPage?.deliveryReassigned || 'Livraison réaffectée à un autre chauffeur.';
+    let msg: string = tlabel(resolvedCopy.routeBuilderPage, 'dispatchActionRecorded') || tlabel(resolvedCopy.routeDetailPage, 'dispatchActionRecorded') || 'Action de dispatch enregistrée.';
+    if (s.includes('REPLAN')) msg = tlabel(resolvedCopy.routeBuilderPage, 'deliveryReplanned') || tlabel(resolvedCopy.routeDetailPage, 'deliveryReplanned') || 'Livraison remise en file de planification.';
+    else if (s.includes('REASSIGN')) msg = tlabel(resolvedCopy.routeBuilderPage, 'deliveryReassigned') || tlabel(resolvedCopy.routeDetailPage, 'deliveryReassigned') || 'Livraison réaffectée à un autre chauffeur.';
     const reasonLabel = resolvedCopy.routeBuilderPage?.reasonLabel || resolvedCopy.routeDetailPage?.reason || 'Motif';
     return r ? `${msg} ${reasonLabel} ${r}` : msg;
   }

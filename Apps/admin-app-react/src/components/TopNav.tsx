@@ -1,5 +1,6 @@
 
 
+import type { TranslationSchema } from '@/lib/LocaleContext';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -66,7 +67,7 @@ const PAGE_BY_HREF: Record<string, CrumbInfo> = (() => {
   return map;
 })();
 
-function Breadcrumb({ t }: { t: any }) {
+function Breadcrumb({ t }: { t: TranslationSchema }) {
   const { pathname } = useLocation();
   const { trail } = useBreadcrumb();
   const seg = pathname.split('/').filter(Boolean)[0] ?? '';

@@ -78,7 +78,7 @@ export default function RouteDetailsPage() {
 
   const completed = route.completedStops ?? 0;
   const failed = route.failedStops ?? 0;
-  const partial = (route as any).partialStops ?? 0;
+  const partial = (route as { partialStops?: number }).partialStops ?? 0;
   const total = route.totalStops ?? d.orderedStops.length;
   // "Done" = every terminal stop: delivered, partial AND failed (échec). A failed stop is finished,
   // so a 1-stop route that failed reads 1/1, not 0/1.

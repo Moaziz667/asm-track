@@ -1,4 +1,5 @@
 
+import type { TranslationSchema } from '@/lib/LocaleContext';
 import { useEffect, useRef, useState } from 'react';
 import { lazy as dynamic } from 'react';
 import { Client } from '@stomp/stompjs';
@@ -22,7 +23,7 @@ interface TrackingData {
 
 const STEPS = ['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
 
-function getStatusConfig(t: any): Record<string, { label: string; sub: string; color: string }> {
+function getStatusConfig(t: TranslationSchema): Record<string, { label: string; sub: string; color: string }> {
   return {
     UNSCHEDULED: { label: t.trackingPage.statusEnAttente, sub: t.trackingPage.statusSubEnAttente, color: '#64748b' },
     SCHEDULED:   { label: t.trackingPage.statusPlanifiee, sub: t.trackingPage.statusSubPlanifiee, color: '#3b82f6' },
@@ -35,7 +36,7 @@ function getStatusConfig(t: any): Record<string, { label: string; sub: string; c
   };
 }
 
-function getStepLabels(t: any): string[] {
+function getStepLabels(t: TranslationSchema): string[] {
   return [t.trackingPage.stepPlanifiee, t.trackingPage.stepRecuperee, t.trackingPage.stepEnRoute, t.trackingPage.stepLivree];
 }
 

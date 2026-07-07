@@ -40,7 +40,7 @@ export function RouteHeader({
           <div className={styles.breadcrumb}>{t.routeDetailPage?.breadcrumbDetail || 'Détail'} · {t.pages.routes?.title || 'Tournée'}</div>
           <div className={styles.routeDetails}>
             <div className={styles.routeName}>{routeName}</div>
-            <StatusBadge status={routeStatus as any} size="md" />
+            <StatusBadge status={routeStatus as string} size="md" />
             {isOptimized && (
               <Badge variant="outline" className={styles.optimizedBadge}>
                 {t.routeDetailPage?.optimized || 'Optimisée'}

@@ -28,14 +28,14 @@ function TooltipTrigger({
   ...props
 }: TooltipPrimitive.Trigger.Props & { asChild?: boolean }) {
   if (asChild && React.isValidElement(children)) {
-    const { children: childChildren, ...childProps } = children.props as any;
+    const { children: childChildren, ...childProps } = children.props as Record<string, unknown>;
     return (
       <TooltipPrimitive.Trigger
         data-slot="tooltip-trigger"
         render={React.cloneElement(children, childProps)}
         {...props}
       >
-        {childChildren}
+        {childChildren as React.ReactNode}
       </TooltipPrimitive.Trigger>
     );
   }

@@ -9,7 +9,7 @@ import { useLocaleStore } from '@/lib/i18n';
 import { FR_COPY } from '@/lib/ux-copy';
 import { EN_COPY } from '@/lib/en-copy';
 import { AR_COPY } from '@/lib/ar-copy';
-import { dget } from '@/lib/i18n-dict';
+import { dget, tlabel } from '@/lib/i18n-dict';
 import { getApiError } from '@/lib/errors';
 
 /** Shape of a per-event notification copy entry (title/message may be templated). */
@@ -385,13 +385,13 @@ export function getLocalizedNotif(n: Notification, locale: string) {
 
   // Unified SLA event: render "phase · health" + reason, enriched with client/order context.
   if (n.event === 'sla.alert') {
-    const sl = (copyDict as any).slaTimeline ?? {};
-    const ep2 = (n.eventParams || {}) as Record<string, any>;
+    const sl = copyDict.slaTimeline ?? {};
+    const ep2 = (n.eventParams || {}) as Record<string, string>;
     // Live WS nests the SLA fields under slaParams; the persisted record stores them flat.
-    const sp = (ep2.slaParams ?? ep2) as Record<string, any>;
-    const phase = sl.phase?.[sp.phase] ?? sp.phase ?? '';
-    const health = sl.health?.[sp.health] ?? sp.health ?? '';
-    const reason = String(sl.reason?.[sp.reasonKey] ?? '')
+    const sp = ep2 as Record<string, string>;
+    const phase = tlabel(sl.phase, sp.phase) ?? sp.phase ?? '';
+    const health = tlabel(sl.health, sp.health) ?? sp.health ?? '';
+    const reason = String(tlabel(sl.reason, sp.reasonKey) ?? '')
       .replace(/\{(\w+)\}/g, (_: string, k: string) => sp[k] ?? '');
     const ref = ep2.erpOrderId ?? ep2.orderId ?? sp.erpOrderId ?? n.orderId ?? '';
     const client = ep2.clientName ?? n.clientName ?? '';

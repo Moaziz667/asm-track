@@ -257,8 +257,8 @@ function DriversPageContent() {
           ...(activityFilter !== 'all' && { activity: activityFilter }),
         }}
         onFilterChange={(key, val) => {
-          if (key === 'status')   setOperationalFilter((val ?? 'all') as any);
-          if (key === 'activity') setActivityFilter((val ?? 'all') as any);
+          if (key === 'status')   setOperationalFilter((val ?? 'all') as 'all' | 'active' | 'suspended' | 'pending');
+          if (key === 'activity') setActivityFilter((val ?? 'all') as 'all' | 'busy' | 'available');
         }}
         onRefresh={fetchDrivers}
         refreshing={loading}

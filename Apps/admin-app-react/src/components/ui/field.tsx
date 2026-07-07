@@ -166,7 +166,7 @@ export const FieldSelect = forwardRef<HTMLSelectElement, FieldSelectProps>(
             aria-invalid={invalid || undefined}
             aria-describedby={describedBy}
             value={value}
-            onChange={onChange as any}
+            onChange={onChange as React.ChangeEventHandler<HTMLSelectElement>}
             className={cn(
               inputBase,
               'appearance-none pr-8 cursor-pointer',

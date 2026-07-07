@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/LocaleContext';
+import { tlabel } from '@/lib/i18n-dict';
 import { canManageSettings, getCurrentRole } from '@/lib/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock, IconAlertTriangle, IconClock, IconCircleCheck, IconCircleDot } from '@tabler/icons-react';
@@ -176,7 +177,7 @@ export default function ErpIntegrationPage() {
         {/* Header */}
         <div className="flex items-start justify-between gap-4 pb-5 mb-6 border-b border-[var(--border)]">
           <div>
-            <h1 className={tw.pageTitle}>{(t.sidebar.items as any).erpIntegration ?? 'Intégration ERP'}</h1>
+            <h1 className={tw.pageTitle}>{tlabel(t.sidebar.items, 'erpIntegration') ?? 'Intégration ERP'}</h1>
             <p className={cn(tw.subtitle, 'mt-0.5')}>
               {provider === 'ODOO' ? sp.erpOdooDesc : provider === 'DUX' ? sp.erpDuxDesc : sp.noErpDesc}
             </p>
@@ -316,7 +317,7 @@ export default function ErpIntegrationPage() {
           </div>
         ) : (
           <div className="text-center py-20 text-sm text-[var(--text-muted)]">
-            {(t.erpIntegrationPage as any).loadError ?? 'Aucune configuration ERP disponible.'}
+            {tlabel(t.erpIntegrationPage, 'loadError') ?? 'Aucune configuration ERP disponible.'}
           </div>
         )}
       </div>

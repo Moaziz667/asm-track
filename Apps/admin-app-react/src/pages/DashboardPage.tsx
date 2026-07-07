@@ -208,7 +208,7 @@ export default function DashboardPage() {
 }
 
 /** Legacy KPI card kept for PerformancePage (imports { KpiCard } from './DashboardPage'). */
-export function KpiCard({ title, value, subtitle, Icon, color: _color, trend }: { title: string; value: string | number; subtitle: string; Icon: any; color?: string; trend?: string }) {
+export function KpiCard({ title, value, subtitle, Icon, color: _color, trend }: { title: string; value: string | number; subtitle: string; Icon: React.ElementType; color?: string; trend?: string }) {
   return (
     <div className="card p-4">
       <div className="flex items-start justify-between mb-3">

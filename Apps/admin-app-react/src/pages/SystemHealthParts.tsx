@@ -197,7 +197,7 @@ export function ComponentRow({ row, barPoints, rangeLabel, isOpen, onToggle, onI
 }
 
 export function ActionRow({ icon: Icon, title, meta, detail, action }: {
-  icon: any; title: string; meta: string; detail?: string; action: React.ReactNode;
+  icon: React.ElementType; title: string; meta: string; detail?: string; action: React.ReactNode;
 }) {
   return (
     <div className="flex items-start gap-3 px-4 py-3 border-t border-[var(--border)] first:border-t-0 bg-[var(--surface)]">
@@ -227,7 +227,7 @@ export function ActionButton({ onClick, busy, disabled, label }: { onClick: () =
   );
 }
 
-export function Banner({ tone, icon: Icon, title, sub }: { tone: Tone; icon: any; title: string; sub: string }) {
+export function Banner({ tone, icon: Icon, title, sub }: { tone: Tone; icon: React.ElementType; title: string; sub: string }) {
   return (
     <div className="rounded-[var(--radius-xl)] px-4 py-3 flex items-center gap-3 border"
       style={{ background: TONE_BG[tone], borderColor: `color-mix(in srgb, ${TONE_VAR[tone]} 35%, transparent)` }}>
