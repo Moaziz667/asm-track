@@ -28,7 +28,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
 
       if (quickView === 'needsPinning') return !item.dropoffPinned;
       if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
-      if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT') return false;
+      if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT' && item.status !== 'AWAITING_HANDOFF') return false;
       if (quickView === 'completed' && item.status !== 'DELIVERED') return false;
       if (quickView === 'failed' && !['FAILED', 'CANCELLED'].includes(item.status)) return false;
       if (quickView === 'overdue') return isPending && bucket === 'overdue';
@@ -87,7 +87,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
     rows.forEach((item: DeliveryRow) => {
       if (!item.dropoffPinned) needsPinning++;
       if (!item.driverId) unassigned++;
-      if (item.status === 'IN_TRANSIT') inTransit++;
+      if (item.status === 'IN_TRANSIT' || item.status === 'AWAITING_HANDOFF') inTransit++;
       if (item.status === 'DELIVERED') completed++;
       if (['FAILED', 'CANCELLED'].includes(item.status)) failed++;
 

@@ -53,6 +53,7 @@ public class HandoffService {
     private final RouteRepository routeRepository;
     private final com.asm.delivery.service.route.RouteWebSocketService routeWebSocketService;
     private final RouteExecutionService routeExecutionService;
+    private final com.asm.delivery.service.route.RouteAutoCloseService routeAutoCloseService;
     private final EventPublisher eventPublisher;
     private final AuditLogService auditLogService;
     private final com.asm.delivery.transport.TransportPort transportPort;
@@ -129,6 +130,15 @@ public class HandoffService {
 
         eventPublisher.publishHandoffRequested(handoff, delivery.getOrder());
         return handoff;
+    }
+
+    /** After a handoff settles, close a source route that was left empty by the transfer and kept open
+     *  only because the sender still held the parcel. No-op if the route has unresolved stops or the
+     *  sender still has another open handoff (the auto-close path re-checks that guard). */
+    private void finalizeSenderRouteIfEmptied(UUID senderDriverId) {
+        if (senderDriverId == null) return;
+        routeRepository.findByDriverIdAndStatusIn(senderDriverId, List.of(RouteStatus.IN_PROGRESS))
+                .forEach(routeAutoCloseService::finalizeIfResolved);
     }
 
     // ── Code generation (sender) ────────────────────────────────────────────────
@@ -208,7 +218,9 @@ public class HandoffService {
         handoffRepo.save(h);
 
         // Auto-advance: the receiver now physically holds the parcel.
-        if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+        if (delivery.getStatus() == DeliveryStatus.AWAITING_HANDOFF
+                || delivery.getStatus() == DeliveryStatus.SCHEDULED
+                || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
             delivery.setStatus(DeliveryStatus.PICKED_UP);
             delivery.setPickedUpAt(now);
             deliveryRepo.save(delivery);
@@ -238,6 +250,9 @@ public class HandoffService {
 
         log.info("HANDOFF_CONFIRMED handoffId={} from={} to={}", h.getId(), h.getFromDriverId(), toDriverId);
         eventPublisher.publishHandoffConfirmed(h, order);
+        // Custody has left the sender: if the transfer had emptied their route (kept open by the
+        // pending-handoff guard), finalize it now so it doesn't dangle IN_PROGRESS.
+        finalizeSenderRouteIfEmptied(h.getFromDriverId());
         return delivery;
     }
 
@@ -460,7 +475,9 @@ public class HandoffService {
         if (h.getFromDriverId() == null) return;
         deliveryRepo.findByIdWithOrder(h.getDeliveryId()).ifPresent(delivery -> {
             // Only revert if it didn't already reach a physical/terminal state under the receiver.
-            if (delivery.getStatus() == DeliveryStatus.SCHEDULED || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
+            if (delivery.getStatus() == DeliveryStatus.AWAITING_HANDOFF
+                    || delivery.getStatus() == DeliveryStatus.SCHEDULED
+                    || delivery.getStatus() == DeliveryStatus.UNSCHEDULED) {
                 delivery.setDriverId(h.getFromDriverId());
                 delivery.setStatus(DeliveryStatus.PICKED_UP);
                 if (delivery.getPickedUpAt() == null) delivery.setPickedUpAt(LocalDateTime.now());

@@ -10,6 +10,7 @@ export const STATUS_COLORS: Record<string, string> = {
   SCHEDULED:           '#5E6AD2',
   PICKED_UP:           '#2594B8',
   IN_TRANSIT:          '#D4772C',
+  AWAITING_HANDOFF:    '#C4881A',
   DELIVERED:           '#4CAF82',
   PARTIALLY_DELIVERED: '#7B6FCC',
   PARTIAL:             '#7B6FCC', 

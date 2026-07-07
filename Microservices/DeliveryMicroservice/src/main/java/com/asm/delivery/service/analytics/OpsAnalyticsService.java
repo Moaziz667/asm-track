@@ -586,8 +586,12 @@ public class OpsAnalyticsService {
                                                                                                                                         String label,
                                                                                                                                         List<AdminDeliverySummaryResponse> summaries,
                                                                                                                                         int topItems) {
+                // AWAITING_HANDOFF parcels are physically in transit (custody transfer pending) → fold them
+                // into the In Transit lane so they don't vanish from the dispatch board.
                 List<AdminDeliverySummaryResponse> filtered = summaries.stream()
-                                .filter(s -> status.name().equals(s.getStatus()))
+                                .filter(s -> status.name().equals(s.getStatus())
+                                                || (status == DeliveryStatus.IN_TRANSIT
+                                                        && DeliveryStatus.AWAITING_HANDOFF.name().equals(s.getStatus())))
                                 .toList();
 
                 List<AdminOpsOverviewResponse.LaneDelivery> items = filtered.stream()
@@ -650,7 +654,8 @@ public class OpsAnalyticsService {
         long total     = countByCreatedAt(start, end);
         long delivered = countByField("completedAt", start, end);
         long failed    = countStatusWithin("createdAt", DeliveryStatus.FAILED, start, end);
-        long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end);
+        long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end)
+                       + countStatusWithin("inTransitAt", DeliveryStatus.AWAITING_HANDOFF, start, end);
         long waiting   = countStatusWithin("createdAt", DeliveryStatus.UNSCHEDULED, start, end);
         long assigned  = countStatusWithin("assignedAt", DeliveryStatus.SCHEDULED, start, end);
         long partial   = countStatusWithin("createdAt", DeliveryStatus.PARTIALLY_DELIVERED, start, end);

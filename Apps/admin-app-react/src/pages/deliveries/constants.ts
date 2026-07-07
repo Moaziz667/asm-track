@@ -16,6 +16,7 @@ export const DELIVERY_STATUSES: Array<{ value: string; label: string }> = [
   { value: 'SCHEDULED', label: '' },
   { value: 'PICKED_UP', label: '' },
   { value: 'IN_TRANSIT', label: '' },
+  { value: 'AWAITING_HANDOFF', label: '' },
   { value: 'DELIVERED', label: '' },
   { value: 'PARTIALLY_DELIVERED', label: '' },
   { value: 'FAILED', label: '' },

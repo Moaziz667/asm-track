@@ -46,6 +46,8 @@ public class SlaEvaluator {
             case SCHEDULED            -> assignment(d, now);
             case PICKED_UP            -> departure(d, now);
             case IN_TRANSIT           -> delivery(d, now);
+            // In custody transfer but physically out — keep the delivery clock running (like IN_TRANSIT).
+            case AWAITING_HANDOFF     -> delivery(d, now);
             case DELIVERED            -> terminalDelivered(d, SlaPhase.DELIVERED, "delivered");
             case PARTIALLY_DELIVERED  -> terminalDelivered(d, SlaPhase.PARTIAL, "partial");
             case FAILED               -> terminalFailed(d);

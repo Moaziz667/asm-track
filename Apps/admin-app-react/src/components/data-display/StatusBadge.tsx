@@ -13,7 +13,7 @@ import {
 export type StatusValue =
   | 'DRAFT' | 'VALIDATED' | 'IN_PROGRESS' | 'CLOSED' | 'CANCELLED'
   | 'FAILED' | 'SLA_BREACH'
-  | 'UNSCHEDULED' | 'SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT'
+  | 'UNSCHEDULED' | 'SCHEDULED' | 'PICKED_UP' | 'IN_TRANSIT' | 'AWAITING_HANDOFF'
   | 'DELIVERED' | 'PARTIALLY_DELIVERED' | 'COMPLETED' | 'PARTIAL'
   | 'REMOVED_REPLANNED' | 'REMOVED_CANCELLED' | 'FAILED_ATTEMPT'
   | 'BACKORDER' | 'RESCHEDULED' | 'REASSIGNED'
@@ -42,6 +42,7 @@ const CONFIG: Record<string, StatusConfig> = {
   SCHEDULED:           { dot: '#5E6AD2', bg: 'rgba(94,106,210,0.09)',  text: '#4C56B8' },
   PICKED_UP:           { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
   IN_TRANSIT:          { dot: '#D4772C', bg: 'rgba(212,119,44,0.09)',  text: '#B05A18' },
+  AWAITING_HANDOFF:    { dot: '#C4881A', bg: 'rgba(196,136,26,0.10)',  text: '#A06D10' },
   DELIVERED:           { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
   PARTIALLY_DELIVERED: { dot: '#7B6FCC', bg: 'rgba(123,111,204,0.09)', text: '#6055A8' },
   PARTIAL:             { dot: '#7B6FCC', bg: 'rgba(123,111,204,0.09)', text: '#6055A8' },
@@ -102,7 +103,7 @@ const ICON: Record<string, typeof IconCircleCheck> = {
   FAILED: IconCircleX, SLA_BREACH: IconAlertTriangle,
   // Delivery
   UNSCHEDULED: IconCalendarOff, SCHEDULED: IconCalendarCheck, PICKED_UP: IconPackage,
-  IN_TRANSIT: IconTruckDelivery, DELIVERED: IconCircleCheck,
+  IN_TRANSIT: IconTruckDelivery, AWAITING_HANDOFF: IconArrowsExchange, DELIVERED: IconCircleCheck,
   PARTIALLY_DELIVERED: IconPackages, PARTIAL: IconPackages,
   // Stop removal
   REMOVED_REPLANNED: IconArrowBackUp, REMOVED_CANCELLED: IconBan, FAILED_ATTEMPT: IconAlertTriangle,
@@ -128,7 +129,7 @@ const ICON: Record<string, typeof IconCircleCheck> = {
   LATE: IconClock, BREACHED: IconAlertOctagon,
 };
 
-const PULSE_STATUSES = new Set(['IN_PROGRESS', 'IN_TRANSIT', 'PICKED_UP']);
+const PULSE_STATUSES = new Set(['IN_PROGRESS', 'IN_TRANSIT', 'PICKED_UP', 'AWAITING_HANDOFF']);
 
 interface StatusBadgeProps {
   status: StatusValue | string;

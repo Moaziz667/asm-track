@@ -158,6 +158,7 @@ public class ErpInboundReconciliationService {
     private boolean hasDeparted(DeliveryStatus status) {
         return status == DeliveryStatus.PICKED_UP
                 || status == DeliveryStatus.IN_TRANSIT
+                || status == DeliveryStatus.AWAITING_HANDOFF
                 || status == DeliveryStatus.DELIVERED
                 || status == DeliveryStatus.PARTIALLY_DELIVERED;
     }

@@ -58,7 +58,7 @@ public class AnalyticsPdfService extends BasePdfService {
         long delivered = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.DELIVERED || d.getStatus() == DeliveryStatus.PARTIALLY_DELIVERED).count();
         long failed    = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.FAILED).count();
         long pending   = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.UNSCHEDULED || d.getStatus() == DeliveryStatus.SCHEDULED).count();
-        long inTransit = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT || d.getStatus() == DeliveryStatus.PICKED_UP).count();
+        long inTransit = filtered.stream().filter(d -> d.getStatus() == DeliveryStatus.IN_TRANSIT || d.getStatus() == DeliveryStatus.PICKED_UP || d.getStatus() == DeliveryStatus.AWAITING_HANDOFF).count();
         double successRate = total == 0 ? 0.0 : (double) delivered / total * 100.0;
 
         Map<String, String> zoneNameById = zoneRepository.findAll().stream()

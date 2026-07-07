@@ -9,6 +9,7 @@ export const STATUS_TONE_MAP: Record<DeliveryStatus, StatusTone> = {
   SCHEDULED:           'info',
   PICKED_UP:           'info',
   IN_TRANSIT:          'brand',
+  AWAITING_HANDOFF:    'warning',
   DELIVERED:           'success',
   PARTIALLY_DELIVERED: 'success',
   FAILED:              'danger',

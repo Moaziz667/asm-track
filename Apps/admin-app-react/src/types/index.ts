@@ -3,6 +3,7 @@ export type DeliveryStatus =
   | 'SCHEDULED'
   | 'PICKED_UP'
   | 'IN_TRANSIT'
+  | 'AWAITING_HANDOFF'
   | 'DELIVERED'
   | 'PARTIALLY_DELIVERED'
   | 'CANCELLED'

@@ -184,9 +184,12 @@ public class ExceptionResolutionService {
 		boolean wasInField = previousStatus == DeliveryStatus.PICKED_UP || previousStatus == DeliveryStatus.IN_TRANSIT;
 		delivery.setDriverId(request.getDriverId());
 
-		// CRITICAL: If target is DRAFT, keep it UNSCHEDULED (Draft Planning).
-		// If target is VALIDATED/IN_PROGRESS, it becomes SCHEDULED immediately (Execution Reassign).
-		if (targetRouteStatus == RouteStatus.DRAFT) {
+		// An in-field parcel (already picked up) changes hands by handoff, so it never rewinds to
+		// SCHEDULED — it stays AWAITING_HANDOFF until the receiver confirms (or expiry reverts it).
+		// Otherwise: DRAFT target → UNSCHEDULED (Draft Planning); VALIDATED/IN_PROGRESS → SCHEDULED.
+		if (wasInField) {
+			delivery.setStatus(DeliveryStatus.AWAITING_HANDOFF);
+		} else if (targetRouteStatus == RouteStatus.DRAFT) {
 			delivery.setStatus(DeliveryStatus.UNSCHEDULED);
 		} else {
 			delivery.setStatus(DeliveryStatus.SCHEDULED);

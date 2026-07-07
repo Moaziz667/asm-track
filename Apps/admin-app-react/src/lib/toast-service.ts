@@ -71,6 +71,7 @@ const ERROR_CODE_KEYS: Record<string, string> = {
   DELIVERY_NOT_FOUND: 'errorDeliveryNotFound',
   // Route ops
   INSERT_BEFORE_COMPLETED: 'errorInsertBeforeCompleted',
+  HANDOFF_PENDING: 'errorHandoffPending',
   // Failure reasons
   FAILURE_REASON_EXISTS: 'errorFailureReasonExists',
   FAILURE_REASON_LAST_DELIVERY: 'errorFailureReasonLastDelivery',

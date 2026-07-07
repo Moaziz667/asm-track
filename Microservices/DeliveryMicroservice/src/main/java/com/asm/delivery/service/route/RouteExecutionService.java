@@ -28,6 +28,7 @@ public class RouteExecutionService {
     private final RouteRepository routeRepository;
     private final RouteStopRepository routeStopRepository;
     private final DeliveryRepository deliveryRepository;
+    private final HandoffRepository handoffRepository;
     private final DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     private final AuditLogService auditLogService;
     private final RoutePlanningService routePlanningService;
@@ -45,6 +46,15 @@ public class RouteExecutionService {
         Route route = getRoute(routeId);
         if (route.getStatus() != RouteStatus.IN_PROGRESS) {
             throw AppException.badRequest("Admin can close only in-progress routes after driver termination");
+        }
+
+        // A route can't close while its driver still holds a parcel awaiting a custody handoff — the colis
+        // is physically with them until the receiver confirms (or the handoff expires and reverts). Closing
+        // now would freeze a closure report that omits/misreports that parcel (phantom truth).
+        if (!handoffRepository.findByFromDriverIdAndStateIn(route.getDriverId(),
+                List.of(HandoffState.REQUESTED, HandoffState.IN_PROGRESS)).isEmpty()) {
+            throw AppException.badRequest("HANDOFF_PENDING",
+                    "Cannot close: a custody handoff is still pending — confirm or cancel it first");
         }
 
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());

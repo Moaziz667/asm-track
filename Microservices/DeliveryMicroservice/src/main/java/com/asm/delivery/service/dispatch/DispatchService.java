@@ -560,7 +560,8 @@ public class DispatchService {
         m.put("all",          countTally(null, driverId, date, source, zoneId, q, null, null, null));
         m.put("needsPinning", countTally(null, driverId, date, source, zoneId, q, null, null, Boolean.TRUE));
         m.put("unassigned",   countTally(null, driverId, date, source, zoneId, q, Boolean.FALSE, null, null));
-        m.put("inTransit",    countTally(DeliveryStatus.IN_TRANSIT, driverId, date, source, zoneId, q, null, null, null));
+        m.put("inTransit",    countTally(DeliveryStatus.IN_TRANSIT, driverId, date, source, zoneId, q, null, null, null)
+                            + countTally(DeliveryStatus.AWAITING_HANDOFF, driverId, date, source, zoneId, q, null, null, null));
         m.put("completed",    countTally(DeliveryStatus.DELIVERED, driverId, date, source, zoneId, q, null, null, null));
         m.put("failed",       countTally(DeliveryStatus.FAILED, driverId, date, source, zoneId, q, null, null, null)
                             + countTally(DeliveryStatus.CANCELLED, driverId, date, source, zoneId, q, null, null, null));
@@ -944,7 +945,8 @@ public class DispatchService {
                 throw AppException.badRequest("Cannot transfer a completed or failed stop");
             }
 
-            if (status == RouteStopStatus.PICKED_UP || status == RouteStopStatus.IN_TRANSIT) {
+            boolean inField = status == RouteStopStatus.PICKED_UP || status == RouteStopStatus.IN_TRANSIT;
+            if (inField) {
                 if (!StringUtils.hasText(req.getReason())) {
                     throw AppException.badRequest("Reason is required when transferring picked up packages");
                 }
@@ -969,7 +971,12 @@ public class DispatchService {
                     firstMovedDepot = delivery.getSourceDepotId();
                 }
                 delivery.setDriverId(targetRoute.getDriverId());
-                if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
+                if (inField) {
+                    // In-field parcel: custody transfers by handoff, so it never rewinds to SCHEDULED —
+                    // it stays "in someone's hands". AWAITING_HANDOFF is the honest transition; the
+                    // handoff-confirm re-advances it to PICKED_UP (or expiry reverts to the sender).
+                    delivery.setStatus(DeliveryStatus.AWAITING_HANDOFF);
+                } else if (targetRoute.getStatus() == RouteStatus.VALIDATED || targetRoute.getStatus() == RouteStatus.IN_PROGRESS) {
                     delivery.setStatus(DeliveryStatus.SCHEDULED);
                 } else {
                     delivery.setStatus(DeliveryStatus.UNSCHEDULED); // pending validation
@@ -997,7 +1004,12 @@ public class DispatchService {
         sourceRoute.setRouteVersion(sourceRoute.getRouteVersion() != null ? sourceRoute.getRouteVersion() + 1 : 2);
         routeRepository.save(sourceRoute);
 
-        if (sourceRoute.getStops().isEmpty()) {
+        // Don't auto-close an emptied source route while its driver still physically holds parcels
+        // pending a custody handoff (in-field transfer): closing here would freeze a closure report
+        // and mark the tournée "done" while the colis is still in the sender's truck (phantom truth).
+        // It stays IN_PROGRESS until the handoff confirms (custody leaves) or expires (stop reverts),
+        // at which point HandoffService re-finalizes it. The manual-close path is guarded the same way.
+        if (sourceRoute.getStops().isEmpty() && handoffDeliveryIds.isEmpty()) {
             sourceRoute.setStatus(RouteStatus.CLOSED);
             sourceRoute.setClosedAt(LocalDateTime.now());
             routeRepository.save(sourceRoute);

@@ -13,7 +13,7 @@ import type { DeliveryRow } from './types';
 
 const RouteTrackingMap = dynamic(() => import('@/components/RouteTrackingMap'));
 
-const LOCKED_STATUSES = ['PICKED_UP', 'IN_TRANSIT', 'DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED'];
+const LOCKED_STATUSES = ['PICKED_UP', 'IN_TRANSIT', 'AWAITING_HANDOFF', 'DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED'];
 
 /**
  * Geo-pinning of a delivery dropoff: map picker + Nominatim address search + reverse geocoding.

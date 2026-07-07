@@ -1,9 +1,11 @@
 package com.asm.delivery.service.route;
 
+import com.asm.delivery.entity.HandoffState;
 import com.asm.delivery.entity.Route;
 import com.asm.delivery.entity.RouteStatus;
 import com.asm.delivery.entity.RouteStop;
 import com.asm.delivery.entity.RouteStopStatus;
+import com.asm.delivery.repository.HandoffRepository;
 import com.asm.delivery.repository.RouteRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,11 +30,19 @@ public class RouteAutoCloseService {
     private final RouteStopRepository routeStopRepository;
     private final RouteRepository routeRepository;
     private final RouteReportService routeReportService;
+    private final HandoffRepository handoffRepository;
 
     /** Finalize the route iff every stop is resolved (terminal or removed). No-op otherwise. */
     public void finalizeIfResolved(Route route) {
         if (route == null) return;
         if (route.getStatus() != RouteStatus.VALIDATED && route.getStatus() != RouteStatus.IN_PROGRESS) {
+            return;
+        }
+        // Don't finalize while the driver still holds a parcel awaiting a custody handoff: the transfer
+        // emptied their route but custody hasn't left yet. Closing would produce a phantom closure report.
+        // Re-run once the handoff settles (HandoffService.finalizeSenderRouteIfEmptied).
+        if (!handoffRepository.findByFromDriverIdAndStateIn(route.getDriverId(),
+                List.of(HandoffState.REQUESTED, HandoffState.IN_PROGRESS)).isEmpty()) {
             return;
         }
         List<RouteStop> stops = routeStopRepository.findByRouteIdOrderByStopOrderAsc(route.getId());
