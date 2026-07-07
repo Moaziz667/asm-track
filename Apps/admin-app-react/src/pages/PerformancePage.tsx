@@ -14,6 +14,7 @@ import { RefreshButton } from '@/components/ui/RefreshButton';
 import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
+import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { isAbortError } from '@/lib/errors';
@@ -201,6 +202,12 @@ export default function PerformancePage() {
       {/* ── Scrollable Body Content ── */}
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto p-4 md:p-8">
+        {loading && !stats ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={`k${i}`} className="h-[120px] rounded-xl" />)}
+            {Array.from({ length: 3 }).map((_, i) => <Skeleton key={`c${i}`} className="h-[300px] rounded-xl" />)}
+          </div>
+        ) : (
         <DraggableWidgetGrid
           storageKey="performance"
           items={[
@@ -491,6 +498,7 @@ export default function PerformancePage() {
             },
           ]}
         />
+        )}
         </div>
       </div>
     </div>

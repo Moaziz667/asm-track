@@ -20,7 +20,7 @@ export function useDashboardData(period: Period) {
   const queryClient = useQueryClient();
   const connected = useRealtimeStatus();
 
-  const { data: dash, isFetching: refreshing, refetch } = useQuery({
+  const { data: dash, isFetching: refreshing, isLoading, refetch } = useQuery({
     queryKey: ['dashboard-overview', period],
     queryFn: async () => {
       const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
@@ -174,7 +174,7 @@ export function useDashboardData(period: Period) {
   }), [drivers]);
 
   return {
-    refreshing, refetch,
+    refreshing, isLoading, refetch,
     stats, ops, kpi, drivers, activeRoutesCount,
     healthSummary, healthProblemsSummary,
     today, overdueCount, slaPercent,

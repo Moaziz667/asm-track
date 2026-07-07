@@ -12,6 +12,7 @@ import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import ActivityTicker from '@/components/ActivityTicker';
 import { KPICard } from '@/components/ui/kpi-card';
+import { Skeleton } from '@/components/ui/skeleton';
 import type { DeliveryStatus } from '@/types';
 
 import { DISPATCH_STATUSES, TONE_VAR } from './dashboard/constants';
@@ -30,7 +31,7 @@ export default function DashboardPage() {
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
 
   const {
-    refreshing, refetch, stats, today, overdueCount, slaPercent,
+    refreshing, isLoading, refetch, stats, today, overdueCount, slaPercent,
     trend, completionSpark, deliveredSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
     activeRoutesCount, drivers, driverGroups, healthSummary, healthProblemsSummary,
     laneMap, needsAttention, activeRoutes, focusedRouteId, setFocusedRouteId,
@@ -97,7 +98,14 @@ export default function DashboardPage() {
       </div>
 
       {/* ── MAIN VIEW CONTENT SWITCHER ── */}
-      {viewMode === 'office' ? (
+      {isLoading ? (
+        <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-hidden">
+          <div className="grid grid-cols-4 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`k${i}`} className="h-[110px] rounded-xl" />)}
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={`w${i}`} className="h-[260px] rounded-xl" />)}
+          </div>
+        </div>
+      ) : viewMode === 'office' ? (
         <div className="px-6 py-6 w-full max-w-[1800px] mx-auto flex-1 animate-fadeIn overflow-y-auto">
           <DraggableWidgetGrid
             storageKey="dashboard-v7"

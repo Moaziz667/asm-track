@@ -39,7 +39,7 @@ export default function OverviewCalendarPage() {
   const rangeTo = isoDay(endOfWeek(endOfMonth(cursor), { weekStartsOn: 1 }));
 
   const { data: routes = [] } = useRoutes({ from: rangeFrom, to: rangeTo });
-  const { data: deliveries = [] } = useQuery<CalDelivery[]>({
+  const { data: deliveries = [], isFetching: calLoading } = useQuery<CalDelivery[]>({
     queryKey: ['calendar-deliveries', rangeFrom, rangeTo],
     queryFn: async () => {
       const res = await api.get<CalDelivery[]>('/api/admin/deliveries/calendar', { params: { from: rangeFrom, to: rangeTo } });
@@ -134,6 +134,9 @@ export default function OverviewCalendarPage() {
           <div className="flex items-center gap-2 min-w-0">
             <IconCalendar size={16} className="text-[var(--brand)] shrink-0" />
             <h1 className="text-base font-bold text-[var(--text-primary)] capitalize truncate">{format(cursor, 'MMMM yyyy', { locale: dateLocale(locale) })}</h1>
+            {calLoading && (
+              <span className="ms-1 inline-block h-3.5 w-3.5 shrink-0 rounded-full border-2 border-[var(--border)] border-t-[var(--brand)] animate-spin" role="status" aria-label="…" />
+            )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
             <button
