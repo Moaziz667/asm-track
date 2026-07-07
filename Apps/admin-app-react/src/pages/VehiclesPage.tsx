@@ -25,6 +25,7 @@ import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { useIsMobile } from '@/hooks/use-mobile';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
@@ -270,6 +271,7 @@ function VehicleTechnicalCard({
 
 function VehiclesPageContent() {
   const t = useT();
+  const isMobile = useIsMobile();
   const typeLabel: Record<VehicleType, string> = {
     TRUCK: t.vehiclesPage.vehicleTypeHeavy,
     VAN:   t.vehiclesPage.vehicleTypeVan,
@@ -526,6 +528,44 @@ function VehiclesPageContent() {
               <div className="flex flex-col items-center py-[120px] gap-2">
                 <IconTruck size={48} style={{ color: 'var(--border)' }} />
                 <p className="text-xs font-semibold text-[var(--text-muted)]">{t.vehiclesPage.noVehiclesFound}</p>
+              </div>
+            ) : isMobile ? (
+              <div className="flex flex-col gap-2 p-3">
+                {pageRows.map((v) => {
+                  const isBusy = v.assigned ?? Boolean(v.driverId);
+                  const isRetired = !v.active;
+                  const statusLabel = isRetired ? t.vehiclesPage.statusRetired : isBusy ? t.vehiclesPage.statusEngaged : t.vehiclesPage.statusAvailable;
+                  const driverName = drivers.find(d => d.id === v.driverId)?.name;
+                  return (
+                    <div key={v.id} className={cn('rounded-lg border border-[var(--border)] p-3 flex flex-col gap-2', isRetired && 'opacity-60')} style={{ background: 'var(--surface)' }}>
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-md overflow-hidden flex items-center justify-center shrink-0" style={{ background: 'var(--app-bg)', border: '1px solid var(--border)' }}>
+                          {v.imageUrl ? <img src={v.imageUrl} alt={v.make} className="w-full h-full object-cover" /> : <IconTruck size={18} style={{ color: 'var(--text-muted)' }} />}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-bold truncate" style={{ color: 'var(--text-primary)' }}>{v.make} <span className="font-medium" style={{ color: 'var(--text-secondary)' }}>{v.model}</span></p>
+                          <p className="font-mono text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{v.plate}</p>
+                        </div>
+                        <StatusBadge status={isRetired ? 'RETIRED' : isBusy ? 'ENGAGED' : 'AVAILABLE'} label={statusLabel} size="sm" />
+                      </div>
+                      <div className="flex items-center justify-between text-xs" style={{ color: 'var(--text-muted)' }}>
+                        <span>{v.payloadKg ? `${(v.payloadKg / 1000).toFixed(1)} T` : '—'} · {driverName ?? '—'}</span>
+                        {!readOnly && (
+                          <div className="flex items-center gap-1.5">
+                            {isRetired ? (
+                              <button type="button" onClick={() => reactivateVehicle(v)} className="w-8 h-8 flex items-center justify-center rounded border border-[var(--border)]" style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }} title={t.vehiclesPage.reactivateButton}><IconPoint size={14} /></button>
+                            ) : (
+                              <>
+                                <button type="button" onClick={() => openEdit(v)} className="w-8 h-8 flex items-center justify-center rounded border border-[var(--border)]" style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }} title={t.vehiclesPage.editButton}><IconPencil size={14} /></button>
+                                <button type="button" onClick={() => deleteVehicle(v)} className="w-8 h-8 flex items-center justify-center rounded border border-[var(--border)]" style={{ background: 'var(--app-bg)', color: 'var(--text-muted)' }} title={t.vehiclesPage.deleteButton}><IconTrash size={14} /></button>
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             ) : (
             <div className="overflow-x-auto">

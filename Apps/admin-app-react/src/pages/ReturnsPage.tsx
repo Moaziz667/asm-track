@@ -4,6 +4,7 @@ import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import { tlabel } from '@/lib/i18n-dict';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
@@ -62,6 +63,7 @@ const PAGE_SIZE = 25;
 // ─── Page ────────────────────────────────────────────────────────────────────
 export default function ReturnsPage() {
   const t = useT();
+  const isMobile = useIsMobile();
   const statusLabel = (s: RmaStatus) => (t.statusLabels as Record<string, string>)[s] ?? s;
 
   const [rmas, setRmas] = useState<Rma[]>([]);
@@ -246,8 +248,46 @@ export default function ReturnsPage() {
           </div>
         </div>
 
-        {/* Table — styled to match the Deliveries data slab: status ribbon, sticky sunken
-            header, compact mono refs. Kept semantic (<table>) for a11y/screen readers. */}
+        {/* Mobile: tap-to-open cards (the drawer holds all transitions). Desktop: table. */}
+        {isMobile ? (
+          <div className="flex-1 overflow-auto flex flex-col gap-2 p-3">
+            {loading ? (
+              Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[84px] w-full rounded-lg" />)
+            ) : visibleRows.length === 0 ? (
+              <EmptyState
+                icon={<IconPackageExport size={26} />}
+                message={t.returnsPage?.emptyMessage ?? 'Aucun retour'}
+                hint={t.returnsPage?.emptyHint ?? 'Créez un retour depuis le détail d’une livraison livrée.'}
+              />
+            ) : (
+              visibleRows.map((r) => {
+                const itemTeaser = r.items.map((it) => it.name ?? it.sku).filter(Boolean).slice(0, 2).join(', ');
+                return (
+                  <button
+                    key={r.id}
+                    type="button"
+                    onClick={() => setSelected(r)}
+                    className="text-start rounded-lg border border-[var(--border)] p-3 flex flex-col gap-2 hover:bg-[var(--hover-bg)] transition-colors"
+                    style={{ background: 'var(--surface)', borderInlineStartWidth: 3, borderInlineStartColor: STATUS_TOKENS[r.status]?.dot ?? 'var(--border)' }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-sm font-[600] text-[var(--text-primary)] truncate">{r.clientName ?? '—'}</span>
+                      <StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" />
+                    </div>
+                    <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
+                      <span className="font-mono truncate">{r.blNumber ?? r.erpOrderId ?? '—'}</span>
+                      <span className="tabular-nums shrink-0">{r.totalUnits} {t.returnsPage?.unitsSuffix ?? 'u.'} · {r.items.length} {t.returnsPage?.linesSuffix ?? 'lignes'}</span>
+                    </div>
+                    {itemTeaser && <span className="text-xs text-[var(--text-secondary)] truncate">{itemTeaser}</span>}
+                    {r.erpSyncStatus && (
+                      <div><StatusBadge status={r.erpSyncStatus} label={tlabel(t.returnsPage?.syncLabels, r.erpSyncStatus) ?? r.erpSyncStatus} size="sm" /></div>
+                    )}
+                  </button>
+                );
+              })
+            )}
+          </div>
+        ) : (
         <div className="flex-1 overflow-auto" style={{ scrollbarWidth: 'thin' }}>
           <div className="min-w-[900px] lg:min-w-0">
           <table className="w-full border-collapse">
@@ -366,6 +406,7 @@ export default function ReturnsPage() {
           </table>
           </div>
         </div>
+        )}
 
         {/* Pagination footer — server-side paged (mirrors the Deliveries pager). */}
         {(totalPages > 1 || page > 0) && (
