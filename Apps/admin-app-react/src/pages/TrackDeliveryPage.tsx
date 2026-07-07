@@ -93,23 +93,27 @@ export default function TrackingPage() {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (
-    <div style={{ position: 'fixed', inset: 0, background: '#fff' }}>
-      <Skeleton className="h-[45%] w-full rounded-none" />
-      <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        <Skeleton className="h-[72px] w-full rounded-xl" />
-        <Skeleton className="h-12 w-full rounded-xl" />
-        <Skeleton className="h-[120px] w-full rounded-xl" />
-        <Skeleton className="h-16 w-full rounded-xl" />
+    <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 520, height: '100%', background: '#fff', overflow: 'hidden' }}>
+        <Skeleton className="h-[45%] w-full rounded-none" />
+        <div style={{ padding: 20, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <Skeleton className="h-[72px] w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
+          <Skeleton className="h-[120px] w-full rounded-xl" />
+          <Skeleton className="h-16 w-full rounded-xl" />
+        </div>
       </div>
     </div>
   );
 
   if (error || !data) return (
-    <div style={{ position: 'fixed', inset: 0, background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
-      <p style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.trackingPage.notFoundTitle}</p>
-      <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, textAlign: 'center', maxWidth: 260 }}>
-        {t.trackingPage.notFoundSub}
-      </p>
+    <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
+      <div style={{ width: '100%', maxWidth: 520, height: '100%', background: '#fff', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: 32 }}>
+        <p style={{ fontSize: 17, fontWeight: 700, color: '#0f172a', margin: 0 }}>{t.trackingPage.notFoundTitle}</p>
+        <p style={{ fontSize: 13, color: '#94a3b8', margin: 0, textAlign: 'center', maxWidth: 260 }}>
+          {t.trackingPage.notFoundSub}
+        </p>
+      </div>
     </div>
   );
 
@@ -120,7 +124,11 @@ export default function TrackingPage() {
   const SHEET   = expanded ? '82dvh' : '54dvh';
 
   return (
-    <div style={{ position: 'fixed', inset: 0, fontFamily: '"IBM Plex Sans", -apple-system, sans-serif' }}>
+    // Full-viewport neutral backdrop; the phone-style UI is centered and capped
+    // at a max width so a customer opening the link on desktop doesn't get a
+    // stretched mobile layout.
+    <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
+    <div style={{ position: 'relative', width: '100%', maxWidth: 520, height: '100%', overflow: 'hidden', background: '#fff', fontFamily: '"IBM Plex Sans", -apple-system, sans-serif' }}>
 
       {/* Map — fills from top-0 to bottom-sheet edge, sits behind the top bar */}
       <div style={{
@@ -346,6 +354,7 @@ export default function TrackingPage() {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 }
