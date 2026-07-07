@@ -33,7 +33,11 @@ public class RouteReportPdfService extends BasePdfService {
     private static final DateTimeFormatter REPORT_NO_FMT = DateTimeFormatter.ofPattern("yyyyMMdd");
 
     /** Neutral graphite accent — the whole report reads monochrome, the ASM Track icon keeps its colour. */
-    private static final Color GRAPHITE = new Color(38, 38, 36);
+    private static final Color GRAPHITE   = new Color(38, 38, 36);
+    private static final Color CARD_BG    = new Color(246, 245, 240);   // flat KPI card
+    private static final Color LABEL_GRAY = new Color(150, 149, 142);   // uppercase micro-labels
+    private static final Color GREEN_DARK = new Color(39, 80, 10);      // "Terminée" pill text
+    private static final Color GREEN_TINT = new Color(234, 243, 222);   // "Terminée" pill background
 
     /** ASM Track icon (classpath), loaded once. Replaces the per-company logo for this report. */
     private static final byte[] ASM_ICON = loadAsmIcon();
@@ -78,76 +82,74 @@ public class RouteReportPdfService extends BasePdfService {
 
             doc.add(divider());
 
-            // ── Info boxes ────────────────────────────────────────────────────
-            PdfPTable infoRow = new PdfPTable(new float[]{1f, 1f});
-            infoRow.setWidthPercentage(100);
-            infoRow.setSpacingAfter(12f);
-
-            infoRow.addCell(infoBox("TOURNÉE", new String[][]{
-                    {"Nom",         safe(r.getHeader().getRouteName())},
-                    {"Date",        r.getHeader().getDate() != null ? r.getHeader().getDate().format(DATE_FR) : "-"},
-                    {"Démarrée à",  r.getHeader().getStartedAt() != null ? r.getHeader().getStartedAt().format(DT_FR) : "-"},
-                    {"Terminée à",  r.getHeader().getClosedAt() != null ? r.getHeader().getClosedAt().format(DT_FR) : "-"},
-                    {"Durée",       fmtMinutes(r.getHeader().getDurationMinutes())},
-            }, brand));
-
-            infoRow.addCell(infoBox("CHAUFFEUR & VÉHICULE", new String[][]{
-                    {"Chauffeur",   safe(r.getHeader().getDriverName())},
-                    {"Véhicule",    safe(r.getHeader().getVehicleType())},
-                    {"Plaque",      safe(r.getHeader().getVehiclePlate())},
-                    {"Dépôt",       safe(r.getHeader().getDepotName())},
-                    {"Statut",      "Terminée"},
-            }, brand));
-
-            doc.add(infoRow);
-
-            // ── KPI grid (3×3) ────────────────────────────────────────────────
-            doc.add(sectionLabel("INDICATEURS CLÉS", brand));
             var k = r.getKpis();
-            PdfPTable kpiTable = new PdfPTable(3);
-            kpiTable.setWidthPercentage(100);
-            kpiTable.setSpacingAfter(12f);
 
-            kpiTable.addCell(kpiBox("Taux de complétion",
-                    fmt(k.getCompletionRate()) + " %", brand));
-            kpiTable.addCell(kpiBox("Taux de ponctualité",
-                    fmt(k.getOnTimeRate()) + " %", brand));
-            kpiTable.addCell(kpiBox("Distance totale",
-                    k.getTotalDistanceKm() != null ? fmt(k.getTotalDistanceKm()) + " km" : "-", brand));
+            // ── Metadata grid (borderless) ────────────────────────────────────
+            PdfPTable meta = new PdfPTable(3);
+            meta.setWidthPercentage(100);
+            meta.setSpacingAfter(8f);
+            meta.addCell(metaCell("TOURNÉE", safe(r.getHeader().getRouteName())));
+            meta.addCell(metaCell("DATE", r.getHeader().getDate() != null ? r.getHeader().getDate().format(DATE_FR) : "-"));
+            meta.addCell(statusCell("STATUT", "Terminée"));
+            meta.addCell(metaCell("CHAUFFEUR", safe(r.getHeader().getDriverName())));
+            meta.addCell(metaCell("VÉHICULE", safe(r.getHeader().getVehiclePlate())));
+            meta.addCell(metaCell("DÉPÔT", safe(r.getHeader().getDepotName())));
+            doc.add(meta);
 
-            kpiTable.addCell(kpiBox("Durée active",
-                    fmtMinutes(k.getActiveDurationMinutes()), brand));
-            kpiTable.addCell(kpiBox("Retard cumulé",
-                    k.getCumulativeDelayMinutes() != null ? fmtMinutes(k.getCumulativeDelayMinutes()) : "0m", brand));
-            kpiTable.addCell(kpiBox("Retard démarrage",
-                    fmtMinutes(k.getRouteStartDelayMinutes()), brand));
+            // ── Summary: four hero KPI cards ──────────────────────────────────
+            doc.add(sectionLabel("SYNTHÈSE", brand));
+            PdfPTable cards = new PdfPTable(4);
+            cards.setWidthPercentage(100);
+            cards.addCell(summaryCard(fmt(k.getCompletionRate()) + " %", "Taux de complétion"));
+            cards.addCell(summaryCard(fmt(k.getOnTimeRate()) + " %", "Ponctualité"));
+            cards.addCell(summaryCard(k.getCompletedStops() + " / " + k.getAttemptedStops(), "Arrêts livrés"));
+            cards.addCell(summaryCard(k.getTotalDistanceKm() != null ? fmt(k.getTotalDistanceKm()) + " km" : "-", "Distance"));
+            doc.add(cards);
 
-            kpiTable.addCell(kpiBox("Arrêts tentés",
-                    k.getAttemptedStops() + " / " + k.getTotalStopsPlanned(), brand));
-            kpiTable.addCell(kpiBox("Échecs",
-                    String.valueOf(k.getFailedStops() + k.getFailedAttemptStops()), brand));
-            kpiTable.addCell(kpiBox("Retirés",
-                    String.valueOf(k.getReplannedStops() + k.getCancelledStopsCount()), brand));
+            // Secondary metrics — one compact line, keeps the operational detail.
+            Paragraph sub = new Paragraph();
+            sub.setSpacingBefore(6f);
+            sub.setSpacingAfter(14f);
+            addMetric(sub, "Durée active", fmtMinutes(k.getActiveDurationMinutes()));
+            addMetric(sub, "Retard cumulé", k.getCumulativeDelayMinutes() != null ? fmtMinutes(k.getCumulativeDelayMinutes()) : "0m");
+            addMetric(sub, "Retard démarrage", fmtMinutes(k.getRouteStartDelayMinutes()));
+            addMetric(sub, "Échecs", String.valueOf(k.getFailedStops() + k.getFailedAttemptStops()));
+            addMetric(sub, "Retirés", String.valueOf(k.getReplannedStops() + k.getCancelledStopsCount()));
+            doc.add(sub);
 
-            doc.add(kpiTable);
-
-            // ── Status breakdown ──────────────────────────────────────────────
+            // ── Status breakdown: stacked bar + inline legend ─────────────────
             doc.add(sectionLabel("RÉPARTITION DES ARRÊTS", brand));
-            PdfPTable breakdown = new PdfPTable(new float[]{2f, 1f, 1f});
-            breakdown.setWidthPercentage(60);
-            breakdown.setHorizontalAlignment(Element.ALIGN_LEFT);
-            breakdown.setSpacingAfter(12f);
-            breakdown.addCell(hdrCell("Catégorie", brand));
-            breakdown.addCell(hdrCellR("Nombre", brand));
-            breakdown.addCell(hdrCellR("Pourcentage", brand));
-            boolean alt = false;
-            for (var b : r.getStatusBreakdown()) {
-                breakdown.addCell(cellAlt(safe(b.getLabel()), alt));
-                breakdown.addCell(cellRAlt(String.valueOf(b.getCount()), alt));
-                breakdown.addCell(cellRAlt(b.getPercentage() + " %", alt));
-                alt = !alt;
+            var buckets = r.getStatusBreakdown();
+            int totalB = buckets == null ? 0 : buckets.stream().mapToInt(RouteReportResponse.StatusBucket::getCount).sum();
+            if (totalB > 0) {
+                var nz = buckets.stream().filter(b -> b.getCount() > 0).toList();
+                float[] segW = new float[nz.size()];
+                for (int i = 0; i < nz.size(); i++) segW[i] = nz.get(i).getCount();
+                PdfPTable bar = new PdfPTable(segW);
+                bar.setWidthPercentage(100);
+                bar.setSpacingBefore(2f);
+                bar.setSpacingAfter(8f);
+                for (var b : nz) {
+                    PdfPCell seg = new PdfPCell(new Phrase(" "));
+                    seg.setFixedHeight(9f);
+                    seg.setBorder(Rectangle.NO_BORDER);
+                    seg.setBackgroundColor(bucketColor(b.getKey()));
+                    bar.addCell(seg);
+                }
+                doc.add(bar);
+
+                Paragraph legend = new Paragraph();
+                legend.setSpacingAfter(14f);
+                for (var b : nz) {
+                    Chunk sq = new Chunk("  ");
+                    sq.setBackground(bucketColor(b.getKey()), 1f, 0.5f, 1f, 1.5f);
+                    legend.add(sq);
+                    legend.add(new Chunk("  " + safe(b.getLabel()) + " " + b.getCount() + "        ", muted(8)));
+                }
+                doc.add(legend);
             }
-            doc.add(breakdown);
+
+            boolean alt = false;
 
             // ── Stops table ───────────────────────────────────────────────────
             doc.add(sectionLabel("DÉTAIL DES ARRÊTS", brand));
@@ -278,6 +280,74 @@ public class RouteReportPdfService extends BasePdfService {
         } catch (Exception e) {
             throw AppException.serviceUnavailable("Erreur génération PDF rapport: " + e.getMessage());
         }
+    }
+
+    // ── Enterprise layout helpers (mockup: metadata grid + hero cards + bar) ──────
+    /** Borderless metadata cell: uppercase micro-label above, value below. */
+    private static PdfPCell metaCell(String label, String value) {
+        PdfPCell c = new PdfPCell();
+        c.setBorder(Rectangle.NO_BORDER);
+        c.setPaddingBottom(12f);
+        c.setPaddingRight(10f);
+        c.addElement(new Paragraph(label, colored(7, LABEL_GRAY)));
+        Paragraph v = new Paragraph(safe(value), regular(10));
+        v.setSpacingBefore(3f);
+        c.addElement(v);
+        return c;
+    }
+
+    /** Metadata cell whose value is a green "Terminée" pill. */
+    private static PdfPCell statusCell(String label, String value) {
+        PdfPCell c = new PdfPCell();
+        c.setBorder(Rectangle.NO_BORDER);
+        c.setPaddingBottom(12f);
+        c.addElement(new Paragraph(label, colored(7, LABEL_GRAY)));
+        PdfPTable pill = new PdfPTable(1);
+        pill.setWidthPercentage(50);
+        pill.setHorizontalAlignment(Element.ALIGN_LEFT);
+        pill.setSpacingBefore(3f);
+        PdfPCell pc = new PdfPCell(new Phrase(value, colored(9, GREEN_DARK)));
+        pc.setBackgroundColor(GREEN_TINT);
+        pc.setBorder(Rectangle.NO_BORDER);
+        pc.setPaddingTop(3f); pc.setPaddingBottom(4f);
+        pc.setPaddingLeft(8f); pc.setPaddingRight(8f);
+        pc.setHorizontalAlignment(Element.ALIGN_CENTER);
+        pill.addCell(pc);
+        c.addElement(pill);
+        return c;
+    }
+
+    /** Flat KPI card: big value, muted label. A white 3px border fakes the inter-card gutter. */
+    private static PdfPCell summaryCard(String value, String label) {
+        PdfPCell c = new PdfPCell();
+        c.setBackgroundColor(CARD_BG);
+        c.setBorderColor(Color.WHITE);
+        c.setBorderWidth(3f);
+        c.setPadding(11f);
+        c.addElement(new Paragraph(safe(value), bold(16)));
+        Paragraph l = new Paragraph(label, muted(8));
+        l.setSpacingBefore(3f);
+        c.addElement(l);
+        return c;
+    }
+
+    /** Appends a "label value" pair to the compact secondary-metrics line. */
+    private static void addMetric(Paragraph p, String label, String value) {
+        p.add(new Chunk(label + "  ", muted(8)));
+        p.add(new Chunk(value + "        ", bold(8)));
+    }
+
+    /** Monochrome breakdown-bar colour per status key — colour only for the negative (failed). */
+    private static Color bucketColor(String key) {
+        if (key == null) return new Color(184, 182, 171);
+        return switch (key) {
+            case "COMPLETED"  -> new Color(44, 44, 42);
+            case "PARTIAL"    -> new Color(134, 133, 126);
+            case "FAILED_ALL" -> new Color(163, 45, 45);
+            case "REPLANNED"  -> new Color(200, 198, 188);
+            case "CANCELLED"  -> new Color(184, 182, 171);
+            default           -> new Color(150, 149, 142);
+        };
     }
 
     private static String fmt(java.math.BigDecimal n) {
