@@ -1,4 +1,4 @@
-import { lazy as dynamic } from 'react';
+import { lazy as dynamic, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useT } from '@/lib/LocaleContext';
 import { usePageBreadcrumb } from '@/lib/breadcrumb';
@@ -34,6 +34,8 @@ export default function RouteDetailsPage() {
 
   const d = useRouteData(routeId);
   const { route, loading } = d;
+  // Closed-route view switcher (report ↔ normal map+stops). Declared before any early return.
+  const [closedView, setClosedView] = useState<'report' | 'stops'>('report');
 
   usePageBreadcrumb(
     route
@@ -86,9 +88,12 @@ export default function RouteDetailsPage() {
   const currency = d.orderedStops.find((s) => s.order?.currency)?.order?.currency ?? 'TND';
   const isActiveRoute = route.status === 'VALIDATED' || route.status === 'IN_PROGRESS';
   const isClosed = route?.status === 'CLOSED';
+  // Closed routes default to the report; the switcher lets the user flip to the normal map + stops view.
+  const showReport = isClosed && closedView === 'report';
+  const showNormal = !isClosed || closedView === 'stops';
 
   return (
-    <div className="flex flex-col h-full bg-[var(--app-bg)]" style={{ height: isClosed ? 'auto' : 'calc(100dvh - 56px)', minHeight: isClosed ? 'calc(100dvh - 56px)' : undefined, overflow: isClosed ? 'visible' : 'hidden' }}>
+    <div className="flex flex-col h-full bg-[var(--app-bg)]" style={{ height: showReport ? 'auto' : 'calc(100dvh - 56px)', minHeight: showReport ? 'calc(100dvh - 56px)' : undefined, overflow: showReport ? 'visible' : 'hidden' }}>
       <RouteHeader
         routeName={route.name}
         routeStatus={route.status}
@@ -100,9 +105,25 @@ export default function RouteDetailsPage() {
         isRefreshing={loading}
       />
 
-      {/* Active route → live detail (KPI strip + map + editable stops). Closed route → the closure
-          report only (it already carries KPIs, stops table, POD & audit), so we don't duplicate them. */}
-      {!isClosed && (<>
+      {/* Closed route → switch between the closure report and the normal map + stops view. */}
+      {isClosed && (
+        <div className="print-hide flex items-center gap-1.5 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--surface)] shrink-0">
+          {([['report', t.routeReport.subtitle], ['stops', t.routeReport.viewNormal]] as const).map(([v, label]) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setClosedView(v)}
+              className={`h-7 px-3 text-xs font-semibold rounded-md transition-colors ${closedView === v ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Active route → live detail (KPI strip + map + editable stops). Closed route → report or,
+          via the switcher, the same read-only map + stops view. */}
+      {showNormal && (<>
       <RouteStats
         completed={completed}
         failed={failed}
@@ -242,7 +263,7 @@ export default function RouteDetailsPage() {
       </div>
       </>)}
 
-      {route?.status === 'CLOSED' && typeof routeId === 'string' && (
+      {showReport && typeof routeId === 'string' && (
         <RouteClosureReport routeId={routeId} />
       )}
 

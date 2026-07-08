@@ -66,7 +66,7 @@ export default function RouteClosureReport({ routeId }: { routeId: string }) {
   };
 
   return (
-    <div className="p-4">
+    <div className="p-4 print-report">
       <div className="border border-[var(--border-strong)] bg-[var(--surface)] text-[var(--text-primary)]">
         <HeaderBar report={data} c={c} downloading={downloading} onDownload={download} onPrint={() => window.print()} />
         <IdentityGrid report={data} c={c} />
@@ -103,7 +103,7 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
         <span className="text-2xs text-[var(--text-muted)] truncate">— {c.subtitle}</span>
         <StatusBadge status="CLOSED" label={c.closed} size="sm" />
       </div>
-      <div className="flex gap-1.5 shrink-0">
+      <div className="flex gap-1.5 shrink-0 print-hide">
         <Button size="sm" variant="outline" onClick={onPrint} className="h-7 gap-1 rounded-none text-2xs">
           <IconPrinter size={14} /> {c.print}
         </Button>
@@ -209,7 +209,6 @@ function StopsTable({ report, c }: { report: RouteReport; c: C }) {
             <th className={th}>#</th>
             <th className={th}>{c.colClient}</th>
             <th className={th}>{c.colWindow}</th>
-            <th className={th}>{c.colArrival}</th>
             <th className={th}>{c.colDelivered}</th>
             <th className={`${th} text-right`}>{c.colDelay}</th>
             <th className={th}>{c.colStatus}</th>
@@ -229,13 +228,12 @@ function StopsTable({ report, c }: { report: RouteReport; c: C }) {
                   </div>
                 </td>
                 <td className={`${td} text-[var(--text-secondary)]`}>{s.startTimeWindow && s.endTimeWindow ? `${clock(s.startTimeWindow)}–${clock(s.endTimeWindow)}` : '—'}</td>
-                <td className={`${td} text-[var(--text-secondary)]`}>{fmtTime(s.arrivedAt)}</td>
                 <td className={td}>
                   {fmtTime(s.completedAt)}
                   {s.dwellMinutes != null && s.dwellMinutes > 0 && <div className="text-2xs font-sans text-[var(--text-muted)]">{s.dwellMinutes} min {c.dwellSuffix}</div>}
                 </td>
                 <td className={`${td} text-right`}>{delayCell(s, c)}</td>
-                <td className={`${td} font-sans`}><StatusBadge status={s.removedReason === 'REASSIGNED' ? 'REASSIGNED' : s.finalStatus} size="sm" /></td>
+                <td className={`${td} font-sans`}><StatusBadge status={s.removedReason === 'REASSIGNED' ? 'REASSIGNED' : s.finalStatus} label={s.removedReason !== 'REASSIGNED' && s.finalStatus === 'COMPLETED' ? c.colDelivered : undefined} size="sm" /></td>
                 <td className={`${td} font-sans border-r-0 text-[var(--text-secondary)]`}>
                   {removed ? (
                     <span className="text-[var(--info)]">
