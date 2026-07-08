@@ -75,7 +75,7 @@ public class AdminOpsController {
     )
     public ResponseEntity<AdminOpsLanesResponse> lanes(
             @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Number of top deliveries to return per lane", example = "4")
@@ -93,7 +93,7 @@ public class AdminOpsController {
     )
     public ResponseEntity<AdminOpsAlertsResponse> alerts(
             @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max alerts to return", example = "30")
@@ -111,7 +111,7 @@ public class AdminOpsController {
     )
     public ResponseEntity<AdminOpsAuditResponse> audit(
             @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max events to return", example = "50")
@@ -133,7 +133,7 @@ public class AdminOpsController {
     )
     public ResponseEntity<AdminOpsExceptionsResponse> exceptions(
             @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @Parameter(description = "Max exceptions to return", example = "50")

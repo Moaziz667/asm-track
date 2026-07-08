@@ -249,11 +249,17 @@ public class AnalyticsPdfService extends BasePdfService {
 
     private static LocalDateTime resolveStart(String period, LocalDate from, LocalDateTime now) {
         if (from != null) return from.atStartOfDay();
-        return switch (period == null ? "day" : period.toLowerCase()) {
-            case "all"   -> LocalDate.of(2000, 1, 1).atStartOfDay();
-            case "week"  -> LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
-            case "month" -> LocalDate.now().withDayOfMonth(1).atStartOfDay();
-            default      -> LocalDate.now().atStartOfDay();
+        LocalDate today = now.toLocalDate();
+        return switch (period == null ? "today" : period.toLowerCase()) {
+            case "all"         -> LocalDate.of(2000, 1, 1).atStartOfDay();
+            case "yesterday"   -> today.minusDays(1).atStartOfDay();
+            case "wtd"         -> today.with(DayOfWeek.MONDAY).atStartOfDay();
+            case "last7d"      -> today.minusDays(6).atStartOfDay();
+            case "mtd"         -> today.withDayOfMonth(1).atStartOfDay();
+            case "last30d"     -> today.minusDays(29).atStartOfDay();
+            case "qtd"         -> today.with(java.time.temporal.IsoFields.DAY_OF_QUARTER, 1L).atStartOfDay();
+            case "ytd", "year" -> today.withDayOfYear(1).atStartOfDay();
+            default            -> today.atStartOfDay();
         };
     }
 
@@ -262,11 +268,16 @@ public class AnalyticsPdfService extends BasePdfService {
         if (from != null) {
             return "Du " + start.format(DATE_FR) + " au " + end.format(DATE_FR);
         }
-        return switch (period == null ? "day" : period.toLowerCase()) {
-            case "all"   -> "Toute la période";
-            case "week"  -> "Semaine du " + start.format(DATE_FR);
-            case "month" -> "Mois de " + start.format(DATE_FR);
-            default      -> "Aujourd'hui · " + start.format(DATE_FR);
+        return switch (period == null ? "today" : period.toLowerCase()) {
+            case "all"         -> "Toute la période";
+            case "yesterday"   -> "Hier · " + start.format(DATE_FR);
+            case "wtd"         -> "Semaine en cours";
+            case "last7d"      -> "7 derniers jours";
+            case "mtd"         -> "Mois en cours";
+            case "last30d"     -> "30 derniers jours";
+            case "qtd"         -> "Trimestre en cours";
+            case "ytd", "year" -> "Année en cours";
+            default            -> "Aujourd'hui · " + start.format(DATE_FR);
         };
     }
 

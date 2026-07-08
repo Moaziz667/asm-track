@@ -91,7 +91,7 @@ public class AdminReportsController {
     @GetMapping("/analytics/pdf")
     @Operation(summary = "Rapport d'activité globale — PDF")
     public ResponseEntity<byte[]> analyticsPdf(
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
@@ -107,7 +107,7 @@ public class AdminReportsController {
     @Operation(summary = "Rapport de performance individuelle chauffeur — PDF")
     public ResponseEntity<byte[]> driverPerformancePdf(
             @PathVariable UUID driverId,
-            @RequestParam(required = false, defaultValue = "day") String period,
+            @RequestParam(required = false, defaultValue = "today") String period,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
     ) {
