@@ -21,6 +21,9 @@ public class AuditLogService {
 
     private final AuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final com.asm.delivery.repository.DeliveryRepository deliveryRepository;
+    private final com.asm.delivery.repository.OrderRepository orderRepository;
+    private final com.asm.delivery.repository.RouteRepository routeRepository;
 
     private static final java.util.regex.Pattern UUID_PATTERN = java.util.regex.Pattern.compile(
             "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$");
@@ -59,6 +62,23 @@ public class AuditLogService {
             }
         } catch (Exception e) {
             detailsJson = details != null ? details.toString() : "{}";
+        }
+
+        // Enrich events with the human reference (ERP ref for deliveries/orders, R001 for routes),
+        // so the audit feed shows "S00042" / "R001" instead of a raw UUID prefix. Denormalised into
+        // the payload (survives, no read-time join).
+        String orderRef = resolveOrderRef(targetEntity, resourceId);
+        String routeName = resolveRouteName(targetEntity, resourceId);
+        if (orderRef != null || routeName != null) {
+            try {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> node = detailsJson.trim().startsWith("{")
+                        ? objectMapper.readValue(detailsJson, Map.class)
+                        : new java.util.LinkedHashMap<>();
+                if (orderRef != null) node.putIfAbsent("orderRef", orderRef);
+                if (routeName != null) node.putIfAbsent("routeName", routeName);
+                detailsJson = objectMapper.writeValueAsString(node);
+            } catch (Exception ignored) { /* keep detailsJson as-is */ }
         }
 
         String ipAddress = "127.0.0.1";
@@ -109,6 +129,35 @@ public class AuditLogService {
         }
         
         logAction(principal, action, targetEntity, resourceId, jsonDetails);
+    }
+
+    /** Resolve the ERP reference for a DELIVERY/ORDER audit target; null when N/A or not found. */
+    private String resolveOrderRef(String targetEntity, String resourceId) {
+        if (resourceId == null || !("DELIVERY".equals(targetEntity) || "ORDER".equals(targetEntity))) return null;
+        UUID id;
+        try { id = UUID.fromString(resourceId); } catch (Exception e) { return null; }
+        try {
+            if ("DELIVERY".equals(targetEntity)) {
+                return deliveryRepository.findById(id)
+                        .map(d -> d.getOrder() != null ? d.getOrder().resolveRef() : null)
+                        .orElse(null);
+            }
+            return orderRepository.findById(id).map(com.asm.delivery.entity.Order::resolveRef).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /** Resolve the generated route name (R001) for a ROUTE audit target; null when N/A or not found. */
+    private String resolveRouteName(String targetEntity, String resourceId) {
+        if (resourceId == null || !"ROUTE".equals(targetEntity)) return null;
+        UUID id;
+        try { id = UUID.fromString(resourceId); } catch (Exception e) { return null; }
+        try {
+            return routeRepository.findById(id).map(com.asm.delivery.entity.Route::getName).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     @Transactional(propagation = Propagation.REQUIRES_NEW)

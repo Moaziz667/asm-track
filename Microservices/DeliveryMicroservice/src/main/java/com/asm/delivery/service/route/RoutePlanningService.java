@@ -522,7 +522,8 @@ public class RoutePlanningService {
         slaStateService.applyReplanGrace(delivery.getId());
 
         auditLogService.logAction(null, "CANCEL_STOP", "ROUTE_STOP", stopId.toString(),
-                Map.of("routeId", routeId.toString(), "reason", cancelReason));
+                Map.of("routeName", route.getName() != null ? route.getName() : routeId.toString(),
+                        "reason", cancelReason));
 
         // Notify driver via WebSocket + FCM
         if (route.getDriverId() != null) {

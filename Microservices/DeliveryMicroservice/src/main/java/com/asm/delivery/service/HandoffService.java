@@ -119,9 +119,8 @@ public class HandoffService {
         syncStopLegacyFields(stop, handoff);
 
         auditLogService.logAction(actor, "HANDOFF_REQUESTED", "DELIVERY", deliveryId.toString(),
-                Map.of("handoffId", handoff.getId().toString(),
-                        "fromDriver", fromDriverId.toString(),
-                        "toDriver", toDriverId.toString(),
+                Map.of("fromDriver", driverLabel(fromDriverId),
+                        "toDriver", driverLabel(toDriverId),
                         "reason", reason != null ? reason : ""));
 
         appendHistory(deliveryId, delivery.getStatus(), actorName(actor), Role.DISPATCHER,
@@ -240,9 +239,8 @@ public class HandoffService {
 
         Order order = delivery.getOrder();
         auditLogService.logAction(null, "HANDOFF_CONFIRMED", "DELIVERY", h.getDeliveryId().toString(),
-                Map.of("handoffId", h.getId().toString(),
-                        "fromDriver", h.getFromDriverId() != null ? h.getFromDriverId().toString() : "",
-                        "toDriver", toDriverId.toString(),
+                Map.of("fromDriver", driverLabel(h.getFromDriverId()),
+                        "toDriver", driverLabel(toDriverId),
                         "client", order != null && order.getClientName() != null ? order.getClientName() : "N/A"));
 
         appendHistory(delivery.getId(), delivery.getStatus(), driverLabel(toDriverId), Role.DRIVER,
@@ -271,7 +269,9 @@ public class HandoffService {
         revertCustodyToSender(h);
         clearStopPointer(h);
         auditLogService.logAction(actor, "HANDOFF_CANCELLED", "DELIVERY", h.getDeliveryId().toString(),
-                Map.of("handoffId", h.getId().toString(), "reason", reason != null ? reason : ""));
+                Map.of("fromDriver", driverLabel(h.getFromDriverId()),
+                        "toDriver", driverLabel(h.getToDriverId()),
+                        "reason", reason != null ? reason : ""));
         deliveryRepo.findById(h.getDeliveryId()).ifPresent(d ->
                 appendHistory(d.getId(), d.getStatus(), actorName(actor), Role.DISPATCHER,
                         "HANDOFF_CANCELLED", Map.of("reason", reason != null ? reason : "")));
