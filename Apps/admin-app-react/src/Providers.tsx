@@ -5,7 +5,6 @@ import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-qu
 import { showErrorToast } from '@/lib/toast-service';
 import { Toaster } from '@/ui/feedback/Toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ModalRenderer } from '@/lib/modal-manager/ModalRenderer';
 import { LocaleProvider } from '@/lib/LocaleContext';
 import { AuthProvider, useAuth } from 'react-oidc-context';
 import { oidcConfig, syncSession } from '@/lib/oidcConfig';
@@ -81,7 +80,6 @@ export default function Providers({ children }: ProvidersProps) {
         <TooltipProvider>
           <LocaleProvider>
             {children}
-            <ModalRenderer />
             <Toaster />
           </LocaleProvider>
         </TooltipProvider>

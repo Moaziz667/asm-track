@@ -8,7 +8,7 @@ import { safeStorage } from '@/lib/storage';
 import { useAuth } from 'react-oidc-context';
 
 import {
-  IconBuildingWarehouse, IconSettings, IconMap2, IconLayoutSidebar,
+  IconSettings, IconMap2, IconLayoutSidebar,
   IconCalendarEvent, IconChevronRight, IconSun, IconMoon,
   IconChevronDown, IconUserCircle, IconLogout,
 } from '@tabler/icons-react';
@@ -52,7 +52,6 @@ const EXTRA_PAGES: CrumbInfo[] = [
   { groupKey: 'operations', labelKey: 'overview',       href: '/schedule',      Icon: IconCalendarEvent },
   { groupKey: 'settings',   labelKey: 'generalConfig',  href: '/settings',      Icon: IconSettings },
   { groupKey: 'settings',   labelKey: 'erpIntegration', href: '/settings/erp',  Icon: IconSettings },
-  { groupKey: 'platform',   labelKey: 'companies',      href: '/companies',     Icon: IconBuildingWarehouse },
 ];
 
 // Flat href → {group, page} lookup, built once from the nav definition + extras.

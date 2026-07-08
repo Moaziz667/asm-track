@@ -60,7 +60,7 @@ function resourceLabel(log: AuditLog, t: TranslationSchema): string | null {
   if (log.details) {
     try {
       const p = JSON.parse(log.details);
-      const named = p.name || p.label || p.ref || p.orderRef || p.email || p.plate;
+      const named = p.name || p.label || p.ref || p.orderRef || p.routeName || p.tournee || p.email || p.plate;
       if (named) return String(named);
     } catch { /* not JSON */ }
   }
@@ -149,6 +149,10 @@ function getPayloadKeyLabel(key: string, locale: string): string {
       raison: 'Raison', reason: 'Raison',
       statut: 'Statut', status: 'Statut',
       description: 'Description', nom: 'Nom', name: 'Nom',
+      fromDriver: 'De', toDriver: 'Vers', driver: 'Chauffeur', chauffeur: 'Chauffeur',
+      client: 'Client', routeName: 'Tournée', tournee: 'Tournée',
+      vehicule: 'Véhicule', plaque: 'Plaque', colis: 'Colis', zone: 'Zone',
+      stop: 'Arrêt', erpId: 'Réf. ERP', source: 'Source', plate: 'Plaque',
     },
     en: {
       valeur: 'Value', value: 'Value',
@@ -159,6 +163,10 @@ function getPayloadKeyLabel(key: string, locale: string): string {
       raison: 'Reason', reason: 'Reason',
       statut: 'Status', status: 'Status',
       description: 'Description', nom: 'Name', name: 'Name',
+      fromDriver: 'From', toDriver: 'To', driver: 'Driver', chauffeur: 'Driver',
+      client: 'Client', routeName: 'Route', tournee: 'Route',
+      vehicule: 'Vehicle', plaque: 'Plate', colis: 'Packages', zone: 'Zone',
+      stop: 'Stop', erpId: 'ERP ref', source: 'Source', plate: 'Plate',
     },
     ar: {
       valeur: 'القيمة', value: 'القيمة',
@@ -169,9 +177,30 @@ function getPayloadKeyLabel(key: string, locale: string): string {
       raison: 'السبب', reason: 'السبب',
       statut: 'الحالة', status: 'الحالة',
       description: 'الوصف', nom: 'الاسم', name: 'الاسم',
+      fromDriver: 'من', toDriver: 'إلى', driver: 'السائق', chauffeur: 'السائق',
+      client: 'العميل', routeName: 'الجولة', tournee: 'الجولة',
+      vehicule: 'المركبة', plaque: 'اللوحة', colis: 'الطرود', zone: 'المنطقة',
+      stop: 'المحطة', erpId: 'مرجع ERP', source: 'المصدر', plate: 'اللوحة',
     },
   };
   return keyMap[locale]?.[key] || key;
+}
+
+// Payload keys we never render: machine identifiers, plus `action` — a legacy hardcoded-French
+// duplicate of the (now translated) action code. Hiding it is what makes the feed truly 3-lang.
+const TECH_PAYLOAD_KEYS = new Set([
+  'handoffId', 'routeId', 'deliveryId', 'orderId', 'stopId', 'vehicleId', 'zoneId',
+  'oldDriverId', 'newDriverId', 'driverId', 'fromDriverId', 'toDriverId', 'id',
+  'action', 'orderRef', 'routeName', 'tournee',
+]);
+
+/** Keep only human-meaningful payload entries: drop technical id keys and any bare-UUID value. */
+function visiblePayloadEntries(parsed: Record<string, unknown>): [string, unknown][] {
+  return Object.entries(parsed).filter(([k, v]) => {
+    if (TECH_PAYLOAD_KEYS.has(k)) return false;
+    if (typeof v === 'string' && UUID_RE.test(v.trim())) return false;
+    return v !== null && v !== undefined && String(v).trim() !== '';
+  });
 }
 
 function getDateGroup(ts: string): { label: string; sort: number } {
@@ -196,9 +225,11 @@ function formatPayload(details: string | null, locale: string = 'fr'): React.Rea
   if (!details) return null;
   try {
     const parsed = JSON.parse(details);
+    const entries = visiblePayloadEntries(parsed);
+    if (entries.length === 0) return null;
     return (
       <div className="space-y-1">
-        {Object.entries(parsed).map(([key, value]) => (
+        {entries.map(([key, value]) => (
           <div key={key} className="flex items-start gap-2">
             <span className="text-2xs font-[600] text-[var(--text-muted)] min-w-fit">{getPayloadKeyLabel(key, locale)}:</span>
             <span className="text-2xs font-mono text-[var(--text-primary)] break-all">{String(value)}</span>

@@ -217,8 +217,8 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
 
                   {/* Transfer */}
                   {visibleIds.has('transfer') && (
-                    <div className="flex items-center gap-1.5 overflow-hidden text-start">
-                      <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={18} />
+                    <div className="flex items-center gap-1.5 text-start min-w-0">
+                      <span className="shrink-0"><DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={18} /></span>
                       <span className="text-2xs truncate max-w-[72px]" style={{ color: 'var(--text-secondary)' }}>
                         {h.fromDriverName ?? '—'}
                       </span>
@@ -226,7 +226,7 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
                       <span className="text-2xs font-[600] truncate max-w-[72px]" style={{ color: 'var(--text-primary)' }}>
                         {h.toDriverName ?? '—'}
                       </span>
-                      <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={18} />
+                      <span className="shrink-0"><DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={18} /></span>
                     </div>
                   )}
 

@@ -91,7 +91,7 @@ export default function DeliveryDetailPage() {
 
   usePageBreadcrumb(
     delivery
-      ? [{ label: t.pages.deliveries?.title || 'Suivi des livraisons', href: '/deliveries' }, { label: (delivery.orderRef ?? id.slice(0, 8)).toUpperCase() }]
+      ? [{ label: t.pages.deliveries?.title || 'Suivi des livraisons', href: '/deliveries' }, { label: (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase() }]
       : [{ label: t.pages.deliveries?.title || 'Suivi des livraisons', href: '/deliveries' }]
   );
 
@@ -160,7 +160,9 @@ export default function DeliveryDetailPage() {
   );
 
   const items: DeliveryItem[] = delivery.items ?? [];
-  const orderRef = (delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
+  // Human ERP reference — mirrors the backend Order.resolveRef() priority (erpOrderId →
+  // erpExternalRef → uuid) so the header/breadcrumb never fall back to a bare UUID when the ERP id exists.
+  const orderRef = (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
   const isCancelled = delivery.status === 'CANCELLED';
 
   // Delivery time window (start–end) for scheduled orders. Accepts "HH:mm:ss" / "HH:mm".
@@ -308,7 +310,7 @@ export default function DeliveryDetailPage() {
               {/* Order */}
               <Section title={t.deliveryPage.sectionOrder} icon={<IconPackage size={12} />}>
                 <div className="flex flex-col">
-                  <InfoRow label={t.deliveryPage.labelReference}   value={delivery.orderRef} mono />
+                  <InfoRow label={t.deliveryPage.labelReference}   value={orderRef} mono />
                   <InfoRow label={t.deliveryPage.labelInternalId}  value={delivery.id} mono />
                   <InfoRow label={t.deliveryPage.labelTotalWeight} value={delivery.totalWeightKg ? `${delivery.totalWeightKg} kg` : null} />
                   <InfoRow label={t.deliveryPage.labelAmount}     value={delivery.totalAmount ? formatMoney(delivery.totalAmount, delivery.currency) : null} />
