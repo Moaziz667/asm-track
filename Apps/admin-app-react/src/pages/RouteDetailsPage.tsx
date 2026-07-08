@@ -12,7 +12,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { IconAlertCircle, IconReportAnalytics, IconRoute } from '@tabler/icons-react';
+import { IconAlertCircle, IconFileText, IconMap2 } from '@tabler/icons-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
@@ -109,22 +109,28 @@ export default function RouteDetailsPage() {
       {/* Closed route → switch between the closure report and the normal map + stops view. */}
       {isClosed && (
         <TooltipProvider>
-          <div className="print-hide flex items-center gap-1.5 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--surface)] shrink-0">
-            {([['report', t.routeReport.subtitle, IconReportAnalytics], ['stops', t.routeReport.viewNormal, IconRoute]] as const).map(([v, label, Icon]) => (
-              <Tooltip key={v}>
-                <TooltipTrigger asChild>
-                  <button
-                    type="button"
-                    aria-label={label}
-                    onClick={() => setClosedView(v)}
-                    className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors ${closedView === v ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'}`}
-                  >
-                    <Icon size={16} />
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent>{label}</TooltipContent>
-              </Tooltip>
-            ))}
+          <div className="print-hide flex items-center px-4 py-2 border-b border-[var(--border-color)] bg-[var(--surface)] shrink-0">
+            <div className="inline-flex items-center gap-0.5 p-0.5 rounded-md border border-[var(--border)] bg-[var(--surface-sunken)]">
+              {([['report', t.routeReport.subtitle, IconFileText], ['stops', t.routeReport.viewNormal, IconMap2]] as const).map(([v, label, Icon]) => {
+                const active = closedView === v;
+                return (
+                  <Tooltip key={v}>
+                    <TooltipTrigger asChild>
+                      <button
+                        type="button"
+                        aria-label={label}
+                        aria-pressed={active}
+                        onClick={() => setClosedView(v)}
+                        className={`h-7 w-8 flex items-center justify-center rounded transition-all ${active ? 'bg-[var(--surface)] text-[var(--text-primary)] shadow-sm' : 'text-[var(--text-muted)] hover:text-[var(--text-secondary)]'}`}
+                      >
+                        <Icon size={15} stroke={1.8} />
+                      </button>
+                    </TooltipTrigger>
+                    <TooltipContent>{label}</TooltipContent>
+                  </Tooltip>
+                );
+              })}
+            </div>
           </div>
         </TooltipProvider>
       )}
