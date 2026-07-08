@@ -189,7 +189,7 @@ export function HandoffHistoryTable({ items, t }: Props) {
 
                   {/* Transfer */}
                   {visibleIds.has('transfer') && (
-                    <div className="flex items-center gap-1.5 min-w-0 text-start">
+                    <div className="flex items-center gap-1.5 overflow-hidden text-start">
                       <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={18} />
                       <span className="text-2xs truncate max-w-[72px]" style={{ color: 'var(--text-secondary)' }}>
                         {h.fromDriverName ?? '—'}

@@ -982,8 +982,6 @@ export const FR_COPY = {
     errorNoteRequired: 'Veuillez ajouter une note avant de confirmer',
     successCancelled: 'Livraison annulée',
     errorCancel: "Impossible d'annuler",
-    successReturnConfirmed: 'Retour confirmé',
-    errorReturnConfirm: 'Impossible de confirmer le retour',
     // Table headers
     tableHeaderOrder: 'Commande',
     tableHeaderStatus: 'Statut',
@@ -1006,10 +1004,6 @@ export const FR_COPY = {
     missingGps: 'GPS manquant',
     fixGps: 'Corriger →',
     // Modal titles
-    returnTitle: 'Confirmer le retour au dépôt',
-    returnDescription: 'Le colis a bien été ramené au dépôt. Il sera remis en liste d\'attente pour être planifié à nouveau.',
-    returnNoteLabel: 'Note de retour (facultatif)',
-    returnConfirmLabel: 'Confirmer le retour',
     cancelTitle: 'Annuler définitivement la livraison',
     cancelDescription: 'Cette action est irréversible. La livraison sera marquée comme annulée et ne pourra plus être planifiée.',
     cancelReasonLabel: 'Raison de l\'annulation (obligatoire)',
@@ -1134,7 +1128,6 @@ export const FR_COPY = {
     buttonCallClient: 'Appeler le client',
     buttonContactClient: 'Contacter le client',
     buttonCallDriver: 'Appeler le chauffeur',
-    buttonReturnToDepot: 'Retour au dépôt',
     // ActionRow labels
     unassignedLabel: 'Non assigné',
     incidentLabel: 'Incident',

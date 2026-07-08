@@ -1,7 +1,7 @@
 import React from 'react';
 import type { Delivery, DeliveryItem } from '@/types';
 import { Link } from 'react-router-dom';
-import { IconArrowBack, IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone } from '@tabler/icons-react';
+import { IconCalendar, IconClock, IconMapPin, IconMapPinOff, IconInbox, IconPhone } from '@tabler/icons-react';
 import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/icons/DispatchIcons';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -20,7 +20,7 @@ import {
 } from '../constants';
 import {
   formatElapsed, formatShortDate,
-  needsClientContact, needsDriverContact, needsReturnToDepot,
+  needsClientContact, needsDriverContact,
 } from '../formatters';
 import { rowId, isPinned } from '../utils';
 import type { OpsException } from '../types';
@@ -35,7 +35,7 @@ const driverStatusTone = (status?: string) => {
 export function QueueDetail() {
   const {
     t, isReadOnly, drivers, selectedQueueRow,
-    setDrawerTargets, openActionModal, setReturnTarget,
+    setDrawerTargets, openActionModal,
   } = useDispatchDeskContext();
 
   const selectedId = selectedQueueRow ? rowId(selectedQueueRow.delivery) : '';
@@ -311,17 +311,6 @@ export function QueueDetail() {
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>
-          )}
-          {alert && needsReturnToDepot(motif) && (
-            <button
-              type="button"
-              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ '--accent': 'var(--danger)' } as React.CSSProperties}
-              onClick={() => setReturnTarget(alert)}
-            >
-              <IconArrowBack size={14} stroke={2.5} />
-              {t.dispatchDeskPage.buttonReturnToDepot}
-            </button>
           )}
         </div>
       )}

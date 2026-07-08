@@ -133,10 +133,6 @@ export function needsDriverContact(motif?: string): boolean {
   return k === 'DAMAGED' || k === 'OTHER' || k === 'CLIENT_ABSENT' || k === 'REFUSED';
 }
 
-export function needsReturnToDepot(motif?: string): boolean {
-  return (motif ?? '').toUpperCase().trim() === 'DAMAGED';
-}
-
 export function formatShortDate(dateStr?: string): string {
   if (!dateStr) return '—';
   try {

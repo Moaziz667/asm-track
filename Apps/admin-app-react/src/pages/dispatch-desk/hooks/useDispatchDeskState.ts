@@ -85,12 +85,7 @@ export interface DispatchDeskContextProps {
   cancelReason: string;
   setCancelReason: React.Dispatch<React.SetStateAction<string>>;
   cancelling: boolean;
-  returnTarget: OpsException | null;
-  setReturnTarget: React.Dispatch<React.SetStateAction<OpsException | null>>;
-  returnNote: string;
-  setReturnNote: React.Dispatch<React.SetStateAction<string>>;
-  confirmingReturn: boolean;
-  
+
   // Selection / Batch State
   selectedIds: Set<string>;
   setSelectedIds: React.Dispatch<React.SetStateAction<Set<string>>>;
@@ -118,7 +113,6 @@ export interface DispatchDeskContextProps {
   openActionModal: (kind: ActionKind, row: OpsException) => void;
   confirmAction: () => Promise<void>;
   runCancel: () => Promise<void>;
-  runConfirmReturn: () => Promise<void>;
 }
 
 const DispatchDeskContext = createContext<DispatchDeskContextProps | undefined>(undefined);
@@ -182,9 +176,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [cancelTarget, setCancelTarget]       = useState<OpsException | null>(null);
   const [cancelReason, setCancelReason]       = useState('');
   const [cancelling, setCancelling]           = useState(false);
-  const [returnTarget, setReturnTarget]       = useState<OpsException | null>(null);
-  const [returnNote, setReturnNote]           = useState('');
-  const [confirmingReturn, setConfirmingReturn] = useState(false);
 
   // ── Batch ─────────────────────────────────────────────────────────────────
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -537,24 +528,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     }
   }, [cancelTarget, cancelReason, fetchExceptions, fetchAllDeliveries, t]);
 
-  const runConfirmReturn = useCallback(async () => {
-    if (!returnTarget) return;
-    setConfirmingReturn(true);
-    try {
-      await api.post(`/api/admin/deliveries/${returnTarget.deliveryId}/confirm-return`, null,
-        { params: returnNote.trim() ? { note: returnNote.trim() } : {} });
-      showSuccessToast(t.dispatchDeskPage.successReturnConfirmed, { clientName: returnTarget?.clientName });
-      setReturnTarget(null);
-      setReturnNote('');
-      await fetchExceptions(true);
-      await fetchAllDeliveries();
-    } catch (err) {
-      showErrorToast(err, t.dispatchDeskPage.errorReturnConfirm, { clientName: returnTarget?.clientName });
-    } finally {
-      setConfirmingReturn(false);
-    }
-  }, [returnTarget, returnNote, fetchExceptions, fetchAllDeliveries, t]);
-
   const doRefresh = useCallback(() => {
     void fetchExceptions(true);
     void fetchAllDeliveries();
@@ -620,11 +593,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     cancelReason,
     setCancelReason,
     cancelling,
-    returnTarget,
-    setReturnTarget,
-    returnNote,
-    setReturnNote,
-    confirmingReturn,
     selectedIds,
     setSelectedIds,
     toggleRow,
@@ -647,7 +615,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     openActionModal,
     confirmAction,
     runCancel,
-    runConfirmReturn,
   }), [
     t,
     isReadOnly,
@@ -684,9 +651,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     cancelTarget,
     cancelReason,
     cancelling,
-    returnTarget,
-    returnNote,
-    confirmingReturn,
     selectedIds,
     toggleRow,
     toggleAll,
@@ -708,7 +672,6 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     openActionModal,
     confirmAction,
     runCancel,
-    runConfirmReturn,
   ]);
 
   return React.createElement(DispatchDeskContext.Provider, { value }, children);

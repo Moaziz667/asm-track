@@ -138,12 +138,6 @@ function DispatchDeskContentInner() {
     setReplanScheduledAt,
     confirmAction,
     resetActionState,
-    returnTarget,
-    setReturnTarget,
-    returnNote,
-    setReturnNote,
-    confirmingReturn,
-    runConfirmReturn,
     cancelTarget,
     setCancelTarget,
     cancelReason,
@@ -206,21 +200,6 @@ function DispatchDeskContentInner() {
           onCancel={resetActionState}
           loading={!!runningAction}
           formatMotif={formatMotif}
-        />
-
-        <ConfirmModal
-          open={returnTarget !== null}
-          title={t.dispatchDeskPage.returnTitle}
-          description={t.dispatchDeskPage.returnDescription}
-          variant="primary"
-          reasonLabel={t.dispatchDeskPage.returnNoteLabel}
-          reason={returnNote}
-          onReasonChange={setReturnNote}
-          confirmLabel={t.dispatchDeskPage.returnConfirmLabel}
-          cancelLabel={t.actions.cancel}
-          loading={confirmingReturn}
-          onConfirm={() => void runConfirmReturn()}
-          onCancel={() => { setReturnTarget(null); setReturnNote(''); }}
         />
 
         <ConfirmModal

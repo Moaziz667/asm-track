@@ -899,8 +899,6 @@ export const EN_COPY = {
     errorNoteRequired: 'Please add a note before confirming',
     successCancelled: 'Delivery cancelled',
     errorCancel: 'Failed to cancel delivery',
-    successReturnConfirmed: 'Return confirmed',
-    errorReturnConfirm: 'Failed to confirm return',
     // Table headers
     tableHeaderOrder: 'Order',
     tableHeaderStatus: 'Status',
@@ -923,10 +921,6 @@ export const EN_COPY = {
     missingGps: 'Missing GPS',
     fixGps: 'Fix →',
     // Modal titles
-    returnTitle: 'Confirm Return to Depot',
-    returnDescription: 'The package has been returned to the depot. It will be put back in the queue to be rescheduled.',
-    returnNoteLabel: 'Return Note (optional)',
-    returnConfirmLabel: 'Confirm Return',
     cancelTitle: 'Permanently Cancel Delivery',
     cancelDescription: 'This action is irreversible. The delivery will be marked as cancelled and cannot be rescheduled.',
     cancelReasonLabel: 'Cancellation Reason (required)',
@@ -1050,7 +1044,6 @@ export const EN_COPY = {
     buttonCallClient: 'Call client',
     buttonContactClient: 'Contact client',
     buttonCallDriver: 'Call driver',
-    buttonReturnToDepot: 'Return to depot',
     // ActionRow labels
     unassignedLabel: 'Unassigned',
     incidentLabel: 'Incident',

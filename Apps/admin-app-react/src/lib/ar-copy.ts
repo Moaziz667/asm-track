@@ -958,8 +958,6 @@ export const AR_COPY = {
     errorNoteRequired: 'يرجى إضافة ملاحظة قبل التأكيد',
     successCancelled: 'تم إلغاء الشحنة',
     errorCancel: 'فشل الإلغاء',
-    successReturnConfirmed: 'تم تأكيد العودة',
-    errorReturnConfirm: 'فشل تأكيد العودة',
     // Table headers
     tableHeaderOrder: 'الطلب',
     tableHeaderStatus: 'الحالة',
@@ -982,10 +980,6 @@ export const AR_COPY = {
     missingGps: 'GPS مفقود',
     fixGps: 'إصلاح →',
     // Modal titles
-    returnTitle: 'تأكيد العودة إلى المستودع',
-    returnDescription: 'تم إرجاع الرزمة إلى المستودع بنجاح. سيتم إعادة تعيينها للجدولة مرة أخرى.',
-    returnNoteLabel: 'ملاحظة العودة (اختياري)',
-    returnConfirmLabel: 'تأكيد العودة',
     cancelTitle: 'إلغاء الشحنة نهائياً',
     cancelDescription: 'هذا الإجراء لا يمكن التراجع عنه. سيتم تحديد الشحنة كملغاة ولن تتمكن من إعادة جدولتها.',
     cancelReasonLabel: 'سبب الإلغاء (إلزامي)',
@@ -1109,7 +1103,6 @@ export const AR_COPY = {
     buttonCallClient: 'اتصل بالعميل',
     buttonContactClient: 'التواصل مع العميل',
     buttonCallDriver: 'اتصل بالسائق',
-    buttonReturnToDepot: 'العودة إلى المستودع',
     // ActionRow labels
     unassignedLabel: 'غير معين',
     incidentLabel: 'حادثة',

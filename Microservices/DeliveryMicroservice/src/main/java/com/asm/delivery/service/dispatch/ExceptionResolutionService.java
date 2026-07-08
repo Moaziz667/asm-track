@@ -416,36 +416,6 @@ public class ExceptionResolutionService {
         }
     // ── Confirm return-to-origin ──────────────────────────────────────────────
 
-    @Transactional
-    public void confirmReturn(UUID deliveryId, String note, UserPrincipal principal) {
-        Delivery delivery = deliveryRepo.findByIdWithOrder(deliveryId)
-                .orElseThrow(() -> AppException.notFound("Delivery not found"));
-
-        if (delivery.getStatus() != DeliveryStatus.CANCELLED) {
-            throw AppException.badRequest("Can only confirm return on a CANCELLED delivery");
-        }
-
-        delivery.setDriverId(null);
-        // Parcel is back at depot — make available for re-dispatch unless order was cancelled
-        Order order = delivery.getOrder();
-        boolean orderCancelled = order != null && order.getStatus() == OrderStatus.CANCELLED;
-        if (!orderCancelled) {
-            delivery.setStatus(DeliveryStatus.UNSCHEDULED);
-            delivery.setAssignedAt(null);
-            delivery.setPickedUpAt(null);
-        }
-        deliveryRepo.save(delivery);
-
-        ActorInfo actor = resolveActor(principal);
-        String resolvedNote = StringUtils.hasText(note) ? note.trim() : "Return to origin confirmed by admin";
-        appendHistory(delivery, delivery.getStatus(), actor.name(), actor.role(),
-                "RETURN_TO_ORIGIN_CONFIRMED",
-                Map.of("reason", resolvedNote));
-
-        auditLogService.logAction(principal, "CONFIRM_RETURN", "DELIVERY", deliveryId.toString(),
-                Map.of("action", "return_confirmed", "orderCancelled", String.valueOf(orderCancelled)));
-    }
-
     // ── Cancel ────────────────────────────────────────────────────────────────
 
     @Transactional

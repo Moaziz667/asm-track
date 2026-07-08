@@ -236,17 +236,6 @@ public class AdminDeliveryController {
         return ResponseEntity.ok(dispatchService.getDeliveryDetail(id));
     }
 
-    @PostMapping("/{id}/confirm-return")
-    @Operation(summary = "Confirm returned parcel received", description = "Marks a returned parcel as physically received at the depot. Clears the return flag and allows the delivery to be re-dispatched to another driver.")
-    @IdempotentOperation
-    public ResponseEntity<Void> confirmReturn(
-            @PathVariable UUID id,
-            String note,
-            @org.springframework.security.core.annotation.AuthenticationPrincipal com.asm.delivery.security.UserPrincipal principal) {
-        exceptionResolutionService.confirmReturn(id, note, principal);
-        return ResponseEntity.ok().build();
-    }
-
     @PostMapping("/{id}/cancel")
     @Operation(summary = "Cancel a delivery", description = "Cancels a delivery that has not yet entered transit. Returns 400 if the delivery is already IN_TRANSIT or beyond. The order is reverted to PENDING for potential re-import.")
     @ApiResponses({
