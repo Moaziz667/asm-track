@@ -7,8 +7,8 @@ import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
 import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import type { Driver } from '@/types';
-import type { useT } from '@/lib/LocaleContext';
-import { applyFieldError } from '@/lib/form-errors';
+import type { useT } from '@/lib/i18n/LocaleContext';
+import { applyFieldError } from '@/lib/utils/form-errors';
 import type { DriverCrud } from './constants';
 
 interface Props {

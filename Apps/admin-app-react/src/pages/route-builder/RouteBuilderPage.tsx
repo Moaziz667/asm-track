@@ -1,6 +1,6 @@
 
 import { useLocaleStore } from '@/lib/i18n';
-import { useT, getCopy } from '@/lib/LocaleContext';
+import { useT, getCopy } from '@/lib/i18n/LocaleContext';
 import { lazy as dynamic } from 'react';
 import { useBreakpoint } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';

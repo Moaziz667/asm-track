@@ -2,7 +2,7 @@
 import React from 'react';
 import { IconRefresh } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 export interface RefreshButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   refreshing: boolean;

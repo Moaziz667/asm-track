@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
-import type { TranslationSchema } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import {
   IconCheck, IconX, IconAlertTriangle, IconArrowNarrowRight,
   IconClock, IconMapPin, IconRoute,

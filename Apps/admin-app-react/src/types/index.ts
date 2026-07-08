@@ -148,6 +148,7 @@ export interface DashboardStats {
     unscheduled?: number;
     inTransit?: number;
     scheduled?: number;
+    assigned?: number;
     pickedUp?: number;
     successRate: number;
     partialRate?: number;
@@ -171,20 +172,6 @@ export interface DashboardStats {
     code: string;
     count: number;
   }>;
-  byCity?: Array<{
-    city: string;
-    total: number;
-    delivered: number;
-    failed: number;
-    successRate: number;
-  }>;
-  byClient?: Array<{
-    clientName: string;
-    total: number;
-    delivered: number;
-    failed: number;
-    successRate: number;
-  }>;
   topItems?: Array<{
     sku: string;
     name: string;
@@ -203,6 +190,8 @@ export interface AdminOpsOverview {
     waitingBreaches: number;
     transitBreaches: number;
     totalBreaches: number;
+    slaAtRisk?: number;
+    slaBreached?: number;
   };
   lanes: Array<{
     status: DeliveryStatus;

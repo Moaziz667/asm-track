@@ -4,9 +4,9 @@ import { MapContainer, Marker, Popup, Polyline, TileLayer, useMap, useMapEvents 
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useIsDark } from '@/lib/theme';
+import { useIsDark } from '@/lib/ui/theme';
 import { useDriverAvatars } from '@/hooks/useDriverAvatars';
-import { STATUS_COLORS as BADGE_STATUS_COLORS } from '@/components/StatusBadge';
+import { STATUS_COLORS as BADGE_STATUS_COLORS } from '@/components/data-display/StatusBadge';
 
 type RouteStop = {
   id: string;

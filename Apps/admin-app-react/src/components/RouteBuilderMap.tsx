@@ -2,12 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { MapContainer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useIsDark } from '@/lib/theme';
+import { useIsDark } from '@/lib/ui/theme';
 import 'leaflet-draw/dist/leaflet.draw.css';
 import 'leaflet-draw';
 import { useRouteBuilderContext } from '@/pages/route-builder/hooks/useRouteBuilder';

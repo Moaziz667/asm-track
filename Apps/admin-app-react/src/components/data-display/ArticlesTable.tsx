@@ -1,5 +1,5 @@
 import { formatMoney } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { ItemOutcomeBadge } from '@/components/data-display/ItemOutcomeBadge';
 import { TooltipProvider } from '@/components/ui/tooltip';
 

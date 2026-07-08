@@ -5,8 +5,8 @@ import {
   IconClockExclamation, IconCircle, IconBan, IconPackages,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from '@/components/ui/tooltip';
 

@@ -4,11 +4,11 @@ import { useRef, useEffect, useState } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 import { IconBell, IconCheck, IconAlertTriangle, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { useNotifications, type Notification, getLocalizedNotif } from './AlertsProvider';
-import { notifDestination } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/api/dispatch-link';
 import { useLocaleStore } from '@/lib/i18n';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
-import { CopyDict } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { CopyDict } from '@/lib/i18n/LocaleContext';
 
 /* ── Severity Icon component ──────────────────────────────────────────────── */
 

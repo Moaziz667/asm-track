@@ -9,7 +9,7 @@ import { resolveOrderRef, shortId } from '@/lib/utils';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Button } from '@/components/ui/button';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 /** Pickup-phase accent (cyan family, matches PICKED_UP status token). */
 const PICKUP_COLOR = '#0891B2';

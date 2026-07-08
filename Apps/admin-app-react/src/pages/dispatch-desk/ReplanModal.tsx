@@ -5,7 +5,7 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
 import { resolveOrderRef, shortId } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 
 type OpsException = {

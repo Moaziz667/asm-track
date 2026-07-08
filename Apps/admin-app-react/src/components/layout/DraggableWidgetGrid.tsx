@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Responsive, WidthProvider, Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout/legacy';
 import { useLocaleStore } from '@/lib/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { IconLayoutDashboard } from '@tabler/icons-react';
 
 import 'react-grid-layout/css/styles.css';
@@ -33,6 +33,7 @@ interface DraggableWidgetGridProps {
   className?: string;
   cols?: { lg: number; md: number; sm: number; xs: number; xxs: number };
   rowHeight?: number;
+  margin?: [number, number];
 }
 
 // ── Drag handle ───────────────────────────────────────────────────────────────
@@ -62,6 +63,7 @@ export function DraggableWidgetGrid({
   className,
   cols = { lg: 12, md: 10, sm: 6, xs: 4, xxs: 2 },
   rowHeight = 40, // denser rows
+  margin = [20, 20],
 }: DraggableWidgetGridProps) {
   const isMobile = useIsMobile();
   const t = useT();
@@ -270,7 +272,7 @@ export function DraggableWidgetGrid({
         onResizeStart={() => setIsDragging(true)}
         onResizeStop={() => setIsDragging(false)}
         draggableHandle=".react-grid-dragHandle"
-        margin={[20, 20]} // 20px standard container spacing
+        margin={margin}
         containerPadding={[0, 0]}
         useCSSTransforms={true}
         isBounded={true}

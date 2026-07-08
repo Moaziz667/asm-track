@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { useT } from '@/lib/LocaleContext';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';

@@ -7,13 +7,13 @@ import {
   IconSearch, IconLayoutDashboard, IconCalendarEvent, IconMap2, IconTruck, IconUpload,
   IconRoute, IconTable, IconUser, IconCar, IconBuildingWarehouse, IconMapPin,
   IconChartBar, IconClipboardList, IconSettings, IconFileText,
-  IconPackage, IconRefresh, IconSun, IconPlus,
+  IconPackage, IconRefresh, IconSun, IconPlus, IconHeartbeat, IconPackageExport, IconBan, IconDatabase,
 } from '@tabler/icons-react'
 import { api } from '@/lib/api'
-import StatusBadge from '@/components/StatusBadge'
+import { StatusBadge } from '@/components/data-display/StatusBadge'
 import { cn } from '@/lib/utils'
 import { useLocaleStore } from '@/lib/i18n'
-import { useT } from '@/lib/LocaleContext'
+import { useT } from '@/lib/i18n/LocaleContext'
 import { safeStorage } from '@/lib/storage'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -67,20 +67,24 @@ type NavPageDef = {
 }
 
 const NAV_PAGE_DEFS: NavPageDef[] = [
-  { id: 'nav-dashboard',     labelKey: 'dashboard',    path: '/dashboard',     Icon: IconLayoutDashboard },
-  { id: 'nav-operations',    labelKey: 'overview',     path: '/schedule',    Icon: IconCalendarEvent },
-  { id: 'nav-dispatch',      labelKey: 'dispatch',     path: '/dispatch-desk', Icon: IconMap2 },
-  { id: 'nav-deliveries',    labelKey: 'tracking',     path: '/deliveries',    Icon: IconTruck },
-  { id: 'nav-import',        labelKey: 'import',       path: '/import',        Icon: IconUpload },
-  { id: 'nav-route-builder', labelKey: 'createRoute',  path: '/route-builder', Icon: IconRoute },
-  { id: 'nav-routes-table',  labelKey: 'routes',       path: '/routes-table',  Icon: IconTable },
-  { id: 'nav-drivers',       labelKey: 'drivers',      path: '/drivers',       Icon: IconUser },
-  { id: 'nav-vehicles',      labelKey: 'vehicles',     path: '/vehicles',      Icon: IconCar },
-  { id: 'nav-depots',        labelKey: 'depots',       path: '/depots',        Icon: IconBuildingWarehouse },
-  { id: 'nav-zones',         labelKey: 'zones',        path: '/zones',         Icon: IconMapPin },
-  { id: 'nav-performance',   labelKey: 'performance',  path: '/performance',   Icon: IconChartBar },
-  { id: 'nav-audit-logs',    labelKey: 'audit',        path: '/audit-logs',    Icon: IconClipboardList },
-  { id: 'nav-settings',      labelKey: 'settings',     path: '/settings',      Icon: IconSettings },
+  { id: 'nav-dashboard',       labelKey: 'dashboard',      path: '/dashboard',      Icon: IconLayoutDashboard },
+  { id: 'nav-operations',      labelKey: 'overview',       path: '/overview',       Icon: IconCalendarEvent },
+  { id: 'nav-dispatch',        labelKey: 'dispatch',       path: '/dispatch-desk',  Icon: IconMap2 },
+  { id: 'nav-system-health',   labelKey: 'systemHealth',   path: '/system-health',  Icon: IconHeartbeat },
+  { id: 'nav-deliveries',      labelKey: 'tracking',       path: '/deliveries',     Icon: IconTruck },
+  { id: 'nav-returns',         labelKey: 'returns',        path: '/returns',        Icon: IconPackageExport },
+  { id: 'nav-import',          labelKey: 'import',         path: '/import',         Icon: IconUpload },
+  { id: 'nav-failure-reasons', labelKey: 'failureReasons', path: '/failure-reasons', Icon: IconBan },
+  { id: 'nav-route-builder',   labelKey: 'createRoute',    path: '/route-builder',  Icon: IconRoute },
+  { id: 'nav-routes-table',    labelKey: 'routes',         path: '/routes-table',   Icon: IconTable },
+  { id: 'nav-drivers',         labelKey: 'drivers',        path: '/drivers',        Icon: IconUser },
+  { id: 'nav-vehicles',        labelKey: 'vehicles',       path: '/vehicles',       Icon: IconCar },
+  { id: 'nav-depots',          labelKey: 'depots',         path: '/depots',         Icon: IconBuildingWarehouse },
+  { id: 'nav-zones',           labelKey: 'zones',          path: '/zones',          Icon: IconMapPin },
+  { id: 'nav-performance',     labelKey: 'performance',    path: '/performance',    Icon: IconChartBar },
+  { id: 'nav-audit-logs',      labelKey: 'audit',          path: '/audit-logs',     Icon: IconClipboardList },
+  { id: 'nav-settings',        labelKey: 'settings',       path: '/settings',       Icon: IconSettings },
+  { id: 'nav-erp',             labelKey: 'erpIntegration', path: '/settings/erp',   Icon: IconDatabase },
 ]
 
 // ── Highlight ─────────────────────────────────────────────────────────────────

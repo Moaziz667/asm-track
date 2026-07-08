@@ -1,5 +1,5 @@
 import type { OpsException } from './types';
-import { getCopy, type CopyDict } from '@/lib/LocaleContext';
+import { getCopy, type CopyDict } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
 import { formatElapsed as slaFormatElapsed, formatCountdown } from '@/lib/sla';
 

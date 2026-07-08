@@ -1,4 +1,4 @@
-import { colors } from '@/lib/design-tokens';
+import { colors } from '@/lib/ui/design-tokens';
 
 const st = colors.status;
 

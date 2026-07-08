@@ -1,13 +1,13 @@
 import { Link } from 'react-router-dom';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
-import { STATUS_COLORS } from '@/components/StatusBadge';
+import { STATUS_COLORS } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { IconMapPin, IconFileText, IconRoute, IconX, IconLink } from '@tabler/icons-react';
 import { cn, resolveOrderRef, shortId } from '@/lib/utils';
 import { getDayBucket } from '@/lib/sla';
-import { showSuccessToast } from '@/lib/toast-service';
-import type { useT } from '@/lib/LocaleContext';
+import { showSuccessToast } from '@/lib/ui/toast-service';
+import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DELIVERY_ROW_H } from './constants';
 import { Spinner } from './helpers';

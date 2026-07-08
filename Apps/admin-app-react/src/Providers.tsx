@@ -2,12 +2,12 @@
 
 import { ReactNode, useState, useEffect } from 'react';
 import { QueryClient, QueryClientProvider, QueryCache } from '@tanstack/react-query';
-import { showErrorToast } from '@/lib/toast-service';
-import { Toaster } from '@/ui/feedback/Toast';
+import { showErrorToast } from '@/lib/ui/toast-service';
+import { Toaster } from '@/components/feedback/Toast';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { LocaleProvider } from '@/lib/LocaleContext';
+import { LocaleProvider } from '@/lib/i18n/LocaleContext';
 import { AuthProvider, useAuth } from 'react-oidc-context';
-import { oidcConfig, syncSession } from '@/lib/oidcConfig';
+import { oidcConfig, syncSession } from '@/lib/api/oidcConfig';
 import { registerTokenRefresher, registerLogoutHandler } from '@/lib/api';
 
 type ProvidersProps = {

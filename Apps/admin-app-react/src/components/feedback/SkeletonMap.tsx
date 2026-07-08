@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 interface SkeletonMapProps {
   /** Hauteur de la zone carte (défaut : 320px) */

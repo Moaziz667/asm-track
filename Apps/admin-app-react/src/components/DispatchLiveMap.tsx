@@ -3,8 +3,8 @@ import { MapContainer, Marker, Popup, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useIsDark } from '@/lib/theme';
-import { useLocaleContext } from '@/lib/LocaleContext';
+import { useIsDark } from '@/lib/ui/theme';
+import { useLocaleContext } from '@/lib/i18n/LocaleContext';
 import { routeColorFromMap } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────

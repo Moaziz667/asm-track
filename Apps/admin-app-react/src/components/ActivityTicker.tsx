@@ -4,7 +4,7 @@ import { useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useNotificationsState, getLocalizedNotif, type Notification } from '@/components/AlertsProvider';
 import { useLocaleStore } from '@/lib/i18n';
 import { formatElapsed } from '@/lib/sla';
-import { notifDestination } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/api/dispatch-link';
 import { cn } from '@/lib/utils';
 
 // Recent operational activity, sourced from the server-backed notifications feed

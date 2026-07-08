@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import type { Depot } from '@/types';
 
 // Query keys constant

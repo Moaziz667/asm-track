@@ -2,12 +2,12 @@
 
 import React, { useEffect, useMemo, useState, useRef, useCallback, createContext, useContext, ReactNode } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
-import { canManageRoutes, getCurrentRole } from '@/lib/auth';
+import { canManageRoutes, getCurrentRole } from '@/lib/api/auth';
 import { getBusinessDayKey } from '@/lib/sla';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import type { Driver } from '@/types';
 import type { 
   RouteItem, 

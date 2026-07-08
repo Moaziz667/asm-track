@@ -1,9 +1,9 @@
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { cn } from '@/lib/utils';
 import type { Driver, Delivery } from '@/types';
-import type { useT } from '@/lib/LocaleContext';
+import type { useT } from '@/lib/i18n/LocaleContext';
 import { DriverStatusBadge } from './DriverStatusBadge';
 import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import { SVGPencil, SVGActivity } from './icons';

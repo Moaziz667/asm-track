@@ -3,14 +3,14 @@ import {
 } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 
-import { toast } from '@/lib/toast';
+import { toast } from '@/lib/ui/toast';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { useLocaleStore } from '@/lib/i18n';
-import { FR_COPY } from '@/lib/ux-copy';
-import { EN_COPY } from '@/lib/en-copy';
-import { AR_COPY } from '@/lib/ar-copy';
-import { dget, tlabel } from '@/lib/i18n-dict';
-import { getApiError } from '@/lib/errors';
+import { FR_COPY } from '@/lib/i18n/ux-copy';
+import { EN_COPY } from '@/lib/i18n/en-copy';
+import { AR_COPY } from '@/lib/i18n/ar-copy';
+import { dget, tlabel } from '@/lib/i18n/i18n-dict';
+import { getApiError } from '@/lib/utils/errors';
 
 /** Shape of a per-event notification copy entry (title/message may be templated). */
 type NotifCopyEntry = {
@@ -18,7 +18,7 @@ type NotifCopyEntry = {
   message?: (p: Record<string, unknown>) => string;
 };
 import { api } from '@/lib/api';
-import { notifDestination } from '@/lib/dispatch-link';
+import { notifDestination } from '@/lib/api/dispatch-link';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 

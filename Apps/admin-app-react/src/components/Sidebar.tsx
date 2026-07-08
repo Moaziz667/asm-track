@@ -13,10 +13,10 @@ import {
 import {
   canManageSettings, getCurrentRole, canImportErp,
   canManageRoutes, canDispatch, canViewReadOnly
-} from '@/lib/auth';
+} from '@/lib/api/auth';
 import { AdminRole } from '@/types';
-import { useT } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAlerts } from '@/components/AlertsProvider';

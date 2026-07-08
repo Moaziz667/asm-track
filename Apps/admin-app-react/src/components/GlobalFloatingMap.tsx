@@ -5,11 +5,11 @@ import { api } from '@/lib/api';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import { getBusinessDayKey } from '@/lib/sla';
 import { createRouteColorMap, routeColorFromMap } from '@/lib/utils';
-import { useGlobalMapStore } from '@/lib/global-map-store';
+import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import DispatchLiveMap, { type MapRoute, type LiveDriver } from '@/components/DispatchLiveMap';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { useDriverAvatars } from '@/hooks/useDriverAvatars';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconMap2,
   IconX,

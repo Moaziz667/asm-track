@@ -8,9 +8,9 @@ import {
 import { useRouteReport, downloadRouteReportPdf } from './hooks/useRouteReport';
 import { REPORT_LABELS as L } from './report-labels';
 import type { RouteReport } from './report-types';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { formatMinutes } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { StatusBadge } from '@/components/data-display/StatusBadge';

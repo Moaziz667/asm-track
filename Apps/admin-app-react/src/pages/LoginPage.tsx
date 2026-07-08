@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { IconAlertCircle, IconSun, IconMoon } from '@tabler/icons-react';
-import { useT, useLocaleContext } from '@/lib/LocaleContext';
+import { useT, useLocaleContext } from '@/lib/i18n/LocaleContext';
 import LanguageSelector from '@/components/LanguageSelector';
 import { useAuth } from 'react-oidc-context';
 import { safeStorage } from '@/lib/storage';

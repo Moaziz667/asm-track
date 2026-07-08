@@ -8,9 +8,9 @@ import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ConditionPill } from '@/components/data-display/ConditionPill';
 import { Button } from '@/components/ui/button';
 import { formatMoney } from '@/lib/utils';
-import { tlabel } from '@/lib/i18n-dict';
-import type { useT } from '@/lib/LocaleContext';
-import { NEXT, STATUS_TOKENS, TRANSITION_ICON, type Rma, type RmaStatus } from '@/pages/ReturnsPage';
+import { tlabel } from '@/lib/i18n/i18n-dict';
+import type { useT } from '@/lib/i18n/LocaleContext';
+import { NEXT, STATUS_TOKENS, TRANSITION_ICON, type Rma, type RmaStatus } from '@/pages/returns/ReturnsPage';
 
 type Copy = ReturnType<typeof useT>;
 

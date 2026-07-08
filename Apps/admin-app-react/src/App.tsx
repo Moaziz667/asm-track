@@ -4,40 +4,40 @@ import Providers from './Providers';
 import AppShell from '@/components/AppShell';
 import { ProtectedRoute, PublicRoute, RoleRoute } from './components/auth/ProtectedRoute';
 import { PublicLayout } from './layouts/PublicLayout';
-import type { AdminRole } from '@/lib/auth';
+import type { AdminRole } from '@/lib/api/auth';
 
 // Public Pages
 import LoginPage from './pages/LoginPage';
 import CallbackPage from './pages/CallbackPage';
-import TrackDeliveryPage from './pages/TrackDeliveryPage';
+import TrackDeliveryPage from './pages/track-delivery/TrackDeliveryPage';
 
 // Protected Pages (light, loaded eagerly)
-import DashboardPage from './pages/DashboardPage';
-import DeliveriesPage from './pages/DeliveriesPage';
-import NotificationsPage from './pages/NotificationsPage';
+import DashboardPage from './pages/dashboard/DashboardPage';
+import DeliveriesPage from './pages/deliveries/DeliveriesPage';
+import NotificationsPage from './pages/notifications/NotificationsPage';
 import ErrorBoundary from './components/ErrorBoundary';
 import NotFound from './pages/NotFound';
 
 // Lazy-loaded pages (heavy deps: maps, charts, xlsx, drag-and-drop, editors)
-const DeliveryDetailsPage = lazy(() => import('./pages/DeliveryDetailsPage'));
-const RoutesTablePage = lazy(() => import('./pages/RoutesTablePage'));
-const DriversPage = lazy(() => import('./pages/DriversPage'));
-const VehiclesPage = lazy(() => import('./pages/VehiclesPage'));
-const DepotsPage = lazy(() => import('./pages/DepotsPage'));
-const SchedulePage = lazy(() => import('./pages/SchedulePage'));
-const OverviewCalendarPage = lazy(() => import('./pages/OverviewCalendarPage'));
-const ReturnsPage = lazy(() => import('./pages/ReturnsPage'));
-const FailureReasonsPage = lazy(() => import('./pages/FailureReasonsPage'));
-const SystemHealthPage = lazy(() => import('./pages/SystemHealthPage'));
-const PerformancePage = lazy(() => import('./pages/PerformancePage'));
-const SettingsPage = lazy(() => import('./pages/SettingsPage'));
-const ErpIntegrationPage = lazy(() => import('./pages/ErpIntegrationPage'));
-const AuditLogsPage = lazy(() => import('./pages/AuditLogsPage'));
-const ImportPage = lazy(() => import('./pages/ImportPage'));
+const DeliveryDetailsPage = lazy(() => import('./pages/deliveries/DeliveryDetailsPage'));
+const RoutesTablePage = lazy(() => import('./pages/routes-table/RoutesTablePage'));
+const DriversPage = lazy(() => import('./pages/drivers/DriversPage'));
+const VehiclesPage = lazy(() => import('./pages/vehicles/VehiclesPage'));
+const DepotsPage = lazy(() => import('./pages/depots/DepotsPage'));
+const SchedulePage = lazy(() => import('./pages/schedule/SchedulePage'));
+const OverviewCalendarPage = lazy(() => import('./pages/overview/OverviewCalendarPage'));
+const ReturnsPage = lazy(() => import('./pages/returns/ReturnsPage'));
+const FailureReasonsPage = lazy(() => import('./pages/failure-reasons/FailureReasonsPage'));
+const SystemHealthPage = lazy(() => import('./pages/system-health/SystemHealthPage'));
+const PerformancePage = lazy(() => import('./pages/performance/PerformancePage'));
+const SettingsPage = lazy(() => import('./pages/settings/SettingsPage'));
+const ErpIntegrationPage = lazy(() => import('./pages/settings/ErpIntegrationPage'));
+const AuditLogsPage = lazy(() => import('./pages/audit-logs/AuditLogsPage'));
+const ImportPage = lazy(() => import('./pages/import/ImportPage'));
 const DispatchDeskPage = lazy(() => import('./pages/dispatch-desk/DispatchDeskPage'));
 const RouteBuilderPage = lazy(() => import('./pages/route-builder/RouteBuilderPage'));
-const RouteDetailsPage = lazy(() => import('./pages/RouteDetailsPage'));
-const ZonesPage = lazy(() => import('./pages/ZonesPage'));
+const RouteDetailsPage = lazy(() => import('./pages/route-details/RouteDetailsPage'));
+const ZonesPage = lazy(() => import('./pages/zones/ZonesPage'));
 
 // ── Role groups (mirrors lib/auth capability predicates) ─────────────────────
 const ALL: AdminRole[] = ['ADMIN', 'DISPATCHER', 'MANAGER'];
@@ -117,7 +117,7 @@ const router = createBrowserRouter([
       { path: "/performance", element: guard(ALL, <PerformancePage />) },
       { path: "/settings", element: guard(ADMIN_ONLY, <SettingsPage />) },
       { path: "/settings/erp", element: guard(ADMIN_ONLY, <ErpIntegrationPage />) },
-      { path: "/audit-logs", element: guard(ADMIN_ONLY, <AuditLogsPage />) },
+      { path: "/audit-logs", element: guard(DISPATCH, <AuditLogsPage />) },
       { path: "/import", element: guard(DISPATCH, <ImportPage />) },
       { path: "/notifications", element: guard(ALL, <NotificationsPage />) },
       { path: "/zones", element: guard(DISPATCH, <ZonesPage />) },

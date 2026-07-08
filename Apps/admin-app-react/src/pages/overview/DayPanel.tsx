@@ -7,7 +7,7 @@ import { IconPackage, IconRoute, IconAlertTriangle, IconClockHour4, IconCircleCh
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { cn, formatMoney } from '@/lib/utils';
-import type { useT } from '@/lib/LocaleContext';
+import type { useT } from '@/lib/i18n/LocaleContext';
 import type { RouteItem } from '@/hooks/useRoutes';
 import { CalDelivery, TERMINAL, startOfToday } from './shared';
 

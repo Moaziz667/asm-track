@@ -1,6 +1,6 @@
 import { IconCircleCheck, IconClockExclamation, IconAlertTriangle, IconCircle } from '@tabler/icons-react';
-import { useT } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 
 /**
  * Compact SLA health chip for list rows — reads the backend's single (phase, health) truth.

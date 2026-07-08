@@ -1,6 +1,6 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import type { TranslationSchema } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { Link } from 'react-router-dom';
 import { IconClock, IconArrowRight, IconX } from '@tabler/icons-react';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';

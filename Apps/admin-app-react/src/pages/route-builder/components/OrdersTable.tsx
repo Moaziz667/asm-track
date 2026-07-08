@@ -5,7 +5,7 @@ import { useDraggable } from '@dnd-kit/core';
 import { DroppableZone } from './DroppableZone';
 import { DeliveryOption } from '../types';
 import { resolveOrderRef, shortId } from '@/lib/utils';
-import { showErrorToast } from '@/lib/toast-service';
+import { showErrorToast } from '@/lib/ui/toast-service';
 
 /** A delivery whose ERP warehouse has no synced depot cannot be routed (no source depot). */
 export const isUnmappedDelivery = (d: DeliveryOption): boolean =>
@@ -15,7 +15,7 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 import { Button } from '@/components/ui/button';
 import { FieldSelect } from '@/components/ui/field';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { useRouteBuilderContext } from '../hooks/useRouteBuilder';
 
 function DraggableOrderRow({

@@ -7,7 +7,7 @@ import { usePatchDepotLocation } from '@/hooks/useDepots';
 import type { Depot } from '@/types';
 import { api } from '@/lib/api';
 
-import { useIsDark } from '@/lib/theme';
+import { useIsDark } from '@/lib/ui/theme';
 
 // ── Draggable marker that also responds to map clicks ──────────────────────────
 

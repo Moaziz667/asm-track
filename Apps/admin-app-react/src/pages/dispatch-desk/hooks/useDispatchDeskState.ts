@@ -2,11 +2,11 @@ import React, { createContext, useContext, useCallback, useEffect, useMemo, useR
 import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import type { Driver, Delivery, Zone } from '@/types';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { useGlobalFilters } from '@/lib/global-filters';
-import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/auth';
-import { usePageBreadcrumb } from '@/lib/breadcrumb';
-import { useT } from '@/lib/LocaleContext';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { useGlobalFilters } from '@/lib/state/global-filters';
+import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/api/auth';
+import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
 
 import type { OpsException, OpsExceptionResponse, Period, ActionKind, DispatchTab, PendingAction, QueueRow } from '../types';

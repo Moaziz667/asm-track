@@ -4,8 +4,8 @@ import { ReactNode } from 'react';
 import { IconTruck } from '@tabler/icons-react';
 import { Progress } from '@/components/ui/progress';
 import { cn, formatMinutes } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
-import styles from '@/styles/route-details.module.scss';
+import { useT } from '@/lib/i18n/LocaleContext';
+import styles from '@/pages/route-details/route-details.module.scss';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 
 interface KpiCardProps {

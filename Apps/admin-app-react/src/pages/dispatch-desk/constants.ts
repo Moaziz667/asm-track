@@ -1,4 +1,4 @@
-import type { TranslationSchema } from '@/lib/LocaleContext';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import type { DeliveryStatus } from '@/types';
 
 export const REASSIGNABLE_STATUSES: DeliveryStatus[] = ['UNSCHEDULED', 'SCHEDULED', 'PICKED_UP', 'IN_TRANSIT'];

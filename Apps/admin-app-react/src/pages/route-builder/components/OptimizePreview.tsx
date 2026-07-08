@@ -12,7 +12,7 @@ import {
 } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 interface OptimizePreviewRow {
   key: string;

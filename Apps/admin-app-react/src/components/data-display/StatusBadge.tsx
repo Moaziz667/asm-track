@@ -1,7 +1,7 @@
 
 
-import { useT } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import {
   IconPencil, IconChecks, IconPlayerPlay, IconCircleCheck, IconCircleMinus, IconBan, IconCircleX,
   IconAlertTriangle, IconCalendarOff, IconCalendarCheck, IconPackage, IconTruckDelivery,
@@ -203,4 +203,27 @@ export function StatusBadge({ status, label, size = 'md', pulse }: StatusBadgePr
     </span>
   );
 }
+
+/** Colour map for ribbon indicators and map markers. */
+export const STATUS_COLORS: Record<string, string> = {
+  UNSCHEDULED:         '#C4881A',
+  SCHEDULED:           '#5E6AD2',
+  PICKED_UP:           '#2594B8',
+  IN_TRANSIT:          '#D4772C',
+  AWAITING_HANDOFF:    '#C4881A',
+  DELIVERED:           '#4CAF82',
+  PARTIALLY_DELIVERED: '#7B6FCC',
+  PARTIAL:             '#7B6FCC',
+  CANCELLED:           '#8A8F98',
+  FAILED:              '#C7372F',
+  FAILED_ATTEMPT:      '#C7372F',
+  SLA_BREACH:          '#C7372F',
+  DRAFT:               '#8A8F98',
+  VALIDATED:           '#5E6AD2',
+  IN_PROGRESS:         '#5E6AD2',
+  CLOSED:              '#4CAF82',
+  COMPLETED:           '#4CAF82',
+  REMOVED_REPLANNED:   '#C4881A',
+  REMOVED_CANCELLED:   '#8A8F98',
+};
 

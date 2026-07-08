@@ -4,7 +4,7 @@ import { IconRoute, IconLock, IconLockOpen } from '@tabler/icons-react';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@/components/ui/table';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 const formatKm = (m?: number) => (!m || m <= 0 ? '—' : `${(m / 1000).toFixed(1)} km`);
 const formatMin = (s?: number) => {

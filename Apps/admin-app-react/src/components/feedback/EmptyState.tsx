@@ -1,7 +1,7 @@
 
 import React from 'react';
 import { Button } from '@/components/ui/button';
-import { tw } from '@/lib/typography';
+import { tw } from '@/lib/ui/typography';
 
 interface EmptyStateProps {
   icon?: React.ReactNode;

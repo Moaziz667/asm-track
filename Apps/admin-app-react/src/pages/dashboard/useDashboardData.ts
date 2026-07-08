@@ -3,32 +3,38 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { AdminOpsOverview, DashboardStats, DeliveryStatus, Driver } from '@/types';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { useRoutes } from '@/hooks/useRoutes';
 import { getBusinessDayKey } from '@/lib/sla';
-import { deriveHealthSummary } from '@/lib/system-health';
-import { useGlobalMapStore } from '@/lib/global-map-store';
+import { deriveHealthSummary } from '@/lib/health/system-health';
+import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { DISPATCH_STATUSES, DASHBOARD_EVENTS, STATUS_TONE_MAP } from './constants';
 
-type Period = 'day' | 'week' | 'month' | 'all';
+export type Range = 'today' | 'yesterday' | 'last7d' | 'last30d' | 'custom';
 
 /** All data + derived metrics for the dashboard. Extracted from DashboardPage so the page is a
  *  pure layout/orchestrator. Source of truth = REST via React Query; realtime events only
- *  invalidate (debounced), so KPIs self-heal from the server. */
-export function useDashboardData(period: Period) {
+ *  invalidate (debounced), so KPIs self-heal from the server.
+ *  Only the stats/analytics half honors the date range; the live half (à-traiter, pulse) is "now". */
+export function useDashboardData(range: Range, from?: string, to?: string) {
   const t = useT();
   const queryClient = useQueryClient();
   const connected = useRealtimeStatus();
 
+  // Granular date params: custom sends explicit from/to, presets send the range key.
+  const dateParams: Record<string, string> = range === 'custom' && from && to
+    ? { from: `${from}T00:00:00`, to: `${to}T23:59:59` }
+    : { range };
+
   const { data: dash, isFetching: refreshing, isLoading, refetch } = useQuery({
-    queryKey: ['dashboard-overview', period],
+    queryKey: ['dashboard-overview', range, from ?? '', to ?? ''],
     queryFn: async () => {
       const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
-        api.get('/api/admin/deliveries/stats', { params: { period } }),
-        api.get('/api/admin/ops/overview', { params: { period, limit: 1000 } }),
+        api.get('/api/admin/deliveries/stats', { params: { ...dateParams } }),
+        api.get('/api/admin/ops/overview', { params: { ...dateParams } }),
         api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
-        api.get('/api/admin/reports/dashboard', { params: { period } }).catch(() => ({ data: null })),
+        api.get('/api/admin/reports/dashboard', { params: { ...dateParams, compare: true } }).catch(() => ({ data: null })),
         api.get('/api/admin/system/health').catch(() => ({ data: null })),
       ]);
       const driversData = driversRes.data;

@@ -2,12 +2,12 @@ import React from 'react';
 import {
   IconPackage, IconUser, IconRoute, IconMapPin, IconCalendar, IconClock,
 } from '@tabler/icons-react';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { getDayBucket } from '@/lib/sla';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import type { DeliveryStatus } from '@/types';
-import type { TranslationSchema } from '@/lib/LocaleContext';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 
 // Loose queue-card row shape (dashboard summary + nested sub-deliveries for lots).
 export type CardItem = {

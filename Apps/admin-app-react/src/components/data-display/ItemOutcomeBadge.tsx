@@ -1,7 +1,7 @@
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { IconInfoCircle } from '@tabler/icons-react';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 /**
  * Per-line delivery outcome, rendered identically on the route page and the delivery-details page:

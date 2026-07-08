@@ -1,5 +1,5 @@
 import React from 'react';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { formatMoney, formatMinutes as fmtMins } from '@/lib/utils';
 import { Delivery, DeliveryItem, ProofOfDelivery } from '@/types';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,7 @@ import { ArticlesTable } from '@/components/data-display/ArticlesTable';
 import { DriverNote } from '@/components/data-display/DriverNote';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import stopTabsStyles from '@/styles/stop-tabs.module.scss';
+import stopTabsStyles from './stop-tabs.module.scss';
 import { fmtLong, fmtTimeWindow, mediaSrc } from './helpers';
 import { STOP_STATUS, REMOVABLE_STOP_STATUSES } from './constants';
 import type { RouteDetail, RouteStop } from './types';

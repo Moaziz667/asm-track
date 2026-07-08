@@ -1,6 +1,6 @@
 import React, { Suspense } from 'react';
 import { Link } from 'react-router-dom';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ReplanModal } from './ReplanModal';
 import { AppLoader } from '@/components/AppLoader';
 import { Button } from '@/components/ui/button';

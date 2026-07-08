@@ -7,7 +7,7 @@ import { RealtimeProvider } from './RealtimeProvider';
 import SessionRevocationWatcher from './SessionRevocationWatcher';
 import TopNav from './TopNav';
 import { AppSidebar } from './Sidebar';
-import { BreadcrumbProvider } from '@/lib/breadcrumb';
+import { BreadcrumbProvider } from '@/lib/ui/breadcrumb';
 import { SidebarProvider, SidebarInset } from './ui/sidebar';
 import GlobalFloatingMap from './GlobalFloatingMap';
 

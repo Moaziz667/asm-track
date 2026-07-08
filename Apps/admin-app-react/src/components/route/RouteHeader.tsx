@@ -5,8 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { IconArrowLeft, IconRefresh } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
-import styles from '@/styles/route-details.module.scss';
+import { useT } from '@/lib/i18n/LocaleContext';
+import styles from '@/pages/route-details/route-details.module.scss';
 
 interface RouteHeaderProps {
   routeName: string;

@@ -1,11 +1,11 @@
 import { type ReactNode } from 'react';
 import { IconCheck, IconChevronRight, IconTruck } from '@tabler/icons-react';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { FieldTextarea } from '@/components/ui/field';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
-import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
+import { DRIVER_STATUS_COLOR } from '@/lib/ui/design-tokens';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import type { Driver } from '@/types';
 import type { RouteData, NearestInfo, Cfg, ReassignTarget } from './types';
 import { fmtEta, fmtKm, fmtSeen } from './helpers';

@@ -1,7 +1,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useLocaleStore, type Locale } from '@/lib/i18n';
-import { useLocaleContext } from '@/lib/LocaleContext';
+import { useLocaleContext } from '@/lib/i18n/LocaleContext';
 
 // Circular, pixel-perfect SVGs for Arabic (AR — Pan-Arab flag), France (FR), United States (EN)
 export const ARFlag = () => (

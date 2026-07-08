@@ -5,7 +5,7 @@ import { IconCalendarStats } from '@tabler/icons-react';
 import { colorForRouteIndex, useRouteBuilderContext } from '../hooks/useRouteBuilder';
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 const HOUR_WIDTH = 64; // px per hour
 const LANE_HEIGHT = 36;

@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { startOfMonth, endOfMonth, startOfWeek, endOfWeek, addDays, format, isSameMonth, isSameDay, isBefore } from 'date-fns';
 import { IconRoute, IconAlertTriangle } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import type { useT } from '@/lib/LocaleContext';
+import type { useT } from '@/lib/i18n/LocaleContext';
 import type { RouteItem } from '@/hooks/useRoutes';
 import { CalDelivery, STATUS_TONE_MAP, TONE_VAR, isoDay } from './shared';
 import { DayPanel } from './DayPanel';

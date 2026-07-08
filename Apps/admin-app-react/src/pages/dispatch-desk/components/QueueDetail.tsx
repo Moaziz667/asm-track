@@ -6,7 +6,7 @@ import { IconAssign, IconReassign, IconReplan, IconCall } from '@/components/ico
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
 import SlaTimeline from '@/components/data-display/SlaTimeline';
 import { ArticlesTable } from '@/components/data-display/ArticlesTable';

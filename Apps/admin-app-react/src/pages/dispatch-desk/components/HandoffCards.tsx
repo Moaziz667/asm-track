@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import type { TranslationSchema } from '@/lib/LocaleContext';
-import { tlabel } from '@/lib/i18n-dict';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { Link } from 'react-router-dom';
 import {
   IconClock, IconX, IconChevronDown, IconMapPin, IconCheck,

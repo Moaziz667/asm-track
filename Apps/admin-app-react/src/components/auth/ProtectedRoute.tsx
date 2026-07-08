@@ -1,8 +1,8 @@
 import { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from 'react-oidc-context';
-import { AdminRole, getCurrentRole } from '@/lib/auth';
-import { Forbidden } from '@/pages/Forbidden';
+import { AdminRole, getCurrentRole } from '@/lib/api/auth';
+import { Forbidden } from '@/pages/auth/Forbidden';
 
 interface ProtectedRouteProps {
   children: ReactNode;

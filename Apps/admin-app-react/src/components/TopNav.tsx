@@ -1,6 +1,6 @@
 
 
-import type { TranslationSchema } from '@/lib/LocaleContext';
+import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { useLocation } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
@@ -12,7 +12,7 @@ import {
   IconCalendarEvent, IconChevronRight, IconSun, IconMoon,
   IconChevronDown, IconUserCircle, IconLogout,
 } from '@tabler/icons-react';
-import { useGlobalMapStore } from '@/lib/global-map-store';
+import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
@@ -21,13 +21,13 @@ import {
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import AlertBell from './AlertBell';
 import GlobalSearch from './GlobalSearch';
-import { getCurrentRole } from '@/lib/auth';
-import { useCurrentUser } from '@/lib/useCurrentUser';
+import { getCurrentRole } from '@/lib/api/auth';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { AdminRole } from '@/types';
-import { useBreadcrumb } from '@/lib/breadcrumb';
+import { useBreadcrumb } from '@/lib/ui/breadcrumb';
 import { GROUP_DEFS } from './Sidebar';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import LanguageSelector from './LanguageSelector';
 
 // Breadcrumbs are derived from GROUP_DEFS — the SAME structure the sidebar renders — so

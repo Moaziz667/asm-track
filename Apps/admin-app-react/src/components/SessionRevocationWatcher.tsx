@@ -1,8 +1,8 @@
 import { useRef } from 'react';
 import { useAuth } from 'react-oidc-context';
 import { useRealtimeEvent } from './RealtimeProvider';
-import { showErrorToast } from '@/lib/toast-service';
-import { useT } from '@/lib/LocaleContext';
+import { showErrorToast } from '@/lib/ui/toast-service';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 /**
  * S2 of the force-logout fix: listens for a `session.revoked` realtime event and, if it targets the

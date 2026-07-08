@@ -3,7 +3,7 @@ import { useEffect, useMemo } from 'react';
 import { MapContainer, Marker, Popup, useMap, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { useIsDark } from '@/lib/theme';
+import { useIsDark } from '@/lib/ui/theme';
 import type { Depot } from '@/types';
 
 type Props = {

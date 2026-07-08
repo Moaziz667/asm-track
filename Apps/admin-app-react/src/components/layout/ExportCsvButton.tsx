@@ -1,6 +1,6 @@
 import { ExcelIcon } from '@/components/icons/ExcelIcon';
-import { exportCsv, type CsvColumn } from '@/lib/csv';
-import { useT } from '@/lib/LocaleContext';
+import { exportCsv, type CsvColumn } from '@/lib/utils/csv';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 /**
  * Exports the rows it's given (the caller passes the already-filtered/visible list) to a CSV

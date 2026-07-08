@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/api';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
-import { getApiError } from '@/lib/errors';
-import { tlabel } from '@/lib/i18n-dict';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import { getApiError } from '@/lib/utils/errors';
+import { tlabel } from '@/lib/i18n/i18n-dict';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { IconPencil, IconBan, IconCheck, IconChevronUp, IconChevronDown, IconSelector } from '@tabler/icons-react';
 import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings, ColumnDef } from '@/hooks/useColumnSettings';

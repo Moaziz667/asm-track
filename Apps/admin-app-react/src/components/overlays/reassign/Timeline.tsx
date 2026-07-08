@@ -1,6 +1,6 @@
 import { IconCheck, IconCornerDownRight, IconMapPin, IconPackage } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import type { Stop, ReassignTarget } from './types';
 import { DONE, CURRENT, winLabel } from './helpers';
 

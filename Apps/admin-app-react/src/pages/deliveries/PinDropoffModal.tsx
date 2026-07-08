@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, lazy as dynamic } from 'react';
 import { api } from '@/lib/api';
-import { useT } from '@/lib/LocaleContext';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { useT } from '@/lib/i18n/LocaleContext';
+import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { AppModal } from '@/components/overlays/AppModal';
 import { AppLoader } from '@/components/AppLoader';
 import { FieldInput } from '@/components/ui/field';

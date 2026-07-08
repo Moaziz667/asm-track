@@ -1,9 +1,9 @@
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from '@/components/ui/dropdown-menu';
-import StatusBadge from '@/components/StatusBadge';
+import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { DriverAvatar } from '@/components/data-display/DriverAvatar';
 import { cn } from '@/lib/utils';
 import type { Driver } from '@/types';
-import type { useT } from '@/lib/LocaleContext';
+import type { useT } from '@/lib/i18n/LocaleContext';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 import { DRIVER_STATUS_COLORS } from './constants';
 import { DriverStatusBadge } from './DriverStatusBadge';

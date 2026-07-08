@@ -1,5 +1,5 @@
 import { IconCircleCheck, IconCircleX, IconClock } from '@tabler/icons-react';
-import { useT } from '@/lib/LocaleContext';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { DRIVER_STATUS_COLORS } from './constants';
 
 interface Props {
