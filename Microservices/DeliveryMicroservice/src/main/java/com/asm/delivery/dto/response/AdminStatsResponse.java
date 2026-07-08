@@ -16,8 +16,6 @@ public class AdminStatsResponse {
     private TodayStats today;
     private List<DriverStats> byDriver;
     private List<FailureStats> byFailureCode;
-    private List<CityStats> byCity;
-    private List<ClientStats> byClient;
     private List<ItemStats> topItems;
 
     @Data
@@ -75,27 +73,4 @@ public class AdminStatsResponse {
         private long count;
     }
 
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class CityStats {
-        private String city;
-        private long total;
-        private long delivered;
-        private long failed;
-        private double successRate;
-    }
-
-    @Data
-    @Builder
-    @NoArgsConstructor
-    @AllArgsConstructor
-    public static class ClientStats {
-        private String clientName;
-        private long total;
-        private long delivered;
-        private long failed;
-        private double successRate;
-    }
 }

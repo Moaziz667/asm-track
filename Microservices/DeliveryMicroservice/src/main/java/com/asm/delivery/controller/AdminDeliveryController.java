@@ -257,28 +257,27 @@ public class AdminDeliveryController {
     }
 
     @GetMapping("/stats")
-    @Operation(summary = "Aggregated delivery stats", description = "Returns per-driver delivery counts, failure rates, and COD totals for the requested period.")
+    @Operation(summary = "Aggregated delivery stats",
+            description = "Per-driver counts, failure rates, and cycle times. Accepts the unified analytics "
+                    + "query: granular date (range/last/from/to), and server-side scope (driverId, zone).")
     public ResponseEntity<AdminStatsResponse> stats(
-            @Parameter(description = "Time period", schema = @Schema(allowableValues = {"day", "week", "month", "year"}), example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
-            @Parameter(description = "Start date (overrides period)", example = "2026-05-01")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @Parameter(description = "End date (overrides period)", example = "2026-05-13")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
-        return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofSeconds(30))
+                        .staleWhileRevalidate(java.time.Duration.ofSeconds(120)).cachePrivate())
+                .body(opsAnalyticsService.getStats(query));
     }
 
     @GetMapping("/ops-overview")
-    @Operation(summary = "Operations-ready overview: SLA, dispatch lanes, and exceptions")
+    @Operation(summary = "Operations-ready overview: SLA, dispatch lanes, and exceptions",
+            description = "Unified analytics query: granular date (range/last/from/to) + server-side scope (driverId, zone).")
     public ResponseEntity<AdminOpsOverviewResponse> opsOverview(
-            @RequestParam(required = false, defaultValue = "day") String period,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            Integer waitingSlaMinutes,
-            Integer transitSlaMinutes
+            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
-        return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(opsAnalyticsService.getOpsOverview(query));
     }
 
     @GetMapping("/{id}/history")

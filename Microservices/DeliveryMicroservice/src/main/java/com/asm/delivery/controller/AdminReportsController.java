@@ -1,9 +1,7 @@
 package com.asm.delivery.controller;
 
-import com.asm.delivery.dto.response.AdminStatsResponse;
 import com.asm.delivery.dto.response.DashboardKpiResponse;
 import com.asm.delivery.security.UserPrincipal;
-import com.asm.delivery.service.analytics.OpsAnalyticsService;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.AnalyticsPdfService;
 import com.asm.delivery.service.DriverPerformancePdfService;
@@ -34,22 +32,26 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class AdminReportsController {
 
-    private final OpsAnalyticsService        opsAnalyticsService;
     private final ReportingService           reportingService;
     private final com.asm.delivery.service.SystemSettingsService systemSettingsService;
     private final AuditLogService            auditLogService;
     private final AnalyticsPdfService        analyticsPdfService;
     private final DriverPerformancePdfService driverPerformancePdfService;
+    private final com.asm.delivery.service.analytics.DriverPerformanceService driverPerformanceService;
+
+    /** Stats freshness: instant from cache, revalidated in the background (analytical, not live). */
+    private static final org.springframework.http.CacheControl STATS_CACHE =
+            org.springframework.http.CacheControl.maxAge(java.time.Duration.ofSeconds(30))
+                    .staleWhileRevalidate(java.time.Duration.ofSeconds(120))
+                    .cachePrivate();
 
     @GetMapping("/dashboard")
     @Operation(summary = "Indicateurs de Performance (KPIs) de l'entreprise", 
                description = "Fournit les données de succès (SLA Compliance), volumes et statistiques de retard.")
     public ResponseEntity<DashboardKpiResponse> getDashboard(
-            @RequestParam(required = false, defaultValue = "day") String period,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
-        return ResponseEntity.ok(reportingService.getGlobalKpis(period, from, to));
+        return ResponseEntity.ok().cacheControl(STATS_CACHE).body(reportingService.getGlobalKpis(query));
     }
 
     @GetMapping("/settings")
@@ -72,14 +74,18 @@ public class AdminReportsController {
         return ResponseEntity.ok().build();
     }
 
-    @GetMapping("/kpi")
-    @Operation(summary = "Get KPI report payload for admin dashboard")
-    public ResponseEntity<AdminStatsResponse> kpi(
-            @RequestParam(required = false, defaultValue = "day") String period,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    // NOTE: /reports/kpi removed — it duplicated /api/admin/deliveries/stats (same getStats payload).
+    // The Analyse page now calls /deliveries/stats directly.
+
+    @GetMapping("/drivers")
+    @Operation(summary = "Driver performance scorecards (leaderboard + drilldown)",
+            description = "Per-driver volume, success rate, on-time rate, avg delay, top motif and vs-previous "
+                    + "deltas. Unified analytics query: granular date (range/last/from/to), compare, and scope "
+                    + "(zone/status/motif). Set driverId to get a single-driver drilldown with a daily trend.")
+    public ResponseEntity<com.asm.delivery.dto.response.DriverScorecardResponse> driverScorecards(
+            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
-        return ResponseEntity.ok(opsAnalyticsService.getStats(period, from, to));
+        return ResponseEntity.ok().cacheControl(STATS_CACHE).body(driverPerformanceService.scorecards(query));
     }
 
     @GetMapping("/analytics/pdf")

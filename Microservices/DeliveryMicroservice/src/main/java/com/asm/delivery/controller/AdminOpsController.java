@@ -61,18 +61,11 @@ public class AdminOpsController {
         description = "Returns a single consolidated payload used by the operations dashboard: SLA compliance rate, dispatch lane counters, top exceptions, and recent alerts. Designed to be polled every 30–60 seconds."
     )
     public ResponseEntity<AdminOpsOverviewResponse> overview(
-            @Parameter(description = "Time period", schema = @Schema(allowableValues = {"day","week","month","year"}), example = "day")
-            @RequestParam(required = false, defaultValue = "day") String period,
-            @Parameter(description = "Start date (overrides period)", example = "2026-05-01")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @Parameter(description = "End date (overrides period)", example = "2026-05-13")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @Parameter(description = "Waiting SLA threshold in minutes (overrides company default)", example = "30")
-            Integer waitingSlaMinutes,
-            @Parameter(description = "Transit SLA threshold in minutes (overrides company default)", example = "60")
-            Integer transitSlaMinutes
+            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
-        return ResponseEntity.ok(opsAnalyticsService.getOpsOverview(period, from, to, waitingSlaMinutes, transitSlaMinutes));
+        return ResponseEntity.ok()
+                .cacheControl(org.springframework.http.CacheControl.noStore())
+                .body(opsAnalyticsService.getOpsOverview(query));
     }
 
     @GetMapping("/lanes")

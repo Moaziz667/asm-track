@@ -39,43 +39,45 @@ public class ReportingService {
     private final AuditLogRepository auditLogRepository;
     private final DelayCalculationService delayCalculationService;
     private final ZoneRepository zoneRepository;
+    private final com.asm.delivery.service.analytics.filter.PeriodResolver periodResolver;
 
+    /** Legacy entry point (period + date-only from/to) — delegates to the unified query. */
     public DashboardKpiResponse getGlobalKpis(String period, LocalDate from, LocalDate to) {
-        LocalDateTime now = LocalDateTime.now();
+        com.asm.delivery.dto.analytics.AnalyticsQuery q = new com.asm.delivery.dto.analytics.AnalyticsQuery();
+        q.setPeriod(period);
+        if (from != null) q.setFrom(from.atStartOfDay());
+        if (to != null) q.setTo(to.atTime(java.time.LocalTime.MAX));
+        return getGlobalKpis(q);
+    }
 
-        // 0. Resolve the current window [start, end] and the immediately preceding
-        //    window of equal length for period-over-period deltas.
-        final LocalDateTime start;
-        final LocalDateTime end;
-        if (from != null) {
-            start = from.atStartOfDay();
-            end = (to != null) ? to.atTime(23, 59, 59) : now;
-        } else {
-            end = now;
-            switch (period == null ? "day" : period.toLowerCase()) {
-                case "all"   -> start = LocalDate.of(2000, 1, 1).atStartOfDay();
-                case "week"  -> start = LocalDate.now().with(DayOfWeek.MONDAY).atStartOfDay();
-                case "month" -> start = LocalDate.now().withDayOfMonth(1).atStartOfDay();
-                default      -> start = LocalDate.now().atStartOfDay();
-            }
-        }
+    public DashboardKpiResponse getGlobalKpis(com.asm.delivery.dto.analytics.AnalyticsQuery query) {
+        LocalDateTime now = periodResolver.now();
 
-        Duration windowLength = Duration.between(start, end);
-        LocalDateTime prevEnd = start.minusSeconds(1);
-        LocalDateTime prevStart = prevEnd.minus(windowLength);
+        // 0. Resolve the current window (Tunis-anchored, granular) + the preceding window for deltas.
+        com.asm.delivery.service.analytics.filter.PeriodRange pr = periodResolver.resolve(
+                query.getRange() != null ? query.getRange() : query.getPeriod(),
+                query.getLast(), query.getFrom(), query.getTo(), query.getGranularity(), true);
+        final LocalDateTime start = pr.start();
+        final LocalDateTime end = pr.end();
+
+        // Server-side scope (null = no filter)
+        final UUID driverId = query.getDriverId();
+        final UUID zoneId = resolveZoneId(query.getZone());
 
         // 1. Volumes (SQL COUNT, indexed on the reference date)
-        long ordersInPeriod = deliveryRepository.countInRange(start, end);
-        long previousPeriodOrders = deliveryRepository.countInRange(prevStart, prevEnd);
+        long ordersInPeriod = deliveryRepository.countInRangeFiltered(start, end, driverId, zoneId);
+        long previousPeriodOrders = pr.hasComparison()
+                ? deliveryRepository.countInRangeFiltered(pr.prevStart(), pr.prevEnd(), driverId, zoneId) : 0L;
 
         // 2. SLA / average delay — load only completed deliveries in each window
-        SlaSummary current = summariseSla(start, end, now);
-        SlaSummary previous = summariseSla(prevStart, prevEnd, now);
+        SlaSummary current = summariseSla(start, end, now, driverId, zoneId);
+        SlaSummary previous = pr.hasComparison()
+                ? summariseSla(pr.prevStart(), pr.prevEnd(), now, driverId, zoneId) : current;
 
         // 3. Most active zones (SQL GROUP BY, mapped to names in memory)
         Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
-        Map<String, Long> ordersByZone = deliveryRepository.countByZoneInRange(start, end).stream()
+        Map<String, Long> ordersByZone = deliveryRepository.countByZoneInRangeFiltered(start, end, driverId, zoneId).stream()
                 .filter(row -> zoneNameById.containsKey((UUID) row[0]))
                 .collect(Collectors.toMap(
                         row -> zoneNameById.get((UUID) row[0]),
@@ -114,9 +116,17 @@ public class ReportingService {
                 .collect(Collectors.toList());
     }
 
-    /** SLA compliance + average delay over completed deliveries in a window. */
-    private SlaSummary summariseSla(LocalDateTime start, LocalDateTime end, LocalDateTime now) {
-        List<Delivery> completed = deliveryRepository.findCompletedInRange(COMPLETED_STATUSES, start, end);
+    /** Resolve a zone name to its id; null/blank or unknown yields null (no filter). */
+    private UUID resolveZoneId(String zoneName) {
+        if (zoneName == null || zoneName.isBlank()) return null;
+        return zoneRepository.findAll().stream()
+                .filter(z -> zoneName.trim().equalsIgnoreCase(z.getName()))
+                .map(Zone::getId).findFirst().orElse(null);
+    }
+
+    /** SLA compliance + average delay over completed deliveries in a window (optional driver/zone scope). */
+    private SlaSummary summariseSla(LocalDateTime start, LocalDateTime end, LocalDateTime now, UUID driverId, UUID zoneId) {
+        List<Delivery> completed = deliveryRepository.findCompletedInRangeFiltered(COMPLETED_STATUSES, start, end, driverId, zoneId);
         if (completed.isEmpty()) {
             return new SlaSummary(100.0, 0.0);
         }

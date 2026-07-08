@@ -5,6 +5,9 @@ import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 
 import com.asm.delivery.dto.response.*;
+import com.asm.delivery.dto.analytics.AnalyticsQuery;
+import com.asm.delivery.service.analytics.filter.AnalyticsFilter;
+import com.asm.delivery.service.analytics.filter.PeriodRange;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.repository.*;
 import com.asm.delivery.security.UserPrincipal;
@@ -13,6 +16,7 @@ import com.asm.delivery.transport.TransportPort;
 import com.asm.delivery.service.DelayCalculationService;
 import com.asm.delivery.service.SystemSettingsService;
 import jakarta.persistence.EntityManager;
+import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
@@ -55,25 +59,46 @@ public class OpsAnalyticsService {
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final ExceptionClassifier exceptionClassifier;
+    private final com.asm.delivery.service.analytics.filter.PeriodResolver periodResolver;
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
         StatsRange range = resolveRange(period, from, to);
-        AdminStatsResponse response = doBuildStats(range);
+        AdminStatsResponse response = doBuildStats(range, AnalyticsFilter.NONE);
+        enrichDriverNames(response);
+        return response;
+    }
+
+        /** Unified entry point: granular time (PeriodResolver) + server-side scope (driver/zone). */
+        @Transactional(readOnly = true)
+        public AdminStatsResponse getStats(AnalyticsQuery q) {
+        PeriodRange pr = periodResolver.resolve(q.getRange() != null ? q.getRange() : q.getPeriod(),
+                q.getLast(), q.getFrom(), q.getTo(), q.getGranularity(), q.isCompare());
+        StatsRange range = new StatsRange(pr.label(), pr.start(), pr.end());
+        AnalyticsFilter filter = AnalyticsFilter.scope(q.getDriverId(), resolveZoneId(q.getZone()));
+        AdminStatsResponse response = doBuildStats(range, filter);
         enrichDriverNames(response);
         return response;
     }
 
     @Transactional(readOnly = true)
-    public AdminStatsResponse doBuildStats(StatsRange range) {
+    public AdminStatsResponse doBuildStats(StatsRange range, AnalyticsFilter filter) {
         return AdminStatsResponse.builder()
-                .today(buildTodayStats(range.start(), range.end(), range.period()))
-                .byDriver(buildDriverStats(range.start(), range.end()))
-                .byFailureCode(buildFailureStats(range.start(), range.end()))
-                .byCity(buildCityStats(range.start(), range.end()))
-                .byClient(buildClientStats(range.start(), range.end()))
-                .topItems(buildTopItems(range.start(), range.end(), 10))
+                .today(buildTodayStats(range.start(), range.end(), range.period(), filter))
+                .byDriver(buildDriverStats(range.start(), range.end(), filter))
+                .byFailureCode(buildFailureStats(range.start(), range.end(), filter))
+                .topItems(buildTopItems(range.start(), range.end(), 10, filter))
                 .build();
+    }
+
+    /** Resolve a zone name to its id; null/blank or unknown name yields null (no filter). */
+    private UUID resolveZoneId(String zoneName) {
+        if (zoneName == null || zoneName.isBlank()) return null;
+        return zoneRepository.findAll().stream()
+                .filter(z -> zoneName.trim().equalsIgnoreCase(z.getName()))
+                .map(Zone::getId)
+                .findFirst()
+                .orElse(null);
     }
 
         @Transactional(readOnly = true)
@@ -93,6 +118,16 @@ public class OpsAnalyticsService {
         @Transactional(readOnly = true)
         public AdminOpsOverviewResponse getOpsOverview(String period, LocalDate from, LocalDate to) {
                 return getOpsOverview(period, from, to, null, null);
+        }
+
+        /** Unified entry: granular time (PeriodResolver) + server-side scope (driver/zone). */
+        @Transactional(readOnly = true)
+        public AdminOpsOverviewResponse getOpsOverview(AnalyticsQuery q) {
+                PeriodRange pr = periodResolver.resolve(q.getRange() != null ? q.getRange() : q.getPeriod(),
+                        q.getLast(), q.getFrom(), q.getTo(), q.getGranularity(), q.isCompare());
+                StatsRange range = new StatsRange(pr.label(), pr.start(), pr.end());
+                AnalyticsFilter filter = AnalyticsFilter.scope(q.getDriverId(), resolveZoneId(q.getZone()));
+                return buildOpsOverview(range, filter, 200, 100, null, null);
         }
 
         @Transactional(readOnly = true)
@@ -346,15 +381,24 @@ public class OpsAnalyticsService {
                                                       int alertLimit,
                                                       Integer waitingSlaOverride,
                                                       Integer transitSlaOverride) {
+        return buildOpsOverview(resolveRange(period, from, to), AnalyticsFilter.NONE,
+                topItems, alertLimit, waitingSlaOverride, transitSlaOverride);
+    }
+
+    private AdminOpsOverviewResponse buildOpsOverview(StatsRange range,
+                                                      AnalyticsFilter filter,
+                                                      int topItems,
+                                                      int alertLimit,
+                                                      Integer waitingSlaOverride,
+                                                      Integer transitSlaOverride) {
         int waitingSlaMins = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
         int assignSlaMins = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
         int pickupSlaMins = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 6);
 
-        StatsRange range = resolveRange(period, from, to);
         int effectiveWaitingSlaMinutes = normalizeSlaThreshold(waitingSlaOverride, waitingSlaMins, "waitingSlaMinutes");
 
-        // 1. Transactional DB fetch
-        List<Delivery> scopedDeliveries = doFetchDeliveries(range);
+        // 1. Transactional DB fetch (server-side scope filter applied here)
+        List<Delivery> scopedDeliveries = doFetchDeliveries(range, filter);
 
         // 2. HTTP/External calls (OUTSIDE transaction)
         Map<String, DriverDTO> driverMap = loadDriverMap(scopedDeliveries);
@@ -450,12 +494,19 @@ public class OpsAnalyticsService {
 
     @Transactional(readOnly = true)
     public List<Delivery> doFetchDeliveries(StatsRange range) {
+        return doFetchDeliveries(range, AnalyticsFilter.NONE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Delivery> doFetchDeliveries(StatsRange range, AnalyticsFilter filter) {
         TypedQuery<Delivery> query = entityManager.createQuery(
-                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end ORDER BY d.createdAt DESC",
+                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end"
+                        + filter.jpql() + " ORDER BY d.createdAt DESC",
                 Delivery.class
         );
         query.setParameter("start", range.start());
         query.setParameter("end", range.end());
+        filter.bind(query);
         query.setMaxResults(1000);
         return query.getResultList();
     }
@@ -650,15 +701,15 @@ public class OpsAnalyticsService {
                 }
                 return new ActorInfo(actorName, role);
         }
-        private AdminStatsResponse.TodayStats buildTodayStats(LocalDateTime start, LocalDateTime end, String period) {
-        long total     = countByCreatedAt(start, end);
-        long delivered = countByField("completedAt", start, end);
-        long failed    = countStatusWithin("createdAt", DeliveryStatus.FAILED, start, end);
-        long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end)
-                       + countStatusWithin("inTransitAt", DeliveryStatus.AWAITING_HANDOFF, start, end);
-        long waiting   = countStatusWithin("createdAt", DeliveryStatus.UNSCHEDULED, start, end);
-        long assigned  = countStatusWithin("assignedAt", DeliveryStatus.SCHEDULED, start, end);
-        long partial   = countStatusWithin("createdAt", DeliveryStatus.PARTIALLY_DELIVERED, start, end);
+        private AdminStatsResponse.TodayStats buildTodayStats(LocalDateTime start, LocalDateTime end, String period, AnalyticsFilter filter) {
+        long total     = countByCreatedAt(start, end, filter);
+        long delivered = countByField("completedAt", start, end, filter);
+        long failed    = countStatusWithin("createdAt", DeliveryStatus.FAILED, start, end, filter);
+        long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end, filter)
+                       + countStatusWithin("inTransitAt", DeliveryStatus.AWAITING_HANDOFF, start, end, filter);
+        long waiting   = countStatusWithin("createdAt", DeliveryStatus.UNSCHEDULED, start, end, filter);
+        long assigned  = countStatusWithin("assignedAt", DeliveryStatus.SCHEDULED, start, end, filter);
+        long partial   = countStatusWithin("createdAt", DeliveryStatus.PARTIALLY_DELIVERED, start, end, filter);
         double successRate = total > 0 ? ((double) delivered / total) * 100.0 : 0.0;
         double partialRate = total > 0 ? ((double) partial / total) * 100.0 : 0.0;
 
@@ -668,9 +719,9 @@ public class OpsAnalyticsService {
                 .successRate(round2(successRate))
                 .partialRate(round2(partialRate))
                 .partialCount(partial)
-                .avgAssignToPickupMinutes(averageDurationMinutes("assignedAt", "pickedUpAt", start, end))
-                .avgPickupToTransitMinutes(averageDurationMinutes("pickedUpAt", "inTransitAt", start, end))
-                .avgTransitToCompletionMinutes(averageDurationMinutes("inTransitAt", "completedAt", start, end))
+                .avgAssignToPickupMinutes(averageDurationMinutes("assignedAt", "pickedUpAt", start, end, filter))
+                .avgPickupToTransitMinutes(averageDurationMinutes("pickedUpAt", "inTransitAt", start, end, filter))
+                .avgTransitToCompletionMinutes(averageDurationMinutes("inTransitAt", "completedAt", start, end, filter))
                                 .period(period)
                                 .periodStart(start)
                                 .periodEnd(end)
@@ -678,64 +729,46 @@ public class OpsAnalyticsService {
     }
 
         private StatsRange resolveRange(String period, LocalDate from, LocalDate to) {
-                LocalDateTime now = LocalDateTime.now();
-                String normalized = period == null ? "day" : period.trim().toLowerCase(Locale.ROOT);
-                return switch (normalized) {
-                        case "all" -> {
-                                yield new StatsRange("all", LocalDateTime.of(2000, 1, 1, 0, 0), now);
-                        }
-                        case "week" -> {
-                                LocalDate monday = LocalDate.now().with(DayOfWeek.MONDAY);
-                                yield new StatsRange("week", monday.atStartOfDay(), now);
-                        }
-                        case "month" -> {
-                                LocalDate firstOfMonth = LocalDate.now().withDayOfMonth(1);
-                                yield new StatsRange("month", firstOfMonth.atStartOfDay(), now);
-                        }
-                        case "custom" -> {
-                                if (from == null || to == null) {
-                                        throw AppException.badRequest("For custom period, both 'from' and 'to' are required");
-                                }
-                                if (to.isBefore(from)) {
-                                        throw AppException.badRequest("'to' must be greater than or equal to 'from'");
-                                }
-                                LocalDateTime start = from.atStartOfDay();
-                                LocalDateTime end = to.atTime(LocalTime.MAX);
-                                yield new StatsRange("custom", start, end);
-                        }
-                        default -> new StatsRange("day", LocalDate.now().atStartOfDay(), now);
-                };
+                // Delegates to the single Tunis-anchored resolver; StatsRange kept as the internal
+                // shape consumed by the builders below. New granular params flow through PeriodResolver.
+                com.asm.delivery.service.analytics.filter.PeriodRange r = periodResolver.resolveLegacy(period, from, to);
+                return new StatsRange(r.label(), r.start(), r.end());
         }
 
         private record StatsRange(String period, LocalDateTime start, LocalDateTime end) {}
 
-    private long countByCreatedAt(LocalDateTime start, LocalDateTime end) {
-        return entityManager.createQuery(
-                "SELECT COUNT(d) FROM Delivery d WHERE d.createdAt BETWEEN :start AND :end", Long.class)
-                .setParameter("start", start).setParameter("end", end).getSingleResult();
+    private long countByCreatedAt(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        TypedQuery<Long> q = entityManager.createQuery(
+                "SELECT COUNT(d) FROM Delivery d WHERE d.createdAt BETWEEN :start AND :end" + filter.jpql(), Long.class)
+                .setParameter("start", start).setParameter("end", end);
+        filter.bind(q);
+        return q.getSingleResult();
     }
 
-    private long countByField(String fieldName, LocalDateTime start, LocalDateTime end) {
-        return entityManager.createQuery(
-                "SELECT COUNT(d) FROM Delivery d WHERE d." + fieldName + " BETWEEN :start AND :end", Long.class)
-                .setParameter("start", start).setParameter("end", end).getSingleResult();
+    private long countByField(String fieldName, LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        TypedQuery<Long> q = entityManager.createQuery(
+                "SELECT COUNT(d) FROM Delivery d WHERE d." + fieldName + " BETWEEN :start AND :end" + filter.jpql(), Long.class)
+                .setParameter("start", start).setParameter("end", end);
+        filter.bind(q);
+        return q.getSingleResult();
     }
 
-    private long countStatusWithin(String timestampField, DeliveryStatus status, LocalDateTime start, LocalDateTime end) {
-        return entityManager.createQuery(
-                "SELECT COUNT(d) FROM Delivery d WHERE d.status = :status AND d." + timestampField + " BETWEEN :start AND :end",
+    private long countStatusWithin(String timestampField, DeliveryStatus status, LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        TypedQuery<Long> q = entityManager.createQuery(
+                "SELECT COUNT(d) FROM Delivery d WHERE d.status = :status AND d." + timestampField + " BETWEEN :start AND :end" + filter.jpql(),
                 Long.class)
-                .setParameter("status", status).setParameter("start", start).setParameter("end", end)
-                .getSingleResult();
+                .setParameter("status", status).setParameter("start", start).setParameter("end", end);
+        filter.bind(q);
+        return q.getSingleResult();
     }
 
-    private List<AdminStatsResponse.DriverStats> buildDriverStats(LocalDateTime start, LocalDateTime end) {
+    private List<AdminStatsResponse.DriverStats> buildDriverStats(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         // 1. Basic counts grouping by driverId
         TypedQuery<Object[]> countQuery = entityManager.createQuery(
                 "SELECT d.driverId, COUNT(d), " +
                         "SUM(CASE WHEN d.status IN (:delivered, :partial) THEN 1 ELSE 0 END), " +
                         "SUM(CASE WHEN d.status = :failed THEN 1 ELSE 0 END) " +
-                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end " +
+                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end" + filter.jpql() + " " +
                         "GROUP BY d.driverId",
                 Object[].class);
         countQuery.setParameter("delivered", DeliveryStatus.DELIVERED);
@@ -743,6 +776,7 @@ public class OpsAnalyticsService {
         countQuery.setParameter("failed", DeliveryStatus.FAILED);
         countQuery.setParameter("start", start);
         countQuery.setParameter("end", end);
+        filter.bind(countQuery);
 
         Map<UUID, Object[]> countsMap = countQuery.getResultList().stream()
                 .collect(Collectors.toMap(row -> (UUID) row[0], row -> row));
@@ -751,12 +785,13 @@ public class OpsAnalyticsService {
         TypedQuery<Object[]> deliveryQuery = entityManager.createQuery(
                 "SELECT d.id, d.driverId FROM Delivery d " +
                 "WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end " +
-                "AND d.status IN (:delivered, :partial)",
+                "AND d.status IN (:delivered, :partial)" + filter.jpql(),
                 Object[].class);
         deliveryQuery.setParameter("delivered", DeliveryStatus.DELIVERED);
         deliveryQuery.setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED);
         deliveryQuery.setParameter("start", start);
         deliveryQuery.setParameter("end", end);
+        filter.bind(deliveryQuery);
 
         List<Object[]> deliveryRows = deliveryQuery.getResultList();
         List<UUID> deliveryIds = deliveryRows.stream()
@@ -840,13 +875,14 @@ public class OpsAnalyticsService {
         }
     }
 
-    private List<AdminStatsResponse.FailureStats> buildFailureStats(LocalDateTime start, LocalDateTime end) {
+    private List<AdminStatsResponse.FailureStats> buildFailureStats(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         TypedQuery<Object[]> query = entityManager.createQuery(
                 "SELECT d.failureCode, COUNT(d) FROM Delivery d " +
-                        "WHERE d.failureCode IS NOT NULL AND d.failedAt BETWEEN :start AND :end " +
+                        "WHERE d.failureCode IS NOT NULL AND d.failedAt BETWEEN :start AND :end" + filter.jpql() + " " +
                         "GROUP BY d.failureCode",
                 Object[].class);
         query.setParameter("start", start).setParameter("end", end);
+        filter.bind(query);
 
         return query.getResultList().stream()
                 .map(row -> AdminStatsResponse.FailureStats.builder()
@@ -856,81 +892,16 @@ public class OpsAnalyticsService {
                 .toList();
     }
 
-    private List<AdminStatsResponse.CityStats> buildCityStats(LocalDateTime start, LocalDateTime end) {
-        TypedQuery<Object[]> query = entityManager.createQuery(
-                "SELECT COALESCE(o.dropoffCity, 'Unknown'), COUNT(d), " +
-                        "SUM(CASE WHEN d.status = :delivered THEN 1 ELSE 0 END), " +
-                        "SUM(CASE WHEN d.status = :failed THEN 1 ELSE 0 END) " +
-                        "FROM Delivery d JOIN d.order o " +
-                        "WHERE d.createdAt BETWEEN :start AND :end " +
-                        "GROUP BY o.dropoffCity ORDER BY COUNT(d) DESC",
-                Object[].class);
-        query.setParameter("delivered", DeliveryStatus.DELIVERED);
-        query.setParameter("failed", DeliveryStatus.FAILED);
-        query.setParameter("start", start);
-        query.setParameter("end", end);
-
-        return query.getResultList().stream()
-                .map(row -> {
-                    String city = row[0] != null ? row[0].toString() : "Unknown";
-                    long total = row[1] != null ? ((Number) row[1]).longValue() : 0;
-                    long delivered = row[2] != null ? ((Number) row[2]).longValue() : 0;
-                    long failed = row[3] != null ? ((Number) row[3]).longValue() : 0;
-                    double sr = total > 0 ? ((double) delivered / total) * 100.0 : 0.0;
-                    return AdminStatsResponse.CityStats.builder()
-                            .city(city)
-                            .total(total)
-                            .delivered(delivered)
-                            .failed(failed)
-                            .successRate(round2(sr))
-                            .build();
-                })
-                .limit(8)
-                .toList();
-    }
-
-    private List<AdminStatsResponse.ClientStats> buildClientStats(LocalDateTime start, LocalDateTime end) {
-        TypedQuery<Object[]> query = entityManager.createQuery(
-                "SELECT COALESCE(o.clientName, 'Unknown'), COUNT(d), " +
-                        "SUM(CASE WHEN d.status = :delivered THEN 1 ELSE 0 END), " +
-                        "SUM(CASE WHEN d.status = :failed THEN 1 ELSE 0 END) " +
-                        "FROM Delivery d JOIN d.order o " +
-                        "WHERE d.createdAt BETWEEN :start AND :end " +
-                        "GROUP BY o.clientName ORDER BY COUNT(d) DESC",
-                Object[].class);
-        query.setParameter("delivered", DeliveryStatus.DELIVERED);
-        query.setParameter("failed", DeliveryStatus.FAILED);
-        query.setParameter("start", start);
-        query.setParameter("end", end);
-
-        return query.getResultList().stream()
-                .map(row -> {
-                    String clientName = row[0] != null ? row[0].toString() : "Unknown";
-                    long total = row[1] != null ? ((Number) row[1]).longValue() : 0;
-                    long delivered = row[2] != null ? ((Number) row[2]).longValue() : 0;
-                    long failed = row[3] != null ? ((Number) row[3]).longValue() : 0;
-                    double sr = total > 0 ? ((double) delivered / total) * 100.0 : 0.0;
-                    return AdminStatsResponse.ClientStats.builder()
-                            .clientName(clientName)
-                            .total(total)
-                            .delivered(delivered)
-                            .failed(failed)
-                            .successRate(round2(sr))
-                            .build();
-                })
-                .limit(8)
-                .toList();
-    }
-
-    private double averageDurationMinutes(String startField, String endField, LocalDateTime start, LocalDateTime end) {
-        @SuppressWarnings("unchecked")
-        List<Object[]> pairs = entityManager.createQuery(
+    private double averageDurationMinutes(String startField, String endField, LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        Query durQuery = entityManager.createQuery(
                         "SELECT d." + startField + ", d." + endField + " FROM Delivery d " +
                                 "WHERE d." + startField + " IS NOT NULL AND d." + endField + " IS NOT NULL " +
-                                "AND d.createdAt BETWEEN :start AND :end")
+                                "AND d.createdAt BETWEEN :start AND :end" + filter.jpql())
                 .setParameter("start", start)
-                .setParameter("end", end)
-                .getResultList();
+                .setParameter("end", end);
+        filter.bind(durQuery);
+        @SuppressWarnings("unchecked")
+        List<Object[]> pairs = durQuery.getResultList();
 
         if (pairs.isEmpty()) return 0.0;
 
@@ -984,21 +955,23 @@ public class OpsAnalyticsService {
 
 
     @SuppressWarnings("unchecked")
-    private List<AdminStatsResponse.ItemStats> buildTopItems(LocalDateTime start, LocalDateTime end, int limit) {
+    private List<AdminStatsResponse.ItemStats> buildTopItems(LocalDateTime start, LocalDateTime end, int limit, AnalyticsFilter filter) {
         String sql = "SELECT item->>'sku' AS sku, item->>'name' AS name, SUM((item->>'quantityDone')::int) AS total " +
                      "FROM deliveries d " +
                      "JOIN orders o ON d.order_id = o.id, " +
                      "LATERAL jsonb_array_elements(o.items) AS item " +
                      "WHERE d.status IN ('DELIVERED', 'PARTIALLY_DELIVERED') AND item->>'outcome' = 'DELIVERED' " +
-                     "AND d.completed_at BETWEEN :start AND :end " +
+                     "AND d.completed_at BETWEEN :start AND :end" + filter.nativeSql() + " " +
                      "GROUP BY item->>'sku', item->>'name' " +
                      "ORDER BY total DESC";
         try {
-            List<Object[]> rows = entityManager.createNativeQuery(sql)
+            Query itemsQuery = entityManager.createNativeQuery(sql)
                      .setParameter("start", start)
                      .setParameter("end", end)
-                     .setMaxResults(limit)
-                     .getResultList();
+                     .setMaxResults(limit);
+            filter.bindNative(itemsQuery);
+            @SuppressWarnings("unchecked")
+            List<Object[]> rows = itemsQuery.getResultList();
 
             return rows.stream()
                     .map(row -> AdminStatsResponse.ItemStats.builder()

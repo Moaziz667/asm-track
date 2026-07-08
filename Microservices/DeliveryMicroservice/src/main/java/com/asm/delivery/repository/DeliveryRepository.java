@@ -104,6 +104,18 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     long countInRange(@Param("start") java.time.LocalDateTime start,
                       @Param("end") java.time.LocalDateTime end);
 
+    /** Volume in range, optionally scoped by driver/zone (null param = no filter). */
+    @Query("""
+            SELECT COUNT(d) FROM Delivery d
+            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+              AND (:driverId IS NULL OR d.driverId = :driverId)
+              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
+            """)
+    long countInRangeFiltered(@Param("start") java.time.LocalDateTime start,
+                              @Param("end") java.time.LocalDateTime end,
+                              @Param("driverId") java.util.UUID driverId,
+                              @Param("zoneId") java.util.UUID zoneId);
+
     /** [zoneId(UUID), count(Long)] for deliveries in range that carry a zone. */
     @Query("""
             SELECT d.order.zoneId, COUNT(d) FROM Delivery d
@@ -113,6 +125,20 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Object[]> countByZoneInRange(@Param("start") java.time.LocalDateTime start,
                                       @Param("end") java.time.LocalDateTime end);
+
+    /** Zone volumes in range, optionally scoped by driver/zone (null param = no filter). */
+    @Query("""
+            SELECT d.order.zoneId, COUNT(d) FROM Delivery d
+            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+              AND d.order.zoneId IS NOT NULL
+              AND (:driverId IS NULL OR d.driverId = :driverId)
+              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
+            GROUP BY d.order.zoneId
+            """)
+    List<Object[]> countByZoneInRangeFiltered(@Param("start") java.time.LocalDateTime start,
+                                              @Param("end") java.time.LocalDateTime end,
+                                              @Param("driverId") java.util.UUID driverId,
+                                              @Param("zoneId") java.util.UUID zoneId);
 
     /**
      * Per-day series [day(java.sql.Date), total(Long), delivered(Long), failed(Long)].
@@ -140,6 +166,20 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     List<Delivery> findCompletedInRange(@Param("statuses") List<DeliveryStatus> statuses,
                                         @Param("start") java.time.LocalDateTime start,
                                         @Param("end") java.time.LocalDateTime end);
+
+    /** Completed/partial in range for SLA, optionally scoped by driver/zone (null param = no filter). */
+    @Query("""
+            SELECT d FROM Delivery d
+            WHERE d.status IN :statuses
+              AND COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
+              AND (:driverId IS NULL OR d.driverId = :driverId)
+              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
+            """)
+    List<Delivery> findCompletedInRangeFiltered(@Param("statuses") List<DeliveryStatus> statuses,
+                                                @Param("start") java.time.LocalDateTime start,
+                                                @Param("end") java.time.LocalDateTime end,
+                                                @Param("driverId") java.util.UUID driverId,
+                                                @Param("zoneId") java.util.UUID zoneId);
 
     /**
      * Deliveries whose effective scheduled date (rescheduled ∨ scheduled ∨ created)
