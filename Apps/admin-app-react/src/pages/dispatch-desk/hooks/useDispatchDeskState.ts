@@ -463,11 +463,11 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   const openActionModal = useCallback((kind: ActionKind, row: OpsException) => {
     if (kind === 'reassign' && !REASSIGNABLE_STATUSES.includes(row.status)) {
-      showErrorToast(t.apiMessages.errorDeliveryInvalidStatus, t.dispatchDeskPage.errorCannotReassign);
+      showErrorToast(t.dispatchDeskPage.errorCannotReassign);
       return;
     }
     if (kind === 'replan' && !REPLANNABLE_STATUSES.includes(row.status)) {
-      showErrorToast(t.apiMessages.errorDeliveryInvalidStatus, t.dispatchDeskPage.errorCannotReplan);
+      showErrorToast(t.dispatchDeskPage.errorCannotReplan);
       return;
     }
     if (kind === 'reassign') {
@@ -525,7 +525,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setCancelling(true);
     try {
       await api.post(`/api/admin/deliveries/${cancelTarget.deliveryId}/cancel`, null, { params: { reason: cancelReason.trim() } });
-      showSuccessToast(t.apiMessages.successDeliveryRescheduled, { clientName: cancelTarget?.clientName });
+      showSuccessToast(t.dispatchDeskPage.successCancelled, { clientName: cancelTarget?.clientName });
       setCancelTarget(null);
       setCancelReason('');
       await fetchExceptions(true);
@@ -543,7 +543,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     try {
       await api.post(`/api/admin/deliveries/${returnTarget.deliveryId}/confirm-return`, null,
         { params: returnNote.trim() ? { note: returnNote.trim() } : {} });
-      showSuccessToast(t.apiMessages.successDeliveryReassigned, { clientName: returnTarget?.clientName });
+      showSuccessToast(t.dispatchDeskPage.successReturnConfirmed, { clientName: returnTarget?.clientName });
       setReturnTarget(null);
       setReturnNote('');
       await fetchExceptions(true);

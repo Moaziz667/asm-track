@@ -1238,6 +1238,7 @@ export const AR_COPY = {
     statusPending: 'في الانتظار',
     warnOverlapPrev: 'يتداخل مع المحطة السابقة (مفتوحة حتى {time}).',
     warnOverlapNext: 'يتداخل مع المحطة التالية (تبدأ في {time}).',
+    warnInverted: 'نافذة غير صالحة: النهاية قبل البداية.',
     genericError: 'فشل الإدراج.',
     submitting: 'جاري الإدراج…',
     confirm: 'تأكيد الإدراج',
@@ -2769,7 +2770,8 @@ export const AR_COPY = {
     errorTimeWindowRequired: 'النافذة الزمنية مطلوبة لهذا التسليم',
     successReassignToDraft: 'تمت إضافة الشحنة (الشحنات) إلى مسودة المسار',
     successReassignToActive: 'تمت إعادة تعيين الشحنة (الشحنات) بنجاح',
-    errorReassignPartialSuccess: 'تعذر نقل بعض الشحنات',
+    successAssignedToActive: 'تم تعيين الشحنة (الشحنات) بنجاح',
+    successDraftCreated: 'تم إنشاء مسودة الجولة',
     errorReassignFailed: 'تعذر إعادة تعيين الشحنة',
 
     errorStopNotFound: 'الإيقاف غير موجود',

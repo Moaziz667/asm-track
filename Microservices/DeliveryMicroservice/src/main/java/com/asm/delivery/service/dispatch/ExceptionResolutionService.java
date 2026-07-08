@@ -834,6 +834,15 @@ public class ExceptionResolutionService {
                 java.time.LocalTime finalStartTime = requestedStartTime != null ? requestedStartTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getStartTimeWindow() : null);
                 java.time.LocalTime finalEndTime = requestedEndTime != null ? requestedEndTime : (currentStopOpt.isPresent() ? currentStopOpt.get().getEndTimeWindow() : null);
 
+                // An inverted window (end before start) is nonsensical and corrupts the SLA/report/insertion
+                // math. Guard it here — the single choke point for BOTH the one-click and the configurable
+                // (insertAtOrder) paths — so no client can persist it (the drawer mirrors this check).
+                if (finalStartTime != null && finalEndTime != null && finalStartTime.isAfter(finalEndTime)) {
+                        throw AppException.badRequest("TIME_WINDOW_INVALID",
+                                "Fenêtre invalide : la fin (" + finalEndTime + ") précède le début (" + finalStartTime + ").",
+                                Map.of("start", finalStartTime.toString(), "end", finalEndTime.toString()));
+                }
+
                 // Decide where the stop lands — manual start/end windows only, no ETA (ADR-028).
                 int targetOrder;
                 if (insertAtOrder != null) {

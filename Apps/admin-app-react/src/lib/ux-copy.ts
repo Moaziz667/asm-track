@@ -1263,6 +1263,7 @@ export const FR_COPY = {
     statusPending: 'En attente',
     warnOverlapPrev: 'Chevauche l\'arrêt précédent (ouvert jusqu\'à {time}).',
     warnOverlapNext: 'Chevauche l\'arrêt suivant (démarre à {time}).',
+    warnInverted: 'Fenêtre invalide : la fin précède le début.',
     genericError: 'Échec de l\'insertion.',
     submitting: 'Insertion…',
     confirm: 'Confirmer l\'insertion',
@@ -2819,7 +2820,8 @@ export const FR_COPY = {
     errorTimeWindowRequired: 'Fenêtre horaire requise pour cette livraison',
     successReassignToDraft: 'Livraison(s) ajoutée(s) au brouillon de tournée',
     successReassignToActive: 'Livraison(s) réassignée(s) avec succès',
-    errorReassignPartialSuccess: "Certaines livraisons n'ont pas pu être transférées",
+    successAssignedToActive: 'Livraison(s) assignée(s) avec succès',
+    successDraftCreated: 'Brouillon de tournée créé',
     errorReassignFailed: 'Impossible de réassigner la livraison',
 
     // Error messages - Stop operations

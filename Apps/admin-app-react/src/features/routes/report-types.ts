@@ -13,7 +13,9 @@ export interface RouteReport {
     routeId: string;
     routeName: string | null;
     date: string | null;          // ISO date
+    driverId: string | null;
     driverName: string | null;
+    vehicleId: string | null;
     vehiclePlate: string | null;
     vehicleType: string | null;
     depotName: string | null;

@@ -36,7 +36,9 @@ public class RouteReportResponse {
         private UUID routeId;
         private String routeName;
         private LocalDate date;
+        private UUID driverId;
         private String driverName;
+        private UUID vehicleId;
         private String vehiclePlate;
         private String vehicleType;
         private String depotName;

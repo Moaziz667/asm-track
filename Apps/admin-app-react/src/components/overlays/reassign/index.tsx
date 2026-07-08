@@ -8,7 +8,8 @@ import StatusBadge from '@/components/StatusBadge';
 import { FieldInput } from '@/components/ui/field';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { api } from '@/lib/api';
-import { showSuccessToast, showErrorToast } from '@/lib/toast-service';
+import { showSuccessToast } from '@/lib/toast-service';
+import { getApiError } from '@/lib/errors';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/LocaleContext';
 import type { Driver } from '@/types';
@@ -195,8 +196,11 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
   const effectiveOrder = curCfg.touched && curCfg.order != null ? curCfg.order : prediction.order;
 
   const activeConflict = useMemo(() => conflictAt(workingStops, effectiveOrder, startMin, endMin), [workingStops, effectiveOrder, startMin, endMin]);
+  // Inverted window (end before start) — mirror of the backend TIME_WINDOW_INVALID guard.
+  const invertedWindow = startMin != null && endMin != null && startMin > endMin;
 
-  const conflictText = activeConflict.kind === 'past' ? t.configureInsertion.warnPast
+  const conflictText = invertedWindow ? t.configureInsertion.warnInverted
+    : activeConflict.kind === 'past' ? t.configureInsertion.warnPast
     : activeConflict.kind === 'prev' ? t.configureInsertion.warnOverlapPrev.replace('{time}', activeConflict.time ?? '')
     : activeConflict.kind === 'next' ? t.configureInsertion.warnOverlapNext.replace('{time}', activeConflict.time ?? '') : null;
 
@@ -211,13 +215,30 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
   const post = (deliveryId: string, body: Record<string, unknown>) =>
     api.post(`/api/admin/ops/exceptions/${deliveryId}/reassign`, body);
 
+  // Localize a server window/conflict error for inline display — reuses the client warn* copy so the
+  // one case the client mirror can't predict (a race) reads in the user's language, not raw English.
+  const conflictMessage = (err: unknown): string | null => {
+    const e = getApiError(err);
+    const p = (e.errorParams ?? {}) as Record<string, unknown>;
+    const time = String(p.limitTime ?? '');
+    switch (e.errorCode) {
+      case 'TIME_WINDOW_INVALID':      return t.configureInsertion.warnInverted;
+      case 'INSERT_BEFORE_COMPLETED':  return t.configureInsertion.warnPast;
+      case 'ROUTE_TIME_CONFLICT':
+        return p.conflictType === 'NEXT'
+          ? t.configureInsertion.warnOverlapNext.replace('{time}', time)
+          : t.configureInsertion.warnOverlapPrev.replace('{time}', time);
+      default:                         return e.message ?? null;
+    }
+  };
+
   // Active route → place each delivery with its own position + window.
   const submitPlacement = async () => {
     if (!route) return;
     commitStep();
     setSubmitting(true); setServerError(null);
     const baseNote = note.trim() || (inField ? t.reassignDrawer.inFieldDefaultNote : '');
-    let ok = 0, fail = 0, lastMsg: string | null = null;
+    let ok = 0, fail = 0, lastErr: unknown = null;
     for (const x of allTargets) {
       const c = cfg[x.deliveryId] ?? { start: '', end: '', order: null, touched: false };
       const order = x.deliveryId === curId ? effectiveOrder : (c.order ?? undefined);
@@ -226,11 +247,13 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
       if (c.start) body.startTimeWindow = toLocalTime(c.start);
       if (c.end) body.endTimeWindow = toLocalTime(c.end);
       try { await post(x.deliveryId, body); ok++; }
-      catch (err: unknown) { fail++; const data = (err as { response?: { data?: { message?: string } } })?.response?.data; if (data?.message) lastMsg = data.message; }
+      catch (err: unknown) { fail++; lastErr = err; }
     }
     setSubmitting(false);
-    if (ok > 0) { if (fail === 0) showSuccessToast('successReassignToActive'); else showErrorToast(undefined, 'errorReassignPartialSuccess'); onSuccess(route.id); onClose(); }
-    else setServerError(lastMsg ?? t.configureInsertion.genericError);
+    if (fail === 0 && ok > 0) { showSuccessToast(isAssign ? 'successAssignedToActive' : 'successReassignToActive'); onSuccess(route.id); onClose(); return; }
+    // Any failure → keep the drawer open and surface the (localized) reason; refresh the ones that went through.
+    if (ok > 0) onSuccess(route.id);
+    setServerError(conflictMessage(lastErr) ?? t.configureInsertion.genericError);
   };
 
   // No active route → create the draft (driver-only), then open the route builder in a new tab.
@@ -238,17 +261,19 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
     if (!selectedId) return;
     setSubmitting(true); setServerError(null);
     const baseNote = note.trim() || (inField ? t.reassignDrawer.inFieldDefaultNote : '');
-    let ok = 0, fail = 0, routeId: string | undefined, lastMsg: string | null = null;
+    let ok = 0, fail = 0, routeId: string | undefined, lastErr: unknown = null;
     for (const x of allTargets) {
       try { const r = await post(x.deliveryId, { driverId: selectedId, note: baseNote }); routeId = r.data?.routeId ?? routeId; ok++; }
-      catch (err: unknown) { fail++; const data = (err as { response?: { data?: { message?: string } } })?.response?.data; if (data?.message) lastMsg = data.message; }
+      catch (err: unknown) { fail++; lastErr = err; }
     }
     setSubmitting(false);
-    if (ok > 0) {
-      if (fail === 0) showSuccessToast('successReassignToActive');
+    if (fail === 0 && ok > 0) {
+      showSuccessToast('successDraftCreated');
       if (routeId) window.open(`/route-builder?routeId=${routeId}`, '_blank', 'noopener');
-      onSuccess(routeId); onClose();
-    } else setServerError(lastMsg ?? t.configureInsertion.genericError);
+      onSuccess(routeId); onClose(); return;
+    }
+    if (ok > 0) onSuccess(routeId);
+    setServerError(conflictMessage(lastErr) ?? t.configureInsertion.genericError);
   };
 
   // ── Title / header ────────────────────────────────────────────────────────────────
@@ -281,7 +306,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
 
   // ── Footer (placement only) ──────────────────────────────────────────────────────
   const isLast = stepIndex >= allTargets.length - 1;
-  const blocked = submitting || !!activeConflict.kind;
+  const blocked = submitting || !!activeConflict.kind || invertedWindow;
   const footer = selectedDriver && !routeLoading ? (
     <div className="w-full">
       {(conflictText || serverError) && (

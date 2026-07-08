@@ -1179,6 +1179,7 @@ export const EN_COPY = {
     statusPending: 'Pending',
     warnOverlapPrev: 'Overlaps the previous stop (open until {time}).',
     warnOverlapNext: 'Overlaps the next stop (starts at {time}).',
+    warnInverted: 'Invalid window: the end is before the start.',
     genericError: 'Insertion failed.',
     submitting: 'Inserting…',
     confirm: 'Confirm insertion',
@@ -2710,7 +2711,8 @@ export const EN_COPY = {
     errorTimeWindowRequired: 'Time window required for this delivery',
     successReassignToDraft: 'Delivery(ies) added to route draft',
     successReassignToActive: 'Delivery(ies) successfully reassigned',
-    errorReassignPartialSuccess: 'Some deliveries could not be transferred',
+    successAssignedToActive: 'Delivery(ies) successfully assigned',
+    successDraftCreated: 'Route draft created',
     errorReassignFailed: 'Could not reassign delivery',
 
     errorStopNotFound: 'Stop not found',

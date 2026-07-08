@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   IconFileTypePdf, IconPrinter, IconAlertCircle, IconCamera, IconChevronDown, IconChevronRight,
   IconArrowBackUp, IconArrowsExchange, IconCircleX, IconBan, IconFlag,
@@ -86,7 +87,7 @@ export default function RouteClosureReport({ routeId }: { routeId: string }) {
 function Bar({ title, meta }: { title: string; meta?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between px-2.5 py-1.5 bg-[var(--surface-sunken)] border-y border-[var(--border-strong)]">
-      <span className="text-2xs text-[var(--text-secondary)]">{title}</span>
+      <span className="text-2xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider">{title}</span>
       {meta != null && <span className="text-2xs text-[var(--text-muted)]">{meta}</span>}
     </div>
   );
@@ -119,26 +120,32 @@ function HeaderBar({ report, c, downloading, onDownload, onPrint }: { report: Ro
 function IdentityGrid({ report, c }: { report: RouteReport; c: C }) {
   const h = report.header;
   const K = ({ children }: { children: React.ReactNode }) => (
-    <td className="px-2 py-1 w-[86px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)]">{children}</td>
+    <td className="px-2.5 py-1.5 w-[90px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] text-2xs font-semibold uppercase tracking-wider">{children}</td>
   );
   const V = ({ children, mono, border }: { children: React.ReactNode; mono?: boolean; border?: boolean }) => (
-    <td className={`px-2 py-1 border-b border-[var(--border)] text-[var(--text-secondary)] ${border ? 'border-r border-[var(--border)]' : ''} ${mono ? 'font-mono' : ''}`}>{children}</td>
+    <td className={`px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs ${border ? 'border-r border-[var(--border)]' : ''} ${mono ? 'font-mono' : ''}`}>{children}</td>
   );
+  const driverLink = h.driverId
+    ? <Link to={`/drivers?driverId=${h.driverId}`} className="hover:text-[var(--brand)] transition-colors">{h.driverName ?? '—'}</Link>
+    : (h.driverName ?? '—');
+  const vehicleLink = h.vehicleId
+    ? <Link to={`/vehicles?vehicleId=${h.vehicleId}`} className="hover:text-[var(--brand)] transition-colors">{h.vehicleType ?? ''}{h.vehiclePlate ? ` · ${h.vehiclePlate}` : ''}</Link>
+    : <>{h.vehicleType ?? ''}{h.vehiclePlate ? ` · ${h.vehiclePlate}` : ''}</>;
   return (
     <table className="w-full border-collapse text-xs">
       <tbody>
         <tr>
-          <K>{c.driver}</K><V border>{h.driverName ?? '—'}</V>
-          <K>{c.vehicle}</K><V mono>{h.vehicleType ?? ''}{h.vehiclePlate ? ` · ${h.vehiclePlate}` : ''}</V>
+          <K>{c.driver}</K><V border>{driverLink}</V>
+          <K>{c.vehicle}</K><V mono>{vehicleLink}</V>
         </tr>
         <tr>
           <K>{c.depot}</K><V border>{h.depotName ?? '—'}</V>
           <K>{c.date}</K><V mono>{fmtDate(h.date)}</V>
         </tr>
         <tr>
-          <td className="px-2 py-1 bg-[var(--surface-sunken)] text-[var(--text-muted)]">{c.execution}</td>
-          <td className="px-2 py-1 font-mono text-[var(--text-secondary)]" colSpan={3}>
-            {c.started} {fmtTime(h.startedAt)}  →  {c.endedAt} {fmtTime(h.closedAt)}  ·  {c.duration} {h.durationMinutes != null ? formatMinutes(h.durationMinutes) : '—'}  ·  {c.plan} {clock(h.plannedStartTime)}–{clock(h.plannedEndTime)}
+          <td className="px-2.5 py-1.5 bg-[var(--surface-sunken)] text-[var(--text-muted)] text-2xs font-semibold uppercase tracking-wider">{c.execution}</td>
+          <td className="px-2.5 py-1.5 font-mono text-xs text-[var(--text-secondary)]" colSpan={3}>
+            {c.started} <span className="font-semibold">{fmtTime(h.startedAt)}</span>  →  {c.endedAt} <span className="font-semibold">{fmtTime(h.closedAt)}</span>  ·  {c.duration} {h.durationMinutes != null ? formatMinutes(h.durationMinutes) : '—'}  ·  {c.plan} {clock(h.plannedStartTime)}–{clock(h.plannedEndTime)}
           </td>
         </tr>
       </tbody>
@@ -165,9 +172,9 @@ function VerdictLine({ report, c }: { report: RouteReport; c: C }) {
 function KpiRow({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
   const cell = (label: string, value: React.ReactNode, tone?: string, last?: boolean) => (
-    <td className={`px-2.5 py-1.5 ${last ? '' : 'border-r border-[var(--border)]'}`}>
-      <div className="text-2xs text-[var(--text-muted)]">{label}</div>
-      <div className="text-sm font-mono font-semibold tabular-nums" style={tone ? { color: tone } : undefined}>{value}</div>
+    <td className={`px-3 py-2 ${last ? '' : 'border-r border-[var(--border)]'}`}>
+      <div className="text-2xs text-[var(--text-muted)] font-semibold uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-base font-mono font-bold tabular-nums" style={tone ? { color: tone } : undefined}>{value}</div>
     </td>
   );
   const compTone = k.completionRate >= 90 ? undefined : k.completionRate >= 70 ? T.warning : T.danger;
@@ -189,20 +196,20 @@ function KpiRow({ report, c }: { report: RouteReport; c: C }) {
 // ── stops table ─────────────────────────────────────────────────────────────
 function delayCell(s: RouteReport['stops'][number], c: C) {
   if (!['COMPLETED', 'PARTIAL'].includes(s.finalStatus) || s.delayMinutes == null) return <span className="text-[var(--text-soft)]">—</span>;
-  if (s.delayMinutes <= 0 && s.delayMinutes > -5) return <span style={{ color: T.success }}>{c.onTimeShort}</span>;
-  return <span style={{ color: delayTone(s.delayMinutes) }}>{signed(s.delayMinutes)}</span>;
+  if (s.delayMinutes <= 0 && s.delayMinutes > -5) return <span className="whitespace-nowrap" style={{ color: T.success }}>{c.onTimeShort}</span>;
+  return <span className="whitespace-nowrap tabular-nums" style={{ color: delayTone(s.delayMinutes) }}>{signed(s.delayMinutes)}</span>;
 }
 function StopsTable({ report, c }: { report: RouteReport; c: C }) {
   const k = report.kpis;
-  const th = 'text-left font-normal text-[var(--text-muted)] px-1.5 py-1 border-b border-[var(--border-strong)] border-r border-[var(--border)]';
-  const td = 'px-1.5 py-1.5 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
+  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs uppercase tracking-wider';
+  const td = 'px-2 py-2 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
   return (
     <>
       <Bar title={c.stopsTitle} meta={`${report.stops.length} ${c.deliveries} · ${k.completedStops} ${c.deliveredShort} · ${k.failedStops + k.failedAttemptStops} ${c.failuresShort}`} />
-      <table className="w-full border-collapse text-xs table-fixed">
+      <table className="w-full border-collapse text-xs">
         <colgroup>
-          <col className="w-[26px]" /><col /><col className="w-[70px]" /><col className="w-[50px]" />
-          <col className="w-[56px]" /><col className="w-[54px]" /><col className="w-[100px]" /><col className="w-[104px]" />
+          <col className="w-[28px]" /><col /><col className="w-[72px]" /><col className="w-[56px]" />
+          <col className="w-[60px]" /><col className="w-[56px]" /><col className="w-[110px]" /><col className="w-[110px]" />
         </colgroup>
         <thead>
           <tr className="bg-[var(--surface-sunken)]">
@@ -219,18 +226,19 @@ function StopsTable({ report, c }: { report: RouteReport; c: C }) {
           {report.stops.map(s => {
             const removed = s.movement === 'REPLANNED' || s.movement === 'CANCELLED';
             return (
-              <tr key={s.stopId} className={removed ? 'opacity-55' : ''}>
+              <tr key={s.stopId} className={`transition-colors hover:bg-[var(--hover-bg)] ${removed ? 'opacity-55' : ''}`}>
                 <td className={`${td} text-[var(--text-muted)]`}>{String(s.stopOrder).padStart(2, '0')}</td>
                 <td className={`${td} font-sans`}>
                   <div className={`font-semibold text-[var(--text-primary)] ${removed ? 'line-through' : ''}`}>{s.clientName ?? '—'}</div>
-                  <div className="text-2xs text-[var(--text-muted)] truncate">
-                    {s.orderRef && <span className="font-mono">{s.orderRef}</span>}{s.orderRef && (s.city || s.address) ? ' · ' : ''}{s.city ?? s.address ?? ''}
+                  <div className="text-2xs text-[var(--text-muted)] truncate mt-0.5">
+                    {s.orderRef && <Link to={`/deliveries/${s.deliveryId}`} className="font-mono hover:text-[var(--brand)] transition-colors">{s.orderRef}</Link>}
+                    {s.orderRef && (s.city || s.address) ? ' · ' : ''}{s.city ?? s.address ?? ''}
                   </div>
                 </td>
-                <td className={`${td} text-[var(--text-secondary)]`}>{s.startTimeWindow && s.endTimeWindow ? `${clock(s.startTimeWindow)}–${clock(s.endTimeWindow)}` : '—'}</td>
+                <td className={`${td} text-[var(--text-secondary)] whitespace-nowrap`}>{s.startTimeWindow && s.endTimeWindow ? `${clock(s.startTimeWindow)}–${clock(s.endTimeWindow)}` : '—'}</td>
                 <td className={td}>
-                  {fmtTime(s.completedAt)}
-                  {s.dwellMinutes != null && s.dwellMinutes > 0 && <div className="text-2xs font-sans text-[var(--text-muted)]">{s.dwellMinutes} min {c.dwellSuffix}</div>}
+                  <span className="whitespace-nowrap">{fmtTime(s.completedAt)}</span>
+                  {s.dwellMinutes != null && s.dwellMinutes > 0 && <div className="text-2xs font-sans text-[var(--text-muted)] mt-0.5">{s.dwellMinutes} min {c.dwellSuffix}</div>}
                 </td>
                 <td className={`${td} text-right`}>{delayCell(s, c)}</td>
                 <td className={`${td} font-sans`}><StatusBadge status={s.removedReason === 'REASSIGNED' ? 'REASSIGNED' : s.finalStatus} label={s.removedReason !== 'REASSIGNED' && s.finalStatus === 'COMPLETED' ? c.colDelivered : undefined} size="sm" /></td>
@@ -268,8 +276,8 @@ function Synthese({ report, c }: { report: RouteReport; c: C }) {
   const startLate = (k.routeStartDelayMinutes ?? 0) > 0;
   const Row = ({ label, children }: { label: string; children: React.ReactNode }) => (
     <tr>
-      <td className="px-2 py-1 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top">{label}</td>
-      <td className="px-2 py-1 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs">{children}</td>
+      <td className="px-2.5 py-1.5 w-[96px] bg-[var(--surface-sunken)] text-[var(--text-muted)] border-b border-[var(--border)] align-top text-2xs font-semibold uppercase tracking-wider">{label}</td>
+      <td className="px-2.5 py-1.5 border-b border-[var(--border)] text-[var(--text-secondary)] text-xs">{children}</td>
     </tr>
   );
   return (
@@ -354,10 +362,10 @@ function PodStrip({ report, c }: { report: RouteReport; c: C }) {
   return (
     <>
       <Bar title={c.podTitle} meta={String(cells.length)} />
-      <div className="flex flex-wrap gap-1.5 p-2">
+      <div className="flex flex-wrap gap-2 p-2.5">
         {cells.slice(0, 12).map((cell, i) => (
           <button key={i} type="button" onClick={() => setOpen(cell)}
-            className="relative w-16 h-16 overflow-hidden p-0 border border-[var(--border-strong)] bg-[var(--surface-sunken)]">
+            className="relative w-20 h-20 overflow-hidden p-0 border border-[var(--border-strong)] bg-[var(--surface-sunken)] hover:border-[var(--brand)] transition-colors">
             <img src={cell.url} alt={cell.title} className="w-full h-full object-cover" />
           </button>
         ))}
@@ -392,8 +400,8 @@ function AuditFold({ report, c }: { report: RouteReport; c: C }) {
   const [open, setOpen] = useState(false);
   const rows = report.auditTrail;
   if (rows.length === 0) return null;
-  const th = 'text-left font-normal text-[var(--text-muted)] px-1.5 py-1 border-b border-[var(--border-strong)] border-r border-[var(--border)]';
-  const td = 'px-1.5 py-1 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
+  const th = 'text-left font-semibold text-[var(--text-muted)] px-2 py-1.5 border-b border-[var(--border-strong)] border-r border-[var(--border)] text-2xs uppercase tracking-wider';
+  const td = 'px-2 py-1.5 border-b border-[var(--border)] border-r border-[var(--border)] align-top';
   return (
     <>
       <button type="button" onClick={() => setOpen(o => !o)}

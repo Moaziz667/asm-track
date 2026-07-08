@@ -34,7 +34,7 @@ import { DRIVER_COLUMNS, type DriverCrud } from './drivers/constants';
 import { SVGUpload, SVGUser } from './drivers/icons';
 import { DriverTableRow, DriverMobileCard } from './drivers/DriverTableRow';
 import { useRoutes } from '@/hooks/useRoutes';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { DriverDetailsModal } from './drivers/DriverDetailsModal';
 import { DriverFormModal } from './drivers/DriverFormModal';
@@ -46,6 +46,7 @@ function DriversPageContent() {
   usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Chauffeurs' }]);
   const role = getCurrentRole();
   const readOnly = isReadOnlyRole(role);
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { density, setDensity } = useDensity('drivers', 'comfortable');
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('drivers', DRIVER_COLUMNS);
@@ -105,6 +106,19 @@ function DriversPageContent() {
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
+
+  // Auto-open driver details modal when navigated with ?driverId=... (e.g. from route report)
+  useEffect(() => {
+    const urlDriverId = searchParams.get('driverId');
+    if (urlDriverId && drivers.length > 0) {
+      const match = drivers.find((d) => d.id === urlDriverId);
+      if (match) {
+        setSelectedId(urlDriverId);
+        setDetailsOpen(true);
+        setSearchParams((prev) => { prev.delete('driverId'); return prev; }, { replace: true });
+      }
+    }
+  }, [searchParams, drivers, setSearchParams]);
 
   useEffect(() => {
     if (!selectedId) return;
