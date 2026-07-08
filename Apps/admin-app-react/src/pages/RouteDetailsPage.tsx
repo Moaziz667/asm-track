@@ -12,7 +12,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
-import { IconAlertCircle } from '@tabler/icons-react';
+import { IconAlertCircle, IconReportAnalytics, IconRoute } from '@tabler/icons-react';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { SkeletonMap } from '@/components/feedback/SkeletonMap';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { DRIVER_STATUS_COLOR } from '@/lib/design-tokens';
@@ -107,18 +108,25 @@ export default function RouteDetailsPage() {
 
       {/* Closed route → switch between the closure report and the normal map + stops view. */}
       {isClosed && (
-        <div className="print-hide flex items-center gap-1.5 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--surface)] shrink-0">
-          {([['report', t.routeReport.subtitle], ['stops', t.routeReport.viewNormal]] as const).map(([v, label]) => (
-            <button
-              key={v}
-              type="button"
-              onClick={() => setClosedView(v)}
-              className={`h-7 px-3 text-xs font-semibold rounded-md transition-colors ${closedView === v ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        <TooltipProvider>
+          <div className="print-hide flex items-center gap-1.5 px-4 py-2 border-b border-[var(--border-color)] bg-[var(--surface)] shrink-0">
+            {([['report', t.routeReport.subtitle, IconReportAnalytics], ['stops', t.routeReport.viewNormal, IconRoute]] as const).map(([v, label, Icon]) => (
+              <Tooltip key={v}>
+                <TooltipTrigger asChild>
+                  <button
+                    type="button"
+                    aria-label={label}
+                    onClick={() => setClosedView(v)}
+                    className={`h-8 w-8 flex items-center justify-center rounded-md transition-colors ${closedView === v ? 'bg-[var(--brand)] text-white' : 'text-[var(--text-muted)] hover:bg-[var(--hover-bg)]'}`}
+                  >
+                    <Icon size={16} />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>{label}</TooltipContent>
+              </Tooltip>
+            ))}
+          </div>
+        </TooltipProvider>
       )}
 
       {/* Active route → live detail (KPI strip + map + editable stops). Closed route → report or,
