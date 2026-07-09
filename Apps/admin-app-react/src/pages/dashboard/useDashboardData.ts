@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import type { AdminOpsOverview, DashboardStats, DeliveryStatus, Driver } from '@/types';
+import type { AdminOpsOverview, AnalyticsScope, DashboardStats, DeliveryStatus, Driver } from '@/types';
 import { useRealtimeEvent, useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRoutes } from '@/hooks/useRoutes';
@@ -15,8 +15,8 @@ export type Range = 'today' | 'yesterday' | 'last7d' | 'last30d' | 'custom';
 /** All data + derived metrics for the dashboard. Extracted from DashboardPage so the page is a
  *  pure layout/orchestrator. Source of truth = REST via React Query; realtime events only
  *  invalidate (debounced), so KPIs self-heal from the server.
- *  Only the stats/analytics half honors the date range; the live half (à-traiter, pulse) is "now". */
-export function useDashboardData(range: Range, from?: string, to?: string) {
+ *  Only the stats/analytics half honors the date range + scope; the live half is "now". */
+export function useDashboardData(range: Range, from?: string, to?: string, scope: AnalyticsScope = {}) {
   const t = useT();
   const queryClient = useQueryClient();
   const connected = useRealtimeStatus();
@@ -26,16 +26,30 @@ export function useDashboardData(range: Range, from?: string, to?: string) {
     ? { from: `${from}T00:00:00`, to: `${to}T23:59:59` }
     : { range };
 
+  // Merge scope filters into API params (only non-empty values).
+  const scopeParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (scope.zone) p.zone = scope.zone;
+    if (scope.driverId) p.driverId = scope.driverId;
+    if (scope.status) p.status = scope.status;
+    if (scope.motif) p.motif = scope.motif;
+    if (scope.city) p.city = scope.city;
+    if (scope.source) p.source = scope.source;
+    if (scope.depot) p.depot = scope.depot;
+    return p;
+  }, [scope]);
+
   const { data: dash, isFetching: refreshing, isLoading, refetch } = useQuery({
-    queryKey: ['dashboard-overview', range, from ?? '', to ?? ''],
+    queryKey: ['dashboard-overview', range, from ?? '', to ?? '', scopeParams],
     queryFn: async () => {
-      const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
-        api.get('/api/admin/deliveries/stats', { params: { ...dateParams } }),
-        api.get('/api/admin/ops/overview', { params: { ...dateParams } }),
+      const [sR, oR, driversRes, routesRes, kR, healthRes, heatmapRes] = await Promise.all([
+        api.get('/api/admin/deliveries/stats', { params: { ...dateParams, ...scopeParams } }),
+        api.get('/api/admin/ops/overview', { params: { ...dateParams, ...scopeParams } }),
         api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
-        api.get('/api/admin/reports/dashboard', { params: { ...dateParams, compare: true } }).catch(() => ({ data: null })),
+        api.get('/api/admin/reports/dashboard', { params: { ...dateParams, ...scopeParams, compare: true } }).catch(() => ({ data: null })),
         api.get('/api/admin/system/health').catch(() => ({ data: null })),
+        api.get('/api/admin/reports/zone-heatmap', { params: { ...dateParams, ...scopeParams } }).catch(() => ({ data: { points: [] } })),
       ]);
       const driversData = driversRes.data;
       return {
@@ -45,6 +59,7 @@ export function useDashboardData(range: Range, from?: string, to?: string) {
         drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as Driver[],
         activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
         health: healthRes.data,
+        heatmap: heatmapRes.data ?? { points: [] },
       };
     },
     staleTime: 30_000,
@@ -56,6 +71,7 @@ export function useDashboardData(range: Range, from?: string, to?: string) {
   const drivers = dash?.drivers ?? [];
   const activeRoutesCount = dash?.activeRoutesCount ?? 0;
   const healthData = dash?.health ?? null;
+  const heatmap = dash?.heatmap ?? { points: [] };
 
   const healthSummary = useMemo(() => deriveHealthSummary(healthData), [healthData]);
 
@@ -148,6 +164,12 @@ export function useDashboardData(range: Range, from?: string, to?: string) {
     const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
     return avg(completionSpark.slice(-7)) - avg(completionSpark.slice(-14, -7));
   }, [completionSpark]);
+  const lateSpark = useMemo(() => trend.map(d => {
+    const c = Number(d.count) || 0;
+    const del = Number(d.delivered) || 0;
+    const fail = Number(d.failed) || 0;
+    return Math.max(0, c - del - fail);
+  }), [trend]);
 
   const vsPrev = t.dashboardPage.kpiVsPrevPeriod || 'vs prev. period';
   const deliveredSub = deliveredDelta == null ? `/ ${today?.total ?? 0}` : undefined;
@@ -181,10 +203,10 @@ export function useDashboardData(range: Range, from?: string, to?: string) {
 
   return {
     refreshing, isLoading, refetch,
-    stats, ops, kpi, drivers, activeRoutesCount,
+    stats, ops, kpi, drivers, activeRoutesCount, heatmap,
     healthSummary, healthProblemsSummary,
     today, overdueCount, slaPercent,
-    trend, deliveredSpark, completionSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
+    trend, deliveredSpark, completionSpark, lateSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
     safeDrivers, laneMap, needsAttention, driverGroups,
     activeRoutes, focusedRouteId, setFocusedRouteId,
     driverName, getStatusConfig,

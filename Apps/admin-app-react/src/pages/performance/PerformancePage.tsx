@@ -4,14 +4,14 @@ import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconClock, IconTrendingUp, IconUsers,
-  IconFileAnalytics, IconColumns, IconX,
+  IconFileAnalytics, IconColumns, IconX, IconFilter,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { AnalyticsFilterBar } from '@/components/analytics/AnalyticsFilterBar';
+import { GlobalFilterDrawer } from '@/components/analytics/GlobalFilterDrawer';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { cn } from '@/lib/utils';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
+import type { AnalyticsScope } from '@/types';
 
 // ── Types (mirror DriverScorecardResponse) ──────────────────────────────────
 type Range = 'last7d' | 'last30d' | 'qtd' | 'custom';
@@ -54,15 +54,33 @@ export default function PerformancePage() {
   const [compare, setCompare] = useState(false);
   const [selected, setSelected] = useState<string[]>([]);
   const [generatingPdf, setGeneratingPdf] = useState<Set<string>>(new Set());
+  const [scope, setScope] = useState<AnalyticsScope>({});
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const activeFilterCount = useMemo(() => {
+    const scopeCount = Object.values(scope).filter(v => v != null && v !== '').length;
+    return scopeCount + (range !== 'last30d' ? 1 : 0);
+  }, [scope, range]);
 
   const dateParams: Record<string, string> = range === 'custom' && customFrom && customTo
     ? { from: `${customFrom}T00:00:00`, to: `${customTo}T23:59:59` }
     : { range };
 
+  const scopeParams = useMemo(() => {
+    const p: Record<string, string> = {};
+    if (scope.zone) p.zone = scope.zone;
+    if (scope.driverId) p.driverId = scope.driverId;
+    if (scope.status) p.status = scope.status;
+    if (scope.motif) p.motif = scope.motif;
+    if (scope.city) p.city = scope.city;
+    if (scope.source) p.source = scope.source;
+    if (scope.depot) p.depot = scope.depot;
+    return p;
+  }, [scope]);
+
   const { data, isFetching, refetch } = useQuery({
-    queryKey: ['driver-scorecards', range, customFrom, customTo, compare],
+    queryKey: ['driver-scorecards', range, customFrom, customTo, compare, scopeParams],
     queryFn: async () => {
-      const res = await api.get<ScorecardResponse>('/api/admin/reports/drivers', { params: { ...dateParams, compare } });
+      const res = await api.get<ScorecardResponse>('/api/admin/reports/drivers', { params: { ...dateParams, ...scopeParams, compare } });
       return res.data;
     },
     staleTime: 30_000,
@@ -106,34 +124,49 @@ export default function PerformancePage() {
   };
 
   const tl = (k: string, fallback: string) => (t.performancePage as Record<string, string>)[k] ?? fallback;
-  const vsPrev = tl('vsPrev', 'vs préc.');
 
   return (
-    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden" style={{ background: 'var(--app-bg)' }}>
-      {/* ── Filter bar (shared) ── */}
-      <div className="flex items-center gap-3 px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
-        <span className="text-xs font-[500]" style={{ color: 'var(--text-muted)' }}>{t.performancePage.periodLabel}</span>
-        <AnalyticsFilterBar<Range>
-          range={range}
-          onRangeChange={setRange}
-          ariaLabel={t.performancePage.periodLabel}
-          options={[
-            { value: 'last7d', label: t.performancePage.periodWeek },
-            { value: 'last30d', label: t.performancePage.periodMonth },
-            { value: 'qtd', label: tl('periodQuarter', 'Trimestre') },
-            { value: 'custom', label: tl('periodCustom', 'Perso') },
-          ]}
-          from={customFrom}
-          to={customTo}
-          onFromChange={setCustomFrom}
-          onToChange={setCustomTo}
-          compare={compare}
-          onCompareChange={setCompare}
-          compareLabel={tl('comparePrev', 'vs période préc.')}
-          right={<RefreshButton refreshing={isFetching} onClick={() => refetch()} />}
-          className="flex-1"
-        />
+    <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden relative" style={{ background: 'var(--app-bg)' }}>
+      {/* ── FLOATING ACTION BAR ── */}
+      <div className="fixed top-16 right-4 z-40 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
+        <RefreshButton refreshing={isFetching} onClick={() => refetch()} />
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="relative w-7 h-7 flex items-center justify-center rounded-md transition-colors cursor-pointer"
+          style={{ color: activeFilterCount > 0 ? 'var(--brand)' : 'var(--text-muted)' }}
+        >
+          <IconFilter size={14} />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--brand)] text-white text-2xs font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
+      <GlobalFilterDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        value={scope}
+        onChange={setScope}
+        resultCount={drivers.length}
+        range={range}
+        onRangeChange={setRange}
+        defaultRange="last30d"
+        rangeOptions={[
+          { value: 'last7d', label: t.performancePage.periodWeek },
+          { value: 'last30d', label: t.performancePage.periodMonth },
+          { value: 'qtd', label: tl('periodQuarter', 'Trimestre') },
+          { value: 'custom', label: tl('periodCustom', 'Perso') },
+        ]}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+        compare={compare}
+        onCompareChange={setCompare}
+        compareLabel={tl('comparePrev', 'vs période préc.')}
+      />
 
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-[1400px] mx-auto p-4 md:p-6 flex flex-col gap-5">

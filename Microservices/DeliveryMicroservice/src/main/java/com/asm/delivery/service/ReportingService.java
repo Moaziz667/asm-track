@@ -1,6 +1,7 @@
 package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.DashboardKpiResponse;
+import com.asm.delivery.dto.response.ZoneHeatmapResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
 import com.asm.delivery.entity.RouteStop;
@@ -40,6 +41,7 @@ public class ReportingService {
     private final DelayCalculationService delayCalculationService;
     private final ZoneRepository zoneRepository;
     private final com.asm.delivery.service.analytics.filter.PeriodResolver periodResolver;
+    private final jakarta.persistence.EntityManager entityManager;
 
     /** Legacy entry point (period + date-only from/to) — delegates to the unified query. */
     public DashboardKpiResponse getGlobalKpis(String period, LocalDate from, LocalDate to) {
@@ -60,24 +62,23 @@ public class ReportingService {
         final LocalDateTime start = pr.start();
         final LocalDateTime end = pr.end();
 
-        // Server-side scope (null = no filter)
-        final UUID driverId = query.getDriverId();
-        final UUID zoneId = resolveZoneId(query.getZone());
+        // Server-side scope — the full pivot set (driver/zone/status/motif/city/source/depot)
+        final com.asm.delivery.service.analytics.filter.AnalyticsFilter filter = toFilter(query);
 
         // 1. Volumes (SQL COUNT, indexed on the reference date)
-        long ordersInPeriod = deliveryRepository.countInRangeFiltered(start, end, driverId, zoneId);
+        long ordersInPeriod = countInRange(start, end, filter);
         long previousPeriodOrders = pr.hasComparison()
-                ? deliveryRepository.countInRangeFiltered(pr.prevStart(), pr.prevEnd(), driverId, zoneId) : 0L;
+                ? countInRange(pr.prevStart(), pr.prevEnd(), filter) : 0L;
 
         // 2. SLA / average delay — load only completed deliveries in each window
-        SlaSummary current = summariseSla(start, end, now, driverId, zoneId);
+        SlaSummary current = summariseSla(start, end, now, filter);
         SlaSummary previous = pr.hasComparison()
-                ? summariseSla(pr.prevStart(), pr.prevEnd(), now, driverId, zoneId) : current;
+                ? summariseSla(pr.prevStart(), pr.prevEnd(), now, filter) : current;
 
         // 3. Most active zones (SQL GROUP BY, mapped to names in memory)
         Map<UUID, String> zoneNameById = zoneRepository.findAll().stream()
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
-        Map<String, Long> ordersByZone = deliveryRepository.countByZoneInRangeFiltered(start, end, driverId, zoneId).stream()
+        Map<String, Long> ordersByZone = countByZone(start, end, filter).stream()
                 .filter(row -> zoneNameById.containsKey((UUID) row[0]))
                 .collect(Collectors.toMap(
                         row -> zoneNameById.get((UUID) row[0]),
@@ -105,6 +106,40 @@ public class ReportingService {
                 .build();
     }
 
+    /** Per-zipcode heatmap density — zone-colored points for the territory intelligence map. */
+    public ZoneHeatmapResponse getZoneHeatmap(com.asm.delivery.dto.analytics.AnalyticsQuery query) {
+        LocalDateTime now = periodResolver.now();
+        com.asm.delivery.service.analytics.filter.PeriodRange pr = periodResolver.resolve(
+                query.getRange() != null ? query.getRange() : query.getPeriod(),
+                query.getLast(), query.getFrom(), query.getTo(), query.getGranularity(), false);
+        final LocalDateTime start = pr.start();
+        final LocalDateTime end = pr.end();
+
+        // Build zone lookup once
+        Map<UUID, Zone> zoneById = zoneRepository.findAll().stream()
+                .collect(Collectors.toMap(Zone::getId, z -> z));
+
+        List<ZoneHeatmapResponse.ZipcodeHeatpoint> points = deliveryRepository.zipcodeHeatmap(start, end)
+                .stream()
+                .map(row -> {
+                    UUID zoneId = (UUID) row[5];
+                    Zone zone = zoneById.get(zoneId);
+                    return ZoneHeatmapResponse.ZipcodeHeatpoint.builder()
+                            .zipcode((String) row[0])
+                            .lat(((Number) row[1]).doubleValue())
+                            .lng(((Number) row[2]).doubleValue())
+                            .ordersCount(((Number) row[3]).longValue())
+                            .delayedOrders(((Number) row[4]).longValue())
+                            .zoneId(zoneId)
+                            .zoneName(zone != null ? zone.getName() : "Unknown")
+                            .zoneColor(zone != null ? zone.getColor() : "#6B7280")
+                            .build();
+                })
+                .toList();
+
+        return ZoneHeatmapResponse.builder().points(points).build();
+    }
+
     private List<DashboardKpiResponse.DailyVolume> buildTrend(LocalDateTime start, LocalDateTime end) {
         return deliveryRepository.dailySeries(start, end).stream()
                 .map(row -> DashboardKpiResponse.DailyVolume.builder()
@@ -124,9 +159,42 @@ public class ReportingService {
                 .map(Zone::getId).findFirst().orElse(null);
     }
 
-    /** SLA compliance + average delay over completed deliveries in a window (optional driver/zone scope). */
-    private SlaSummary summariseSla(LocalDateTime start, LocalDateTime end, LocalDateTime now, UUID driverId, UUID zoneId) {
-        List<Delivery> completed = deliveryRepository.findCompletedInRangeFiltered(COMPLETED_STATUSES, start, end, driverId, zoneId);
+    private com.asm.delivery.service.analytics.filter.AnalyticsFilter toFilter(com.asm.delivery.dto.analytics.AnalyticsQuery q) {
+        return new com.asm.delivery.service.analytics.filter.AnalyticsFilter(
+                q.getDriverId(), resolveZoneId(q.getZone()), q.getStatus(), q.getMotif(),
+                q.getCity(), q.getSource(), q.getDepot());
+    }
+
+    // ── Dynamic, full-pivot queries (reuse AnalyticsFilter; reference date = completedAt ?? createdAt) ──
+    private long countInRange(LocalDateTime start, LocalDateTime end, com.asm.delivery.service.analytics.filter.AnalyticsFilter f) {
+        jakarta.persistence.TypedQuery<Long> q = entityManager.createQuery(
+                "SELECT COUNT(d) FROM Delivery d WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end" + f.jpql(), Long.class)
+                .setParameter("start", start).setParameter("end", end);
+        f.bind(q);
+        return q.getSingleResult();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Object[]> countByZone(LocalDateTime start, LocalDateTime end, com.asm.delivery.service.analytics.filter.AnalyticsFilter f) {
+        jakarta.persistence.Query q = entityManager.createQuery(
+                "SELECT d.order.zoneId, COUNT(d) FROM Delivery d WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end "
+                        + "AND d.order.zoneId IS NOT NULL" + f.jpql() + " GROUP BY d.order.zoneId")
+                .setParameter("start", start).setParameter("end", end);
+        f.bind(q);
+        return q.getResultList();
+    }
+
+    private List<Delivery> findCompleted(LocalDateTime start, LocalDateTime end, com.asm.delivery.service.analytics.filter.AnalyticsFilter f) {
+        jakarta.persistence.TypedQuery<Delivery> q = entityManager.createQuery(
+                "SELECT d FROM Delivery d WHERE d.status IN :statuses AND COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end" + f.jpql(), Delivery.class)
+                .setParameter("statuses", COMPLETED_STATUSES).setParameter("start", start).setParameter("end", end);
+        f.bind(q);
+        return q.getResultList();
+    }
+
+    /** SLA compliance + average delay over completed deliveries in a window (full pivot scope). */
+    private SlaSummary summariseSla(LocalDateTime start, LocalDateTime end, LocalDateTime now, com.asm.delivery.service.analytics.filter.AnalyticsFilter filter) {
+        List<Delivery> completed = findCompleted(start, end, filter);
         if (completed.isEmpty()) {
             return new SlaSummary(100.0, 0.0);
         }

@@ -23,6 +23,7 @@ export interface WidgetItem {
     x?: number;
     y?: number;
     minW?: number;
+    maxW?: number;
     minH?: number;
   };
 }
@@ -122,6 +123,7 @@ export function DraggableWidgetGrid({
         w: w,
         h: def.h,
         minW: def.minW || 2,
+        maxW: def.maxW,
         minH: def.minH || 2,
       };
       return l;
@@ -162,7 +164,7 @@ export function DraggableWidgetGrid({
   }
 
   return (
-    <div className={cn('react-grid-wrapper -mx-2 flex flex-col', className)}>
+    <div className={cn('react-grid-wrapper flex flex-col', className)}>
       
       {/* ── Header: Reset Layout ── */}
       <div className="flex justify-end px-2 mb-2">
@@ -212,42 +214,48 @@ export function DraggableWidgetGrid({
           background-position: left top;
         }
 
-        /* Resize Handle */
+        /* Resize Handle — always discoverable, larger hit area, above content */
         .react-grid-item > .react-resizable-handle {
           position: absolute;
-          width: 20px;
-          height: 20px;
+          width: 28px;
+          height: 28px;
           bottom: 0;
           right: 0;
           cursor: se-resize;
-          z-index: 20;
-          opacity: 0;
-          transition: opacity 0.2s ease-in-out;
-          background-image: none !important;
-        }
-        .react-grid-item:hover > .react-resizable-handle {
+          z-index: 30;
           opacity: 1;
+          background-image: none !important;
         }
         .react-grid-item > .react-resizable-handle::after {
           content: "";
           position: absolute;
-          right: 6px;
-          bottom: 6px;
-          width: 8px;
-          height: 8px;
+          right: 5px;
+          bottom: 5px;
+          width: 10px;
+          height: 10px;
           border-right: 2px solid var(--text-soft, #8E8E8E);
           border-bottom: 2px solid var(--text-soft, #8E8E8E);
-          border-bottom-right-radius: 1px;
+          border-bottom-right-radius: 2px;
+          opacity: 0.4;
+          transition: opacity 0.15s ease-in-out;
         }
         .react-grid-item > .react-resizable-handle::before {
           content: "";
           position: absolute;
           right: 10px;
           bottom: 10px;
-          width: 8px;
-          height: 8px;
+          width: 10px;
+          height: 10px;
           border-right: 2px solid var(--text-soft, #8E8E8E);
           border-bottom: 2px solid var(--text-soft, #8E8E8E);
+          opacity: 0.4;
+          transition: opacity 0.15s ease-in-out;
+        }
+        .react-grid-item:hover > .react-resizable-handle::after,
+        .react-grid-item:hover > .react-resizable-handle::before,
+        .react-grid-item > .react-resizable-handle:active::after,
+        .react-grid-item > .react-resizable-handle:active::before {
+          opacity: 1;
         }
 
         /* Drop Placeholder: Electric Blue dashed outline with light fill */

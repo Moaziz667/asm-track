@@ -11,6 +11,28 @@ export type DeliveryStatus =
 
 export type DeliverySource = 'APP' | 'ODOO';
 
+export type OrderSource = 'ODOO' | 'DUX';
+
+export interface FailureReason {
+  id: string;
+  code: string;
+  label: string;
+  category: string;
+  scope: 'DELIVERY' | 'ITEM' | 'BOTH';
+  active: boolean;
+  sortOrder: number;
+}
+
+export interface AnalyticsScope {
+  zone?: string;
+  driverId?: string;
+  status?: DeliveryStatus;
+  motif?: string;
+  city?: string;
+  source?: OrderSource;
+  depot?: string;
+}
+
 export interface DeliveryItem {
   id?: string;
   sku?: string;

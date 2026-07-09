@@ -58,7 +58,8 @@ public class DriverPerformanceService {
                 query.getRange() != null ? query.getRange() : query.getPeriod(),
                 query.getLast(), query.getFrom(), query.getTo(), query.getGranularity(), query.isCompare());
         AnalyticsFilter filter = new AnalyticsFilter(
-                query.getDriverId(), resolveZoneId(query.getZone()), query.getStatus(), query.getMotif());
+                query.getDriverId(), resolveZoneId(query.getZone()), query.getStatus(), query.getMotif(),
+                query.getCity(), query.getSource(), query.getDepot());
         boolean drilldown = query.getDriverId() != null;
 
         Map<UUID, long[]> counts = countsByDriver(pr.start(), pr.end(), filter);      // [total, delivered, failed]

@@ -462,6 +462,22 @@ export const AR_COPY = {
     ERP:    'نظام ERP',
   } as Record<string, string>,
 
+  // ── Analytics scope filters ──────────────────────────────────
+  scopeFilters: {
+    title:    'المرشحات',
+    period: 'الفترة',
+    zone:   'المنطقة',
+    driver: 'السائق',
+    status: 'الحالة',
+    motif:  'السبب',
+    city:   'المدينة',
+    source: 'المصدر',
+    depot:  'المستودع',
+    activeFilters: 'المرشحات النشطة',
+    clearAll: 'مسح الكل',
+    done:     'تم',
+  } as Record<string, string>,
+
   // ── ERP Synchronization Status ────────────────────────────────────
   syncStatus: {
     SYNCED:          'تمت المزامنة',

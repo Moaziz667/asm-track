@@ -75,7 +75,7 @@ public class OpsAnalyticsService {
         PeriodRange pr = periodResolver.resolve(q.getRange() != null ? q.getRange() : q.getPeriod(),
                 q.getLast(), q.getFrom(), q.getTo(), q.getGranularity(), q.isCompare());
         StatsRange range = new StatsRange(pr.label(), pr.start(), pr.end());
-        AnalyticsFilter filter = AnalyticsFilter.scope(q.getDriverId(), resolveZoneId(q.getZone()));
+        AnalyticsFilter filter = toFilter(q);
         AdminStatsResponse response = doBuildStats(range, filter);
         enrichDriverNames(response);
         return response;
@@ -89,6 +89,12 @@ public class OpsAnalyticsService {
                 .byFailureCode(buildFailureStats(range.start(), range.end(), filter))
                 .topItems(buildTopItems(range.start(), range.end(), 10, filter))
                 .build();
+    }
+
+    /** Build the full server-side pivot filter from the unified query (resolves zone name → id). */
+    private AnalyticsFilter toFilter(AnalyticsQuery q) {
+        return new AnalyticsFilter(q.getDriverId(), resolveZoneId(q.getZone()), q.getStatus(), q.getMotif(),
+                q.getCity(), q.getSource(), q.getDepot());
     }
 
     /** Resolve a zone name to its id; null/blank or unknown name yields null (no filter). */
@@ -126,7 +132,7 @@ public class OpsAnalyticsService {
                 PeriodRange pr = periodResolver.resolve(q.getRange() != null ? q.getRange() : q.getPeriod(),
                         q.getLast(), q.getFrom(), q.getTo(), q.getGranularity(), q.isCompare());
                 StatsRange range = new StatsRange(pr.label(), pr.start(), pr.end());
-                AnalyticsFilter filter = AnalyticsFilter.scope(q.getDriverId(), resolveZoneId(q.getZone()));
+                AnalyticsFilter filter = toFilter(q);
                 return buildOpsOverview(range, filter, 200, 100, null, null);
         }
 

@@ -56,4 +56,13 @@ public class AnalyticsQuery {
 
     @Schema(description = "Filter by failure code / motif", example = "CLIENT_ABSENT")
     private String motif;
+
+    @Schema(description = "Filter by drop-off city", example = "Tunis")
+    private String city;
+
+    @Schema(description = "Filter by order source", example = "ODOO")
+    private com.asm.delivery.entity.OrderSource source;
+
+    @Schema(description = "Filter by depot the delivery is routed from")
+    private java.util.UUID depot;
 }

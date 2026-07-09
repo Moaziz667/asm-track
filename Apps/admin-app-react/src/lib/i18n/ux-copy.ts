@@ -484,6 +484,22 @@ export const FR_COPY = {
     ERP:    'ERP',
   } as Record<string, string>,
 
+  // ── Filtres scope analytics ──────────────────────────────────────────
+  scopeFilters: {
+    title:    'Filtres',
+    period: 'Période',
+    zone:   'Zone',
+    driver: 'Chauffeur',
+    status: 'Statut',
+    motif:  'Motif',
+    city:   'Ville',
+    source: 'Source',
+    depot:  'Dépôt',
+    activeFilters: 'Filtres actifs',
+    clearAll: 'Effacer tout',
+    done:     'Terminé',
+  } as Record<string, string>,
+
   // ── Statut de synchronisation ERP ────────────────────────────────────
   syncStatus: {
     SYNCED:          'Synchronisé',

@@ -104,18 +104,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     long countInRange(@Param("start") java.time.LocalDateTime start,
                       @Param("end") java.time.LocalDateTime end);
 
-    /** Volume in range, optionally scoped by driver/zone (null param = no filter). */
-    @Query("""
-            SELECT COUNT(d) FROM Delivery d
-            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
-              AND (:driverId IS NULL OR d.driverId = :driverId)
-              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
-            """)
-    long countInRangeFiltered(@Param("start") java.time.LocalDateTime start,
-                              @Param("end") java.time.LocalDateTime end,
-                              @Param("driverId") java.util.UUID driverId,
-                              @Param("zoneId") java.util.UUID zoneId);
-
     /** [zoneId(UUID), count(Long)] for deliveries in range that carry a zone. */
     @Query("""
             SELECT d.order.zoneId, COUNT(d) FROM Delivery d
@@ -125,20 +113,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Object[]> countByZoneInRange(@Param("start") java.time.LocalDateTime start,
                                       @Param("end") java.time.LocalDateTime end);
-
-    /** Zone volumes in range, optionally scoped by driver/zone (null param = no filter). */
-    @Query("""
-            SELECT d.order.zoneId, COUNT(d) FROM Delivery d
-            WHERE COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
-              AND d.order.zoneId IS NOT NULL
-              AND (:driverId IS NULL OR d.driverId = :driverId)
-              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
-            GROUP BY d.order.zoneId
-            """)
-    List<Object[]> countByZoneInRangeFiltered(@Param("start") java.time.LocalDateTime start,
-                                              @Param("end") java.time.LocalDateTime end,
-                                              @Param("driverId") java.util.UUID driverId,
-                                              @Param("zoneId") java.util.UUID zoneId);
 
     /**
      * Per-day series [day(java.sql.Date), total(Long), delivered(Long), failed(Long)].
@@ -167,20 +141,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
                                         @Param("start") java.time.LocalDateTime start,
                                         @Param("end") java.time.LocalDateTime end);
 
-    /** Completed/partial in range for SLA, optionally scoped by driver/zone (null param = no filter). */
-    @Query("""
-            SELECT d FROM Delivery d
-            WHERE d.status IN :statuses
-              AND COALESCE(d.completedAt, d.createdAt) BETWEEN :start AND :end
-              AND (:driverId IS NULL OR d.driverId = :driverId)
-              AND (:zoneId IS NULL OR d.order.zoneId = :zoneId)
-            """)
-    List<Delivery> findCompletedInRangeFiltered(@Param("statuses") List<DeliveryStatus> statuses,
-                                                @Param("start") java.time.LocalDateTime start,
-                                                @Param("end") java.time.LocalDateTime end,
-                                                @Param("driverId") java.util.UUID driverId,
-                                                @Param("zoneId") java.util.UUID zoneId);
-
     /**
      * Deliveries whose effective scheduled date (rescheduled ∨ scheduled ∨ created)
      * falls within [start, end] — used by the calendar/overview month view.
@@ -204,4 +164,28 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Delivery> findByActivityBetween(@Param("start") java.time.LocalDateTime start,
                                          @Param("end") java.time.LocalDateTime end);
+
+    // ─────────────────────────────────────────────────────────────────────────
+    //  Zone heatmap — per-zipcode centroid density for the map widget.
+    //  Returns [postalCode, avgLat, avgLng, count, delayedCount, zoneId].
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @Query(value = """
+            SELECT o.dropoff_postal_code        AS zipcode,
+                   AVG(o.dropoff_lat)            AS lat,
+                   AVG(o.dropoff_lng)            AS lng,
+                   COUNT(*)                      AS orders_count,
+                   SUM(CASE WHEN d.status IN ('LATE','FAILED') THEN 1 ELSE 0 END) AS delayed,
+                   o.zone_id                     AS zone_id
+            FROM deliveries d
+            JOIN orders o ON d.order_id = o.id
+            WHERE COALESCE(d.completed_at, d.created_at) BETWEEN :start AND :end
+              AND o.dropoff_lat  IS NOT NULL
+              AND o.dropoff_lng  IS NOT NULL
+              AND o.dropoff_postal_code IS NOT NULL
+              AND o.zone_id IS NOT NULL
+            GROUP BY o.dropoff_postal_code, o.zone_id
+            """, nativeQuery = true)
+    List<Object[]> zipcodeHeatmap(@Param("start") java.time.LocalDateTime start,
+                                  @Param("end") java.time.LocalDateTime end);
 }

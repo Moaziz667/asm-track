@@ -27,10 +27,15 @@ type AttentionItem = {
 type DriverLite = { name?: string; driverName?: string };
 type RouteLite = { id: string; name?: string; status?: string; driverId?: string; totalStops?: number; stops?: unknown[] };
 
-// ── KPI viz cards (hero graph, not an icon) ──────────────────────────────────
+// ── Enterprise KPI cards ────────────────────────────────────────────────────
 const TONE_C: Record<string, string> = {
   success: 'var(--success)', warning: 'var(--warning)', danger: 'var(--danger)',
   info: 'var(--info)', brand: 'var(--brand)', default: 'var(--text-muted)',
+};
+
+const TONE_LABEL: Record<string, string> = {
+  success: 'Nominal', warning: 'Attention', danger: 'Critique',
+  info: 'Info', brand: 'Opérationnel', default: '—',
 };
 
 function Spark({ data, color, area }: { data: number[]; color: string; area?: boolean }) {
@@ -59,54 +64,71 @@ function DeltaPill({ delta, caption, goodWhen = 'up', format }: { delta?: number
   );
 }
 
-interface KpiCommon { label: string; value: React.ReactNode; tone?: string; delta?: number | null; deltaCaption?: string; deltaGood?: 'up' | 'down'; deltaFormat?: (n: number) => string; onClick?: () => void; }
+interface KpiCommon {
+  label: string; value: React.ReactNode; tone?: string;
+  delta?: number | null; deltaCaption?: string; deltaGood?: 'up' | 'down';
+  deltaFormat?: (n: number) => string; onClick?: () => void;
+  comparison?: string; spark?: number[];
+}
 
-export function RadialKpiCard({ label, value, pct, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, onClick }: KpiCommon & { pct: number }) {
+/** SLA card — sparkline as hero + thin bar + context. No dots, no uppercase. */
+export function RadialKpiCard({ label, value, pct, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, comparison, onClick, spark }: KpiCommon & { pct: number }) {
   const c = TONE_C[tone] ?? TONE_C.default;
-  const r = 22, circ = 2 * Math.PI * r, dash = Math.max(0, Math.min(100, pct)) / 100 * circ;
   return (
-    <div className={cn('card h-full flex items-center gap-3 ps-12 pe-4 py-4', onClick && 'cursor-pointer hover:border-[var(--border-strong)]')} onClick={onClick}>
-      <svg width="54" height="54" viewBox="0 0 56 56" className="shrink-0" aria-hidden="true">
-        <circle cx="28" cy="28" r={r} fill="none" stroke="var(--hover-bg)" strokeWidth="6" />
-        <circle cx="28" cy="28" r={r} fill="none" stroke={c} strokeWidth="6" strokeLinecap="round" strokeDasharray={`${dash} ${circ}`} transform="rotate(-90 28 28)" />
-      </svg>
-      <div className="min-w-0">
-        <div className="text-2xs text-[var(--text-muted)] uppercase tracking-wide truncate">{label}</div>
-        <div className="font-mono text-2xl font-semibold tabular-nums leading-tight text-[var(--text-primary)]">{value}</div>
+    <div className={cn('card @container h-full flex flex-col gap-2 ps-12 pe-4 py-3.5', onClick && 'cursor-pointer hover:bg-[var(--hover-bg)]')} onClick={onClick}>
+      <span className="text-2xs text-[var(--text-muted)]">{label}</span>
+      <div className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</div>
+      {spark && spark.length > 1 && <div className="h-5 w-full opacity-80"><Spark data={spark} color={c} area /></div>}
+      {!spark && <div className="relative h-1 bg-[var(--hover-bg)] rounded-full overflow-hidden">
+        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: c }} />
+      </div>}
+      <div className="flex items-center justify-between gap-2">
+        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
       </div>
     </div>
   );
 }
 
-export function BulletKpiCard({ label, value, sub, ratioPct, tone = 'info', delta, deltaCaption, deltaGood = 'up', deltaFormat }: KpiCommon & { sub?: string; ratioPct: number }) {
+/** Ratio card — sparkline or bar + inline label. No dots, no uppercase. */
+export function BulletKpiCard({ label, value, sub, ratioPct, tone = 'info', delta, deltaCaption, deltaGood = 'up', deltaFormat, comparison, spark }: KpiCommon & { sub?: string; ratioPct: number }) {
   const c = TONE_C[tone] ?? TONE_C.info;
   return (
-    <div className="card h-full flex flex-col justify-center gap-2 ps-12 pe-4 py-4">
+    <div className="card @container h-full flex flex-col gap-2 ps-12 pe-4 py-3.5">
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</span>
+        {sub && <span className="text-sm text-[var(--text-muted)] font-normal">{sub}</span>}
+      </div>
+      <span className="text-2xs text-[var(--text-muted)]">{label}</span>
+      {spark && spark.length > 1 ? (
+        <div className="h-5 w-full opacity-80"><Spark data={spark} color={c} area /></div>
+      ) : (
+        <div className="relative h-2 bg-[var(--hover-bg)] rounded-full overflow-hidden">
+          <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, ratioPct))}%`, background: c }} />
+        </div>
+      )}
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xs text-[var(--text-muted)] uppercase tracking-wide truncate">{label}</span>
+        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
-      </div>
-      <div className="font-mono text-2xl font-semibold tabular-nums leading-none text-[var(--text-primary)]">
-        {value}{sub && <span className="text-xs text-[var(--text-muted)] font-normal"> {sub}</span>}
-      </div>
-      <div className="h-1.5 bg-[var(--hover-bg)] rounded-full overflow-hidden">
-        <div className="h-full rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, ratioPct))}%`, background: c }} />
       </div>
     </div>
   );
 }
 
-export function SparkKpiCard({ label, value, spark, tone = 'default', delta, deltaCaption, deltaGood = 'down', deltaFormat }: KpiCommon & { spark: number[] }) {
+/** Trend card — sparkline as hero, not decoration. No dots, no uppercase. */
+export function SparkKpiCard({ label, value, spark, tone = 'default', delta, deltaCaption, deltaGood = 'down', deltaFormat, comparison }: KpiCommon & { spark: number[] }) {
   const c = TONE_C[tone] ?? TONE_C.default;
   return (
-    <div className="card h-full flex flex-col justify-between gap-1 ps-12 pe-4 py-4">
+    <div className="card @container h-full flex flex-col gap-1 ps-12 pe-4 py-3.5">
+      <div className="flex items-baseline gap-1.5">
+        <span className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</span>
+        <span className="text-2xs text-[var(--text-muted)]">{label}</span>
+      </div>
+      <div className="flex-1 min-h-0 w-full"><Spark data={spark} color={c} area /></div>
       <div className="flex items-center justify-between gap-2">
-        <span className="text-2xs text-[var(--text-muted)] uppercase tracking-wide truncate">{label}</span>
+        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
       </div>
-      <div className="font-mono text-2xl font-semibold tabular-nums text-[var(--text-primary)]">{value}</div>
-      <Spark data={spark} color={c} area />
     </div>
   );
 }

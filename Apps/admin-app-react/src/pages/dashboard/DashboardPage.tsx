@@ -1,47 +1,51 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
-import { cn } from '@/lib/utils';
-import { useLocaleStore } from '@/lib/i18n';
 import { useT } from '@/lib/i18n/LocaleContext';
 
 import {
-  IconChartBar, IconAlertTriangle, IconTable, IconLayoutKanban, IconDots, IconInbox,
-  IconArrowRight, IconServer, IconServerOff,
+  IconTable, IconLayoutKanban, IconDots, IconInbox,
+  IconArrowRight, IconFilter,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import ActivityTicker from '@/components/ActivityTicker';
 import { Skeleton } from '@/components/ui/skeleton';
-import type { DeliveryStatus } from '@/types';
+import type { AnalyticsScope } from '@/types';
 
 import { DISPATCH_STATUSES, TONE_VAR } from './constants';
 import { useDashboardData, type Range } from './useDashboardData';
-import { AnalyticsFilterBar } from '@/components/analytics/AnalyticsFilterBar';
+import { GlobalFilterDrawer } from '@/components/analytics/GlobalFilterDrawer';
 import { DeliveryCard, LotCard, type CardItem } from './cards';
 import {
   TrendChartWidget, NeedsAttentionWidget, TopItemsWidget, FailureCausesWidget,
   DriverAvailabilityWidget, ActiveRoutesWidget, QuickActionsWidget,
-  CycleTimeWidget, ZoneDensityWidget, StatusBreakdownWidget, OpsCountersWidget,
+  CycleTimeWidget, StatusBreakdownWidget, OpsCountersWidget,
   RadialKpiCard, BulletKpiCard, SparkKpiCard,
 } from './widgets';
+import ZoneDemandCards from './ZoneDemandCards';
 
 export default function DashboardPage() {
   const t = useT();
   const navigate = useRouter();
-  const { locale } = useLocaleStore();
   // Live-first: default to today, not all-time (a dashboard answers "what's happening now").
-  const [range, setRange] = useState<Range>('today');
+  const [range, setRange] = useState<Range>('last30d');
   const [customFrom, setCustomFrom] = useState('');
   const [customTo, setCustomTo] = useState('');
   const [viewMode, setViewMode] = useState<'office' | 'kanban'>('office');
+  const [scope, setScope] = useState<AnalyticsScope>({});
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const activeFilterCount = useMemo(() => {
+    const scopeCount = Object.values(scope).filter(v => v != null && v !== '').length;
+    return scopeCount + (range !== 'last30d' ? 1 : 0);
+  }, [scope, range]);
 
   const {
     refreshing, isLoading, refetch, stats, today, overdueCount, slaPercent,
-    trend, completionSpark, deliveredSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
-    activeRoutesCount, drivers, driverGroups, healthSummary, healthProblemsSummary,
+    trend, completionSpark, deliveredSpark, lateSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
+    activeRoutesCount, drivers, driverGroups, healthSummary,
     laneMap, needsAttention, activeRoutes, focusedRouteId, setFocusedRouteId,
-    driverName, getStatusConfig, kpi, ops,
-  } = useDashboardData(range, customFrom, customTo);
+    driverName, getStatusConfig, kpi, ops, heatmap,
+  } = useDashboardData(range, customFrom, customTo, scope);
 
   const deliveredPct = today?.total ? Math.round((today.delivered / today.total) * 100) : 0;
   const failedSpark = trend.map(d => Number(d.failed) || 0);
@@ -57,84 +61,52 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] select-none animate-fadeIn">
-      {/* ── HEADER PANEL ── */}
-      <div className="border-b border-[var(--border)] bg-[var(--surface)] shrink-0 shadow-2xs">
-        <div className="px-6 py-2.5 flex items-center justify-between gap-6 max-w-[1900px] mx-auto">
-          <div className="flex items-center gap-2.5 min-w-0">
-            <h1 className="text-sm font-bold text-[var(--text-primary)] leading-tight tracking-tight shrink-0">{t.dashboardPage?.title || 'Tableau de bord'}</h1>
-            {overdueCount > 0 && (
-              <button
-                type="button"
-                onClick={() => navigate('/dispatch-desk?tab=queue')}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-2xs font-semibold bg-[var(--danger-bg)] text-[var(--danger)] border border-[var(--danger)]/15 hover:border-[var(--danger)]/30 transition-colors cursor-pointer shrink-0"
-              >
-                <IconAlertTriangle size={10} className="shrink-0" />
-                <span>{(t.dashboardPage.overdueChipLabel || '{count} non planifiées en retard').replace('{count}', String(overdueCount)).replace('{plural}', overdueCount > 1 ? 's' : '')}</span>
-              </button>
-            )}
-          </div>
-
-          <div className="flex items-center gap-3 shrink-0">
-            <div className="flex items-center gap-1.5 me-2">
-              <button type="button" onClick={() => handleViewChange('office')} className={cn('px-3 py-1 text-xs font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]', viewMode === 'office' ? 'bg-background text-foreground border border-border shadow-2xs font-semibold' : 'text-muted-foreground hover:text-foreground bg-transparent')}>
-                <IconTable size={12} />{locale === 'ar' ? 'الجدول' : 'Tableau'}
-              </button>
-              <button type="button" onClick={() => handleViewChange('kanban')} className={cn('px-3 py-1 text-xs font-bold transition-all rounded-full cursor-pointer flex items-center gap-1 h-7 active:scale-[0.95]', viewMode === 'kanban' ? 'bg-background text-foreground border border-border shadow-2xs font-semibold' : 'text-muted-foreground hover:text-foreground bg-transparent')}>
-                <IconLayoutKanban size={12} />Kanban
-              </button>
-            </div>
-            <AnalyticsFilterBar<Range>
-              range={range}
-              onRangeChange={setRange}
-              options={[
-                { value: 'today', label: t.dashboardPage.periodToday },
-                { value: 'yesterday', label: t.dashboardPage.periodYesterday },
-                { value: 'last7d', label: t.dashboardPage.period7d },
-                { value: 'last30d', label: t.dashboardPage.period30d },
-                { value: 'custom', label: t.dashboardPage.periodCustom },
-              ]}
-              from={customFrom}
-              to={customTo}
-              onFromChange={setCustomFrom}
-              onToChange={setCustomTo}
-              fromLabel={t.auditLogsPage?.fromLabel ?? 'Du'}
-              toLabel={t.auditLogsPage?.toLabel ?? 'Au'}
-              right={<RefreshButton refreshing={refreshing} onClick={() => refetch()} />}
-            />
-          </div>
-        </div>
+    <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] select-none animate-fadeIn relative">
+      {/* ── FLOATING ACTION BAR ── */}
+      <div className="fixed top-16 right-4 z-40 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
+        <button
+          type="button"
+          onClick={() => handleViewChange(viewMode === 'office' ? 'kanban' : 'office')}
+          className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+          title={viewMode === 'office' ? 'Kanban' : 'Tableau'}
+        >
+          {viewMode === 'office' ? <IconLayoutKanban size={14} /> : <IconTable size={14} />}
+        </button>
+        <RefreshButton refreshing={refreshing} onClick={() => refetch()} />
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          className="relative w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+        >
+          <IconFilter size={14} />
+          {activeFilterCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-[var(--brand)] text-white text-2xs font-bold flex items-center justify-center">
+              {activeFilterCount}
+            </span>
+          )}
+        </button>
       </div>
-
-      {/* ── PULSE BAND — operational health at a glance (icon+label+tone, no gradient) ── */}
-      {!isLoading && (() => {
-        const tone = healthSummary.allGood ? 'success' : healthSummary.downCount > 0 ? 'danger' : 'warning';
-        const toneText = tone === 'success' ? 'var(--success)' : tone === 'danger' ? 'var(--danger)' : 'var(--warning)';
-        const toneBg = tone === 'success' ? 'var(--success-bg)' : tone === 'danger' ? 'var(--danger-bg)' : 'var(--warning-bg)';
-        const statusLabel = healthSummary.allGood
-          ? (t.dashboardPage.pulseNominal ?? 'Opérations nominales')
-          : `${healthSummary.downCount > 0 ? (t.dashboardPage.systemHealthOffline ?? 'Hors ligne') : (t.dashboardPage.systemHealthDegraded ?? 'Dégradé')}${healthProblemsSummary ? ' · ' + healthProblemsSummary : ''}`;
-        return (
-          <div className="border-b border-[var(--border)]" style={{ background: toneBg }}>
-            <div className="px-6 py-2.5 max-w-[1800px] mx-auto flex items-center gap-x-6 gap-y-1 flex-wrap">
-              <span className="inline-flex items-center gap-2 text-xs font-semibold" style={{ color: toneText }}>
-                {healthSummary.allGood ? <IconServer size={14} /> : <IconServerOff size={14} />}
-                {statusLabel}
-              </span>
-              <span className="text-xs text-[var(--text-secondary)]">
-                {t.dashboardPage.slaRateLabel} <b className="font-semibold tabular-nums">{slaPercent}%</b>
-              </span>
-              <button type="button" onClick={() => navigate('/dispatch-desk?tab=queue')}
-                className="text-xs text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors">
-                {t.dashboardPage.pulseToProcess ?? 'À traiter'} <b className="font-semibold tabular-nums">{overdueCount}</b>
-              </button>
-              <span className="text-xs text-[var(--text-secondary)]">
-                {t.dashboardPage.pulseServices ?? 'Services'} <b className="font-semibold tabular-nums">{healthSummary.serviceCount > 0 ? `${healthSummary.okServices}/${healthSummary.serviceCount}` : '--'}</b>
-              </span>
-            </div>
-          </div>
-        );
-      })()}
+      <GlobalFilterDrawer
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        value={scope}
+        onChange={setScope}
+        resultCount={today?.total}
+        range={range}
+        onRangeChange={setRange}
+        defaultRange="last30d"
+        rangeOptions={[
+          { value: 'today', label: t.dashboardPage.periodToday },
+          { value: 'yesterday', label: t.dashboardPage.periodYesterday },
+          { value: 'last7d', label: t.dashboardPage.period7d },
+          { value: 'last30d', label: t.dashboardPage.period30d },
+          { value: 'custom', label: t.dashboardPage.periodCustom },
+        ]}
+        customFrom={customFrom}
+        customTo={customTo}
+        onCustomFromChange={setCustomFrom}
+        onCustomToChange={setCustomTo}
+      />
 
       {/* ── MAIN VIEW CONTENT SWITCHER ── */}
       {isLoading ? (
@@ -145,60 +117,65 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : viewMode === 'office' ? (
-        <div className="flex-1 min-h-0 overflow-hidden flex gap-3 px-4 py-3 w-full max-w-[1900px] mx-auto animate-fadeIn">
-          <div className="flex-1 min-w-0 overflow-y-auto pe-1">
+        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 w-full max-w-[1900px] mx-auto animate-fadeIn">
           <DraggableWidgetGrid
-            storageKey="dashboard-v8-stats"
+            storageKey="dashboard-v11-stats"
             margin={[12, 12]}
             items={[
               {
-                id: 'kpi-sla', defaultLayout: { w: 3, h: 2, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-sla', defaultLayout: { w: 2, h: 3, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <RadialKpiCard label={t.dashboardPage.slaRateLabel} value={`${slaPercent}%`} pct={slaPercent}
+                  comparison={`${t.dashboardPage.pulseToProcess ?? 'À traiter'} ${overdueCount} · ${t.dashboardPage.pulseServices ?? 'Services'} ${healthSummary.serviceCount > 0 ? `${healthSummary.okServices}/${healthSummary.serviceCount}` : '--'}`}
                   tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
-                  delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} />,
+                  delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} spark={completionSpark} />,
               },
               {
-                id: 'kpi-delivered', defaultLayout: { w: 3, h: 2, x: 3, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-delivered', defaultLayout: { w: 2, h: 3, x: 2, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <BulletKpiCard label={t.dashboardPage.kpiDelivered || 'Livrées'} value={today?.delivered ?? 0} sub={`/ ${today?.total ?? 0}`}
-                  ratioPct={deliveredPct} tone="info"
+                  ratioPct={deliveredPct} comparison={`${deliveredPct}% ${t.dashboardPage.kpiDelivered || 'livrées'}`}
+                  tone="info"
                   delta={deliveredDelta == null ? undefined : deliveredDelta} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${n.toFixed(0)}%`} />,
               },
               {
-                id: 'kpi-failed', defaultLayout: { w: 3, h: 2, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <SparkKpiCard label={t.dashboardPage.kpiFailed || 'Échecs'} value={today?.failed ?? 0} spark={failedSpark} tone="danger" deltaGood="down" />,
+                id: 'kpi-failed', defaultLayout: { w: 2, h: 3, x: 4, y: 0, minW: 2, minH: 2 }, className: '',
+                children: <SparkKpiCard label={t.dashboardPage.kpiFailed || 'Échecs'} value={today?.failed ?? 0} spark={failedSpark}
+                  comparison={today?.total ? `${((today.failed / today.total) * 100).toFixed(1)}% du total` : undefined}
+                  tone="danger" deltaGood="down" />,
               },
               {
-                id: 'kpi-late', defaultLayout: { w: 3, h: 2, x: 9, y: 0, minW: 2, minH: 2 }, className: '',
+                id: 'kpi-late', defaultLayout: { w: 3, h: 3, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <BulletKpiCard label={t.dashboardPage.kpiLate || 'Retards'} value={overdueCount} sub={`/ ${today?.total ?? 0}`}
-                  ratioPct={today?.total ? (overdueCount / today.total) * 100 : 0} tone="danger" />,
+                  ratioPct={today?.total ? (overdueCount / today.total) * 100 : 0}
+                  comparison={today?.total ? `${((overdueCount / today.total) * 100).toFixed(1)}% en retard` : undefined}
+                  tone="danger" spark={lateSpark} />,
               },
-              { id: 'status-breakdown', defaultLayout: { w: 4, h: 5, x: 0, y: 3, minW: 3, minH: 4 }, className: '', children: <StatusBreakdownWidget stats={stats} /> },
-              { id: 'ops-counters', defaultLayout: { w: 4, h: 5, x: 4, y: 3, minW: 3, minH: 3 }, className: '', children: <OpsCountersWidget kpi={kpi} ops={ops} /> },
-              { id: 'cycle-time', defaultLayout: { w: 4, h: 5, x: 8, y: 3, minW: 3, minH: 4 }, className: '', children: <CycleTimeWidget stats={stats} /> },
-              { id: 'trend-chart', defaultLayout: { w: 8, h: 6, x: 0, y: 8, minW: 6, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
-              { id: 'zone-density', defaultLayout: { w: 4, h: 6, x: 8, y: 8, minW: 3, minH: 4 }, className: '', children: <ZoneDensityWidget kpi={kpi} /> },
-              { id: 'top-items', defaultLayout: { w: 6, h: 5, x: 0, y: 14, minW: 3, minH: 4 }, className: '', children: <TopItemsWidget stats={stats} /> },
-              { id: 'failure-causes', defaultLayout: { w: 6, h: 5, x: 6, y: 14, minW: 3, minH: 4 }, className: '', children: <FailureCausesWidget stats={stats} /> },
-              { id: 'quick-actions', defaultLayout: { w: 12, h: 2, x: 0, y: 19, minW: 3, minH: 2 }, className: '', children: <QuickActionsWidget navigate={navigate} /> },
+              { id: 'status-breakdown', defaultLayout: { w: 3, h: 5, x: 0, y: 3, minW: 2, minH: 4 }, className: '', children: <StatusBreakdownWidget stats={stats} /> },
+              { id: 'ops-counters', defaultLayout: { w: 3, h: 5, x: 3, y: 3, minW: 2, minH: 3 }, className: '', children: <OpsCountersWidget kpi={kpi} ops={ops} /> },
+              { id: 'cycle-time', defaultLayout: { w: 3, h: 6, x: 6, y: 3, minW: 2, minH: 4 }, className: '', children: <CycleTimeWidget stats={stats} /> },
+              { id: 'trend-chart', defaultLayout: { w: 6, h: 6, x: 0, y: 8, minW: 4, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
+              { id: 'zone-density', defaultLayout: { w: 3, h: 5, x: 6, y: 9, minW: 2, minH: 4 }, className: '', children: <ZoneDemandCards range={range} from={customFrom} to={customTo} /> },
+              { id: 'top-items', defaultLayout: { w: 4, h: 6, x: 0, y: 14, minW: 3, minH: 4 }, className: '', children: <TopItemsWidget stats={stats} /> },
+              { id: 'failure-causes', defaultLayout: { w: 5, h: 6, x: 4, y: 14, minW: 3, minH: 4 }, className: '', children: <FailureCausesWidget stats={stats} /> },
+              { id: 'quick-actions', defaultLayout: { w: 4, h: 5, x: 0, y: 20, minW: 3, minH: 2 }, className: '', children: <QuickActionsWidget navigate={navigate} /> },
+              /* ── Right-locked widgets (colonne 9-11, 只能纵向互换) ── */
+              {
+                id: 'needs-attention', defaultLayout: { w: 3, h: 8, x: 9, y: 0, minW: 3, maxW: 3, minH: 4 }, className: '',
+                children: <NeedsAttentionWidget items={needsAttention} navigate={navigate} />,
+              },
+              {
+                id: 'live-activity', defaultLayout: { w: 3, h: 7, x: 9, y: 8, minW: 3, maxW: 3, minH: 4 }, className: '',
+                children: <ActivityTicker />,
+              },
+              {
+                id: 'driver-availability', defaultLayout: { w: 3, h: 5, x: 9, y: 15, minW: 3, maxW: 3, minH: 3 }, className: '',
+                children: <DriverAvailabilityWidget driverGroups={driverGroups} />,
+              },
+              {
+                id: 'active-routes', defaultLayout: { w: 3, h: 5, x: 9, y: 20, minW: 3, maxW: 3, minH: 3 }, className: '',
+                children: <ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} />,
+              },
             ]}
           />
-          </div>
-          {/* Decorative separator line between main grid and sidebar */}
-          <div className="w-px bg-gradient-to-b from-transparent via-[var(--border)] to-transparent shrink-0 my-4" />
-          {/* RIGHT — live rail (operational: à-traiter + activité + fleet; ignores the date filter) */}
-          <aside className="w-[300px] shrink-0 flex flex-col">
-            <div className="flex flex-col flex-1 min-h-0 overflow-y-auto [&_.card]:!border-0 [&_.card]:!rounded-none [&_.card]:!shadow-none [&_.card]:!bg-transparent" style={{ scrollbarWidth: 'thin' }}>
-              {needsAttention.length > 0 && (
-                <div className="shrink-0"><NeedsAttentionWidget items={needsAttention} navigate={navigate} /></div>
-              )}
-              {/* Thin decorative line between Nécessite attention and Live */}
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--text-muted)]/20 to-transparent shrink-0 mx-3" />
-              <div className="shrink-0"><ActivityTicker /></div>
-              <div className="h-px bg-gradient-to-r from-transparent via-[var(--text-muted)]/20 to-transparent shrink-0 mx-3" />
-              <div className="shrink-0"><DriverAvailabilityWidget driverGroups={driverGroups} /></div>
-              <div className="shrink-0"><ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} /></div>
-            </div>
-          </aside>
         </div>
       ) : (
         /* ── KANBAN VIEW ── */
