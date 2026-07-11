@@ -38,13 +38,19 @@ public class AdminUserController {
         auditEventPublisher.publishAdminUserAudit(action, actorId, "ADMIN", resourceId, details);
     }
 
+    /** Minimal JSON escaping for values spliced into a hand-built audit payload. */
+    private static String jsonEsc(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     @PostMapping
     public ResponseEntity<AdminUserResponse> createUser(
             @AuthenticationPrincipal UserPrincipal principal,
             @Valid @RequestBody CreateAdminUserRequest req) {
         AdminUserResponse response = adminUserService.createUser(req);
         pushAuditLog("CREATE_ADMIN_USER", response.id(),
-                "Created " + req.role() + " account: " + req.name() + " (" + req.email() + ")");
+                String.format("{\"name\":\"%s\",\"email\":\"%s\",\"role\":\"%s\"}",
+                        jsonEsc(req.name()), jsonEsc(req.email()), jsonEsc(req.role())));
         return ResponseEntity.ok(response);
     }
 
@@ -61,7 +67,8 @@ public class AdminUserController {
         if (active == null) return ResponseEntity.badRequest().build();
         AdminUserResponse res = adminUserService.setActive(id, active);
         pushAuditLog("TOGGLE_ADMIN_USER_STATUS", res.id(),
-                "Set status of " + res.email() + " to " + (active ? "ACTIVE" : "INACTIVE"));
+                String.format("{\"email\":\"%s\",\"name\":\"%s\",\"status\":\"%s\"}",
+                        jsonEsc(res.email()), jsonEsc(res.name()), active ? "ACTIVE" : "INACTIVE"));
         return ResponseEntity.ok(res);
     }
 
@@ -73,7 +80,8 @@ public class AdminUserController {
             @RequestBody UpdateAdminUserRequest req) {
         AdminUserResponse res = adminUserService.updateUser(id, req.name(), req.email(), req.role());
         pushAuditLog("UPDATE_ADMIN_USER", res.id(),
-                "Updated account: " + res.name() + " (" + res.email() + "), role: " + res.role());
+                String.format("{\"name\":\"%s\",\"email\":\"%s\",\"role\":\"%s\"}",
+                        jsonEsc(res.name()), jsonEsc(res.email()), jsonEsc(res.role())));
         return ResponseEntity.ok(res);
     }
 

@@ -1,9 +1,10 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { IconSearch, IconChevronDown, IconChevronLeft, IconX } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
 import { cn } from '@/lib/utils';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 // ── Public types ──────────────────────────────────────────────────────────────
 
@@ -17,6 +18,17 @@ export interface FilterAttribute {
   label: string;
   options?: FilterOption[];
   type?: 'select' | 'date';
+  /** When true, the value list is multi-select: clicking toggles a value and the menu stays open.
+   *  The active value for this key is then a string[] (the consumer toggles it on each change). */
+  multi?: boolean;
+}
+
+/** Active value for a filter key — a single value (single-select) or a list (multi-select). */
+export type ActiveFilterValue = string | string[];
+
+/** Read helper: normalize a single/array active value to an array. */
+function asArray(v: ActiveFilterValue | undefined): string[] {
+  return v == null ? [] : Array.isArray(v) ? v : [v];
 }
 
 export interface PageFilterBarProps {
@@ -26,8 +38,8 @@ export interface PageFilterBarProps {
   searchPlaceholder?: string;
   /** Attribute definitions for the 2-step dropdown */
   attributes?: FilterAttribute[];
-  /** Currently active filter values: { attrKey: selectedValue } */
-  activeFilters?: Record<string, string>;
+  /** Currently active filter values: { attrKey: selectedValue | selectedValues[] } */
+  activeFilters?: Record<string, ActiveFilterValue>;
   onFilterChange?: (key: string, value: string | null) => void;
   onRefresh?: () => void;
   refreshing?: boolean;
@@ -47,11 +59,12 @@ interface DropdownProps {
   open: boolean;
   onClose: () => void;
   attributes: FilterAttribute[];
-  activeFilters: Record<string, string>;
+  activeFilters: Record<string, ActiveFilterValue>;
   onFilterChange: (key: string, value: string | null) => void;
 }
 
 function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, onFilterChange }: DropdownProps) {
+  const t = useT();
   const ref = useRef<HTMLDivElement>(null);
   const [step, setStep] = useState<'attrs' | string>('attrs');
   const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
@@ -61,7 +74,9 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
     setMounted(true);
   }, []);
 
-  useEffect(() => {
+  // useLayoutEffect so the dropdown is positioned BEFORE the browser paints — a plain useEffect
+  // paints it once at {0,0} (top-left, shadow included) then repositions → the brief shadow flash.
+  useLayoutEffect(() => {
     if (!open || !anchorRef.current) {
       if (!open) setStep('attrs');
       return;
@@ -119,10 +134,10 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
       {step === 'attrs' && (
         <div className="py-1">
           <div className="px-3 py-1.5 text-2xs font-semibold tracking-wider uppercase" style={{ color: 'var(--text-muted)' }}>
-            Filtrer par
+            {t.common?.filtrerPar ?? 'Filtrer par'}
           </div>
           {attributes.map(attr => {
-            const hasValue = !!activeFilters[attr.key];
+            const hasValue = asArray(activeFilters[attr.key]).length > 0;
             return (
               <button
                 key={attr.key}
@@ -168,7 +183,7 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
           {activeAttr.type === 'date' ? (
             <div className="p-3">
               <DatePickerPopover
-                value={activeFilters[activeAttr.key] ?? null}
+                value={asArray(activeFilters[activeAttr.key])[0] ?? null}
                 onChange={val => { onFilterChange(activeAttr.key, val); }}
                 placeholder="Choisir une date"
                 className="w-full !h-8 bg-[var(--app-bg)] text-[var(--text-primary)] border-[var(--border)] rounded text-sm"
@@ -180,14 +195,14 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
                   style={{ color: 'var(--brand)' }}
                   onClick={() => { onFilterChange(activeAttr.key, null); setStep('attrs'); }}
                 >
-                  Effacer
+                  {t.common?.effacer ?? 'Effacer'}
                 </button>
               )}
             </div>
           ) : (
             <div className="py-1 max-h-56 overflow-y-auto">
               {(activeAttr.options ?? []).map(opt => {
-                const isActive = activeFilters[activeAttr.key] === opt.value;
+                const isActive = asArray(activeFilters[activeAttr.key]).includes(opt.value);
                 return (
                   <button
                     key={opt.value}
@@ -195,8 +210,10 @@ function FilterDropdown({ anchorRef, open, onClose, attributes, activeFilters, o
                     className="w-full flex items-center gap-2.5 px-3 py-2 text-sm hover:bg-[var(--hover-bg)] transition-colors"
                     style={{ color: 'var(--text-primary)' }}
                     onClick={() => {
-                      onFilterChange(activeAttr.key, isActive ? null : opt.value);
-                      onClose();
+                      // Multi: toggle the clicked value and keep the menu open to pick more.
+                      // Single: replace (or clear) and close, as before.
+                      onFilterChange(activeAttr.key, isActive && !activeAttr.multi ? null : opt.value);
+                      if (!activeAttr.multi) onClose();
                     }}
                   >
                     <div
@@ -247,7 +264,7 @@ function FilterToken({ attrLabel, valueLabel, onRemove }: { attrLabel: string; v
 export function PageFilterBar({
   search = '',
   onSearch,
-  searchPlaceholder = 'Rechercher…',
+  searchPlaceholder,
   attributes,
   activeFilters = {},
   onFilterChange,
@@ -259,24 +276,31 @@ export function PageFilterBar({
   extraActions,
   className,
 }: PageFilterBarProps) {
+  const t = useT();
+  const resolvedSearchPlaceholder = searchPlaceholder ?? t.common?.rechercher ?? 'Rechercher…';
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const filterBtnRef = useRef<HTMLButtonElement | null>(null);
 
+  // One token per selected value (multi-select keys expand to several tokens).
   const activeTokens = attributes
-    ? attributes
-        .filter(a => !!activeFilters[a.key])
-        .map(a => {
-          const raw = activeFilters[a.key];
-          const label = a.options?.find(o => o.value === raw)?.label ?? raw;
-          return { key: a.key, attrLabel: a.label, valueLabel: label };
-        })
+    ? attributes.flatMap(a =>
+        asArray(activeFilters[a.key]).map(raw => ({
+          key: a.key,
+          value: raw,
+          multi: !!a.multi,
+          attrLabel: a.label,
+          valueLabel: a.options?.find(o => o.value === raw)?.label ?? raw,
+        })))
     : [];
 
   const hasActive = activeTokens.length > 0;
-  const activeCount = Object.keys(activeFilters).filter(k => activeFilters[k]).length;
+  const activeCount = attributes
+    ? attributes.filter(a => asArray(activeFilters[a.key]).length > 0).length
+    : 0;
 
   const handleClearAll = () => {
-    activeTokens.forEach(t => onFilterChange?.(t.key, null));
+    // Clear each active key once (null = clear the whole value, single or array).
+    Array.from(new Set(activeTokens.map(t => t.key))).forEach(key => onFilterChange?.(key, null));
     onSearch?.('');
   };
 
@@ -299,7 +323,7 @@ export function PageFilterBar({
               type="text"
               value={search}
               onChange={e => onSearch(e.target.value)}
-              placeholder={searchPlaceholder}
+              placeholder=            {resolvedSearchPlaceholder}
               className="w-full h-8 pl-7 pr-3 rounded-full text-sm border outline-none focus:ring-2 focus:ring-[var(--brand-blue)] focus:ring-offset-0 transition"
               style={{
                 background: 'var(--app-bg)',
@@ -323,7 +347,7 @@ export function PageFilterBar({
               color: dropdownOpen ? 'var(--brand-blue)' : 'var(--text-muted)',
             }}
           >
-            Filtrer
+            {t.common?.filtrer ?? 'Filtrer'}
             {activeCount > 0 && (
               <span
                 className="text-2xs font-bold w-4 h-4 rounded-full flex items-center justify-center"
@@ -349,7 +373,7 @@ export function PageFilterBar({
             className="text-xs font-[500] shrink-0 hover:opacity-70 transition-opacity"
             style={{ color: 'var(--text-muted)' }}
           >
-            Effacer tout
+            {t.common?.effacerTout ?? 'Effacer tout'}
           </button>
         )}
 
@@ -368,10 +392,10 @@ export function PageFilterBar({
         <div className="flex items-center flex-wrap gap-1.5 px-4 pb-2.5">
           {activeTokens.map(t => (
             <FilterToken
-              key={t.key}
+              key={`${t.key}-${t.value}`}
               attrLabel={t.attrLabel}
               valueLabel={t.valueLabel}
-              onRemove={() => onFilterChange?.(t.key, null)}
+              onRemove={() => onFilterChange?.(t.key, t.multi ? t.value : null)}
             />
           ))}
         </div>

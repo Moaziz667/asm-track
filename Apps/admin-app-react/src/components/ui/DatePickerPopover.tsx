@@ -1,10 +1,11 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { IconCalendar } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { Calendar } from '@/components/ui/calendar';
 
 interface DatePickerPopoverProps {
@@ -16,7 +17,8 @@ interface DatePickerPopoverProps {
   minDate?: Date;
 }
 
-export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une date', className, minDate }: DatePickerPopoverProps) {
+export function DatePickerPopover({ value, onChange, placeholder, className, minDate }: DatePickerPopoverProps) {
+  const t = useT();
   const selected = value ? parseISO(value) : undefined;
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, right: 0 });
@@ -26,8 +28,10 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Position the portal panel below the trigger button
-  useEffect(() => {
+  // Position the portal panel below the trigger button — useLayoutEffect so the position is set
+  // BEFORE the browser paints. With a plain useEffect the panel paints once at {0,0} (top-right,
+  // shadow and all) then jumps into place → the brief shadow flash on open.
+  useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
     setPos({
@@ -64,7 +68,7 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
       >
         <IconCalendar size={13} className="text-[var(--text-soft)] shrink-0" />
         <span className={cn('font-mono text-xs', !selected && 'text-[var(--text-soft)]')}>
-          {selected ? format(selected, 'd MMM yyyy', { locale: fr }) : placeholder}
+          {selected ? format(selected, 'd MMM yyyy', { locale: fr }) : (placeholder ?? t.placeholders?.date ?? 'Pick a date')}
         </span>
       </button>
 
@@ -96,7 +100,7 @@ export function DatePickerPopover({ value, onChange, placeholder = 'Choisir une 
                 onClick={() => { onChange(null); setOpen(false); }}
                 className="text-xs font-semibold text-[var(--text-muted)] hover:text-[var(--danger)] transition-colors"
               >
-                Effacer la date
+                {t.common?.effacer ?? 'Clear'}
               </button>
             </div>
           )}

@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
-  IconClock, IconTrendingUp, IconUsers,
+  IconClockFilled, IconChartAreaFilled, IconUsersGroup,
   IconFileAnalytics, IconColumns, IconX, IconFilter,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
@@ -43,7 +43,63 @@ const fmtMinutes = (m: number | null | undefined): string => {
 type Tone = 'success' | 'warning' | 'danger';
 const rateTone = (v: number): Tone => (v >= 90 ? 'success' : v >= 75 ? 'warning' : 'danger');
 const TONE_TEXT: Record<Tone, string> = { success: 'var(--success)', warning: 'var(--warning)', danger: 'var(--danger)' };
-const TONE_BG: Record<Tone, string> = { success: 'var(--success-bg)', warning: 'var(--warning-bg)', danger: 'var(--danger-bg)' };
+
+// ── Mini sparkline (inline SVG, no recharts dependency) ──────────────────────
+function MiniSpark({ data, color }: { data: number[]; color: string }) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data), min = Math.min(...data), rng = (max - min) || 1;
+  const pts = data.map((v, i) => `${(i / (data.length - 1)) * 100},${18 - ((v - min) / rng) * 14 - 2}`).join(' ');
+  return (
+    <svg viewBox="0 0 100 20" preserveAspectRatio="none" width="100%" height="18" aria-hidden="true">
+      <polygon points={`0,20 ${pts} 100,20`} fill={color} opacity="0.07" />
+      <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
+
+// ── Delta pill ──────────────────────────────────────────────────────────────
+function DeltaPill({ delta, goodWhen = 'up', format }: { delta?: number | null; goodWhen?: 'up' | 'down'; format?: (n: number) => string }) {
+  if (delta == null || delta === 0) return null;
+  const up = delta > 0;
+  const good = goodWhen === 'up' ? up : !up;
+  const color = good ? 'var(--success)' : 'var(--danger)';
+  const txt = format ? format(Math.abs(delta)) : `${Math.abs(delta).toFixed(1)}%`;
+  return (
+    <span className="text-xs font-[600] inline-flex items-center gap-0.5" style={{ color }}>
+      <span aria-hidden="true">{up ? '▲' : '▼'}</span>{txt}
+    </span>
+  );
+}
+
+// ── Enterprise Fleet KPI card (Stripe pattern) ──────────────────────────────
+function FleetKpiCard({ label, value, icon, spark, delta, deltaGood, deltaFormat }: {
+  label: string; value: string; icon: React.ReactNode;
+  spark?: number[]; delta?: number | null; deltaGood?: 'up' | 'down'; deltaFormat?: (n: number) => string;
+}) {
+  return (
+    <div className="border border-[var(--border)] rounded-lg h-full flex flex-col gap-1.5 ps-12 pe-4 py-3 relative">
+      <span className="absolute start-3 top-3 text-[var(--text-soft)]">{icon}</span>
+      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
+      <div className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</div>
+      {spark && spark.length > 1 && (
+        <div className="h-6 w-full opacity-80"><MiniSpark data={spark} color="var(--brand)" /></div>
+      )}
+      <div className="mt-auto pt-1">
+        <DeltaPill delta={delta} goodWhen={deltaGood} format={deltaFormat} />
+      </div>
+    </div>
+  );
+}
+
+// ── Comparison row ──────────────────────────────────────────────────────────
+function CmpRow({ label, value, tone }: { label: string; value: string; tone?: Tone }) {
+  return (
+    <div className="flex items-center justify-between py-1.5 border-t text-xs" style={{ borderColor: 'var(--border)' }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span className="font-mono font-[600]" style={{ color: tone ? TONE_TEXT[tone] : 'var(--text-primary)' }}>{value}</span>
+    </div>
+  );
+}
 
 // ── Page ──────────────────────────────────────────────────────────────────
 export default function PerformancePage() {
@@ -57,7 +113,7 @@ export default function PerformancePage() {
   const [scope, setScope] = useState<AnalyticsScope>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const activeFilterCount = useMemo(() => {
-    const scopeCount = Object.values(scope).filter(v => v != null && v !== '').length;
+    const scopeCount = Object.values(scope).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
     return scopeCount + (range !== 'last30d' ? 1 : 0);
   }, [scope, range]);
 
@@ -66,14 +122,14 @@ export default function PerformancePage() {
     : { range };
 
   const scopeParams = useMemo(() => {
-    const p: Record<string, string> = {};
-    if (scope.zone) p.zone = scope.zone;
-    if (scope.driverId) p.driverId = scope.driverId;
-    if (scope.status) p.status = scope.status;
-    if (scope.motif) p.motif = scope.motif;
-    if (scope.city) p.city = scope.city;
-    if (scope.source) p.source = scope.source;
-    if (scope.depot) p.depot = scope.depot;
+    const p: Record<string, string[]> = {};
+    if (scope.zone?.length) p.zone = scope.zone;
+    if (scope.driverId?.length) p.driverId = scope.driverId;
+    if (scope.status?.length) p.status = scope.status;
+    if (scope.motif?.length) p.motif = scope.motif;
+    if (scope.city?.length) p.city = scope.city;
+    if (scope.source?.length) p.source = scope.source;
+    if (scope.depot?.length) p.depot = scope.depot;
     return p;
   }, [scope]);
 
@@ -92,9 +148,37 @@ export default function PerformancePage() {
   const fleet = useMemo(() => {
     const vol = drivers.reduce((s, d) => s + d.volume, 0);
     const del = drivers.reduce((s, d) => s + d.delivered, 0);
-    const onTime = vol ? drivers.reduce((s, d) => s + d.onTimeRate * d.volume, 0) / vol : 0;
-    const delay = vol ? drivers.reduce((s, d) => s + d.avgDelayMinutes * d.volume, 0) / vol : 0;
-    return { success: vol ? (del / vol) * 100 : 0, onTime, delay };
+    // On-time and avg delay only exist for completed deliveries — weight by `delivered`, not total
+    // volume, so drivers with unresolved/unmeasured work don't skew the fleet figure.
+    const onTime = del ? drivers.reduce((s, d) => s + d.onTimeRate * d.delivered, 0) / del : 100;
+    const delay = del ? drivers.reduce((s, d) => s + d.avgDelayMinutes * d.delivered, 0) / del : 0;
+    // Fleet-level spark: on-time trend from driver trends (averaged per day)
+    const trendMap = new Map<string, { total: number; delivered: number }>();
+    drivers.forEach(d => {
+      d.trend?.forEach(t => {
+        const prev = trendMap.get(t.date) ?? { total: 0, delivered: 0 };
+        trendMap.set(t.date, { total: prev.total + t.total, delivered: prev.delivered + t.delivered });
+      });
+    });
+    const fleetTrend = Array.from(trendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v.total > 0 ? (v.delivered / v.total) * 100 : 0);
+    // Fleet-level deltas (weighted average of driver deltas)
+    const deltaSuccess = vol
+      ? drivers.reduce((s, d) => s + (d.deltaSuccessRatePts ?? 0) * d.volume, 0) / vol
+      : null;
+    return { success: vol ? (del / vol) * 100 : 0, onTime, delay, fleetTrend, deltaSuccess };
+  }, [drivers]);
+
+  // Per-driver spark data (on-time rate trend)
+  const driverSparks = useMemo(() => {
+    const map = new Map<string, number[]>();
+    drivers.forEach(d => {
+      if (d.trend && d.trend.length > 1) {
+        map.set(d.driverId, d.trend.map(t => t.total > 0 ? (t.delivered / t.total) * 100 : 0));
+      }
+    });
+    return map;
   }, [drivers]);
 
   const toggleSelect = useCallback((id: string) => {
@@ -128,7 +212,7 @@ export default function PerformancePage() {
   return (
     <div className="h-[calc(100vh-64px)] flex flex-col overflow-hidden relative" style={{ background: 'var(--app-bg)' }}>
       {/* ── FLOATING ACTION BAR ── */}
-      <div className="fixed top-16 right-4 z-40 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
+      <div className="fixed top-16 right-4 z-40 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg px-1.5 py-1">
         <RefreshButton refreshing={isFetching} onClick={() => refetch()} />
         <button
           type="button"
@@ -156,8 +240,8 @@ export default function PerformancePage() {
         rangeOptions={[
           { value: 'last7d', label: t.performancePage.periodWeek },
           { value: 'last30d', label: t.performancePage.periodMonth },
-          { value: 'qtd', label: tl('periodQuarter', 'Trimestre') },
-          { value: 'custom', label: tl('periodCustom', 'Perso') },
+          { value: 'qtd', label: tl('periodQuarter', 'Quarter') },
+          { value: 'custom', label: tl('periodCustom', 'Custom') },
         ]}
         customFrom={customFrom}
         customTo={customTo}
@@ -165,7 +249,7 @@ export default function PerformancePage() {
         onCustomToChange={setCustomTo}
         compare={compare}
         onCompareChange={setCompare}
-        compareLabel={tl('comparePrev', 'vs période préc.')}
+        compareLabel={tl('comparePrev', 'vs previous period')}
       />
 
       <div className="flex-1 overflow-y-auto">
@@ -174,30 +258,45 @@ export default function PerformancePage() {
           {/* ── Fleet KPIs ── */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             {!data ? (
-              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[92px] rounded-xl" />)
+              Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[104px] rounded-lg" />)
             ) : (
               <>
-                <FleetKpi label={tl('fleetOnTime', 'Ponctualité flotte')} value={`${fleet.onTime.toFixed(1)}%`} icon={<IconClock size={15} />} />
-                <FleetKpi label={t.performancePage.completionRate} value={`${fleet.success.toFixed(1)}%`} icon={<IconTrendingUp size={15} />} />
-                <FleetKpi label={t.performancePage.avgDelay} value={fmtMinutes(fleet.delay)} icon={<IconUsers size={15} />} />
+                <FleetKpiCard
+                  label={tl('fleetOnTime', 'Fleet on-time')}
+                  value={`${fleet.onTime.toFixed(1)}%`}
+                  icon={<IconClockFilled size={16} />}
+                />
+                <FleetKpiCard
+                  label={t.performancePage.completionRate}
+                  value={`${fleet.success.toFixed(1)}%`}
+                  icon={<IconChartAreaFilled size={16} />}
+                  spark={fleet.fleetTrend}
+                  delta={fleet.deltaSuccess}
+                  deltaGood="up"
+                />
+                <FleetKpiCard
+                  label={t.performancePage.avgDelay}
+                  value={fmtMinutes(fleet.delay)}
+                  icon={<IconUsersGroup size={16} />}
+                />
               </>
             )}
           </div>
 
           {/* ── Leaderboard ── */}
-          <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+          <div className="border border-[var(--border)] rounded-lg overflow-hidden" style={{ background: 'var(--surface)' }}>
             <div className="flex items-center justify-between px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
-              <span className="text-xs font-[700] uppercase tracking-wider" style={{ color: 'var(--text-secondary)' }}>{t.performancePage.driverPerformanceRanking}</span>
-              <span className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tl('selectToCompare', 'Cocher pour comparer (max 3)')}</span>
+              <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{t.performancePage.driverPerformanceRanking}</span>
+              <span className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tl('selectToCompare', 'Select to compare (max 3)')}</span>
             </div>
 
             {!data ? (
               <div className="p-4 flex flex-col gap-2">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10 rounded-md" />)}</div>
             ) : drivers.length === 0 ? (
-              <div className="py-16 text-center text-xs font-bold" style={{ color: 'var(--text-muted)' }}>{tl('noDrivers', 'Aucun chauffeur sur la période')}</div>
+              <div className="py-16 text-center text-xs font-[600]" style={{ color: 'var(--text-muted)' }}>{tl('noDrivers', 'No drivers for the period')}</div>
             ) : (
               <div className="overflow-x-auto">
-                <table className="w-full text-xs" style={{ minWidth: 640 }}>
+                <table className="w-full text-xs" style={{ minWidth: 680 }}>
                   <thead>
                     <tr style={{ color: 'var(--text-muted)' }}>
                       <th className="font-[600] text-left px-3 py-2 w-8"></th>
@@ -205,9 +304,10 @@ export default function PerformancePage() {
                       <th className="font-[600] text-left px-2 py-2">{t.performancePage.actor}</th>
                       <th className="font-[600] text-center px-2 py-2">{t.performancePage.volume}</th>
                       <th className="font-[600] text-center px-2 py-2">{t.performancePage.success}</th>
-                      <th className="font-[600] text-center px-2 py-2">{tl('onTime', 'Ponctualité')}</th>
+                      <th className="font-[600] text-center px-2 py-2">{tl('onTime', 'On-time')}</th>
                       <th className="font-[600] text-center px-2 py-2">{t.performancePage.delay}</th>
-                      <th className="font-[600] text-left px-2 py-2">{tl('topMotif', 'Motif top')}</th>
+                      <th className="font-[600] text-left px-2 py-2">{tl('topMotif', 'Top reason')}</th>
+                      <th className="font-[600] text-center px-2 py-2">{tl('trend', 'Trend')}</th>
                       <th className="font-[600] text-right px-3 py-2">PDF</th>
                     </tr>
                   </thead>
@@ -215,8 +315,18 @@ export default function PerformancePage() {
                     {drivers.map((d, idx) => {
                       const tone = rateTone(d.successRate);
                       const isSel = selected.includes(d.driverId);
+                      const spark = driverSparks.get(d.driverId);
                       return (
-                        <tr key={d.driverId} className="border-t transition-colors hover:bg-[var(--hover-bg)]" style={{ borderColor: 'var(--border)' }}>
+                        <tr
+                          key={d.driverId}
+                          className="border-t transition-colors"
+                          style={{
+                            borderColor: 'var(--border)',
+                            background: isSel ? 'var(--surface-sunken)' : undefined,
+                          }}
+                          onMouseEnter={e => { if (!isSel) e.currentTarget.style.background = 'var(--hover-bg)'; }}
+                          onMouseLeave={e => { if (!isSel) e.currentTarget.style.background = ''; }}
+                        >
                           <td className="px-3 py-2">
                             <input type="checkbox" checked={isSel} onChange={() => toggleSelect(d.driverId)} aria-label={d.driverName} className="accent-[var(--brand)] cursor-pointer" />
                           </td>
@@ -236,20 +346,36 @@ export default function PerformancePage() {
                             )}
                           </td>
                           <td className="px-2 py-2 text-center">
-                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-2xs font-[600] font-mono"
-                              style={{ color: TONE_TEXT[tone], background: TONE_BG[tone] }}>
-                              {d.successRate.toFixed(0)}%
-                            </span>
+                            <div className="inline-flex flex-col items-center gap-0.5">
+                              <span className="inline-flex items-center gap-1">
+                                <span className="font-mono font-[600] text-xs" style={{ color: 'var(--text-primary)' }}>{d.successRate.toFixed(0)}%</span>
+                                {compare && d.deltaSuccessRatePts != null && d.deltaSuccessRatePts !== 0 && (
+                                  <span className="text-2xs font-[600]" style={{ color: d.deltaSuccessRatePts >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                                    {d.deltaSuccessRatePts >= 0 ? '+' : ''}{d.deltaSuccessRatePts.toFixed(0)}
+                                  </span>
+                                )}
+                              </span>
+                              <div className="w-10 h-1 bg-[var(--hover-bg)] rounded-full overflow-hidden">
+                                <div className="h-full rounded-full" style={{ width: `${Math.min(100, d.successRate)}%`, background: TONE_TEXT[tone] }} />
+                              </div>
+                            </div>
                           </td>
                           <td className="px-2 py-2 text-center font-mono" style={{ color: 'var(--text-secondary)' }}>{d.onTimeRate.toFixed(0)}%</td>
                           <td className="px-2 py-2 text-center font-mono" style={{ color: 'var(--text-muted)' }}>{fmtMinutes(d.avgDelayMinutes)}</td>
                           <td className="px-2 py-2" style={{ color: 'var(--text-muted)' }}>{d.topFailureMotif ? (t.failureCodes?.[d.topFailureMotif] ?? d.topFailureMotif) : '—'}</td>
+                          <td className="px-2 py-2">
+                            {spark && spark.length > 1 ? (
+                              <div className="w-16 h-5 mx-auto opacity-70"><MiniSpark data={spark} color={TONE_TEXT[tone]} /></div>
+                            ) : (
+                              <span style={{ color: 'var(--text-soft)' }}>—</span>
+                            )}
+                          </td>
                           <td className="px-3 py-2 text-right">
                             <button type="button" onClick={() => generatePdf(d)} disabled={generatingPdf.has(d.driverId)}
                               title={t.performancePage.downloadPdfTooltip}
                               className="inline-flex items-center justify-center w-7 h-7 rounded-md border transition-colors hover:bg-[var(--hover-bg)] disabled:opacity-50"
                               style={{ borderColor: 'var(--border)', color: 'var(--text-muted)' }}>
-                              <IconFileAnalytics size={14} className={generatingPdf.has(d.driverId) ? 'animate-pulse' : ''} />
+                              <IconFileAnalytics size={14} />
                             </button>
                           </td>
                         </tr>
@@ -263,12 +389,12 @@ export default function PerformancePage() {
 
           {/* ── Side-by-side comparison ── */}
           {compared.length >= 2 && (
-            <div className="rounded-xl border overflow-hidden" style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}>
+            <div className="border border-[var(--border)] rounded-lg overflow-hidden" style={{ background: 'var(--surface)' }}>
               <div className="flex items-center gap-2 px-4 py-3 border-b" style={{ borderColor: 'var(--border)' }}>
                 <IconColumns size={14} style={{ color: 'var(--brand)' }} />
-                <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{tl('comparison', 'Comparaison côte-à-côte')}</span>
+                <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{tl('comparison', 'Side-by-side comparison')}</span>
                 <button type="button" onClick={() => setSelected([])} className="ml-auto text-2xs inline-flex items-center gap-1 hover:opacity-70" style={{ color: 'var(--text-muted)' }}>
-                  <IconX size={12} /> {tl('clear', 'Effacer')}
+                  <IconX size={12} /> {tl('clear', 'Clear')}
                 </button>
               </div>
               <div className="grid" style={{ gridTemplateColumns: `repeat(${compared.length}, minmax(0,1fr))` }}>
@@ -279,10 +405,10 @@ export default function PerformancePage() {
                       <span className="text-xs font-[600]" style={{ color: 'var(--text-primary)' }}>{d.driverName}</span>
                     </div>
                     <CmpRow label={t.performancePage.volume} value={String(d.volume)} />
-                    <CmpRow label={tl('onTime', 'Ponctualité')} value={`${d.onTimeRate.toFixed(0)}%`} tone={rateTone(d.onTimeRate)} />
+                    <CmpRow label={tl('onTime', 'On-time')} value={`${d.onTimeRate.toFixed(0)}%`} tone={rateTone(d.onTimeRate)} />
                     <CmpRow label={t.performancePage.success} value={`${d.successRate.toFixed(0)}%`} tone={rateTone(d.successRate)} />
                     <CmpRow label={t.performancePage.avgDelay} value={fmtMinutes(d.avgDelayMinutes)} />
-                    <CmpRow label={tl('topMotif', 'Motif top')} value={d.topFailureMotif ? (t.failureCodes?.[d.topFailureMotif] ?? d.topFailureMotif) : '—'} />
+                    <CmpRow label={tl('topMotif', 'Top reason')} value={d.topFailureMotif ? (t.failureCodes?.[d.topFailureMotif] ?? d.topFailureMotif) : '—'} />
                   </div>
                 ))}
               </div>
@@ -291,27 +417,6 @@ export default function PerformancePage() {
 
         </div>
       </div>
-    </div>
-  );
-}
-
-function FleetKpi({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
-  return (
-    <div className="rounded-xl p-4" style={{ background: 'var(--surface-sunken)' }}>
-      <div className="flex items-center justify-between mb-2">
-        <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>{label}</span>
-        <span style={{ color: 'var(--text-muted)' }}>{icon}</span>
-      </div>
-      <div className="font-mono text-2xl font-semibold tabular-nums" style={{ color: 'var(--text-primary)' }}>{value}</div>
-    </div>
-  );
-}
-
-function CmpRow({ label, value, tone }: { label: string; value: string; tone?: Tone }) {
-  return (
-    <div className="flex items-center justify-between py-1.5 border-t text-xs" style={{ borderColor: 'var(--border)' }}>
-      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <span className="font-mono font-[600]" style={{ color: tone ? TONE_TEXT[tone] : 'var(--text-primary)' }}>{value}</span>
     </div>
   );
 }

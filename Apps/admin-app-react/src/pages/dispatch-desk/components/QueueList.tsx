@@ -1,10 +1,11 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { IconCheck, IconMapPinOff } from '@tabler/icons-react';
+import { IconCheck, IconMapPinOff, IconAlertTriangle, IconAlertCircle, IconInfoCircle } from '@tabler/icons-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { AppLoader } from '@/components/AppLoader';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import SlaHealthBadge from '@/components/data-display/SlaHealthBadge';
+import { SegmentedControl } from '@/components/ui/SegmentedControl';
 import { formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
@@ -56,7 +57,7 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
         // SLA-dominant left rail: overdue = red, at-risk = amber, healthy = none. The active
         // (selected) row still takes the brand rail so selection stays obvious.
         background: active
-          ? 'var(--brand-soft)'
+          ? 'var(--surface-sunken)'
           : sevKey === 'CRITICAL' ? 'color-mix(in srgb, var(--danger) 5%, transparent)'
           : 'transparent',
         borderInlineStart: active
@@ -81,10 +82,14 @@ function QueueListRow({ row, active, checked, driverOnlineStatus, onSelect, onTo
         <div className="flex items-center gap-1.5 min-w-0">
           {sevKey && (
             <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
-              style={{ background: SEVERITY_CHIP[sevKey].accent }}
+              className="inline-flex items-center shrink-0"
+              style={{ color: SEVERITY_CHIP[sevKey].accent }}
               title={dotTip}
-            />
+            >
+              {sevKey === 'CRITICAL' ? <IconAlertTriangle size={12} />
+                : sevKey === 'WARNING' ? <IconAlertCircle size={12} />
+                : <IconInfoCircle size={12} />}
+            </span>
           )}
           <span className="font-mono text-xs font-[600] shrink-0" style={{ color: 'var(--brand)' }}>
             {d.orderRef ?? d.erpOrderId ?? rowId(d).slice(0, 8)}
@@ -137,40 +142,21 @@ export function QueueList() {
 
   const dd = t.dispatchDeskPage;
   const sortOptions: { value: typeof queueSort; label: string }[] = [
-    { value: 'sla',      label: dd.sortSla ?? 'Risque SLA' },
-    { value: 'route',    label: dd.sortRoute ?? 'Tournée' },
-    { value: 'severity', label: dd.sortSeverity ?? 'Sévérité' },
-    { value: 'status',   label: dd.sortStatus ?? 'Statut' },
+    { value: 'sla',      label: dd.sortSla ?? 'SLA risk' },
+    { value: 'route',    label: dd.sortRoute ?? 'Route' },
+    { value: 'severity', label: dd.sortSeverity ?? 'Severity' },
+    { value: 'status',   label: dd.sortStatus ?? 'Status' },
     { value: 'date',     label: dd.sortDate ?? 'Date' },
   ];
-  const selectStyle: React.CSSProperties = {
-    height: 26,
-    borderRadius: 'var(--radius-md)',
-    border: '1px solid var(--border)',
-    background: 'var(--surface)',
-    fontSize: 12,
-    fontWeight: 500,
-    color: 'var(--text-primary)',
-    padding: '0 8px',
-    outline: 'none',
-    cursor: 'pointer',
-  };
 
   const SortBar = (
-    <div className="flex items-center gap-1.5 px-3 py-2 shrink-0 min-w-0" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-      <span className="text-2xs font-[600] uppercase tracking-wide shrink-0 me-0.5" style={{ color: 'var(--text-muted)' }}>
-        {dd.sortBy ?? 'Trier par'}
-      </span>
-      <select
+    <div className="flex items-center gap-1.5 px-3 py-2 shrink-0 min-w-0 overflow-x-auto" style={{ borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
+      <SegmentedControl
         value={queueSort}
-        onChange={(e) => setQueueSort(e.target.value as typeof queueSort)}
-        className="flex-1 min-w-0"
-        style={selectStyle}
-      >
-        {sortOptions.map(opt => (
-          <option key={opt.value} value={opt.value}>{opt.label}</option>
-        ))}
-      </select>
+        onChange={(v) => setQueueSort(v as typeof queueSort)}
+        options={sortOptions}
+        ariaLabel={dd.sortBy ?? 'Trier par'}
+      />
     </div>
   );
 

@@ -1,4 +1,4 @@
-import { useMemo, useCallback, useState } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { IconX, IconChevronRight, IconSearch, IconFilter, IconCalendar, IconGitCompare, IconTrash } from '@tabler/icons-react';
 import { Sheet, SheetContent, SheetTitle, SheetClose } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -11,7 +11,6 @@ import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
 import { useZones } from '@/hooks/useZones';
 import { useDepots } from '@/hooks/useDepots';
 import { useDrivers } from '@/hooks/useDrivers';
-import { useFailureReasons } from '@/hooks/useFailureReasons';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { cn } from '@/lib/utils';
 import type { AnalyticsScope, DeliveryStatus, OrderSource } from '@/types';
@@ -27,6 +26,10 @@ const ORDER_SOURCES: { value: OrderSource; icon: string; label: string }[] = [
   { value: 'ODOO', icon: '🏭', label: 'ERP Odoo' },
   { value: 'DUX', icon: '📦', label: 'DUX' },
 ];
+
+// Deliveries store the coarse FailureCode category (not the granular reason-catalog code), so the
+// motif pivot filters on these — the only failure dimension persisted queryably on a delivery.
+const FAILURE_CATEGORIES = ['CLIENT_ABSENT', 'REFUSED', 'WRONG_ADDRESS', 'DAMAGED', 'MISSING', 'OTHER'] as const;
 
 type FilterCategory = 'period' | 'zone' | 'driver' | 'status' | 'motif' | 'source' | 'depot';
 
@@ -65,25 +68,38 @@ export function GlobalFilterDrawer<R extends string>({
   const { data: zones = [] } = useZones();
   const { data: depots = [] } = useDepots();
   const { data: drivers = [] } = useDrivers();
-  const { data: failureReasons = [] } = useFailureReasons();
 
   const activeZones = useMemo(() => zones.filter(z => z.isActive), [zones]);
   const activeDepots = useMemo(() => depots.filter(d => d.isActive), [depots]);
-  const activeReasons = useMemo(() => failureReasons.filter(r => r.active), [failureReasons]);
 
   const [activeCategory, setActiveCategory] = useState<FilterCategory | null>(null);
 
+  // Reset category when drawer closes so it starts fresh next time.
+  useEffect(() => {
+    if (!open) setActiveCategory(null);
+  }, [open]);
+
   const counts = useMemo(() => ({
     period: range !== defaultRange ? 1 : 0,
-    zone: value.zone ? 1 : 0,
-    driver: value.driverId ? 1 : 0,
-    status: value.status ? 1 : 0,
-    motif: value.motif ? 1 : 0,
-    source: value.source ? 1 : 0,
-    depot: value.depot ? 1 : 0,
+    zone: value.zone?.length ?? 0,
+    driver: value.driverId?.length ?? 0,
+    status: value.status?.length ?? 0,
+    motif: value.motif?.length ?? 0,
+    source: value.source?.length ?? 0,
+    depot: value.depot?.length ?? 0,
   }), [value, range, defaultRange]);
 
   const totalActive = Object.values(counts).reduce((s, n) => s + n, 0);
+
+  // Field key per category + toggle helper (add/remove within a multi-value pivot).
+  const FIELD_BY_CAT: Record<Exclude<FilterCategory, 'period'>, keyof AnalyticsScope> = {
+    zone: 'zone', driver: 'driverId', status: 'status', motif: 'motif', source: 'source', depot: 'depot',
+  };
+  const toggleValue = useCallback(<K extends keyof AnalyticsScope>(field: K, v: string) => {
+    const cur = (value[field] as string[] | undefined) ?? [];
+    const next = cur.includes(v) ? cur.filter(x => x !== v) : [...cur, v];
+    onChange({ ...value, [field]: next.length ? next : undefined });
+  }, [value, onChange]);
 
   const clearAll = useCallback(() => {
     onChange({});
@@ -92,34 +108,32 @@ export function GlobalFilterDrawer<R extends string>({
     onCustomToChange?.('');
   }, [onChange, onRangeChange, defaultRange, onCustomFromChange, onCustomToChange]);
 
-  const removeChip = useCallback((key: FilterCategory) => {
+  const removeChip = useCallback((key: FilterCategory, val?: string) => {
     if (key === 'period') { onRangeChange(defaultRange); return; }
-    if (key === 'zone') { onChange({ ...value, zone: undefined }); return; }
-    if (key === 'driver') { onChange({ ...value, driverId: undefined }); return; }
-    if (key === 'status') { onChange({ ...value, status: undefined }); return; }
-    if (key === 'motif') { onChange({ ...value, motif: undefined }); return; }
-    if (key === 'source') { onChange({ ...value, source: undefined }); return; }
-    if (key === 'depot') { onChange({ ...value, depot: undefined }); return; }
+    const field = FIELD_BY_CAT[key as Exclude<FilterCategory, 'period'>];
+    const cur = (value[field] as string[] | undefined) ?? [];
+    const next = cur.filter(x => x !== val);
+    onChange({ ...value, [field]: next.length ? next : undefined });
   }, [value, defaultRange, onRangeChange, onChange]);
 
   const chips = useMemo(() => {
-    const items: { key: FilterCategory; label: string }[] = [];
+    const items: { key: FilterCategory; val?: string; label: string }[] = [];
     if (counts.period) {
       const opt = rangeOptions.find(o => o.value === range);
       items.push({ key: 'period', label: opt?.label ?? String(range) });
     }
-    if (counts.zone) items.push({ key: 'zone', label: value.zone! });
-    if (counts.driver) {
-      const d = drivers.find(d => d.id === value.driverId);
-      items.push({ key: 'driver', label: d?.name ?? value.driverId!.slice(0, 8) });
-    }
-    if (counts.status) items.push({ key: 'status', label: t.statusLabels?.[value.status!] ?? value.status! });
-    if (counts.motif) items.push({ key: 'motif', label: t.failureCodes?.[value.motif!] ?? value.motif! });
-    if (counts.source) items.push({ key: 'source', label: t.sources?.[value.source!] ?? value.source! });
-    if (counts.depot) {
-      const d = depots.find(d => d.id === value.depot);
-      items.push({ key: 'depot', label: d?.name ?? value.depot!.slice(0, 8) });
-    }
+    (value.zone ?? []).forEach(z => items.push({ key: 'zone', val: z, label: z }));
+    (value.driverId ?? []).forEach(id => {
+      const d = drivers.find(d => d.id === id);
+      items.push({ key: 'driver', val: id, label: d?.name ?? id.slice(0, 8) });
+    });
+    (value.status ?? []).forEach(s => items.push({ key: 'status', val: s, label: t.statusLabels?.[s] ?? s }));
+    (value.motif ?? []).forEach(m => items.push({ key: 'motif', val: m, label: t.failureCodes?.[m] ?? m }));
+    (value.source ?? []).forEach(s => items.push({ key: 'source', val: s, label: t.sources?.[s] ?? s }));
+    (value.depot ?? []).forEach(id => {
+      const d = depots.find(d => d.id === id);
+      items.push({ key: 'depot', val: id, label: d?.name ?? id.slice(0, 8) });
+    });
     return items;
   }, [counts, value, drivers, depots, t, range, rangeOptions]);
 
@@ -147,10 +161,10 @@ export function GlobalFilterDrawer<R extends string>({
               <div className="flex items-center gap-1 flex-wrap flex-1 min-w-0">
                 {chips.map(chip => (
                   <Badge
-                    key={chip.key}
+                    key={`${chip.key}-${chip.val ?? ''}`}
                     variant="outline"
                     className="gap-1 cursor-pointer hover:bg-[var(--hover-bg)] transition-colors h-5 text-2xs"
-                    onClick={() => removeChip(chip.key)}
+                    onClick={() => removeChip(chip.key, chip.val)}
                   >
                     <span className="truncate">{chip.label}</span>
                     <IconX size={9} className="shrink-0 opacity-60" />
@@ -255,22 +269,22 @@ export function GlobalFilterDrawer<R extends string>({
                   />
                 )}
                 {activeCategory === 'zone' && (
-                  <ZoneOptions zones={activeZones} selected={value.zone} onSelect={name => onChange({ ...value, zone: value.zone === name ? undefined : name })} />
+                  <ZoneOptions zones={activeZones} selected={value.zone} onSelect={name => toggleValue('zone', name)} onClear={() => onChange({ ...value, zone: undefined })} />
                 )}
                 {activeCategory === 'driver' && (
-                  <DriverOptions drivers={drivers} selectedId={value.driverId} onSelect={id => onChange({ ...value, driverId: value.driverId === id ? undefined : id })} />
+                  <DriverOptions drivers={drivers} selectedIds={value.driverId} onSelect={id => toggleValue('driverId', id)} onClear={() => onChange({ ...value, driverId: undefined })} />
                 )}
                 {activeCategory === 'status' && (
-                  <StatusOptions selected={value.status} onSelect={s => onChange({ ...value, status: value.status === s ? undefined : s })} />
+                  <StatusOptions selected={value.status} onSelect={s => toggleValue('status', s)} onClear={() => onChange({ ...value, status: undefined })} />
                 )}
                 {activeCategory === 'motif' && (
-                  <MotifOptions reasons={activeReasons} selected={value.motif} onSelect={c => onChange({ ...value, motif: value.motif === c ? undefined : c })} labels={t.failureCodes} />
+                  <MotifOptions selected={value.motif} onSelect={c => toggleValue('motif', c)} labels={t.failureCodes} onClear={() => onChange({ ...value, motif: undefined })} />
                 )}
                 {activeCategory === 'source' && (
-                  <SourceOptions selected={value.source} onSelect={s => onChange({ ...value, source: value.source === s ? undefined : s })} />
+                  <SourceOptions selected={value.source} onSelect={s => toggleValue('source', s)} onClear={() => onChange({ ...value, source: undefined })} />
                 )}
                 {activeCategory === 'depot' && (
-                  <DepotOptions depots={activeDepots} selectedId={value.depot} onSelect={id => onChange({ ...value, depot: value.depot === id ? undefined : id })} />
+                  <DepotOptions depots={activeDepots} selectedIds={value.depot} onSelect={id => toggleValue('depot', id)} onClear={() => onChange({ ...value, depot: undefined })} />
                 )}
               </div>
             </div>
@@ -335,26 +349,45 @@ function PeriodOptions<R extends string>({ range, onRangeChange, rangeOptions, c
 
 // ── Zone Options ──────────────────────────────────────────────────────────────
 
-function ZoneOptions({ zones, selected, onSelect }: { zones: Array<{ name: string; color?: string }>; selected?: string; onSelect: (name: string) => void }) {
+function ZoneOptions({ zones, selected, onSelect, onClear }: { zones: Array<{ name: string; color?: string }>; selected?: string[]; onSelect: (name: string) => void; onClear: () => void }) {
+  const [search, setSearch] = useState('');
+  const filtered = useMemo(() => {
+    if (!search.trim()) return zones;
+    const q = search.toLowerCase();
+    return zones.filter(z => z.name.toLowerCase().includes(q));
+  }, [zones, search]);
+
   return (
-    <div className="flex flex-col">
-      <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
-      {zones.map(zone => (
-        <CheckboxRow
-          key={zone.name}
-          checked={selected === zone.name}
-          label={zone.name}
-          color={zone.color}
-          onClick={() => onSelect(zone.name)}
+    <div className="flex flex-col gap-2">
+      <div className="relative">
+        <IconSearch size={11} className="absolute start-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+        <input
+          type="text"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Filtrer..."
+          className="w-full h-7 ps-6 pe-2 rounded border border-[var(--border)] bg-[var(--surface)] text-2xs text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--brand)]"
         />
-      ))}
+      </div>
+      <div className="flex flex-col flex-1">
+        <CheckboxRow checked={!selected?.length} label="(Tous)" onClick={onClear} />
+        {filtered.map(zone => (
+          <CheckboxRow
+            key={zone.name}
+            checked={!!selected?.includes(zone.name)}
+            label={zone.name}
+            color={zone.color}
+            onClick={() => onSelect(zone.name)}
+          />
+        ))}
+      </div>
     </div>
   );
 }
 
 // ── Driver Options ────────────────────────────────────────────────────────────
 
-function DriverOptions({ drivers, selectedId, onSelect }: { drivers: Array<{ id: string; name: string; onlineStatus?: string }>; selectedId?: string; onSelect: (id: string) => void }) {
+function DriverOptions({ drivers, selectedIds, onSelect, onClear }: { drivers: Array<{ id: string; name: string; onlineStatus?: string }>; selectedIds?: string[]; onSelect: (id: string) => void; onClear: () => void }) {
   const [search, setSearch] = useState('');
   const filtered = useMemo(() => {
     if (!search.trim()) return drivers;
@@ -375,7 +408,7 @@ function DriverOptions({ drivers, selectedId, onSelect }: { drivers: Array<{ id:
         />
       </div>
       <div className="flex flex-col flex-1">
-        <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
+        <CheckboxRow checked={!selectedIds?.length} label="(Tous)" onClick={onClear} />
         {filtered.map(driver => (
           <div
             key={driver.id}
@@ -384,11 +417,11 @@ function DriverOptions({ drivers, selectedId, onSelect }: { drivers: Array<{ id:
           >
             <div className={cn(
               'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
-              selectedId === driver.id
+              selectedIds?.includes(driver.id)
                 ? 'bg-[var(--brand)] border-[var(--brand)]'
                 : 'border-[var(--border)] bg-[var(--surface)]',
             )}>
-              {selectedId === driver.id && (
+              {selectedIds?.includes(driver.id) && (
                 <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
               )}
             </div>
@@ -406,10 +439,10 @@ function DriverOptions({ drivers, selectedId, onSelect }: { drivers: Array<{ id:
 
 // ── Status Options ────────────────────────────────────────────────────────────
 
-function StatusOptions({ selected, onSelect }: { selected?: DeliveryStatus; onSelect: (s: DeliveryStatus) => void }) {
+function StatusOptions({ selected, onSelect, onClear }: { selected?: DeliveryStatus[]; onSelect: (s: DeliveryStatus) => void; onClear: () => void }) {
   return (
     <div className="flex flex-col">
-      <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
+      <CheckboxRow checked={!selected?.length} label="(Tous)" onClick={onClear} />
       {DELIVERY_STATUSES.map(status => (
         <div
           key={status}
@@ -418,11 +451,11 @@ function StatusOptions({ selected, onSelect }: { selected?: DeliveryStatus; onSe
         >
           <div className={cn(
             'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
-            selected === status
+            selected?.includes(status)
               ? 'bg-[var(--brand)] border-[var(--brand)]'
               : 'border-[var(--border)] bg-[var(--surface)]',
           )}>
-            {selected === status && (
+            {selected?.includes(status) && (
               <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
             )}
           </div>
@@ -435,13 +468,61 @@ function StatusOptions({ selected, onSelect }: { selected?: DeliveryStatus; onSe
 
 // ── Motif Options ─────────────────────────────────────────────────────────────
 
-function MotifOptions({ reasons, selected, onSelect, labels }: { reasons: Array<{ code: string; label: string }>; selected?: string; onSelect: (code: string) => void; labels?: Record<string, string> }) {
+function MotifOptions({ selected, onSelect, labels, onClear }: { selected?: string[]; onSelect: (code: string) => void; labels?: Record<string, string>; onClear: () => void }) {
+  return (
+    <div className="flex flex-col">
+      <CheckboxRow checked={!selected?.length} label="(Tous)" onClick={onClear} />
+      {FAILURE_CATEGORIES.map(code => (
+        <CheckboxRow
+          key={code}
+          checked={!!selected?.includes(code)}
+          label={labels?.[code] ?? code}
+          onClick={() => onSelect(code)}
+        />
+      ))}
+    </div>
+  );
+}
+
+// ── Source Options ────────────────────────────────────────────────────────────
+
+function SourceOptions({ selected, onSelect, onClear }: { selected?: OrderSource[]; onSelect: (s: OrderSource) => void; onClear: () => void }) {
+  return (
+    <div className="flex flex-col">
+      <CheckboxRow checked={!selected?.length} label="(Tous)" onClick={onClear} />
+      {ORDER_SOURCES.map(source => (
+        <div
+          key={source.value}
+          className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
+          onClick={() => onSelect(source.value)}
+        >
+          <div className={cn(
+            'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
+            selected?.includes(source.value)
+              ? 'bg-[var(--brand)] border-[var(--brand)]'
+              : 'border-[var(--border)] bg-[var(--surface)]',
+          )}>
+            {selected?.includes(source.value) && (
+              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            )}
+          </div>
+          <span className="text-xs">{source.icon}</span>
+          <span className="text-2xs text-[var(--text-secondary)]">{source.label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// ── Depot Options ─────────────────────────────────────────────────────────────
+
+function DepotOptions({ depots, selectedIds, onSelect, onClear }: { depots: Array<{ id: string; name: string; warehouseCode?: string }>; selectedIds?: string[]; onSelect: (id: string) => void; onClear: () => void }) {
   const [search, setSearch] = useState('');
   const filtered = useMemo(() => {
-    if (!search.trim()) return reasons;
+    if (!search.trim()) return depots;
     const q = search.toLowerCase();
-    return reasons.filter(r => (labels?.[r.code] ?? r.label).toLowerCase().includes(q));
-  }, [reasons, search, labels]);
+    return depots.filter(d => d.name.toLowerCase().includes(q) || (d.warehouseCode && d.warehouseCode.toLowerCase().includes(q)));
+  }, [depots, search]);
 
   return (
     <div className="flex flex-col gap-2">
@@ -456,78 +537,30 @@ function MotifOptions({ reasons, selected, onSelect, labels }: { reasons: Array<
         />
       </div>
       <div className="flex flex-col flex-1">
-        <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
-        {filtered.map(reason => (
-          <CheckboxRow
-            key={reason.code}
-            checked={selected === reason.code}
-            label={labels?.[reason.code] ?? reason.label}
-            onClick={() => onSelect(reason.code)}
-          />
+        <CheckboxRow checked={!selectedIds?.length} label="(Tous)" onClick={onClear} />
+        {filtered.map(depot => (
+          <div
+            key={depot.id}
+            className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
+            onClick={() => onSelect(depot.id)}
+          >
+            <div className={cn(
+              'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
+              selectedIds?.includes(depot.id)
+                ? 'bg-[var(--brand)] border-[var(--brand)]'
+                : 'border-[var(--border)] bg-[var(--surface)]',
+            )}>
+              {selectedIds?.includes(depot.id) && (
+                <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+              )}
+            </div>
+            <span className="text-2xs text-[var(--text-secondary)] truncate">{depot.name}</span>
+            {depot.warehouseCode && (
+              <span className="ms-auto text-2xs text-[var(--text-muted)] shrink-0">{depot.warehouseCode}</span>
+            )}
+          </div>
         ))}
       </div>
-    </div>
-  );
-}
-
-// ── Source Options ────────────────────────────────────────────────────────────
-
-function SourceOptions({ selected, onSelect }: { selected?: OrderSource; onSelect: (s: OrderSource) => void }) {
-  return (
-    <div className="flex flex-col">
-      <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
-      {ORDER_SOURCES.map(source => (
-        <div
-          key={source.value}
-          className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
-          onClick={() => onSelect(source.value)}
-        >
-          <div className={cn(
-            'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
-            selected === source.value
-              ? 'bg-[var(--brand)] border-[var(--brand)]'
-              : 'border-[var(--border)] bg-[var(--surface)]',
-          )}>
-            {selected === source.value && (
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            )}
-          </div>
-          <span className="text-xs">{source.icon}</span>
-          <span className="text-2xs text-[var(--text-secondary)]">{source.label}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// ── Depot Options ─────────────────────────────────────────────────────────────
-
-function DepotOptions({ depots, selectedId, onSelect }: { depots: Array<{ id: string; name: string; warehouseCode?: string }>; selectedId?: string; onSelect: (id: string) => void }) {
-  return (
-    <div className="flex flex-col">
-      <CheckboxRow checked={false} label="(Tous)" onClick={() => {}} />
-      {depots.map(depot => (
-        <div
-          key={depot.id}
-          className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
-          onClick={() => onSelect(depot.id)}
-        >
-          <div className={cn(
-            'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',
-            selectedId === depot.id
-              ? 'bg-[var(--brand)] border-[var(--brand)]'
-              : 'border-[var(--border)] bg-[var(--surface)]',
-          )}>
-            {selectedId === depot.id && (
-              <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><path d="M1 4L3 6L7 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-            )}
-          </div>
-          <span className="text-2xs text-[var(--text-secondary)] truncate">{depot.name}</span>
-          {depot.warehouseCode && (
-            <span className="ms-auto text-2xs text-[var(--text-muted)] shrink-0">{depot.warehouseCode}</span>
-          )}
-        </div>
-      ))}
     </div>
   );
 }
@@ -537,8 +570,12 @@ function DepotOptions({ depots, selectedId, onSelect }: { depots: Array<{ id: st
 function CheckboxRow({ checked, label, color, onClick }: { checked: boolean; label: string; color?: string; onClick: () => void }) {
   return (
     <div
+      role="checkbox"
+      aria-checked={checked}
+      tabIndex={0}
       className="flex items-center gap-2 px-1 py-1 rounded cursor-pointer hover:bg-[var(--hover-bg)] transition-colors"
       onClick={onClick}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onClick(); } }}
     >
       <div className={cn(
         'w-3.5 h-3.5 rounded-sm border flex items-center justify-center shrink-0 transition-colors',

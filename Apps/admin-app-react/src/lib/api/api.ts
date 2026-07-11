@@ -13,7 +13,9 @@ if (typeof window !== 'undefined') {
 
 export const TOKEN_KEY = 'admin_jwt';
 
-export const api = axios.create({ baseURL, withCredentials: true });
+// `indexes: null` serializes array params as repeated keys without brackets (zone=A&zone=B),
+// which Spring @ModelAttribute binds to List<> pivots (multi-select filters).
+export const api = axios.create({ baseURL, withCredentials: true, paramsSerializer: { indexes: null } });
 
 // ── Token refresh wiring ────────────────────────────────────────────────────
 // The OIDC layer (oidc-client-ts, see lib/oidcConfig.ts) owns acquisition and

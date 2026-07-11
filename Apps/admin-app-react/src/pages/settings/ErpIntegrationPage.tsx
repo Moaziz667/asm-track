@@ -137,8 +137,8 @@ export default function ErpIntegrationPage() {
       // Chained test against the just-saved config (stored = no mask ambiguity).
       setTesting(true);
       const ok = await runTest(false, true);
-      if (ok) showSuccessToast(sp.savedAndTested ?? 'Enregistré et connexion vérifiée.');
-      else    showErrorToast(new Error(sp.savedTestFailed ?? 'Enregistré, mais le test de connexion a échoué.'));
+      if (ok) showSuccessToast(sp.savedAndTested ?? 'Saved and connection verified.');
+      else    showErrorToast(new Error(sp.savedTestFailed ?? 'Saved, but connection test failed.'));
       fetchErp(); // final persisted state (CONNECTED / ERROR)
     } catch {
       showErrorToast(null, 'errorSaveFailed');
@@ -275,11 +275,11 @@ export default function ErpIntegrationPage() {
                     : effectiveStatus === 'ERROR' ? { fg: 'var(--danger)', bg: 'color-mix(in srgb, var(--danger) 8%, transparent)', icon: <IconPlugConnectedX size={16} /> }
                     : { fg: 'var(--warning)', bg: 'color-mix(in srgb, var(--warning) 8%, transparent)', icon: <IconAlertTriangle size={16} /> };
                   const msg =
-                    effectiveStatus === 'CONNECTED' ? (sp.lifecycleConnected ?? 'Connexion vérifiée. Cette source est active sur la page Importation.')
-                    : effectiveStatus === 'ERROR' ? (erp?.lastError || sp.lifecycleError || 'Le dernier test a échoué — corrigez les identifiants puis re-testez.')
-                    : effectiveStatus === 'STALE' ? (sp.lifecycleStale ?? 'Vous avez modifié la configuration. Testez à nouveau avant d’enregistrer.')
-                    : effectiveStatus === 'CONFIGURED' ? (sp.lifecycleConfigured ?? 'Configuration enregistrée mais jamais testée. Lancez un test pour confirmer.')
-                    : (sp.lifecycleNotConfigured ?? 'Aucune source configurée.');
+                    effectiveStatus === 'CONNECTED' ? (sp.lifecycleConnected ?? 'Connection verified. This source is active on the Import page.')
+                    : effectiveStatus === 'ERROR' ? (erp?.lastError || sp.lifecycleError || 'Last test failed — fix credentials and re-test.')
+                    : effectiveStatus === 'STALE' ? (sp.lifecycleStale ?? 'Configuration modified. Test again before saving.')
+                    : effectiveStatus === 'CONFIGURED' ? (sp.lifecycleConfigured ?? 'Configuration saved but never tested. Run a test to confirm.')
+                    : (sp.lifecycleNotConfigured ?? 'No source configured.');
                   return (
                     <div className="flex items-start gap-2.5 p-3 rounded-lg text-xs" style={{ background: tone.bg, color: tone.fg }}>
                       <span className="shrink-0 mt-px">{tone.icon}</span>

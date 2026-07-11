@@ -18,12 +18,12 @@ interface Props {
 }
 
 const HANDOFF_HISTORY_COLUMNS: ColumnDef[] = [
-  { id: 'status',   label: 'Statut',    pinned: true },
+  { id: 'status',   label: 'Status',    pinned: true },
   { id: 'client',   label: 'Client' },
-  { id: 'transfer', label: 'De → Vers' },
-  { id: 'ref',      label: 'Réf' },
+  { id: 'transfer', label: 'From → To' },
+  { id: 'ref',      label: 'Ref' },
   { id: 'date',     label: 'Date' },
-  { id: 'duration', label: 'Durée' },
+  { id: 'duration', label: 'Duration' },
 ];
 
 const COL_TRACKS: Record<string, string> = {
@@ -63,7 +63,7 @@ function endedAt(h: HandoffItem): string | undefined {
 function HoverTooltip({ h, t, rect }: { h: HandoffItem; t: TranslationSchema; rect: DOMRect }) {
   const view = cardView(h, t);
   const dur = durationOf(h);
-  const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'par';
+  const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'by';
 
   return (
     <div

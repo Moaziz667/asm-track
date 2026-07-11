@@ -151,8 +151,14 @@ export function AppSidebar() {
         const activeRoutes = routesList.filter((r: { status?: string }) => r.status === 'IN_PROGRESS').length;
 
         const exceptionsList = Array.isArray(exceptionsRes.data?.items) ? exceptionsRes.data.items : [];
-        // Align with the dispatch desk queue: cancelled deliveries are excluded there.
-        const opsExceptions = exceptionsList.filter((x: { status?: string }) => x.status !== 'CANCELLED').length;
+        // "Actions requises" = items that truly need a dispatcher to act (severity CRITICAL/WARNING:
+        // failures, SLA breaches, partials, stuck pickups). INFO rows (routine "in transit" / "awaiting
+        // planning") and cancelled deliveries are NOT actions — counting them made the badge ≈ every
+        // active delivery instead of the real backlog.
+        const opsExceptions = exceptionsList.filter(
+          (x: { status?: string; severity?: string }) =>
+            x.status !== 'CANCELLED' && (x.severity === 'CRITICAL' || x.severity === 'WARNING')
+        ).length;
 
         setTelemetry({ erpPending, activeRoutes, opsExceptions });
       } catch (err) {

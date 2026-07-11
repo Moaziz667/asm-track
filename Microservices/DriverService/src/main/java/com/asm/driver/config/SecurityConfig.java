@@ -31,6 +31,8 @@ public class SecurityConfig {
                 .requestMatchers("/internal/**").hasRole("SERVICE")
                 // Driver avatar map is dispatcher-visible (dispatch desk) — gateway already enforces driver:view.
                 .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers/avatars").authenticated()
+                // Dispatcher read-only access to drivers list (dispatch desk needs driver names/status)
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers").hasAnyRole("ADMIN", "DISPATCHER")
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers("/api/driver/**").hasRole("DRIVER")
                 .anyRequest().authenticated()

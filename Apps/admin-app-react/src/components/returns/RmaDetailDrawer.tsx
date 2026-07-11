@@ -53,18 +53,18 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   const ord = STATUS_ORDER[rma.status];
   if (rma.status === 'REJECTED' || rma.status === 'CANCELLED') {
     return [
-      { label: tlabel(c, 'stepRequested') ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+      { label: tlabel(c, 'stepRequested') ?? 'Requested', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
       {
-        label: rma.status === 'REJECTED' ? (tlabel(c, 'stepRejected') ?? 'Rejeté') : (tlabel(c, 'stepCancelled') ?? 'Annulé'),
+        label: rma.status === 'REJECTED' ? (tlabel(c, 'stepRejected') ?? 'Rejected') : (tlabel(c, 'stepCancelled') ?? 'Cancelled'),
         by: rma.resolutionNote ?? undefined, reached: true, dotColor: 'var(--danger)',
       },
     ];
   }
   return [
-    { label: tlabel(c, 'stepRequested') ?? 'Demandé', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
-    { label: tlabel(c, 'stepApproved') ?? 'Approuvé', reached: ord >= 1, dotColor: 'var(--brand)' },
-    { label: tlabel(c, 'stepReceived') ?? 'Reçu', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
-    { label: tlabel(c, 'stepRestocked') ?? 'Restocké', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
+    { label: tlabel(c, 'stepRequested') ?? 'Requested', at: rma.createdAt, by: rma.createdBy, reached: true, dotColor: 'var(--info)' },
+    { label: tlabel(c, 'stepApproved') ?? 'Approved', reached: ord >= 1, dotColor: 'var(--brand)' },
+    { label: tlabel(c, 'stepReceived') ?? 'Received', at: rma.receivedAt, reached: ord >= 2, dotColor: 'var(--info)' },
+    { label: tlabel(c, 'stepRestocked') ?? 'Restocked', at: rma.restockedAt, reached: ord >= 3, dotColor: 'var(--success)' },
   ];
 }
 
@@ -74,7 +74,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
     : 0;
   const steps = rma ? lifecycleSteps(rma, t) : [];
-  const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'par';
+  const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'by';
 
   const title = rma ? (
     <div className="flex items-center gap-2">
@@ -84,7 +84,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
 
   const footer = rma && NEXT[rma.status].length > 0 ? (
     <>
-      <Button variant="ghost" size="sm" onClick={onClose}>{t.actions?.close ?? 'Fermer'}</Button>
+      <Button variant="ghost" size="sm" onClick={onClose}>{t.actions?.close ?? 'Close'}</Button>
       {NEXT[rma.status].map((target) => {
         const Icon = TRANSITION_ICON[target] ?? IconArrowRight;
         const tk = STATUS_TOKENS[target];
@@ -110,7 +110,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
       open={open}
       onClose={onClose}
       title={title}
-      subtitle={rma ? `${tlabel(t.returnsPage, 'drawerSubtitle') ?? 'Retour'} · ${ref}` : undefined}
+      subtitle={rma ? `${tlabel(t.returnsPage, 'drawerSubtitle') ?? 'Return'} · ${ref}` : undefined}
       width={560}
       footer={footer}
     >
@@ -121,12 +121,12 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <Metric label={tlabel(t.returnsPage, 'colBl') ?? 'BL / Réf ERP'} value={rma.blNumber || rma.erpOrderId || '—'} mono />
             <Metric label={tlabel(t.returnsPage, 'drawerUnits') ?? 'Unités · lignes'} value={`${rma.totalUnits} · ${rma.items.length}`} mono />
             <Metric
-              label={tlabel(t.returnsPage, 'drawerValue') ?? 'Valeur retournée'}
+              label={tlabel(t.returnsPage, 'drawerValue') ?? 'Returned value'}
               value={returnValue > 0 ? formatMoney(returnValue, 'TND') : '—'}
               mono
             />
             <Metric
-              label={tlabel(t.returnsPage, 'drawerCreated') ?? 'Créé'}
+              label={tlabel(t.returnsPage, 'drawerCreated') ?? 'Created'}
               value={
                 <span className="inline-flex items-center gap-1">
                   <IconUser size={11} stroke={2} style={{ color: 'var(--text-soft)' }} />
@@ -142,7 +142,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                   style={{ color: 'var(--brand)' }}
                 >
                   <IconTruckReturn size={13} stroke={2} />
-                  {tlabel(t.returnsPage, 'drawerViewDelivery') ?? 'Voir la livraison'}
+                  {tlabel(t.returnsPage, 'drawerViewDelivery') ?? 'View delivery'}
                   <IconExternalLink size={11} stroke={2} />
                 </Link>
               </div>
@@ -154,15 +154,15 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="flex items-center gap-1.5 mb-2.5">
               <IconPackage size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
-                {tlabel(t.returnsPage, 'drawerItemsTitle') ?? 'Articles retournés'}
+                {tlabel(t.returnsPage, 'drawerItemsTitle') ?? 'Returned items'}
               </span>
             </div>
             <table className="w-full border-collapse">
               <thead>
                 <tr className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
                   <th className="text-left pb-1.5 font-[600]">{tlabel(t.returnsPage, 'colItemSku') ?? 'SKU / Article'}</th>
-                  <th className="text-right pb-1.5 font-[600]">{tlabel(t.returnsPage, 'colItemQty') ?? 'Qté'}</th>
-                  <th className="text-left pb-1.5 pl-3 font-[600]">{tlabel(t.returnsPage, 'colItemCondition') ?? 'État'}</th>
+                  <th className="text-right pb-1.5 font-[600]">{tlabel(t.returnsPage, 'colItemQty') ?? 'Qty'}</th>
+                  <th className="text-left pb-1.5 pl-3 font-[600]">{tlabel(t.returnsPage, 'colItemCondition') ?? 'Condition'}</th>
                 </tr>
               </thead>
               <tbody>
@@ -202,7 +202,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               {rma.reason && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                    {tlabel(t.returnsPage, 'colReason') ?? 'Motif'}
+                    {tlabel(t.returnsPage, 'colReason') ?? 'Reason'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.reason}</span>
                 </div>
@@ -210,7 +210,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               {rma.resolutionNote && (
                 <div className="flex flex-col gap-1">
                   <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                    {tlabel(t.returnsPage, 'drawerResolution') ?? 'Note de résolution'}
+                    {tlabel(t.returnsPage, 'drawerResolution') ?? 'Resolution note'}
                   </span>
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{rma.resolutionNote}</span>
                 </div>
@@ -243,7 +243,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                   className="h-7 gap-1.5 px-2.5 text-xs font-[600] shrink-0"
                   style={{ color: 'var(--brand)' }}
                 >
-                  <IconReload size={12} /> {tlabel(t.returnsPage, 'resync') ?? 'Resynchroniser'}
+                  <IconReload size={12} /> {tlabel(t.returnsPage, 'resync') ?? 'Resync'}
                 </Button>
               )}
             </div>
@@ -254,7 +254,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
             <div className="flex items-center gap-1.5 mb-3">
               <IconClock size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
               <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
-                {tlabel(t.returnsPage, 'drawerTimeline') ?? 'Chronologie'}
+                {tlabel(t.returnsPage, 'drawerTimeline') ?? 'Timeline'}
               </span>
             </div>
             {steps.map((s, i) => (

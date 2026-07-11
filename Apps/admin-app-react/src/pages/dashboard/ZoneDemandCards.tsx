@@ -1,4 +1,4 @@
-import { IconChartBar, IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
+import { IconChartAreaFilled, IconTrendingUp, IconTrendingDown } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useZoneComparison } from './useZoneComparison';
 import type { Range } from './useDashboardData';
@@ -26,9 +26,9 @@ export default function ZoneDemandCards({ range, from, to }: Props) {
   const maxOrders = zones[0]?.orders ?? 1;
 
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconChartBar size={15} className="text-[var(--brand)]" />
+        <IconChartAreaFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
           {t.performancePage.densityByZone || 'Demande par zone'}
         </span>

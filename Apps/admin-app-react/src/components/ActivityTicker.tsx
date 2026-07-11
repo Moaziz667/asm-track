@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { IconActivity, IconTruck, IconRoute, IconPackage } from '@tabler/icons-react';
+import { IconCircleCheckFilled, IconTruckFilled, IconNavigationFilled, IconContainerFilled } from '@tabler/icons-react';
 import { useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useNotificationsState, getLocalizedNotif, type Notification } from '@/components/AlertsProvider';
 import { useLocaleStore } from '@/lib/i18n';
@@ -11,9 +11,9 @@ import { cn } from '@/lib/utils';
 // (so it survives a refresh) and kept live by the same RealtimeProvider socket.
 
 function categoryIcon(category: Notification['category']) {
-  if (category === 'route') return IconRoute;
-  if (category === 'erp') return IconPackage;
-  return IconTruck;
+  if (category === 'route') return IconNavigationFilled;
+  if (category === 'erp') return IconContainerFilled;
+  return IconTruckFilled;
 }
 
 export default function ActivityTicker() {
@@ -33,10 +33,10 @@ export default function ActivityTicker() {
   };
 
   return (
-    <div className="card h-full overflow-hidden flex flex-col">
+    <div className="border border-[var(--border)] rounded-lg h-full overflow-hidden flex flex-col">
       <div className="ps-10 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
         <div className="flex items-center gap-2">
-          <IconActivity size={15} className="text-[var(--brand)]" />
+          <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{titleLabel}</span>
         </div>
         <span
@@ -50,7 +50,7 @@ export default function ActivityTicker() {
       <div className="flex-1 overflow-y-auto px-3 py-2" style={{ scrollbarWidth: 'thin' }}>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40 py-10">
-            <IconActivity size={22} stroke={1.5} className="text-[var(--text-muted)]" />
+            <IconCircleCheckFilled size={22} className="text-[var(--text-muted)]" />
             <span className="text-xs font-medium text-[var(--text-muted)]">{emptyLabel}</span>
           </div>
         ) : (

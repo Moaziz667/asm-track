@@ -82,7 +82,7 @@ export function DriverFormModal({ open, onClose, editingDriver, onSubmit, saving
             <DriverAvatar name={editingDriver.name} photoUrl={editingDriver.photoUrl} size={48} />
             <div className="min-w-0">
               <p className="text-sm font-bold text-[var(--text-primary)] truncate">{editingDriver.name}</p>
-              <p className="text-2xs text-[var(--text-muted)]">{t.driversPage.photoManagedByDriver ?? 'Photo gérée par le chauffeur (app mobile)'}</p>
+              <p className="text-2xs text-[var(--text-muted)]">{t.driversPage.photoManagedByDriver ?? 'Photo managed by driver (mobile app)'}</p>
             </div>
           </div>
         )}

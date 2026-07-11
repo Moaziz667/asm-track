@@ -50,8 +50,8 @@ public interface ZoneRepository extends JpaRepository<Zone, UUID> {
             SELECT * FROM zones
             WHERE is_active = true AND (
                 LOWER(name) LIKE LOWER(CONCAT('%', :q, '%'))
-                OR LOWER(description) LIKE LOWER(CONCAT('%', :q, '%'))
-                OR cities::text ILIKE CONCAT('%', :q, '%')
+                OR LOWER(description) LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
+                OR cities::text ILIKE CONCAT('%', :q, '%') ESCAPE '\\'
             )
             ORDER BY name ASC
             LIMIT :#{#pageable.pageSize}

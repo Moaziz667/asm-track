@@ -3,8 +3,8 @@ import {
   AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid,
 } from 'recharts';
 import {
-  IconChartBar, IconPackage, IconAlertTriangle, IconArrowUpRight, IconRoute, IconMapPin,
-  IconChevronRight, IconLayoutKanban, IconActivity,
+  IconChartAreaFilled, IconTruckFilled, IconAlertTriangleFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
+  IconChevronRight, IconLayoutKanban, IconCircleCheckFilled,
 } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
@@ -57,7 +57,7 @@ function DeltaPill({ delta, caption, goodWhen = 'up', format }: { delta?: number
   const color = good == null ? 'var(--text-muted)' : good ? 'var(--success)' : 'var(--danger)';
   const txt = format ? format(Math.abs(delta)) : String(Math.abs(delta));
   return (
-    <span className="text-2xs font-[600] inline-flex items-center gap-0.5" style={{ color }}>
+    <span className="text-xs font-[600] inline-flex items-center gap-0.5" style={{ color }}>
       {!flat && <span aria-hidden="true">{up ? '▲' : '▼'}</span>}{txt}
       {caption && <span className="text-[var(--text-soft)] font-normal ms-0.5">{caption}</span>}
     </span>
@@ -71,75 +71,67 @@ interface KpiCommon {
   comparison?: string; spark?: number[];
 }
 
-/** SLA card — sparkline as hero + thin bar + context. No dots, no uppercase. */
-export function RadialKpiCard({ label, value, pct, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, comparison, onClick, spark }: KpiCommon & { pct: number }) {
+/** SLA card — Stripe pattern: label → value → sparkline → delta. */
+export function RadialKpiCard({ label, value, pct, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, onClick, spark }: KpiCommon & { pct: number }) {
   const c = TONE_C[tone] ?? TONE_C.default;
   return (
-    <div className={cn('card @container h-full flex flex-col gap-2 ps-12 pe-4 py-3.5', onClick && 'cursor-pointer hover:bg-[var(--hover-bg)]')} onClick={onClick}>
-      <span className="text-2xs text-[var(--text-muted)]">{label}</span>
-      <div className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</div>
-      {spark && spark.length > 1 && <div className="h-5 w-full opacity-80"><Spark data={spark} color={c} area /></div>}
-      {!spark && <div className="relative h-1 bg-[var(--hover-bg)] rounded-full overflow-hidden">
-        <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, pct))}%`, background: c }} />
-      </div>}
-      <div className="flex items-center justify-between gap-2">
-        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
+    <div className={cn('border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3', onClick && 'cursor-pointer hover:bg-[var(--hover-bg)]')} onClick={onClick}>
+      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
+      <div className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</div>
+      {spark && spark.length > 1 && <div className="h-8 w-full opacity-80"><Spark data={spark} color={c} area /></div>}
+      <div className="mt-auto pt-1">
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
       </div>
     </div>
   );
 }
 
-/** Ratio card — sparkline or bar + inline label. No dots, no uppercase. */
-export function BulletKpiCard({ label, value, sub, ratioPct, tone = 'info', delta, deltaCaption, deltaGood = 'up', deltaFormat, comparison, spark }: KpiCommon & { sub?: string; ratioPct: number }) {
+/** Ratio card — Stripe pattern: label → value+sub → sparkline/bar → delta. */
+export function BulletKpiCard({ label, value, sub, ratioPct, tone = 'info', delta, deltaCaption, deltaGood = 'up', deltaFormat, spark }: KpiCommon & { sub?: string; ratioPct: number }) {
   const c = TONE_C[tone] ?? TONE_C.info;
   return (
-    <div className="card @container h-full flex flex-col gap-2 ps-12 pe-4 py-3.5">
+    <div className="border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3">
+      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
       <div className="flex items-baseline gap-1.5">
-        <span className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</span>
+        <span className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</span>
         {sub && <span className="text-sm text-[var(--text-muted)] font-normal">{sub}</span>}
       </div>
-      <span className="text-2xs text-[var(--text-muted)]">{label}</span>
       {spark && spark.length > 1 ? (
-        <div className="h-5 w-full opacity-80"><Spark data={spark} color={c} area /></div>
+        <div className="h-8 w-full opacity-80"><Spark data={spark} color={c} area /></div>
       ) : (
-        <div className="relative h-2 bg-[var(--hover-bg)] rounded-full overflow-hidden">
+        <div className="relative h-[3px] bg-[var(--hover-bg)] rounded-full overflow-hidden">
           <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, ratioPct))}%`, background: c }} />
         </div>
       )}
-      <div className="flex items-center justify-between gap-2">
-        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
+      <div className="mt-auto pt-1">
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
       </div>
     </div>
   );
 }
 
-/** Trend card — sparkline as hero, not decoration. No dots, no uppercase. */
-export function SparkKpiCard({ label, value, spark, tone = 'default', delta, deltaCaption, deltaGood = 'down', deltaFormat, comparison }: KpiCommon & { spark: number[] }) {
-  const c = TONE_C[tone] ?? TONE_C.default;
+/** Clean stat tile — Stripe pattern: label → value → delta. No chart. */
+export function StatKpiCard({ label, value, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat }: KpiCommon) {
+  void tone;
   return (
-    <div className="card @container h-full flex flex-col gap-1 ps-12 pe-4 py-3.5">
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 5cqi, 2.5rem)' }}>{value}</span>
-        <span className="text-2xs text-[var(--text-muted)]">{label}</span>
-      </div>
-      <div className="flex-1 min-h-0 w-full"><Spark data={spark} color={c} area /></div>
-      <div className="flex items-center justify-between gap-2">
-        {comparison && <span className="text-2xs text-[var(--text-muted)]">{comparison}</span>}
+    <div className="border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3">
+      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
+      <div className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</div>
+      <div className="mt-auto pt-1">
         <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
       </div>
     </div>
   );
 }
+
 
 export function TrendChartWidget({ trend }: { trend: Array<{ count: number; delivered: number; failed: number }> }) {
   const t = useT();
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconChartBar size={15} className="text-[var(--brand)]" />
+          <IconChartAreaFilled size={15} className="text-[var(--brand)]" />
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
         </div>
         <span className="text-2xs font-medium text-[var(--text-muted)]">{t.performancePage.lastSevenDays}</span>
@@ -181,10 +173,10 @@ export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem
   const t = useT();
   const { locale } = useLocaleStore();
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangle size={15} className="text-[var(--danger)]" />
+          <IconAlertTriangleFilled size={15} className="text-[var(--danger)]" />
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
           <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--danger-bg)] text-[var(--danger)] font-mono leading-none">{items.length}</span>
         </div>
@@ -230,10 +222,10 @@ export function TopItemsWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconPackage size={15} className="text-[var(--brand)]" />
+          <IconTruckFilled size={15} className="text-[var(--brand)]" />
           <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
         </div>
       </div>
@@ -285,9 +277,9 @@ export function CycleTimeWidget({ stats }: { stats: DashboardStats | null }) {
     { label: t.performancePage.effectiveTransit, sub: t.performancePage.transitToCompletion, m: c, color: 'var(--text-muted)' },
   ];
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconActivity size={15} className="text-[var(--brand)]" />
+        <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.temporalFragmentation}</span>
       </div>
       <div className="p-4 flex flex-col gap-4 flex-1 justify-center">
@@ -323,9 +315,9 @@ export function ZoneDensityWidget({ kpi }: { kpi: { ordersByZone?: Record<string
   );
   const max = Math.max(...entries.map(e => e[1]), 1);
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconMapPin size={15} className="text-[var(--brand)]" />
+        <IconMapPinFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.densityByZone}</span>
       </div>
       <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
@@ -351,21 +343,22 @@ export function ZoneDensityWidget({ kpi }: { kpi: { ordersByZone?: Record<string
 }
 
 /** Dense status decomposition of the current window (stacked bar + legend). */
-export function StatusBreakdownWidget({ stats }: { stats: DashboardStats | null }) {
+/** LIVE pipeline snapshot — current status distribution (ops.lanes), not a period aggregate. */
+export function StatusBreakdownWidget({ ops }: { ops: { lanes?: Array<{ status: string; count: number }> } | null }) {
   const t = useT();
-  const d = stats?.today;
+  const lane = (s: string) => ops?.lanes?.find(l => l.status === s)?.count ?? 0;
   const rows = [
-    { key: 'waiting', label: t.statusLabels?.UNSCHEDULED ?? 'En attente', v: d?.waiting ?? 0, c: 'var(--text-muted)' },
-    { key: 'assigned', label: t.statusLabels?.SCHEDULED ?? 'Planifié', v: d?.assigned ?? 0, c: 'var(--info)' },
-    { key: 'transit', label: t.statusLabels?.IN_TRANSIT ?? 'En transit', v: d?.inTransit ?? 0, c: 'var(--warning)' },
-    { key: 'delivered', label: t.statusLabels?.DELIVERED ?? 'Livré', v: d?.delivered ?? 0, c: 'var(--success)' },
-    { key: 'failed', label: t.statusLabels?.FAILED ?? 'Échec', v: d?.failed ?? 0, c: 'var(--danger)' },
+    { key: 'waiting', label: t.statusLabels?.UNSCHEDULED ?? 'En attente', v: lane('UNSCHEDULED'), c: 'var(--text-muted)' },
+    { key: 'assigned', label: t.statusLabels?.SCHEDULED ?? 'Planifié', v: lane('SCHEDULED'), c: 'var(--info)' },
+    { key: 'transit', label: t.statusLabels?.IN_TRANSIT ?? 'En transit', v: lane('PICKED_UP') + lane('IN_TRANSIT') + lane('AWAITING_HANDOFF'), c: 'var(--warning)' },
+    { key: 'delivered', label: t.statusLabels?.DELIVERED ?? 'Livré', v: lane('DELIVERED') + lane('PARTIALLY_DELIVERED'), c: 'var(--success)' },
+    { key: 'failed', label: t.statusLabels?.FAILED ?? 'Échec', v: lane('FAILED'), c: 'var(--danger)' },
   ];
   const total = rows.reduce((s, r) => s + r.v, 0) || 1;
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconChartBar size={15} className="text-[var(--brand)]" />
+        <IconChartAreaFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.statusBreakdown ?? 'Répartition par statut'}</span>
       </div>
       <div className="p-4 flex items-center gap-4 flex-1">
@@ -391,19 +384,19 @@ export function StatusBreakdownWidget({ stats }: { stats: DashboardStats | null 
   );
 }
 
-/** Compact ops-churn counters: reassignments, replans, at-risk, breached. */
-export function OpsCountersWidget({ kpi, ops }: { kpi: { totalReassigned?: number; totalReplanned?: number } | null; ops: { sla?: { slaAtRisk?: number; slaBreached?: number } } | null }) {
+/** LIVE dispatch churn + SLA health — reassignments/replans today, at-risk, breached. All "now". */
+export function OpsCountersWidget({ ops }: { ops: { reassignedToday?: number; replannedToday?: number; sla?: { slaAtRisk?: number; slaBreached?: number } } | null }) {
   const t = useT();
   const cells = [
-    { label: t.dashboardPage.opsReassigned ?? 'Réassignations', v: kpi?.totalReassigned ?? 0, tone: 'var(--text-primary)' },
-    { label: t.dashboardPage.opsReplanned ?? 'Replanifications', v: kpi?.totalReplanned ?? 0, tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.opsReassigned ?? 'Réassignations', v: ops?.reassignedToday ?? 0, tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.opsReplanned ?? 'Replanifications', v: ops?.replannedToday ?? 0, tone: 'var(--text-primary)' },
     { label: t.dashboardPage.opsAtRisk ?? 'À risque', v: ops?.sla?.slaAtRisk ?? 0, tone: 'var(--warning)' },
     { label: t.dashboardPage.opsBreached ?? 'En dépassement', v: ops?.sla?.slaBreached ?? 0, tone: 'var(--danger)' },
   ];
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconActivity size={15} className="text-[var(--brand)]" />
+        <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.opsCounters ?? 'Turbulence dispatch'}</span>
       </div>
       <div className="grid grid-cols-2 flex-1">
@@ -422,10 +415,10 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="card overflow-hidden flex flex-col h-full">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
       <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangle size={15} className="text-[var(--danger)]" />
+          <IconAlertTriangleFilled size={15} className="text-[var(--danger)]" />
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
         </div>
       </div>
@@ -455,7 +448,7 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
 export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: DriverLite[]; onBreak: DriverLite[]; offline: DriverLite[] } }) {
   const t = useT();
   return (
-    <div className="card p-4 h-full flex flex-col">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col">
       <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
       <div className="flex flex-col gap-2 overflow-y-auto">
         {[
@@ -487,12 +480,12 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
   const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
   return (
     <SectionCard
-      title={<div className="flex items-center gap-2"><span>{t.dashboardPage?.sectionActiveRoutes || 'Tournées actives'}</span></div>}
+      title={<div className="flex items-center gap-2"><IconNavigationFilled size={15} className="text-[var(--brand)]" /><span>{t.dashboardPage?.sectionActiveRoutes || 'Tournées actives'}</span></div>}
       actions={<Badge variant="secondary">{activeRoutes.length}</Badge>}
     >
       {activeRoutes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-8 gap-2 opacity-40">
-          <IconRoute size={24} stroke={1.5} className="text-[var(--text-muted)]" />
+          <IconNavigationFilled size={24} stroke={1.5} className="text-[var(--text-muted)]" />
           <p className="text-xs font-[500] text-[var(--text-muted)]">{t.dashboardPage?.noRoutesWaiting || 'Aucune tournée active'}</p>
         </div>
       ) : (
@@ -510,7 +503,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
                 style={{ background: focused ? 'var(--hover-bg)' : 'transparent' }}
                 title={t.dashboardPage?.focusOnMap || 'Centrer sur la carte'}
               >
-                <IconRoute size={14} style={{ color }} />
+                <IconNavigationFilled size={14} style={{ color }} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <p className="text-sm font-bold text-[var(--text-primary)] truncate">{route.name}</p>
@@ -538,14 +531,14 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
 export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void }) {
   const t = useT();
   return (
-    <div className="card p-4 h-full flex flex-col">
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col">
       <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         {[
           { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
-          { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconRoute },
-          { label: t.dashboardPage.actionGoToRoutes || 'Routes Table', path: '/routes-table', Icon: IconMapPin },
-          { label: t.dashboardPage.actionGoToDeliveries || 'Deliveries Log', path: '/deliveries', Icon: IconPackage },
+          { label: t.dashboardPage.actionGoToPlanner || 'Route Builder', path: '/route-builder', Icon: IconNavigationFilled },
+          { label: t.dashboardPage.actionGoToRoutes || 'Routes Table', path: '/routes-table', Icon: IconMapPinFilled },
+          { label: t.dashboardPage.actionGoToDeliveries || 'Deliveries Log', path: '/deliveries', Icon: IconTruckFilled },
         ].map(({ label, path, Icon }) => (
           <button
             key={path}

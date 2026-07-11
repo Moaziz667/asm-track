@@ -4,6 +4,7 @@ import { MapContainer, Marker, Popup, useMap, TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useIsDark } from '@/lib/ui/theme';
+import { useT } from '@/lib/i18n/LocaleContext';
 import type { Depot } from '@/types';
 
 type Props = {
@@ -44,6 +45,7 @@ function MapUpdater({ depots }: { depots: Depot[] }) {
 }
 
 export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
+  const t = useT();
   const isDark = useIsDark();
   const center: [number, number] = useMemo(() => {
     if (depots.length > 0) {
@@ -71,9 +73,9 @@ export default function DepotsOverviewMap({ depots, height = 400 }: Props) {
             >
               <Popup>
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#111827' }}>{depot.name}</div>
-                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{depot.address || 'Pas d\'adresse'}</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{depot.address || (t.common?.noAddress ?? 'No address')}</div>
                 <div style={{ fontSize: 11, fontWeight: 700, color: depot.isActive ? '#166534' : '#991b1b', marginTop: 4 }}>
-                  {depot.isActive ? 'ACTIF' : 'INACTIF'}
+                  {depot.isActive ? (t.common?.active ?? 'ACTIVE') : (t.common?.inactive ?? 'INACTIVE')}
                 </div>
               </Popup>
             </Marker>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, Suspense } from 'react';
+import { useEffect, useMemo, useRef, useState, Suspense, type Dispatch, type SetStateAction } from 'react';
 import { useNavigate as useRouter, useSearchParams } from 'react-router-dom';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
@@ -31,7 +31,8 @@ import {
 import { useFleetDrivers } from '@/hooks/useVehicles';
 
 import { DELIVERY_COLUMNS, DELIVERY_STATUSES } from './constants';
-import { getRowId, isUuid } from './helpers';
+import { getRowId } from './helpers';
+import { useDepots } from '@/hooks/useDepots';
 import type { DeliveryRow, QuickView } from './types';
 import { useDeliveryListData } from './useDeliveryListData';
 import { DeliveryTableRow, DeliveryMobileCard } from './DeliveryTableRow';
@@ -54,11 +55,15 @@ function DeliveriesPageContent() {
   const { filters: globalFilters, applyFilters, globalContext } = useGlobalFilters();
 
   const [query, setQuery] = useState(globalFilters.search);
-  const [status, setStatus] = useState<string>(globalFilters.status || '');
+  // Multi-select filters (arrays). Status/driver seed from the shared store for cross-page continuity;
+  // zone starts empty (the store holds a zone *name* but this page filters by zone *id*), and these
+  // arrays are not written back to the single-value store (they don't map cleanly).
+  const [status, setStatus] = useState<string[]>(globalFilters.status ? [globalFilters.status] : []);
   const [dateFrom, setDateFrom] = useState(globalFilters.dateFrom);
   const [dateTo, setDateTo] = useState(globalFilters.dateTo);
-  const [driverId, setDriverId] = useState(globalFilters.driver);
-  const [zoneId, setZoneId] = useState(globalFilters.zone);
+  const [driverId, setDriverId] = useState<string[]>(globalFilters.driver ? [globalFilters.driver] : []);
+  const [zoneId, setZoneId] = useState<string[]>([]);
+  const [depot, setDepot] = useState<string[]>([]);
   const [quickView, setQuickView] = useState<QuickView>('all');
   const [sortAsc, setSortAsc] = useState(false);
   const [groupByClient, setGroupByClient] = useState(false);
@@ -95,24 +100,20 @@ function DeliveriesPageContent() {
 
   const { data: drivers = [] } = useFleetDrivers();
   const { data: zones = [] } = useActiveZones();
-
-  const effectiveZoneId = useMemo(() => {
-    const raw = (zoneId ?? '').trim();
-    if (!raw || isUuid(raw)) return raw;
-    const byName = zones.find((z) => z.name?.trim().toLowerCase() === raw.toLowerCase());
-    return byName?.id ?? '';
-  }, [zoneId, zones]);
+  const { data: depots = [] } = useDepots();
+  const activeDepots = useMemo(() => depots.filter(d => d.isActive), [depots]);
 
   const queryParams = useMemo(() => {
     const params: Parameters<typeof useDeliveries>[0] = { page, size };
-    if (status) params.status = status;
+    if (status.length) params.status = status;
     if (dateFrom) params.dateFrom = dateFrom;
     if (dateTo) params.dateTo = dateTo;
-    if (driverId) params.driverId = driverId;
-    if (effectiveZoneId) params.zoneId = effectiveZoneId;
+    if (driverId.length) params.driverId = driverId;
+    if (zoneId.length) params.zoneId = zoneId;
+    if (depot.length) params.depot = depot;
     if (quickView === 'needsPinning') params.unpinned = 'true';
     return params;
-  }, [page, size, status, dateFrom, dateTo, driverId, effectiveZoneId, quickView]);
+  }, [page, size, status, dateFrom, dateTo, driverId, zoneId, depot, quickView]);
 
   const { data: deliveriesResponse, isLoading: loading, refetch: fetchDeliveries } = useDeliveries(queryParams);
 
@@ -157,24 +158,34 @@ function DeliveriesPageContent() {
   useEffect(() => {
     if (!pinParam || pinConsumedRef.current) return;
     const row = rows.find((r: DeliveryRow) => r.rowId === pinParam || r.deliveryId === pinParam || r.id === pinParam);
-    if (row) { setPinTarget(row); pinConsumedRef.current = true; }
+    if (row) { setPinTarget(row); pinConsumedRef.current = true; return; }
+    // Fallback: fetch the single delivery by ID if not in the current list
+    if (rows.length > 0) {
+      api.get(`/api/admin/deliveries/${pinParam}`)
+        .then(res => {
+          if (!pinConsumedRef.current && res.data) {
+            setPinTarget(res.data as DeliveryRow);
+            pinConsumedRef.current = true;
+          }
+        })
+        .catch(() => { /* delivery not found — ignore */ });
+    }
   }, [pinParam, rows]);
 
+  // Only the single-value fields (search + date range) stay in two-way sync with the shared store;
+  // the multi-select fields (status/driver/zone/depot) are page-local (Option B — no store refactor).
   useEffect(() => {
     if (!globalContext) return;
-    if (status !== (globalFilters.status || '')) setStatus(globalFilters.status || '');
     if (dateFrom !== globalFilters.dateFrom) setDateFrom(globalFilters.dateFrom);
     if (dateTo !== globalFilters.dateTo) setDateTo(globalFilters.dateTo);
-    if (driverId !== globalFilters.driver) setDriverId(globalFilters.driver);
-    if (zoneId !== globalFilters.zone) setZoneId(globalFilters.zone);
   }, [globalFilters, globalContext]);
 
   useEffect(() => {
-    const hasChanged = query !== globalFilters.search || status !== (globalFilters.status || '') || dateFrom !== globalFilters.dateFrom || dateTo !== globalFilters.dateTo || driverId !== globalFilters.driver || zoneId !== globalFilters.zone;
+    const hasChanged = query !== globalFilters.search || dateFrom !== globalFilters.dateFrom || dateTo !== globalFilters.dateTo;
     if (hasChanged) {
-      applyFilters({ search: query, status, dateFrom, dateTo, driver: driverId, zone: zoneId, route: globalFilters.route });
+      applyFilters({ search: query, dateFrom, dateTo });
     }
-  }, [query, status, dateFrom, dateTo, driverId, zoneId, applyFilters]);
+  }, [query, dateFrom, dateTo, applyFilters]);
 
   const { filteredRows, quickCounts } = useDeliveryListData(rows, { query, quickView, sortAsc, groupByClient, groupByZone, groupByStatus });
 
@@ -197,20 +208,32 @@ function DeliveriesPageContent() {
 
   // ── PageFilterBar config ───────────────────────────────────────────────────
   const filterAttributes = [
-    { key: 'status', label: t.deliveriesPage.statusHeader, options: DELIVERY_STATUSES.map(s => ({ value: s.value, label: getStatusLabel(s.value) })) },
-    { key: 'driver', label: t.deliveriesPage.driverHeader, options: drivers.map(d => ({ value: d.id, label: d.name })) },
-    { key: 'zone',   label: t.deliveriesPage.zoneHeader,   options: zones.map(z => ({ value: z.id, label: z.name })) },
+    { key: 'status', label: t.deliveriesPage.statusHeader, multi: true, options: DELIVERY_STATUSES.map(s => ({ value: s.value, label: getStatusLabel(s.value) })) },
+    { key: 'driver', label: t.deliveriesPage.driverHeader, multi: true, options: drivers.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'zone',   label: t.deliveriesPage.zoneHeader,   multi: true, options: zones.map(z => ({ value: z.id, label: z.name })) },
+    { key: 'depot',  label: t.common?.depot ?? 'Dépôt',    multi: true, options: activeDepots.map(d => ({ value: d.id, label: d.name })) },
   ];
-  const activeFiltersState: Record<string, string> = {
-    ...(status   && { status }),
-    ...(driverId && { driver: driverId }),
-    ...(zoneId   && { zone: zoneId }),
+  const activeFiltersState: Record<string, string | string[]> = {
+    ...(status.length   ? { status } : {}),
+    ...(driverId.length ? { driver: driverId } : {}),
+    ...(zoneId.length   ? { zone: zoneId } : {}),
+    ...(depot.length    ? { depot } : {}),
   };
+  const toggle = (setter: Dispatch<SetStateAction<string[]>>, arr: string[], v: string) =>
+    setter(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
   const handleDeliveryFilterChange = (key: string, value: string | null) => {
     setPage(0);
-    if (key === 'status') setStatus(value ?? '');
-    if (key === 'driver') setDriverId(value ?? '');
-    if (key === 'zone')   setZoneId(value ?? '');
+    if (value === null) {
+      if (key === 'status') setStatus([]);
+      else if (key === 'driver') setDriverId([]);
+      else if (key === 'zone') setZoneId([]);
+      else if (key === 'depot') setDepot([]);
+      return;
+    }
+    if (key === 'status') toggle(setStatus, status, value);
+    else if (key === 'driver') toggle(setDriverId, driverId, value);
+    else if (key === 'zone')   toggle(setZoneId, zoneId, value);
+    else if (key === 'depot')  toggle(setDepot, depot, value);
   };
   const quickFilterList = [
     { value: 'all',         label: t.deliveriesPage.totalFlow,           count: quickCounts.all },
@@ -260,26 +283,26 @@ function DeliveriesPageContent() {
                   onClick={() => { setDateFrom(''); setDateTo(''); setPage(0); }}
                   className="hover:opacity-70 transition-opacity shrink-0"
                   style={{ color: 'var(--text-muted)' }}
-                  aria-label="Effacer"
+                  aria-label={t.common?.effacer ?? 'Clear'}
                 >
                   <IconX size={13} />
                 </button>
               )}
             </div>
             <ExportCsvButton
-              baseName="livraisons"
+              baseName={t.deliveriesPage?.pageTitleBrand ?? 'deliveries'}
               rows={filteredRows}
               columns={[
-                { header: 'Référence', accessor: (r: DeliveryRow) => resolveOrderRef(r) },
-                { header: 'Client', accessor: (r: DeliveryRow) => r.clientName },
-                { header: 'Adresse', accessor: (r: DeliveryRow) => r.dropoffAddress },
-                { header: 'Zone', accessor: (r: DeliveryRow) => r.zoneName },
-                { header: 'Chauffeur', accessor: (r: DeliveryRow) => r.driverName },
-                { header: 'Statut', accessor: (r: DeliveryRow) => r.status },
+                { header: t.common?.reference ?? 'Reference', accessor: (r: DeliveryRow) => resolveOrderRef(r) },
+                { header: t.common?.client ?? 'Client', accessor: (r: DeliveryRow) => r.clientName },
+                { header: t.common?.adresse ?? 'Address', accessor: (r: DeliveryRow) => r.dropoffAddress },
+                { header: t.common?.zone ?? 'Zone', accessor: (r: DeliveryRow) => r.zoneName },
+                { header: t.common?.chauffeur ?? 'Driver', accessor: (r: DeliveryRow) => r.driverName },
+                { header: t.common?.statut ?? 'Status', accessor: (r: DeliveryRow) => r.status },
                 { header: 'SLA', accessor: (r: DeliveryRow) => r.slaHealth },
-                { header: 'Planifié', accessor: (r: DeliveryRow) => r.scheduledAt },
-                { header: 'Montant', accessor: (r: DeliveryRow) => r.totalAmount },
-                { header: 'Créé le', accessor: (r: DeliveryRow) => r.createdAt },
+                { header: t.deliveriesPage?.scheduledHeader ?? 'Scheduled', accessor: (r: DeliveryRow) => r.scheduledAt },
+                { header: t.common?.montant ?? 'Amount', accessor: (r: DeliveryRow) => r.totalAmount },
+                { header: t.common?.date ?? 'Created', accessor: (r: DeliveryRow) => r.createdAt },
               ]}
             />
             </>
@@ -287,7 +310,7 @@ function DeliveriesPageContent() {
         />
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
-          <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
+          <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
             {/* Internal Toolbar */}
             <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
               <div className="flex items-center gap-8">
@@ -377,7 +400,7 @@ function DeliveriesPageContent() {
                         <th className="h-10 px-6 text-right text-xs font-[450] text-[var(--text-muted)]">{t.deliveriesPage.actionsHeader}</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-[var(--border)] bg-[var(--surface)]">
+                    <tbody className="divide-y divide-[var(--border)] bg-[var(--app-bg)]">
                       {loading ? (
                         Array.from({ length: 15 }).map((_, i) => (
                           <tr key={i}>
@@ -417,7 +440,7 @@ function DeliveriesPageContent() {
 
             {/* Pagination footer */}
             {(rows.length >= size || page > 0 || totalPages > 1) && (
-              <div className="flex items-center justify-between px-6 py-2.5 border-t border-[var(--border)] bg-[var(--surface)] shrink-0">
+              <div className="flex items-center justify-between px-6 py-2.5 border-t border-[var(--border)] bg-[var(--app-bg)] shrink-0">
                 <span className="text-xs text-[var(--text-muted)]">
                   {t.deliveriesPage.pageLabel} {page + 1}{totalElements > rows.length ? ` · ${totalElements} ${t.deliveriesPage.resultsLabel}` : ''}
                 </span>

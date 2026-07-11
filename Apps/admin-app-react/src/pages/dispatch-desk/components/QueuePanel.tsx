@@ -3,6 +3,7 @@ import { useDispatchDeskContext } from '../hooks/useDispatchDeskState';
 import { QueueList } from './QueueList';
 import { QueueDetail } from './QueueDetail';
 import { useBreakpoint } from '@/hooks/use-mobile';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { cn } from '@/lib/utils';
 
 /**
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
  * which rendered the same orders twice with two different visual languages.
  */
 export function QueuePanel() {
+  const t = useT();
   const { queueRows, selectedQueueId, setSelectedQueueId } = useDispatchDeskContext();
   const { isMobile, isTablet } = useBreakpoint();
   const isMobileOrTablet = isMobile || isTablet;
@@ -79,18 +81,18 @@ export function QueuePanel() {
             )}
             disabled={!selectedQueueId}
           >
-            Détails
+            {t.common?.details ?? 'Details'}
           </button>
         </div>
 
         {/* Tab content panes */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
           {activeTab === 'list' ? (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
               <QueueList />
             </div>
           ) : (
-            <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
               <QueueDetail />
             </div>
           )}
@@ -103,11 +105,11 @@ export function QueuePanel() {
     <div className="flex-1 flex min-h-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
       <div
         className="w-[360px] shrink-0 flex flex-col min-h-0 border-e overflow-hidden"
-        style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
+        style={{ background: 'var(--app-bg)', borderColor: 'var(--border)' }}
       >
         <QueueList />
       </div>
-      <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--surface)' }}>
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden" style={{ background: 'var(--app-bg)' }}>
         <QueueDetail />
       </div>
     </div>

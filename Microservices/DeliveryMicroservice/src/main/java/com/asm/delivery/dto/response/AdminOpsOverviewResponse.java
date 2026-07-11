@@ -19,6 +19,10 @@ public class AdminOpsOverviewResponse {
     private String period;
     private LocalDateTime periodStart;
     private LocalDateTime periodEnd;
+    private boolean truncated;
+    /** Live dispatch churn — reassignments/replans performed since the start of the current business day. */
+    private long reassignedToday;
+    private long replannedToday;
     private SlaSnapshot sla;
     private List<LaneSnapshot> lanes;
     private List<ExceptionRow> exceptions;

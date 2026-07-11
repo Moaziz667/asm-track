@@ -53,8 +53,9 @@ public class GlobalSearchService {
     @Transactional(readOnly = true)
     public SearchResults doSearch(String q, int limit) {
         var page = PageRequest.of(0, limit);
+        var safeQ = escapeLike(q);
 
-        var deliveries = deliveryRepo.searchByQuery(q, page).stream()
+        var deliveries = deliveryRepo.searchByQuery(safeQ, page).stream()
                 .map(d -> new DeliveryResult(
                         d.getId(),
                         d.getOrder() != null ? d.getOrder().getErpOrderId() : null,
@@ -64,7 +65,7 @@ public class GlobalSearchService {
                         d.getStatus().name()))
                 .toList();
 
-        var routes = routeRepo.searchByQuery(q, page).stream()
+        var routes = routeRepo.searchByQuery(safeQ, page).stream()
                 .map(r -> new RouteResult(
                         r.getId(),
                         r.getName(),
@@ -72,7 +73,7 @@ public class GlobalSearchService {
                         r.getDate().toString()))
                 .toList();
 
-        var vehicles = vehicleRepo.searchByQuery(q, page).stream()
+        var vehicles = vehicleRepo.searchByQuery(safeQ, page).stream()
                 .map(v -> new VehicleResult(
                         v.getId(),
                         v.getPlate(),
@@ -81,7 +82,7 @@ public class GlobalSearchService {
                         v.getVehicleStatus().name()))
                 .toList();
 
-        var zones = zoneRepo.searchByQuery(q, page).stream()
+        var zones = zoneRepo.searchByQuery(safeQ, page).stream()
                 .map(z -> {
                     String cities = z.getCities() != null && !z.getCities().isEmpty()
                             ? String.join(", ", z.getCities().stream().limit(3).toList())
@@ -90,7 +91,7 @@ public class GlobalSearchService {
                 })
                 .toList();
 
-        var depots = depotRepo.searchByQuery(q, page).stream()
+        var depots = depotRepo.searchByQuery(safeQ, page).stream()
                 .map(d -> new DepotResult(
                         d.getId(),
                         d.getName(),
@@ -107,4 +108,10 @@ public class GlobalSearchService {
             java.util.List<ZoneResult> zones,
             java.util.List<DepotResult> depots
     ) {}
+
+    /** Escape LIKE wildcards (% and _) in user input to prevent pattern injection. */
+    private static String escapeLike(String s) {
+        if (s == null) return null;
+        return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+    }
 }

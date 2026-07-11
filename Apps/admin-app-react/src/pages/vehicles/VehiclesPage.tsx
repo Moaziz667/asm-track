@@ -45,12 +45,12 @@ import { TablePagination } from '@/components/data-display/TablePagination';
 
 type VehicleType = 'TRUCK' | 'VAN' | 'CAR' | 'MOTO';
 
-const VEHICLE_COLUMNS: ColumnDef[] = [
-  { id: 'vehicle',  label: 'Véhicule',        pinned: true },
-  { id: 'plate',    label: 'Immatriculation',  pinned: true },
-  { id: 'payload',  label: 'Charge utile' },
-  { id: 'driver',   label: 'Chauffeur' },
-  { id: 'status',   label: 'Statut' },
+const VEHICLE_COLUMNS_BASE: ColumnDef[] = [
+  { id: 'vehicle',  label: '', pinned: true },
+  { id: 'plate',    label: '', pinned: true },
+  { id: 'payload',  label: '' },
+  { id: 'driver',   label: '' },
+  { id: 'status',   label: '' },
 ];
 
 const VEHICLE_TYPES: VehicleType[] = ['TRUCK', 'VAN', 'CAR', 'MOTO'];
@@ -273,6 +273,13 @@ function VehicleTechnicalCard({
 function VehiclesPageContent() {
   const t = useT();
   const isMobile = useIsMobile();
+  const VEHICLE_COLUMNS: ColumnDef[] = [
+    { id: 'vehicle',  label: t.common?.vehicule ?? 'Vehicle',     pinned: true },
+    { id: 'plate',    label: t.common?.plaque ?? 'Plate',         pinned: true },
+    { id: 'payload',  label: t.common?.chargement ?? 'Payload' },
+    { id: 'driver',   label: t.common?.chauffeur ?? 'Driver' },
+    { id: 'status',   label: t.common?.statut ?? 'Status' },
+  ];
   const typeLabel: Record<VehicleType, string> = {
     TRUCK: t.vehiclesPage.vehicleTypeHeavy,
     VAN:   t.vehiclesPage.vehicleTypeVan,
@@ -505,7 +512,7 @@ function VehiclesPageContent() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ── Technical Grid ── */}
-        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+        <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
           {/* Toolbar */}
           <div
             className="flex items-center justify-between px-4 h-11 shrink-0"

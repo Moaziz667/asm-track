@@ -20,8 +20,8 @@ public interface DepotRepository extends JpaRepository<Depot, UUID> {
     @Query("""
             SELECT d FROM Depot d
             WHERE d.isActive = true AND (
-                LOWER(d.name)    LIKE LOWER(CONCAT('%', :q, '%'))
-                OR LOWER(d.address) LIKE LOWER(CONCAT('%', :q, '%'))
+                LOWER(d.name)    LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
+                OR LOWER(d.address) LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
             )
             ORDER BY d.name ASC
             """)

@@ -39,13 +39,13 @@ import { useDensity } from '@/hooks/useDensity';
 import { useColumnSettings } from '@/hooks/useColumnSettings';
 import type { ColumnDef } from '@/hooks/useColumnSettings';
 
-const IMPORT_COLUMNS: ColumnDef[] = [
-  { id: 'ref',      label: 'Référence',      pinned: true },
-  { id: 'customer', label: 'Client',          pinned: true },
-  { id: 'dest',     label: 'Destination' },
-  { id: 'amount',   label: 'Montant' },
-  { id: 'date',     label: 'Date Planifiée' },
-  { id: 'status',   label: 'Statut' },
+const IMPORT_COLUMNS_BASE: ColumnDef[] = [
+  { id: 'ref',      label: '', pinned: true },
+  { id: 'customer', label: '', pinned: true },
+  { id: 'dest',     label: '' },
+  { id: 'amount',   label: '' },
+  { id: 'date',     label: '' },
+  { id: 'status',   label: '' },
 ];
 
 const CELL_PADDING: Record<'compact' | 'comfortable' | 'spacious', string> = {
@@ -64,6 +64,14 @@ function formatDate(value: string | null | undefined) {
 
 function ImportErpPageContent() {
   const t = useT();
+  const IMPORT_COLUMNS: ColumnDef[] = [
+    { id: 'ref',      label: t.common?.reference ?? 'Reference', pinned: true },
+    { id: 'customer', label: t.common?.client ?? 'Customer',     pinned: true },
+    { id: 'dest',     label: t.common?.adresse ?? 'Destination' },
+    { id: 'amount',   label: t.common?.montant ?? 'Amount' },
+    { id: 'date',     label: t.common?.date ?? 'Date' },
+    { id: 'status',   label: t.common?.statut ?? 'Status' },
+  ];
   const { density, setDensity } = useDensity('import', 'comfortable');
   const thPaddingClass = density === 'compact' ? 'py-2' : density === 'spacious' ? 'py-6' : 'py-4';
   const rowPaddingClass = density === 'compact' ? 'py-1.5' : density === 'spacious' ? 'py-5' : 'py-3';
@@ -139,6 +147,11 @@ function ImportErpPageContent() {
       void loadPendingOrders(true, true);
     }, 1500);
   });
+
+  // Cleanup erpRefetchTimer on unmount
+  useEffect(() => {
+    return () => { if (erpRefetchTimer.current != null) { clearTimeout(erpRefetchTimer.current); erpRefetchTimer.current = null; } };
+  }, []);
 
   const filteredRows = useMemo(() => {
     let result = rows;
@@ -299,11 +312,11 @@ function ImportErpPageContent() {
 
       <div className="flex flex-1 min-h-0 flex-col lg:flex-row overflow-visible lg:overflow-hidden">
         {/* ── Main Table (full-width, sidebar removed) ── */}
-        <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+        <div className="flex-1 flex flex-col overflow-visible lg:overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {filteredRows.length} commande{filteredRows.length !== 1 ? 's' : ''}
+              {filteredRows.length} {t.common?.results ?? 'results'}
             </span>
             <div className="flex items-center gap-2">
               <button
@@ -362,7 +375,7 @@ function ImportErpPageContent() {
                     );
                     if (col.id === 'date') return (
                       <th key="date" className={cn("text-xs font-semibold text-[var(--text-muted)] text-left px-3", thPaddingClass)}>
-                        Date Planifiée
+                        {t.common?.date ?? 'Date'}
                       </th>
                     );
                     if (col.id === 'status') return (
@@ -498,7 +511,7 @@ function ImportErpPageContent() {
                                         className="text-xs font-bold tracking-tight"
                                         style={{ color: color ?? 'var(--text-primary)' }}
                                       >
-                                        {row.scheduledAt ? formatDate(row.scheduledAt) : 'Non planifié'}
+                                        {row.scheduledAt ? formatDate(row.scheduledAt) : (t.common?.noData ?? 'Not scheduled')}
                                       </span>
                                     </div>
                                     {tooltip && (
@@ -638,7 +651,7 @@ function ImportErpPageContent() {
 
           {/* Footer / Pagination */}
           <div className="h-px bg-[var(--border)]" />
-          <div className="p-4 bg-[var(--surface)]">
+          <div className="p-4 bg-[var(--app-bg)]">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold text-[var(--text-muted)]">
                 {t.importPage.showing.replace('{showing}', paginatedRows.length.toString()).replace('{total}', filteredRows.length.toString())}

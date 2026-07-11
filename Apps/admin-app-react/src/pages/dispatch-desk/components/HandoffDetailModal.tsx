@@ -74,7 +74,7 @@ function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string
       <div className="flex items-center gap-2 min-w-0 flex-1 justify-end">
         <div className="min-w-0 text-right">
           <p className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>{h.fromDriverName ?? '—'}</p>
-          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Envoyé par'}</p>
+          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Sent by'}</p>
         </div>
         <DriverAvatarById driverId={h.fromDriverId} name={h.fromDriverName} size={32} />
       </div>
@@ -99,7 +99,7 @@ function CustodyVisual({ h, accent, phase, t }: { h: HandoffItem; accent: string
         <DriverAvatarById driverId={h.toDriverId} name={h.toDriverName} size={32} />
         <div className="min-w-0">
           <p className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>{h.toDriverName ?? '—'}</p>
-          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Reçu par'}</p>
+          <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Received by'}</p>
         </div>
       </div>
     </div>
@@ -111,7 +111,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
 
   const ref = h.erpOrderId || h.deliveryId?.slice(0, 8) || '—';
   const steps = lifecycleSteps(h, t);
-  const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'par';
+  const byLabel = t.dispatchDeskPage.handoffByLabel ?? 'by';
 
   const requestedMs = h.requestedAt ? new Date(h.requestedAt).getTime() : 0;
   const endedMs = h.confirmedAt
@@ -147,7 +147,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
           </span>
         </div>
       }
-      subtitle={`${tlabel(t.dispatchDeskPage, 'handoffSubtitle') ?? 'Transfert'} · ${ref}`}
+      subtitle={`${tlabel(t.dispatchDeskPage, 'handoffSubtitle') ?? 'Transfer'} · ${ref}`}
       size="lg"
     >
       <div className="flex flex-col">
@@ -208,7 +208,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
         {/* Lifecycle timeline */}
         <div className="border-t pt-3" style={{ borderColor: 'var(--border)' }}>
           <p className="text-xs font-[700] mb-2" style={{ color: 'var(--text-primary)' }}>
-            {tlabel(t.dispatchDeskPage, 'handoffLifecycle') ?? 'Chronologie'}
+            {tlabel(t.dispatchDeskPage, 'handoffLifecycle') ?? 'Timeline'}
           </p>
           {steps.map((s, i) => (
             <div key={i} className="flex items-start gap-2.5">
@@ -247,7 +247,7 @@ export function HandoffDetailModal({ h, open, onClose, phase, accent, t }: Props
         {h.reason && (
           <div className="border-t pt-3 mt-1" style={{ borderColor: 'var(--border)' }}>
             <p className="text-2xs font-[600] mb-1" style={{ color: 'var(--text-muted)' }}>
-              {t.dispatchDeskPage.handoffReasonLabel ?? 'Motif'}
+              {t.dispatchDeskPage.handoffReasonLabel ?? 'Reason'}
             </p>
             <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{h.reason}</p>
           </div>

@@ -50,10 +50,13 @@ export function MonthView({ cursor, selected, setSelected, deliveriesByDay, rout
             const isPast = isBefore(day, new Date()) && !isToday;
             const isSelected = key === selected;
             const statusCounts = dels.reduce<Record<string, number>>((acc, d) => { acc[d.status] = (acc[d.status] ?? 0) + 1; return acc; }, {});
-            // Dispatcher signal: unassigned backlog (actionable) + driver-capacity load (routes vs slots).
+            // Dispatcher signal: unassigned backlog (actionable) + fleet utilization (distinct drivers
+            // committed that day / available drivers) — same definition as the day panel, and it no longer
+            // over-counts a driver who runs several routes.
             const unassigned = dels.filter(d => !d.driverId).length;
-            const capPct = driverSlots > 0 ? Math.min(rts.length / driverSlots, 1) : 0;
-            const over = driverSlots > 0 && rts.length > driverSlots;
+            const driversUsed = new Set(rts.map(r => r.driverId).filter(Boolean)).size;
+            const capPct = driverSlots > 0 ? Math.min(driversUsed / driverSlots, 1) : 0;
+            const over = driverSlots > 0 && driversUsed > driverSlots;
             return (
               <button key={key} onClick={() => setSelected(key)}
                 className={cn(
@@ -61,7 +64,7 @@ export function MonthView({ cursor, selected, setSelected, deliveriesByDay, rout
                   isSelected ? 'border-[var(--brand)] bg-[var(--hover-bg)]' : 'border-[var(--border)] hover:bg-[var(--hover-bg)]',
                   !inMonth && 'opacity-40',
                 )}
-                style={{ background: isSelected ? undefined : 'var(--surface)' }}>
+                style={{ background: isSelected ? undefined : 'var(--app-bg)' }}>
                 <div className="flex items-center justify-between w-full">
                   <span className={cn('text-sm font-bold', isToday ? 'text-[var(--brand)]' : 'text-[var(--text-primary)]')}>{format(day, 'd')}</span>
                   <div className="flex items-center gap-1">
@@ -95,7 +98,7 @@ export function MonthView({ cursor, selected, setSelected, deliveriesByDay, rout
                 {/* Capacity load bar (only when relevant — future/today with routes) */}
                 {rts.length > 0 && !isPast && driverSlots > 0 && (
                   <div className="w-full h-[3px] rounded-full mt-1 bg-[var(--hover-bg)] overflow-hidden"
-                    title={`${rts.length}/${driverSlots} ${t.overviewPage?.capacityLabel ?? 'capacité'}`}>
+                    title={`${driversUsed}/${driverSlots} ${t.overviewPage?.capacityLabel ?? 'capacité'}`}>
                     <div className="h-full rounded-full" style={{ width: `${(over ? 1 : capPct) * 100}%`, background: over ? 'var(--danger)' : capPct >= 0.8 ? 'var(--warning)' : 'var(--success)' }} />
                   </div>
                 )}

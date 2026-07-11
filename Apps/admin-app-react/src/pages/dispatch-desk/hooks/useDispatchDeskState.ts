@@ -40,10 +40,12 @@ export interface DispatchDeskContextProps {
   setCustomTo: React.Dispatch<React.SetStateAction<string>>;
   search: string;
   setSearch: React.Dispatch<React.SetStateAction<string>>;
-  driverId: string;
-  setDriverId: React.Dispatch<React.SetStateAction<string>>;
-  zoneFilter: string;
-  setZoneFilter: React.Dispatch<React.SetStateAction<string>>;
+  driverId: string[];
+  setDriverId: React.Dispatch<React.SetStateAction<string[]>>;
+  zoneFilter: string[];
+  setZoneFilter: React.Dispatch<React.SetStateAction<string[]>>;
+  depotFilter: string[];
+  setDepotFilter: React.Dispatch<React.SetStateAction<string[]>>;
   statusFilter: string;
   setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
   routeFilter: string;
@@ -142,8 +144,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [customFrom, setCustomFrom]   = useState('');
   const [customTo, setCustomTo]       = useState('');
   const [search, setSearch]           = useState(globalFilters.search || '');
-  const [driverId, setDriverId]       = useState(globalFilters.driver || '');
-  const [zoneFilter, setZoneFilter]   = useState(globalFilters.zone || '');
+  const [driverId, setDriverId]       = useState<string[]>(globalFilters.driver ? [globalFilters.driver] : []);
+  const [zoneFilter, setZoneFilter]   = useState<string[]>(globalFilters.zone ? [globalFilters.zone] : []);
+  const [depotFilter, setDepotFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState('');
   const [routeFilter, setRouteFilter] = useState('');
   const [queueSort, setQueueSort] = useState<QueueSortMode>('route');
@@ -275,7 +278,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     }
     const q = searchParams?.get('search') || searchParams?.get('deliveryId');
     if (q) { setSearch(q); applyFilters({ search: q }); }
-    else { setSearch(globalFilters.search); setZoneFilter(globalFilters.zone); setDriverId(globalFilters.driver); }
+    else { setSearch(globalFilters.search); setZoneFilter(globalFilters.zone ? [globalFilters.zone] : []); setDriverId(globalFilters.driver ? [globalFilters.driver] : []); }
   }, [globalContext, searchParams, applyFilters, globalFilters.search, globalFilters.zone, globalFilters.driver]);
 
   // ── Computed ──────────────────────────────────────────────────────────────
@@ -300,16 +303,22 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     return `${clientName ?? ''} ${ref ?? ''} ${erpId ?? ''} ${id ?? ''}`.toLowerCase().includes(q);
   }, [search]);
 
+  // Multi-select match: an empty filter matches everything; otherwise any of the row's candidate
+  // values (e.g. zoneName OR city) must be in the selected set.
+  const inList = useCallback((arr: string[], ...vals: (string | undefined | null)[]) =>
+    arr.length === 0 || vals.some(v => v != null && arr.includes(v)), []);
+
   const actionRows = useMemo(() => {
     const filtered = rows.filter(r => {
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return false;
-      if (driverId && r.driverId !== driverId) return false;
-      if (zoneFilter && r.zoneName !== zoneFilter && r.city !== zoneFilter) return false;
+      if (!inList(driverId, r.driverId)) return false;
+      if (!inList(zoneFilter, r.zoneName, r.city)) return false;
+      if (!inList(depotFilter, r.depotName)) return false;
       if (routeFilter && r.routeId !== routeFilter) return false;
       return true;
     });
     return sortByRoute(filtered, r => r.severity === 'CRITICAL' ? 0 : r.severity === 'WARNING' ? 1 : 2);
-  }, [rows, matchSearch, driverId, zoneFilter, routeFilter]);
+  }, [rows, matchSearch, inList, driverId, zoneFilter, depotFilter, routeFilter]);
 
   const routeOptions = useMemo(() => {
     const seen = new Map<string, string>();
@@ -321,8 +330,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     const result = allDeliveries.filter(d => {
       const id = rowId(d);
       if (!matchSearch(d.clientName, d.orderRef, d.erpOrderId, id)) return false;
-      if (driverId && d.driverId !== driverId) return false;
-      if (zoneFilter && d.zoneName !== zoneFilter && d.dropoffCity !== zoneFilter) return false;
+      if (!inList(driverId, d.driverId)) return false;
+      if (!inList(zoneFilter, d.zoneName, d.dropoffCity)) return false;
+      if (!inList(depotFilter, d.sourceDepotName)) return false;
       if (d.status === 'CANCELLED') return false; // annulées exclues du dispatch desk
       if (dispatchTab === 'assign') return (ASSIGNABLE_STATUSES as string[]).includes(d.status);
       if (dispatchTab === 'gps')    return !d.dropoffLat || !d.dropoffLng;
@@ -340,7 +350,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       const s = alertMap.get(rowId(d))?.severity;
       return s === 'CRITICAL' ? 0 : s === 'WARNING' ? 1 : s ? 2 : 3;
     });
-  }, [allDeliveries, matchSearch, driverId, zoneFilter, dispatchTab, alertMap]);
+  }, [allDeliveries, matchSearch, inList, driverId, zoneFilter, depotFilter, dispatchTab, alertMap]);
 
   // Unified Queue: every delivery that needs attention — either it's awaiting
   // assignment (ASSIGNABLE_STATUSES) or it carries an active ops alert — merged
@@ -352,8 +362,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     allDeliveries.forEach(d => {
       const id = rowId(d);
       if (!matchSearch(d.clientName, d.orderRef, d.erpOrderId, id)) return;
-      if (driverId && d.driverId !== driverId) return;
-      if (zoneFilter && d.zoneName !== zoneFilter && d.dropoffCity !== zoneFilter) return;
+      if (!inList(driverId, d.driverId)) return;
+      if (!inList(zoneFilter, d.zoneName, d.dropoffCity)) return;
+      if (!inList(depotFilter, d.sourceDepotName)) return;
       if (!(ASSIGNABLE_STATUSES as string[]).includes(d.status)) return;
       byId.set(id, { id, delivery: d, alert: alertMap.get(id), routeId: d.routeId, routeName: d.routeName });
     });
@@ -364,13 +375,14 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
       if (!d) return;
       if (d.status === 'CANCELLED') return; // annulées exclues du dispatch desk
       if (!matchSearch(r.clientName, r.orderRef, undefined, r.deliveryId)) return;
-      if (driverId && r.driverId !== driverId) return;
-      if (zoneFilter && r.zoneName !== zoneFilter && r.city !== zoneFilter) return;
+      if (!inList(driverId, r.driverId)) return;
+      if (!inList(zoneFilter, r.zoneName, r.city)) return;
+      if (!inList(depotFilter, r.depotName)) return;
       byId.set(r.deliveryId, { id: r.deliveryId, delivery: d, alert: r, routeId: r.routeId ?? d.routeId, routeName: r.routeName ?? d.routeName });
     });
 
     return sortQueue(Array.from(byId.values()), queueSort);
-  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, driverId, zoneFilter, queueSort]);
+  }, [allDeliveries, rows, alertMap, deliveryMap, matchSearch, inList, driverId, zoneFilter, depotFilter, queueSort]);
 
   const selectedQueueRow = useMemo(
     () => queueRows.find(q => q.id === selectedQueueId) ?? null,
@@ -438,8 +450,9 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
 
   const clearFilters = useCallback(() => {
     setSearch('');
-    setDriverId('');
-    setZoneFilter('');
+    setDriverId([]);
+    setZoneFilter([]);
+    setDepotFilter([]);
     setStatusFilter('');
     setRouteFilter('');
   }, []);
@@ -512,17 +525,18 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   }, [pendingAction, runningAction, actionNote, replanScheduledAt, runReplan, resetActionState, t]);
 
   const runCancel = useCallback(async () => {
-    if (!cancelTarget || !cancelReason.trim()) return;
+    const target = cancelTarget;
+    if (!target || !cancelReason.trim()) return;
     setCancelling(true);
     try {
-      await api.post(`/api/admin/deliveries/${cancelTarget.deliveryId}/cancel`, null, { params: { reason: cancelReason.trim() } });
-      showSuccessToast(t.dispatchDeskPage.successCancelled, { clientName: cancelTarget?.clientName });
+      await api.post(`/api/admin/deliveries/${target.deliveryId}/cancel`, null, { params: { reason: cancelReason.trim() } });
+      showSuccessToast(t.dispatchDeskPage.successCancelled, { clientName: target?.clientName });
       setCancelTarget(null);
       setCancelReason('');
       await fetchExceptions(true);
       await fetchAllDeliveries();
     } catch (err) {
-      showErrorToast(err, t.dispatchDeskPage.errorCancel, { clientName: cancelTarget?.clientName });
+      showErrorToast(err, t.dispatchDeskPage.errorCancel, { clientName: target?.clientName });
     } finally {
       setCancelling(false);
     }
@@ -558,6 +572,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setDriverId,
     zoneFilter,
     setZoneFilter,
+    depotFilter,
+    setDepotFilter,
     statusFilter,
     setStatusFilter,
     routeFilter,
@@ -633,6 +649,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     search,
     driverId,
     zoneFilter,
+    depotFilter,
     statusFilter,
     routeFilter,
     clearFilters,

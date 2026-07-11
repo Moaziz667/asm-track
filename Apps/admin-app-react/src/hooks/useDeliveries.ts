@@ -26,12 +26,13 @@ export interface PinDropoffPayload {
 export function useDeliveries(params: {
   page: number;
   size: number;
-  status?: string;
+  status?: string | string[];
   date?: string;
   dateFrom?: string;
   dateTo?: string;
-  driverId?: string;
-  zoneId?: string;
+  driverId?: string | string[];
+  zoneId?: string | string[];
+  depot?: string | string[];
   unpinned?: string;
 }) {
   return useQuery({

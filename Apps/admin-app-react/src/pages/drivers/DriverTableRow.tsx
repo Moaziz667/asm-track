@@ -76,7 +76,7 @@ export function DriverTableRow({
   };
 
   return (
-    <div className="border-b border-[var(--border)]" style={{ background: 'var(--surface)' }}>
+    <div className="border-b border-[var(--border)]" style={{ background: 'var(--app-bg)' }}>
       <div
         className="grid gap-4 items-center cursor-pointer group hover:bg-[var(--hover-bg)] transition-colors"
         style={{ gridTemplateColumns: gridCols, height: rowHeight }}

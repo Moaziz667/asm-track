@@ -5,7 +5,6 @@ import com.asm.delivery.dto.request.PinDropoffRequest;
 import com.asm.delivery.dto.response.AdminDeliveryDetailResponse;
 import com.asm.delivery.dto.response.AdminDeliverySummaryResponse;
 import com.asm.delivery.dto.response.AdminDriverResponse;
-import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.dto.response.AdminStatsResponse;
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.dto.response.ProofOfDeliveryResponse;
@@ -79,21 +78,24 @@ public class AdminDeliveryController {
         @ApiResponse(responseCode = "200", description = "Paginated list of deliveries matching the filters")
     })
     public ResponseEntity<Page<AdminDeliverySummaryResponse>> list(
-            @Parameter(description = "Filter by delivery status", schema = @Schema(implementation = DeliveryStatus.class))
-            DeliveryStatus status,
+            @Parameter(description = "Filter by delivery status(es)")
+            @RequestParam(name = "status", required = false) java.util.List<DeliveryStatus> status,
 
-            @Parameter(description = "Filter by assigned driver ID")
-            UUID driverId,
+            @Parameter(description = "Filter by assigned driver id(s)")
+            @RequestParam(name = "driverId", required = false) java.util.List<UUID> driverId,
 
             @Parameter(description = "Filter by creation date (ISO format: yyyy-MM-dd)", example = "2026-05-13")
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
             LocalDate date,
 
-            @Parameter(description = "Filter by order source", schema = @Schema(allowableValues = {"ODOO", "DUX"}))
-            OrderSource source,
+            @Parameter(description = "Filter by order source(s)")
+            @RequestParam(name = "source", required = false) java.util.List<OrderSource> source,
 
-            @Parameter(description = "Filter by delivery zone ID")
-            UUID zoneId,
+            @Parameter(description = "Filter by delivery zone id(s)")
+            @RequestParam(name = "zoneId", required = false) java.util.List<UUID> zoneId,
+
+            @Parameter(description = "Filter by source depot id(s)")
+            @RequestParam(name = "depot", required = false) java.util.List<UUID> depot,
 
             @Parameter(description = "If true, only return deliveries with no GPS coordinates pinned yet")
             Boolean unpinned,
@@ -115,7 +117,7 @@ public class AdminDeliveryController {
 
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable));
     }
 
     @GetMapping("/calendar")
@@ -267,17 +269,6 @@ public class AdminDeliveryController {
                 .cacheControl(org.springframework.http.CacheControl.maxAge(java.time.Duration.ofSeconds(30))
                         .staleWhileRevalidate(java.time.Duration.ofSeconds(120)).cachePrivate())
                 .body(opsAnalyticsService.getStats(query));
-    }
-
-    @GetMapping("/ops-overview")
-    @Operation(summary = "Operations-ready overview: SLA, dispatch lanes, and exceptions",
-            description = "Unified analytics query: granular date (range/last/from/to) + server-side scope (driverId, zone).")
-    public ResponseEntity<AdminOpsOverviewResponse> opsOverview(
-            @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
-    ) {
-        return ResponseEntity.ok()
-                .cacheControl(org.springframework.http.CacheControl.noStore())
-                .body(opsAnalyticsService.getOpsOverview(query));
     }
 
     @GetMapping("/{id}/history")

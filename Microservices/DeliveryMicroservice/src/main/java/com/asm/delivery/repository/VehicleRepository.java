@@ -27,9 +27,9 @@ public interface VehicleRepository extends JpaRepository<Vehicle, UUID> {
             SELECT v FROM Vehicle v
             WHERE v.active = true AND (
                 LOWER(v.plate) LIKE LOWER(CONCAT('%', :q, '%')) OR
-                LOWER(v.make)  LIKE LOWER(CONCAT('%', :q, '%')) OR
-                LOWER(v.model) LIKE LOWER(CONCAT('%', :q, '%')) OR
-                LOWER(v.name)  LIKE LOWER(CONCAT('%', :q, '%'))
+                LOWER(v.make)  LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\' OR
+                LOWER(v.model) LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\' OR
+                LOWER(v.name)  LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
             )
             ORDER BY v.createdAt DESC
             """)

@@ -14,29 +14,6 @@ type ZoneData = {
   rank: number;
 };
 
-function shiftRange(range: Range, from?: string, to?: string): { from?: string; to?: string } | { range: string } {
-  if (range === 'custom' && from && to) {
-    const start = new Date(from);
-    const end = new Date(to);
-    const duration = end.getTime() - start.getTime();
-    const prevEnd = new Date(start.getTime() - 1);
-    const prevStart = new Date(prevEnd.getTime() - duration);
-    return {
-      from: prevStart.toISOString().slice(0, 10) + 'T00:00:00',
-      to: prevEnd.toISOString().slice(0, 10) + 'T23:59:59',
-    };
-  }
-
-  const shiftMap: Record<string, string> = {
-    today: 'yesterday',
-    yesterday: 'yesterday',
-    last7d: 'last30d',
-    last30d: 'last30d',
-  };
-
-  return { range: shiftMap[range] || 'yesterday' };
-}
-
 function aggregateByZone(points: Array<{
   zoneId: string;
   zoneName: string;
@@ -56,49 +33,42 @@ function aggregateByZone(points: Array<{
   return byZone;
 }
 
+/**
+ * Zone demand + period-over-period delta. Single request: the server resolves the preceding window of
+ * equal length (Tunis-anchored, PeriodResolver) via compare=true and returns previousOrdersByZone — so
+ * the delta is correct for every preset, unlike the old client-side range shifting.
+ */
 export function useZoneComparison(range: Range, from?: string, to?: string) {
-  const currentParams = range === 'custom' && from && to
-    ? { from: `${from}T00:00:00`, to: `${to}T23:59:59` }
-    : { range };
+  const params = range === 'custom' && from && to
+    ? { from: `${from}T00:00:00`, to: `${to}T23:59:59`, compare: true }
+    : { range, compare: true };
 
-  const prevParams = shiftRange(range, from, to);
-
-  const { data: currentData, isLoading } = useQuery({
-    queryKey: ['zone-heatmap-current', range, from ?? '', to ?? ''],
+  const { data, isLoading } = useQuery({
+    queryKey: ['zone-heatmap', range, from ?? '', to ?? ''],
     queryFn: () =>
-      api.get('/api/admin/reports/zone-heatmap', { params: currentParams })
-        .then(r => r.data?.points ?? [])
-        .catch(() => []),
-    staleTime: 30_000,
-  });
-
-  const { data: previousData } = useQuery({
-    queryKey: ['zone-heatmap-prev', range, from ?? '', to ?? ''],
-    queryFn: () =>
-      api.get('/api/admin/reports/zone-heatmap', { params: prevParams })
-        .then(r => r.data?.points ?? [])
-        .catch(() => []),
+      api.get('/api/admin/reports/zone-heatmap', { params })
+        .then(r => r.data as { points?: Array<{ zoneId: string; zoneName: string; zoneColor: string; ordersCount: number }>; previousOrdersByZone?: Record<string, number> })
+        .catch(() => ({ points: [], previousOrdersByZone: {} })),
     staleTime: 30_000,
   });
 
   const zones: ZoneData[] = useMemo(() => {
-    const current = aggregateByZone(currentData ?? []);
-    const previous = aggregateByZone(previousData ?? []);
+    const current = aggregateByZone(data?.points ?? []);
+    const prevByZone: Record<string, number> = data?.previousOrdersByZone ?? {};
 
     const result: ZoneData[] = [];
-    for (const [zoneId, data] of current) {
-      const prev = previous.get(zoneId);
-      const prevOrders = prev?.orders ?? 0;
+    for (const [zoneId, d] of current) {
+      const prevOrders = prevByZone[zoneId] ?? 0;
       const delta = prevOrders > 0
-        ? ((data.orders - prevOrders) / prevOrders) * 100
+        ? ((d.orders - prevOrders) / prevOrders) * 100
         : null;
 
       result.push({
         zoneId,
-        zoneName: data.zoneName,
-        zoneColor: data.zoneColor,
-        orders: data.orders,
-        zipcodes: data.zipcodes,
+        zoneName: d.zoneName,
+        zoneColor: d.zoneColor,
+        orders: d.orders,
+        zipcodes: d.zipcodes,
         previousOrders: prevOrders,
         delta,
         rank: 0,
@@ -109,7 +79,7 @@ export function useZoneComparison(range: Range, from?: string, to?: string) {
     result.forEach((z, i) => { z.rank = i + 1; });
 
     return result;
-  }, [currentData, previousData]);
+  }, [data]);
 
   const totalOrders = useMemo(() => zones.reduce((s, z) => s + z.orders, 0), [zones]);
 

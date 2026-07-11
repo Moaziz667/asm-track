@@ -34,6 +34,22 @@ public class DashboardKpiResponse {
     private double slaRate;
     @Schema(description = "SLA compliance (%) for the preceding period")
     private double previousSlaRate;
+    @Schema(description = "Late deliveries in the period — measurable completed deliveries that missed their SLA window")
+    private long lateOrders;
+    @Schema(description = "Measurable completed deliveries in the period (the denominator for the late rate)")
+    private long measurableOrders;
+
+    // Period-over-period counterparts for the top KPI deltas (all vs the preceding window of equal length).
+    @Schema(description = "Delivered (incl. partial) in the current period")
+    private long deliveredOrders;
+    @Schema(description = "Delivered (incl. partial) in the preceding period")
+    private long previousDelivered;
+    @Schema(description = "Failure events in the current period (failedAt-anchored)")
+    private long failedOrders;
+    @Schema(description = "Failure events in the preceding period")
+    private long previousFailed;
+    @Schema(description = "Late deliveries in the preceding period")
+    private long previousLate;
 
     @Data
     @Builder

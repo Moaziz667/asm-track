@@ -31,21 +31,24 @@ export function WeekView({ cursor, selected, setSelected, deliveriesByDay, route
   // Build rows for every active driver, sorted by name. Drivers without any
   // assignment this week still appear so dispatchers see free capacity.
   const rows = useMemo(() => {
-    const driverIds = new Set<string>();
-    drivers.forEach(d => driverIds.add(d.id));
-    // Also include drivers referenced by routes/deliveries that may not be in the fleet list.
-    routesByDay.forEach(rts => rts.forEach(r => r.driverId && driverIds.add(r.driverId)));
-    deliveriesByDay.forEach(dels => dels.forEach(d => d.driverId && driverIds.add(d.driverId)));
+    // Collect ids + names across ALL days (a driver may only appear later in the week, and drivers
+    // not in the active-fleet list — e.g. suspended — still need their name, not a UUID prefix).
+    const ids = new Set<string>();
+    const nameById = new Map<string, string>();
+    drivers.forEach(d => { ids.add(d.id); nameById.set(d.id, d.name); });
+    routesByDay.forEach(rts => rts.forEach(r => {
+      if (!r.driverId) return;
+      ids.add(r.driverId);
+      if (r.driverName && !nameById.has(r.driverId)) nameById.set(r.driverId, r.driverName);
+    }));
+    deliveriesByDay.forEach(dels => dels.forEach(d => {
+      if (!d.driverId) return;
+      ids.add(d.driverId);
+      if (d.driverName && !nameById.has(d.driverId)) nameById.set(d.driverId, d.driverName);
+    }));
 
-    return Array.from(driverIds)
-      .map(id => {
-        const fleetDriver = drivers.find(d => d.id === id);
-        const name = fleetDriver?.name
-          ?? routesByDay.values().next().value?.find((r: RouteItem) => r.driverId === id)?.driverName
-          ?? deliveriesByDay.values().next().value?.find((d: CalDelivery) => d.driverId === id)?.driverName
-          ?? id.slice(0, 8);
-        return { id, name };
-      })
+    return Array.from(ids)
+      .map(id => ({ id, name: nameById.get(id) ?? id.slice(0, 8) }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [drivers, routesByDay, deliveriesByDay]);
 
@@ -56,11 +59,11 @@ export function WeekView({ cursor, selected, setSelected, deliveriesByDay, route
     <div className="flex flex-col lg:flex-row flex-1 min-h-0 max-w-[1800px] mx-auto w-full overflow-visible lg:overflow-hidden">
       {/* Board */}
       <div className="flex-1 flex flex-col p-4 min-w-0">
-        <div className="border border-[var(--border)] rounded-lg bg-[var(--surface)] overflow-hidden flex flex-col">
+        <div className="border border-[var(--border)] rounded-lg bg-[var(--app-bg)] overflow-hidden flex flex-col">
           {/* Header row */}
-          <div className="grid grid-cols-8 border-b border-[var(--border)] bg-[var(--surface)]">
+          <div className="grid grid-cols-8 border-b border-[var(--border)] bg-[var(--surface-sunken)]">
             <div className="px-3 py-2 border-r border-[var(--border)] text-2xs font-medium text-[var(--text-muted)] flex items-center">
-              {t.overviewPage?.driverHeader ?? 'Chauffeur'}
+              {t.overviewPage?.driverHeader ?? 'Driver'}
             </div>
             {days.map(day => {
               const key = isoDay(day);
@@ -93,7 +96,7 @@ export function WeekView({ cursor, selected, setSelected, deliveriesByDay, route
             {rows.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 gap-2 opacity-40">
                 <IconRoute size={20} stroke={1.5} className="text-[var(--text-muted)]" />
-                <span className="text-xs font-medium text-[var(--text-muted)]">{t.overviewPage?.noDrivers ?? 'Aucun chauffeur'}</span>
+                <span className="text-xs font-medium text-[var(--text-muted)]">{t.overviewPage?.noDrivers ?? 'No drivers'}</span>
               </div>
             ) : (
               rows.map(row => (
@@ -129,8 +132,8 @@ export function WeekView({ cursor, selected, setSelected, deliveriesByDay, route
                           </div>
                         ) : dels.length > 0 ? (
                           <div className="flex flex-col gap-1 min-w-0">
-                            <span className="text-2xs font-semibold text-[var(--warning)]">{dels.length} {t.overviewPage?.delAbbrev ?? 'livr.'}</span>
-                            <span className="text-3xs text-[var(--text-soft)]">{t.overviewPage?.unassigned ?? 'Non assigné'}</span>
+                            <span className="text-2xs font-semibold text-[var(--warning)]">{dels.length} {t.overviewPage?.delAbbrev ?? 'del.'}</span>
+                            <span className="text-3xs text-[var(--text-soft)]">{t.overviewPage?.unassigned ?? 'Unassigned'}</span>
                           </div>
                         ) : (
                           <span className="text-2xs text-[var(--text-faded)]">—</span>

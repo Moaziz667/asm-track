@@ -525,7 +525,7 @@ function RouteMobileCard({
       {/* Expanded Stops Timeline */}
       {expanded && (
         <div className="bg-[var(--surface-sunken)] border-t border-[var(--border)] mt-2 -mx-4 -mb-4 p-3 rounded-b-md flex flex-col gap-2">
-          <span className="text-3xs uppercase font-bold text-[var(--text-muted)] tracking-wider">Arrêts de la tournée</span>
+          <span className="text-3xs uppercase font-bold text-[var(--text-muted)] tracking-wider">{t.common?.arrets ?? 'Stops'} {t.common?.de ?? 'of'} {t.common?.tournee ?? 'Route'}</span>
           {loadingStops ? (
             <div className="py-3 text-center italic text-[var(--text-muted)] text-xs">…</div>
           ) : stops.length === 0 ? (
@@ -723,10 +723,17 @@ function RoutesTablePageContent() {
 
   const hasAdvancedFilters = dateFilter !== 'ALL' || driverFilter || vehicleFilter || depotFilter || zoneFilter || clientFilter;
 
-  const zoneOptions = useMemo(
-    () => [...new Set(routes.map(r => r.zoneLabel).filter(Boolean))].map(z => ({ value: z, label: z })),
-    [routes]
-  );
+  // The server filters routes by `city` (exact), so the option VALUE must be the route's city — not the
+  // detected compound zone label (e.g. "Grand Tunis · Ariana"), which never matches route.city. Display
+  // keeps the familiar zone label; the value sent is the queryable city.
+  const zoneOptions = useMemo(() => {
+    const byCity = new Map<string, string>();
+    routes.forEach(r => {
+      const city = (r as { city?: string }).city;
+      if (city && !byCity.has(city)) byCity.set(city, r.zoneLabel || city);
+    });
+    return Array.from(byCity, ([value, label]) => ({ value, label }));
+  }, [routes]);
 
   // ── PageFilterBar config ───────────────────────────────────────────────────
   const routeFilterAttributes = [
@@ -782,12 +789,12 @@ function RoutesTablePageContent() {
                 baseName="tournees"
                 rows={filteredRoutes}
                 columns={[
-                  { header: 'Tournée', accessor: r => r.name },
-                  { header: 'Chauffeur', accessor: r => drivers.find(d => d.id === r.driverId)?.name ?? '' },
-                  { header: 'Arrêts', accessor: r => r.totalStops ?? r.stops?.length ?? 0 },
-                  { header: 'Statut', accessor: r => r.status },
-                  { header: 'Zone', accessor: r => (r as { zoneLabel?: string }).zoneLabel },
-                  { header: 'Date', accessor: r => r.date },
+                  { header: t.common?.tournee ?? 'Route', accessor: r => r.name },
+                  { header: t.common?.chauffeur ?? 'Driver', accessor: r => drivers.find(d => d.id === r.driverId)?.name ?? '' },
+                  { header: t.common?.arrets ?? 'Stops', accessor: r => r.totalStops ?? r.stops?.length ?? 0 },
+                  { header: t.common?.statut ?? 'Status', accessor: r => r.status },
+                  { header: t.common?.zone ?? 'Zone', accessor: r => (r as { zoneLabel?: string }).zoneLabel },
+                  { header: t.common?.date ?? 'Date', accessor: r => r.date },
                 ]}
               />
               <AddButton label={t.routesTablePage.newRouteButton} onClick={() => router('/route-builder')} />
@@ -797,7 +804,7 @@ function RoutesTablePageContent() {
 
         <div className="flex flex-1 min-h-0 overflow-hidden">
           {/* ── Main Slab Registro (full-width, sidebar removed) ── */}
-          <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--surface)' }}>
+          <div className="flex flex-col flex-1 overflow-hidden min-w-0" style={{ background: 'var(--app-bg)' }}>
             <div className="flex-1 overflow-y-auto" style={{ scrollbarWidth: 'thin' }}>
               {isMobile ? (
                 <div className="flex flex-col gap-4 p-4">
@@ -833,7 +840,7 @@ function RoutesTablePageContent() {
               ) : (
                 <div className="min-w-[1000px] lg:min-w-0">
                   {/* Table header */}
-                  <div className="sticky top-0 bg-[var(--surface)] z-10 grid grid-cols-[8px_200px_100px_1fr_150px_120px_110px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
+                  <div className="sticky top-0 bg-[var(--surface-sunken)] z-10 grid grid-cols-[8px_200px_100px_1fr_150px_120px_110px_90px] gap-4 items-center h-[44px] px-0 border-b border-[var(--border)]">
                     <div className="w-[8px]" />
                     <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerRoute}</span>
                     <span className="text-xs font-[600] text-[var(--text-muted)]">{t.routesTablePage.headerScheduled}</span>
@@ -957,7 +964,7 @@ function RoutesTablePageContent() {
                 onChange={(e) => setCancelReason(e.target.value)}
                 rows={3}
                 maxLength={500}
-                placeholder={t.routesTablePage.cancelRouteReasonPlaceholder || 'Expliquez pourquoi cette tournée est annulée…'}
+                placeholder={t.routesTablePage.cancelRouteReasonPlaceholder || 'Explain why this route is cancelled…'}
                 className="w-full text-sm rounded-md px-3 py-2 outline-none focus:ring-1 focus:ring-[var(--brand)] resize-none"
                 style={{ border: '1px solid var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
               />

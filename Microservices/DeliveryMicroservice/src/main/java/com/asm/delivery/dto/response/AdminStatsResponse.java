@@ -36,6 +36,8 @@ public class AdminStatsResponse {
         private long total;
         private long delivered;
         private long failed;
+        /** Failure events that were replanned (no longer FAILED) — recovery signal, subset of `failed`. */
+        private long reprogrammed;
         private long inTransit;
         private long waiting;
         private long assigned;

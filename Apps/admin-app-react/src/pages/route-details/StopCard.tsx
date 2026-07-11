@@ -96,8 +96,8 @@ export function StopCard({
 
   if (isPickup) {
     const pickupLabel = stop.parcelCount
-      ? (t.routeDetailPage?.pickupLoadCount || '{count} colis à charger').replace('{count}', String(stop.parcelCount))
-      : (t.routeDetailPage?.pickupTitle || 'Chargement — Dépôt {depot}').replace('{depot}', stop.sourceDepotName || '');
+      ? (t.routeDetailPage?.pickupLoadCount || '{count} parcel(s) to load').replace('{count}', String(stop.parcelCount))
+      : (t.routeDetailPage?.pickupTitle || 'Loading — Depot {depot}').replace('{depot}', stop.sourceDepotName || '');
     return (
       <div
         ref={(el) => { if (el) stopRefs.current[stop.id] = el; }}

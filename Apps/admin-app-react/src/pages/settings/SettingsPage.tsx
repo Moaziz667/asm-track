@@ -492,14 +492,14 @@ export default function SettingsPage() {
                       </Button>
                     )}
                   </div>
-                  <div className="rounded-xl border border-[var(--border)] bg-[var(--surface)] overflow-hidden">
+                  <div className="rounded-xl border border-[var(--border)] bg-[var(--app-bg)] overflow-hidden">
                     <Table>
                       <TableHeader>
                         <TableRow className="bg-[var(--app-bg)] hover:bg-[var(--app-bg)]">
-                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.actor}</TableHead>
-                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.authorization}</TableHead>
-                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.statusLabel}</TableHead>
-                          <TableHead className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{sp.creationDate}</TableHead>
+                          <TableHead className="text-2xs font-bold tracking-wider text-[var(--text-muted)]">{sp.actor}</TableHead>
+                          <TableHead className="text-2xs font-bold tracking-wider text-[var(--text-muted)]">{sp.authorization}</TableHead>
+                          <TableHead className="text-2xs font-bold tracking-wider text-[var(--text-muted)]">{sp.statusLabel}</TableHead>
+                          <TableHead className="text-2xs font-bold tracking-wider text-[var(--text-muted)]">{sp.creationDate}</TableHead>
                           <TableHead />
                         </TableRow>
                       </TableHeader>
@@ -525,7 +525,7 @@ export default function SettingsPage() {
                                   {u.active
                                     ? <IconCircleCheck size={13} />
                                     : <IconBan size={13} />}
-                                  {u.active ? (t.driversPage.statusActive ?? 'Actif') : (t.driversPage.statusInactive ?? 'Inactif')}
+                                   {u.active ? (t.driversPage.statusActive ?? 'Active') : (t.driversPage.statusInactive ?? 'Inactive')}
                                 </span>
                               </TableCell>
                               <TableCell className="text-xs text-[var(--text-muted)] tabular-nums">{u.createdAt ? formatDate(u.createdAt) : '—'}</TableCell>

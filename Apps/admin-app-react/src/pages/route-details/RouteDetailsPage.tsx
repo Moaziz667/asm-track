@@ -174,7 +174,7 @@ export default function RouteDetailsPage() {
       </div>
 
       <div className="flex flex-1 overflow-hidden">
-        <div className={`lg:w-[45%] lg:flex lg:flex-col lg:shrink-0 lg:border-r lg:border-[var(--border-color)] bg-[var(--surface)] ${d.mobilePanel === 'map' ? 'flex flex-col w-full' : 'hidden lg:flex'}`}>
+        <div className={`lg:w-[45%] lg:flex lg:flex-col lg:shrink-0 lg:border-r lg:border-[var(--border-color)] bg-[var(--app-bg)] ${d.mobilePanel === 'map' ? 'flex flex-col w-full' : 'hidden lg:flex'}`}>
           <div className="flex-1 min-h-[300px]">
             <RouteTrackingMap
               stops={d.mapStops}
@@ -234,7 +234,7 @@ export default function RouteDetailsPage() {
           </div>
         </div>
 
-        <div className={`flex-1 flex flex-col overflow-hidden bg-[var(--surface)] min-w-0 ${d.mobilePanel === 'stops' ? 'flex' : 'hidden lg:flex'}`}>
+        <div className={`flex-1 flex flex-col overflow-hidden bg-[var(--app-bg)] min-w-0 ${d.mobilePanel === 'stops' ? 'flex' : 'hidden lg:flex'}`}>
           <div className="px-4 h-11 flex items-center justify-between border-b border-[var(--border-color)] shrink-0">
             <div className="flex items-center gap-2">
               <p className="text-xs font-semibold text-[var(--text-primary)]">{t.routeBuilderPage.stopSequence}</p>

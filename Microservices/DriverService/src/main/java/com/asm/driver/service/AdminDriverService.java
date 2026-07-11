@@ -372,8 +372,8 @@ public class AdminDriverService {
                 action,
                 saved.getId(),
                 actorName(actor), actorRole(actor),
-                String.format("{\"previousStatus\":\"%s\",\"newStatus\":\"%s\",\"reason\":\"%s\"}",
-                        previous, next, reason != null ? reason : ""));
+                String.format("{\"name\":\"%s\",\"previousStatus\":\"%s\",\"newStatus\":\"%s\",\"reason\":\"%s\"}",
+                        jsonEsc(saved.getName()), previous, next, jsonEsc(reason)));
 
         return toResponse(saved);
     }
@@ -509,6 +509,11 @@ public class AdminDriverService {
 
     private String actorRole(UserPrincipal p) {
         return p != null && p.getRole() != null ? p.getRole() : "SYSTEM";
+    }
+
+    /** Minimal JSON string escaping for values spliced into a hand-built audit payload. */
+    private static String jsonEsc(String s) {
+        return s == null ? "" : s.replace("\\", "\\\\").replace("\"", "\\\"");
     }
 
     @Transactional

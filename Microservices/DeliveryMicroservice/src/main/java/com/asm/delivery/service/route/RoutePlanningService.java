@@ -77,7 +77,38 @@ public class RoutePlanningService {
     }
     @Transactional(readOnly = true)
     public List<RouteResponse> list() {
-        return routeRepository.findAllByOrderByDateDescCreatedAtDesc().stream().map(routeResponseMapper::toResponse).toList();
+        List<RouteResponse> routes = routeRepository.findAllByOrderByDateDescCreatedAtDesc().stream()
+                .map(routeResponseMapper::toResponse).toList();
+        enrichDriverNames(routes);
+        return routes;
+    }
+
+    /**
+     * Denormalize the driver display name onto each route response. The Route entity only stores
+     * driverId — the name lives in the driver service — so the list mapper leaves it null (hence the
+     * "Non assigné" bug). One batch call for the active fleet, with a per-id fallback for drivers no
+     * longer active (e.g. suspended) so they still show a name rather than a UUID.
+     */
+    private void enrichDriverNames(List<RouteResponse> routes) {
+        if (routes == null || routes.isEmpty()) return;
+        java.util.Map<String, String> nameById = new java.util.HashMap<>();
+        try {
+            for (com.asm.delivery.transport.DriverDTO d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null && d.getName() != null) nameById.put(d.getId(), d.getName());
+            }
+        } catch (Exception ignored) { /* fall through to per-id lookup */ }
+        for (RouteResponse r : routes) {
+            if (r.getDriverId() == null) continue;
+            String id = r.getDriverId().toString();
+            String name = nameById.get(id);
+            if (name == null) {
+                try {
+                    com.asm.delivery.transport.DriverDTO d = transportPort.getDriver(id);
+                    if (d != null && d.getName() != null) { name = d.getName(); nameById.put(id, name); }
+                } catch (Exception ignored) { /* leave null → client shows the id prefix */ }
+            }
+            r.setDriverName(name);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -85,11 +116,13 @@ public class RoutePlanningService {
         // Date-windowed / filtered list — callers always pass a bounding filter (today, a week, a month),
         // so the result set is inherently bounded. The unbounded all-time browse uses listPaged().
         Specification<Route> spec = buildSpec(status, driverId, date, from, to, city);
-        return routeRepository
+        List<RouteResponse> routes = routeRepository
                 .findAll(spec, Sort.by(Sort.Direction.DESC, "date", "createdAt"))
                 .stream()
                 .map(routeResponseMapper::toResponse)
                 .toList();
+        enrichDriverNames(routes);
+        return routes;
     }
 
     /**
@@ -117,7 +150,9 @@ public class RoutePlanningService {
                 return clientRouteIds.isEmpty() ? nameLike : cb.or(nameLike, root.get("id").in(clientRouteIds));
             });
         }
-        return routeRepository.findAll(spec, pageable).map(routeResponseMapper::toResponse);
+        Page<RouteResponse> page = routeRepository.findAll(spec, pageable).map(routeResponseMapper::toResponse);
+        enrichDriverNames(page.getContent());
+        return page;
     }
 
     /** Shared filter spec for both the windowed list and the paged browse. */

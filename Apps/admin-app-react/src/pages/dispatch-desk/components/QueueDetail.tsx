@@ -121,7 +121,7 @@ export function QueueDetail() {
     : null;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 bg-[var(--surface)]">
+    <div className="flex-1 flex flex-col min-h-0 bg-[var(--app-bg)]">
       <ScrollArea className="flex-1 min-h-0">
         <div className="flex flex-col xl:flex-row xl:items-stretch gap-5 xl:gap-6 p-5">
 
@@ -268,37 +268,36 @@ export function QueueDetail() {
 
       {/* Action bar */}
       {!isReadOnly && (
-        <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t bg-[var(--surface)] border-[var(--border)]">
-          {canReassign && (pinned ? (
+        <div className="shrink-0 flex items-center justify-start gap-2 px-5 py-3 border-t bg-[var(--app-bg)] border-[var(--border)]">
+          {canReassign && pinned && (
             <Button size="sm" className="h-8 px-3 text-xs font-bold rounded-md gap-1.5" onClick={() => setDrawerTargets([target])}>
               {d.driverId ? <IconReassign size={14} /> : <IconAssign size={14} />}
               {d.driverId ? t.dispatchDeskPage.buttonReassign : t.dispatchDeskPage.buttonAssign}
             </Button>
-          ) : (
+          )}
+          {canReassign && !pinned && (
             <Link
               to={`/deliveries?pin=${id}`}
-              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ '--accent': 'var(--warning)' } as React.CSSProperties}
+              className="inline-flex items-center justify-center gap-1 h-7 px-2.5 rounded-md border text-xs font-bold whitespace-nowrap transition-all border-[var(--warning)] text-[var(--warning)] hover:bg-[var(--warning-bg)]"
             >
               <IconMapPinOff size={14} /> {t.dispatchDeskPage.pinAddress}
             </Link>
-          ))}
+          )}
           {canReplan && (
-            <button
-              type="button"
-              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ '--accent': 'var(--brand)' } as React.CSSProperties}
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-3 text-xs font-bold rounded-md gap-1.5 border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-soft)]"
               onClick={() => openActionModal('replan', alert ?? exceptionFromDelivery())}
             >
               <IconReplan size={14} />
               {t.dispatchDeskPage.buttonReplan}
-            </button>
+            </Button>
           )}
           {needsClientContact(motif) && d.clientPhone && (
             <a
               href={`tel:${d.clientPhone}`}
-              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ '--accent': 'var(--success)' } as React.CSSProperties}
+              className="inline-flex items-center justify-center gap-1 h-7 px-2.5 rounded-md border text-xs font-bold whitespace-nowrap transition-all border-[var(--success)] text-[var(--success)] hover:bg-[var(--success-bg)]"
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallClient}
             </a>
@@ -306,8 +305,7 @@ export function QueueDetail() {
           {needsDriverContact(motif) && d.driverId && (d.driverPhone ?? driver?.phone) && (
             <a
               href={`tel:${d.driverPhone ?? driver?.phone}`}
-              className="action-chip h-8 px-3 inline-flex items-center gap-1.5 text-xs font-bold rounded-md"
-              style={{ '--accent': 'var(--info)' } as React.CSSProperties}
+              className="inline-flex items-center justify-center gap-1 h-7 px-2.5 rounded-md border text-xs font-bold whitespace-nowrap transition-all border-[var(--info)] text-[var(--info)] hover:bg-[var(--info-bg)]"
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>

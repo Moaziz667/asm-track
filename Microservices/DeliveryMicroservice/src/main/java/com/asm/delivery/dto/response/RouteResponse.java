@@ -24,6 +24,9 @@ public class RouteResponse {
     @Schema(description = "Assigned driver id")
     private UUID driverId;
 
+    @Schema(description = "Assigned driver display name (resolved from the driver service)")
+    private String driverName;
+
     @Schema(description = "Assigned vehicle id")
     private UUID vehicleId;
 

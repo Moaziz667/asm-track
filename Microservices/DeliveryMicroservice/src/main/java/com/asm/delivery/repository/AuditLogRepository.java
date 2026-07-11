@@ -10,4 +10,7 @@ import java.util.UUID;
 @Repository
 public interface AuditLogRepository extends JpaRepository<AuditLog, UUID>, JpaSpecificationExecutor<AuditLog> {
     long countAllByActionContaining(String actionPart);
+
+    /** Scoped count for the live plane — actions of a kind since a point in time (e.g. today). */
+    long countByActionContainingAndCreatedAtGreaterThanEqual(String actionPart, java.time.LocalDateTime after);
 }

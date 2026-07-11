@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { Link } from 'react-router-dom';
 import { IconClock, IconArrowRight, IconX } from '@tabler/icons-react';
 import { DriverAvatarById } from '@/components/data-display/DriverAvatar';
@@ -55,17 +56,18 @@ function slaColor(elapsed: number): string {
   return 'var(--success)';
 }
 
-function slaLabel(elapsed: number): string {
+function slaLabel(elapsed: number, expiredLabel: string): string {
   const remaining = Math.max(0, SLA_MS - elapsed);
   const totalSec = Math.floor(remaining / 1000);
   const m = Math.floor(totalSec / 60);
   const s = totalSec % 60;
-  if (remaining <= 0) return 'Expiré';
+  if (remaining <= 0) return expiredLabel;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 /** Live SLA countdown — updates every second, color-coded. */
 function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
+  const t = useT();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 1000);
@@ -77,7 +79,8 @@ function SlaCountdown({ requestedAt }: { requestedAt?: string }) {
   const elapsed = now - new Date(requestedAt).getTime();
   const progress = Math.min(1, Math.max(0, elapsed / SLA_MS));
   const color = slaColor(elapsed);
-  const label = slaLabel(elapsed);
+  const expiredLabel = (t.common?.expired as string) ?? 'Expiré';
+  const label = slaLabel(elapsed, expiredLabel);
 
   return (
     <div className="flex items-center gap-2 min-w-0">
@@ -262,6 +265,7 @@ export function HandoffOpenTable({ items, t, isReadOnly, cancellingId, onCancel 
                         type="button"
                         onClick={() => onCancel(h)}
                         disabled={cancellingId === h.id}
+                        aria-label={t.common?.annuler ?? 'Annuler'}
                         className="text-2xs font-[600] h-6 px-2 rounded-[var(--radius)] flex items-center gap-1 transition-colors disabled:opacity-50 hover:bg-[var(--danger-bg)]"
                         style={{ color: 'var(--danger)' }}
                       >

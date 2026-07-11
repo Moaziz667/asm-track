@@ -10,6 +10,7 @@ import {
   IconPackage, IconRefresh, IconSun, IconPlus, IconHeartbeat, IconPackageExport, IconBan, IconDatabase,
 } from '@tabler/icons-react'
 import { api } from '@/lib/api'
+import { AppLoader } from '@/components/AppLoader'
 import { StatusBadge } from '@/components/data-display/StatusBadge'
 import { cn } from '@/lib/utils'
 import { useLocaleStore } from '@/lib/i18n'
@@ -337,7 +338,7 @@ export default function GlobalSearch() {
         description: d.phone ?? '',
         group: t.globalSearch.groups.drivers,
         icon: <IconUser size={14} />,
-        badge: <StatusPill label={t.globalSearch.groups.drivers} color="#0891B2" bg="#ECFEFF" />,
+        badge: <StatusPill label={t.globalSearch.groups.drivers} color="var(--brand)" bg="var(--brand-soft)" />,
         onClick: () => {
           trackRecentSelection({ id: `dr-${d.driverId}`, label: d.name ?? '—', description: d.phone, group: t.globalSearch.groups.drivers, path, iconType: 'dr' })
           navigate(path)
@@ -367,7 +368,7 @@ export default function GlobalSearch() {
         description: d.address ?? '',
         group: t.globalSearch.groups.depots,
         icon: <IconBuildingWarehouse size={14} />,
-        badge: <StatusPill label={t.globalSearch.groups.depots} color="#D97706" bg="#FFFBEB" />,
+        badge: <StatusPill label={t.globalSearch.groups.depots} color="var(--warning)" bg="var(--warning-bg)" />,
         onClick: () => {
           trackRecentSelection({ id: `dep-${d.depotId}`, label: d.name, description: d.address, group: t.globalSearch.groups.depots, path, iconType: 'dep' })
           navigate(path)
@@ -382,7 +383,7 @@ export default function GlobalSearch() {
         description: z.description ?? '',
         group: t.globalSearch.groups.zones,
         icon: <IconMapPin size={14} />,
-        badge: <StatusPill label={t.globalSearch.groups.zones} color="#7C3AED" bg="#F5F3FF" />,
+        badge: <StatusPill label={t.globalSearch.groups.zones} color="#7C3AED" bg="rgba(124,58,237,0.16)" />,
         onClick: () => {
           trackRecentSelection({ id: `z-${z.zoneId}`, label: z.name, description: z.description, group: t.globalSearch.groups.zones, path, iconType: 'z' })
           navigate(path)
@@ -472,23 +473,19 @@ export default function GlobalSearch() {
 
           {/* Backdrop Blur Layer */}
           <div
-            className="fixed inset-0 bg-zinc-950/40 transition-opacity"
+            className="fixed inset-0 bg-black/40 transition-opacity"
             onClick={() => setIsOpen(false)}
           />
 
           {/* Modal Panel Surface */}
           <div
             ref={modalRef}
-            className="relative z-10 w-full max-w-[700px] border border-[var(--border)] bg-[var(--surface)] rounded-md shadow-2xl flex flex-col overflow-hidden max-h-[520px] transition-transform scale-100 duration-100"
-            style={{ boxShadow: '0 20px 25px -5px rgba(0,0,0,0.15), 0 10px 10px -5px rgba(0,0,0,0.10)' }}
+            className="relative z-10 w-full max-w-[700px] border border-[var(--border)] bg-[var(--surface)] rounded-md shadow-[var(--shadow-dropdown)] flex flex-col overflow-hidden max-h-[520px] transition-transform scale-100 duration-100"
           >
             {/* Command search input bar */}
             <div className="h-12 border-b border-[var(--border)] px-4 flex items-center gap-3 bg-[var(--surface)] shrink-0">
               {loading || isPending ? (
-                <svg className="animate-spin h-4 w-4 text-[var(--brand)] shrink-0" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                </svg>
+                <AppLoader size="sm" />
               ) : (
                 <IconSearch size={15} className="text-[var(--text-muted)] shrink-0" />
               )}
@@ -505,7 +502,7 @@ export default function GlobalSearch() {
               <button
                 type="button"
                 onClick={() => setIsOpen(false)}
-                className="text-2xs font-mono font-bold text-[var(--text-soft)] hover:text-[var(--text-primary)] border border-[var(--border)] px-2 py-0.5 rounded transition-all cursor-pointer bg-[var(--app-bg)] shadow-sm"
+                className="text-2xs font-mono font-bold text-[var(--text-soft)] hover:text-[var(--text-primary)] border border-[var(--border)] px-2 py-0.5 rounded transition-all cursor-pointer bg-[var(--surface)] shadow-sm"
               >
                 ESC
               </button>
@@ -516,7 +513,7 @@ export default function GlobalSearch() {
               {groups.length === 0 && (
                 <div className="text-center py-10 flex flex-col items-center gap-1.5 opacity-55">
                   <IconSearch size={22} className="text-[var(--text-soft)]" />
-                  <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
+                  <p className="text-xs font-semibold text-[var(--text-muted)]">
                     {loading
                       ? t.globalSearch.searching
                       : query.trim().length < 2
@@ -531,7 +528,7 @@ export default function GlobalSearch() {
                 idx += items.length
                 return (
                   <div key={groupName} className="mb-2 last:mb-0">
-                    <p className="text-2xs font-extrabold uppercase tracking-[0.10em] text-[var(--text-soft)] px-4 py-1.5 sticky top-0 bg-[var(--surface)] z-10 select-none">
+                    <p className="text-2xs font-extrabold tracking-[0.10em] text-[var(--text-soft)] px-4 py-1.5 sticky top-0 bg-[var(--surface)] z-10 select-none">
                       {groupName} · <span className="font-mono text-2xs font-bold text-[var(--text-soft)]/75">{items.length}</span>
                     </p>
                     <div className="flex flex-col gap-0.5 px-2">
@@ -544,10 +541,9 @@ export default function GlobalSearch() {
                             type="button"
                             onClick={() => action.onClick()}
                             onMouseEnter={() => setFocused(actionIdx)}
-                            className="flex items-center gap-3 w-full px-3.5 py-2 rounded text-left transition-all relative border-l-2 outline-none"
+                            className="flex items-center gap-3 w-full px-3.5 py-2 rounded text-left transition-all relative outline-none"
                             style={{
                               background: isFocused ? 'var(--hover-bg)' : 'transparent',
-                              borderLeftColor: isFocused ? 'var(--brand)' : 'transparent',
                             }}
                           >
                             <span className="text-[var(--text-soft)] shrink-0 flex" style={{ color: isFocused ? 'var(--brand)' : 'var(--text-soft)' }}>
@@ -600,7 +596,7 @@ export default function GlobalSearch() {
                     </span>
                   ))}
                 </div>
-                <span className="text-2xs font-mono font-bold text-[var(--text-muted)] select-none tracking-wider uppercase opacity-75">
+                <span className="text-2xs font-mono font-bold text-[var(--text-muted)] select-none tracking-wider opacity-75">
                   ASM Track Omnibox
                 </span>
               </div>

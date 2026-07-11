@@ -233,7 +233,8 @@ function RouteBuilderPageInner() {
       const newHeight = windowHeight - e.clientY;
       setSheetHeight(Math.max(140, Math.min(newHeight, windowHeight - 200)));
     }
-  }, [sidebarWidth]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     window.addEventListener('mousemove', resize);

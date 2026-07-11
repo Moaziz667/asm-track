@@ -10,6 +10,7 @@ import { AppSidebar } from './Sidebar';
 import { BreadcrumbProvider } from '@/lib/ui/breadcrumb';
 import { SidebarProvider, SidebarInset } from './ui/sidebar';
 import GlobalFloatingMap from './GlobalFloatingMap';
+import ErrorBoundary from './ErrorBoundary';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
@@ -38,6 +39,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <BreadcrumbProvider>
         <RealtimeProvider>
         <SessionRevocationWatcher />
+        <ErrorBoundary>
         <AlertsProvider>
           {/* Fixed sidebar */}
           <AppSidebar />
@@ -62,8 +64,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           </SidebarInset>
 
           {/* Global floating live map */}
-          <GlobalFloatingMap />
+          <ErrorBoundary>
+            <GlobalFloatingMap />
+          </ErrorBoundary>
         </AlertsProvider>
+        </ErrorBoundary>
         </RealtimeProvider>
       </BreadcrumbProvider>
     </SidebarProvider>

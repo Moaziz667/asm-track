@@ -83,9 +83,9 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     @Query("""
             SELECT d FROM Delivery d JOIN FETCH d.order o
             WHERE (
-                LOWER(o.clientName)  LIKE LOWER(CONCAT('%', :q, '%')) OR
-                LOWER(o.erpOrderId)  LIKE LOWER(CONCAT('%', :q, '%')) OR
-                LOWER(o.clientPhone) LIKE LOWER(CONCAT('%', :q, '%'))
+                LOWER(o.clientName)  LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\' OR
+                LOWER(o.erpOrderId)  LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\' OR
+                LOWER(o.clientPhone) LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
             )
             ORDER BY d.updatedAt DESC
             """)
@@ -114,22 +114,6 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     List<Object[]> countByZoneInRange(@Param("start") java.time.LocalDateTime start,
                                       @Param("end") java.time.LocalDateTime end);
 
-    /**
-     * Per-day series [day(java.sql.Date), total(Long), delivered(Long), failed(Long)].
-     * Uses Postgres FILTER aggregates so the whole trend is one round-trip.
-     */
-    @Query(value = """
-            SELECT CAST(COALESCE(d.completed_at, d.created_at) AS date) AS day,
-                   COUNT(*) AS total,
-                   COUNT(*) FILTER (WHERE d.status IN ('DELIVERED','PARTIALLY_DELIVERED')) AS delivered,
-                   COUNT(*) FILTER (WHERE d.status = 'FAILED') AS failed
-            FROM deliveries d
-            WHERE COALESCE(d.completed_at, d.created_at) BETWEEN :start AND :end
-            GROUP BY day
-            ORDER BY day
-            """, nativeQuery = true)
-    List<Object[]> dailySeries(@Param("start") java.time.LocalDateTime start,
-                               @Param("end") java.time.LocalDateTime end);
 
     /** Completed/partial deliveries in range — small slice for SLA measurement. */
     @Query("""
@@ -164,28 +148,4 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
             """)
     List<Delivery> findByActivityBetween(@Param("start") java.time.LocalDateTime start,
                                          @Param("end") java.time.LocalDateTime end);
-
-    // ─────────────────────────────────────────────────────────────────────────
-    //  Zone heatmap — per-zipcode centroid density for the map widget.
-    //  Returns [postalCode, avgLat, avgLng, count, delayedCount, zoneId].
-    // ─────────────────────────────────────────────────────────────────────────
-
-    @Query(value = """
-            SELECT o.dropoff_postal_code        AS zipcode,
-                   AVG(o.dropoff_lat)            AS lat,
-                   AVG(o.dropoff_lng)            AS lng,
-                   COUNT(*)                      AS orders_count,
-                   SUM(CASE WHEN d.status IN ('LATE','FAILED') THEN 1 ELSE 0 END) AS delayed,
-                   o.zone_id                     AS zone_id
-            FROM deliveries d
-            JOIN orders o ON d.order_id = o.id
-            WHERE COALESCE(d.completed_at, d.created_at) BETWEEN :start AND :end
-              AND o.dropoff_lat  IS NOT NULL
-              AND o.dropoff_lng  IS NOT NULL
-              AND o.dropoff_postal_code IS NOT NULL
-              AND o.zone_id IS NOT NULL
-            GROUP BY o.dropoff_postal_code, o.zone_id
-            """, nativeQuery = true)
-    List<Object[]> zipcodeHeatmap(@Param("start") java.time.LocalDateTime start,
-                                  @Param("end") java.time.LocalDateTime end);
 }

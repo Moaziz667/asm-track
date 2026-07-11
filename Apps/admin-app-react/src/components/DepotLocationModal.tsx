@@ -6,6 +6,7 @@ import { IconMapPin, IconX, IconCheck, IconCurrentLocation } from '@tabler/icons
 import { usePatchDepotLocation } from '@/hooks/useDepots';
 import type { Depot } from '@/types';
 import { api } from '@/lib/api';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 import { useIsDark } from '@/lib/ui/theme';
 
@@ -65,6 +66,7 @@ interface Props {
 }
 
 export default function DepotLocationModal({ depot, onClose }: Props) {
+  const t = useT();
   const patch = usePatchDepotLocation();
   const isDark = useIsDark();
 
@@ -138,7 +140,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
               <p className="text-xs font-bold" style={{ color: 'var(--text-primary)' }}>
                 {depot.name}
               </p>
-              <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>Modifier la localisation</p>
+              <p className="text-2xs" style={{ color: 'var(--text-muted)' }}>{t.common?.modifier ?? 'Edit location'}</p>
             </div>
           </div>
           <button
@@ -225,14 +227,14 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
           {/* Address */}
           <div className="flex flex-col gap-1">
             <label className="text-2xs font-[700] uppercase tracking-wide" style={{ color: 'var(--text-muted)' }}>
-              Adresse
+              {t.common?.adresse ?? 'Address'}
             </label>
             <input
               type="text"
-              value={reverseGeocoding ? 'Localisation en cours...' : address}
+              value={reverseGeocoding ? (t.common?.enCours ?? 'Locating...') : address}
               onChange={(e) => setAddress(e.target.value)}
               disabled={reverseGeocoding}
-              placeholder="Adresse du dépôt…"
+              placeholder={t.common?.adresse ? `${t.common.adresse}…` : 'Depot address…'}
               className="w-full px-3 py-2 rounded-md text-sm outline-none transition-colors disabled:opacity-60"
               style={{
                 background: 'var(--app-bg)',
@@ -249,7 +251,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
               className="px-4 py-2 rounded-md text-xs font-bold transition-colors"
               style={{ background: 'var(--app-bg)', border: '1px solid var(--border)', color: 'var(--text-muted)' }}
             >
-              Annuler
+              {t.common?.annuler ?? 'Cancel'}
             </button>
             <button
               onClick={handleSave}
@@ -265,7 +267,7 @@ export default function DepotLocationModal({ depot, onClose }: Props) {
               ) : (
                 <IconCheck size={13} />
               )}
-              Enregistrer
+              {t.actions?.save ?? 'Save'}
             </button>
           </div>
         </div>

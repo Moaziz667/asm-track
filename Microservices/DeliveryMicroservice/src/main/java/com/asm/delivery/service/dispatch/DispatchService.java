@@ -74,11 +74,12 @@ public class DispatchService {
 
         @Transactional(readOnly = true)
         public Page<AdminDeliverySummaryResponse> searchDeliveries(
-            DeliveryStatus status,
-            UUID driverId,
+            List<DeliveryStatus> statuses,
+            List<UUID> driverIds,
             LocalDate date,
-            OrderSource source,
-            UUID zoneId,
+            List<OrderSource> sources,
+            List<UUID> zoneIds,
+            List<UUID> depotIds,
             Boolean unpinned,
             String q,
             Boolean assigned,
@@ -87,17 +88,19 @@ public class DispatchService {
             LocalDate dateTo,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable);
+        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
         Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
         Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+        Map<UUID, Zone> zoneMap = loadZoneMap(deliveries);
+        Map<UUID, com.asm.delivery.sla.SlaState> slaMap = loadSlaMap(deliveries);
 
         List<AdminDeliverySummaryResponse> content = deliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap);
                 })
                 .toList();
 
@@ -110,17 +113,19 @@ public class DispatchService {
         List<Delivery> deliveries = deliveryRepo.findScheduledBetween(from.atStartOfDay(), to.atTime(23, 59, 59));
         Map<String, DriverDTO> driverMap = loadDriverMap(deliveries);
         Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
+        Map<UUID, Zone> zoneMap = loadZoneMap(deliveries);
+        Map<UUID, com.asm.delivery.sla.SlaState> slaMap = loadSlaMap(deliveries);
         return deliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap);
                 })
                 .toList();
     }
 
     @Transactional(readOnly = true)
-    public Page<Delivery> doSearch(DeliveryStatus status, UUID driverId, LocalDate date, OrderSource source,
-                                  UUID zoneId, Boolean unpinned, String q, Boolean assigned, String bucket,
+    public Page<Delivery> doSearch(List<DeliveryStatus> statuses, List<UUID> driverIds, LocalDate date, List<OrderSource> sources,
+                                  List<UUID> zoneIds, List<UUID> depotIds, Boolean unpinned, String q, Boolean assigned, String bucket,
                                   LocalDate dateFrom, LocalDate dateTo,
                                   Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
@@ -128,7 +133,7 @@ public class DispatchService {
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo);
+        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -139,7 +144,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, dateFrom, dateTo);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -458,13 +463,16 @@ public class DispatchService {
             DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
             DeliveryStatus.FAILED, DeliveryStatus.CANCELLED);
 
+    private static boolean has(java.util.Collection<?> c) { return c != null && !c.isEmpty(); }
+
     private List<Predicate> buildPredicates(CriteriaBuilder cb,
                                             Root<Delivery> root,
-                                            DeliveryStatus status,
-                                            UUID driverId,
+                                            List<DeliveryStatus> statuses,
+                                            List<UUID> driverIds,
                                             LocalDate date,
-                                            OrderSource source,
-                                            UUID zoneId,
+                                            List<OrderSource> sources,
+                                            List<UUID> zoneIds,
+                                            List<UUID> depotIds,
                                             Boolean unpinned,
                                             String q,
                                             Boolean assigned,
@@ -472,11 +480,14 @@ public class DispatchService {
                                             LocalDate dateFrom,
                                             LocalDate dateTo) {
         List<Predicate> predicates = new ArrayList<>();
-        if (status != null) {
-            predicates.add(cb.equal(root.get("status"), status));
+        if (has(statuses)) {
+            predicates.add(root.get("status").in(statuses));
         }
-        if (driverId != null) {
-            predicates.add(cb.equal(root.get("driverId"), driverId));
+        if (has(driverIds)) {
+            predicates.add(root.get("driverId").in(driverIds));
+        }
+        if (has(depotIds)) {
+            predicates.add(root.get("sourceDepotId").in(depotIds));
         }
         if (assigned != null) {
             predicates.add(assigned ? cb.isNotNull(root.get("driverId")) : cb.isNull(root.get("driverId")));
@@ -487,7 +498,7 @@ public class DispatchService {
         boolean hasBucket = bucket != null && !bucket.isBlank();
         boolean hasRange = dateFrom != null || dateTo != null;
         // Date filter on Planifié (effective scheduledAt = rescheduledAt ?? scheduledAt)
-        boolean needsOrderJoin = date != null || hasRange || source != null || zoneId != null
+        boolean needsOrderJoin = date != null || hasRange || has(sources) || has(zoneIds)
                 || Boolean.TRUE.equals(unpinned) || hasQ || hasBucket;
         if (needsOrderJoin) {
             Join<Delivery, Order> orderJoin = root.join("order", JoinType.INNER);
@@ -511,11 +522,11 @@ public class DispatchService {
                     predicates.add(cb.lessThan(effSched, dateTo.plusDays(1).atStartOfDay()));
                 }
             }
-            if (source != null) {
-                predicates.add(cb.equal(orderJoin.get("source"), source));
+            if (has(sources)) {
+                predicates.add(orderJoin.get("source").in(sources));
             }
-            if (zoneId != null) {
-                predicates.add(cb.equal(orderJoin.get("zoneId"), zoneId));
+            if (has(zoneIds)) {
+                predicates.add(orderJoin.get("zoneId").in(zoneIds));
             }
             if (Boolean.TRUE.equals(unpinned)) {
                 predicates.add(cb.isNull(orderJoin.get("dropoffLat")));
@@ -576,24 +587,65 @@ public class DispatchService {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
         CriteriaQuery<Long> cq = cb.createQuery(Long.class);
         Root<Delivery> root = cq.from(Delivery.class);
-        List<Predicate> ps = buildPredicates(cb, root, status, driverId, date, source, zoneId, unpinned, q, assigned, bucket, null, null);
+        List<Predicate> ps = buildPredicates(cb, root,
+                status != null ? List.of(status) : null,
+                driverId != null ? List.of(driverId) : null,
+                date,
+                source != null ? List.of(source) : null,
+                zoneId != null ? List.of(zoneId) : null,
+                null,
+                unpinned, q, assigned, bucket, null, null);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }
 
-    /** Bulk-fetch all unique drivers needed for a list of deliveries. */
+    /** Bulk-fetch all unique drivers needed for a list of deliveries (single batch HTTP call). */
     private Map<String, DriverDTO> loadDriverMap(List<Delivery> deliveries) {
         Map<String, DriverDTO> map = new HashMap<>();
+        try {
+            for (DriverDTO d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null) map.put(d.getId(), d);
+            }
+        } catch (Exception e) {
+            // fallback: empty map — driver names will be null
+        }
+        // Also pick up drivers not in the available list (e.g. deactivated) via individual calls
         deliveries.stream()
                 .map(Delivery::getDriverId)
                 .filter(Objects::nonNull)
                 .map(UUID::toString)
+                .filter(id -> !map.containsKey(id))
                 .distinct()
                 .forEach(id -> {
                     DriverDTO dto = transportPort.getDriver(id);
                     if (dto != null) map.put(id, dto);
                 });
         return map;
+    }
+
+    /** Batch-fetch all zones needed for a list of deliveries. */
+    private Map<UUID, Zone> loadZoneMap(List<Delivery> deliveries) {
+        Set<UUID> zoneIds = deliveries.stream()
+                .map(Delivery::getOrder)
+                .filter(Objects::nonNull)
+                .map(Order::getZoneId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (zoneIds.isEmpty()) return Map.of();
+        return zoneRepository.findAll().stream()
+                .filter(z -> zoneIds.contains(z.getId()))
+                .collect(Collectors.toMap(Zone::getId, z -> z));
+    }
+
+    /** Batch-fetch all SLA states needed for a list of deliveries. */
+    private Map<UUID, com.asm.delivery.sla.SlaState> loadSlaMap(List<Delivery> deliveries) {
+        List<UUID> deliveryIds = deliveries.stream()
+                .map(Delivery::getId)
+                .filter(Objects::nonNull)
+                .toList();
+        if (deliveryIds.isEmpty()) return Map.of();
+        return slaStateRepository.findByDeliveryIdIn(deliveryIds).stream()
+                .collect(Collectors.toMap(com.asm.delivery.sla.SlaState::getDeliveryId, s -> s));
     }
 
     @Transactional(readOnly = true)
@@ -640,13 +692,14 @@ public class DispatchService {
         return worst; // null if every phase was ON_TRACK/MET/NONE
     }
 
-    private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
+    private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo,
+                                                             Map<UUID, Zone> zoneMap, Map<UUID, com.asm.delivery.sla.SlaState> slaMap) {
         Order order = d.getOrder();
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneMap.get(order.getZoneId())
                 : null;
-        com.asm.delivery.sla.SlaState slaState = slaStateRepository.findByDeliveryId(d.getId()).orElse(null);
+        com.asm.delivery.sla.SlaState slaState = slaMap.get(d.getId());
         return AdminDeliverySummaryResponse.builder()
                 .slaPhase(slaState != null && slaState.getPhase() != null ? slaState.getPhase().name() : null)
                 .slaHealth(slaState != null && slaState.getHealth() != null ? slaState.getHealth().name() : null)

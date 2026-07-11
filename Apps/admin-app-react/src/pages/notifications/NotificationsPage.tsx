@@ -34,7 +34,7 @@ function extra(locale: string) {
   const fr = locale === 'fr', ar = locale === 'ar';
   return {
     subtitle: ar ? 'مركز التنبيهات التشغيلية في الوقت الفعلي' : fr ? "Centre d'alertes opérationnelles en temps réel" : 'Real-time operational alerts center',
-    search: ar ? 'بحث في التنبيهات…' : fr ? 'Rechercher des alertes…' : 'Search alerts…',
+    search: ar ? 'بحث في التنبيهات…' : fr ? 'Search alerts…' : 'Search alerts…',
     refresh: ar ? 'تحديث' : fr ? 'Actualiser' : 'Refresh',
     refreshed: ar ? 'تم التحديث' : fr ? 'Actualisé' : 'Refreshed',
     actionFail: ar ? 'فشل تنفيذ الإجراء' : fr ? "Échec de l'action" : 'Action failed',

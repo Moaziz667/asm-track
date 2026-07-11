@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '@/lib/utils';
+import { useT } from '@/lib/i18n/LocaleContext';
 
 /**
  * Shared server-side pagination footer for admin data tables (drivers, vehicles, users, …).
@@ -36,9 +37,10 @@ export function TablePagination({
   sizeOptions = [25, 50, 100],
   labels,
 }: TablePaginationProps) {
-  const results = labels?.results ?? 'résultats';
-  const pageLabel = labels?.page ?? 'Page';
-  const perPage = labels?.perPage ?? '/ page';
+  const t = useT();
+  const results = labels?.results ?? t.common?.results ?? 'results';
+  const pageLabel = labels?.page ?? t.common?.page ?? 'Page';
+  const perPage = labels?.perPage ?? t.common?.perPage ?? '/ page';
 
   const total = Math.max(1, totalPages);
   const current = page + 1; // 1-based for display

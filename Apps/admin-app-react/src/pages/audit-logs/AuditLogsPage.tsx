@@ -34,12 +34,14 @@ type AuditLog = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-/** Clean the actor for display: a raw UUID becomes "Système", an email keeps its local part,
+/** Clean the actor for display: a raw UUID becomes the system label, an email keeps its local part,
  *  otherwise the name as-is. So the actor column never shows machine garbage. */
-function displayActor(name: string | undefined, role: string): string {
+function displayActor(name: string | undefined, role: string, t: TranslationSchema): string {
   const n = (name ?? '').trim();
-  if (!n) return role || 'Système';
-  if (UUID_RE.test(n)) return role === 'SYSTEM' ? 'Système' : (role || 'Système');
+  const systemLabel = 'System';
+  const roleLabel = role ? `${role.charAt(0)}${role.slice(1).toLowerCase()}` : systemLabel;
+  if (!n) return roleLabel;
+  if (UUID_RE.test(n)) return role === 'SYSTEM' ? systemLabel : roleLabel;
   if (n.includes('@')) return n.split('@')[0]; // email → local part
   return n;
 }
@@ -51,7 +53,7 @@ function actionVerb(action: string, t: TranslationSchema): string {
   if (verb) return verb;
   // Humanize the raw code as a last resort.
   const human = action.replace(/_/g, ' ').toLowerCase();
-  return `${t.auditLogsPage?.didAction ?? 'a effectué'} ${human}`;
+  return `${t.auditLogsPage?.didAction ?? 'performed'} ${human}`;
 }
 
 /** A short, human resource label — prefers a name from the payload, else "ENTITY a1b2c3c4". */
@@ -60,7 +62,7 @@ function resourceLabel(log: AuditLog, t: TranslationSchema): string | null {
   if (log.details) {
     try {
       const p = JSON.parse(log.details);
-      const named = p.name || p.label || p.ref || p.orderRef || p.routeName || p.tournee || p.email || p.plate;
+      const named = p.name || p.label || p.ref || p.orderRef || p.routeName || p.tournee || p.email || p.plate || p.zone || p.driverName;
       if (named) return String(named);
     } catch { /* not JSON */ }
   }
@@ -138,52 +140,42 @@ function formatTs(ts: string, locale: string = 'fr') {
 }
 
 
-function getPayloadKeyLabel(key: string, locale: string): string {
-  const keyMap: Record<string, Record<string, string>> = {
-    fr: {
-      valeur: 'Valeur', value: 'Valeur',
-      action: 'Action', message: 'Message',
-      parametre: 'Paramètre', parameter: 'Paramètre',
-      ancienneValeur: 'Ancienne Valeur', oldValue: 'Ancienne Valeur',
-      nouvelleValeur: 'Nouvelle Valeur', newValue: 'Nouvelle Valeur',
-      raison: 'Raison', reason: 'Raison',
-      statut: 'Statut', status: 'Statut',
-      description: 'Description', nom: 'Nom', name: 'Nom',
-      fromDriver: 'De', toDriver: 'Vers', driver: 'Chauffeur', chauffeur: 'Chauffeur',
-      client: 'Client', routeName: 'Tournée', tournee: 'Tournée',
-      vehicule: 'Véhicule', plaque: 'Plaque', colis: 'Colis', zone: 'Zone',
-      stop: 'Arrêt', erpId: 'Réf. ERP', source: 'Source', plate: 'Plaque',
-    },
-    en: {
-      valeur: 'Value', value: 'Value',
-      action: 'Action', message: 'Message',
-      parametre: 'Parameter', parameter: 'Parameter',
-      ancienneValeur: 'Old Value', oldValue: 'Old Value',
-      nouvelleValeur: 'New Value', newValue: 'New Value',
-      raison: 'Reason', reason: 'Reason',
-      statut: 'Status', status: 'Status',
-      description: 'Description', nom: 'Name', name: 'Name',
-      fromDriver: 'From', toDriver: 'To', driver: 'Driver', chauffeur: 'Driver',
-      client: 'Client', routeName: 'Route', tournee: 'Route',
-      vehicule: 'Vehicle', plaque: 'Plate', colis: 'Packages', zone: 'Zone',
-      stop: 'Stop', erpId: 'ERP ref', source: 'Source', plate: 'Plate',
-    },
-    ar: {
-      valeur: 'القيمة', value: 'القيمة',
-      action: 'الإجراء', message: 'الرسالة',
-      parametre: 'المعامل', parameter: 'المعامل',
-      ancienneValeur: 'القيمة السابقة', oldValue: 'القيمة السابقة',
-      nouvelleValeur: 'القيمة الجديدة', newValue: 'القيمة الجديدة',
-      raison: 'السبب', reason: 'السبب',
-      statut: 'الحالة', status: 'الحالة',
-      description: 'الوصف', nom: 'الاسم', name: 'الاسم',
-      fromDriver: 'من', toDriver: 'إلى', driver: 'السائق', chauffeur: 'السائق',
-      client: 'العميل', routeName: 'الجولة', tournee: 'الجولة',
-      vehicule: 'المركبة', plaque: 'اللوحة', colis: 'الطرود', zone: 'المنطقة',
-      stop: 'المحطة', erpId: 'مرجع ERP', source: 'المصدر', plate: 'اللوحة',
-    },
+function getPayloadKeyLabel(key: string, t: TranslationSchema): string {
+  const map: Record<string, string> = {
+    valeur:    t.common?.valeur ?? 'Value',
+    value:     t.common?.valeur ?? 'Value',
+    action:    'Action',
+    message:   'Message',
+    parametre: 'Parameter',
+    parameter: 'Parameter',
+    ancienneValeur: 'Old Value',
+    oldValue:  'Old Value',
+    nouvelleValeur: 'New Value',
+    newValue:  'New Value',
+    raison:    t.common?.raison ?? 'Reason',
+    reason:    t.common?.raison ?? 'Reason',
+    statut:    t.common?.statut ?? 'Status',
+    status:    t.common?.statut ?? 'Status',
+    description: t.common?.description ?? 'Description',
+    nom:       t.common?.nom ?? 'Name',
+    name:      t.common?.nom ?? 'Name',
+    fromDriver: t.common?.de ?? 'From',
+    toDriver:  t.common?.vers ?? 'To',
+    driver:    t.common?.chauffeur ?? 'Driver',
+    chauffeur: t.common?.chauffeur ?? 'Driver',
+    client:    t.common?.client ?? 'Client',
+    routeName: t.common?.tournee ?? 'Route',
+    tournee:   t.common?.tournee ?? 'Route',
+    vehicule:  t.common?.vehicule ?? 'Vehicle',
+    plaque:    t.common?.plaque ?? 'Plate',
+    colis:     t.common?.colis ?? 'Package',
+    zone:      t.common?.zone ?? 'Zone',
+    stop:      'Stop',
+    erpId:     t.common?.reference ?? 'ERP ref',
+    source:    'Source',
+    plate:     t.common?.plaque ?? 'Plate',
   };
-  return keyMap[locale]?.[key] || key;
+  return map[key] || key;
 }
 
 // Payload keys we never render: machine identifiers, plus `action` — a legacy hardcoded-French
@@ -221,7 +213,7 @@ function getDateGroup(ts: string): { label: string; sort: number } {
   return { label: 'Older', sort: 3 };
 }
 
-function formatPayload(details: string | null, locale: string = 'fr'): React.ReactNode {
+function formatPayload(details: string | null, t: TranslationSchema): React.ReactNode {
   if (!details) return null;
   try {
     const parsed = JSON.parse(details);
@@ -231,7 +223,7 @@ function formatPayload(details: string | null, locale: string = 'fr'): React.Rea
       <div className="space-y-1">
         {entries.map(([key, value]) => (
           <div key={key} className="flex items-start gap-2">
-            <span className="text-2xs font-[600] text-[var(--text-muted)] min-w-fit">{getPayloadKeyLabel(key, locale)}:</span>
+            <span className="text-2xs font-[600] text-[var(--text-muted)] min-w-fit">{getPayloadKeyLabel(key, t)}:</span>
             <span className="text-2xs font-mono text-[var(--text-primary)] break-all">{String(value)}</span>
           </div>
         ))}
@@ -338,7 +330,7 @@ function FeedItem({
   const tone = actionTone(log.action);
   const toneColor = TONE_VAR[tone];
   const roleColor = roleVar(log.actorRole);
-  const actor = displayActor(log.actorName, log.actorRole);
+  const actor = displayActor(log.actorName, log.actorRole, t);
   const verb = actionVerb(log.action, t);
   const href = entityHref(log);
   const entityText = resourceLabel(log, t);
@@ -374,7 +366,7 @@ function FeedItem({
             </>
           )}
         </p>
-        <span className="shrink-0 text-3xs font-[700] uppercase tracking-wide hidden sm:inline" style={{ color: roleColor }}>{log.actorRole}</span>
+        <span className="shrink-0 text-3xs font-[700] tracking-wide hidden sm:inline" style={{ color: roleColor }}>{log.actorRole.charAt(0)}{log.actorRole.slice(1).toLowerCase()}</span>
         <IconChevronDown
           size={13}
           className={cn('shrink-0 text-[var(--text-soft)] opacity-0 group-hover:opacity-60 transition-transform', isExpanded && 'rotate-180 !opacity-100')}
@@ -384,7 +376,7 @@ function FeedItem({
       {/* Minimal expand — payload + one muted meta line, no card */}
       {isExpanded && (
         <div className="ml-[3.5rem] mb-2 mt-0.5 pl-3 border-l-2 border-[var(--border)] space-y-1.5">
-          {log.details && <div className="text-2xs">{formatPayload(log.details, locale)}</div>}
+          {log.details && <div className="text-2xs">{formatPayload(log.details, t)}</div>}
           <p className="text-3xs font-mono text-[var(--text-soft)] break-all">
             {log.action} · {log.ipAddress} · {formatTs(log.createdAt, locale)} · {log.id.slice(0, 8)}
           </p>
@@ -467,8 +459,8 @@ export default function AuditLogsPage() {
   // Shared-filter wiring (role + entity selects, from/to dates).
   const filterAttributes = useMemo(() => ([
     { key: 'role', label: t.auditLogsPage.roleLabel, type: 'select' as const, options: [
-      { value: 'ADMIN', label: 'ADMIN' }, { value: 'DISPATCHER', label: 'DISPATCHER' },
-      { value: 'DRIVER', label: 'DRIVER' }, { value: 'SYSTEM', label: 'SYSTEM' },
+      { value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' },
+      { value: 'DRIVER', label: 'Driver' }, { value: 'SYSTEM', label: 'System' },
     ] },
     { key: 'entity', label: t.auditLogsPage.entityFilterLabel ?? 'Entité', type: 'select' as const, options: [
       { value: 'ROUTE', label: t.auditLogsPage.entities.ROUTE }, { value: 'DELIVERY', label: t.auditLogsPage.entities.DELIVERY },
@@ -542,7 +534,7 @@ export default function AuditLogsPage() {
       />
 
       {/* Activity feed */}
-      <div className="flex-1 overflow-auto" style={{ background: 'var(--surface)' }}>
+      <div className="flex-1 overflow-auto" style={{ background: 'var(--app-bg)' }}>
         {loading ? (
           <div className="flex items-center justify-center h-64">
             <AppLoader centered height="200px" size="sm" label={t.auditLogsPage.loadingLogs} />
@@ -560,7 +552,7 @@ export default function AuditLogsPage() {
                 <div key={dateGroup}>
                   {/* Date section header */}
                   <div className="flex items-center gap-3 pt-5 pb-3 pl-1">
-                    <span className="text-2xs font-[800] uppercase tracking-[0.08em] text-[var(--text-soft)]">
+                    <span className="text-2xs font-[800] tracking-[0.08em] text-[var(--text-soft)]">
                       {getDateGroupLabel(dateGroup)}
                     </span>
                     <div className="flex-1 h-[1px]" style={{ background: 'var(--border)' }} />
@@ -589,7 +581,7 @@ export default function AuditLogsPage() {
 
       {/* Pagination */}
       {!loading && totalPages > 1 && (
-        <div className="p-3 border-t border-[var(--border)] flex items-center justify-center" style={{ background: 'var(--surface)' }}>
+        <div className="p-3 border-t border-[var(--border)] flex items-center justify-center" style={{ background: 'var(--app-bg)' }}>
           <SimplePagination
             total={totalPages}
             value={page}

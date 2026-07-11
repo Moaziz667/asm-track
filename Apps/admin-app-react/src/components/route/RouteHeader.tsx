@@ -33,11 +33,11 @@ export function RouteHeader({
   return (
     <div className={styles.pageHeader}>
       <div className={styles.headerLeft}>
-        <button className={styles.backButton} onClick={onBack} title={t.routeDetailPage?.back || 'Retour'}>
+        <button className={styles.backButton} onClick={onBack} title={t.routeDetailPage?.back || 'Back'}>
           <IconArrowLeft size={15} />
         </button>
         <div className={styles.routeInfo}>
-          <div className={styles.breadcrumb}>{t.routeDetailPage?.breadcrumbDetail || 'Détail'} · {t.pages.routes?.title || 'Tournée'}</div>
+          <div className={styles.breadcrumb}>{t.routeDetailPage?.breadcrumbDetail || 'Detail'} · {t.pages.routes?.title || 'Route'}</div>
           <div className={styles.routeDetails}>
             <div className={styles.routeName}>{routeName}</div>
             <StatusBadge status={routeStatus as string} size="md" />

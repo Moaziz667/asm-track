@@ -95,21 +95,23 @@ function durationLabel(h: HandoffItem, t: TranslationSchema): string | null {
  * received, a broken segment when it failed. A centred checkpoint chip carries the phase
  * icon. This replaces color-only meaning — the badge above still names the state in words.
  */
+
+/** Stable checkpoint icon — extracted to avoid remount on every render. */
+function CheckpointIcon({ phase, accent }: { phase: Phase; accent: string }) {
+  if (phase === 'active') return <span className="is-live inline-block rounded-full" style={{ width: 7, height: 7, background: accent }} />;
+  let icon: React.ReactNode;
+  if (phase === 'confirmed') icon = <IconCheck size={11} stroke={3} />;
+  else if (phase === 'overdue' || phase === 'expired') icon = <IconAlertTriangle size={10} stroke={2.5} />;
+  else if (phase === 'cancelled') icon = <IconX size={11} stroke={3} />;
+  else icon = <IconArrowNarrowRight size={12} stroke={2.5} />;
+  return <span style={{ color: accent, display: 'flex' }}>{icon}</span>;
+}
+
 function CustodyTrail({ h, view }: { h: HandoffItem; view: CardView }) {
   const { accent, phase } = view;
   const solid = phase === 'confirmed' || phase === 'overdue';
   const animated = phase === 'active';
   const broken = phase === 'expired' || phase === 'cancelled';
-
-  const Checkpoint = () => {
-    let icon: React.ReactNode;
-    if (phase === 'confirmed') icon = <IconCheck size={11} stroke={3} />;
-    else if (phase === 'overdue' || phase === 'expired') icon = <IconAlertTriangle size={10} stroke={2.5} />;
-    else if (phase === 'cancelled') icon = <IconX size={11} stroke={3} />;
-    else if (phase === 'active') return <span className="is-live inline-block rounded-full" style={{ width: 7, height: 7, background: accent }} />;
-    else icon = <IconArrowNarrowRight size={12} stroke={2.5} />;
-    return <span style={{ color: accent, display: 'flex' }}>{icon}</span>;
-  };
 
   return (
     <div className="flex items-center gap-2">
@@ -124,7 +126,7 @@ function CustodyTrail({ h, view }: { h: HandoffItem; view: CardView }) {
           className="relative flex items-center justify-center rounded-full shrink-0"
           style={{ width: 18, height: 18, background: 'var(--surface)', border: `1.5px solid ${accent}` }}
         >
-          <Checkpoint />
+          <CheckpointIcon phase={phase} accent={accent} />
         </span>
       </div>
       <DriverNode driverId={h.toDriverId} name={h.toDriverName} role="to" />
@@ -338,7 +340,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
           <div className="grid grid-cols-2 gap-x-4 gap-y-2 px-4 py-3" style={{ background: 'var(--surface-sunken)' }}>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Envoyé par'}
+                {tlabel(t.dispatchDeskPage, 'handoffFromLabel') ?? 'Sent by'}
               </span>
               <span className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
                 {h.fromDriverName ?? '—'}
@@ -346,7 +348,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Reçu par'}
+                {tlabel(t.dispatchDeskPage, 'handoffToLabel') ?? 'Received by'}
               </span>
               <span className="text-xs font-[600] truncate" style={{ color: 'var(--text-primary)' }}>
                 {h.toDriverName ?? '—'}
@@ -354,7 +356,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             </div>
             <div className="flex flex-col gap-0.5">
               <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                {tlabel(t.dispatchDeskPage, 'handoffRequestedAt') ?? 'Demandé le'}
+                {tlabel(t.dispatchDeskPage, 'handoffRequestedAt') ?? 'Requested at'}
               </span>
               <span className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
                 {fmtTs(h.requestedAt)}
@@ -363,7 +365,7 @@ function HandoffCard({ h, isOpenItem, isReadOnly, cancellingId, onCancelClick, t
             {duration && (
               <div className="flex flex-col gap-0.5">
                 <span className="text-2xs font-[600]" style={{ color: 'var(--text-muted)' }}>
-                  {tlabel(t.dispatchDeskPage, 'handoffDurationLabel') ?? 'Durée'}
+                  {tlabel(t.dispatchDeskPage, 'handoffDurationLabel') ?? 'Duration'}
                 </span>
                 <span className="text-xs font-mono" style={{ color: 'var(--text-primary)' }}>
                   {duration}
@@ -487,7 +489,7 @@ export function HandoffCards({ open, history, loading, isReadOnly, cancellingId,
               <IconPackageExport size={20} stroke={2} style={{ color: 'var(--text-soft)' }} />
             </div>
             <p className="text-sm font-[600]" style={{ color: 'var(--text-secondary)' }}>
-              {t.dispatchDeskPage.handoffHistoryEmpty ?? 'Aucun transfert terminé'}
+              {t.dispatchDeskPage.handoffHistoryEmpty ?? 'No completed transfers'}
             </p>
           </div>
         ) : (

@@ -211,20 +211,20 @@ export default function ReturnsPage() {
               baseName="retours"
               rows={visibleRows}
               columns={[
-                { header: 'Client', accessor: r => r.clientName },
+                { header: t.common?.client ?? 'Client', accessor: r => r.clientName },
                 { header: 'BL', accessor: r => r.blNumber },
-                { header: 'Réf ERP', accessor: r => r.erpOrderId },
-                { header: 'Statut', accessor: r => statusLabel(r.status) },
-                { header: 'Unités', accessor: r => r.totalUnits },
-                { header: 'Motif', accessor: r => r.reason },
-                { header: 'Créé le', accessor: r => r.createdAt },
+                { header: t.common?.reference ?? 'ERP Ref', accessor: r => r.erpOrderId },
+                { header: t.common?.statut ?? 'Status', accessor: r => statusLabel(r.status) },
+                { header: 'Units', accessor: r => r.totalUnits },
+                { header: t.common?.motif ?? 'Reason', accessor: r => r.reason },
+                { header: 'Created', accessor: r => r.createdAt },
               ]}
             />
           </>
         }
       />
 
-      <div className="flex flex-1 min-h-0 flex-col overflow-visible lg:overflow-hidden" style={{ background: 'var(--surface)' }}>
+      <div className="flex flex-1 min-h-0 flex-col overflow-visible lg:overflow-hidden" style={{ background: 'var(--app-bg)' }}>
         {/* Compact toolbar — label + mini KPIs */}
         <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
           <div className="flex items-center gap-8">
@@ -430,15 +430,15 @@ export default function ReturnsPage() {
       <ConfirmModal
         open={reasonModal !== null}
         title={reasonModal ? `${statusLabel(reasonModal.target)} — ${reasonModal.rma.clientName ?? reasonModal.rma.blNumber ?? ''}` : ''}
-        description={t.returnsPage?.reasonRequiredDesc ?? 'Un motif est obligatoire pour cette action.'}
+        description={t.returnsPage?.reasonRequiredDesc ?? 'A reason is required for this action.'}
         variant="danger"
-        reasonLabel={t.returnsPage?.reasonLabel ?? 'Motif'}
-        reasonPlaceholder={t.returnsPage?.reasonPlaceholder ?? 'Expliquez la raison…'}
+        reasonLabel={t.returnsPage?.reasonLabel ?? 'Reason'}
+        reasonPlaceholder={t.returnsPage?.reasonPlaceholder ?? 'Explain the reason…'}
         reason={reasonText}
         onReasonChange={setReasonText}
         reasonRequired
         confirmLabel={reasonModal ? statusLabel(reasonModal.target) : ''}
-        cancelLabel={t.actions?.cancel ?? 'Annuler'}
+        cancelLabel={t.actions?.cancel ?? 'Cancel'}
         loading={busyId === reasonModal?.rma.id}
         onConfirm={() => void confirmReason()}
         onCancel={() => setReasonModal(null)}

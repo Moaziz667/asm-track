@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useLocaleStore } from '@/lib/i18n';
-import { useT } from '@/lib/i18n/LocaleContext';
+import { useT, getCopy } from '@/lib/i18n/LocaleContext';
 import { MapContainer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import L from 'leaflet';
@@ -568,7 +568,7 @@ function RouteBuilderMapInner({
         >
           <Popup>
             <div style={{ fontSize: 13, fontWeight: 800, color: '#09090B', textTransform: 'uppercase' }}>
-              {order.clientName?.trim() ? order.clientName : 'Client Inconnu'}
+              {order.clientName?.trim() ? order.clientName : (t.common?.clientInconnu ?? 'Unknown Client')}
             </div>
             {order.erpOrderId && (
               <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--brand)', marginTop: 2, fontFamily: 'monospace' }}>
@@ -655,7 +655,7 @@ function RouteBuilderMapInner({
           <Marker position={[depot.latitude, depot.longitude]} icon={makeDepotIcon()}>
             <Popup>
               <div style={{ fontSize: 12, fontWeight: 800, color: '#111827' }}>{depot.name}</div>
-              <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>Point de départ dépôt</div>
+              <div style={{ fontSize: 11, color: '#475569', marginTop: 2 }}>{t.common?.depart ?? 'Depot departure'}</div>
             </Popup>
           </Marker>
         )}
@@ -682,13 +682,15 @@ function RouteBuilderMapInner({
 }
 
 export default function RouteBuilderMap(props: Props) {
+  const locale = useLocaleStore(s => s.locale);
+  const t = getCopy(locale);
   return (
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[400px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-xs p-6 text-center">
-        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Interface Cartographique Indisponible (Crash)</p>
-        <p className="text-2xs text-[var(--text-muted)] mb-4">Une exception s'est produite lors du rendu de la carte Leaflet.</p>
+        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">{t.errorBoundary?.mapUnavailable ?? 'Interface Cartographique Indisponible (Crash)'}</p>
+        <p className="text-2xs text-[var(--text-muted)] mb-4">{t.errorBoundary?.mapUnavailableDesc ?? 'Une exception s\'est produite lors du rendu de la carte Leaflet.'}</p>
         <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-xs font-medium hover:opacity-90 transition">
-          Actualiser l'application
+          {t.errorBoundary?.refreshApp ?? 'Actualiser l\'application'}
         </button>
       </div>
     }>

@@ -6,6 +6,7 @@ import lombok.Data;
 import org.springframework.format.annotation.DateTimeFormat;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -44,25 +45,25 @@ public class AnalyticsQuery {
     @Schema(description = "Also compute the immediately-preceding window for period-over-period deltas")
     private boolean compare;
 
-    // ── Scope filters (server-side) ──────────────────────────────────────────
-    @Schema(description = "Filter by zone name", example = "Tunis Nord")
-    private String zone;
+    // ── Scope filters (server-side, multi-value: repeated params zone=A&zone=B) ────────────
+    @Schema(description = "Filter by zone name(s)", example = "Tunis")
+    private List<String> zone;
 
-    @Schema(description = "Filter by driver id")
-    private UUID driverId;
+    @Schema(description = "Filter by driver id(s)")
+    private List<UUID> driverId;
 
-    @Schema(description = "Filter by delivery status")
-    private DeliveryStatus status;
+    @Schema(description = "Filter by delivery status(es)")
+    private List<DeliveryStatus> status;
 
-    @Schema(description = "Filter by failure code / motif", example = "CLIENT_ABSENT")
-    private String motif;
+    @Schema(description = "Filter by failure code / motif(s)", example = "CLIENT_ABSENT")
+    private List<String> motif;
 
-    @Schema(description = "Filter by drop-off city", example = "Tunis")
-    private String city;
+    @Schema(description = "Filter by drop-off city(ies)", example = "Tunis")
+    private List<String> city;
 
-    @Schema(description = "Filter by order source", example = "ODOO")
-    private com.asm.delivery.entity.OrderSource source;
+    @Schema(description = "Filter by order source(s)", example = "ODOO")
+    private List<com.asm.delivery.entity.OrderSource> source;
 
-    @Schema(description = "Filter by depot the delivery is routed from")
-    private java.util.UUID depot;
+    @Schema(description = "Filter by depot(s) the delivery is routed from")
+    private List<java.util.UUID> depot;
 }

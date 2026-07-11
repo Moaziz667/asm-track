@@ -104,8 +104,8 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
             {format(day, 'EEEE d MMMM', { locale: dateLocale(locale) })}
           </p>
           <div className="flex items-center gap-1.5 mt-1.5">
-            <HeaderStat icon={<IconPackage size={12} />} value={deliveries.length} label={t.overviewPage?.delAbbrev ?? 'livr.'} />
-            <HeaderStat icon={<IconRoute size={12} />} value={routes.length} label={t.overviewPage?.routesSuffix ?? 'tournées'} />
+            <HeaderStat icon={<IconPackage size={12} />} value={deliveries.length} label={t.overviewPage?.delAbbrev ?? 'del.'} />
+            <HeaderStat icon={<IconRoute size={12} />} value={routes.length} label={t.overviewPage?.routesSuffix ?? 'routes'} />
           </div>
         </div>
         <ModeChip mode={mode} live={isToday} t={t} />
@@ -115,19 +115,19 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
       <div className="px-3 py-2 border-b border-[var(--border)] shrink-0 bg-[var(--surface)]">
         {mode === 'outcomes' ? (
           <div className="flex flex-col">
-            <MetricRow label={t.overviewPage?.kpiCompletion ?? 'Taux de réussite'} value={`${m.completionRate}%`} sub={`${m.delivered} / ${m.total}`}
+            <MetricRow label={t.overviewPage?.kpiCompletion ?? 'Completion rate'} value={`${m.completionRate}%`} sub={`${m.delivered} / ${m.total}`}
               tone={m.completionRate >= 80 ? 'success' : m.completionRate >= 50 ? 'warning' : m.total > 0 ? 'danger' : 'default'} />
-            <MetricRow label={t.overviewPage?.kpiCollected ?? 'Encaissé (COD)'} value={formatMoney(m.codCollected, currency)} sub={`/ ${formatMoney(m.codAll, currency)}`} tone="success" />
-            <MetricRow label={t.overviewPage?.kpiFailures ?? 'Échecs'} value={m.failed} sub={m.failed > 0 ? (t.overviewPage?.kpiFailuresSub ?? 'à analyser') : (t.overviewPage?.kpiNoFailures ?? 'aucun')}
+            <MetricRow label={t.overviewPage?.kpiCollected ?? 'Collected (COD)'} value={formatMoney(m.codCollected, currency)} sub={`/ ${formatMoney(m.codAll, currency)}`} tone="success" />
+            <MetricRow label={t.overviewPage?.kpiFailures ?? 'Failures'} value={m.failed} sub={m.failed > 0 ? (t.overviewPage?.kpiFailuresSub ?? 'to review') : (t.overviewPage?.kpiNoFailures ?? 'none')}
               tone={m.failed > 0 ? 'danger' : 'success'} />
-            <MetricRow label={t.overviewPage?.kpiWeight ?? 'Poids livré'} value={`${m.weight.toFixed(1)} kg`} sub={`${m.done} ${t.overviewPage?.kpiClosed ?? 'clôturées'}`} tone="info" />
+            <MetricRow label={t.overviewPage?.kpiWeight ?? 'Delivered weight'} value={`${m.weight.toFixed(1)} kg`} sub={`${m.done} ${t.overviewPage?.kpiClosed ?? 'closed'}`} tone="info" />
           </div>
         ) : (
           <div className="flex flex-col gap-3">
             {/* Capacity bar */}
             <div className="flex flex-col gap-1">
               <div className="flex items-center justify-between">
-                <span className="text-2xs font-medium text-[var(--text-muted)]">{t.overviewPage?.capacityLabel ?? 'Charge chauffeurs'}</span>
+                <span className="text-2xs font-medium text-[var(--text-muted)]">{t.overviewPage?.capacityLabel ?? 'Driver load'}</span>
                 <span className={cn('text-2xs font-semibold tabular-nums', overCapacity ? 'text-[var(--danger)]' : 'text-[var(--text-secondary)]')}>
                   {m.routesUsing}{driverSlots > 0 ? ` / ${driverSlots}` : ''}
                 </span>
@@ -138,16 +138,16 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
               </div>
               {overCapacity && (
                 <p className="text-3xs font-semibold text-[var(--danger)] flex items-center gap-1">
-                  <IconAlertTriangle size={10} /> {t.overviewPage?.overCapacity ?? 'Surcharge — ajouter de la capacité'}
+                  <IconAlertTriangle size={10} /> {t.overviewPage?.overCapacity ?? 'Over capacity — add more drivers'}
                 </p>
               )}
             </div>
             <div className="flex flex-col">
-              <MetricRow label={t.overviewPage?.kpiPlanned ?? 'Livraisons planifiées'} value={m.total} sub={isToday ? `${m.completionRate}% ${t.overviewPage?.doneSuffix ?? 'fait'}` : `${routes.length} ${t.overviewPage?.routesSuffix ?? 'tournées'}`} tone="default" />
-              <MetricRow label={t.overviewPage?.kpiUnassigned ?? 'Non assignées'} value={m.unassigned} sub={m.unassigned > 0 ? (t.overviewPage?.toDispatch ?? 'à dispatcher') : (t.overviewPage?.allAssigned ?? 'tout assigné')}
+              <MetricRow label={t.overviewPage?.kpiPlanned ?? 'Planned deliveries'} value={m.total} sub={isToday ? `${m.completionRate}% ${t.overviewPage?.doneSuffix ?? 'done'}` : `${routes.length} ${t.overviewPage?.routesSuffix ?? 'routes'}`} tone="default" />
+              <MetricRow label={t.overviewPage?.kpiUnassigned ?? 'Unassigned'} value={m.unassigned} sub={m.unassigned > 0 ? (t.overviewPage?.toDispatch ?? 'to dispatch') : (t.overviewPage?.allAssigned ?? 'all assigned')}
                 tone={m.unassigned > 0 ? 'warning' : 'success'} />
-              <MetricRow label={t.overviewPage?.kpiValue ?? 'Valeur colis'} value={formatMoney(m.codAll, currency)} sub={t.overviewPage?.kpiValueSub ?? 'à encaisser'} tone="info" />
-              <MetricRow label={t.overviewPage?.kpiWeightPlanned ?? 'Poids prévu'} value={`${m.weight.toFixed(1)} kg`} sub={t.overviewPage?.kpiLoad ?? 'charge estimée'} tone="default" />
+              <MetricRow label={t.overviewPage?.kpiValue ?? 'Parcel value'} value={formatMoney(m.codAll, currency)} sub={t.overviewPage?.kpiValueSub ?? 'to collect'} tone="info" />
+              <MetricRow label={t.overviewPage?.kpiWeightPlanned ?? 'Planned weight'} value={`${m.weight.toFixed(1)} kg`} sub={t.overviewPage?.kpiLoad ?? 'est. load'} tone="default" />
             </div>
           </div>
         )}
@@ -157,7 +157,7 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
       <div className="flex-1 overflow-y-auto p-3 flex flex-col gap-4">
         {routes.length > 0 && (
           <div>
-            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t.overviewPage?.routesPlanned ?? 'Tournées planifiées'}</p>
+            <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t.overviewPage?.routesPlanned ?? 'Planned routes'}</p>
             <div className="flex flex-col">
               {routes.map(r => (
                 <button key={r.id} onClick={() => navigate(`/routes/${r.id}`)}
@@ -168,9 +168,9 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
                       <p className="text-sm font-semibold text-[var(--text-primary)] truncate">{r.name}</p>
                       <StatusBadge status={r.status} size="sm" />
                     </div>
-                    <p className="text-2xs text-[var(--text-muted)] truncate">{r.driverName ?? t.overviewPage?.unassigned ?? 'Non assigné'}</p>
+                    <p className="text-2xs text-[var(--text-muted)] truncate">{r.driverName ?? t.overviewPage?.unassigned ?? 'Unassigned'}</p>
                     <div className="flex items-center gap-2 mt-0.5 text-2xs text-[var(--text-soft)] font-medium">
-                      <span>{r.stops?.length ?? 0} {t.overviewPage?.stops ?? 'arrêts'}</span>
+                      <span>{r.stops?.length ?? 0} {t.overviewPage?.stops ?? 'stops'}</span>
                       {r.totalDistanceMeters !== undefined && r.totalDistanceMeters > 0 && (
                         <><span>·</span><span>{(r.totalDistanceMeters / 1000).toFixed(1)} km</span></>
                       )}
@@ -182,11 +182,11 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
           </div>
         )}
         <div>
-          <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t.overviewPage?.deliveries ?? 'Livraisons'}</p>
+          <p className="text-2xs font-bold uppercase tracking-wider text-[var(--text-muted)] mb-2">{t.overviewPage?.deliveries ?? 'Deliveries'}</p>
           {deliveries.length === 0 ? (
             <div className="flex flex-col items-center py-8 gap-2 opacity-40">
               <IconPackage size={20} stroke={1.5} className="text-[var(--text-muted)]" />
-              <span className="text-xs font-medium text-[var(--text-muted)]">{t.overviewPage?.noDeliveries ?? 'Aucune livraison'}</span>
+              <span className="text-xs font-medium text-[var(--text-muted)]">{t.overviewPage?.noDeliveries ?? 'No delivery'}</span>
             </div>
           ) : (
             <div className="flex flex-col">
@@ -212,7 +212,7 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
                   </div>
                   {d.status === 'FAILED' && d.failReason && (
                     <p className="text-2xs font-medium mt-1 px-1.5 py-0.5 rounded bg-[var(--danger-bg)] text-[var(--danger)]">
-                      {t.overviewPage?.reason ?? 'Motif'}: {d.failReason}
+                      {t.overviewPage?.reason ?? 'Reason'}: {d.failReason}
                     </p>
                   )}
                 </button>
@@ -230,13 +230,13 @@ function ModeChip({ mode, live, t }: { mode: 'planning' | 'outcomes'; live: bool
     return (
       <span className="inline-flex items-center gap-1 text-2xs font-bold px-2 py-1 rounded-full shrink-0"
         style={{ background: 'var(--surface-sunken)', color: 'var(--text-secondary)', border: '1px solid var(--border)' }}>
-        <IconCircleCheck size={12} /> {t.overviewPage?.modeOutcomes ?? 'Bilan'}
+        <IconCircleCheck size={12} /> {t.overviewPage?.modeOutcomes ?? 'Summary'}
       </span>
     );
   }
   return (
     <span className="inline-flex items-center gap-1 text-2xs font-bold px-2 py-1 rounded-full shrink-0 bg-[var(--brand-soft)] text-[var(--brand)] border border-[var(--border)]">
-      <IconClockHour4 size={12} /> {live ? (t.overviewPage?.modeLive ?? 'En direct') : (t.overviewPage?.modePlanning ?? 'Planification')}
+      <IconClockHour4 size={12} /> {live ? (t.overviewPage?.modeLive ?? 'Live') : (t.overviewPage?.modePlanning ?? 'Planning')}
     </span>
   );
 }

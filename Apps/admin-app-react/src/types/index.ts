@@ -9,7 +9,7 @@ export type DeliveryStatus =
   | 'CANCELLED'
   | 'FAILED';
 
-export type DeliverySource = 'APP' | 'ODOO';
+export type DeliverySource = 'ODOO' | 'DUX';
 
 export type OrderSource = 'ODOO' | 'DUX';
 
@@ -24,13 +24,13 @@ export interface FailureReason {
 }
 
 export interface AnalyticsScope {
-  zone?: string;
-  driverId?: string;
-  status?: DeliveryStatus;
-  motif?: string;
-  city?: string;
-  source?: OrderSource;
-  depot?: string;
+  zone?: string[];
+  driverId?: string[];
+  status?: DeliveryStatus[];
+  motif?: string[];
+  city?: string[];
+  source?: OrderSource[];
+  depot?: string[];
 }
 
 export interface DeliveryItem {
@@ -166,6 +166,8 @@ export interface DashboardStats {
     total: number;
     delivered: number;
     failed: number;
+    /** Failure events later replanned (subset of `failed`) — recovery signal. */
+    reprogrammed?: number;
     waiting?: number;
     unscheduled?: number;
     inTransit?: number;
@@ -206,6 +208,10 @@ export interface AdminOpsOverview {
   period: string;
   periodStart: string;
   periodEnd: string;
+  truncated?: boolean;
+  /** Live dispatch churn since the start of the current business day. */
+  reassignedToday?: number;
+  replannedToday?: number;
   sla: {
     waitingThresholdMinutes: number;
     transitThresholdMinutes: number;

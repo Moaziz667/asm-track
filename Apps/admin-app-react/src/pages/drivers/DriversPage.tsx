@@ -43,7 +43,7 @@ function DriversPageContent() {
   const isMobile = useIsMobile();
   const t = useT();
   const { locale } = useLocaleStore();
-  usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Chauffeurs' }]);
+  usePageBreadcrumb([{ label: t.pages.drivers?.title || t.driversPage.pageTitle || 'Drivers' }]);
   const role = getCurrentRole();
   const readOnly = isReadOnlyRole(role);
   const [searchParams, setSearchParams] = useSearchParams();
@@ -101,6 +101,7 @@ function DriversPageContent() {
 
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
+  const resendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [operationalFilter, setOperationalFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>('all');
   const [activityFilter, setActivityFilter] = useState<'all' | 'busy' | 'available'>('all');
   const [page, setPage] = useState(0);
@@ -131,6 +132,14 @@ function DriversPageContent() {
       .catch(() => setDriverDeliveries([]))
       .finally(() => setDetailLoading(false));
   }, [selectedId]);
+
+  // Cleanup driverRtTimer + resendCooldown interval on unmount
+  useEffect(() => {
+    return () => {
+      if (driverRtTimer.current != null) { clearTimeout(driverRtTimer.current); driverRtTimer.current = null; }
+      if (resendIntervalRef.current != null) { clearInterval(resendIntervalRef.current); resendIntervalRef.current = null; }
+    };
+  }, []);
 
   const isDriverEnLivraison = useCallback((driver: Driver) => {
     return Boolean(driver.activeDeliveryId) || Boolean(driver.activeRouteId);
@@ -219,12 +228,14 @@ function DriversPageContent() {
     try {
       await resendInviteMutation.mutateAsync(drv.id);
       setResendCooldown(60);
-      const interval = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; }); }, 1000);
+      if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+      resendIntervalRef.current = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { if (resendIntervalRef.current) { clearInterval(resendIntervalRef.current); resendIntervalRef.current = null; } return 0; } return prev - 1; }); }, 1000);
     } catch (err) {
       const retryAfter = (err as { response?: { data?: { retryAfterSeconds?: number } } })?.response?.data?.retryAfterSeconds;
       if (typeof retryAfter === 'number' && retryAfter > 0) {
         setResendCooldown(retryAfter);
-        const interval = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { clearInterval(interval); return 0; } return prev - 1; }); }, 1000);
+        if (resendIntervalRef.current) clearInterval(resendIntervalRef.current);
+        resendIntervalRef.current = setInterval(() => { setResendCooldown((prev) => { if (prev <= 1) { if (resendIntervalRef.current) { clearInterval(resendIntervalRef.current); resendIntervalRef.current = null; } return 0; } return prev - 1; }); }, 1000);
       }
     } finally { setPendingRowId(null); }
   };
@@ -259,16 +270,16 @@ function DriversPageContent() {
         onSearch={setSearchTerm}
         searchPlaceholder={t.driversPage.searchPlaceholder}
         attributes={[
-          { key: 'status', label: t.routesTablePage?.filterStatusLabel || 'Statut', options: [
-            { value: 'all',       label: t.driversPage.allFleet || 'Tous' },
-            { value: 'active',    label: t.driversPage.statusActive || 'Actif' },
-            { value: 'suspended', label: t.driversPage.statusSuspended || 'Suspendu' },
-            { value: 'pending',   label: t.driversPage.statusPending || 'Invitation' },
+          { key: 'status', label: t.routesTablePage?.filterStatusLabel ?? t.common?.statut ?? 'Status', options: [
+            { value: 'all',       label: t.driversPage.allFleet ?? 'All' },
+            { value: 'active',    label: t.driversPage.statusActive ?? 'Active' },
+            { value: 'suspended', label: t.driversPage.statusSuspended ?? 'Suspended' },
+            { value: 'pending',   label: t.driversPage.statusPending ?? 'Pending' },
           ]},
-          { key: 'activity', label: t.driversPage.tabFilters || 'Activité', options: [
-            { value: 'all',       label: t.driversPage.allFleet || 'Tous' },
-            { value: 'busy',      label: t.driversPage.busy || 'En mission' },
-            { value: 'available', label: t.driversPage.available || 'Disponible' },
+          { key: 'activity', label: t.driversPage.tabFilters ?? 'Activity', options: [
+            { value: 'all',       label: t.driversPage.allFleet ?? 'All' },
+            { value: 'busy',      label: t.driversPage.busy ?? 'On Mission' },
+            { value: 'available', label: t.driversPage.available ?? 'Available' },
           ]},
         ]}
         activeFilters={{
@@ -284,13 +295,13 @@ function DriversPageContent() {
         extraActions={
           <div className="flex items-center gap-1.5">
             <ExportCsvButton
-              baseName="chauffeurs"
+              baseName={t.common?.chauffeur ?? 'drivers'}
               rows={filtered}
               columns={[
-                { header: 'Nom', accessor: d => d.name },
-                { header: 'Téléphone', accessor: d => d.phone },
-                { header: 'Statut du compte', accessor: d => d.accountStatus },
-                { header: 'En ligne', accessor: d => d.onlineStatus },
+                { header: t.common?.nom ?? 'Name', accessor: d => d.name },
+                { header: t.common?.telephone ?? 'Phone', accessor: d => d.phone },
+                { header: t.driversPage?.tableHeaderAccountStatus ?? 'Account Status', accessor: d => d.accountStatus },
+                { header: t.driversPage?.statusOnline ?? 'Online', accessor: d => d.onlineStatus },
               ]}
             />
             {!readOnly && (
@@ -311,7 +322,7 @@ function DriversPageContent() {
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {filtered.length} chauffeur{filtered.length !== 1 ? 's' : ''}
+              {filtered.length} {t.common?.chauffeur ?? 'driver'}{filtered.length !== 1 ? 's' : ''}
             </span>
             <DisplaySettingsDropdown
               columns={orderedColumns}
@@ -367,7 +378,7 @@ function DriversPageContent() {
                     <span key={col.id} className="text-xs font-semibold text-[var(--text-muted)] text-start">
                       {col.id === 'contact' ? t.driversPage.tableHeaderContact
                        : col.id === 'activity' ? t.driversPage.tableHeaderActivity
-                       : t.driversPage.tableHeaderAccountStatus || 'Statut du compte'}
+                       : t.driversPage.tableHeaderAccountStatus || 'Account Status'}
                     </span>
                   ))}
                   <span className="text-xs font-semibold text-[var(--text-muted)] text-end pe-6">{t.driversPage.tableHeaderActions}</span>

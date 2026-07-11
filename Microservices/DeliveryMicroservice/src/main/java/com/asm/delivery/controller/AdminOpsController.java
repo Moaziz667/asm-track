@@ -2,10 +2,8 @@ package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.request.AdminExceptionReassignRequest;
 import com.asm.delivery.dto.request.AdminExceptionReplanRequest;
-import com.asm.delivery.dto.response.AdminOpsAlertsResponse;
 import com.asm.delivery.dto.response.AdminOpsAuditResponse;
 import com.asm.delivery.dto.response.AdminOpsExceptionsResponse;
-import com.asm.delivery.dto.response.AdminOpsLanesResponse;
 import com.asm.delivery.dto.response.AdminOpsOverviewResponse;
 import com.asm.delivery.entity.Delivery;
 import com.asm.delivery.entity.DeliveryStatus;
@@ -66,42 +64,6 @@ public class AdminOpsController {
         return ResponseEntity.ok()
                 .cacheControl(org.springframework.http.CacheControl.noStore())
                 .body(opsAnalyticsService.getOpsOverview(query));
-    }
-
-    @GetMapping("/lanes")
-    @Operation(
-        summary = "Dispatch lanes with counters",
-        description = "Returns the Kanban-style dispatch lanes: WAITING, IN_TRANSIT, DELIVERED, FAILED — each with a count and top delivery cards. Used by the dispatch desk board."
-    )
-    public ResponseEntity<AdminOpsLanesResponse> lanes(
-            @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "today") String period,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @Parameter(description = "Number of top deliveries to return per lane", example = "4")
-            @RequestParam(required = false, defaultValue = "4") Integer topItems,
-            Integer waitingSlaMinutes,
-            Integer transitSlaMinutes
-    ) {
-        return ResponseEntity.ok(opsAnalyticsService.getOpsLanes(period, from, to, topItems, waitingSlaMinutes, transitSlaMinutes));
-    }
-
-    @GetMapping("/alerts")
-    @Operation(
-        summary = "Prioritized ops alerts",
-        description = "Returns a prioritized alert feed: SLA breaches (CRITICAL), late deliveries (WARNING), and informational events (INFO). Used by the AlertBell and the dispatch desk sidebar."
-    )
-    public ResponseEntity<AdminOpsAlertsResponse> alerts(
-            @Parameter(description = "Time period", example = "day")
-            @RequestParam(required = false, defaultValue = "today") String period,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
-            @Parameter(description = "Max alerts to return", example = "30")
-            @RequestParam(required = false, defaultValue = "30") Integer limit,
-            Integer waitingSlaMinutes,
-            Integer transitSlaMinutes
-    ) {
-        return ResponseEntity.ok(opsAnalyticsService.getOpsAlerts(period, from, to, limit, waitingSlaMinutes, transitSlaMinutes));
     }
 
     @GetMapping("/audit")

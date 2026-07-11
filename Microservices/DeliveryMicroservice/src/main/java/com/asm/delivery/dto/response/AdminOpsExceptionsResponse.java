@@ -42,6 +42,7 @@ public class AdminOpsExceptionsResponse {
         private String clientName;
         private String city;
         private String zoneName;
+        private String depotName;
         private String severity;
         private String comment;
         private LocalDateTime createdAt;

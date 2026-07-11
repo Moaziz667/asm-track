@@ -50,6 +50,7 @@ public class DriverPerformanceService {
     private final TransportPort transportPort;
     private final ZoneRepository zoneRepository;
     private final PeriodResolver periodResolver;
+    private final ZoneResolver zoneResolver;
 
     /** Leaderboard (all drivers) or single-driver drilldown when {@code query.driverId} is set. */
     @Transactional(readOnly = true)
@@ -58,13 +59,12 @@ public class DriverPerformanceService {
                 query.getRange() != null ? query.getRange() : query.getPeriod(),
                 query.getLast(), query.getFrom(), query.getTo(), query.getGranularity(), query.isCompare());
         AnalyticsFilter filter = new AnalyticsFilter(
-                query.getDriverId(), resolveZoneId(query.getZone()), query.getStatus(), query.getMotif(),
+                query.getDriverId(), zoneResolver.resolveAll(query.getZone()), query.getStatus(), query.getMotif(),
                 query.getCity(), query.getSource(), query.getDepot());
-        boolean drilldown = query.getDriverId() != null;
-
         Map<UUID, long[]> counts = countsByDriver(pr.start(), pr.end(), filter);      // [total, delivered, failed]
         Map<UUID, double[]> perf = perfByDriver(pr.start(), pr.end(), filter);        // [avgDelay, onTimeRate]
         Map<UUID, String> topMotif = topMotifByDriver(pr.start(), pr.end(), filter);
+        Map<UUID, List<DriverScorecardResponse.DailyPoint>> trends = trendByDriver(pr.start(), pr.end(), filter);
         Map<UUID, Long> prevVolume = pr.hasComparison()
                 ? volumeByDriver(pr.prevStart(), pr.prevEnd(), filter) : Map.of();
         Map<UUID, Double> prevSuccess = pr.hasComparison()
@@ -98,7 +98,7 @@ public class DriverPerformanceService {
                     .topFailureMotif(topMotif.get(driverId))
                     .deltaVolumePct(deltaVolumePct)
                     .deltaSuccessRatePts(deltaSuccessPts)
-                    .trend(drilldown ? dailyTrend(driverId, pr.start(), pr.end()) : null)
+                    .trend(trends.get(driverId))
                     .build());
         }
 
@@ -116,50 +116,64 @@ public class DriverPerformanceService {
 
     // ── Queries ───────────────────────────────────────────────────────────────
 
+    /**
+     * Per-driver resolved outcomes in the window — event-anchored (delivered on completedAt, failed on
+     * failedAt, immutable), matching the dashboard. Returns [volume, delivered, failed] where
+     * volume = delivered + failed (resolved throughput), so successRate = delivered / (delivered+failed)
+     * and a reprogrammed failure no longer "heals" out of the count.
+     */
     private Map<UUID, long[]> countsByDriver(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         TypedQuery<Object[]> q = entityManager.createQuery(
-                "SELECT d.driverId, COUNT(d), " +
-                        "SUM(CASE WHEN d.status IN (:delivered, :partial) THEN 1 ELSE 0 END), " +
-                        "SUM(CASE WHEN d.status = :failed THEN 1 ELSE 0 END) " +
-                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end" + filter.jpql() + " " +
-                        "GROUP BY d.driverId", Object[].class)
+                "SELECT d.driverId, " +
+                        "SUM(CASE WHEN d.status IN (:delivered, :partial) AND d.completedAt BETWEEN :start AND :end THEN 1 ELSE 0 END), " +
+                        "SUM(CASE WHEN d.failedAt BETWEEN :start AND :end THEN 1 ELSE 0 END) " +
+                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND (" +
+                        "(d.status IN (:delivered, :partial) AND d.completedAt BETWEEN :start AND :end) OR (d.failedAt BETWEEN :start AND :end)" +
+                        ")" + filter.jpql() + " GROUP BY d.driverId", Object[].class)
                 .setParameter("delivered", DeliveryStatus.DELIVERED)
                 .setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED)
-                .setParameter("failed", DeliveryStatus.FAILED)
                 .setParameter("start", start).setParameter("end", end);
         filter.bind(q);
         Map<UUID, long[]> out = new HashMap<>();
         for (Object[] row : q.getResultList()) {
-            out.put((UUID) row[0], new long[]{num(row[1]), num(row[2]), num(row[3])});
+            long delivered = num(row[1]);
+            long failed = num(row[2]);
+            out.put((UUID) row[0], new long[]{delivered + failed, delivered, failed});
         }
         return out;
     }
 
+    /** Resolved throughput per driver (delivered + failed, event-anchored) — the prev-window volume. */
     private Map<UUID, Long> volumeByDriver(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         TypedQuery<Object[]> q = entityManager.createQuery(
-                "SELECT d.driverId, COUNT(d) FROM Delivery d " +
-                        "WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end" + filter.jpql() + " " +
-                        "GROUP BY d.driverId", Object[].class)
+                "SELECT d.driverId, COUNT(d) FROM Delivery d WHERE d.driverId IS NOT NULL AND (" +
+                        "(d.status IN (:delivered, :partial) AND d.completedAt BETWEEN :start AND :end) OR (d.failedAt BETWEEN :start AND :end)" +
+                        ")" + filter.jpql() + " GROUP BY d.driverId", Object[].class)
+                .setParameter("delivered", DeliveryStatus.DELIVERED)
+                .setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED)
                 .setParameter("start", start).setParameter("end", end);
         filter.bind(q);
         return q.getResultList().stream().collect(Collectors.toMap(r -> (UUID) r[0], r -> num(r[1])));
     }
 
+    /** Prev-window success rate = delivered / (delivered + failed), event-anchored (matches current). */
     private Map<UUID, Double> successRateByDriver(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         TypedQuery<Object[]> q = entityManager.createQuery(
-                "SELECT d.driverId, COUNT(d), " +
-                        "SUM(CASE WHEN d.status IN (:delivered, :partial) THEN 1 ELSE 0 END) " +
-                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end" + filter.jpql() + " " +
-                        "GROUP BY d.driverId", Object[].class)
+                "SELECT d.driverId, " +
+                        "SUM(CASE WHEN d.status IN (:delivered, :partial) AND d.completedAt BETWEEN :start AND :end THEN 1 ELSE 0 END), " +
+                        "SUM(CASE WHEN d.failedAt BETWEEN :start AND :end THEN 1 ELSE 0 END) " +
+                        "FROM Delivery d WHERE d.driverId IS NOT NULL AND (" +
+                        "(d.status IN (:delivered, :partial) AND d.completedAt BETWEEN :start AND :end) OR (d.failedAt BETWEEN :start AND :end)" +
+                        ")" + filter.jpql() + " GROUP BY d.driverId", Object[].class)
                 .setParameter("delivered", DeliveryStatus.DELIVERED)
                 .setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED)
                 .setParameter("start", start).setParameter("end", end);
         filter.bind(q);
         Map<UUID, Double> out = new HashMap<>();
         for (Object[] row : q.getResultList()) {
-            long total = num(row[1]);
-            long del = num(row[2]);
-            out.put((UUID) row[0], total > 0 ? (double) del / total * 100.0 : 0.0);
+            long del = num(row[1]);
+            long resolved = del + num(row[2]);
+            out.put((UUID) row[0], resolved > 0 ? (double) del / resolved * 100.0 : 0.0);
         }
         return out;
     }
@@ -168,7 +182,7 @@ public class DriverPerformanceService {
     private Map<UUID, double[]> perfByDriver(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         TypedQuery<Object[]> q = entityManager.createQuery(
                 "SELECT d.id, d.driverId FROM Delivery d " +
-                        "WHERE d.driverId IS NOT NULL AND d.createdAt BETWEEN :start AND :end " +
+                        "WHERE d.driverId IS NOT NULL AND d.completedAt BETWEEN :start AND :end " +
                         "AND d.status IN (:delivered, :partial)" + filter.jpql(), Object[].class)
                 .setParameter("delivered", DeliveryStatus.DELIVERED)
                 .setParameter("partial", DeliveryStatus.PARTIALLY_DELIVERED)
@@ -231,44 +245,51 @@ public class DriverPerformanceService {
         return out;
     }
 
-    private List<DriverScorecardResponse.DailyPoint> dailyTrend(UUID driverId, LocalDateTime start, LocalDateTime end) {
+    /**
+     * Daily trend per driver for the whole leaderboard — one grouped query (driver × day), event-anchored
+     * (completed ?? failed ?? created) and honoring the active pivots, so every row's sparkline is populated
+     * (not just the single-driver drilldown).
+     */
+    private Map<UUID, List<DriverScorecardResponse.DailyPoint>> trendByDriver(LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
         Query q = entityManager.createNativeQuery(
-                "SELECT DATE(d.created_at) AS dt, COUNT(*) AS total, " +
+                "SELECT d.driver_id, CAST(COALESCE(d.completed_at, d.failed_at, d.created_at) AS date) AS dt, COUNT(*) AS total, " +
                         "SUM(CASE WHEN d.status IN ('DELIVERED','PARTIALLY_DELIVERED') THEN 1 ELSE 0 END) AS delivered " +
-                        "FROM deliveries d WHERE d.driver_id = :driver AND d.created_at BETWEEN :start AND :end " +
-                        "GROUP BY DATE(d.created_at) ORDER BY dt")
-                .setParameter("driver", driverId)
+                        "FROM deliveries d JOIN orders o ON d.order_id = o.id " +
+                        "WHERE d.driver_id IS NOT NULL AND COALESCE(d.completed_at, d.failed_at, d.created_at) BETWEEN :start AND :end" + filter.nativeSql() + " " +
+                        "GROUP BY d.driver_id, dt ORDER BY dt")
                 .setParameter("start", start).setParameter("end", end);
+        filter.bindNative(q);
         @SuppressWarnings("unchecked")
         List<Object[]> rows = q.getResultList();
-        return rows.stream()
-                .map(r -> DriverScorecardResponse.DailyPoint.builder()
-                        .date(((java.sql.Date) r[0]).toLocalDate().toString())
-                        .total(num(r[1]))
-                        .delivered(num(r[2]))
-                        .build())
-                .toList();
+        Map<UUID, List<DriverScorecardResponse.DailyPoint>> out = new HashMap<>();
+        for (Object[] r : rows) {
+            if (r[0] == null) continue;
+            UUID driverId = r[0] instanceof UUID ? (UUID) r[0] : UUID.fromString(r[0].toString());
+            out.computeIfAbsent(driverId, k -> new ArrayList<>()).add(
+                    DriverScorecardResponse.DailyPoint.builder()
+                            .date(((java.sql.Date) r[1]).toLocalDate().toString())
+                            .total(num(r[2]))
+                            .delivered(num(r[3]))
+                            .build());
+        }
+        return out;
     }
 
     // ── Helpers ─────────────────────────────────────────────────────────────
 
     private void enrichNames(List<DriverScorecardResponse.Scorecard> cards) {
+        // Single batch fetch (one HTTP round-trip) instead of one getDriver call per scorecard.
+        Map<String, DriverDTO> byId = new HashMap<>();
+        try {
+            for (DriverDTO d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null) byId.put(d.getId(), d);
+            }
+        } catch (Exception ignored) { /* names fall back to the id prefix below */ }
         for (DriverScorecardResponse.Scorecard c : cards) {
             if (c.getDriverId() == null) continue;
-            try {
-                DriverDTO dto = transportPort.getDriver(c.getDriverId());
-                c.setDriverName(dto != null ? dto.getName() : "Livreur " + c.getDriverId().substring(0, 8));
-            } catch (Exception e) {
-                c.setDriverName("Livreur " + c.getDriverId().substring(0, 8));
-            }
+            DriverDTO dto = byId.get(c.getDriverId());
+            c.setDriverName(dto != null ? dto.getName() : "Livreur " + c.getDriverId().substring(0, 8));
         }
-    }
-
-    private UUID resolveZoneId(String zoneName) {
-        if (zoneName == null || zoneName.isBlank()) return null;
-        return zoneRepository.findAll().stream()
-                .filter(z -> zoneName.trim().equalsIgnoreCase(z.getName()))
-                .map(Zone::getId).findFirst().orElse(null);
     }
 
     private static long num(Object o) {

@@ -68,7 +68,7 @@ public interface RouteRepository extends JpaRepository<Route, UUID>, JpaSpecific
 
     @Query("""
             SELECT r FROM Route r
-            WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :q, '%'))
+            WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :q, '%')) ESCAPE '\\'
             ORDER BY r.date DESC, r.createdAt DESC
             """)
     List<Route> searchByQuery(@Param("q") String q, Pageable pageable);

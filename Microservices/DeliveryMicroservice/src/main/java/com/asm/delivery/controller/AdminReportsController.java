@@ -1,7 +1,6 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.dto.response.DashboardKpiResponse;
-import com.asm.delivery.dto.response.ZoneHeatmapResponse;
 import com.asm.delivery.security.UserPrincipal;
 import com.asm.delivery.service.AuditLogService;
 import com.asm.delivery.service.AnalyticsPdfService;
@@ -56,10 +55,10 @@ public class AdminReportsController {
     }
 
     @GetMapping("/zone-heatmap")
-    @Operation(summary = "Zone demand heatmap — per-zipcode order density with zone identity",
-               description = "Returns zipcode-level heatmap points for the territory intelligence map. "
-                           + "Each point has centroid coordinates, order count, delay count, and parent zone info.")
-    public ResponseEntity<ZoneHeatmapResponse> getZoneHeatmap(
+    @Operation(summary = "Densité des commandes par zone",
+               description = "Densité des commandes par code postal / zone sur la fenêtre (mêmes filtres granulaires "
+                       + "et pivots que /dashboard). Le client agrège les points par zone.")
+    public ResponseEntity<com.asm.delivery.dto.response.ZoneHeatmapResponse> zoneHeatmap(
             @org.springframework.web.bind.annotation.ModelAttribute com.asm.delivery.dto.analytics.AnalyticsQuery query
     ) {
         return ResponseEntity.ok().cacheControl(STATS_CACHE).body(reportingService.getZoneHeatmap(query));

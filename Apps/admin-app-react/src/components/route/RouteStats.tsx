@@ -110,7 +110,7 @@ export function RouteStats({
           <div className={styles.label}>{t.routeDetailPage?.labelDriver || 'Chauffeur'}</div>
           <div className="flex items-center gap-2 mt-0.5">
             <DriverAvatarById driverId={driverId} name={driverName ?? undefined} size={24} />
-            <div className={styles.value}>{driverName || (t.routeDetailPage?.notAssigned || 'Non assigné')}</div>
+            <div className={styles.value}>{driverName || (t.common?.nonAssigne ?? 'Unassigned')}</div>
           </div>
           {driverStatusColor && (
             <div className={cn(styles.sub, 'mt-1')} style={{ color: driverStatusColor.text }}>
@@ -123,39 +123,39 @@ export function RouteStats({
         <KpiCard
           label={t.routeDetailPage?.labelProgress || 'Progression'}
           value={`${completed + failed + partial}/${total}`}
-          sub={failed > 0 ? `${failed} ${t.routeDetailPage?.failed || 'échoué(s)'}` : `${total} ${t.routeDetailPage?.stops || 'arrêts'}`}
+          sub={failed > 0 ? `${failed} ${t.common?.echoue ?? 'failed'}` : `${total} ${t.common?.arrets ?? 'stops'}`}
           isAlert={failed > 0}
         />
 
         {/* Retard Cumulé */}
         <KpiCard
-          label={t.routeDetailPage?.labelCumulativeDelay || 'Retard Cumulé'}
+          label={t.routeDetailPage?.labelCumulativeDelay || 'Cumulative Delay'}
           value={formatMins(cumulativeDelayMinutes)}
-          sub={`${t.routeDetailPage?.departure || 'Départ'} +${formatMins(routeStartDelayMinutes)}`}
+          sub={`${t.common?.depart ?? 'Departure'} +${formatMins(routeStartDelayMinutes)}`}
           isAlert={(cumulativeDelayMinutes ?? 0) > 0}
         />
 
         {/* Ponctualité */}
         <KpiCard
-          label={t.routeDetailPage?.labelPunctuality || 'Ponctualité'}
+          label={t.common?.ponctualite ?? 'Punctuality'}
           value={
             onTimeCompletionRate != null
               ? `${onTimeCompletionRate.toFixed(0)}%`
               : '—'
           }
-          sub={t.routeDetailPage?.withinWindow || 'dans fenêtre'}
+          sub={t.routeDetailPage?.withinWindow || 'on time'}
         />
 
         {/* Distance */}
         <KpiCard
-          label={t.routeDetailPage?.labelDistance || 'Distance'}
+          label={t.common?.distance ?? 'Distance'}
           value={distance || '—'}
           sub={duration}
         />
 
         {/* Véhicule */}
         <KpiCard
-          label={t.routeDetailPage?.labelVehicle || 'Véhicule'}
+          label={t.common?.vehicule ?? 'Vehicle'}
           value={vehiclePlate || '—'}
           sub={vehicleType}
           icon={<IconTruck size={15} stroke={1.8} />}

@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { IconMapPin } from '@tabler/icons-react';
+import { IconMapPinFilled } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useZones } from '@/hooks/useZones';
 import { useIsDark } from '@/lib/ui/theme';
@@ -166,9 +166,9 @@ export default function ZoneDensityMapWidget({ kpi, heatmap }: Props) {
   }
 
   return (
-    <div className="card overflow-hidden flex flex-col h-full relative">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full relative">
       <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconMapPin size={15} className="text-[var(--brand)]" />
+        <IconMapPinFilled size={15} className="text-[var(--brand)]" />
         <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">
           {t.performancePage.densityByZone}
         </span>

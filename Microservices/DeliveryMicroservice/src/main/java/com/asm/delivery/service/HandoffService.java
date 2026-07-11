@@ -33,6 +33,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 /**
@@ -340,7 +341,9 @@ public class HandoffService {
         java.util.LinkedHashMap<UUID, Handoff> merged = new java.util.LinkedHashMap<>();
         handoffRepo.findByToDriverIdAndStateIn(driverId, OPEN_STATES).forEach(h -> merged.put(h.getId(), h));
         handoffRepo.findByFromDriverIdAndStateIn(driverId, OPEN_STATES).forEach(h -> merged.put(h.getId(), h));
-        return merged.values().stream().map(this::toResponse).toList();
+        List<Handoff> handoffs = List.copyOf(merged.values());
+        HandoffBatchContext ctx = buildBatchContext(handoffs);
+        return handoffs.stream().map(h -> toResponse(h, ctx)).toList();
     }
 
     /** Days of terminal handoff history exposed to the admin feed (open handoffs are always shown). */
@@ -352,29 +355,91 @@ public class HandoffService {
         // Bounded: all open handoffs + terminal ones within the history window (newest first),
         // instead of an unbounded findAll() that grows forever.
         List<Handoff> base = handoffRepo.findForAdmin(LocalDateTime.now().minusDays(adminHistoryDays));
-        return base.stream()
+        List<Handoff> filtered = base.stream()
                 .filter(h -> state == null || h.getState() == state)
-                .map(this::toResponse)
                 .toList();
+        HandoffBatchContext ctx = buildBatchContext(filtered);
+        return filtered.stream().map(h -> toResponse(h, ctx)).toList();
     }
 
-    private com.asm.delivery.dto.response.HandoffResponse toResponse(Handoff h) {
-        Order order = loadOrder(h);
+    private record HandoffBatchContext(
+            Map<String, com.asm.delivery.transport.DriverDTO> driverMap,
+            Map<UUID, Order> orderMap,
+            Map<UUID, Route> routeMap,
+            Map<UUID, Route> toDriverRouteMap
+    ) {}
+
+    private HandoffBatchContext buildBatchContext(List<Handoff> handoffs) {
+        // Batch-fetch drivers (single HTTP call)
+        Map<String, com.asm.delivery.transport.DriverDTO> driverMap = new java.util.HashMap<>();
+        try {
+            for (var d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null) driverMap.put(d.getId(), d);
+            }
+        } catch (Exception e) { /* fallback: empty map */ }
+        // Pick up drivers not in available list
+        handoffs.stream()
+                .flatMap(h -> java.util.stream.Stream.of(h.getFromDriverId(), h.getToDriverId()))
+                .filter(Objects::nonNull)
+                .map(UUID::toString)
+                .filter(id -> !driverMap.containsKey(id))
+                .distinct()
+                .forEach(id -> {
+                    var dto = transportPort.getDriver(id);
+                    if (dto != null) driverMap.put(id, dto);
+                });
+
+        // Batch-fetch deliveries with orders
+        List<UUID> deliveryIds = handoffs.stream().map(Handoff::getDeliveryId).filter(Objects::nonNull).toList();
+        Map<UUID, Order> orderMap = new java.util.HashMap<>();
+        if (!deliveryIds.isEmpty()) {
+            deliveryRepo.findAllById(deliveryIds).forEach(d -> {
+                if (d.getOrder() != null) orderMap.put(d.getId(), d.getOrder());
+            });
+        }
+
+        // Batch-fetch routes
+        java.util.Set<UUID> routeIds = new java.util.HashSet<>();
+        handoffs.stream().map(Handoff::getRouteId).filter(Objects::nonNull).forEach(routeIds::add);
+        Map<UUID, Route> routeMap = new java.util.HashMap<>();
+        if (!routeIds.isEmpty()) {
+            routeRepository.findAllById(routeIds).forEach(r -> routeMap.put(r.getId(), r));
+        }
+
+        // Batch-fetch to-driver routes (one query per unique to-driver)
+        Map<UUID, Route> toDriverRouteMap = new java.util.HashMap<>();
+        handoffs.stream().map(Handoff::getToDriverId).filter(Objects::nonNull).distinct().forEach(driverId -> {
+            routeRepository.findByDriverIdAndDateAndStatusIn(
+                    driverId, LocalDate.now(),
+                    List.of(RouteStatus.IN_PROGRESS, RouteStatus.VALIDATED, RouteStatus.DRAFT))
+                    .stream().findFirst().ifPresent(r -> toDriverRouteMap.put(driverId, r));
+        });
+
+        return new HandoffBatchContext(driverMap, orderMap, routeMap, toDriverRouteMap);
+    }
+
+    private com.asm.delivery.dto.response.HandoffResponse toResponse(Handoff h, HandoffBatchContext ctx) {
+        Order order = ctx.orderMap().get(h.getDeliveryId());
         String routeName = null;
         if (h.getRouteId() != null) {
-            routeName = routeRepository.findById(h.getRouteId()).map(Route::getName).orElse(null);
+            Route route = ctx.routeMap().get(h.getRouteId());
+            routeName = route != null ? route.getName() : null;
         }
         String toRouteId = null;
         String toRouteName = null;
         if (h.getToDriverId() != null) {
-            toRouteId = routeRepository.findByDriverIdAndDateAndStatusIn(
-                    h.getToDriverId(), LocalDate.now(),
-                    List.of(RouteStatus.IN_PROGRESS, RouteStatus.VALIDATED, RouteStatus.DRAFT))
-                    .stream().findFirst().map(r -> r.getId().toString()).orElse(null);
-            if (toRouteId != null) {
-                toRouteName = routeRepository.findById(UUID.fromString(toRouteId)).map(Route::getName).orElse(null);
+            Route toRoute = ctx.toDriverRouteMap().get(h.getToDriverId());
+            if (toRoute != null) {
+                toRouteId = toRoute.getId().toString();
+                toRouteName = toRoute.getName();
             }
         }
+        com.asm.delivery.transport.DriverDTO fromDriverDto = h.getFromDriverId() != null
+                ? ctx.driverMap().get(h.getFromDriverId().toString()) : null;
+        com.asm.delivery.transport.DriverDTO toDriverDto = h.getToDriverId() != null
+                ? ctx.driverMap().get(h.getToDriverId().toString()) : null;
+        String fromDriverName = fromDriverDto != null ? fromDriverDto.getName() : null;
+        String toDriverName = toDriverDto != null ? toDriverDto.getName() : null;
         return com.asm.delivery.dto.response.HandoffResponse.builder()
                 .id(h.getId().toString())
                 .state(h.getState() != null ? h.getState().name() : null)
@@ -387,9 +452,9 @@ public class HandoffService {
                 .clientName(order != null ? order.getClientName() : null)
                 .dropoffAddress(order != null ? order.getDropoffAddress() : null)
                 .fromDriverId(h.getFromDriverId() != null ? h.getFromDriverId().toString() : null)
-                .fromDriverName(driverName(h.getFromDriverId()))
+                .fromDriverName(fromDriverName)
                 .toDriverId(h.getToDriverId() != null ? h.getToDriverId().toString() : null)
-                .toDriverName(driverName(h.getToDriverId()))
+                .toDriverName(toDriverName)
                 .requestedAt(h.getRequestedAt())
                 .requestedBy(h.getRequestedBy())
                 .inProgressAt(h.getInProgressAt())

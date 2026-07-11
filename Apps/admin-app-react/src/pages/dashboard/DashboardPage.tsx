@@ -20,7 +20,7 @@ import {
   TrendChartWidget, NeedsAttentionWidget, TopItemsWidget, FailureCausesWidget,
   DriverAvailabilityWidget, ActiveRoutesWidget, QuickActionsWidget,
   CycleTimeWidget, StatusBreakdownWidget, OpsCountersWidget,
-  RadialKpiCard, BulletKpiCard, SparkKpiCard,
+  RadialKpiCard, BulletKpiCard, StatKpiCard,
 } from './widgets';
 import ZoneDemandCards from './ZoneDemandCards';
 
@@ -35,20 +35,24 @@ export default function DashboardPage() {
   const [scope, setScope] = useState<AnalyticsScope>({});
   const [drawerOpen, setDrawerOpen] = useState(false);
   const activeFilterCount = useMemo(() => {
-    const scopeCount = Object.values(scope).filter(v => v != null && v !== '').length;
+    const scopeCount = Object.values(scope).reduce((n, v) => n + (Array.isArray(v) ? v.length : 0), 0);
     return scopeCount + (range !== 'last30d' ? 1 : 0);
   }, [scope, range]);
 
   const {
-    refreshing, isLoading, refetch, stats, today, overdueCount, slaPercent,
-    trend, completionSpark, deliveredSpark, lateSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
-    activeRoutesCount, drivers, driverGroups, healthSummary,
+    refreshing, isLoading, refetch, stats, today, slaPercent,
+    trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev, deliveredSub,
+    activeRoutesCount, drivers, driverGroups,
     laneMap, needsAttention, activeRoutes, focusedRouteId, setFocusedRouteId,
-    driverName, getStatusConfig, kpi, ops, heatmap,
+    driverName, getStatusConfig, kpi, ops,
   } = useDashboardData(range, customFrom, customTo, scope);
 
   const deliveredPct = today?.total ? Math.round((today.delivered / today.total) * 100) : 0;
-  const failedSpark = trend.map(d => Number(d.failed) || 0);
+  // Late = SLA-missed among measurable completed deliveries in the period (event-based, scoped).
+  // Distinct from the live funnel breaches shown in the ops-counters widget.
+  const lateOrders = Number(kpi?.lateOrders) || 0;
+  const measurableOrders = Number(kpi?.measurableOrders) || 0;
+  const lateRatePct = measurableOrders ? (lateOrders / measurableOrders) * 100 : 0;
 
   useEffect(() => {
     const cachedMode = localStorage.getItem('asm_dashboard_view');
@@ -68,7 +72,7 @@ export default function DashboardPage() {
           type="button"
           onClick={() => handleViewChange(viewMode === 'office' ? 'kanban' : 'office')}
           className="w-7 h-7 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
-          title={viewMode === 'office' ? 'Kanban' : 'Tableau'}
+          title={viewMode === 'office' ? 'Kanban' : 'Table'}
         >
           {viewMode === 'office' ? <IconLayoutKanban size={14} /> : <IconTable size={14} />}
         </button>
@@ -125,32 +129,29 @@ export default function DashboardPage() {
               {
                 id: 'kpi-sla', defaultLayout: { w: 2, h: 3, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
                 children: <RadialKpiCard label={t.dashboardPage.slaRateLabel} value={`${slaPercent}%`} pct={slaPercent}
-                  comparison={`${t.dashboardPage.pulseToProcess ?? 'À traiter'} ${overdueCount} · ${t.dashboardPage.pulseServices ?? 'Services'} ${healthSummary.serviceCount > 0 ? `${healthSummary.okServices}/${healthSummary.serviceCount}` : '--'}`}
-                  tone={(today?.total ?? 0) > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
-                  delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} spark={completionSpark} />,
+                  tone={measurableOrders > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
+                  delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} />,
               },
               {
                 id: 'kpi-delivered', defaultLayout: { w: 2, h: 3, x: 2, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <BulletKpiCard label={t.dashboardPage.kpiDelivered || 'Livrées'} value={today?.delivered ?? 0} sub={`/ ${today?.total ?? 0}`}
-                  ratioPct={deliveredPct} comparison={`${deliveredPct}% ${t.dashboardPage.kpiDelivered || 'livrées'}`}
+                children: <BulletKpiCard label={t.dashboardPage?.kpiDelivered ?? 'Delivered'} value={today?.delivered ?? 0} sub={`/ ${today?.total ?? 0}`}
+                  ratioPct={deliveredPct}
                   tone="info"
                   delta={deliveredDelta == null ? undefined : deliveredDelta} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${n.toFixed(0)}%`} />,
               },
               {
                 id: 'kpi-failed', defaultLayout: { w: 2, h: 3, x: 4, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <SparkKpiCard label={t.dashboardPage.kpiFailed || 'Échecs'} value={today?.failed ?? 0} spark={failedSpark}
-                  comparison={today?.total ? `${((today.failed / today.total) * 100).toFixed(1)}% du total` : undefined}
-                  tone="danger" deltaGood="down" />,
+                children: <StatKpiCard label={t.dashboardPage?.kpiFailed ?? 'Failed'} value={today?.failed ?? 0}
+                  tone="danger" delta={failedDelta ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={n => `${n.toFixed(0)}%`} />,
               },
               {
                 id: 'kpi-late', defaultLayout: { w: 3, h: 3, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <BulletKpiCard label={t.dashboardPage.kpiLate || 'Retards'} value={overdueCount} sub={`/ ${today?.total ?? 0}`}
-                  ratioPct={today?.total ? (overdueCount / today.total) * 100 : 0}
-                  comparison={today?.total ? `${((overdueCount / today.total) * 100).toFixed(1)}% en retard` : undefined}
-                  tone="danger" spark={lateSpark} />,
+                children: <BulletKpiCard label={t.dashboardPage?.kpiLate ?? 'Late'} value={lateOrders} sub={`/ ${measurableOrders}`}
+                  ratioPct={lateRatePct}
+                  tone="danger" delta={lateDelta ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={n => `${n.toFixed(0)}%`} />,
               },
-              { id: 'status-breakdown', defaultLayout: { w: 3, h: 5, x: 0, y: 3, minW: 2, minH: 4 }, className: '', children: <StatusBreakdownWidget stats={stats} /> },
-              { id: 'ops-counters', defaultLayout: { w: 3, h: 5, x: 3, y: 3, minW: 2, minH: 3 }, className: '', children: <OpsCountersWidget kpi={kpi} ops={ops} /> },
+              { id: 'status-breakdown', defaultLayout: { w: 3, h: 5, x: 0, y: 3, minW: 2, minH: 4 }, className: '', children: <StatusBreakdownWidget ops={ops} /> },
+              { id: 'ops-counters', defaultLayout: { w: 3, h: 5, x: 3, y: 3, minW: 2, minH: 3 }, className: '', children: <OpsCountersWidget ops={ops} /> },
               { id: 'cycle-time', defaultLayout: { w: 3, h: 6, x: 6, y: 3, minW: 2, minH: 4 }, className: '', children: <CycleTimeWidget stats={stats} /> },
               { id: 'trend-chart', defaultLayout: { w: 6, h: 6, x: 0, y: 8, minW: 4, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
               { id: 'zone-density', defaultLayout: { w: 3, h: 5, x: 6, y: 9, minW: 2, minH: 4 }, className: '', children: <ZoneDemandCards range={range} from={customFrom} to={customTo} /> },
@@ -181,9 +182,9 @@ export default function DashboardPage() {
         /* ── KANBAN VIEW ── */
         <div className="px-6 pb-6 w-full max-w-[1800px] mx-auto flex flex-col flex-1 min-h-0 overflow-hidden animate-fadeIn">
           <div className="pt-4 pb-2 flex items-center justify-between">
-            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{t.dashboardPage.dispatchFlowTitle || 'Flux de Dispatch'}</span>
+            <span className="text-xs font-bold uppercase tracking-wider text-[var(--text-muted)]">{t.dashboardPage?.dispatchFlowTitle ?? 'Dispatch Flow'}</span>
             <button type="button" onClick={() => window.open('/route-builder', '_blank')} className="group flex items-center gap-1 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors cursor-pointer">
-              {t.dashboardPage.plannerButton || 'Planificateur'} <IconArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
+              {t.dashboardPage?.plannerButton ?? 'Planner'} <IconArrowRight size={12} className="group-hover:translate-x-0.5 transition-transform" />
             </button>
           </div>
 
@@ -209,7 +210,7 @@ export default function DashboardPage() {
                       {items.length === 0 ? (
                         <div className="flex flex-col items-center justify-center flex-1 py-12 gap-2 opacity-45">
                           <IconInbox size={18} stroke={1.2} className="text-[var(--text-soft)]" />
-                          <span className="text-2xs font-bold text-[var(--text-soft)]">{t.dashboardPage.emptyState || 'Vide'}</span>
+                          <span className="text-2xs font-bold text-[var(--text-soft)]">{t.dashboardPage?.emptyState ?? 'Empty'}</span>
                         </div>
                       ) : (
                         items.map((d: CardItem, idx: number) => {
@@ -234,7 +235,7 @@ export default function DashboardPage() {
 /** Legacy KPI card kept for PerformancePage (imports { KpiCard } from './DashboardPage'). */
 export function KpiCard({ title, value, subtitle, Icon, color: _color, trend }: { title: string; value: string | number; subtitle: string; Icon: React.ElementType; color?: string; trend?: string }) {
   return (
-    <div className="card p-4">
+    <div className="border border-[var(--border)] rounded-lg p-4">
       <div className="flex items-start justify-between mb-3">
         <span className="text-sm font-medium text-[var(--text-secondary)]">{title}</span>
         <Icon size={16} strokeWidth={1.5} className="text-[var(--text-secondary)]" />

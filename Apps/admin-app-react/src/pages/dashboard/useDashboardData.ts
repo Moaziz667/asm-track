@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { AdminOpsOverview, AnalyticsScope, DashboardStats, DeliveryStatus, Driver } from '@/types';
@@ -28,28 +28,28 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
 
   // Merge scope filters into API params (only non-empty values).
   const scopeParams = useMemo(() => {
-    const p: Record<string, string> = {};
-    if (scope.zone) p.zone = scope.zone;
-    if (scope.driverId) p.driverId = scope.driverId;
-    if (scope.status) p.status = scope.status;
-    if (scope.motif) p.motif = scope.motif;
-    if (scope.city) p.city = scope.city;
-    if (scope.source) p.source = scope.source;
-    if (scope.depot) p.depot = scope.depot;
+    const p: Record<string, string[]> = {};
+    if (scope.zone?.length) p.zone = scope.zone;
+    if (scope.driverId?.length) p.driverId = scope.driverId;
+    if (scope.status?.length) p.status = scope.status;
+    if (scope.motif?.length) p.motif = scope.motif;
+    if (scope.city?.length) p.city = scope.city;
+    if (scope.source?.length) p.source = scope.source;
+    if (scope.depot?.length) p.depot = scope.depot;
     return p;
   }, [scope]);
 
   const { data: dash, isFetching: refreshing, isLoading, refetch } = useQuery({
     queryKey: ['dashboard-overview', range, from ?? '', to ?? '', scopeParams],
     queryFn: async () => {
-      const [sR, oR, driversRes, routesRes, kR, healthRes, heatmapRes] = await Promise.all([
+      const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
         api.get('/api/admin/deliveries/stats', { params: { ...dateParams, ...scopeParams } }),
-        api.get('/api/admin/ops/overview', { params: { ...dateParams, ...scopeParams } }),
+        // LIVE plane — always "now"; only spatial pivots scope it, never the date range.
+        api.get('/api/admin/ops/overview', { params: { ...scopeParams } }),
         api.get('/api/admin/fleet/drivers').catch(() => ({ data: [] })),
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
         api.get('/api/admin/reports/dashboard', { params: { ...dateParams, ...scopeParams, compare: true } }).catch(() => ({ data: null })),
         api.get('/api/admin/system/health').catch(() => ({ data: null })),
-        api.get('/api/admin/reports/zone-heatmap', { params: { ...dateParams, ...scopeParams } }).catch(() => ({ data: { points: [] } })),
       ]);
       const driversData = driversRes.data;
       return {
@@ -59,7 +59,6 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
         drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as Driver[],
         activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
         health: healthRes.data,
-        heatmap: heatmapRes.data ?? { points: [] },
       };
     },
     staleTime: 30_000,
@@ -71,7 +70,6 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
   const drivers = dash?.drivers ?? [];
   const activeRoutesCount = dash?.activeRoutesCount ?? 0;
   const healthData = dash?.health ?? null;
-  const heatmap = dash?.heatmap ?? { points: [] };
 
   const healthSummary = useMemo(() => deriveHealthSummary(healthData), [healthData]);
 
@@ -110,6 +108,16 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
     }, 1500);
   });
 
+  // Cleanup timer on unmount to prevent memory leak.
+  useEffect(() => {
+    return () => {
+      if (invalidateTimer.current != null) {
+        clearTimeout(invalidateTimer.current);
+        invalidateTimer.current = null;
+      }
+    };
+  }, []);
+
   // Reconnect catch-up: refetch once when the socket re-establishes.
   const prevConnected = useRef(connected);
   useEffect(() => {
@@ -120,7 +128,14 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
     prevConnected.current = connected;
   }, [connected, queryClient]);
 
-  const todayIso = useMemo(() => getBusinessDayKey(), []);
+  const [todayIso, setTodayIso] = useState(() => getBusinessDayKey());
+  // Recalculate at midnight so the business day stays correct across day boundaries.
+  useEffect(() => {
+    const now = new Date();
+    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
+    const timer = setTimeout(() => setTodayIso(getBusinessDayKey()), msUntilMidnight + 1000);
+    return () => clearTimeout(timer);
+  }, [todayIso]);
   const { data: todayRoutes = [] } = useRoutes({ from: todayIso, to: todayIso });
   const activeRoutes = useMemo(
     () => todayRoutes.filter(r => r.status === 'VALIDATED' || r.status === 'IN_PROGRESS'),
@@ -141,35 +156,22 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
 
   const today = stats?.today;
   const overdueCount = ops?.sla?.totalBreaches ?? 0;
-  const slaPercent = today?.total ? Math.round((today.delivered / today.total) * 100) : 100;
+  // SLA = on-time compliance from the backend (period, event-based), NOT delivered/total (completion).
+  const slaPercent = kpi?.slaRate != null
+    ? Math.round(kpi.slaRate)
+    : (today?.total ? Math.round((today.delivered / today.total) * 100) : 100);
 
   const trend = useMemo(
     () => (Array.isArray(kpi?.weeklyTrend) ? kpi.weeklyTrend : []) as Array<{ count: number; delivered: number; failed: number }>,
     [kpi],
   );
-  const deliveredSpark = useMemo(() => trend.map(d => Number(d.delivered) || 0), [trend]);
-  const completionSpark = useMemo(
-    () => trend.map(d => { const c = Number(d.count) || 0; return c > 0 ? Math.round(((Number(d.delivered) || 0) / c) * 100) : 100; }),
-    [trend],
-  );
-  const deliveredDelta = useMemo(() => {
-    if (deliveredSpark.length < 14) return null;
-    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
-    const last = sum(deliveredSpark.slice(-7));
-    const prev = sum(deliveredSpark.slice(-14, -7));
-    return prev === 0 ? null : ((last - prev) / prev) * 100;
-  }, [deliveredSpark]);
-  const slaDelta = useMemo(() => {
-    if (completionSpark.length < 14) return null;
-    const avg = (a: number[]) => (a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0);
-    return avg(completionSpark.slice(-7)) - avg(completionSpark.slice(-14, -7));
-  }, [completionSpark]);
-  const lateSpark = useMemo(() => trend.map(d => {
-    const c = Number(d.count) || 0;
-    const del = Number(d.delivered) || 0;
-    const fail = Number(d.failed) || 0;
-    return Math.max(0, c - del - fail);
-  }), [trend]);
+  // Top-KPI deltas — all period-over-period vs the preceding window of equal length (backend compare),
+  // so they track the selected range instead of a fixed last-7-vs-prior-7 slice of the 30-day trend.
+  const pctDelta = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
+  const deliveredDelta = kpi ? pctDelta(Number(kpi.deliveredOrders) || 0, Number(kpi.previousDelivered) || 0) : null;
+  const failedDelta = kpi ? pctDelta(Number(kpi.failedOrders) || 0, Number(kpi.previousFailed) || 0) : null;
+  const lateDelta = kpi ? pctDelta(Number(kpi.lateOrders) || 0, Number(kpi.previousLate) || 0) : null;
+  const slaDelta = (kpi?.slaRate != null && kpi?.previousSlaRate != null) ? kpi.slaRate - kpi.previousSlaRate : null;
 
   const vsPrev = t.dashboardPage.kpiVsPrevPeriod || 'vs prev. period';
   const deliveredSub = deliveredDelta == null ? `/ ${today?.total ?? 0}` : undefined;
@@ -203,10 +205,10 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
 
   return {
     refreshing, isLoading, refetch,
-    stats, ops, kpi, drivers, activeRoutesCount, heatmap,
+    stats, ops, kpi, drivers, activeRoutesCount,
     healthSummary, healthProblemsSummary,
     today, overdueCount, slaPercent,
-    trend, deliveredSpark, completionSpark, lateSpark, deliveredDelta, slaDelta, vsPrev, deliveredSub,
+    trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev, deliveredSub,
     safeDrivers, laneMap, needsAttention, driverGroups,
     activeRoutes, focusedRouteId, setFocusedRouteId,
     driverName, getStatusConfig,

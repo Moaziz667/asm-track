@@ -22,7 +22,7 @@ export function SectionCard({
   contentClassName,
 }: SectionCardProps) {
   return (
-    <div className={cn('card', className)}>
+    <div className={cn('border border-[var(--border)] rounded-lg', className)}>
       {(title || actions) && (
         <div className="flex items-start justify-between gap-3 pl-10 pr-4 py-3 border-b border-[var(--border)]">
           <div>

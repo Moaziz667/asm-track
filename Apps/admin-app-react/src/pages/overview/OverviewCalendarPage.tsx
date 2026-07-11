@@ -78,8 +78,8 @@ export default function OverviewCalendarPage() {
 
   const filterAttributes = useMemo(() => [
     { key: 'zone', label: t.deliveriesPage?.zoneHeader || 'Zone', options: availableZones.map(z => ({ value: z, label: z })) },
-    { key: 'driver', label: t.deliveriesPage?.driverHeader || 'Chauffeur', options: availableDrivers.map(d => ({ value: d, label: d })) },
-    { key: 'status', label: t.deliveriesPage?.statusHeader || 'Statut', options: availableStatuses.map(s => ({ value: s, label: t.statusLabels[s] || s })) },
+    { key: 'driver', label: t.deliveriesPage?.driverHeader || 'Driver', options: availableDrivers.map(d => ({ value: d, label: d })) },
+    { key: 'status', label: t.deliveriesPage?.statusHeader || 'Status', options: availableStatuses.map(s => ({ value: s, label: t.statusLabels[s] || s })) },
   ], [availableZones, availableDrivers, availableStatuses, t]);
 
   const activeFiltersState = useMemo(() => ({
@@ -144,14 +144,14 @@ export default function OverviewCalendarPage() {
               onClick={() => setView('month')}
               className={cn('px-2.5 py-1 text-2xs font-bold rounded-md border transition-colors flex items-center gap-1 h-7 cursor-pointer', view === 'month' ? 'bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]' : 'text-[var(--text-muted)] border-transparent hover:bg-[var(--hover-bg)]')}
             >
-              <IconLayoutGrid size={12} /> {t.overviewPage?.monthView ?? 'Mois'}
+              <IconLayoutGrid size={12} /> {t.overviewPage?.monthView ?? 'Month'}
             </button>
             <button
               type="button"
               onClick={() => setView('week')}
               className={cn('px-2.5 py-1 text-2xs font-bold rounded-md border transition-colors flex items-center gap-1 h-7 cursor-pointer', view === 'week' ? 'bg-[var(--surface)] text-[var(--text-primary)] border-[var(--border)]' : 'text-[var(--text-muted)] border-transparent hover:bg-[var(--hover-bg)]')}
             >
-              <IconTable size={12} /> {t.overviewPage?.weekView ?? 'Semaine'}
+              <IconTable size={12} /> {t.overviewPage?.weekView ?? 'Week'}
             </button>
           </div>
         </div>
@@ -163,9 +163,9 @@ export default function OverviewCalendarPage() {
         onFilterChange={handleFilterChange}
         extraActions={
           <div className="ml-auto flex items-center gap-2">
-            <button onClick={shiftPrev} aria-label={t.overviewPage?.prev ?? 'Précédent'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronLeft size={16} /></button>
-            <button onClick={goToday} className="h-8 px-3 rounded-md border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors">{t.overviewPage?.today ?? "Aujourd'hui"}</button>
-            <button onClick={shiftNext} aria-label={t.overviewPage?.next ?? 'Suivant'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronRight size={16} /></button>
+            <button onClick={shiftPrev} aria-label={t.overviewPage?.prev ?? 'Previous'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronLeft size={16} /></button>
+            <button onClick={goToday} className="h-8 px-3 rounded-md border border-[var(--border)] text-sm font-bold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors">{t.overviewPage?.today ?? 'Today'}</button>
+            <button onClick={shiftNext} aria-label={t.overviewPage?.next ?? 'Next'} className="w-8 h-8 flex items-center justify-center rounded-md border border-[var(--border)] text-[var(--text-muted)] hover:bg-[var(--hover-bg)] transition-colors"><IconChevronRight size={16} /></button>
           </div>
         }
       />

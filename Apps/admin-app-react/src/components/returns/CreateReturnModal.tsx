@@ -127,7 +127,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
 
   const submit = async () => {
     if (!selected) return;
-    if (chosen.length === 0) { showErrorToast(null, m?.errNoItems ?? 'Sélectionnez au moins un article'); return; }
+    if (chosen.length === 0) { showErrorToast(null, m?.errNoItems ?? 'Select at least one item'); return; }
     setSubmitting(true);
     try {
       await api.post('/api/admin/returns', {
@@ -135,10 +135,10 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
         reason,
         items: chosen.map((l) => ({ sku: l.sku, name: l.name, quantity: l.quantity, condition: l.condition, reason: l.reason })),
       });
-      showSuccessToast(m?.created ?? 'Retour créé');
+      showSuccessToast(m?.created ?? 'Return created');
       onCreated();
     } catch (err) {
-      showErrorToast(err, m?.createError ?? 'Échec de la création');
+      showErrorToast(err, m?.createError ?? 'Creation failed');
     } finally {
       setSubmitting(false);
     }
@@ -150,8 +150,8 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
     <AppModal
       opened={open}
       onClose={onClose}
-      title={m?.title ?? 'Nouveau retour (RMA)'}
-      subtitle={m?.subtitle ?? 'À créer sur une livraison déjà livrée.'}
+      title={m?.title ?? 'New Return (RMA)'}
+      subtitle={m?.subtitle ?? 'Create a return from a delivered order.'}
       size="lg"
     >
       <div className="flex flex-col gap-4">
@@ -164,21 +164,21 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder={m?.searchPlaceholder ?? 'Rechercher une livraison livrée (client, réf, BL)…'}
+                placeholder={m?.searchPlaceholder ?? 'Search delivered order (client, ref, BL)…'}
                 className="ps-9"
               />
             </div>
 
             {!search.trim() ? (
               <p className="py-10 text-center text-sm text-[var(--text-soft)]">
-                {mx?.searchPrompt ?? 'Recherchez la livraison concernée par le retour (client, BL, réf ERP)…'}
+                {mx?.searchPrompt ?? 'Search for the delivery related to the return (client, BL, ERP ref)…'}
               </p>
             ) : (
               <div className="flex max-h-[340px] flex-col gap-1.5 overflow-y-auto">
                 {searching ? (
                   Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[58px] w-full rounded-lg" />)
                 ) : results.length === 0 ? (
-                  <p className="py-8 text-center text-sm text-[var(--text-soft)]">{m?.noResults ?? 'Aucune livraison livrée trouvée.'}</p>
+                  <p className="py-8 text-center text-sm text-[var(--text-soft)]">{m?.noResults ?? 'No delivered order found.'}</p>
                 ) : results.map((d) => (
                   <button
                     key={d.deliveryId}
@@ -201,24 +201,24 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
             {/* Selected delivery header */}
             <div className="flex items-center justify-between rounded-lg border border-[var(--border)] bg-[var(--app-bg)] p-3">
               <div className="min-w-0">
-                <p className="truncate text-base font-bold text-[var(--text-primary)]">{selected?.clientName ?? selected?.orderRef ?? (m?.title ?? 'Retour')}</p>
+                <p className="truncate text-base font-bold text-[var(--text-primary)]">{selected?.clientName ?? selected?.orderRef ?? (m?.title ?? 'Return')}</p>
                 <p className="truncate font-mono text-xs text-[var(--text-muted)]">{selected?.blNumber ?? selected?.erpOrderId ?? selected?.deliveryId}</p>
               </div>
               {!prefillDeliveryId && (
-                <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setLines([]); }}>{m?.changeBtn ?? 'Changer'}</Button>
+                <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setLines([]); }}>{m?.changeBtn ?? 'Change'}</Button>
               )}
             </div>
 
             <div className="flex items-center justify-between">
-              <label className="text-xs font-bold text-[var(--text-secondary)]">{m?.itemsLabel ?? 'Articles retournés'}</label>
-              <span className="text-2xs text-[var(--text-soft)]">{mx?.onlyDelivered ?? 'Seuls les articles livrés sont retournables.'}</span>
+              <label className="text-xs font-bold text-[var(--text-secondary)]">{m?.itemsLabel ?? 'Returned items'}</label>
+              <span className="text-2xs text-[var(--text-soft)]">{mx?.onlyDelivered ?? 'Only delivered items can be returned.'}</span>
             </div>
 
             <div className="flex max-h-[300px] flex-col gap-1.5 overflow-y-auto">
               {loadingLines ? (
                 Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)
               ) : lines.length === 0 ? (
-                <p className="py-6 text-center text-sm text-[var(--text-soft)]">{mx?.noLines ?? 'Aucun article livré sur cette livraison.'}</p>
+                <p className="py-6 text-center text-sm text-[var(--text-soft)]">{mx?.noLines ?? 'No delivered items on this order.'}</p>
               ) : lines.map((l, i) => (
                 <div
                   key={i}
@@ -232,7 +232,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                   />
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-semibold text-[var(--text-primary)]">{l.name}</p>
-                    <p className="font-mono text-2xs text-[var(--text-soft)]">{l.sku ?? '—'} · {mx?.deliveredQty ?? 'livré'} ×{l.maxQty}</p>
+                    <p className="font-mono text-2xs text-[var(--text-soft)]">{l.sku ?? '—'} · {mx?.deliveredQty ?? 'delivered'} ×{l.maxQty}</p>
                   </div>
 
                   {/* qty stepper bounded by delivered qty */}
@@ -255,7 +255,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                           key={c}
                           disabled={!l.include}
                           onClick={() => patchLine(i, { condition: c })}
-                          title={isDamaged ? (mx?.hintDamaged ?? 'Mis au rebut, non restocké') : (mx?.hintResellable ?? 'Remis en stock')}
+                          title={isDamaged ? (mx?.hintDamaged ?? 'Scrapped, not restocked') : (mx?.hintResellable ?? 'Restocked')}
                           className="flex items-center gap-1 px-2 py-1.5 text-2xs font-bold transition-colors"
                           style={{
                             background: active ? cc.bg : 'transparent',
@@ -263,7 +263,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
                           }}
                         >
                           {isDamaged ? <IconTrashX size={12} /> : <IconRecycle size={12} />}
-                          {isDamaged ? (m?.conditionDamaged ?? 'Endommagé') : (m?.conditionResellable ?? 'Revendable')}
+                          {isDamaged ? (m?.conditionDamaged ?? 'Damaged') : (m?.conditionResellable ?? 'Resellable')}
                         </button>
                       );
                     })}
@@ -274,24 +274,24 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
 
             {/* condition legend */}
             <div className="flex items-center gap-2 text-2xs text-[var(--text-soft)]">
-              <ConditionPill condition="RESELLABLE" label={mx?.hintResellable ?? 'Revendable → remis en stock'} />
+              <ConditionPill condition="RESELLABLE" label={mx?.hintResellable ?? 'Resellable → restocked'} />
               <span>·</span>
-              <ConditionPill condition="DAMAGED" label={mx?.hintDamaged ?? 'Endommagé → mis au rebut'} />
+              <ConditionPill condition="DAMAGED" label={mx?.hintDamaged ?? 'Damaged → scrapped'} />
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-bold text-[var(--text-secondary)]">{m?.reasonLabel ?? 'Motif du retour'}</label>
-              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={m?.reasonPlaceholder ?? 'Ex. produit défectueux, erreur de commande…'} />
+              <label className="text-xs font-bold text-[var(--text-secondary)]">{m?.reasonLabel ?? 'Return reason'}</label>
+              <Textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder={m?.reasonPlaceholder ?? 'Ex: defective product, wrong order…'} />
             </div>
 
             <div className="flex items-center justify-between border-t border-[var(--border)] pt-3">
               <span className="text-xs text-[var(--text-muted)]">
-                <b className="tabular-nums text-[var(--text-primary)]">{totalUnits}</b> {mx?.unitsWord ?? 'unité(s)'} · {chosen.length} {mx?.linesWord ?? 'ligne(s)'}
+                <b className="tabular-nums text-[var(--text-primary)]">{totalUnits}</b> {mx?.unitsWord ?? 'unit(s)'} · {chosen.length} {mx?.linesWord ?? 'line(s)'}
               </span>
               <div className="flex items-center gap-2">
-                <Button variant="outline" onClick={onClose}>{t.actions?.cancel ?? 'Annuler'}</Button>
+                <Button variant="outline" onClick={onClose}>{t.actions?.cancel ?? 'Cancel'}</Button>
                 <Button onClick={() => void submit()} disabled={submitting || chosen.length === 0} className="gap-1.5">
-                  {submitting ? (m?.creatingBtn ?? 'Création…') : (<><IconPackageExport size={15} /> {m?.createBtn ?? 'Créer le retour'}</>)}
+                  {submitting ? (m?.creatingBtn ?? 'Creating…') : (<><IconPackageExport size={15} /> {m?.createBtn ?? 'Create return'}</>)}
                 </Button>
               </div>
             </div>

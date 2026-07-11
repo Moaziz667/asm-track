@@ -25,11 +25,11 @@ import { AppModal } from '@/components/overlays/AppModal';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { Button } from '@/components/ui/button';
 
-const ZONE_TABLE_COLUMNS: ColumnDef[] = [
-  { id: 'designation', label: 'Désignation', pinned: true },
-  { id: 'coverage',    label: 'Couverture postale' },
-  { id: 'density',     label: 'Codes' },
-  { id: 'status',      label: 'Statut' },
+const ZONE_TABLE_COLUMNS_BASE: ColumnDef[] = [
+  { id: 'designation', label: '', pinned: true },
+  { id: 'coverage',    label: '' },
+  { id: 'density',     label: '' },
+  { id: 'status',      label: '' },
 ];
 import {
   useZones,
@@ -58,6 +58,12 @@ const emptyForm = {
 
 export default function ZonesPage() {
   const t = useT();
+  const ZONE_TABLE_COLUMNS: ColumnDef[] = [
+    { id: 'designation', label: t.common?.zone ?? 'Zone',           pinned: true },
+    { id: 'coverage',    label: t.common?.adresse ?? 'Coverage' },
+    { id: 'density',     label: 'Codes' },
+    { id: 'status',      label: t.common?.statut ?? 'Status' },
+  ];
   const locale = useLocaleStore(state => state.locale);
   const role = getCurrentRole();
   const readOnly = isReadOnlyRole(role);
@@ -554,7 +560,7 @@ export default function ZonesPage() {
                       onClick={() => setForm(p => ({ ...p, postalCodes: [] }))}
                       className="text-2xs font-bold text-[var(--text-muted)] hover:text-red-500 transition-colors"
                     >
-                      Désélectionner tout
+                      {t.common?.info ?? 'Deselect all'}
                     </button>
                   )}
                 </div>
@@ -595,7 +601,7 @@ export default function ZonesPage() {
               selectedCodes={form.postalCodes}
               geometry={form.geometry}
               color={form.color}
-              zoneName={form.name || 'Zone sans nom'}
+              zoneName={form.name || (t.common?.zone ?? 'Unnamed zone')}
               externalCoords={knownCoords}
               onGeometryChange={(geo) => setForm(p => ({ ...p, geometry: geo }))}
               onPostalCodesChange={(codes) => setForm(p => ({ ...p, postalCodes: codes }))}

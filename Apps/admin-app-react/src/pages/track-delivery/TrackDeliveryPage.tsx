@@ -61,9 +61,9 @@ export default function TrackingPage() {
   const stompRef                = useRef<Client | null>(null);
   const t = useT();
 
-  const fetchData = async () => {
+  const fetchData = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/public/track/${deliveryId}`);
+      const res = await fetch(`/api/public/track/${deliveryId}`, { signal });
       if (!res.ok) { setError(true); return; }
       setData(await res.json());
     } catch { setError(true); }
@@ -71,8 +71,9 @@ export default function TrackingPage() {
   };
 
   useEffect(() => {
-    fetchData();
-    const t = setInterval(fetchData, 60_000);
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    const t = setInterval(() => fetchData(), 60_000);
     const baseUrl = import.meta.env.VITE_WS_BASE_URL ?? import.meta.env.VITE_API_BASE_URL
       ?? (typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}` : '');
     const client = new Client({
@@ -89,7 +90,7 @@ export default function TrackingPage() {
     });
     client.activate();
     stompRef.current = client;
-    return () => { clearInterval(t); client.deactivate(); };
+    return () => { controller.abort(); clearInterval(t); client.deactivate(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (loading) return (

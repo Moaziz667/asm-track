@@ -4,7 +4,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { useIsDark } from '@/lib/ui/theme';
-import { useLocaleContext } from '@/lib/i18n/LocaleContext';
+import { useLocaleContext, useT } from '@/lib/i18n/LocaleContext';
 import { routeColorFromMap } from '@/lib/utils';
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -145,6 +145,7 @@ function Camera({ routes, drivers, focusedRouteId, focusedDriverId }: { routes: 
 // ── Main ─────────────────────────────────────────────────────────────────────────
 function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId, onFocusRoute, routeColorMap }: Props) {
   const { locale } = useLocaleContext();
+  const t = useT();
   const [mounted, setMounted] = useState(false);
   const isDark = useIsDark();
   useEffect(() => { setMounted(true); }, []);
@@ -182,8 +183,8 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
     return `Vu il y a ${days} j`;
   };
 
-  const loadingText = locale === 'ar' ? 'جاري تحميل الخريطة…' : locale === 'en' ? 'Loading map…' : 'Chargement de la carte…';
-  const showAllText = locale === 'ar' ? 'عرض الكل' : locale === 'en' ? 'Show All' : 'Tout afficher';
+  const loadingText = t.common?.chargementCarte ?? 'Loading map…';
+  const showAllText = t.common?.toutAfficher ?? 'Show all';
 
   // Show every driver with a known position (last-known included); staleness only dims + labels.
   const visibleDrivers = useMemo(
@@ -273,13 +274,13 @@ function DispatchLiveMapInner({ routes, drivers, focusedRouteId, focusedDriverId
 
   // Localized bottom overlay stats
   const statsLabel = (() => {
-    if (locale === 'ar') {
-      return `${routes.length} رحلات · ${onlineCount} متصل · ${stopCount} محطات`;
-    }
-    if (locale === 'en') {
-      return `${routes.length} route${routes.length !== 1 ? 's' : ''} · ${onlineCount} online · ${stopCount} stop${stopCount !== 1 ? 's' : ''}`;
-    }
-    return `${routes.length} tournée${routes.length !== 1 ? 's' : ''} · ${onlineCount} en ligne · ${stopCount} arrêt${stopCount !== 1 ? 's' : ''}`;
+    const tourneeKey = t.common?.tournee ?? 'Route';
+    const onlineKey = 'online';
+    const arretsKey = t.common?.arrets ?? 'stops';
+    const routeCount = `${routes.length} ${tourneeKey}${routes.length !== 1 ? 's' : ''}`;
+    const onlineCountStr = `${onlineCount} ${onlineKey}`;
+    const stopCountStr = `${stopCount} ${arretsKey}${stopCount !== 1 ? 's' : ''}`;
+    return `${routeCount} · ${onlineCountStr} · ${stopCountStr}`;
   })();
 
   return (

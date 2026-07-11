@@ -30,7 +30,8 @@ if (typeof window !== 'undefined') {
   });
 }
 
-let _isDrawing = false;
+// Shared mutable ref for draw state — avoids prop drilling between GeofenceHandler and MapClickResolver
+const drawingState = { current: false };
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type ResolvedCode = { lat: number; lng: number; name?: string };
@@ -66,12 +67,13 @@ function pointInRing(pt: L.LatLng, ring: L.LatLng[]): boolean {
 async function detectCodes(
   fg: L.FeatureGroup,
   onProgress: (pct: number, msg: string) => void,
+  t: ReturnType<typeof import('@/lib/i18n/LocaleContext').useT>,
 ): Promise<CodeResult[]> {
   const layers: L.Polygon[] = [];
   fg.eachLayer((l: L.Layer & { getLatLngs?: () => unknown; getBounds?: () => unknown }) => { if (l.getLatLngs && l.getBounds) layers.push(l as unknown as L.Polygon); });
   if (layers.length === 0) return [];
 
-  onProgress(10, 'Recherche des codes postaux dans la zone…');
+    onProgress(10, (t as any).zoneSelectorMap?.searchingCodes ?? 'Searching postal codes in zone…');
   const allResults: CodeResult[] = [];
 
   for (const polygon of layers) {
@@ -89,7 +91,7 @@ async function detectCodes(
         signal: controller.signal
       });
       clearTimeout(timeoutId);
-      onProgress(60, 'Lecture des données géographiques…');
+      onProgress(60, (t as any).zoneSelectorMap?.readingData ?? 'Reading geographic data…');
       if (!res.ok) throw new Error(`Overpass HTTP ${res.status}`);
       const data = await res.json();
       if (data.elements?.length) {
@@ -112,7 +114,7 @@ async function detectCodes(
     }
 
     if (!codes.length) {
-      onProgress(70, 'Indisponible — tentative de secours…');
+      onProgress(70, (t as any).zoneSelectorMap?.fallbackAttempt ?? 'Unavailable — fallback attempt…');
       const cLat = (bounds.getNorth() + bounds.getSouth()) / 2;
       const cLng = (bounds.getEast()  + bounds.getWest())  / 2;
       try {
@@ -125,12 +127,12 @@ async function detectCodes(
     }
 
     codes.forEach(r => allResults.push(r));
-    onProgress(95, 'Finalisation de la liste…');
+    onProgress(95, (t as any).zoneSelectorMap?.finalizingList ?? 'Finalizing list…');
   }
 
   const deduped = new Map<string, CodeResult>();
   allResults.forEach(r => { if (!deduped.has(r.code)) deduped.set(r.code, r); });
-  onProgress(100, `${deduped.size} code(s) postal(aux) identifié(s) ✓`);
+  onProgress(100, `${deduped.size} ${(t as any).zoneSelectorMap?.codesFound ?? 'postal code(s) identified ✓'}`);
   return Array.from(deduped.values());
 }
 
@@ -142,9 +144,10 @@ type GeoProps = {
   onPostalCodesChange: (codes: string[]) => void;
   onCoordsFound: (c: CoordMap) => void;
   onProcessing: (active: boolean, pct?: number, msg?: string) => void;
+  t: ReturnType<typeof import('@/lib/i18n/LocaleContext').useT>;
 };
 
-function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCodesChange, onCoordsFound, onProcessing }: GeoProps) {
+function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCodesChange, onCoordsFound, onProcessing, t }: GeoProps) {
   const map = useMap();
   const geoRef   = useRef(onGeometryChange);
   const codeRef  = useRef(onPostalCodesChange);
@@ -171,8 +174,8 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
           map.fitBounds(fg.getBounds(), { padding: [30, 30] });
           const fgRef = fg;
           setTimeout(async () => {
-            procRef.current(true, 0, 'Chargement des épingles…');
-            const results = await detectCodes(fgRef, (pct, msg) => procRef.current(true, pct, msg));
+            procRef.current(true, 0, (t as any).zoneSelectorMap?.loadingPins ?? 'Loading pins…');
+            const results = await detectCodes(fgRef, (pct, msg) => procRef.current(true, pct, msg), t);
             const newCoords: CoordMap = {};
             results.forEach(r => { newCoords[r.code] = { lat: r.lat, lng: r.lng, name: r.name }; });
             coordRef.current(newCoords);
@@ -192,12 +195,12 @@ function GeofenceHandler({ color, initialGeometry, onGeometryChange, onPostalCod
     });
     map.addControl(drawCtrl);
 
-    const onDrawStart = () => { _isDrawing = true; };
-    const onDrawStop  = () => { setTimeout(() => { _isDrawing = false; }, 300); };
+    const onDrawStart = () => { drawingState.current = true; };
+    const onDrawStop  = () => { setTimeout(() => { drawingState.current = false; }, 300); };
     const runUpdate = async (currentFg: L.FeatureGroup) => {
       geoRef.current(JSON.stringify(currentFg.toGeoJSON()));
-      procRef.current(true, 0, 'Analyse du périmètre…');
-      const results = await detectCodes(currentFg, (pct, msg) => procRef.current(true, pct, msg));
+      procRef.current(true, 0, (t as any).zoneSelectorMap?.analyzingPerimeter ?? 'Analyzing perimeter…');
+      const results = await detectCodes(currentFg, (pct, msg) => procRef.current(true, pct, msg), t);
       codeRef.current(results.map(r => r.code));
       const newCoords: CoordMap = {};
       results.forEach(r => { newCoords[r.code] = { lat: r.lat, lng: r.lng, name: r.name }; });
@@ -295,7 +298,7 @@ function MapClickResolver({ selectedCodes, onPostalCodesChange, onCoordsFound }:
 
   useEffect(() => {
     const handler = async (e: L.LeafletMouseEvent) => {
-      if (_isDrawing) return;
+      if (drawingState.current) return;
       const { lat, lng } = e.latlng;
       try {
         const res  = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=12`);
@@ -313,6 +316,46 @@ function MapClickResolver({ selectedCodes, onPostalCodesChange, onCoordsFound }:
   }, [map]);
 
   return null;
+}
+
+// ── Postal code markers (extracted to respect hooks rules) ─────────────────────
+function ZoneMarkers({ selectedCodes, allCoords, color, zoneName, t }: {
+  selectedCodes: string[];
+  allCoords: CoordMap;
+  color?: string;
+  zoneName?: string;
+  t: ReturnType<typeof import('@/lib/i18n/LocaleContext').useT>;
+}) {
+  return useMemo(() => {
+    return selectedCodes
+      .filter(c => allCoords[c])
+      .map(c => {
+        const resolved = allCoords[c];
+        return (
+          <CircleMarker
+            key={c}
+            center={[resolved.lat, resolved.lng]}
+            radius={6}
+            pathOptions={{
+              fillColor: color || '#2563eb',
+              color: '#ffffff',
+              weight: 2,
+              fillOpacity: 0.9,
+            }}
+          >
+            <Popup>
+              {resolved.name && (
+                <p className="text-base font-bold mb-0.5">{resolved.name}</p>
+              )}
+              <p className="text-sm text-gray-500">{(t as any).zoneSelectorMap?.postalCode ?? 'Postal code'}: <strong>{c}</strong></p>
+              {zoneName && (
+                <p className="text-sm text-gray-500 mt-1">{(t as any).zoneSelectorMap?.zone ?? 'Zone'}: {zoneName}</p>
+              )}
+            </Popup>
+          </CircleMarker>
+        );
+      });
+  }, [selectedCodes, allCoords, color, zoneName]);
 }
 
 // ── Main export ───────────────────────────────────────────────────────────────
@@ -379,6 +422,7 @@ function ZoneSelectorMapInner({
             setProgress(pct);
             setProgressMsg(msg);
           }}
+          t={t}
         />
 
         <MapClickResolver
@@ -387,49 +431,27 @@ function ZoneSelectorMapInner({
           onCoordsFound={handleCoordsFound}
         />
 
-        {useMemo(() => {
-          return selectedCodes
-            .filter(c => allCoords[c])
-            .map(c => {
-              const resolved = allCoords[c];
-              return (
-                <CircleMarker
-                  key={c}
-                  center={[resolved.lat, resolved.lng]}
-                  radius={6}
-                  pathOptions={{
-                    fillColor: color || '#2563eb',
-                    color: '#ffffff',
-                    weight: 2,
-                    fillOpacity: 0.9,
-                  }}
-                >
-                  <Popup>
-                    {resolved.name && (
-                      <p className="text-base font-bold mb-0.5">{resolved.name}</p>
-                    )}
-                    <p className="text-sm text-gray-500">Code postal : <strong>{c}</strong></p>
-                    {zoneName && (
-                      <p className="text-sm text-gray-500 mt-1">Zone : {zoneName}</p>
-                    )}
-                  </Popup>
-                </CircleMarker>
-              );
-            });
-        }, [selectedCodes, allCoords, color, zoneName])}
+        <ZoneMarkers
+          selectedCodes={selectedCodes}
+          allCoords={allCoords}
+          color={color}
+          zoneName={zoneName}
+          t={t}
+        />
       </MapContainer>
     </div>
   );
 }
 
 export default function ZoneSelectorMap(props: ZoneSelectorMapProps) {
+  const t = useT();
   return (
     <ErrorBoundary fallback={
       <div className="w-full h-full min-h-[400px] bg-[var(--surface-2)] flex flex-col items-center justify-center border border-[var(--border)] rounded-xs p-6 text-center">
-        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">Interface Zone-Orchestrateur Indisponible</p>
-        <p className="text-2xs text-[var(--text-muted)] mb-4">Le module de sectorisation géographique n'a pas pu être chargé.</p>
+        <p className="text-xs text-[var(--text-strong)] font-bold mb-2">{(t as any).zoneSelectorMap?.errorTitle ?? 'Zone Selector Unavailable'}</p>
+        <p className="text-2xs text-[var(--text-muted)] mb-4">{(t as any).zoneSelectorMap?.errorDesc ?? 'The geographic zoning module could not be loaded.'}</p>
         <button onClick={() => window.location.reload()} className="px-3 py-1 bg-[var(--brand)] text-white text-2xs rounded-xs font-medium hover:opacity-90 transition">
-          Actualiser la page
+          {(t as any).zoneSelectorMap?.errorRefresh ?? 'Refresh page'}
         </button>
       </div>
     }>

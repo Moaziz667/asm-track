@@ -15,6 +15,7 @@ export type OpsException = {
   clientName?: string;
   city?: string;
   zoneName?: string;
+  depotName?: string;
   severity: string;
   slaPhase?: string;
   slaHealth?: string;

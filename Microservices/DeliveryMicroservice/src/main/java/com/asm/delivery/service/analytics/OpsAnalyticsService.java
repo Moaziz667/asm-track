@@ -20,6 +20,7 @@ import jakarta.persistence.Query;
 import jakarta.persistence.TypedQuery;
 import jakarta.persistence.criteria.*;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,6 +29,7 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Duration;
+import java.util.Set;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -37,16 +39,13 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class OpsAnalyticsService {
 
-    @Value("${ops.sla.waiting-limit-minutes:15}")
-    private int waitingLimitMinutes;
-
-    @Value("${ops.sla.assign-limit-minutes:20}")
-    private int assignLimitMinutes;
-
-    @Value("${ops.sla.waiting-minutes:15}")
-    private int waitingSlaMinutes;
+    /** Whitelist of Delivery entity fields safe for dynamic JPQL construction (prevents injection). */
+    private static final java.util.Set<String> ALLOWED_JPQL_FIELDS = java.util.Set.of(
+            "createdAt", "completedAt", "inTransitAt", "assignedAt", "failedAt", "cancelledAt", "updatedAt"
+    );
 
     private final EntityManager entityManager;
     private final DeliveryRepository deliveryRepo;
@@ -56,10 +55,13 @@ public class OpsAnalyticsService {
     private final ZoneRepository zoneRepository;
     private final DeliveryStatusHistoryRepository historyRepo;
     private final DelayCalculationService delayCalculationService;
+    private final ZoneResolver zoneResolver;
     private final com.asm.delivery.sla.SlaStateRepository slaStateRepository;
     private final com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     private final ExceptionClassifier exceptionClassifier;
     private final com.asm.delivery.service.analytics.filter.PeriodResolver periodResolver;
+    private final com.asm.delivery.repository.AuditLogRepository auditLogRepository;
+    private final com.asm.delivery.repository.DepotRepository depotRepository;
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats(String period, LocalDate from, LocalDate to) {
@@ -93,37 +95,13 @@ public class OpsAnalyticsService {
 
     /** Build the full server-side pivot filter from the unified query (resolves zone name → id). */
     private AnalyticsFilter toFilter(AnalyticsQuery q) {
-        return new AnalyticsFilter(q.getDriverId(), resolveZoneId(q.getZone()), q.getStatus(), q.getMotif(),
+        return new AnalyticsFilter(q.getDriverId(), zoneResolver.resolveAll(q.getZone()), q.getStatus(), q.getMotif(),
                 q.getCity(), q.getSource(), q.getDepot());
-    }
-
-    /** Resolve a zone name to its id; null/blank or unknown name yields null (no filter). */
-    private UUID resolveZoneId(String zoneName) {
-        if (zoneName == null || zoneName.isBlank()) return null;
-        return zoneRepository.findAll().stream()
-                .filter(z -> zoneName.trim().equalsIgnoreCase(z.getName()))
-                .map(Zone::getId)
-                .findFirst()
-                .orElse(null);
     }
 
         @Transactional(readOnly = true)
         public AdminStatsResponse getStats() {
                 return getStats("day", null, null);
-        }
-
-        @Transactional(readOnly = true)
-        public AdminOpsOverviewResponse getOpsOverview(String period,
-                                                                                                   LocalDate from,
-                                                                                                   LocalDate to,
-                                                                                                   Integer waitingSlaOverride,
-                                                                                                   Integer transitSlaOverride) {
-                return buildOpsOverview(period, from, to, 200, 100, waitingSlaOverride, transitSlaOverride);
-    }
-
-        @Transactional(readOnly = true)
-        public AdminOpsOverviewResponse getOpsOverview(String period, LocalDate from, LocalDate to) {
-                return getOpsOverview(period, from, to, null, null);
         }
 
         /** Unified entry: granular time (PeriodResolver) + server-side scope (driver/zone). */
@@ -134,53 +112,6 @@ public class OpsAnalyticsService {
                 StatsRange range = new StatsRange(pr.label(), pr.start(), pr.end());
                 AnalyticsFilter filter = toFilter(q);
                 return buildOpsOverview(range, filter, 200, 100, null, null);
-        }
-
-        @Transactional(readOnly = true)
-        public AdminOpsLanesResponse getOpsLanes(String period,
-                                                                                         LocalDate from,
-                                                                                         LocalDate to,
-                                                                                         Integer topItems,
-                                                                                         Integer waitingSlaOverride,
-                                                                                         Integer transitSlaOverride) {
-        int top = topItems == null || topItems < 1 ? 100 : Math.min(topItems, 500);
-                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, top, 100, waitingSlaOverride, transitSlaOverride);
-        return AdminOpsLanesResponse.builder()
-                .generatedAt(overview.getGeneratedAt())
-                .period(overview.getPeriod())
-                .periodStart(overview.getPeriodStart())
-                .periodEnd(overview.getPeriodEnd())
-                .lanes(overview.getLanes())
-                .build();
-    }
-
-        @Transactional(readOnly = true)
-        public AdminOpsLanesResponse getOpsLanes(String period, LocalDate from, LocalDate to, Integer topItems) {
-                return getOpsLanes(period, from, to, topItems, null, null);
-        }
-
-        @Transactional(readOnly = true)
-        public AdminOpsAlertsResponse getOpsAlerts(String period,
-                                                                                           LocalDate from,
-                                                                                           LocalDate to,
-                                                                                           Integer limit,
-                                                                                           Integer waitingSlaOverride,
-                                                                                           Integer transitSlaOverride) {
-        int max = limit == null || limit < 1 ? 100 : Math.min(limit, 500);
-                AdminOpsOverviewResponse overview = buildOpsOverview(period, from, to, 100, max, waitingSlaOverride, transitSlaOverride);
-        return AdminOpsAlertsResponse.builder()
-                .generatedAt(overview.getGeneratedAt())
-                .period(overview.getPeriod())
-                .periodStart(overview.getPeriodStart())
-                .periodEnd(overview.getPeriodEnd())
-                .sla(overview.getSla())
-                .alerts(overview.getExceptions())
-                .build();
-    }
-
-        @Transactional(readOnly = true)
-        public AdminOpsAlertsResponse getOpsAlerts(String period, LocalDate from, LocalDate to, Integer limit) {
-                return getOpsAlerts(period, from, to, limit, null, null);
         }
 
         @Transactional(readOnly = true)
@@ -275,7 +206,7 @@ public class OpsAnalyticsService {
                 .toList();
 
         return AdminOpsAuditResponse.builder()
-                .generatedAt(LocalDateTime.now())
+                .generatedAt(periodResolver.now())
                 .period(range.period())
                 .periodStart(range.start())
                 .periodEnd(range.end())
@@ -308,7 +239,7 @@ public class OpsAnalyticsService {
 
         Map<UUID, String> zoneNameById = fetchZoneNames(zoneIds);
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = periodResolver.now();
         String motifQuery = StringUtils.hasText(motif) ? motif.trim().toLowerCase(Locale.ROOT) : null;
         String zoneQuery = StringUtils.hasText(zone) ? zone.trim().toLowerCase(Locale.ROOT) : null;
 
@@ -331,6 +262,19 @@ public class OpsAnalyticsService {
                     return (bTime != null ? bTime : LocalDateTime.MIN).compareTo(aTime != null ? aTime : LocalDateTime.MIN);
                 })
                 .toList();
+
+        // Denormalize the source depot name onto each item so the client can filter by depot.
+        Map<UUID, UUID> depotIdByDelivery = deliveries.stream()
+                .filter(d -> d.getSourceDepotId() != null)
+                .collect(Collectors.toMap(Delivery::getId, Delivery::getSourceDepotId, (a, b) -> a));
+        if (!depotIdByDelivery.isEmpty()) {
+            Map<UUID, String> depotNameById = depotRepository.findAllById(new HashSet<>(depotIdByDelivery.values())).stream()
+                    .collect(Collectors.toMap(com.asm.delivery.entity.Depot::getId, com.asm.delivery.entity.Depot::getName));
+            filteredItems.forEach(item -> {
+                UUID depotId = depotIdByDelivery.get(item.getDeliveryId());
+                if (depotId != null) item.setDepotName(depotNameById.get(depotId));
+            });
+        }
 
         int max = limit == null || limit < 1 ? 50 : Math.min(limit, 200);
         List<AdminOpsExceptionsResponse.ExceptionItem> pagedItems = filteredItems.stream()
@@ -368,9 +312,13 @@ public class OpsAnalyticsService {
                 .where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("updatedAt")), cb.desc(root.get("createdAt")));
 
-        return entityManager.createQuery(cq)
+        List<Delivery> results = entityManager.createQuery(cq)
                 .setMaxResults(1000)
                 .getResultList();
+        if (results.size() == 1000) {
+            log.warn("doFetchAllDeliveries truncated to 1000 results — some deliveries may be missing from analytics");
+        }
+        return results;
     }
 
     @Transactional(readOnly = true)
@@ -380,44 +328,47 @@ public class OpsAnalyticsService {
                 .filter(z -> zoneIds.contains(z.getId()))
                 .collect(Collectors.toMap(Zone::getId, Zone::getName));
     }
-    private AdminOpsOverviewResponse buildOpsOverview(String period,
-                                                      LocalDate from,
-                                                      LocalDate to,
-                                                      int topItems,
-                                                      int alertLimit,
-                                                      Integer waitingSlaOverride,
-                                                      Integer transitSlaOverride) {
-        return buildOpsOverview(resolveRange(period, from, to), AnalyticsFilter.NONE,
-                topItems, alertLimit, waitingSlaOverride, transitSlaOverride);
-    }
-
     private AdminOpsOverviewResponse buildOpsOverview(StatsRange range,
                                                       AnalyticsFilter filter,
                                                       int topItems,
                                                       int alertLimit,
                                                       Integer waitingSlaOverride,
                                                       Integer transitSlaOverride) {
-        int waitingSlaMins = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
-        int assignSlaMins = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
+        int waitingSlaMins = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", 30);
+        int assignSlaMins = systemSettingsService.getInt("ops.sla.assign-limit-minutes", 45);
         int pickupSlaMins = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 6);
 
         int effectiveWaitingSlaMinutes = normalizeSlaThreshold(waitingSlaOverride, waitingSlaMins, "waitingSlaMinutes");
 
-        // 1. Transactional DB fetch (server-side scope filter applied here)
-        List<Delivery> scopedDeliveries = doFetchDeliveries(range, filter);
+        // 1. LIVE fetch — the operational plane is "now", never bounded by the date range.
+        //    Open deliveries of any age + terminal deliveries from the current business day.
+        LocalDateTime todayStart = periodResolver.now().toLocalDate().atStartOfDay();
+        List<Delivery> scopedDeliveries = doFetchLiveDeliveries(filter, todayStart);
+        boolean truncated = scopedDeliveries.size() >= 1000;
 
         // 2. HTTP/External calls (OUTSIDE transaction)
         Map<String, DriverDTO> driverMap = loadDriverMap(scopedDeliveries);
         Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(scopedDeliveries);
 
+        // Batch-load zones to avoid N+1 findById in toSummaryResponse
+        Set<UUID> zoneIds = scopedDeliveries.stream()
+                .map(d -> d.getOrder())
+                .filter(o -> o != null && o.getZoneId() != null)
+                .map(o -> o.getZoneId())
+                .collect(Collectors.toSet());
+        Map<UUID, Zone> zoneMap = zoneIds.isEmpty() ? Map.of()
+                : zoneRepository.findAll().stream()
+                        .filter(z -> zoneIds.contains(z.getId()))
+                        .collect(Collectors.toMap(Zone::getId, z -> z));
+
         List<AdminDeliverySummaryResponse> summaries = scopedDeliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()));
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap);
                 })
                 .toList();
 
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = periodResolver.now();
 
         // Assignment lead-time breach: unassigned and past (scheduledAt − leadTime). Falls back to
         // legacy "since creation > threshold" only when the order has no ERP scheduled date.
@@ -482,6 +433,9 @@ public class OpsAnalyticsService {
                 .period(range.period())
                 .periodStart(range.start())
                 .periodEnd(range.end())
+                .truncated(truncated)
+                .reassignedToday(auditLogRepository.countByActionContainingAndCreatedAtGreaterThanEqual("REASSIGN", todayStart))
+                .replannedToday(auditLogRepository.countByActionContainingAndCreatedAtGreaterThanEqual("REPLAN", todayStart))
                 .sla(AdminOpsOverviewResponse.SlaSnapshot.builder()
                         .waitingThresholdMinutes(effectiveWaitingSlaMinutes)
                         .assignThresholdMinutes(assignSlaMins)
@@ -498,32 +452,55 @@ public class OpsAnalyticsService {
                 .build();
     }
 
-    @Transactional(readOnly = true)
-    public List<Delivery> doFetchDeliveries(StatsRange range) {
-        return doFetchDeliveries(range, AnalyticsFilter.NONE);
-    }
+    private static final List<DeliveryStatus> LIVE_OPEN_STATUSES = List.of(
+            DeliveryStatus.UNSCHEDULED, DeliveryStatus.SCHEDULED, DeliveryStatus.PICKED_UP,
+            DeliveryStatus.IN_TRANSIT, DeliveryStatus.AWAITING_HANDOFF);
+    private static final List<DeliveryStatus> LIVE_TERMINAL_STATUSES = List.of(
+            DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
+            DeliveryStatus.FAILED, DeliveryStatus.CANCELLED);
 
+    /**
+     * LIVE operational fetch: every open delivery regardless of age, plus terminal deliveries whose
+     * outcome landed on the current business day. The date range never bounds this — the operational
+     * plane answers "what needs attention now", not "what happened over a window".
+     */
     @Transactional(readOnly = true)
-    public List<Delivery> doFetchDeliveries(StatsRange range, AnalyticsFilter filter) {
+    public List<Delivery> doFetchLiveDeliveries(AnalyticsFilter filter, LocalDateTime todayStart) {
         TypedQuery<Delivery> query = entityManager.createQuery(
-                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE d.createdAt BETWEEN :start AND :end"
-                        + filter.jpql() + " ORDER BY d.createdAt DESC",
+                "SELECT d FROM Delivery d JOIN FETCH d.order o WHERE ("
+                        + "d.status IN :openStatuses "
+                        + "OR (d.status IN :terminalStatuses AND COALESCE(d.completedAt, d.failedAt, d.cancelledAt, d.createdAt) >= :todayStart)"
+                        + ")" + filter.jpql() + " ORDER BY d.createdAt DESC",
                 Delivery.class
         );
-        query.setParameter("start", range.start());
-        query.setParameter("end", range.end());
+        query.setParameter("openStatuses", LIVE_OPEN_STATUSES);
+        query.setParameter("terminalStatuses", LIVE_TERMINAL_STATUSES);
+        query.setParameter("todayStart", todayStart);
         filter.bind(query);
         query.setMaxResults(1000);
-        return query.getResultList();
+        List<Delivery> results = query.getResultList();
+        if (results.size() == 1000) {
+            log.warn("doFetchLiveDeliveries truncated to 1000 — the live board may be missing items");
+        }
+        return results;
     }
 
-    /** Bulk-fetch all unique drivers needed for a list of deliveries. */
+    /** Bulk-fetch all unique drivers needed for a list of deliveries (single batch HTTP call). */
     private Map<String, DriverDTO> loadDriverMap(List<Delivery> deliveries) {
         Map<String, DriverDTO> map = new HashMap<>();
+        try {
+            for (DriverDTO d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null) map.put(d.getId(), d);
+            }
+        } catch (Exception e) {
+            // fallback: empty map — driver names will be null
+        }
+        // Pick up drivers not in available list (deactivated / invited) via individual calls
         deliveries.stream()
                 .map(Delivery::getDriverId)
                 .filter(Objects::nonNull)
                 .map(UUID::toString)
+                .filter(id -> !map.containsKey(id))
                 .distinct()
                 .forEach(id -> {
                     DriverDTO dto = transportPort.getDriver(id);
@@ -565,13 +542,13 @@ public class OpsAnalyticsService {
                 ));
     }
 
-    private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo) {
+    private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo, Map<UUID, Zone> zoneMap) {
         Order order = d.getOrder();
         String orderRef = order != null ? order.resolveRef() : "-";
 
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
         Zone zone = (order != null && order.getZoneId() != null)
-                ? zoneRepository.findById(order.getZoneId()).orElse(null)
+                ? zoneMap.get(order.getZoneId())
                 : null;
         return AdminDeliverySummaryResponse.builder()
                 .deliveryId(d.getId())
@@ -710,17 +687,26 @@ public class OpsAnalyticsService {
         private AdminStatsResponse.TodayStats buildTodayStats(LocalDateTime start, LocalDateTime end, String period, AnalyticsFilter filter) {
         long total     = countByCreatedAt(start, end, filter);
         long delivered = countByField("completedAt", start, end, filter);
-        long failed    = countStatusWithin("createdAt", DeliveryStatus.FAILED, start, end, filter);
+        // Failures are EVENT-based: anchored on failedAt, which survives a replan (kept for reporting,
+        // see ExceptionResolutionService). A reprogrammed échec therefore stays counted as a failure of
+        // the period — it does NOT "heal" when its status flips back to SCHEDULED/UNSCHEDULED.
+        long failed        = countByField("failedAt", start, end, filter);
+        long stillFailed   = countStatusWithin("failedAt", DeliveryStatus.FAILED, start, end, filter);
+        long reprogrammed  = Math.max(0, failed - stillFailed); // failed then replanned = recovery signal
         long inTransit = countStatusWithin("inTransitAt", DeliveryStatus.IN_TRANSIT, start, end, filter)
                        + countStatusWithin("inTransitAt", DeliveryStatus.AWAITING_HANDOFF, start, end, filter);
         long waiting   = countStatusWithin("createdAt", DeliveryStatus.UNSCHEDULED, start, end, filter);
         long assigned  = countStatusWithin("assignedAt", DeliveryStatus.SCHEDULED, start, end, filter);
         long partial   = countStatusWithin("createdAt", DeliveryStatus.PARTIALLY_DELIVERED, start, end, filter);
-        double successRate = total > 0 ? ((double) delivered / total) * 100.0 : 0.0;
+        // Rate over RESOLVED outcomes (delivered + failed), both event-anchored on the same window —
+        // no longer mixes createdAt-cohort volume with completedAt-window outcomes.
+        long resolved = delivered + failed;
+        double successRate = resolved > 0 ? ((double) delivered / resolved) * 100.0 : 0.0;
         double partialRate = total > 0 ? ((double) partial / total) * 100.0 : 0.0;
 
         return AdminStatsResponse.TodayStats.builder()
                 .total(total).delivered(delivered).failed(failed)
+                .reprogrammed(reprogrammed)
                 .inTransit(inTransit).waiting(waiting).assigned(assigned)
                 .successRate(round2(successRate))
                 .partialRate(round2(partialRate))
@@ -752,6 +738,9 @@ public class OpsAnalyticsService {
     }
 
     private long countByField(String fieldName, LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        if (!ALLOWED_JPQL_FIELDS.contains(fieldName)) {
+            throw new IllegalArgumentException("Invalid JPQL field: " + fieldName);
+        }
         TypedQuery<Long> q = entityManager.createQuery(
                 "SELECT COUNT(d) FROM Delivery d WHERE d." + fieldName + " BETWEEN :start AND :end" + filter.jpql(), Long.class)
                 .setParameter("start", start).setParameter("end", end);
@@ -760,6 +749,9 @@ public class OpsAnalyticsService {
     }
 
     private long countStatusWithin(String timestampField, DeliveryStatus status, LocalDateTime start, LocalDateTime end, AnalyticsFilter filter) {
+        if (!ALLOWED_JPQL_FIELDS.contains(timestampField)) {
+            throw new IllegalArgumentException("Invalid JPQL field: " + timestampField);
+        }
         TypedQuery<Long> q = entityManager.createQuery(
                 "SELECT COUNT(d) FROM Delivery d WHERE d.status = :status AND d." + timestampField + " BETWEEN :start AND :end" + filter.jpql(),
                 Long.class)
@@ -863,19 +855,38 @@ public class OpsAnalyticsService {
     /**
      * Enriches the stats response with driver names from the Transport microservice.
      * This is done outside the database transaction to prevent connection pool exhaustion.
+     * Uses a single batch fetch via getAvailableDrivers() to avoid N+1 HTTP calls.
      */
     public void enrichDriverNames(AdminStatsResponse response) {
         if (response == null || response.getByDriver() == null) return;
 
+        // Batch-fetch all available drivers once, build a lookup map.
+        java.util.Map<String, String> nameMap = new java.util.HashMap<>();
+        try {
+            for (DriverDTO d : transportPort.getAvailableDrivers()) {
+                if (d.getId() != null && d.getName() != null) {
+                    nameMap.put(d.getId(), d.getName());
+                }
+            }
+        } catch (Exception e) {
+            // Fallback: individual calls below
+        }
+
         for (AdminStatsResponse.DriverStats ds : response.getByDriver()) {
             if (ds.getDriverId() != null) {
-                try {
-                    DriverDTO dto = transportPort.getDriver(ds.getDriverId());
-                    if (dto != null) {
-                        ds.setDriverName(dto.getName());
+                String cached = nameMap.get(ds.getDriverId());
+                if (cached != null) {
+                    ds.setDriverName(cached);
+                } else {
+                    try {
+                        DriverDTO dto = transportPort.getDriver(ds.getDriverId());
+                        if (dto != null) {
+                            ds.setDriverName(dto.getName());
+                            nameMap.put(ds.getDriverId(), dto.getName());
+                        }
+                    } catch (Exception e) {
+                        ds.setDriverName("Livreur " + ds.getDriverId().substring(0, 8));
                     }
-                } catch (Exception e) {
-                    ds.setDriverName("Livreur " + ds.getDriverId().substring(0, 8));
                 }
             }
         }

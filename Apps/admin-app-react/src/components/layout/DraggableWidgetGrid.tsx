@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Responsive, WidthProvider, Layout, LayoutItem, ResponsiveLayouts } from 'react-grid-layout/legacy';
 import { useLocaleStore } from '@/lib/i18n';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -85,16 +85,37 @@ export function DraggableWidgetGrid({
   });
 
   const [mounted, setMounted] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    // One-time cleanup: remove orphaned widget-grid keys from pre-RTL layout system
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('widget-grid:') && !key.endsWith('-ltr') && !key.endsWith('-rtl-v2')) {
+          localStorage.removeItem(key);
+        }
+      }
+    } catch { /* private mode — ignore */ }
   }, []);
 
-  const handleLayoutChange = (currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
+  // Cleanup pending save timer on unmount.
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current != null) clearTimeout(saveTimerRef.current);
+    };
+  }, []);
+
+  const handleLayoutChange = (_currentLayout: Layout, allLayouts: ResponsiveLayouts) => {
     setLayouts(allLayouts);
-    try {
-      localStorage.setItem(fullStorageKey, JSON.stringify(allLayouts));
-    } catch { /* ignore */ }
+    // Debounce localStorage writes — during a drag, this fires on every pixel move.
+    if (saveTimerRef.current != null) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(() => {
+      try {
+        localStorage.setItem(fullStorageKey, JSON.stringify(allLayouts));
+      } catch { /* ignore */ }
+    }, 300);
   };
 
   const handleReset = () => {

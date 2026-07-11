@@ -16,7 +16,8 @@ import type { OpsException } from './types';
 import { formatMotif, formatComment, formatSuggestion } from './formatters';
 import { rowId } from './utils';
 import { DispatchDeskProvider, useDispatchDeskContext } from './hooks/useDispatchDeskState';
-import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { PageFilterBar, type ActiveFilterValue } from '@/components/layout/PageFilterBar';
+import { useDepots } from '@/hooks/useDepots';
 import { DispatchTabs } from './components/DispatchTabs';
 
 // ── PageFilterBar bridge — reads from dispatch context ───────────────────────
@@ -27,11 +28,14 @@ function DispatchPageFilterBar() {
     search, setSearch,
     driverId, setDriverId, drivers,
     zoneFilter, setZoneFilter, zones,
+    depotFilter, setDepotFilter,
     statusFilter, setStatusFilter,
     period, setPeriod,
     refreshing, doRefresh,
     clearFilters,
   } = useDispatchDeskContext();
+  const { data: depots = [] } = useDepots();
+  const activeDepots = depots.filter(d => d.isActive);
 
   const filterAttributes = [
     {
@@ -52,18 +56,20 @@ function DispatchPageFilterBar() {
     {
       key: 'driver',
       label: t.dispatchDeskPage.filterDriver,
-      options: [
-        { value: '', label: t.dispatchDeskPage.filterDriverNoFilter },
-        ...drivers.map(d => ({ value: d.id, label: d.name })),
-      ],
+      multi: true,
+      options: drivers.map(d => ({ value: d.id, label: d.name })),
     },
     {
       key: 'zone',
       label: t.dispatchDeskPage.filterZone,
-      options: [
-        { value: '', label: t.dispatchDeskPage.filterZoneGlobal },
-        ...(zones ?? []).map((z: { name: string }) => ({ value: z.name, label: z.name })),
-      ],
+      multi: true,
+      options: (zones ?? []).map((z: { name: string }) => ({ value: z.name, label: z.name })),
+    },
+    {
+      key: 'depot',
+      label: t.common?.depot ?? 'Dépôt',
+      multi: true,
+      options: activeDepots.map(d => ({ value: d.name, label: d.name })),
     },
     {
       key: 'period',
@@ -77,18 +83,31 @@ function DispatchPageFilterBar() {
     },
   ];
 
-  const activeFilters: Record<string, string> = {
+  const activeFilters: Record<string, ActiveFilterValue> = {
     ...(statusFilter ? { status: statusFilter } : {}),
-    ...(driverId     ? { driver: driverId }      : {}),
-    ...(zoneFilter   ? { zone: zoneFilter }       : {}),
-    ...(period !== 'all' ? { period }             : {}),
+    ...(driverId.length   ? { driver: driverId } : {}),
+    ...(zoneFilter.length ? { zone: zoneFilter } : {}),
+    ...(depotFilter.length ? { depot: depotFilter } : {}),
+    ...(period !== 'all' ? { period } : {}),
   };
 
+  // Multi keys toggle the clicked value; null clears the whole key. Single keys (status/period) replace.
+  const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, arr: string[], v: string) =>
+    setter(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
   const handleFilterChange = (key: string, value: string | null) => {
-    if (key === 'status') setStatusFilter(value ?? '');
-    else if (key === 'driver') setDriverId(value ?? '');
-    else if (key === 'zone')   setZoneFilter(value ?? '');
-    else if (key === 'period') setPeriod((value ?? 'all') as Parameters<typeof setPeriod>[0]);
+    if (value === null) {
+      if (key === 'driver') setDriverId([]);
+      else if (key === 'zone') setZoneFilter([]);
+      else if (key === 'depot') setDepotFilter([]);
+      else if (key === 'status') setStatusFilter('');
+      else if (key === 'period') setPeriod('all');
+      return;
+    }
+    if (key === 'status') setStatusFilter(value);
+    else if (key === 'driver') toggle(setDriverId, driverId, value);
+    else if (key === 'zone')   toggle(setZoneFilter, zoneFilter, value);
+    else if (key === 'depot')  toggle(setDepotFilter, depotFilter, value);
+    else if (key === 'period') setPeriod(value as Parameters<typeof setPeriod>[0]);
   };
 
   const hasAny = Object.keys(activeFilters).length > 0 || !!search;
@@ -110,7 +129,7 @@ function DispatchPageFilterBar() {
             onClick={clearFilters}
             className="h-8 px-2.5 flex items-center gap-1 border border-[var(--border)] rounded text-sm font-[500] text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:border-[var(--border-strong)] transition-colors"
           >
-            ✕ Clear
+            ✕ {t.common?.clear ?? 'Clear'}
           </button>
         ) : undefined
       }

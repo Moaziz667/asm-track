@@ -67,15 +67,15 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
   const s = t.failureReasonsSettings;
   const catLabel = (c: string) => (t.failureCodes as Record<string, string>)[c] ?? c;
   const scopeLabel = (sc: string) =>
-    (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Livraison', ITEM: 'Article', BOTH: 'Les deux' } as Record<string, string>)[sc] ?? sc;
+    (t.failureScopes as Record<string, string>)?.[sc] ?? ({ DELIVERY: 'Delivery', ITEM: 'Item', BOTH: 'Both' } as Record<string, string>)[sc] ?? sc;
 
   const REASON_COLUMNS = useMemo<ColumnDef[]>(() => [
-    { id: 'label', label: s.tableLabel || 'Motif', pinned: true },
+    { id: 'label', label: s.tableLabel || 'Reason', pinned: true },
     { id: 'code', label: s.tableCode || 'Code' },
-    { id: 'category', label: s.tableCategory || 'Catégorie' },
-    { id: 'scope', label: tlabel(s, 'tableScope') || 'Portée' },
-    { id: 'order', label: s.formOrder || 'Ordre' },
-    { id: 'status', label: s.tableStatus || 'Statut' },
+    { id: 'category', label: s.tableCategory || 'Category' },
+    { id: 'scope', label: tlabel(s, 'tableScope') || 'Scope' },
+    { id: 'order', label: s.formOrder || 'Order' },
+    { id: 'status', label: s.tableStatus || 'Status' },
   ], [t]);
 
   const { density, setDensity } = useDensity('failure-reasons', 'comfortable');
@@ -253,9 +253,9 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
         onSearch={setSearch}
         searchPlaceholder={s.searchPlaceholder}
         attributes={[
-          { key: 'category', label: s.tableCategory || 'Catégorie', options: CATEGORIES.map(c => ({ value: c, label: catLabel(c) })) },
-          { key: 'scope', label: tlabel(s, 'tableScope') || 'Portée', options: SCOPES.map(sc => ({ value: sc, label: scopeLabel(sc) })) },
-          { key: 'status', label: s.tableStatus || 'Statut', options: [
+          { key: 'category', label: s.tableCategory || 'Category', options: CATEGORIES.map(c => ({ value: c, label: catLabel(c) })) },
+          { key: 'scope', label: tlabel(s, 'tableScope') || 'Scope', options: SCOPES.map(sc => ({ value: sc, label: scopeLabel(sc) })) },
+          { key: 'status', label: s.tableStatus || 'Status', options: [
             { value: 'active', label: s.active },
             { value: 'inactive', label: s.inactive },
           ]},
@@ -280,7 +280,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
           {/* Toolbar */}
           <div className="flex items-center justify-between px-4 h-11 shrink-0" style={{ background: 'var(--surface)', boxShadow: 'var(--shadow-sm)' }}>
             <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>
-              {visible.length} {tlabel(s, 'countLabel') || 'motif'}{visible.length !== 1 ? 's' : ''}
+              {visible.length} {tlabel(s, 'countLabel') || 'reason'}{visible.length !== 1 ? 's' : ''}
             </span>
             <DisplaySettingsDropdown
               columns={orderedColumns}
@@ -433,7 +433,7 @@ export default function FailureReasonsTable({ canManage }: { canManage: boolean 
           />
           {!isItemCategory(form.category) && (
             <span className="text-2xs text-[var(--text-muted)] -mt-2">
-              {tlabel(s, 'formScopeItemHint') || 'La portée « Article » n’est disponible que pour les catégories Refusé, Endommagé ou Manquant.'}
+              {tlabel(s, 'formScopeItemHint') || 'Item scope is only available for Refused, Damaged, or Missing categories.'}
             </span>
           )}
           <div className="flex items-end gap-4">

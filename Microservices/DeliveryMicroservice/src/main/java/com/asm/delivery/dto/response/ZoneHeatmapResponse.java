@@ -5,6 +5,7 @@ import lombok.Builder;
 import lombok.Data;
 
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Data
@@ -14,6 +15,10 @@ public class ZoneHeatmapResponse {
 
     @Schema(description = "Heatmap points grouped by zipcode within zones")
     private List<ZipcodeHeatpoint> points;
+
+    @Schema(description = "Order count per zone id over the immediately-preceding window of equal length "
+            + "(Tunis-anchored); present when compare=true. Used to compute the per-zone delta.")
+    private Map<String, Long> previousOrdersByZone;
 
     @Data
     @Builder

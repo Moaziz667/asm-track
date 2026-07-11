@@ -3,6 +3,7 @@ import { useEffect, useRef } from 'react';
 import { IconAlertTriangle } from '@tabler/icons-react';
 import { Button } from '@/components/ui/button';
 import { FieldInput } from '@/components/ui/field';
+import { useT } from '@/lib/i18n/LocaleContext';
 import { AppModal } from './AppModal';
 
 interface ConfirmModalProps {
@@ -27,17 +28,21 @@ export function ConfirmModal({
   title,
   description,
   reasonLabel,
-  reasonPlaceholder = 'Raison (optionnel)',
+  reasonPlaceholder,
   reason = '',
   onReasonChange,
   reasonRequired = false,
-  confirmLabel = 'Confirmer',
-  cancelLabel = 'Annuler',
+  confirmLabel,
+  cancelLabel,
   variant = 'primary',
   loading = false,
   onConfirm,
   onCancel,
 }: ConfirmModalProps) {
+  const t = useT();
+  const resolvedReasonPlaceholder = reasonPlaceholder ?? t.common?.raison ?? 'Reason';
+  const resolvedConfirmLabel = confirmLabel ?? t.actions?.confirm ?? 'Confirm';
+  const resolvedCancelLabel = cancelLabel ?? t.actions?.cancel ?? 'Cancel';
   const isReasonInvalid = !!(reasonRequired && reasonLabel && !reason.trim());
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -49,7 +54,7 @@ export function ConfirmModal({
   useEffect(() => {
     if (!open) return;
     const handler = (e: KeyboardEvent) => {
-      if (e.key === 'Enter' && !loading && e.target !== inputRef.current) {
+      if (e.key === 'Enter' && !loading && e.target !== inputRef.current && !(e.target as HTMLElement)?.closest('input, textarea')) {
         e.preventDefault();
         onConfirm();
       }
@@ -68,7 +73,7 @@ export function ConfirmModal({
       footer={
         <div className="flex items-center justify-end gap-2">
           <Button variant="ghost" onClick={onCancel} disabled={loading} size="sm">
-            {cancelLabel}
+            {resolvedCancelLabel}
           </Button>
           <Button
             variant={variant === 'danger' ? 'destructive' : 'default'}
@@ -82,7 +87,7 @@ export function ConfirmModal({
                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
               </svg>
             )}
-            {confirmLabel}
+            {resolvedConfirmLabel}
           </Button>
         </div>
       }
@@ -105,7 +110,7 @@ export function ConfirmModal({
           <FieldInput
             ref={inputRef}
             label={reasonLabel}
-            placeholder={reasonPlaceholder}
+            placeholder={resolvedReasonPlaceholder}
             value={reason}
             onChange={(e) => onReasonChange?.(e.currentTarget.value)}
           />
