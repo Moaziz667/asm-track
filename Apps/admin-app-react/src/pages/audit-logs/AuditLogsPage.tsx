@@ -409,8 +409,8 @@ export default function AuditLogsPage() {
   // Single search (q → action/actor/resource) + attribute filters, all driving the shared PageFilterBar.
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
-  const [filterRole, setFilterRole] = useState('');
-  const [filterEntity, setFilterEntity] = useState('');
+  const [filterRoles, setFilterRoles] = useState<string[]>([]);
+  const [filterEntities, setFilterEntities] = useState<string[]>([]);
   // Date range — standalone control, kept out of the shared filter dropdown (the popover-in-dropdown was unreliable).
   const [filterFrom, setFilterFrom] = useState('');
   const [filterTo, setFilterTo] = useState('');
@@ -432,10 +432,10 @@ export default function AuditLogsPage() {
 
     setLoading(true);
     try {
-      const params: Record<string, string | number> = { page: p - 1, size: PAGE_SIZE };
+      const params: Record<string, string | number | string[]> = { page: p - 1, size: PAGE_SIZE };
       if (debouncedSearch.trim()) params.q = debouncedSearch.trim();
-      if (filterRole.trim()) params.actorRole = filterRole.trim();
-      if (filterEntity.trim()) params.entity = filterEntity.trim();
+      if (filterRoles.length) params.actorRole = filterRoles;
+      if (filterEntities.length) params.entity = filterEntities;
       if (filterFrom) params.from = filterFrom + 'T00:00:00';
       if (filterTo) params.to = filterTo + 'T23:59:59';
 
@@ -449,7 +449,7 @@ export default function AuditLogsPage() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedSearch, filterRole, filterEntity, filterFrom, filterTo]);
+  }, [debouncedSearch, filterRoles, filterEntities, filterFrom, filterTo]);
 
   useEffect(() => {
     setPage(1);
@@ -458,11 +458,11 @@ export default function AuditLogsPage() {
 
   // Shared-filter wiring (role + entity selects, from/to dates).
   const filterAttributes = useMemo(() => ([
-    { key: 'role', label: t.auditLogsPage.roleLabel, type: 'select' as const, options: [
+    { key: 'role', label: t.auditLogsPage.roleLabel, type: 'select' as const, multi: true, options: [
       { value: 'ADMIN', label: 'Admin' }, { value: 'DISPATCHER', label: 'Dispatcher' },
       { value: 'DRIVER', label: 'Driver' }, { value: 'SYSTEM', label: 'System' },
     ] },
-    { key: 'entity', label: t.auditLogsPage.entityFilterLabel ?? 'Entité', type: 'select' as const, options: [
+    { key: 'entity', label: t.auditLogsPage.entityFilterLabel ?? 'Entité', type: 'select' as const, multi: true, options: [
       { value: 'ROUTE', label: t.auditLogsPage.entities.ROUTE }, { value: 'DELIVERY', label: t.auditLogsPage.entities.DELIVERY },
       { value: 'VEHICLE', label: t.auditLogsPage.entities.VEHICLE }, { value: 'ZONE', label: t.auditLogsPage.entities.ZONE },
       { value: 'DEPOT', label: t.auditLogsPage.entities.DEPOT }, { value: 'RMA', label: t.auditLogsPage.entities.RMA },
@@ -471,14 +471,15 @@ export default function AuditLogsPage() {
     ] },
   ]), [t]);
 
-  const activeFilters: Record<string, string> = {
-    ...(filterRole && { role: filterRole }),
-    ...(filterEntity && { entity: filterEntity }),
+  const activeFilters: Record<string, string | string[]> = {
+    ...(filterRoles.length && { role: filterRoles }),
+    ...(filterEntities.length && { entity: filterEntities }),
   };
 
   const handleFilterChange = (key: string, value: string | null) => {
-    if (key === 'role') setFilterRole(value ?? '');
-    if (key === 'entity') setFilterEntity(value ?? '');
+    const toggle = (arr: string[], v: string) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+    if (key === 'role') setFilterRoles(value === null ? [] : toggle(filterRoles, value));
+    if (key === 'entity') setFilterEntities(value === null ? [] : toggle(filterEntities, value));
   };
 
   // Group logs by date

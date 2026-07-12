@@ -32,9 +32,11 @@ public class AdminRmaController {
     public ResponseEntity<org.springframework.data.domain.Page<RmaResponse>> list(
             @RequestParam(required = false) RmaStatus status,
             @RequestParam(required = false) String q,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dateFrom,
+            @RequestParam(required = false) @org.springframework.format.annotation.DateTimeFormat(iso = org.springframework.format.annotation.DateTimeFormat.ISO.DATE) java.time.LocalDate dateTo,
             @org.springdoc.core.annotations.ParameterObject
             @org.springframework.data.web.PageableDefault(size = 25) org.springframework.data.domain.Pageable pageable) {
-        return ResponseEntity.ok(rmaService.list(status, q, pageable));
+        return ResponseEntity.ok(rmaService.list(status, q, dateFrom, dateTo, pageable));
     }
 
     @GetMapping("/kpi")
@@ -47,6 +49,12 @@ public class AdminRmaController {
     @Operation(summary = "Get a return")
     public ResponseEntity<RmaResponse> get(@PathVariable UUID id) {
         return ResponseEntity.ok(rmaService.get(id));
+    }
+
+    @GetMapping("/{id}/history")
+    @Operation(summary = "Status timeline for a return (immutable audit trail)")
+    public ResponseEntity<List<com.asm.delivery.dto.response.RmaStatusHistoryDto>> history(@PathVariable UUID id) {
+        return ResponseEntity.ok(rmaService.history(id));
     }
 
     @PostMapping
@@ -66,6 +74,16 @@ public class AdminRmaController {
             @RequestParam RmaStatus target,
             @RequestParam(required = false) String note) {
         return ResponseEntity.ok(rmaService.transition(id, target, note, principal));
+    }
+
+    @PatchMapping("/{id}/shipping")
+    @Operation(summary = "Set the inbound return-shipment tracking (carrier + tracking number)")
+    public ResponseEntity<RmaResponse> updateShipping(
+            @AuthenticationPrincipal UserPrincipal principal,
+            @PathVariable UUID id,
+            @RequestBody com.asm.delivery.dto.request.UpdateRmaShippingRequest request) {
+        return ResponseEntity.ok(rmaService.updateShipping(id,
+                request.getTrackingNumber(), request.getShippingCarrier(), principal));
     }
 
     @PostMapping("/{id}/resync")

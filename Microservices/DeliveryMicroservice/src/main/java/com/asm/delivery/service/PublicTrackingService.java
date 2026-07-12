@@ -15,6 +15,7 @@ import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.repository.CompanyRepository;
 import com.asm.delivery.repository.RmaRepository;
 import com.asm.delivery.entity.Rma;
+import com.asm.delivery.entity.RmaStatus;
 import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
@@ -67,12 +68,13 @@ public class PublicTrackingService {
             failReason = delivery.getFailReason();
         }
 
-        // Latest return (RMA) lifecycle state for this delivery, if any.
-        String returnStatus = rmaRepo.findByDeliveryIdOrderByCreatedAtDesc(deliveryId).stream()
-                .findFirst()
-                .map(Rma::getStatus)
-                .map(Enum::name)
-                .orElse(null);
+        // Latest return (RMA) lifecycle state for this delivery, if any. On a REJECTED return, surface the
+        // resolution note so the client sees WHY it was refused.
+        Rma latestReturn = rmaRepo.findByDeliveryIdOrderByCreatedAtDesc(deliveryId).stream()
+                .findFirst().orElse(null);
+        String returnStatus = latestReturn != null ? latestReturn.getStatus().name() : null;
+        String returnResolutionNote = (latestReturn != null && latestReturn.getStatus() == RmaStatus.REJECTED)
+                ? latestReturn.getResolutionNote() : null;
 
         Order order = data.delivery().getOrder();
         List<TrackingResponse.OrderItemDto> itemDtos = null;
@@ -91,6 +93,7 @@ public class PublicTrackingService {
                 .status(data.delivery().getStatus() != null ? data.delivery().getStatus().name() : "UNKNOWN")
                 .failReason(failReason)
                 .returnStatus(returnStatus)
+                .returnResolutionNote(returnResolutionNote)
                 .clientName(order != null ? order.getClientName() : null)
                 .clientPhone(order != null ? order.getClientPhone() : null)
                 .erpOrderId(order != null ? order.getErpOrderId() : null)

@@ -1,297 +1,337 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// ASM Track — Premium Operational Sidebar
-// "Apple precision applied to enterprise dispatch software."
-//
-// Architecture:
-//   All colour tokens are CSS custom props on .sidebar.
-//   Light values are defaults; dark values override via :global(.dark) &.
-//   No duplication. One source of truth per token.
-// ───�$accent:     #3E6AE1;
-$live:       #3E6AE1;
-$width:      212px;
-$width-icon: 48px;
+// ASM Track — Three-Column Enterprise Dashboard Layout
+// Icon Rail (72px) + Navigation Sidebar (300px) + Fluid Content Workspace
+// ─────────────────────────────────────────────────────────────────────────────
 
-// Tesla 0.33s cubic-bezier timing
-$ease-out:   cubic-bezier(0.5, 0, 0, 0.75);
-$ease-back:  cubic-bezier(0.5, 0, 0, 0.75);
+$icon-rail-width: 56px;
+$nav-panel-width: 220px;
 
-$t-fast:  0.33s $ease-out;
-$t-mid:   0.33s $ease-out;
-$t-slow:  0.33s $ease-out;
+// Timing
+$ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+$t-fast: 0.16s $ease-out;
+$t-mid: 0.24s $ease-out;
 
+// ── Icon Rail ────────────────────────────────────────────────────────────────
 
-// ── Colour tokens ─────────────────────────────────────────────────────────────
+.iconRail {
+  // Light mode
+  --rail-bg: #F1F5F9;
+  --rail-border: #E2E8F0;
+  --rail-item: #64748B;
+  --rail-item-hover: #2563EB;
+  --rail-item-active-bg: #FFFFFF;
+  --rail-item-active-border: #E2E8F0;
+  --rail-item-active: #0F172A;
 
-.sidebar {
-
-  // ── Light ─────────────────────────────────────────────────────────────────
-  --sb-bg:              #FFFFFF;
-  --sb-bg-hover:        #F1F5F9;  // Slate-100 Hover
-  --sb-bg-active:       #F1F5F9;  // Slate-100 Active
-  --sb-sep-right:       #E2E8F0;  // Slate-200 Border
-  --sb-sep-h:           #E2E8F0;  // Slate-200 Border
-
-  // Brand
-  --sb-brand-name:      #0F172A;  // Slate-900 Primary Text
-  --sb-brand-sub:       #64748B;  // Slate-500 Muted Text
-
-  // Navigation text
-  --sb-label:           #64748B;  // Slate-500 Muted Text
-  --sb-item:            #334155;  // Slate-700 Text
-  --sb-item-hover:      #0F172A;  // Slate-900 text
-  --sb-item-active:     #0F172A;  // Slate-900 text
-
-  // Icons
-  --sb-icon:            #64748B;  // Slate-500 icon
-  --sb-icon-hover:      #0F172A;
-  --sb-icon-active:     #0F172A;
-
-  // Accent indicator
-  --sb-bar:             #2563EB;  // Vibrant Blue
-
-  // Operational status
-  --sb-status:          #5C5E62;
-
-  // Controls
-  --sb-ctrl:            #5C5E62;
-  --sb-ctrl-hover:      #171A20;
-
-  // Tooltip surface
-  --sb-tip-bg:          #FFFFFF;
-  --sb-tip-border:      #EEEEEE;
-  --sb-tip-text:        #171A20;
-  --sb-tip-shadow:      none;
-
-  // ── Dark override ─────────────────────────────────────────────────────────
+  // Dark mode
   :global(.dark) & {
-    --sb-bg:              #171A20;  // Carbon Dark
-    --sb-bg-hover:        #22262F;
-    --sb-bg-active:       #22262F;
-    --sb-sep-right:       rgba(255, 255, 255, 0.08);
-    --sb-sep-h:           rgba(255, 255, 255, 0.08);
-
-    --sb-brand-name:      #F3F3F7;
-    --sb-brand-sub:       #A4A4AD;
-
-    --sb-label:           #A4A4AD;
-    --sb-item:            #DEDEE3;
-    --sb-item-hover:      #F3F3F7;
-    --sb-item-active:     #F3F3F7;
-
-    --sb-icon:            #A4A4AD;
-    --sb-icon-hover:      #F3F3F7;
-    --sb-icon-active:     #F3F3F7;
-
-    --sb-bar:             #3E6AE1;
-
-    --sb-status:          #A4A4AD;
-
-    --sb-ctrl:            #A4A4AD;
-    --sb-ctrl-hover:      #F3F3F7;
-
-    --sb-tip-bg:          #1E2129;
-    --sb-tip-border:      rgba(255, 255, 255, 0.08);
-    --sb-tip-text:        #F3F3F7;
-    --sb-tip-shadow:      none;
+    --rail-bg: #111827;
+    --rail-border: #1f2937;
+    --rail-item: #9ca3af;
+    --rail-item-hover: #d1d5db;
+    --rail-item-active-bg: #1f2937;
+    --rail-item-active-border: #374151;
+    --rail-item-active: #f9fafb;
   }
-
-  // ── Shell ─────────────────────────────────────────────────────────────────
 
   position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  right: auto;
-  
-  :global(html[dir="rtl"]) & {
-    left: auto;
-    right: 0;
-    border-right: none;
-    border-left: 1px solid var(--sb-sep-right);
-    box-shadow: none;
-  }
-
-  width: $width;
-  background: var(--sb-bg);
+  inset: 0 auto 0 0;
+  width: $icon-rail-width;
+  background: var(--rail-bg);
+  border-right: 1px solid var(--rail-border);
   display: flex;
   flex-direction: column;
+  align-items: center;
   z-index: 50;
-  border-right: 1px solid var(--sb-sep-right);
-  box-shadow: none;
   transition: width $t-mid, transform $t-mid;
-  overflow: hidden;
-  // Subpixel rendering precision
-  -webkit-font-smoothing: antialiased;
+  padding: 16px 0;
 
-  &.collapsed {
-    width: $width-icon;
+  :global(html[dir="rtl"]) & {
+    inset: 0 0 0 auto;
+    border-right: none;
+    border-left: 1px solid var(--rail-border);
+  }
 
-    .group__label,
-    .item__label,
-    .brand__text,
-    .status__text,
-    .footer__label {
-      opacity: 0;
-      pointer-events: none;
-      // Slightly faster fade-out than fade-in for snappier collapse
-      transition: opacity 0.10s $ease-out;
-    }
-
-    // The brand text must leave the layout (not just fade) when collapsed — otherwise the
-    // centered brand row still reserves its width and the logo sits left of true center.
-    .brand__text { display: none; }
+  &__collapsed {
+    width: $icon-rail-width;
   }
 
   @media (max-width: 768px) {
-    width: 272px;
-    z-index: 100;
     transform: translateX(-100%);
-    box-shadow: none;
-    border-right: 1px solid var(--sb-sep-right);
-
-    :global(html[dir="rtl"]) & {
-      transform: translateX(100%);
-      border-right: none;
-      border-left: 1px solid var(--sb-sep-right);
-    }
-
-    &.mobileOpen {
-      transform: translateX(0) !important;
-      box-shadow: 4px 0 24px rgba(16, 24, 40, 0.15);
-
-      :global(html[dir="rtl"]) & {
-        box-shadow: -4px 0 24px rgba(16, 24, 40, 0.15);
-      }
-    }
-  }
-}
-
-
-// ── Brand ─────────────────────────────────────────────────────────────────────
-
-.brand {
-  height: 56px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--sb-sep-h);
-  flex-shrink: 0;
-  text-decoration: none;
-  transition: opacity 0.2s ease;
-  &:active { opacity: 0.80; }
-
-  .collapsed & {
-    justify-content: center;
-    padding: 0;
+    :global(html[dir="rtl"]) & { transform: translateX(100%); }
+    &.iconRail__mobileOpen { transform: translateX(0); z-index: 100; }
   }
 
-  &__icon {
-    width: 42px;
-    height: 42px;
+  // Brand Logo
+  &__brand {
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
-    flex-shrink: 0;
-    overflow: hidden;
+    margin-bottom: 20px;
+    text-decoration: none;
   }
 
-  &__logo {
+  &__brandIcon {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__brandLogo {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    display: block;
   }
 
-  &__text {
+  // Navigation Icons
+  &__nav {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    min-width: 0;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 0 8px;
   }
 
-  &__text-name {
-    font-size: 13px;
-    font-weight: 700;
-    color: var(--sb-brand-name);
-    letter-spacing: -0.01em;
-    line-height: 1.2;
+  &__item {
+    position: relative;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: transparent;
+    border: 2px solid transparent;
+    cursor: pointer;
+    color: var(--rail-item);
+    transition: all $t-fast;
+    outline: none;
+
+    &:hover {
+      background: var(--hover-bg);
+    }
+
+    &--active {
+      background: var(--rail-item-active-bg);
+      border-color: var(--rail-item-active-border);
+      color: var(--rail-item-active);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+      &:hover {
+        background: var(--rail-item-active-bg);
+      }
+    }
+
+    &:focus-visible {
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
   }
 
-  &__text-sub {
-    font-size: 9px;
-    font-weight: 500;
-    color: var(--sb-brand-sub);
-    letter-spacing: 0.04em;
-    line-height: 1;
-    margin-top: 2px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-}
-
-
-// ── Operational status bar ────────────────────────────────────────────────────
-// Subtle realtime indicator — shows system is alive without demanding attention.
-
-.status {
-  padding: 6px 11px;
-  border-bottom: 1px solid var(--sb-sep-h);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-  min-width: 0;
-
+  // Status Dots
   &__dot {
-    width: 5px;
-    height: 5px;
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 6px;
+    height: 6px;
     border-radius: 50%;
-    background: $live;
-    flex-shrink: 0;
-    // Calm, slow pulse — not alarming
-    animation: live-pulse 3.2s $ease-out infinite;
+    border: 1.5px solid var(--rail-bg);
+
+    &--alert { background: #ef4444; }
+    &--info { background: #3b82f6; }
+    &--neutral { background: #06b6d4; }
   }
 
-  &__text {
-    font-size: 9px;
-    font-weight: 500;
-    color: var(--sb-status);
-    letter-spacing: 0.055em;
-    white-space: nowrap;
-    overflow: hidden;
-    transition: opacity $t-mid;
+  // Bottom Actions
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding-top: 12px;
+    border-top: 1px solid var(--rail-border);
+    margin-top: auto;
+    width: 100%;
+  }
+
+  &__item--user {
+    margin-bottom: 0;
+  }
+
+  &__avatar {
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: #3b82f6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  &__avatarText {
+    font-size: 11px;
+    font-weight: 700;
+    color: #ffffff;
+    line-height: 1;
+  }
+
+  // Toggle Button
+  &__toggle {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--rail-item);
+    transition: all $t-fast;
+    margin-top: 6px;
+
+    &:hover {
+      background: var(--rail-item-hover);
+      color: var(--rail-item-active);
+    }
   }
 }
 
+// ── Navigation Sidebar ───────────────────────────────────────────────────────
 
-// ── Navigation ────────────────────────────────────────────────────────────────
+.navPanel {
+  // Light mode
+  --panel-bg: #FFFFFF;
+  --panel-border: #E2E8F0;
+  --panel-header-bg: #FFFFFF;
+  --panel-text: #334155;
+  --panel-text-muted: #64748B;
+  --panel-text-active: #0F172A;
+  --panel-hover: var(--hover-bg, #F1F5F9);
+  --panel-active-bg: #EFF6FF;
+  --panel-accent: #2563EB;
+  --panel-group-text: #64748B;
+  --panel-guide: #E2E8F0;
 
-.nav {
-  flex: 1;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 5px 0 4px;
-  scrollbar-width: none;
-
-  &::-webkit-scrollbar { display: none; }
-}
-
-.group {
-  & + & {
-    margin-top: 2px;
-    padding-top: 2px;
-    border-top: 1px solid var(--sb-sep-h);
+  // Dark mode
+  :global(.dark) & {
+    --panel-bg: #111827;
+    --panel-border: #1f2937;
+    --panel-header-bg: #0F1B2A;
+    --panel-text: #d1d5db;
+    --panel-text-muted: #9ca3af;
+    --panel-text-active: #f9fafb;
+    --panel-hover: var(--hover-bg, #1B2530);
+    --panel-active-bg: #374151;
+    --panel-accent: #60a5fa;
+    --panel-group-text: #9ca3af;
+    --panel-guide: #374151;
   }
 
+  position: fixed;
+  inset: 0 auto 0 $icon-rail-width;
+  width: $nav-panel-width;
+  background: var(--panel-bg);
+  display: flex;
+  flex-direction: column;
+  z-index: 49;
+  transition: width $t-mid, transform $t-mid, opacity $t-mid;
+  border-right: 1px solid var(--panel-border);
+  overflow: hidden;
+
+  :global(html[dir="rtl"]) & {
+    inset: 0 $icon-rail-width 0 auto;
+    border-right: none;
+    border-left: 1px solid var(--panel-border);
+  }
+
+  &__collapsed {
+    width: 0;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  @media (max-width: 768px) {
+    transform: translateX(-100%);
+    width: 300px;
+    left: 0;
+    :global(html[dir="rtl"]) & { transform: translateX(100%); left: auto; right: 0; }
+    &.navPanel__mobileOpen { transform: translateX(0); z-index: 99; }
+  }
+
+  // Header
   &__header {
+    height: 56px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: calc(100% - 10px);
-    margin: 2px 5px;
-    padding: 6px 8px;
-    border-radius: 8px;
+    padding: 0 16px;
+    background: var(--panel-header-bg);
+    border-bottom: 1px solid var(--panel-border);
+    flex-shrink: 0;
+  }
+
+  &__title {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--panel-text-active);
+    letter-spacing: -0.01em;
+  }
+
+  &__collapseBtn {
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--panel-text-muted);
+    transition: all $t-fast;
+
+    &:hover {
+      background: var(--panel-hover);
+      color: var(--panel-text);
+    }
+  }
+
+  // Content
+  &__content {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 12px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--panel-border) transparent;
+
+    &::-webkit-scrollbar { width: 3px; }
+    &::-webkit-scrollbar-track { background: transparent; }
+    &::-webkit-scrollbar-thumb { background: var(--panel-border); border-radius: 9999px; }
+  }
+
+  // Group
+  &__group {
+    & + & {
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid var(--panel-border);
+    }
+  }
+
+  &__groupHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 10px 16px;
     background: transparent;
     border: none;
     cursor: pointer;
@@ -300,343 +340,195 @@ $t-slow:  0.33s $ease-out;
     outline: none;
 
     &:hover {
-      background: var(--sb-bg-hover);
+      background: var(--panel-hover);
+    }
+
+    &--active {
+      .navPanel__groupLabel {
+        color: var(--panel-text-active);
+        font-weight: 700;
+      }
     }
   }
 
-  &__label {
-    font-size: 10.5px;
-    font-weight: 500;
-    color: var(--sb-label);
-    letter-spacing: -0.01em;
+  &__groupLabel {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--panel-group-text);
+    letter-spacing: 0.02em;
     white-space: nowrap;
     overflow: hidden;
     user-select: none;
-    transition: opacity $t-mid;
+    transition: color $t-fast;
   }
 
-  &__label_collapsed_sep {
-    height: 1px;
-    margin: 6px 0;
-    background: var(--sb-sep-h);
-  }
-
-  &__indicator {
-    width: 5px;
-    height: 5px;
-    border-radius: 50%;
-    
-    &--alert {
-      background: #c7372f;
-      box-shadow: 0 0 0 2px rgba(199, 55, 47, 0.15);
-      :global(.dark) & {
-        background: #fca5a5;
-        box-shadow: 0 0 0 2px rgba(199, 55, 47, 0.3);
-      }
-    }
-    
-    &--info {
-      background: #5e6ad2;
-      box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.15);
-      :global(.dark) & {
-        background: #93c5fd;
-        box-shadow: 0 0 0 2px rgba(94, 106, 210, 0.3);
-      }
-    }
-    
-    &--neutral {
-      background: #2594b8;
-      box-shadow: 0 0 0 2px rgba(37, 148, 184, 0.15);
-      :global(.dark) & {
-        background: #93e2fd;
-        box-shadow: 0 0 0 2px rgba(37, 148, 184, 0.3);
-      }
-    }
-  }
-
+  // Items Container
   &__items {
     display: flex;
     flex-direction: column;
-    padding: 1px 5px 2px;
-    max-height: 240px;
+    gap: 1px;
+    padding: 2px 12px;
+    max-height: 320px;
     overflow-y: auto;
-    scrollbar-width: thin;
-    scrollbar-color: var(--sb-sep-right) transparent;
     transition: max-height 0.22s $ease-out, opacity 0.15s ease, padding 0.15s ease;
 
     &--collapsed {
-      max-height: 0px !important;
+      max-height: 0 !important;
       opacity: 0 !important;
       overflow: hidden !important;
-      padding-top: 0px !important;
-      padding-bottom: 0px !important;
+      padding-top: 0 !important;
+      padding-bottom: 0 !important;
       pointer-events: none;
     }
-
-    .item__label {
-      font-size: 11px;
-    }
-
-    &::-webkit-scrollbar {
-      width: 3px;
-    }
-    &::-webkit-scrollbar-track {
-      background: transparent;
-    }
-    &::-webkit-scrollbar-thumb {
-      background: var(--sb-sep-right);
-      border-radius: 9999px;
-    }
-  }
-}
-
-
-// ── Nav item ──────────────────────────────────────────────────────────────────
-
-.item {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding-block: 5px;
-  padding-inline-start: 10px;
-  padding-inline-end: 8px;
-  border-radius: 8px;
-  margin-bottom: 1px;
-  cursor: pointer;
-  text-decoration: none;
-  // Background + text transition on separate curves for layered feel
-  transition:
-    background $t-fast,
-    box-shadow $t-fast;
-  min-width: 0;
-  overflow: hidden;
-  outline: none;
-
-  &:focus-visible {
-    box-shadow: 0 0 0 2px rgba(223, 124, 28, 0.45);
   }
 
-  &__icon {
+  // Item
+  &__item {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    text-decoration: none;
+    transition: all $t-fast;
+    min-width: 0;
+    overflow: hidden;
+    outline: none;
+
+    &:hover {
+      background: var(--panel-hover);
+    }
+
+    &:focus-visible {
+      box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5);
+    }
+
+    &--active {
+      background: var(--panel-active-bg);
+
+      .navPanel__itemIcon {
+        color: var(--panel-accent);
+      }
+
+      .navPanel__itemLabel {
+        color: var(--panel-text-active);
+        font-weight: 600;
+      }
+    }
+  }
+
+  // Child item with vertical guide line
+  &__item--child {
+    padding-left: 36px;
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: 24px;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: var(--panel-guide);
+    }
+
+    :global(html[dir="rtl"]) & {
+      padding-left: 12px;
+      padding-right: 36px;
+
+      &::before {
+        left: auto;
+        right: 24px;
+      }
+    }
+  }
+
+  &__item--child-active {
+    &::before {
+      background: var(--panel-accent);
+    }
+  }
+
+  &__itemIcon {
     flex-shrink: 0;
-    color: var(--sb-icon);
+    color: var(--panel-text-muted);
     display: flex;
     align-items: center;
     justify-content: center;
     transition: color $t-fast;
-    width: 16px;
-    height: 16px;
-    position: relative;
   }
 
-  &__label {
-    font-size: 12.5px;
-    font-weight: 430;
-    color: var(--sb-item);
+  &__itemLabel {
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--panel-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     min-width: 0;
-    letter-spacing: -0.014em;
+    letter-spacing: -0.01em;
     line-height: 1;
-    transition: color $t-fast, font-weight $t-fast, opacity $t-mid;
-    // Prevent layout shift when weight changes
-    font-variant-numeric: tabular-nums;
+    transition: color $t-fast, font-weight $t-fast;
+    flex: 1;
   }
 
-  // ── Hover ────────────────────────────────────────────────────────────────
-  &:hover {
-    background: var(--sb-bg-hover);
-
-    .item__icon  { color: var(--sb-icon-hover); }
-    .item__label { color: var(--sb-item-hover); }
-  }
-
-  // ── Active ───────────────────────────────────────────────────────────────
-  // Anchored, calm, amber-accented. Not a pill, not a highlight.
-  &--active {
-    background: var(--sb-bg-active);
-    box-shadow: none;
-
-    // Removed left-border highlight bar (matching StarSass legend)
-
-    .item__icon  { color: var(--sb-icon-active); }
-
-    .item__label {
-      color: var(--sb-item-active);
-      font-weight: 600;
-      letter-spacing: -0.018em;
-    }
-
-    &:hover { background: var(--sb-bg-active); }
-  }
-
-  // ── Collapsed tooltip ────────────────────────────────────────────────────
-  // Appears only when sidebar is collapsed (label is opacity:0)
-  // Logical: inset-inline-start clears sidebar in both LTR and RTL
-  &__tooltip {
-    position: fixed; // fixed avoids clipping issues
-    // LTR: appear to the right of the icon rail
-    inset-inline-start: calc(#{$width-icon} + 8px);
-    inset-inline-end: auto;
-    background: var(--sb-tip-bg);
-    border: 1px solid var(--sb-tip-border);
-    border-radius: 8px;
-    padding: 5px 10px;
-    font-size: 11.5px;
-    font-weight: 500;
-    color: var(--sb-tip-text);
-    white-space: nowrap;
-    pointer-events: none;
-    opacity: 0;
-    // Use translate with no physical direction — JS-controlled RTL flips via dir attribute
-    transform: translateX(-4px);
-    :global([dir='rtl']) & {
-      transform: translateX(4px);
-    }
-    transition:
-      opacity 0.10s $ease-out,
-      transform 0.10s $ease-out;
-    z-index: 200;
-    box-shadow: var(--sb-tip-shadow);
-  }
-
-  &:hover &__tooltip {
-    opacity: 1;
-    transform: translateX(0);
-  }
-
+  // Badge
   &__badge {
     margin-inline-start: auto;
-    font-size: 9.5px;
-    font-weight: 700;
-    padding: 1.5px 5.5px;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 3px 8px;
     border-radius: 9999px;
     line-height: 1;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    min-width: 16px;
-    height: 16px;
+    min-width: 18px;
+    height: 18px;
     flex-shrink: 0;
     white-space: nowrap;
     font-variant-numeric: tabular-nums;
-    transition: all $t-fast;
 
     &--alert {
-      background: rgba(199, 55, 47, 0.09);
-      color: #A52B24;
-      border: 1px solid rgba(199, 55, 47, 0.15);
+      background: rgba(239, 68, 68, 0.1);
+      color: #dc2626;
+      border: 1px solid rgba(239, 68, 68, 0.2);
+
       :global(.dark) & {
-        background: rgba(199, 55, 47, 0.15);
+        background: rgba(239, 68, 68, 0.15);
         color: #fca5a5;
-        border: 1px solid rgba(199, 55, 47, 0.3);
+        border: 1px solid rgba(239, 68, 68, 0.3);
       }
     }
 
     &--info {
-      background: rgba(94, 106, 210, 0.09);
-      color: #4C56B8;
-      border: 1px solid rgba(94, 106, 210, 0.15);
+      background: rgba(59, 130, 246, 0.1);
+      color: #2563eb;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+
       :global(.dark) & {
-        background: rgba(94, 106, 210, 0.15);
+        background: rgba(59, 130, 246, 0.15);
         color: #93c5fd;
-        border: 1px solid rgba(94, 106, 210, 0.3);
+        border: 1px solid rgba(59, 130, 246, 0.3);
       }
     }
 
     &--neutral {
-      background: rgba(37, 148, 184, 0.09);
-      color: #1A7A9A;
-      border: 1px solid rgba(37, 148, 184, 0.15);
-      font-weight: 600;
-      :global(.dark) & {
-        background: rgba(37, 148, 184, 0.15);
-        color: #93e2fd;
-        border: 1px solid rgba(37, 148, 184, 0.3);
-      }
-    }
-  }
+      background: rgba(6, 182, 212, 0.1);
+      color: #0891b2;
+      border: 1px solid rgba(6, 182, 212, 0.2);
 
-  &__dot {
-    position: absolute;
-    top: -2.5px;
-    inset-inline-end: -2.5px;
-    width: 5.5px;
-    height: 5.5px;
-    border-radius: 50%;
-    border: 1.5px solid var(--sb-bg);
-    box-sizing: content-box;
-
-    &--alert {
-      background: #c7372f;
       :global(.dark) & {
-        background: #fca5a5;
-      }
-    }
-
-    &--info {
-      background: #5e6ad2;
-      :global(.dark) & {
-        background: #93c5fd;
-      }
-    }
-
-    &--neutral {
-      background: #2594b8;
-      :global(.dark) & {
-        background: #93e2fd;
+        background: rgba(6, 182, 212, 0.15);
+        color: #67e8f9;
+        border: 1px solid rgba(6, 182, 212, 0.3);
       }
     }
   }
 }
 
-
-// ── Footer / collapse toggle ──────────────────────────────────────────────────
-
-.footer {
-  border-top: 1px solid var(--sb-sep-h);
-  padding: 7px 5px;
-  flex-shrink: 0;
-
-  &__toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 28px;
-    border-radius: 8px;
-    border: none;
-    background: transparent;
-    color: var(--sb-ctrl);
-    cursor: pointer;
-    transition: background $t-fast, color $t-fast;
-    gap: 6px;
-
-    &:hover {
-      background: var(--sb-bg-hover);
-      color: var(--sb-ctrl-hover);
-    }
-
-    &:active { opacity: 0.70; }
-  }
-
-  &__label {
-    font-size: 11px;
-    font-weight: 440;
-    letter-spacing: -0.01em;
-    white-space: nowrap;
-    overflow: hidden;
-    transition: opacity $t-mid;
-  }
-}
-
-
-// ── Keyframes ─────────────────────────────────────────────────────────────────
-
-// Calm, slow — presence without urgency
-@keyframes live-pulse {
-  0%   { opacity: 1;    box-shadow: 0 0 0 0 rgba(52, 199, 123, 0); }
-  40%  { opacity: 0.55; box-shadow: 0 0 0 3px rgba(52, 199, 123, 0.12); }
-  100% { opacity: 1;    box-shadow: 0 0 0 0 rgba(52, 199, 123, 0); }
+@media (prefers-reduced-motion: reduce) {
+  .iconRail, .navPanel, .iconRail__item, .navPanel__item, .navPanel__items { transition: none; }
 }

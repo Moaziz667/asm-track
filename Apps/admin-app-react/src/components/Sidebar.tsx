@@ -8,7 +8,8 @@ import {
   IconUsers, IconTruck, IconBuildingWarehouse, IconMap2,
   IconChartLine, IconFileText, IconSettings, IconDatabase,
   IconChevronsLeft, IconChevronsRight,
-  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan
+  IconChevronDown, IconChevronRight, IconPackageExport, IconHeartbeat, IconBan,
+  IconSun, IconMoon, IconMap2 as IconMap, IconUserCircle, IconLogout
 } from '@tabler/icons-react';
 import {
   canManageSettings, getCurrentRole, canImportErp,
@@ -20,9 +21,19 @@ import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useLocaleStore } from '@/lib/i18n';
 import { useSidebar } from '@/components/ui/sidebar';
 import { useAlerts } from '@/components/AlertsProvider';
+import { useGlobalMapStore } from '@/lib/state/global-map-store';
+import { useAuth } from 'react-oidc-context';
+import { safeStorage } from '@/lib/storage';
+import { useCurrentUser } from '@/hooks/useCurrentUser';
 import { api } from '@/lib/api';
 import s from './Sidebar.module.scss';
 import { cn } from '@/lib/utils';
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import LanguageSelector from './LanguageSelector';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -35,7 +46,7 @@ export type NavItem = {
 
 export type NavGroupDef = {
   groupKey: string;
-  Icon: React.ComponentType<{ size?: number; className?: string }>;
+  Icon: React.ComponentType<{ size?: number; stroke?: number; className?: string }>;
   items: NavItem[];
 };
 
@@ -95,10 +106,19 @@ export function AppSidebar() {
   const { pathname } = useLocation();
   const { open: isOpen, toggleSidebar, isMobile } = useSidebar();
   const isCollapsed = !isOpen && !isMobile;
+  const auth = useAuth();
+  const { data: user } = useCurrentUser();
 
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
   const [isClient, setIsClient] = useState(false);
+  const [isDark, setIsDark] = useState(false);
   const [telemetry, setTelemetry] = useState<{ erpPending: number; activeRoutes: number; opsExceptions: number } | null>(null);
+  const [activeGroup, setActiveGroup] = useState<string>('operations');
+
+  const { mapMode, setMapMode } = useGlobalMapStore();
+  const toggleMap = () => setMapMode(mapMode === 'hidden' ? 'collapsed' : 'hidden');
+  const { locale: activeLocale } = useLocaleStore();
+  const { unreadCount } = useAlerts();
 
   // Auto-close drawer on mobile when routing changes
   useEffect(() => {
@@ -106,9 +126,6 @@ export function AppSidebar() {
       toggleSidebar();
     }
   }, [pathname, isMobile]);
-
-  const { locale: activeLocale } = useLocaleStore();
-  const { unreadCount } = useAlerts();
 
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({
     operations: true,
@@ -129,7 +146,36 @@ export function AppSidebar() {
   useEffect(() => {
     setIsClient(true);
     setRole(getCurrentRole());
+    setIsDark(document.documentElement.classList.contains('dark'));
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'admin-color-scheme' && e.newValue) {
+        const isNextDark = e.newValue === 'dark';
+        setIsDark(isNextDark);
+        document.documentElement.classList.toggle('dark', isNextDark);
+        document.documentElement.setAttribute('data-mantine-color-scheme', e.newValue);
+        document.cookie = `asm-theme=${e.newValue}; path=/; max-age=31536000; SameSite=Strict`;
+      }
+    };
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
   }, []);
+
+  // Auto-select group based on current pathname
+  useEffect(() => {
+    for (const group of GROUP_DEFS) {
+      for (const item of group.items) {
+        if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+          setActiveGroup(group.groupKey);
+          return;
+        }
+      }
+    }
+    // Check settings
+    if (pathname.startsWith('/settings')) {
+      setActiveGroup('settings');
+    }
+  }, [pathname]);
 
   useEffect(() => {
     if (!isClient) return;
@@ -140,7 +186,7 @@ export function AppSidebar() {
         const [erpRes, routesRes, exceptionsRes] = await Promise.all([
           api.get('/api/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] })),
           api.get('/api/admin/routes').catch(() => ({ data: [] })),
-          api.get('/api/admin/ops/exceptions', { params: { period: 'all', limit: 200 } }).catch(() => ({ data: { items: [] } }))
+          api.get('/api/admin/ops/exceptions', { params: { period: 'day', limit: 200 } }).catch(() => ({ data: { items: [] } }))
         ]);
         if (!active) return;
 
@@ -151,13 +197,11 @@ export function AppSidebar() {
         const activeRoutes = routesList.filter((r: { status?: string }) => r.status === 'IN_PROGRESS').length;
 
         const exceptionsList = Array.isArray(exceptionsRes.data?.items) ? exceptionsRes.data.items : [];
-        // "Actions requises" = items that truly need a dispatcher to act (severity CRITICAL/WARNING:
-        // failures, SLA breaches, partials, stuck pickups). INFO rows (routine "in transit" / "awaiting
-        // planning") and cancelled deliveries are NOT actions — counting them made the badge ≈ every
-        // active delivery instead of the real backlog.
         const opsExceptions = exceptionsList.filter(
-          (x: { status?: string; severity?: string }) =>
-            x.status !== 'CANCELLED' && (x.severity === 'CRITICAL' || x.severity === 'WARNING')
+          (x: { status?: string; severity?: string; motif?: string }) =>
+            x.status !== 'CANCELLED' &&
+            (x.severity === 'CRITICAL' || x.severity === 'WARNING') &&
+            x.motif !== 'SCHEDULED_MONITORING'
         ).length;
 
         setTelemetry({ erpPending, activeRoutes, opsExceptions });
@@ -167,7 +211,7 @@ export function AppSidebar() {
     };
 
     fetchTelemetry();
-    const timer = setInterval(fetchTelemetry, 30000); // Polling every 30s for organic accuracy
+    const timer = setInterval(fetchTelemetry, 30000);
     return () => {
       active = false;
       clearInterval(timer);
@@ -225,7 +269,44 @@ export function AppSidebar() {
     return null;
   };
 
+  const toggleDark = () => {
+    const next = !isDark;
+    setIsDark(next);
+    const themeVal = next ? 'dark' : 'light';
+    document.documentElement.classList.toggle('dark', next);
+    document.documentElement.setAttribute('data-mantine-color-scheme', themeVal);
+    safeStorage.setItem('admin-color-scheme', themeVal);
+    document.cookie = `asm-theme=${themeVal}; path=/; max-age=31536000; SameSite=Strict`;
+  };
+
+  const handleLogout = async () => {
+    safeStorage.removeItem('admin-operational-filters');
+    const id_token_hint = auth.user?.id_token;
+    try {
+      await auth.removeUser();
+      await auth.signoutRedirect(id_token_hint ? { id_token_hint } : undefined);
+    } catch {
+      window.location.href = '/';
+    }
+  };
+
+  const displayName = isClient
+    ? user?.name || (role !== 'UNKNOWN' ? role : t.topNav?.user || 'User')
+    : t.topNav?.user || 'User';
+
   if (!isClient) return null;
+
+  // Get current page title for the nav panel header
+  const getCurrentPageTitle = () => {
+    for (const group of groups) {
+      for (const item of group.items) {
+        if (pathname === item.href || pathname.startsWith(`${item.href}/`)) {
+          return item.label;
+        }
+      }
+    }
+    return tlabel(t.sidebar.groups, 'operations') || 'Operations';
+  };
 
   return (
     <>
@@ -235,222 +316,318 @@ export function AppSidebar() {
           onClick={toggleSidebar}
         />
       )}
-      <aside className={cn(s.sidebar, isCollapsed && s.collapsed, isMobile && isOpen && s.mobileOpen)}>
       
-      {/* ── Brand Header ── */}
-      <Link 
-        to="/dashboard" 
-        className={s.brand} 
-      >
-        <div className={s.brand__icon}>
-          <img src="/icon.png" alt="ASM" className={s.brand__logo} />
-        </div>
-        <div className={s.brand__text}>
-          <span 
-            className={s['brand__text-name']} 
-            style={{ 
-              letterSpacing: '0.25em', 
-              textTransform: 'uppercase', 
-              fontSize: '11px', 
-              fontFamily: "var(--font-heading)" 
-            }}
-          >
-            ASM Track
-          </span>
-          <span className={s['brand__text-sub']}>{t.loginPage.brandTagline}</span>
-        </div>
-      </Link>
+      {/* Icon Rail */}
+      <aside className={cn(s.iconRail, isCollapsed && s['iconRail__collapsed'], isMobile && isOpen && s['iconRail__mobileOpen'])}>
+        {/* Brand Logo */}
+        <Link to="/dashboard" className={s['iconRail__brand']}>
+          <div className={s['iconRail__brandIcon']}>
+            <img src="/icon.png" alt="ASM" className={s['iconRail__brandLogo']} />
+          </div>
+        </Link>
 
-      {/* ── Navigation ── */}
-      <nav className={s.nav}>
-        {groups.map((group) => {
-          const visibleItems = group.items.filter(item => !item.roleCheck || item.roleCheck(role));
-          if (visibleItems.length === 0) return null;
+        {/* Navigation Icons */}
+        <nav className={s['iconRail__nav']}>
+          {groups.map((group) => {
+            const visibleItems = group.items.filter(item => !item.roleCheck || item.roleCheck(role));
+            if (visibleItems.length === 0) return null;
 
-          const isExpanded = isCollapsed ? true : (expandedGroups[group.labelKey] ?? true);
+            const isActive = activeGroup === group.labelKey;
+            const badge = getBadgeFor(group.items[0]?.labelKey);
 
-          return (
-            <div key={group.label} className={cn(s.group, !isExpanded && s['group--collapsed'])}>
-              
-              {/* Group Dropdown Header Toggle */}
-              {isCollapsed ? (
-                <div className={s.group__label_collapsed_sep} />
-              ) : (
+            return (
+              <button
+                key={group.labelKey}
+                type="button"
+                className={cn(s.iconRail__item, isActive && s['iconRail__item--active'])}
+                onClick={() => {
+                  if (isCollapsed) {
+                    // If collapsed, expand sidebar and set active group
+                    if (!isOpen) toggleSidebar();
+                    setActiveGroup(group.labelKey);
+                  } else {
+                    setActiveGroup(group.labelKey);
+                  }
+                }}
+                title={group.label}
+              >
+                <group.Icon size={20} stroke={1.5} />
+                {badge && (
+                  <span className={cn(
+                    s['iconRail__dot'],
+                    badge.type === 'alert' && s['iconRail__dot--alert'],
+                    badge.type === 'info' && s['iconRail__dot--info'],
+                    badge.type === 'neutral' && s['iconRail__dot--neutral']
+                  )} />
+                )}
+              </button>
+            );
+          })}
+
+          {/* Settings */}
+          {(!canManageSettings || canManageSettings(role)) && (
+            <button
+              type="button"
+              className={cn(s.iconRail__item, activeGroup === 'settings' && s['iconRail__item--active'])}
+              onClick={() => {
+                if (isCollapsed) {
+                  if (!isOpen) toggleSidebar();
+                  setActiveGroup('settings');
+                } else {
+                  setActiveGroup('settings');
+                }
+              }}
+              title={tlabel(t.sidebar.items, 'settings') || 'Settings'}
+            >
+              <IconSettings size={20} stroke={1.5} />
+            </button>
+          )}
+        </nav>
+
+        {/* Bottom Actions */}
+        <div className={s['iconRail__actions']}>
+          {/* Language Selector */}
+          <div className={s['iconRail__item']}>
+            <LanguageSelector />
+          </div>
+
+          {/* Dark Mode Toggle */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
                 <button
                   type="button"
-                  className={s.group__header}
-                  onClick={() => toggleGroup(group.labelKey)}
-                  aria-expanded={isExpanded}
-                  aria-label={group.label}
-                >
-                  <div className="flex items-center gap-2 min-w-0">
-                    <group.Icon size={12} className="text-[var(--sb-label)] opacity-70 shrink-0" />
-                    <span className={s.group__label}>{group.label}</span>
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {isExpanded ? (
-                      <IconChevronDown size={11} stroke={2.5} className="text-[var(--sb-label)] opacity-60" />
-                    ) : (
-                      <IconChevronRight size={11} stroke={2.5} className="text-[var(--sb-label)] opacity-60" />
-                    )}
-                  </div>
-                </button>
-              )}
+                  onClick={toggleDark}
+                  className={s.iconRail__item}
+                  title={isDark ? t.topNav?.enableLightMode : t.topNav?.enableDarkMode}
+                />
+              }
+            >
+              {isDark ? <IconSun size={20} stroke={1.5} /> : <IconMoon size={20} stroke={1.5} />}
+            </TooltipTrigger>
+            <TooltipContent>{isDark ? t.topNav?.lightMode : t.topNav?.darkMode}</TooltipContent>
+          </Tooltip>
 
-              {/* Group Items Container */}
-              <div 
-                className={cn(s.group__items, !isExpanded && s['group__items--collapsed'])}
-              >
-                {visibleItems.map(item => {
-                  const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
-                  const badge = getBadgeFor(item.labelKey);
+          {/* Map Toggle */}
+          <Tooltip>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={toggleMap}
+                  className={cn(s.iconRail__item, mapMode !== 'hidden' && s['iconRail__item--active'])}
+                  title={mapMode !== 'hidden' ? t.topNav?.hideMap : t.topNav?.showMap}
+                />
+              }
+            >
+              <IconMap size={20} stroke={1.5} />
+            </TooltipTrigger>
+            <TooltipContent>{mapMode !== 'hidden' ? t.topNav?.hideMap : t.topNav?.showMap}</TooltipContent>
+          </Tooltip>
 
-                  return (
-                    <Link
-                      key={item.href}
-                      to={item.href}
-                      className={cn(s.item, active && s['item--active'])}
-                    >
-                      <span className={s.item__icon}>
-                        <item.Icon size={16} stroke={active ? 2 : 1.5} />
-                        {badge && isCollapsed && (
-                          <span className={cn(
-                            s.item__dot,
-                            badge.type === 'alert' && s['item__dot--alert'],
-                            badge.type === 'info' && s['item__dot--info'],
-                            badge.type === 'neutral' && s['item__dot--neutral']
-                          )} />
-                        )}
-                      </span>
-                      <span className={s.item__label}>{item.label}</span>
-                      
-                      {badge && !isCollapsed && (
-                        <span className={cn(
-                          s.item__badge,
-                          badge.type === 'alert' && s['item__badge--alert'],
-                          badge.type === 'info' && s['item__badge--info'],
-                          badge.type === 'neutral' && s['item__badge--neutral']
-                        )}>
-                          {badge.text}
-                        </span>
-                      )}
-                      
-                      {/* Collapsed Tooltip */}
-                      {isCollapsed && (
-                        <span className={s.item__tooltip}>
-                          {item.label}
-                          {badge && ` (${badge.text})`}
-                        </span>
-                      )}
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          );
-        })}
-        
-        {/* Settings Group */}
-        {(!canManageSettings || canManageSettings(role)) && (
-          <div className={cn(s.group, !expandedGroups.settings && s['group--collapsed'])} style={{ marginTop: 'auto', borderTop: '1px solid var(--sb-sep-h)', paddingTop: '12px' }}>
-            {isCollapsed ? (
-              <div className={s.group__label_collapsed_sep} />
-            ) : (
+          {/* User Menu */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className={s.group__header}
-                onClick={() => toggleGroup('settings')}
-                aria-expanded={expandedGroups.settings}
-                aria-label={tlabel(t.sidebar.items, 'settings') || 'Settings'}
+                className={cn(s.iconRail__item, s['iconRail__item--user'])}
+                title={displayName}
               >
-                <div className="flex items-center gap-2 min-w-0">
-                  <IconSettings size={12} className="text-[var(--sb-label)] opacity-70 shrink-0" />
-                  <span className={s.group__label}>{tlabel(t.sidebar.items, 'settings') || 'Settings'}</span>
-                </div>
-                <div className="flex items-center gap-1.5 shrink-0">
-                  {expandedGroups.settings ? (
-                    <IconChevronDown size={11} stroke={2.5} className="text-[var(--sb-label)] opacity-60" />
-                  ) : (
-                    <IconChevronRight size={11} stroke={2.5} className="text-[var(--sb-label)] opacity-60" />
-                  )}
+                <div className={s['iconRail__avatar']}>
+                  <span className={s['iconRail__avatarText']}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </span>
                 </div>
               </button>
-            )}
-            <div className={cn(s.group__items, !expandedGroups.settings && s['group__items--collapsed'])}>
-              <Link
-                to="/settings"
-                className={cn(s.item, (pathname === '/settings') && s['item--active'])}
-              >
-                <span className={s.item__icon}>
-                  <IconSettings size={16} stroke={(pathname === '/settings') ? 2 : 1.5} />
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent align="start" className="w-56" side="right">
+              <div className="px-3 py-2.5">
+                <p className="text-sm font-bold text-[var(--text-primary)]">{displayName}</p>
+                <span className="inline-block mt-1 text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--text-primary)] text-[var(--surface)]">
+                  {role}
                 </span>
-                <span className={s.item__label}>{(t.settingsPage.generalConfig) || 'Général'}</span>
-                {isCollapsed && (
-                  <span className={s.item__tooltip}>
-                    {(t.settingsPage.generalConfig) || 'Général'}
-                  </span>
-                )}
-              </Link>
-              <Link
-                to="/settings/erp"
-                className={cn(s.item, (pathname === '/settings/erp') && s['item--active'])}
+              </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                className="gap-2 text-xs font-semibold cursor-pointer"
+                onClick={() => {
+                  if (auth.settings.authority) {
+                    window.open(`${auth.settings.authority}/account/?kc_locale=${activeLocale}`, '_blank');
+                  }
+                }}
               >
-                <span className={s.item__icon}>
-                  <IconDatabase size={16} stroke={(pathname === '/settings/erp') ? 2 : 1.5} />
-                </span>
-                <span className={s.item__label}>{tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}</span>
-                {isCollapsed && (
-                  <span className={s.item__tooltip}>
-                    {tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}
-                  </span>
-                )}
-              </Link>
-            </div>
-          </div>
-        )}
-      </nav>
+                <IconUserCircle size={14} /> {t.topNav?.myAccount || 'My Account'}
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="gap-2 text-xs font-semibold text-[var(--danger)] focus:text-[var(--danger)] cursor-pointer"
+                onClick={handleLogout}
+              >
+                <IconLogout size={14} /> {t.topNav?.logout || 'Logout'}
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-      {/* ── Footer ── */}
-      <div className={s.footer}>
-        
-
-
-        {/* Collapse toggle button */}
+        {/* Collapse Toggle */}
         {!isMobile && (
           <button
             type="button"
             onClick={toggleSidebar}
-            className={s.footer__toggle}
+            className={s['iconRail__toggle']}
             aria-label={isCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           >
-            <svg 
-              data-testid={isCollapsed ? "collapse-right-icon" : "collapse-left-icon"} 
-              role="img" 
-              aria-hidden="true" 
-              className="gl-button-icon gl-icon s16 gl-fill-current shrink-0" 
-              style={{ 
-                width: 14, 
-                height: 14, 
-                fill: 'currentColor'
-              }}
-              viewBox="0 0 16 16"
-            >
-              {isCollapsed ? (
-                <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm9.146 4.146a.5.5 0 0 1 0 .708l-3.5 3.5a.5.5 0 0 1-.708-.708L9.293 8.5H4.5a.5.5 0 0 1 0-1h4.793L6.938 4.854a.5.5 0 0 1 .708-.708l3.5 3.5z" />
-              ) : (
-                <path fillRule="evenodd" clipRule="evenodd" d="M2 3a.5.5 0 0 1 .5-.5h1a.5.5 0 0 1 .5.5v10a.5.5 0 0 1-.5.5h-1a.5.5 0 0 1-.5-.5V3zm5.854 1.146a.5.5 0 0 1 0 .708L5.207 7.5H13.5a.5.5 0 0 1 0 1H5.207l2.647 2.646a.5.5 0 0 1-.708.708l-3.5-3.5a.5.5 0 0 1 0-.708l3.5-3.5a.5.5 0 0 1 .708 0z" />
-              )}
-            </svg>
-            {!isCollapsed && (
-              <span className={s.footer__label}>
-                {activeLocale === 'ar' ? 'تصغير الشريط الجانبي' : activeLocale === 'fr' ? 'Réduire la barre latérale' : 'Collapse sidebar'}
-              </span>
-            )}
+            {isCollapsed ? <IconChevronsRight size={16} /> : <IconChevronsLeft size={16} />}
           </button>
         )}
-      </div>
+      </aside>
 
-    </aside>
+      {/* Navigation Sidebar */}
+      <aside className={cn(s.navPanel, isCollapsed && s['navPanel__collapsed'], isMobile && isOpen && s['navPanel__mobileOpen'])}>
+        {/* Header */}
+        <div className={s['navPanel__header']}>
+          <span className={s['navPanel__title']}>{getCurrentPageTitle()}</span>
+          {!isMobile && (
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              className={s['navPanel__collapseBtn']}
+              aria-label="Collapse sidebar"
+            >
+              <IconChevronsLeft size={16} />
+            </button>
+          )}
+        </div>
+
+        {/* Navigation Content */}
+        <nav className={s['navPanel__content']}>
+          {groups.map((group) => {
+            const visibleItems = group.items.filter(item => !item.roleCheck || item.roleCheck(role));
+            if (visibleItems.length === 0) return null;
+
+            const isGroupExpanded = activeGroup === group.labelKey;
+            const hasActiveChild = visibleItems.some(item => 
+              pathname === item.href || pathname.startsWith(`${item.href}/`)
+            );
+
+            return (
+              <div key={group.labelKey} className={s.navPanel__group}>
+                {/* Group Header */}
+                <button
+                  type="button"
+                  className={cn(s['navPanel__groupHeader'], isGroupExpanded && s['navPanel__groupHeader--active'])}
+                  onClick={() => setActiveGroup(group.labelKey)}
+                  aria-expanded={isGroupExpanded}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <group.Icon size={14} className="text-[var(--panel-text-muted)] opacity-70 shrink-0" />
+                    <span className={s['navPanel__groupLabel']}>{group.label}</span>
+                  </div>
+                  <div className="flex items-center gap-1 shrink-0">
+                    {isGroupExpanded ? (
+                      <IconChevronDown size={12} stroke={2.5} className="text-[var(--panel-text-muted)] opacity-60" />
+                    ) : (
+                      <IconChevronRight size={12} stroke={2.5} className="text-[var(--panel-text-muted)] opacity-60" />
+                    )}
+                  </div>
+                </button>
+
+                {/* Group Items */}
+                <div className={cn(s['navPanel__items'], !isGroupExpanded && s['navPanel__items--collapsed'])}>
+                  {visibleItems.map((item, index) => {
+                    const active = pathname === item.href || pathname.startsWith(`${item.href}/`);
+                    const badge = getBadgeFor(item.labelKey);
+                    const isLast = index === visibleItems.length - 1;
+
+                    return (
+                      <Link
+                        key={item.href}
+                        to={item.href}
+                        className={cn(
+                          s['navPanel__item'],
+                          s['navPanel__item--child'],
+                          active && s['navPanel__item--child-active'],
+                          active && s['navPanel__item--active']
+                        )}
+                      >
+                        <span className={s['navPanel__itemIcon']}>
+                          <item.Icon size={14} stroke={1.5} />
+                        </span>
+                        <span className={s['navPanel__itemLabel']}>{item.label}</span>
+                        
+                        {badge && (
+                          <span className={cn(
+                            s['navPanel__badge'],
+                            badge.type === 'alert' && s['navPanel__badge--alert'],
+                            badge.type === 'info' && s['navPanel__badge--info'],
+                            badge.type === 'neutral' && s['navPanel__badge--neutral']
+                          )}>
+                            {badge.text}
+                          </span>
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
+
+          {/* Settings Group */}
+          {(!canManageSettings || canManageSettings(role)) && (
+            <div className={s.navPanel__group}>
+              <button
+                type="button"
+                className={cn(s['navPanel__groupHeader'], activeGroup === 'settings' && s['navPanel__groupHeader--active'])}
+                onClick={() => setActiveGroup('settings')}
+                aria-expanded={activeGroup === 'settings'}
+              >
+                <div className="flex items-center gap-2 min-w-0">
+                  <IconSettings size={14} className="text-[var(--panel-text-muted)] opacity-70 shrink-0" />
+                  <span className={s['navPanel__groupLabel']}>{tlabel(t.sidebar.items, 'settings') || 'Settings'}</span>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  {activeGroup === 'settings' ? (
+                    <IconChevronDown size={12} stroke={2.5} className="text-[var(--panel-text-muted)] opacity-60" />
+                  ) : (
+                    <IconChevronRight size={12} stroke={2.5} className="text-[var(--panel-text-muted)] opacity-60" />
+                  )}
+                </div>
+              </button>
+              <div className={cn(s['navPanel__items'], activeGroup !== 'settings' && s['navPanel__items--collapsed'])}>
+                <Link
+                  to="/settings"
+                  className={cn(
+                    s['navPanel__item'],
+                    s['navPanel__item--child'],
+                    pathname === '/settings' && s['navPanel__item--child-active'],
+                    pathname === '/settings' && s['navPanel__item--active']
+                  )}
+                >
+                  <span className={s['navPanel__itemIcon']}>
+                    <IconSettings size={14} stroke={1.5} />
+                  </span>
+                  <span className={s['navPanel__itemLabel']}>{t.settingsPage.generalConfig || 'Général'}</span>
+                </Link>
+                <Link
+                  to="/settings/erp"
+                  className={cn(
+                    s['navPanel__item'],
+                    s['navPanel__item--child'],
+                    pathname === '/settings/erp' && s['navPanel__item--child-active'],
+                    pathname === '/settings/erp' && s['navPanel__item--active']
+                  )}
+                >
+                  <span className={s['navPanel__itemIcon']}>
+                    <IconDatabase size={14} stroke={1.5} />
+                  </span>
+                  <span className={s['navPanel__itemLabel']}>{tlabel(t.sidebar.items, 'erpIntegration') || 'Intégration ERP'}</span>
+                </Link>
+              </div>
+            </div>
+          )}
+        </nav>
+      </aside>
     </>
   );
 }

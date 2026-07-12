@@ -3,10 +3,15 @@ import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { ar } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { IconCalendar } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
+import { useLocaleStore } from '@/lib/i18n';
 import { Calendar } from '@/components/ui/calendar';
+
+const DATE_LOCALES = { fr, ar, en: enUS };
 
 interface DatePickerPopoverProps {
   value: string | null;
@@ -19,28 +24,27 @@ interface DatePickerPopoverProps {
 
 export function DatePickerPopover({ value, onChange, placeholder, className, minDate }: DatePickerPopoverProps) {
   const t = useT();
+  const { locale } = useLocaleStore();
   const selected = value ? parseISO(value) : undefined;
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ top: 0, right: 0 });
+  const [pos, setPos] = useState<{ top: number; left?: number; right?: number }>({ top: 0 });
   const [mounted, setMounted] = useState(false);
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { setMounted(true); }, []);
 
-  // Position the portal panel below the trigger button — useLayoutEffect so the position is set
-  // BEFORE the browser paints. With a plain useEffect the panel paints once at {0,0} (top-right,
-  // shadow and all) then jumps into place → the brief shadow flash on open.
   useLayoutEffect(() => {
     if (!open || !btnRef.current) return;
     const rect = btnRef.current.getBoundingClientRect();
+    const isRtl = locale === 'ar';
     setPos({
       top: rect.bottom + window.scrollY + 6,
-      right: window.innerWidth - rect.right,
+      left: isRtl ? rect.left + window.scrollX : undefined,
+      right: isRtl ? undefined : window.innerWidth - rect.right,
     });
-  }, [open]);
+  }, [open, locale]);
 
-  // Close on outside click
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (
@@ -68,7 +72,7 @@ export function DatePickerPopover({ value, onChange, placeholder, className, min
       >
         <IconCalendar size={13} className="text-[var(--text-soft)] shrink-0" />
         <span className={cn('font-mono text-xs', !selected && 'text-[var(--text-soft)]')}>
-          {selected ? format(selected, 'd MMM yyyy', { locale: fr }) : (placeholder ?? t.placeholders?.date ?? 'Pick a date')}
+          {selected ? format(selected, 'd MMM yyyy', { locale: DATE_LOCALES[locale] }) : (placeholder ?? t.placeholders?.date ?? 'Pick a date')}
         </span>
       </button>
 
@@ -78,6 +82,7 @@ export function DatePickerPopover({ value, onChange, placeholder, className, min
           className="fixed z-[9000] bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-xl overflow-hidden"
           style={{
             top: pos.top,
+            left: pos.left,
             right: pos.right,
             boxShadow: '0 8px 24px rgba(0,0,0,0.14)',
           }}
@@ -90,7 +95,7 @@ export function DatePickerPopover({ value, onChange, placeholder, className, min
               setOpen(false);
             }}
             disabled={minDate ? { before: minDate } : undefined}
-            locale={fr}
+            locale={DATE_LOCALES[locale]}
             className="[--cell-size:28px] text-xs"
           />
           {selected && (
@@ -110,4 +115,3 @@ export function DatePickerPopover({ value, onChange, placeholder, className, min
     </>
   );
 }
-

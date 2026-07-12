@@ -13,6 +13,8 @@ public class TrackingResponse {
     private String failReason;
     /** Latest return lifecycle state for this delivery (RmaStatus name), or null if no return exists. */
     private String returnStatus;
+    /** Resolution note for the latest return when it was REJECTED — the reason shown to the client. */
+    private String returnResolutionNote;
     private String clientName;
     private String clientPhone;
     private String erpOrderId;

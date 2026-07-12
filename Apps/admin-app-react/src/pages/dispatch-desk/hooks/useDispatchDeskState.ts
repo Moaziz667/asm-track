@@ -46,8 +46,8 @@ export interface DispatchDeskContextProps {
   setZoneFilter: React.Dispatch<React.SetStateAction<string[]>>;
   depotFilter: string[];
   setDepotFilter: React.Dispatch<React.SetStateAction<string[]>>;
-  statusFilter: string;
-  setStatusFilter: React.Dispatch<React.SetStateAction<string>>;
+  statusFilter: string[];
+  setStatusFilter: React.Dispatch<React.SetStateAction<string[]>>;
   routeFilter: string;
   setRouteFilter: React.Dispatch<React.SetStateAction<string>>;
   queueSort: QueueSortMode;
@@ -147,7 +147,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const [driverId, setDriverId]       = useState<string[]>(globalFilters.driver ? [globalFilters.driver] : []);
   const [zoneFilter, setZoneFilter]   = useState<string[]>(globalFilters.zone ? [globalFilters.zone] : []);
   const [depotFilter, setDepotFilter] = useState<string[]>([]);
-  const [statusFilter, setStatusFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [routeFilter, setRouteFilter] = useState('');
   const [queueSort, setQueueSort] = useState<QueueSortMode>('route');
 
@@ -223,8 +223,8 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const fetchAllDeliveries = useCallback(async () => {
     setAllLoading(true);
     try {
-      const params: Record<string, string | number> = { size: 500 };
-      if (statusFilter) params.status = statusFilter;
+      const params: Record<string, string | number | string[]> = { size: 500 };
+      if (statusFilter.length) params.status = statusFilter;
       if (period === 'day')    params.date = new Date().toISOString().slice(0, 10);
       else if (period === 'week')  { params.dateFrom = getWeekStart();  params.dateTo = new Date().toISOString().slice(0, 10); }
       else if (period === 'month') { params.dateFrom = getMonthStart(); params.dateTo = new Date().toISOString().slice(0, 10); }
@@ -453,7 +453,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
     setDriverId([]);
     setZoneFilter([]);
     setDepotFilter([]);
-    setStatusFilter('');
+    setStatusFilter([]);
     setRouteFilter('');
   }, []);
 

@@ -32,6 +32,19 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
         """)
     List<UUID> findRouteIdsByClientName(@Param("q") String q);
 
+    /**
+     * Route ids whose stops belong to a delivery whose order sits in one of the given zones. Backs the
+     * routes-table server-side zone filter — the route's own {@code city}/{@code zoneId} columns are often
+     * null (manual fields), so we resolve the real (postal-derived) zone via the stop→delivery→order join,
+     * the same {@code order.zoneId} the deliveries list filters on.
+     */
+    @Query("""
+        SELECT DISTINCT rs.route.id FROM RouteStop rs, Delivery d
+        WHERE d.id = rs.deliveryId
+          AND d.order.zoneId IN :zoneIds
+        """)
+    List<UUID> findRouteIdsByZoneIds(@Param("zoneIds") List<UUID> zoneIds);
+
     default Optional<RouteStop> findByDeliveryId(UUID deliveryId) {
         return findFirstByDeliveryIdOrderByCreatedAtDesc(deliveryId);
     }

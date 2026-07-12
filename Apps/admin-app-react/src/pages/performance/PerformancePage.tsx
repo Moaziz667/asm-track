@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
+import { analyticsDateParams } from '@/lib/analytics/date-params';
 import { useT } from '@/lib/i18n/LocaleContext';
 import {
   IconClockFilled, IconChartAreaFilled, IconUsersGroup,
@@ -117,9 +118,7 @@ export default function PerformancePage() {
     return scopeCount + (range !== 'last30d' ? 1 : 0);
   }, [scope, range]);
 
-  const dateParams: Record<string, string> = range === 'custom' && customFrom && customTo
-    ? { from: `${customFrom}T00:00:00`, to: `${customTo}T23:59:59` }
-    : { range };
+  const dateParams = analyticsDateParams(range, customFrom, customTo);
 
   const scopeParams = useMemo(() => {
     const p: Record<string, string[]> = {};
@@ -191,7 +190,11 @@ export default function PerformancePage() {
     if (!d.driverId) { showErrorToast(null, 'errorMissingDriverId'); return; }
     setGeneratingPdf(prev => new Set(prev).add(d.driverId));
     try {
-      const pdfParams = range === 'custom' && customFrom && customTo ? { from: customFrom, to: customTo } : { period: range };
+      // Legacy PDF endpoint takes date-only from/to or a `period` preset. A bare custom (no dates) falls
+      // back to a valid preset so the export never 400s.
+      const pdfParams = range === 'custom'
+        ? (customFrom && customTo ? { from: customFrom, to: customTo } : { period: 'last30d' })
+        : { period: range };
       const res = await api.get(`/api/admin/reports/drivers/${d.driverId}/performance/pdf`, { params: pdfParams, responseType: 'blob' });
       const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');

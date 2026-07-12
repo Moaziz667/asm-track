@@ -1,7 +1,7 @@
 
 
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { safeStorage } from '@/lib/storage';
@@ -68,6 +68,7 @@ const PAGE_BY_HREF: Record<string, CrumbInfo> = (() => {
 
 function Breadcrumb({ t }: { t: TranslationSchema }) {
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const { trail } = useBreadcrumb();
   const seg = pathname.split('/').filter(Boolean)[0] ?? '';
 
@@ -97,6 +98,10 @@ function Breadcrumb({ t }: { t: TranslationSchema }) {
   // rest. Each keeps the page-supplied, already-localized label.
   const detailCrumbs = trail.length > 1 ? trail.slice(1) : [];
 
+  // Sibling pages in the current group → the page crumb becomes a quick page-switcher dropdown
+  // (matches the reference's "Section ⌄ / Page ⌄" breadcrumb). Only when there's more than one.
+  const siblings = current ? (GROUP_DEFS.find(g => g.groupKey === current.groupKey)?.items ?? []) : [];
+
   const sep = (
     <span className="px-1.5 text-[var(--border-strong)] flex items-center">
       <IconChevronRight size={10} />
@@ -120,10 +125,44 @@ function Breadcrumb({ t }: { t: TranslationSchema }) {
           title is the document's <h1> so every list page has a top-level heading (WCAG /
           axe page-has-heading-one); the inline size keeps it visually a breadcrumb. */}
       {detailCrumbs.length === 0 ? (
-        <h1 className="flex items-center gap-1.5 text-sm font-bold font-semibold text-[var(--text-primary)] whitespace-nowrap truncate m-0">
-          {!groupLabel && PageIcon && <PageIcon size={13} />}
-          {pageLabel}
-        </h1>
+        siblings.length > 1 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                type="button"
+                className="group flex items-center gap-1.5 rounded-md px-1.5 py-0.5 -mx-1.5 hover:bg-[var(--hover-bg)] transition-colors outline-none"
+                aria-label={pageLabel}
+              >
+                <h1 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap truncate m-0">
+                  {!groupLabel && PageIcon && <PageIcon size={13} />}
+                  {pageLabel}
+                </h1>
+                <IconChevronDown size={11} className="text-[var(--text-soft)] group-hover:text-[var(--text-muted)] transition-colors" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-52">
+              {siblings.map((it) => {
+                const active = it.href === current?.href;
+                const ItemIcon = it.Icon;
+                return (
+                  <DropdownMenuItem
+                    key={it.href}
+                    className="gap-2 text-xs font-semibold cursor-pointer"
+                    style={active ? { color: 'var(--brand)', background: 'var(--brand-soft)' } : undefined}
+                    onClick={() => navigate(it.href)}
+                  >
+                    <ItemIcon size={14} /> {tx(items, it.labelKey, it.labelKey)}
+                  </DropdownMenuItem>
+                );
+              })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : (
+          <h1 className="flex items-center gap-1.5 text-sm font-semibold text-[var(--text-primary)] whitespace-nowrap truncate m-0">
+            {!groupLabel && PageIcon && <PageIcon size={13} />}
+            {pageLabel}
+          </h1>
+        )
       ) : (
         <Link to={current?.href ?? '#'} className="flex items-center gap-1.5 text-sm font-medium text-[var(--text-muted)] whitespace-nowrap hover:text-[var(--text-primary)] transition-colors no-underline">
           {!groupLabel && PageIcon && <PageIcon size={13} />}

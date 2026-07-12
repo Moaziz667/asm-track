@@ -813,6 +813,31 @@ public class EventPublisher {
         });
     }
 
+    // ── Return (RMA) events ─────────────────────────────────────────────────────
+
+    /**
+     * A return changed status (created, approved, received, restocked, rejected, cancelled — from admin or
+     * the public self-service page). Broadcast on the already-subscribed admin.deliveries topic so the
+     * Returns page invalidates without a new STOMP topic. Fire-and-forget nudge; no persisted notification.
+     */
+    public void publishRmaStatusChanged(com.asm.delivery.entity.Rma rma) {
+        if (rma == null) return;
+        final Map<String, Object> p = new HashMap<>();
+        p.put("rmaId", rma.getId() != null ? rma.getId().toString() : null);
+        p.put("deliveryId", rma.getDeliveryId() != null ? rma.getDeliveryId().toString() : null);
+        p.put("status", rma.getStatus() != null ? rma.getStatus().name() : null);
+        p.put("clientName", rma.getClientName());
+        executeAfterCommitAsync(() -> {
+            log.info("EVENT return.status_changed rmaId={} status={}", p.get("rmaId"), p.get("status"));
+            CloudEventWrapper<Object> envelope = CloudEventWrapper.builder()
+                .source("/delivery-service")
+                .type("return.status_changed")
+                .data(p)
+                .build();
+            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+        });
+    }
+
     // ── Route events ──────────────────────────────────────────────────────────
 
     public void publishRouteValidated(Route route) {

@@ -82,14 +82,14 @@ public class PeriodResolver {
             String key = (range == null || range.isBlank()) ? "today" : range.trim().toLowerCase(Locale.ROOT);
             LocalDate today = now.toLocalDate();
             switch (key) {
-                case "today" -> { start = today.atStartOfDay(); end = now; }
+                case "today", "day" -> { start = today.atStartOfDay(); end = now; }
                 case "yesterday" -> {
                     start = today.minusDays(1).atStartOfDay();
                     end = today.atStartOfDay();
                 }
-                case "wtd" -> { start = today.with(DayOfWeek.MONDAY).atStartOfDay(); end = now; }
+                case "wtd", "week" -> { start = today.with(DayOfWeek.MONDAY).atStartOfDay(); end = now; }
                 case "last7d" -> { start = today.minusDays(6).atStartOfDay(); end = now; }
-                case "mtd" -> { start = today.withDayOfMonth(1).atStartOfDay(); end = now; }
+                case "mtd", "month" -> { start = today.withDayOfMonth(1).atStartOfDay(); end = now; }
                 case "last30d" -> { start = today.minusDays(29).atStartOfDay(); end = now; }
                 case "qtd" -> {
                     LocalDate firstOfQuarter = today.with(IsoFields.DAY_OF_QUARTER, 1L);

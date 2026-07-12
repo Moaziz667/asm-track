@@ -72,7 +72,7 @@ public class ErpSyncResultConsumer {
             orderRepo.save(order);
             log.error("ERP sync SYNC_FAILED — orderId={} op={} reason={}", orderId, op, result.get("errorReason"));
             try {
-                eventPublisher.publishErpSyncFailed(order, deliveryId, erpOperationCode(op));
+                eventPublisher.publishErpSyncFailed(order, deliveryId, com.asm.delivery.service.ErpNotificationLabel.of(op));
             } catch (Exception e) {
                 log.warn("Could not publish erp.sync_failed notification for orderId={}: {}", orderId, e.getMessage());
             }
@@ -104,15 +104,6 @@ public class ErpSyncResultConsumer {
             }
             rmaRepo.save(rma);
         }, () -> log.warn("ErpSyncResultConsumer: RETURN result for unknown rmaId={}, dropping", rmaId));
-    }
-
-    private String erpOperationCode(String op) {
-        return switch (op == null ? "" : op) {
-            case "STOCK_FULL", "STOCK_PARTIAL" -> "STOCK";
-            case "FAILURE"                     -> "FAILURE_REPORT";
-            case "CANCELLATION"                -> "CANCELLATION";
-            default                            -> "SYNC";
-        };
     }
 
     private static String str(Object v) {

@@ -232,7 +232,7 @@ export default function DeliveryDetailPage() {
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
-                {(delivery.status === 'DELIVERED' || delivery.status === 'PARTIALLY_DELIVERED') && (
+                {(delivery.status === 'DELIVERED' || delivery.status === 'PARTIALLY_DELIVERED') && !delivery.hasOpenReturn && (
                   <button
                     type="button"
                     onClick={() => setReturnOpen(true)}

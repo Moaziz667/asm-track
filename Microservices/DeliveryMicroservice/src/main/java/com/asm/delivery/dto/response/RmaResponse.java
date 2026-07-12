@@ -29,11 +29,16 @@ public class RmaResponse {
     /** Last ERP reverse-move error when {@code erpSyncStatus = SYNC_FAILED}, for operator triage. */
     private String erpSyncError;
     private List<Item> items;
+    /** Client-uploaded evidence photos (MinIO URLs). Populated on single-return reads; null in list views. */
+    private List<String> photoUrls;
     private int totalUnits;
     private String createdBy;
     private LocalDateTime createdAt;
     private LocalDateTime receivedAt;
     private LocalDateTime restockedAt;
+    private String trackingNumber;
+    private String shippingCarrier;
+    private LocalDateTime shippedAt;
 
     @Data
     @Builder
@@ -67,6 +72,9 @@ public class RmaResponse {
                 .createdAt(r.getCreatedAt())
                 .receivedAt(r.getReceivedAt())
                 .restockedAt(r.getRestockedAt())
+                .trackingNumber(r.getTrackingNumber())
+                .shippingCarrier(r.getShippingCarrier())
+                .shippedAt(r.getShippedAt())
                 .build();
     }
 

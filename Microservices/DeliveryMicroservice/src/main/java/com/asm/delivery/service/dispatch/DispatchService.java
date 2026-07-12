@@ -879,9 +879,7 @@ public class DispatchService {
      *  guard so the UI can prevent a duplicate before the operator even submits. */
     private boolean hasOpenReturn(UUID deliveryId) {
         return rmaRepo.findByDeliveryIdOrderByCreatedAtDesc(deliveryId).stream()
-                .anyMatch(r -> r.getStatus() == com.asm.delivery.entity.RmaStatus.REQUESTED
-                        || r.getStatus() == com.asm.delivery.entity.RmaStatus.APPROVED
-                        || r.getStatus() == com.asm.delivery.entity.RmaStatus.RECEIVED);
+                .anyMatch(r -> com.asm.delivery.service.RmaService.OPEN_STATUSES.contains(r.getStatus()));
     }
 
     /**

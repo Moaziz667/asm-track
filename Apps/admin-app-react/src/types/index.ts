@@ -128,6 +128,8 @@ export interface Delivery {
   /** ERP grouping ref + sibling shipments for multi-parcel orders. */
   erpExternalRef?: string;
   relatedShipments?: Array<{ deliveryId: string; blNumber?: string; status: string; current: boolean }>;
+  /** True when this delivery already has an open return (REQUESTED/APPROVED/RECEIVED). */
+  hasOpenReturn?: boolean;
 }
 
 export type DriverAccountStatus = 'PENDING_SETUP' | 'ACTIVE' | 'SUSPENDED';

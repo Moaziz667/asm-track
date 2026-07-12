@@ -48,13 +48,17 @@ public class AdminAuditController {
             String q,
             String action,
             String actor,
-            String actorRole,
-            String entity,
+            @RequestParam(required = false) List<String> actorRole,
+            @RequestParam(required = false) List<String> entity,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime from,
             @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime to) {
 
         int safeSize = Math.min(Math.max(size, 1), 200);
         int safePage = Math.max(page, 0);
+
+        // Multi-select: normalize to upper-cased, blank-free lists (empty = no filter).
+        final List<String> roles = upperList(actorRole);
+        final List<String> entities = upperList(entity);
 
         // 1. Delivery-side logs (own table)
         Specification<AuditLog> spec = (root, query, cb) -> {
@@ -73,11 +77,11 @@ public class AdminAuditController {
             if (actor != null && !actor.isBlank()) {
                 predicates.add(cb.like(cb.upper(root.get("actorName")), "%" + actor.toUpperCase().trim() + "%"));
             }
-            if (actorRole != null && !actorRole.isBlank()) {
-                predicates.add(cb.equal(cb.upper(root.get("actorRole")), actorRole.toUpperCase().trim()));
+            if (!roles.isEmpty()) {
+                predicates.add(cb.upper(root.get("actorRole")).in(roles));
             }
-            if (entity != null && !entity.isBlank()) {
-                predicates.add(cb.equal(cb.upper(root.get("targetEntity")), entity.toUpperCase().trim()));
+            if (!entities.isEmpty()) {
+                predicates.add(cb.upper(root.get("targetEntity")).in(entities));
             }
             if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("createdAt"), from));
             if (to != null)   predicates.add(cb.lessThanOrEqualTo(root.get("createdAt"), to));
@@ -90,14 +94,21 @@ public class AdminAuditController {
         // 2. Driver-side logs via HTTP — fetch a wider window so the page has
         //    at least one driver's events even if delivery is the dominant source.
         // Driver-side search: the single `q` is passed as the action filter (best-effort across the
-        // HTTP boundary), falling back to an explicit `action`. Entity is applied in-memory after fetch.
+        // HTTP boundary), falling back to an explicit `action`. Role/entity lists are applied in-memory
+        // after fetch (the HTTP contract only carries a single role, so we forward it only when the
+        // filter is a single value and otherwise post-filter locally).
         String driverSearch = (q != null && !q.isBlank()) ? q : action;
+        String singleRole = roles.size() == 1 ? roles.get(0) : null;
         List<AuditLogView> driverLogs = driverAuditClient.fetchDriverLogs(
-                driverSearch, actor, actorRole, from, to, 0, Math.max(safeSize, 200));
-        if (entity != null && !entity.isBlank()) {
-            String wanted = entity.trim();
+                driverSearch, actor, singleRole, from, to, 0, Math.max(safeSize, 200));
+        if (!roles.isEmpty()) {
             driverLogs = driverLogs.stream()
-                    .filter(v -> v.getTargetEntity() != null && wanted.equalsIgnoreCase(v.getTargetEntity()))
+                    .filter(v -> v.getActorRole() != null && roles.contains(v.getActorRole().toUpperCase()))
+                    .toList();
+        }
+        if (!entities.isEmpty()) {
+            driverLogs = driverLogs.stream()
+                    .filter(v -> v.getTargetEntity() != null && entities.contains(v.getTargetEntity().toUpperCase()))
                     .toList();
         }
 
@@ -119,6 +130,15 @@ public class AdminAuditController {
 
         return ResponseEntity.ok(new PageImpl<>(pageContent,
                 PageRequest.of(safePage, safeSize), totalElements));
+    }
+
+    /** Normalize a multi-value param to an upper-cased, blank-free list (null → empty). */
+    private static List<String> upperList(List<String> in) {
+        if (in == null) return List.of();
+        return in.stream()
+                .filter(s -> s != null && !s.isBlank())
+                .map(s -> s.trim().toUpperCase())
+                .toList();
     }
 
     private AuditLogView toView(AuditLog l) {

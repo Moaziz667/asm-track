@@ -130,15 +130,32 @@ public class RoutePlanningService {
      * Reuses the same Specification filters; the Pageable carries page/size/sort (default date desc).
      */
     @Transactional(readOnly = true)
-    public Page<RouteResponse> listPaged(RouteStatus status, UUID driverId, String city, UUID vehicleId,
-                                         UUID depotId, LocalDate from, LocalDate to, String q, Pageable pageable) {
-        Specification<Route> spec = buildSpec(status, driverId, null, from, to, city);
+    public Page<RouteResponse> listPaged(List<RouteStatus> statuses, List<UUID> driverIds, List<UUID> zoneIds,
+                                         List<UUID> vehicleIds, List<UUID> depotIds,
+                                         LocalDate from, LocalDate to, String q, Pageable pageable) {
+        // Multi-select browse: reuse buildSpec only for the date window; every pivot is an IN over a list
+        // (empty/null = no filter). buildSpec stays single-value so the shared list() callers — dashboard,
+        // overview, dispatch desk — are untouched.
+        Specification<Route> spec = buildSpec(null, null, null, from, to, null);
 
-        if (vehicleId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("vehicleId"), vehicleId));
+        if (statuses != null && !statuses.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("status").in(statuses));
         }
-        if (depotId != null) {
-            spec = spec.and((root, query, cb) -> cb.equal(root.get("depotId"), depotId));
+        if (driverIds != null && !driverIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("driverId").in(driverIds));
+        }
+        if (zoneIds != null && !zoneIds.isEmpty()) {
+            // Zone lives on the delivery's order (postal-derived), not on the Route — resolve matching
+            // route ids via the stop→delivery→order theta-join, then restrict. Empty result → no route.
+            List<UUID> zoneRouteIds = routeStopRepository.findRouteIdsByZoneIds(zoneIds);
+            spec = spec.and((root, query, cb) ->
+                    zoneRouteIds.isEmpty() ? cb.disjunction() : root.get("id").in(zoneRouteIds));
+        }
+        if (vehicleIds != null && !vehicleIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("vehicleId").in(vehicleIds));
+        }
+        if (depotIds != null && !depotIds.isEmpty()) {
+            spec = spec.and((root, query, cb) -> root.get("depotId").in(depotIds));
         }
         if (StringUtils.hasText(q)) {
             String needle = "%" + q.trim().toLowerCase() + "%";

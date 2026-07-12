@@ -7,12 +7,13 @@ import SockJS from 'sockjs-client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { IconPhone, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
+import ReturnSection from './ReturnSection';
 
 const TrackingMap = dynamic(() => import('./TrackingMap'));
 
 interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
-  deliveryId: string; status: string; failReason?: string; returnStatus?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
+  deliveryId: string; status: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
@@ -326,6 +327,14 @@ export default function TrackingPage() {
             ) : (
               <p style={{ fontSize: 13, color: '#94a3b8', margin: 0 }}>{t.trackingPage.noItems}</p>
             )}
+
+            {/* Self-service return (client) */}
+            <ReturnSection
+              deliveryId={deliveryId!}
+              returnStatus={data.returnStatus}
+              returnResolutionNote={data.returnResolutionNote}
+              onChanged={() => fetchData()}
+            />
           </div>
 
           {/* Address */}

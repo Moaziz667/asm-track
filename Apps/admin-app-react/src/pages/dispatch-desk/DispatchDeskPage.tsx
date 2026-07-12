@@ -41,8 +41,8 @@ function DispatchPageFilterBar() {
     {
       key: 'status',
       label: t.dispatchDeskPage.filterStatus,
+      multi: true,
       options: [
-        { value: '',                    label: t.dispatchDeskPage.filterStatusAll },
         { value: 'UNSCHEDULED',         label: t.dispatchDeskPage.filterStatusUnscheduled },
         { value: 'SCHEDULED',           label: t.dispatchDeskPage.filterStatusScheduled },
         { value: 'PICKED_UP',           label: t.dispatchDeskPage.filterStatusPickedUp },
@@ -84,14 +84,14 @@ function DispatchPageFilterBar() {
   ];
 
   const activeFilters: Record<string, ActiveFilterValue> = {
-    ...(statusFilter ? { status: statusFilter } : {}),
+    ...(statusFilter.length ? { status: statusFilter } : {}),
     ...(driverId.length   ? { driver: driverId } : {}),
     ...(zoneFilter.length ? { zone: zoneFilter } : {}),
     ...(depotFilter.length ? { depot: depotFilter } : {}),
     ...(period !== 'all' ? { period } : {}),
   };
 
-  // Multi keys toggle the clicked value; null clears the whole key. Single keys (status/period) replace.
+  // Multi keys toggle the clicked value; null clears the whole key. Single keys (period) replace.
   const toggle = (setter: React.Dispatch<React.SetStateAction<string[]>>, arr: string[], v: string) =>
     setter(arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v]);
   const handleFilterChange = (key: string, value: string | null) => {
@@ -99,11 +99,11 @@ function DispatchPageFilterBar() {
       if (key === 'driver') setDriverId([]);
       else if (key === 'zone') setZoneFilter([]);
       else if (key === 'depot') setDepotFilter([]);
-      else if (key === 'status') setStatusFilter('');
+      else if (key === 'status') setStatusFilter([]);
       else if (key === 'period') setPeriod('all');
       return;
     }
-    if (key === 'status') setStatusFilter(value);
+    if (key === 'status') toggle(setStatusFilter, statusFilter, value);
     else if (key === 'driver') toggle(setDriverId, driverId, value);
     else if (key === 'zone')   toggle(setZoneFilter, zoneFilter, value);
     else if (key === 'depot')  toggle(setDepotFilter, depotFilter, value);

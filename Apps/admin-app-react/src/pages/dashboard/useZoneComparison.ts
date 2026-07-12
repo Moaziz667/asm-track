@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import type { Range } from './useDashboardData';
+import { analyticsDateParams } from '@/lib/analytics/date-params';
 
 type ZoneData = {
   zoneId: string;
@@ -39,9 +40,7 @@ function aggregateByZone(points: Array<{
  * the delta is correct for every preset, unlike the old client-side range shifting.
  */
 export function useZoneComparison(range: Range, from?: string, to?: string) {
-  const params = range === 'custom' && from && to
-    ? { from: `${from}T00:00:00`, to: `${to}T23:59:59`, compare: true }
-    : { range, compare: true };
+  const params = { ...analyticsDateParams(range, from, to), compare: true };
 
   const { data, isLoading } = useQuery({
     queryKey: ['zone-heatmap', range, from ?? '', to ?? ''],

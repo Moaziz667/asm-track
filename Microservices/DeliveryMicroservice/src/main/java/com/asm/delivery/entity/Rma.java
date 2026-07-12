@@ -86,6 +86,16 @@ public class Rma {
     @Column(name = "received_at")
     private LocalDateTime receivedAt;
 
+    // ── Inbound return-shipment tracking (how the customer sends the goods back) ──
+    @Column(name = "tracking_number", length = 120)
+    private String trackingNumber;
+
+    @Column(name = "shipping_carrier", length = 120)
+    private String shippingCarrier;
+
+    @Column(name = "shipped_at")
+    private LocalDateTime shippedAt;
+
     @Column(name = "restocked_at")
     private LocalDateTime restockedAt;
 

@@ -485,14 +485,6 @@ function RouteBuilderPageInner() {
           className="h-12 px-4 bg-[var(--surface-1)] border-b border-[var(--border)] shrink-0 flex items-center justify-between relative"
         >
           <div className="flex items-center gap-3">
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-1 text-xs text-[var(--text-soft)] hover:text-[var(--text-strong)] transition-colors no-underline font-medium"
-            >
-              <ChevronLeft size={15} />
-              <span>{t.routeBuilderPage.breadcrumbDashboard}</span>
-            </Link>
-            <div className="h-4 w-[1px] bg-[var(--border)]" />
             <span className="text-xs font-bold text-[var(--text-strong)] tracking-wide">
               {t.routeBuilderPage.pageTitle}
             </span>

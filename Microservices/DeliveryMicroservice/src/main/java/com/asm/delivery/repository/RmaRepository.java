@@ -33,9 +33,12 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
                    LOWER(r.clientName) LIKE LOWER(CONCAT('%', :q, '%')) OR
                    LOWER(r.blNumber)   LIKE LOWER(CONCAT('%', :q, '%')) OR
                    LOWER(r.erpOrderId) LIKE LOWER(CONCAT('%', :q, '%')))
+              AND (:from IS NULL OR r.createdAt >= :from)
+              AND (:to   IS NULL OR r.createdAt <= :to)
             ORDER BY r.createdAt DESC
             """)
-    Page<Rma> searchPaged(@Param("status") RmaStatus status, @Param("q") String q, Pageable pageable);
+    Page<Rma> searchPaged(@Param("status") RmaStatus status, @Param("q") String q,
+                          @Param("from") LocalDateTime from, @Param("to") LocalDateTime to, Pageable pageable);
 
     long countByStatus(RmaStatus status);
 
@@ -43,12 +46,18 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
     @Query("SELECT r.status, COUNT(r) FROM Rma r GROUP BY r.status")
     List<Object[]> countGroupedByStatus();
 
-    /** Total returned units (sum of item quantities) for restocked RMAs in a window. */
+    /** Monetary value of all non-terminal-negative returns (excludes REJECTED/CANCELLED) — for the KPI bar. */
     @Query("""
-            SELECT COALESCE(SUM(i.quantity), 0) FROM Rma r JOIN r.items i
-            WHERE r.status = :status AND r.createdAt BETWEEN :start AND :end
+            SELECT COALESCE(SUM(i.unitPrice * i.quantity), 0) FROM Rma r JOIN r.items i
+            WHERE r.status NOT IN ('REJECTED', 'CANCELLED')
             """)
-    long sumReturnedUnits(@Param("status") RmaStatus status,
-                          @Param("start") LocalDateTime start,
-                          @Param("end") LocalDateTime end);
+    java.math.BigDecimal sumReturnValue();
+
+    /** Per-SKU quantities already physically returned (RECEIVED or RESTOCKED) for a given delivery. */
+    @Query("""
+            SELECT i.sku, SUM(i.quantity) FROM Rma r JOIN r.items i
+            WHERE r.deliveryId = :deliveryId AND r.status IN ('RECEIVED', 'RESTOCKED')
+            GROUP BY i.sku
+            """)
+    List<Object[]> sumReturnedQtyBySku(@Param("deliveryId") UUID deliveryId);
 }

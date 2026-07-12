@@ -62,7 +62,7 @@ export function SidebarInset({ children, className, style, ...props }: React.HTM
     <main
       className={`relative flex w-full flex-1 flex-col bg-background transition-[padding] duration-200 ease-linear ${className}`}
       style={{
-        paddingInlineStart: isMobile ? '0px' : (open ? '212px' : '48px'),
+        paddingInlineStart: isMobile ? '0px' : (open ? '276px' : '56px'),
         ...style,
       }}
       {...props}

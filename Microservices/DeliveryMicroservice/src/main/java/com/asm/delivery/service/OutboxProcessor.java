@@ -177,7 +177,7 @@ public class OutboxProcessor {
                 delivery = deliveryRepo.findAllByOrderIdWithOrder(UUID.fromString((String) payload.get("orderId"))).stream().findFirst().orElse(null);
             }
             if (delivery != null && delivery.getOrder() != null) {
-                eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), erpOperationCode(type));
+                eventPublisher.publishErpSyncFailed(delivery.getOrder(), delivery.getId(), ErpNotificationLabel.of(type));
             }
         } catch (Exception ex) {
             log.warn("Could not publish erp.sync_failed admin notification for eventId={}: {}", event.getId(), ex.getMessage());
@@ -195,15 +195,6 @@ public class OutboxProcessor {
             case "ERP_SYNC_RESCHEDULE"   -> "RESCHEDULE";
             default                      -> "SYNC";
         };
-    }
-
-    private String erpOperationCode(String eventType) {
-        switch (eventType) {
-            case "ERP_SYNC_STOCK":        return "STOCK";
-            case "ERP_SYNC_FAILURE":      return "FAILURE_REPORT";
-            case "ERP_SYNC_CANCELLATION": return "CANCELLATION";
-            default:                      return "SYNC";
-        }
     }
 
     private void handleEvent(OutboxEvent event) throws Exception {

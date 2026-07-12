@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { api } from '@/lib/api';
 import {
   IconReload, IconExternalLink, IconArrowRight, IconPackage,
   IconClock, IconUser, IconTruckReturn,
@@ -22,6 +24,7 @@ interface Props {
   busyId: string | null;
   onTransition: (r: Rma, target: RmaStatus) => void;
   onResync: (r: Rma) => void;
+  onSaveShipping?: (r: Rma, data: { trackingNumber: string; shippingCarrier: string }) => Promise<void>;
   t: Copy;
 }
 
@@ -46,7 +49,29 @@ function Metric({ label, value, mono }: { label: string; value: React.ReactNode;
   );
 }
 
-type Step = { label: string; at?: string; by?: string; reached: boolean; dotColor: string };
+type Step = { label: string; at?: string; by?: string; note?: string; reached: boolean; dotColor: string };
+
+type RmaHistoryRow = {
+  id: string; fromStatus?: RmaStatus; toStatus: RmaStatus; note?: string;
+  actedByName?: string; actedByRole?: string; createdAt: string;
+};
+
+const HISTORY_DOT: Record<string, string> = {
+  REQUESTED: 'var(--info)', APPROVED: 'var(--brand)', RECEIVED: 'var(--info)',
+  RESTOCKED: 'var(--success)', REJECTED: 'var(--danger)', CANCELLED: 'var(--danger)',
+};
+
+/** Real timeline from the server audit trail. Empty for legacy RMAs → caller falls back to synthetic. */
+function historySteps(history: RmaHistoryRow[], statusLabel: (s: RmaStatus) => string): Step[] {
+  return history.map(h => ({
+    label: statusLabel(h.toStatus),
+    at: h.createdAt,
+    by: h.actedByName || h.actedByRole || undefined,
+    note: h.note || undefined,
+    reached: true,
+    dotColor: HISTORY_DOT[h.toStatus] ?? 'var(--text-muted)',
+  }));
+}
 
 function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   const c = t.returnsPage;
@@ -68,13 +93,40 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
   ];
 }
 
-export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, t }: Props) {
+export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, onSaveShipping, t }: Props) {
   const ref = rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
   const returnValue = rma
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
     : 0;
-  const steps = rma ? lifecycleSteps(rma, t) : [];
+  // Real status timeline from the audit trail; fall back to the synthetic lifecycle for legacy RMAs
+  // (created before the history table existed) or while loading.
+  const [history, setHistory] = useState<RmaHistoryRow[]>([]);
+  useEffect(() => {
+    if (!open || !rma?.id) { setHistory([]); return; }
+    let cancelled = false;
+    api.get<RmaHistoryRow[]>(`/api/admin/returns/${rma.id}/history`)
+      .then(res => { if (!cancelled) setHistory(Array.isArray(res.data) ? res.data : []); })
+      .catch(() => { if (!cancelled) setHistory([]); });
+    return () => { cancelled = true; };
+  }, [open, rma?.id]);
+
+  const steps = rma
+    ? (history.length > 0 ? historySteps(history, statusLabel) : lifecycleSteps(rma, t))
+    : [];
   const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'by';
+
+  // Inbound return-shipment tracking (editable).
+  const [ship, setShip] = useState({ trackingNumber: '', shippingCarrier: '' });
+  const [savingShip, setSavingShip] = useState(false);
+  useEffect(() => {
+    setShip({ trackingNumber: rma?.trackingNumber ?? '', shippingCarrier: rma?.shippingCarrier ?? '' });
+  }, [rma?.id, rma?.trackingNumber, rma?.shippingCarrier]);
+  const shipDirty = !!rma && (ship.trackingNumber !== (rma.trackingNumber ?? '') || ship.shippingCarrier !== (rma.shippingCarrier ?? ''));
+  const saveShipping = async () => {
+    if (!rma || !onSaveShipping) return;
+    setSavingShip(true);
+    try { await onSaveShipping(rma, ship); } finally { setSavingShip(false); }
+  };
 
   const title = rma ? (
     <div className="flex items-center gap-2">
@@ -279,10 +331,54 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
                       {s.at ? fmtDate(s.at) : ''}{s.by ? `${s.at ? ' · ' : ''}${s.at ? byLabel + ' ' : ''}${s.by}` : ''}
                     </span>
                   )}
+                  {s.note && (
+                    <span className="text-2xs italic" style={{ color: 'var(--text-soft)', marginTop: 2 }}>
+                      “{s.note}”
+                    </span>
+                  )}
                 </div>
               </div>
             ))}
           </div>
+
+          {/* Inbound return-shipment tracking */}
+          {onSaveShipping && (
+            <div className="px-5 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
+              <div className="flex items-center gap-1.5 mb-3">
+                <IconTruckReturn size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
+                <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
+                  {tlabel(t.returnsPage, 'drawerShipping') ?? 'Expédition retour'}
+                </span>
+                {rma?.shippedAt && (
+                  <span className="text-2xs font-mono" style={{ color: 'var(--text-muted)' }}>· {fmtDate(rma.shippedAt)}</span>
+                )}
+              </div>
+              <div className="flex flex-col gap-2">
+                <input
+                  value={ship.shippingCarrier}
+                  onChange={(e) => setShip((s) => ({ ...s, shippingCarrier: e.target.value }))}
+                  placeholder={tlabel(t.returnsPage, 'shippingCarrier') ?? 'Transporteur'}
+                  className="h-8 px-2.5 text-xs rounded border outline-none focus:ring-1 focus:ring-[var(--brand)]"
+                  style={{ borderColor: 'var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+                />
+                <input
+                  value={ship.trackingNumber}
+                  onChange={(e) => setShip((s) => ({ ...s, trackingNumber: e.target.value }))}
+                  placeholder={tlabel(t.returnsPage, 'shippingTracking') ?? 'N° de suivi'}
+                  className="h-8 px-2.5 text-xs rounded border outline-none focus:ring-1 focus:ring-[var(--brand)] font-mono"
+                  style={{ borderColor: 'var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
+                />
+                <Button
+                  variant="outline" size="sm"
+                  disabled={!shipDirty || savingShip}
+                  onClick={() => void saveShipping()}
+                  className="h-7 self-end px-3 text-xs font-semibold"
+                >
+                  {savingShip ? '…' : (tlabel(t.returnsPage, 'shippingSave') ?? 'Enregistrer')}
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </AppDrawer>

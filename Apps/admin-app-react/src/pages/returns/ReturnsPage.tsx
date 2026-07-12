@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '@/lib/api';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
-import { cn } from '@/lib/utils';
+import { cn, formatMoney } from '@/lib/utils';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 import { PageFilterBar } from '@/components/layout/PageFilterBar';
+import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { StatusBadge } from '@/components/data-display/StatusBadge';
 import { ExportCsvButton } from '@/components/layout/ExportCsvButton';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/feedback/EmptyState';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { RmaDetailDrawer } from '@/components/returns/RmaDetailDrawer';
+import { useRealtimeEvent } from '@/components/RealtimeProvider';
 import {
   IconRotateClockwise, IconPackageExport,
   IconArrowRight, IconBan, IconCircleCheck, IconArchive, IconReload,
@@ -28,6 +30,7 @@ export interface Rma {
   status: RmaStatus; reason?: string; resolutionNote?: string; items: RmaItem[]; totalUnits: number;
   erpSyncStatus?: string; erpSyncError?: string; createdBy?: string; createdAt?: string;
   receivedAt?: string; restockedAt?: string;
+  trackingNumber?: string; shippingCarrier?: string; shippedAt?: string;
 }
 
 /** Status visual tokens (tone classes from the design system). */
@@ -67,12 +70,14 @@ export default function ReturnsPage() {
   const statusLabel = (s: RmaStatus) => (t.statusLabels as Record<string, string>)[s] ?? s;
 
   const [rmas, setRmas] = useState<Rma[]>([]);
-  const [kpi, setKpi] = useState<{ total: number; open: number; restocked: number } | null>(null);
+  const [kpi, setKpi] = useState<{ total: number; open: number; restocked: number; totalValue?: number } | null>(null);
   const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<RmaStatus | 'ALL'>('ALL');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [page, setPage] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
@@ -88,6 +93,8 @@ export default function ReturnsPage() {
       const params: Record<string, string | number> = { page, size: PAGE_SIZE };
       if (filter !== 'ALL') params.status = filter;
       if (debouncedQuery.trim()) params.q = debouncedQuery.trim();
+      if (dateFrom) params.dateFrom = dateFrom;
+      if (dateTo) params.dateTo = dateTo;
       const [listRes, kpiRes] = await Promise.all([
         api.get('/api/admin/returns', { params }),
         api.get('/api/admin/returns/kpi').catch(() => ({ data: null })),
@@ -97,15 +104,19 @@ export default function ReturnsPage() {
       setRmas(Array.isArray(data.content) ? data.content : (Array.isArray(data) ? data : []));
       setTotalPages(Math.max(1, Number(data.totalPages ?? 1)));
       setTotalElements(Number(data.totalElements ?? (Array.isArray(data.content) ? data.content.length : 0)));
-      if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked });
+      if (kpiRes.data) setKpi({ total: kpiRes.data.total, open: kpiRes.data.open, restocked: kpiRes.data.restocked, totalValue: Number(kpiRes.data.totalValue) || 0 });
     } catch {
       showErrorToast(null, t.returnsPage?.loadError ?? 'Échec du chargement des retours');
     } finally {
       setLoading(false);
     }
-  }, [filter, debouncedQuery, page, t]);
+  }, [filter, debouncedQuery, dateFrom, dateTo, page, t]);
 
   useEffect(() => { void fetchAll(); }, [fetchAll]);
+
+  // Real-time: refresh when any return changes status (admin action elsewhere or a public client
+  // create/cancel). Broadcast on the admin.deliveries topic as `return.status_changed`.
+  useRealtimeEvent(['return.status_changed'], () => { void fetchAll(); });
 
   // Keep the open drawer in sync with the freshly-fetched list (status/sync update after an action).
   useEffect(() => {
@@ -143,6 +154,17 @@ export default function ReturnsPage() {
       showErrorToast(err, t.returnsPage?.transitionError ?? 'Transition impossible');
     } finally {
       setBusyId(null);
+    }
+  };
+
+  // Save inbound return-shipment tracking (carrier + tracking number) from the drawer.
+  const saveShipping = async (r: Rma, data: { trackingNumber: string; shippingCarrier: string }) => {
+    try {
+      await api.patch(`/api/admin/returns/${r.id}/shipping`, data);
+      showSuccessToast(t.returnsPage?.shippingSaved ?? 'Expédition enregistrée');
+      await fetchAll();
+    } catch (err) {
+      showErrorToast(err, t.returnsPage?.shippingError ?? 'Enregistrement impossible');
     }
   };
 
@@ -207,6 +229,11 @@ export default function ReturnsPage() {
         onQuickFilterChange={(v) => { setFilter(v as RmaStatus | 'ALL'); setPage(0); }}
         extraActions={
           <>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <DatePickerPopover value={dateFrom || null} onChange={v => { setDateFrom(v ?? ''); setPage(0); }} placeholder={t.dispatchDeskPage?.dateFrom ?? 'De'} />
+              <span className="text-xs text-[var(--text-muted)]">→</span>
+              <DatePickerPopover value={dateTo || null} onChange={v => { setDateTo(v ?? ''); setPage(0); }} placeholder={t.dispatchDeskPage?.dateTo ?? 'À'} />
+            </div>
             <ExportCsvButton
               baseName="retours"
               rows={visibleRows}
@@ -244,6 +271,9 @@ export default function ReturnsPage() {
             <span className="text-[var(--text-muted)]">
               <span className="inline-block h-1.5 w-1.5 rounded-full align-middle mr-1" style={{ background: 'var(--success)' }} />
               {t.returnsPage?.kpiRestocked ?? 'Restockés'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{kpi?.restocked ?? 0}</b>
+            </span>
+            <span className="text-[var(--text-muted)]">
+              {t.returnsPage?.kpiValue ?? 'Valeur'} <b className="font-mono text-[var(--text-primary)] tabular-nums">{formatMoney(kpi?.totalValue ?? 0)}</b>
             </span>
           </div>
         </div>
@@ -453,6 +483,7 @@ export default function ReturnsPage() {
         busyId={busyId}
         onTransition={transition}
         onResync={(r) => void resync(r)}
+        onSaveShipping={saveShipping}
         t={t}
       />
     </div>

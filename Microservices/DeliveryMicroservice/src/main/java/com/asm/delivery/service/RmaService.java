@@ -5,7 +5,9 @@ import com.asm.delivery.dto.response.RmaResponse;
 import com.asm.delivery.entity.*;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
+import com.asm.delivery.repository.RmaPhotoRepository;
 import com.asm.delivery.repository.RmaRepository;
+import com.asm.delivery.repository.RmaStatusHistoryRepository;
 import com.asm.delivery.security.UserPrincipal;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,12 +33,15 @@ import java.util.UUID;
 public class RmaService {
 
     private final RmaRepository rmaRepository;
+    private final RmaPhotoRepository rmaPhotoRepository;
+    private final RmaStatusHistoryRepository rmaStatusHistoryRepository;
     private final DeliveryRepository deliveryRepository;
     private final OutboxProcessor outboxProcessor;
     private final AuditLogService auditLogService;
+    private final EventPublisher eventPublisher;
 
     /** Statuses that count as an "open" return — used to block a duplicate RMA on the same delivery. */
-    private static final Set<RmaStatus> OPEN_STATUSES =
+    public static final Set<RmaStatus> OPEN_STATUSES =
             EnumSet.of(RmaStatus.REQUESTED, RmaStatus.APPROVED, RmaStatus.RECEIVED);
 
     @Transactional
@@ -74,16 +79,27 @@ public class RmaService {
                 .createdBy(principal != null ? principal.getDisplayName() : null)
                 .build();
 
-        // D3 — A customer can only return what was actually delivered. Build a per-SKU map of the
-        // delivered quantity from the order lines and clamp every requested return quantity to it,
-        // so an over-return (e.g. return 10 of an item only 3 of which were delivered) is impossible.
+        // D3 — A customer can only return what was actually delivered minus what was already returned.
+        // Build a per-SKU map of the delivered quantity from the order lines, then subtract quantities
+        // from prior RMAs that physically reached the warehouse (RECEIVED/RESTOCKED).
         Map<String, Integer> deliveredBySku = deliveredQuantitiesBySku(order);
+
+        Map<String, Integer> alreadyReturned = new HashMap<>();
+        rmaRepository.sumReturnedQtyBySku(delivery.getId()).forEach(row -> {
+            String sku = (String) row[0];
+            Long qty = (Long) row[1];
+            if (sku != null && qty != null) alreadyReturned.merge(sku.trim(), qty.intValue(), Integer::sum);
+        });
+
         for (CreateRmaRequest.Item it : req.getItems()) {
             if (it.getQuantity() == null || it.getQuantity() <= 0) continue;
+            String skuKey = it.getSku() != null ? it.getSku().trim() : null;
             int requested = it.getQuantity();
-            int returnable = deliveredBySku.getOrDefault(it.getSku() != null ? it.getSku().trim() : null, requested);
-            int qty = Math.min(requested, Math.max(returnable, 0));
-            if (qty <= 0) continue; // nothing of this SKU was delivered → not returnable
+            int delivered = deliveredBySku.getOrDefault(skuKey, requested);
+            int returned = alreadyReturned.getOrDefault(skuKey, 0);
+            int returnable = Math.max(delivered - returned, 0);
+            int qty = Math.min(requested, returnable);
+            if (qty <= 0) continue; // nothing returnable for this SKU
             rma.addItem(RmaItem.builder()
                     .sku(it.getSku())
                     .name(it.getName())
@@ -98,26 +114,66 @@ public class RmaService {
         }
 
         Rma saved = rmaRepository.save(rma);
+        recordHistory(saved.getId(), null, RmaStatus.REQUESTED, req.getReason(), principal);
         auditLogService.logAction(principal, "CREATE_RMA", "RMA", saved.getId().toString(),
                 Map.of("delivery", String.valueOf(saved.getDeliveryId()), "items", saved.getItems().size()));
+        eventPublisher.publishRmaStatusChanged(saved);
         return RmaResponse.from(saved);
+    }
+
+    /** Append one immutable timeline row for an RMA transition. Actor stored denormalised (name + role). */
+    private void recordHistory(UUID rmaId, RmaStatus from, RmaStatus to, String note, UserPrincipal principal) {
+        rmaStatusHistoryRepository.save(RmaStatusHistory.builder()
+                .rmaId(rmaId)
+                .fromStatus(from)
+                .toStatus(to)
+                .note(note != null && !note.isBlank() ? note.trim() : null)
+                .actedByName(principal != null ? principal.getDisplayName() : null)
+                .actedByRole(principal != null ? principal.getRole() : "SYSTEM")
+                .build());
     }
 
     @Transactional(readOnly = true)
     public org.springframework.data.domain.Page<RmaResponse> list(
-            RmaStatus status, String q, org.springframework.data.domain.Pageable pageable) {
-        return rmaRepository.searchPaged(status, q, pageable).map(RmaResponse::from);
+            RmaStatus status, String q, java.time.LocalDate dateFrom, java.time.LocalDate dateTo,
+            org.springframework.data.domain.Pageable pageable) {
+        LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay() : null;
+        LocalDateTime to = dateTo != null ? dateTo.atTime(java.time.LocalTime.MAX) : null;
+        return rmaRepository.searchPaged(status, q, from, to, pageable).map(RmaResponse::from);
     }
 
     @Transactional(readOnly = true)
     public RmaResponse get(UUID id) {
-        return RmaResponse.from(load(id));
+        RmaResponse resp = RmaResponse.from(load(id));
+        resp.setPhotoUrls(rmaPhotoRepository.findByRmaIdOrderByCreatedAtAsc(id).stream()
+                .map(com.asm.delivery.entity.RmaPhoto::getUrl).toList());
+        return resp;
+    }
+
+    /**
+     * Per-SKU quantity still returnable for a delivery: delivered (order lines) minus what already
+     * physically returned (RECEIVED/RESTOCKED), clamped ≥ 0. Same formula {@link #create} enforces, so the
+     * public return-form preview matches what a create will actually accept.
+     */
+    @Transactional(readOnly = true)
+    public Map<String, Integer> returnableQuantitiesBySku(Delivery delivery) {
+        Map<String, Integer> delivered = deliveredQuantitiesBySku(delivery.getOrder());
+        Map<String, Integer> returned = new HashMap<>();
+        rmaRepository.sumReturnedQtyBySku(delivery.getId()).forEach(row -> {
+            String sku = (String) row[0];
+            Long qty = (Long) row[1];
+            if (sku != null && qty != null) returned.merge(sku.trim(), qty.intValue(), Integer::sum);
+        });
+        Map<String, Integer> out = new LinkedHashMap<>();
+        delivered.forEach((sku, dq) -> out.put(sku, Math.max(dq - returned.getOrDefault(sku, 0), 0)));
+        return out;
     }
 
     @Transactional
     public RmaResponse transition(UUID id, RmaStatus target, String note, UserPrincipal principal) {
         Rma rma = load(id);
-        assertTransition(rma.getStatus(), target);
+        RmaStatus fromStatus = rma.getStatus();
+        assertTransition(fromStatus, target);
 
         // D4 — Rejecting or cancelling a return is an audit-sensitive decision: a reason is mandatory
         // so the trail always records WHY a customer return was refused or dropped.
@@ -138,9 +194,11 @@ public class RmaService {
             rma.setErpSyncError(null);
         }
         Rma saved = rmaRepository.save(rma);
+        recordHistory(id, fromStatus, target, note, principal);
 
         auditLogService.logAction(principal, "RMA_" + target.name(), "RMA", id.toString(),
                 Map.of("status", target.name(), "note", note != null ? note : ""));
+        eventPublisher.publishRmaStatusChanged(saved);
 
         // On restock, push the reverse stock move + note to the ERP.
         if (target == RmaStatus.RESTOCKED) {
@@ -213,6 +271,33 @@ public class RmaService {
         return delivered;
     }
 
+    /** Set/clear the inbound return-shipment tracking (carrier + tracking number). Stamps shippedAt on first set. */
+    @Transactional
+    public RmaResponse updateShipping(UUID id, String trackingNumber, String shippingCarrier, UserPrincipal principal) {
+        Rma rma = load(id);
+        String tn = trackingNumber != null && !trackingNumber.isBlank() ? trackingNumber.trim() : null;
+        String carrier = shippingCarrier != null && !shippingCarrier.isBlank() ? shippingCarrier.trim() : null;
+        rma.setTrackingNumber(tn);
+        rma.setShippingCarrier(carrier);
+        if (tn != null && rma.getShippedAt() == null) {
+            rma.setShippedAt(LocalDateTime.now());
+        } else if (tn == null && carrier == null) {
+            rma.setShippedAt(null);
+        }
+        Rma saved = rmaRepository.save(rma);
+        auditLogService.logAction(principal, "RMA_SHIPPING", "RMA", id.toString(),
+                Map.of("tracking", tn != null ? tn : "", "carrier", carrier != null ? carrier : ""));
+        return RmaResponse.from(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<com.asm.delivery.dto.response.RmaStatusHistoryDto> history(UUID id) {
+        load(id); // 404 if the RMA doesn't exist
+        return rmaStatusHistoryRepository.findByRmaIdOrderByCreatedAtAsc(id).stream()
+                .map(com.asm.delivery.dto.response.RmaStatusHistoryDto::from)
+                .toList();
+    }
+
     @Transactional(readOnly = true)
     public Map<String, Object> kpi() {
         Map<String, Long> byStatus = new LinkedHashMap<>();
@@ -225,6 +310,7 @@ public class RmaService {
         out.put("byStatus", byStatus);
         out.put("open", byStatus.get("REQUESTED") + byStatus.get("APPROVED") + byStatus.get("RECEIVED"));
         out.put("restocked", byStatus.get("RESTOCKED"));
+        out.put("totalValue", rmaRepository.sumReturnValue());
         return out;
     }
 

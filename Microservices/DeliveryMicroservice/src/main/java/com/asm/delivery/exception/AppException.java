@@ -102,4 +102,8 @@ public class AppException extends RuntimeException {
     public static AppException unprocessableEntity(String errorCode, String message) {
         return new AppException(HttpStatus.UNPROCESSABLE_ENTITY, errorCode, message);
     }
+
+    public static AppException tooManyRequests(String errorCode, String message) {
+        return new AppException(HttpStatus.TOO_MANY_REQUESTS, errorCode, message);
+    }
 }

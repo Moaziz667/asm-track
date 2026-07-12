@@ -102,8 +102,9 @@ function DriversPageContent() {
   const [pendingRowId, setPendingRowId] = useState<string | null>(null);
   const [resendCooldown, setResendCooldown] = useState<number>(0);
   const resendIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const [operationalFilter, setOperationalFilter] = useState<'all' | 'active' | 'suspended' | 'pending'>('all');
-  const [activityFilter, setActivityFilter] = useState<'all' | 'busy' | 'available'>('all');
+  // Multi-select: empty array = no filter (all). Values OR-ed within a key.
+  const [statusFilters, setStatusFilters] = useState<string[]>([]);
+  const [activityFilters, setActivityFilters] = useState<string[]>([]);
   const [page, setPage] = useState(0);
   const [pageSize, setPageSize] = useState(25);
   const selected = drivers.find((d) => d.id === selectedId) ?? null;
@@ -152,25 +153,29 @@ function DriversPageContent() {
         const matches = d.name.toLowerCase().includes(q) || d.phone.includes(q);
         if (!matches) return false;
       }
-      if (operationalFilter !== 'all') {
-        if (operationalFilter === 'active' && d.accountStatus !== 'ACTIVE') return false;
-        if (operationalFilter === 'suspended' && d.accountStatus !== 'SUSPENDED') return false;
-        if (operationalFilter === 'pending' && d.accountStatus !== 'PENDING_SETUP') return false;
+      if (statusFilters.length) {
+        const ok =
+          (statusFilters.includes('active') && d.accountStatus === 'ACTIVE') ||
+          (statusFilters.includes('suspended') && d.accountStatus === 'SUSPENDED') ||
+          (statusFilters.includes('pending') && d.accountStatus === 'PENDING_SETUP');
+        if (!ok) return false;
       }
-      if (activityFilter !== 'all') {
+      if (activityFilters.length) {
         const isBusy = isDriverEnLivraison(d);
-        if (activityFilter === 'busy' && !isBusy) return false;
-        if (activityFilter === 'available' && (isBusy || d.accountStatus !== 'ACTIVE')) return false;
+        const ok =
+          (activityFilters.includes('busy') && isBusy) ||
+          (activityFilters.includes('available') && !isBusy && d.accountStatus === 'ACTIVE');
+        if (!ok) return false;
       }
       return true;
     });
-  }, [drivers, searchTerm, operationalFilter, activityFilter, isDriverEnLivraison]);
+  }, [drivers, searchTerm, statusFilters, activityFilters, isDriverEnLivraison]);
 
   // Client-side pagination: the drivers list is bounded (dozens–hundreds) and the busy/activity filter
   // is cross-service enrichment, so we page the already-filtered set in-memory — instant, and Export/
   // filters keep operating over the whole set. Reset to page 1 whenever the filtered shape changes.
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
-  useEffect(() => { setPage(0); }, [searchTerm, operationalFilter, activityFilter, pageSize]);
+  useEffect(() => { setPage(0); }, [searchTerm, statusFilters, activityFilters, pageSize]);
   const safePage = Math.min(page, totalPages - 1);
   const pageRows = useMemo(
     () => filtered.slice(safePage * pageSize, safePage * pageSize + pageSize),
@@ -270,25 +275,24 @@ function DriversPageContent() {
         onSearch={setSearchTerm}
         searchPlaceholder={t.driversPage.searchPlaceholder}
         attributes={[
-          { key: 'status', label: t.routesTablePage?.filterStatusLabel ?? t.common?.statut ?? 'Status', options: [
-            { value: 'all',       label: t.driversPage.allFleet ?? 'All' },
+          { key: 'status', label: t.routesTablePage?.filterStatusLabel ?? t.common?.statut ?? 'Status', multi: true, options: [
             { value: 'active',    label: t.driversPage.statusActive ?? 'Active' },
             { value: 'suspended', label: t.driversPage.statusSuspended ?? 'Suspended' },
             { value: 'pending',   label: t.driversPage.statusPending ?? 'Pending' },
           ]},
-          { key: 'activity', label: t.driversPage.tabFilters ?? 'Activity', options: [
-            { value: 'all',       label: t.driversPage.allFleet ?? 'All' },
+          { key: 'activity', label: t.driversPage.tabFilters ?? 'Activity', multi: true, options: [
             { value: 'busy',      label: t.driversPage.busy ?? 'On Mission' },
             { value: 'available', label: t.driversPage.available ?? 'Available' },
           ]},
         ]}
         activeFilters={{
-          ...(operationalFilter !== 'all' && { status: operationalFilter }),
-          ...(activityFilter !== 'all' && { activity: activityFilter }),
+          ...(statusFilters.length && { status: statusFilters }),
+          ...(activityFilters.length && { activity: activityFilters }),
         }}
         onFilterChange={(key, val) => {
-          if (key === 'status')   setOperationalFilter((val ?? 'all') as 'all' | 'active' | 'suspended' | 'pending');
-          if (key === 'activity') setActivityFilter((val ?? 'all') as 'all' | 'busy' | 'available');
+          const toggle = (arr: string[], v: string) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+          if (key === 'status')   setStatusFilters(val === null ? [] : toggle(statusFilters, val));
+          if (key === 'activity') setActivityFilters(val === null ? [] : toggle(activityFilters, val));
         }}
         onRefresh={fetchDrivers}
         refreshing={loading}

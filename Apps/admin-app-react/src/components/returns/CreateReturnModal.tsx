@@ -27,6 +27,7 @@ interface ReturnLine {
   quantity: number;
   condition: Condition;
   reason?: string;
+  unitPrice?: number;
 }
 
 interface Props {
@@ -78,11 +79,11 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
         orderRef: d.orderRef ?? prev?.orderRef,
         dropoffCity: d.dropoffCity ?? data.dropoffCity ?? prev?.dropoffCity,
       }));
-      const items: Array<{ sku?: string; name?: string; quantity?: number; quantityDone?: number }> = data.items ?? [];
+      const items: Array<{ sku?: string; name?: string; quantity?: number; quantityDone?: number; unitPrice?: number }> = data.items ?? [];
       // returnable = what was actually delivered (quantityDone), falling back to ordered qty
       setLines(items.map((it) => {
         const max = Math.max(it.quantityDone ?? it.quantity ?? 1, 1);
-        return { include: true, sku: it.sku, name: it.name ?? it.sku ?? '—', maxQty: max, quantity: max, condition: 'RESELLABLE' as Condition };
+        return { include: true, sku: it.sku, name: it.name ?? it.sku ?? '—', maxQty: max, quantity: max, condition: 'RESELLABLE' as Condition, unitPrice: it.unitPrice };
       }));
     } catch {
       setLines([]);
@@ -133,7 +134,7 @@ export function CreateReturnModal({ open, onClose, onCreated, prefillDeliveryId 
       await api.post('/api/admin/returns', {
         deliveryId: selected.deliveryId,
         reason,
-        items: chosen.map((l) => ({ sku: l.sku, name: l.name, quantity: l.quantity, condition: l.condition, reason: l.reason })),
+        items: chosen.map((l) => ({ sku: l.sku, name: l.name, quantity: l.quantity, unitPrice: l.unitPrice, condition: l.condition, reason: l.reason })),
       });
       showSuccessToast(m?.created ?? 'Return created');
       onCreated();

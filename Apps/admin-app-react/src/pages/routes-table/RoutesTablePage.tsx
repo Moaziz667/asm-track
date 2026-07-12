@@ -12,6 +12,7 @@ import { showErrorToast } from '@/lib/ui/toast-service';
 import { api } from '@/lib/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCloseRoute, useCancelRoute } from '@/hooks/useRoutes';
+import { useActiveZones } from '@/hooks/useDeliveries';
 import { AppModal } from '@/components/overlays/AppModal';
 import { Button } from '@/components/ui/button';
 import {
@@ -593,13 +594,15 @@ function RoutesTablePageContent() {
   }, [router]);
 
   // ── Filters + pagination (all server-side; the list endpoint is paginated + filtered) ──
-  const [statusFilter,  setStatusFilter]  = useState('ALL');
-  const [dateFilter,    setDateFilter]    = useState('ALL');
-  const [zoneFilter,    setZoneFilter]    = useState('');
-  const [driverFilter,  setDriverFilter]  = useState('');
-  const [vehicleFilter, setVehicleFilter] = useState('');
-  const [depotFilter,   setDepotFilter]   = useState('');
-  const [clientFilter,  setClientFilter]  = useState('');
+  // Multi-select pivots are string[] (empty = no filter, sent as repeated params); date stays a single
+  // period pill (mutually-exclusive by nature).
+  const [statusFilters,  setStatusFilters]  = useState<string[]>([]);
+  const [dateFilter,     setDateFilter]     = useState('ALL');
+  const [zoneFilters,    setZoneFilters]    = useState<string[]>([]);
+  const [driverFilters,  setDriverFilters]  = useState<string[]>([]);
+  const [vehicleFilters, setVehicleFilters] = useState<string[]>([]);
+  const [depotFilters,   setDepotFilters]   = useState<string[]>([]);
+  const [clientFilter,   setClientFilter]   = useState('');
   const [page, setPage] = useState(0);
   const PAGE_SIZE = 25;
   // Debounce the client/route search → server `q`; reset to the first page on a new search.
@@ -613,16 +616,16 @@ function RoutesTablePageContent() {
   // the list summary (counts/zone); the rich per-stop detail is lazy-loaded via /full on row-expand.
   const routeRange = dateRangeFor(dateFilter);
   const { data: routesData, isLoading: loading, refetch: fetchData } = useQuery({
-    queryKey: ['routes-table', page, statusFilter, dateFilter, driverFilter, vehicleFilter, depotFilter, zoneFilter, debouncedClient],
+    queryKey: ['routes-table', page, statusFilters, dateFilter, driverFilters, vehicleFilters, depotFilters, zoneFilters, debouncedClient],
     staleTime: 30_000,
     queryFn: async () => {
       const isManager = getCurrentRole() === 'MANAGER';
-      const params: Record<string, string | number> = { page, size: PAGE_SIZE };
-      if (statusFilter !== 'ALL') params.status = statusFilter;
-      if (driverFilter)  params.driverId = driverFilter;
-      if (vehicleFilter) params.vehicleId = vehicleFilter;
-      if (depotFilter)   params.depotId = depotFilter;
-      if (zoneFilter)    params.city = zoneFilter; // zone label maps to the route's operational city
+      const params: Record<string, string | number | string[]> = { page, size: PAGE_SIZE };
+      if (statusFilters.length)  params.status = statusFilters;
+      if (driverFilters.length)  params.driverId = driverFilters;
+      if (vehicleFilters.length) params.vehicleId = vehicleFilters;
+      if (depotFilters.length)   params.depotId = depotFilters;
+      if (zoneFilters.length)    params.zoneId = zoneFilters; // zone id → server resolves via stop→delivery→order zone
       if (routeRange.from) params.from = routeRange.from;
       if (routeRange.to)   params.to = routeRange.to;
       if (debouncedClient.trim()) params.q = debouncedClient.trim();
@@ -721,53 +724,53 @@ function RoutesTablePageContent() {
     return { total, active, validated };
   }, [routes]);
 
-  const hasAdvancedFilters = dateFilter !== 'ALL' || driverFilter || vehicleFilter || depotFilter || zoneFilter || clientFilter;
+  const hasAdvancedFilters = dateFilter !== 'ALL' || driverFilters.length || vehicleFilters.length || depotFilters.length || zoneFilters.length || clientFilter;
 
-  // The server filters routes by `city` (exact), so the option VALUE must be the route's city — not the
-  // detected compound zone label (e.g. "Grand Tunis · Ariana"), which never matches route.city. Display
-  // keeps the familiar zone label; the value sent is the queryable city.
-  const zoneOptions = useMemo(() => {
-    const byCity = new Map<string, string>();
-    routes.forEach(r => {
-      const city = (r as { city?: string }).city;
-      if (city && !byCity.has(city)) byCity.set(city, r.zoneLabel || city);
-    });
-    return Array.from(byCity, ([value, label]) => ({ value, label }));
-  }, [routes]);
+  // Zone options come from the active-zones master list (same source as Deliveries/Dispatch), not from the
+  // current page's routes — deriving from loaded rows left the dropdown empty whenever those rows had a null
+  // `city`. The VALUE is the zone id; the server resolves matching routes via the stop→delivery→order zone
+  // (the route's own city/zoneId columns are unreliable manual fields).
+  const { data: allZones = [] } = useActiveZones();
+  const zoneOptions = useMemo(
+    () => allZones.map(z => ({ value: z.id, label: z.name })),
+    [allZones],
+  );
 
   // ── PageFilterBar config ───────────────────────────────────────────────────
   const routeFilterAttributes = [
-    { key: 'status', label: t.routesTablePage.filterStatusLabel, options: [
-      { value: 'ALL',         label: t.routesTablePage.filterAllRoutes },
-      { value: 'IN_PROGRESS', label: t.routesTablePage.filterInProgress },
+    { key: 'status', label: t.routesTablePage.filterStatusLabel, multi: true, options: [
+      { value: 'DRAFT',       label: t.routesTablePage.filterDraft ?? 'Brouillon' },
       { value: 'VALIDATED',   label: t.routesTablePage.filterReady },
+      { value: 'IN_PROGRESS', label: t.routesTablePage.filterInProgress },
       { value: 'CLOSED',      label: t.routesTablePage.filterClosed },
+      { value: 'CANCELLED',   label: t.routesTablePage.filterCancelled ?? 'Annulées' },
     ]},
     { key: 'date', label: t.routesTablePage.filterPeriodLabel, options: [
       { value: 'TODAY',     label: t.routesTablePage.filterToday },
       { value: 'YESTERDAY', label: t.routesTablePage.filterYesterday },
       { value: 'WEEK',      label: t.routesTablePage.filterWeek },
     ]},
-    { key: 'driver', label: t.routesTablePage.filterDriverLabel, options: drivers.map(d => ({ value: d.id, label: d.name })) },
-    { key: 'vehicle', label: t.routesTablePage.filterVehicleLabel, options: vehicles.map(v => ({ value: v.id, label: `${v.name} (${v.plate})` })) },
-    { key: 'depot', label: t.routesTablePage.filterDepotLabel, options: depots.map(d => ({ value: d.id, label: d.name })) },
-    { key: 'zone', label: t.routesTablePage.filterZoneLabel, options: zoneOptions },
+    { key: 'driver', label: t.routesTablePage.filterDriverLabel, multi: true, options: drivers.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'vehicle', label: t.routesTablePage.filterVehicleLabel, multi: true, options: vehicles.map(v => ({ value: v.id, label: `${v.name} (${v.plate})` })) },
+    { key: 'depot', label: t.routesTablePage.filterDepotLabel, multi: true, options: depots.map(d => ({ value: d.id, label: d.name })) },
+    { key: 'zone', label: t.routesTablePage.filterZoneLabel, multi: true, options: zoneOptions },
   ];
-  const routeActiveFilters: Record<string, string> = {
-    ...(statusFilter !== 'ALL' && { status: statusFilter }),
-    ...(dateFilter   !== 'ALL' && { date: dateFilter }),
-    ...(driverFilter  && { driver: driverFilter }),
-    ...(vehicleFilter && { vehicle: vehicleFilter }),
-    ...(depotFilter   && { depot: depotFilter }),
-    ...(zoneFilter    && { zone: zoneFilter }),
+  const routeActiveFilters: Record<string, string | string[]> = {
+    ...(statusFilters.length  && { status: statusFilters }),
+    ...(dateFilter !== 'ALL'  && { date: dateFilter }),
+    ...(driverFilters.length  && { driver: driverFilters }),
+    ...(vehicleFilters.length && { vehicle: vehicleFilters }),
+    ...(depotFilters.length   && { depot: depotFilters }),
+    ...(zoneFilters.length    && { zone: zoneFilters }),
   };
   const handleRouteFilterChange = (key: string, value: string | null) => {
-    if (key === 'status')  setStatusFilter(value ?? 'ALL');
+    const toggle = (arr: string[], v: string) => arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v];
+    if (key === 'status')  setStatusFilters(value === null ? [] : toggle(statusFilters, value));
     if (key === 'date')    setDateFilter(value ?? 'ALL');
-    if (key === 'driver')  setDriverFilter(value ?? '');
-    if (key === 'vehicle') setVehicleFilter(value ?? '');
-    if (key === 'depot')   setDepotFilter(value ?? '');
-    if (key === 'zone')    setZoneFilter(value ?? '');
+    if (key === 'driver')  setDriverFilters(value === null ? [] : toggle(driverFilters, value));
+    if (key === 'vehicle') setVehicleFilters(value === null ? [] : toggle(vehicleFilters, value));
+    if (key === 'depot')   setDepotFilters(value === null ? [] : toggle(depotFilters, value));
+    if (key === 'zone')    setZoneFilters(value === null ? [] : toggle(zoneFilters, value));
     setPage(0); // any filter change resets to the first page of the server-side result
   };
 

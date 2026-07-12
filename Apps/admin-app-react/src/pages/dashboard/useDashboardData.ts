@@ -9,6 +9,7 @@ import { getBusinessDayKey } from '@/lib/sla';
 import { deriveHealthSummary } from '@/lib/health/system-health';
 import { useGlobalMapStore } from '@/lib/state/global-map-store';
 import { DISPATCH_STATUSES, DASHBOARD_EVENTS, STATUS_TONE_MAP } from './constants';
+import { analyticsDateParams } from '@/lib/analytics/date-params';
 
 export type Range = 'today' | 'yesterday' | 'last7d' | 'last30d' | 'custom';
 
@@ -21,10 +22,9 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
   const queryClient = useQueryClient();
   const connected = useRealtimeStatus();
 
-  // Granular date params: custom sends explicit from/to, presets send the range key.
-  const dateParams: Record<string, string> = range === 'custom' && from && to
-    ? { from: `${from}T00:00:00`, to: `${to}T23:59:59` }
-    : { range };
+  // Granular date params: custom sends explicit from/to, presets send the range key. A bare custom
+  // (dates not yet entered) falls back to a valid preset so the request never 400s — see analyticsDateParams.
+  const dateParams = analyticsDateParams(range, from, to);
 
   // Merge scope filters into API params (only non-empty values).
   const scopeParams = useMemo(() => {
