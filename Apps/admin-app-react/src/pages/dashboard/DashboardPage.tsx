@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate as useRouter } from 'react-router-dom';
 import { useT } from '@/lib/i18n/LocaleContext';
+import { cn } from '@/lib/utils';
 
 import {
   IconTable, IconLayoutKanban, IconDots, IconInbox,
   IconArrowRight, IconFilter,
 } from '@tabler/icons-react';
 import { RefreshButton } from '@/components/ui/RefreshButton';
-import { DraggableWidgetGrid } from '@/components/layout/DraggableWidgetGrid';
 import ActivityTicker from '@/components/ActivityTicker';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { AnalyticsScope } from '@/types';
@@ -17,12 +17,13 @@ import { useDashboardData, type Range } from './useDashboardData';
 import { GlobalFilterDrawer } from '@/components/analytics/GlobalFilterDrawer';
 import { DeliveryCard, LotCard, type CardItem } from './cards';
 import {
-  TrendChartWidget, NeedsAttentionWidget, TopItemsWidget, FailureCausesWidget,
+  NeedsAttentionWidget, FailureCausesWidget,
   DriverAvailabilityWidget, ActiveRoutesWidget, QuickActionsWidget,
-  CycleTimeWidget, StatusBreakdownWidget, OpsCountersWidget,
-  RadialKpiCard, BulletKpiCard, StatKpiCard,
+  CycleTimeWidget, StatusBreakdownWidget,
+  RadialKpiCard, BulletKpiCard, StatKpiCard, ReturnsWidget, BacklogWidget,
 } from './widgets';
 import ZoneDemandCards from './ZoneDemandCards';
+import s from './Dashboard.module.scss';
 
 export default function DashboardPage() {
   const t = useT();
@@ -44,7 +45,7 @@ export default function DashboardPage() {
     trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev, deliveredSub,
     activeRoutesCount, drivers, driverGroups,
     laneMap, needsAttention, activeRoutes, focusedRouteId, setFocusedRouteId,
-    driverName, getStatusConfig, kpi, ops,
+    driverName, getStatusConfig, kpi, ops, returns, counts,
   } = useDashboardData(range, customFrom, customTo, scope);
 
   const deliveredPct = today?.total ? Math.round((today.delivered / today.total) * 100) : 0;
@@ -54,9 +55,33 @@ export default function DashboardPage() {
   const measurableOrders = Number(kpi?.measurableOrders) || 0;
   const lateRatePct = measurableOrders ? (lateOrders / measurableOrders) * 100 : 0;
 
+  // Sparkline series derived from the 7-day trend so each KPI tile shows real signal
+  // (not an empty reserved band). SLA proxy = daily delivered/count ratio.
+  // Real daily SLA compliance from the backend (onTime/measurable per day); fall back to the
+  // delivered/total proxy only if the field is absent (older payloads).
+  const slaSpark = useMemo(
+    () => trend.map(d => (d.slaRate != null ? d.slaRate : (d.count > 0 ? (d.delivered / d.count) * 100 : 0))),
+    [trend],
+  );
+  const deliveredSpark = useMemo(() => trend.map(d => d.delivered), [trend]);
+  const failedSpark = useMemo(() => trend.map(d => d.failed), [trend]);
+  const lateSpark = useMemo(() => trend.map(d => d.late ?? 0), [trend]);
+
+  // Delta formatters: percentage (previous>0) vs absolute count (previous=0). DeltaPill passes the
+  // absolute magnitude; the arrow encodes direction.
+  const pctFmt = (n: number) => `${Math.round(n)}%`;
+  const absFmt = (n: number) => `${Math.round(n)}`;
+
   useEffect(() => {
     const cachedMode = localStorage.getItem('asm_dashboard_view');
     if (cachedMode === 'office' || cachedMode === 'kanban') setViewMode(cachedMode);
+    // One-time cleanup: the draggable-grid layout persistence is gone (static dense grid now).
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('widget-grid:')) localStorage.removeItem(key);
+      }
+    } catch { /* private mode — ignore */ }
   }, []);
 
   const handleViewChange = (mode: 'office' | 'kanban') => {
@@ -65,9 +90,9 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] select-none animate-fadeIn relative">
+    <div className="w-full flex flex-col bg-[var(--app-bg)] min-h-[calc(100vh-56px)] animate-fadeIn relative">
       {/* ── FLOATING ACTION BAR ── */}
-      <div className="fixed top-16 right-4 z-40 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
+      <div className="fixed top-2.5 right-4 z-50 flex items-center gap-1.5 bg-[var(--surface)] border border-[var(--border)] rounded-lg shadow-lg px-1.5 py-1">
         <button
           type="button"
           onClick={() => handleViewChange(viewMode === 'office' ? 'kanban' : 'office')}
@@ -121,62 +146,57 @@ export default function DashboardPage() {
           </div>
         </div>
       ) : viewMode === 'office' ? (
-        <div className="flex-1 min-h-0 overflow-y-auto px-4 py-3 w-full max-w-[1900px] mx-auto animate-fadeIn">
-          <DraggableWidgetGrid
-            storageKey="dashboard-v11-stats"
-            margin={[12, 12]}
-            items={[
-              {
-                id: 'kpi-sla', defaultLayout: { w: 2, h: 3, x: 0, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <RadialKpiCard label={t.dashboardPage.slaRateLabel} value={`${slaPercent}%`} pct={slaPercent}
-                  tone={measurableOrders > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
-                  delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} />,
-              },
-              {
-                id: 'kpi-delivered', defaultLayout: { w: 2, h: 3, x: 2, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <BulletKpiCard label={t.dashboardPage?.kpiDelivered ?? 'Delivered'} value={today?.delivered ?? 0} sub={`/ ${today?.total ?? 0}`}
-                  ratioPct={deliveredPct}
-                  tone="info"
-                  delta={deliveredDelta == null ? undefined : deliveredDelta} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${n.toFixed(0)}%`} />,
-              },
-              {
-                id: 'kpi-failed', defaultLayout: { w: 2, h: 3, x: 4, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <StatKpiCard label={t.dashboardPage?.kpiFailed ?? 'Failed'} value={today?.failed ?? 0}
-                  tone="danger" delta={failedDelta ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={n => `${n.toFixed(0)}%`} />,
-              },
-              {
-                id: 'kpi-late', defaultLayout: { w: 3, h: 3, x: 6, y: 0, minW: 2, minH: 2 }, className: '',
-                children: <BulletKpiCard label={t.dashboardPage?.kpiLate ?? 'Late'} value={lateOrders} sub={`/ ${measurableOrders}`}
-                  ratioPct={lateRatePct}
-                  tone="danger" delta={lateDelta ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={n => `${n.toFixed(0)}%`} />,
-              },
-              { id: 'status-breakdown', defaultLayout: { w: 3, h: 5, x: 0, y: 3, minW: 2, minH: 4 }, className: '', children: <StatusBreakdownWidget ops={ops} /> },
-              { id: 'ops-counters', defaultLayout: { w: 3, h: 5, x: 3, y: 3, minW: 2, minH: 3 }, className: '', children: <OpsCountersWidget ops={ops} /> },
-              { id: 'cycle-time', defaultLayout: { w: 3, h: 6, x: 6, y: 3, minW: 2, minH: 4 }, className: '', children: <CycleTimeWidget stats={stats} /> },
-              { id: 'trend-chart', defaultLayout: { w: 6, h: 6, x: 0, y: 8, minW: 4, minH: 4 }, className: '', children: <TrendChartWidget trend={trend} /> },
-              { id: 'zone-density', defaultLayout: { w: 3, h: 5, x: 6, y: 9, minW: 2, minH: 4 }, className: '', children: <ZoneDemandCards range={range} from={customFrom} to={customTo} /> },
-              { id: 'top-items', defaultLayout: { w: 4, h: 6, x: 0, y: 14, minW: 3, minH: 4 }, className: '', children: <TopItemsWidget stats={stats} /> },
-              { id: 'failure-causes', defaultLayout: { w: 5, h: 6, x: 4, y: 14, minW: 3, minH: 4 }, className: '', children: <FailureCausesWidget stats={stats} /> },
-              { id: 'quick-actions', defaultLayout: { w: 4, h: 5, x: 0, y: 20, minW: 3, minH: 2 }, className: '', children: <QuickActionsWidget navigate={navigate} /> },
-              /* ── Right-locked widgets (colonne 9-11, 只能纵向互换) ── */
-              {
-                id: 'needs-attention', defaultLayout: { w: 3, h: 8, x: 9, y: 0, minW: 3, maxW: 3, minH: 4 }, className: '',
-                children: <NeedsAttentionWidget items={needsAttention} navigate={navigate} />,
-              },
-              {
-                id: 'live-activity', defaultLayout: { w: 3, h: 7, x: 9, y: 8, minW: 3, maxW: 3, minH: 4 }, className: '',
-                children: <ActivityTicker />,
-              },
-              {
-                id: 'driver-availability', defaultLayout: { w: 3, h: 5, x: 9, y: 15, minW: 3, maxW: 3, minH: 3 }, className: '',
-                children: <DriverAvailabilityWidget driverGroups={driverGroups} />,
-              },
-              {
-                id: 'active-routes', defaultLayout: { w: 3, h: 5, x: 9, y: 20, minW: 3, maxW: 3, minH: 3 }, className: '',
-                children: <ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} />,
-              },
-            ]}
-          />
+        <div className={cn('flex-1 min-h-0 overflow-y-auto animate-fadeIn', s.page)}>
+          {/* KPI strip — full width. Sparklines fed from the 7-day trend for real signal. */}
+          <div className={s.kpiStrip}>
+            <RadialKpiCard label={t.dashboardPage.slaRateLabel} value={`${slaPercent}%`} pct={slaPercent}
+              spark={slaSpark}
+              tone={measurableOrders > 0 ? (slaPercent >= 90 ? 'success' : slaPercent >= 70 ? 'warning' : 'danger') : 'default'}
+              delta={slaDelta == null ? undefined : Math.round(slaDelta)} deltaCaption={vsPrev} deltaGood="up" deltaFormat={n => `${Math.round(n)} pts`} />
+            <BulletKpiCard label={t.dashboardPage?.kpiDelivered ?? 'Delivered'} value={today?.delivered ?? 0} sub={`/ ${today?.total ?? 0}`}
+              ratioPct={deliveredPct} tone="info" spark={deliveredSpark}
+              delta={deliveredDelta.value ?? undefined} deltaCaption={vsPrev} deltaGood="up" deltaFormat={deliveredDelta.isPct ? pctFmt : absFmt} />
+            <StatKpiCard label={t.dashboardPage?.kpiFailed ?? 'Failed'} value={today?.failed ?? 0}
+              tone="danger" spark={failedSpark}
+              delta={failedDelta.value ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={failedDelta.isPct ? pctFmt : absFmt} />
+            <BulletKpiCard label={t.dashboardPage?.kpiLate ?? 'Late'} value={lateOrders} sub={`/ ${measurableOrders}`}
+              ratioPct={lateRatePct} tone="danger" spark={lateSpark}
+              delta={lateDelta.value ?? undefined} deltaCaption={vsPrev} deltaGood="down" deltaFormat={lateDelta.isPct ? pctFmt : absFmt} />
+          </div>
+
+          {/* Body — fluid main grid + fixed activity rail. Inverted pyramid:
+              live/urgent on top, analytics/secondary at the bottom. */}
+          <div className={s.body}>
+            <div className={s.main}>
+              {/* Quick read — under the KPIs */}
+              <div className={cn(s.band, s.bandQuad)}>
+                <BacklogWidget counts={counts} navigate={navigate} />
+                <ReturnsWidget returns={returns} navigate={navigate} />
+                <CycleTimeWidget stats={stats} />
+              </div>
+              {/* Status breakdown + zone overview */}
+              <div className={cn(s.band, s.bandTrend)}>
+                <StatusBreakdownWidget ops={ops} />
+                <ZoneDemandCards range={range} from={customFrom} to={customTo} />
+              </div>
+              {/* Failure causes + driver status */}
+              <div className={cn(s.band, s.bandPair)}>
+                <FailureCausesWidget stats={stats} />
+                <DriverAvailabilityWidget driverGroups={driverGroups} />
+              </div>
+              {/* Active routes + quick actions */}
+              <div className={cn(s.band, s.bandPair)}>
+                <ActiveRoutesWidget activeRoutes={activeRoutes} focusedRouteId={focusedRouteId} setFocusedRouteId={setFocusedRouteId} driverName={driverName} />
+                <QuickActionsWidget navigate={navigate} />
+              </div>
+            </div>
+
+            {/* Right rail — live activity feed (compact) + needs attention below */}
+            <div className={s.rail}>
+              <div className={s.railFeed}><ActivityTicker /></div>
+              <div className={s.railAttn}><NeedsAttentionWidget items={needsAttention} navigate={navigate} /></div>
+            </div>
+          </div>
         </div>
       ) : (
         /* ── KANBAN VIEW ── */

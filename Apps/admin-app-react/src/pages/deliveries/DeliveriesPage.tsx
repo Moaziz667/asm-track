@@ -327,7 +327,7 @@ function DeliveriesPageContent() {
                   value={String(size)}
                   onChange={(e) => { setPage(0); setSize(Number(e.currentTarget.value)); }}
                   options={['25', '50', '100'].map(s => ({ value: s, label: `${s} ${t.deliveriesPage.pageSize}` }))}
-                  className="h-7 text-xs font-[700] w-[100px]"
+                  className="h-7 text-xs font-medium w-[100px]"
                 />
                 <DisplaySettingsDropdown
                   columns={orderedColumns}

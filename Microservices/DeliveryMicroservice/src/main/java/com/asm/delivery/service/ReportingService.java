@@ -20,6 +20,7 @@ import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -108,6 +109,7 @@ public class ReportingService {
                 .previousSlaRate(previous.slaRate())
                 .lateOrders(current.late())
                 .measurableOrders(current.measurable())
+                .previousMeasurable(previous.measurable())
                 .deliveredOrders(delivered)
                 .previousDelivered(previousDelivered)
                 .failedOrders(failed)
@@ -137,14 +139,57 @@ public class ReportingService {
                 .setParameter("start", start).setParameter("end", end);
         filter.bindNative(q);
         List<Object[]> rows = q.getResultList();
+        // SLA-per-day (late + compliance): evaluated in memory (SLA depends on stop time windows + delay
+        // calc, not a column), bucketed by completion day so the Late and SLA KPIs get real sparklines.
+        Map<String, DaySla> slaByDay = slaByDay(start, end, filter);
         return rows.stream()
-                .map(row -> DashboardKpiResponse.DailyVolume.builder()
-                        .date(((java.sql.Date) row[0]).toLocalDate().toString())
-                        .count(((Number) row[1]).longValue())
-                        .delivered(((Number) row[2]).longValue())
-                        .failed(((Number) row[3]).longValue())
-                        .build())
+                .map(row -> {
+                    String day = ((java.sql.Date) row[0]).toLocalDate().toString();
+                    DaySla sla = slaByDay.get(day);
+                    long measurable = sla == null ? 0 : sla.measurable();
+                    long onTime = sla == null ? 0 : sla.onTime();
+                    return DashboardKpiResponse.DailyVolume.builder()
+                            .date(day)
+                            .count(((Number) row[1]).longValue())
+                            .delivered(((Number) row[2]).longValue())
+                            .failed(((Number) row[3]).longValue())
+                            .late(sla == null ? 0 : sla.late())
+                            .slaRate(measurable == 0 ? 100.0 : (double) onTime / measurable * 100.0)
+                            .build();
+                })
                 .collect(Collectors.toList());
+    }
+
+    private record DaySla(long measurable, long onTime, long late) { }
+
+    /** SLA per calendar day (Tunis) over the window: measurable completed deliveries, on-time count and
+     *  late count. Reuses the same SLA evaluation as the KPI cards, bucketed by completion day
+     *  (completedAt ?? createdAt). {@code end} doubles as the "now" reference for evaluation. */
+    private Map<String, DaySla> slaByDay(LocalDateTime start, LocalDateTime end,
+                                         com.asm.delivery.service.analytics.filter.AnalyticsFilter filter) {
+        List<Delivery> completed = findCompleted(start, end, filter);
+        if (completed.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Map<UUID, RouteStop> stopByDeliveryId = loadRouteStopsByDeliveryId(completed);
+        Map<String, long[]> acc = new HashMap<>(); // day -> [measurable, onTime, late]
+        for (Delivery d : completed) {
+            SlaEvaluation ev = evaluateDeliverySla(d, stopByDeliveryId.get(d.getId()), end);
+            if (!ev.measurable()) {
+                continue;
+            }
+            LocalDateTime anchor = d.getCompletedAt() != null ? d.getCompletedAt() : d.getCreatedAt();
+            if (anchor == null) {
+                continue;
+            }
+            long[] c = acc.computeIfAbsent(anchor.toLocalDate().toString(), k -> new long[3]);
+            c[0]++;                       // measurable
+            if (ev.onTime()) c[1]++;      // onTime
+            else c[2]++;                  // late
+        }
+        Map<String, DaySla> byDay = new HashMap<>();
+        acc.forEach((day, c) -> byDay.put(day, new DaySla(c[0], c[1], c[2])));
+        return byDay;
     }
 
     private com.asm.delivery.service.analytics.filter.AnalyticsFilter toFilter(com.asm.delivery.dto.analytics.AnalyticsQuery q) {

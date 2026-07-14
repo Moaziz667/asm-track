@@ -176,7 +176,7 @@ export function DisplaySettingsDropdown({
           {density !== undefined && onDensityChange && (
             <div className="px-2.5 pb-2 mb-1" style={{ borderBottom: '1px solid var(--border)' }}>
               <p
-                className="text-2xs font-bold uppercase tracking-widest mb-1.5"
+                className="text-2xs font-semibold mb-1.5"
                 style={{ color: 'var(--text-muted)' }}
               >
                 {t.displaySettings.density}
@@ -187,9 +187,12 @@ export function DisplaySettingsDropdown({
                     key={d}
                     type="button"
                     onClick={() => onDensityChange(d)}
-                    className="flex items-center justify-between w-full h-6 px-2 text-2xs font-semibold rounded transition-colors text-left"
+                    className={cn(
+                      'flex items-center justify-between w-full h-6 px-2 text-2xs font-medium rounded transition-colors text-left',
+                      density !== d && 'hover:bg-[var(--hover-bg)]',
+                    )}
                     style={{
-                      border: density === d ? '1.5px solid var(--brand)' : '1px solid var(--border)',
+                      border: density === d ? '1px solid var(--brand)' : '1px solid transparent',
                       color: density === d ? 'var(--brand)' : 'var(--text-secondary)',
                       background: density === d ? 'var(--brand-blue-soft)' : 'transparent',
                     }}
@@ -205,7 +208,7 @@ export function DisplaySettingsDropdown({
           {/* Columns */}
           <div className="px-2.5 flex items-center justify-between mb-1 mt-1">
             <p
-              className="text-2xs font-bold uppercase tracking-widest"
+              className="text-2xs font-semibold"
               style={{ color: 'var(--text-muted)' }}
             >
               {t.displaySettings.columns}

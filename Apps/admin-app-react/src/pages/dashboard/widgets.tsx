@@ -4,7 +4,7 @@ import {
 } from 'recharts';
 import {
   IconChartAreaFilled, IconTruckFilled, IconAlertTriangleFilled, IconArrowUpRight, IconNavigationFilled, IconMapPinFilled,
-  IconChevronRight, IconLayoutKanban, IconCircleCheckFilled,
+  IconChevronRight, IconLayoutKanban, IconCircleCheckFilled, IconArrowBackUp, IconInbox,
 } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useLocaleStore } from '@/lib/i18n';
@@ -71,72 +71,82 @@ interface KpiCommon {
   comparison?: string; spark?: number[];
 }
 
-/** SLA card — Stripe pattern: label → value → sparkline → delta. */
-export function RadialKpiCard({ label, value, pct, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, onClick, spark }: KpiCommon & { pct: number }) {
-  const c = TONE_C[tone] ?? TONE_C.default;
-  return (
-    <div className={cn('border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3', onClick && 'cursor-pointer hover:bg-[var(--hover-bg)]')} onClick={onClick}>
-      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
-      <div className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</div>
-      {spark && spark.length > 1 && <div className="h-8 w-full opacity-80"><Spark data={spark} color={c} area /></div>}
-      <div className="mt-auto pt-1">
-        <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
-      </div>
-    </div>
-  );
+// ── Dense KPI tile ────────────────────────────────────────────────────────────
+// Enterprise pattern (research-backed): NO reserved-but-empty viz band. Anatomy =
+// label + tone icon on top; big value bottom-left; compact sparkline (~64×24, same
+// height as the text) + delta bottom-right; a thin tone bar only for ratio metrics
+// with no series. `justify-between` distributes the two rows so the card reads dense
+// without a whitespace void. Tone is carried by the icon/spark color (no side-stripe).
+interface KpiTileProps extends KpiCommon {
+  sub?: string;
+  ratioPct?: number;
 }
 
-/** Ratio card — Stripe pattern: label → value+sub → sparkline/bar → delta. */
-export function BulletKpiCard({ label, value, sub, ratioPct, tone = 'info', delta, deltaCaption, deltaGood = 'up', deltaFormat, spark }: KpiCommon & { sub?: string; ratioPct: number }) {
-  const c = TONE_C[tone] ?? TONE_C.info;
+function KpiTile({ label, value, sub, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat, onClick, spark, ratioPct }: KpiTileProps) {
+  const c = TONE_C[tone] ?? TONE_C.default;
+  const hasSpark = !!spark && spark.length > 1;
+  const showBar = !hasSpark && ratioPct != null;
   return (
-    <div className="border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3">
-      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
-      <div className="flex items-baseline gap-1.5">
-        <span className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</span>
-        {sub && <span className="text-sm text-[var(--text-muted)] font-normal">{sub}</span>}
+    <div
+      className={cn(
+        'relative border border-[var(--border)] rounded-lg @container h-full flex flex-col justify-between gap-2 px-3.5 py-2.5 shadow-[var(--shadow-card)] overflow-hidden',
+        onClick && 'cursor-pointer hover:shadow-[var(--shadow-md)] transition-all duration-200',
+      )}
+      style={{
+        background: tone !== 'default' ? `linear-gradient(135deg, var(--surface) 0%, color-mix(in srgb, ${c} 4%, var(--surface)) 100%)` : undefined,
+      }}
+      onClick={onClick}
+    >
+      <span className="text-2xs font-semibold text-[var(--text-muted)] truncate relative z-10">{label}</span>
+
+      <div className="flex items-end justify-between gap-2 relative z-10">
+        <div className="flex items-baseline gap-1 min-w-0">
+          <span className="font-mono font-bold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.35rem, 3.6cqi, 1.75rem)' }}>{value}</span>
+          {sub && <span className="text-sm text-[var(--text-muted)] font-normal shrink-0">{sub}</span>}
+        </div>
+        <div className="flex flex-col items-end gap-1 shrink-0">
+          {hasSpark && <div className="w-[64px] h-6 opacity-90"><Spark data={spark!} color={c} area /></div>}
+          <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
+        </div>
       </div>
-      {spark && spark.length > 1 ? (
-        <div className="h-8 w-full opacity-80"><Spark data={spark} color={c} area /></div>
-      ) : (
-        <div className="relative h-[3px] bg-[var(--hover-bg)] rounded-full overflow-hidden">
-          <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, ratioPct))}%`, background: c }} />
+
+      {showBar && (
+        <div className="relative h-[3px] bg-[var(--hover-bg)] rounded-full overflow-hidden z-10">
+          <div className="absolute inset-y-0 left-0 rounded-full transition-all duration-500" style={{ width: `${Math.max(0, Math.min(100, ratioPct!))}%`, background: c }} />
         </div>
       )}
-      <div className="mt-auto pt-1">
-        <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
-      </div>
     </div>
   );
 }
 
-/** Clean stat tile — Stripe pattern: label → value → delta. No chart. */
-export function StatKpiCard({ label, value, tone = 'default', delta, deltaCaption, deltaGood = 'up', deltaFormat }: KpiCommon) {
-  void tone;
-  return (
-    <div className="border border-[var(--border)] rounded-lg @container h-full flex flex-col gap-1.5 ps-12 pe-4 py-3">
-      <span className="text-xs font-medium text-[var(--text-muted)]">{label}</span>
-      <div className="font-mono font-semibold tabular-nums leading-none text-[var(--text-primary)] tracking-tight" style={{ fontSize: 'clamp(1.5rem, 4cqi, 2rem)' }}>{value}</div>
-      <div className="mt-auto pt-1">
-        <DeltaPill delta={delta} caption={deltaCaption} goodWhen={deltaGood} format={deltaFormat} />
-      </div>
-    </div>
-  );
+/** SLA tile — value + sparkline + delta. Kept name/signature for call sites. */
+export function RadialKpiCard({ pct: _pct, ...p }: KpiCommon & { pct: number }) {
+  void _pct;
+  return <KpiTile {...p} />;
+}
+
+/** Ratio tile — value+sub + sparkline (else thin tone bar) + delta. */
+export function BulletKpiCard({ tone = 'info', ...p }: KpiCommon & { sub?: string; ratioPct: number }) {
+  return <KpiTile tone={tone} {...p} />;
+}
+
+/** Clean stat tile — value + delta. No viz band. */
+export function StatKpiCard(p: KpiCommon) {
+  return <KpiTile {...p} />;
 }
 
 
 export function TrendChartWidget({ trend }: { trend: Array<{ count: number; delivered: number; failed: number }> }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconChartAreaFilled size={15} className="text-[var(--brand)]" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.volumeCurve}</span>
         </div>
         <span className="text-2xs font-medium text-[var(--text-muted)]">{t.performancePage.lastSevenDays}</span>
       </div>
-      <div className="p-4 flex-1 min-h-0 w-full">
+      <div className="p-4 flex-1 min-h-0 w-full bg-gradient-to-b from-transparent to-[var(--hover-bg)]/30">
         {trend.length === 0 ? (
           <div className="flex items-center justify-center h-full opacity-40">
             <span className="text-xs">{t.dashboardPage.noData || 'Aucune donnée disponible'}</span>
@@ -173,11 +183,10 @@ export function NeedsAttentionWidget({ items, navigate }: { items: AttentionItem
   const t = useT();
   const { locale } = useLocaleStore();
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangleFilled size={15} className="text-[var(--danger)]" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.needsAttention || 'Needs Attention'}</span>
           <span className="text-2xs font-bold px-1.5 py-0.5 rounded bg-[var(--danger-bg)] text-[var(--danger)] font-mono leading-none">{items.length}</span>
         </div>
         <button onClick={() => navigate('/dispatch-desk?tab=queue')} className="text-xs font-medium text-[var(--brand)] hover:underline flex items-center gap-1 cursor-pointer transition-colors">
@@ -222,11 +231,10 @@ export function TopItemsWidget({ stats }: { stats: DashboardStats | null }) {
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconTruckFilled size={15} className="text-[var(--brand)]" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
+          <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.topItemsTitle || 'Top articles livrés'}</span>
         </div>
       </div>
       <div className="p-4 flex flex-col gap-2.5 flex-1 overflow-y-auto">
@@ -277,29 +285,23 @@ export function CycleTimeWidget({ stats }: { stats: DashboardStats | null }) {
     { label: t.performancePage.effectiveTransit, sub: t.performancePage.transitToCompletion, m: c, color: 'var(--text-muted)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.temporalFragmentation}</span>
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.temporalFragmentation}</span>
       </div>
-      <div className="p-4 flex flex-col gap-4 flex-1 justify-center">
+      <div className="flex flex-col flex-1">
         {phases.map((p, i) => (
-          <div key={i} className="flex flex-col gap-1.5">
-            <div className="flex items-center justify-between leading-none">
-              <div className="flex flex-col gap-0.5 min-w-0">
-                <span className="text-xs font-[500] text-[var(--text-primary)]">{p.label}</span>
-                <span className="text-2xs text-[var(--text-muted)] truncate">{p.sub}</span>
-              </div>
-              <span className="text-sm font-[500] font-mono text-[var(--text-primary)] shrink-0">{fmtCycle(p.m)}</span>
+          <div key={i} className="flex items-center justify-between gap-3 px-5 py-2 border-b border-[var(--border)] flex-1 min-h-0">
+            <div className="flex flex-col gap-0.5 min-w-0">
+              <span className="text-sm font-medium text-[var(--text-primary)] leading-tight">{p.label}</span>
+              <span className="text-2xs text-[var(--text-muted)] truncate">{p.sub}</span>
             </div>
-            <div className="h-[3px] w-full bg-[var(--hover-bg)] overflow-hidden rounded-full">
-              <div className="h-full rounded-full transition-all duration-300" style={{ width: `${total > 0 ? (p.m / total) * 100 : 0}%`, background: p.color }} />
-            </div>
+            <span className="text-base font-medium font-mono tabular-nums text-[var(--text-secondary)] shrink-0">{fmtCycle(p.m)}</span>
           </div>
         ))}
-        <div className="mt-1 p-2.5 rounded-md flex justify-between items-center leading-none" style={{ background: 'var(--hover-bg)', border: '1px solid var(--border)' }}>
-          <span className="text-xs font-[600] text-[var(--text-secondary)]">{t.performancePage.totalCycleIndex}</span>
-          <span className="text-md font-[600] font-mono text-[var(--brand)]">{fmtCycle(total)}</span>
+        <div className="flex items-center justify-between gap-3 px-5 py-2.5 shrink-0">
+          <span className="text-sm font-medium text-[var(--text-primary)]">{t.performancePage.totalCycleIndex}</span>
+          <span className="text-lg font-semibold font-mono tabular-nums text-[var(--brand)] shrink-0">{fmtCycle(total)}</span>
         </div>
       </div>
     </div>
@@ -315,10 +317,9 @@ export function ZoneDensityWidget({ kpi }: { kpi: { ordersByZone?: Record<string
   );
   const max = Math.max(...entries.map(e => e[1]), 1);
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconMapPinFilled size={15} className="text-[var(--brand)]" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.performancePage.densityByZone}</span>
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{t.performancePage.densityByZone}</span>
       </div>
       <div className="p-4 flex flex-col gap-3 flex-1 overflow-y-auto">
         {entries.length === 0 ? (
@@ -356,18 +357,21 @@ export function StatusBreakdownWidget({ ops }: { ops: { lanes?: Array<{ status: 
   ];
   const total = rows.reduce((s, r) => s + r.v, 0) || 1;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconChartAreaFilled size={15} className="text-[var(--brand)]" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.statusBreakdown ?? 'Répartition par statut'}</span>
+    <div className="relative border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.statusBreakdown ?? 'Répartition par statut'}</span>
       </div>
-      <div className="p-4 flex items-center gap-4 flex-1">
-        <svg width="92" height="92" viewBox="0 0 42 42" className="shrink-0" aria-hidden="true">
-          <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="5" />
-          {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" />; }); })()}
-          <text x="21" y="20.5" textAnchor="middle" fill="var(--text-primary)" fontFamily="var(--font-mono)" fontSize="7" fontWeight="600">{rows.reduce((s, r) => s + r.v, 0)}</text>
-          <text x="21" y="26" textAnchor="middle" fill="var(--text-muted)" fontSize="3.4">total</text>
-        </svg>
+      <div className="p-4 flex items-center gap-3 flex-1">
+        <div className="relative shrink-0">
+          <svg width="140" height="140" viewBox="0 0 42 42" aria-hidden="true">
+            <circle cx="21" cy="21" r="15.915" fill="none" stroke="var(--hover-bg)" strokeWidth="3.5" />
+            {(() => { let acc = 0; return rows.filter(r => r.v > 0).map(r => { const len = (r.v / total) * 100; const off = -acc; acc += len; return <circle key={r.key} cx="21" cy="21" r="15.915" fill="none" stroke={r.c} strokeWidth="3.5" strokeDasharray={`${len} ${100 - len}`} strokeDashoffset={off} transform="rotate(-90 21 21)" style={{ filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))' }} />; }); })()}
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="font-mono text-xl font-bold tabular-nums text-[var(--text-primary)]">{rows.reduce((s, r) => s + r.v, 0)}</span>
+            <span className="text-3xs text-[var(--text-muted)]">total</span>
+          </div>
+        </div>
         <div className="flex-1 grid grid-cols-1 gap-y-1.5 min-w-0">
           {rows.map(r => (
             <div key={r.key} className="flex items-center justify-between text-xs">
@@ -394,10 +398,9 @@ export function OpsCountersWidget({ ops }: { ops: { reassignedToday?: number; re
     { label: t.dashboardPage.opsBreached ?? 'En dépassement', v: ops?.sla?.slaBreached ?? 0, tone: 'var(--danger)' },
   ];
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
-        <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
-        <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{t.dashboardPage.opsCounters ?? 'Turbulence dispatch'}</span>
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.opsCounters ?? 'Turbulence dispatch'}</span>
       </div>
       <div className="grid grid-cols-2 flex-1">
         {cells.map((c, i) => (
@@ -415,10 +418,9 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
   const t = useT();
   if (!stats) return null;
   return (
-    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full">
-      <div className="ps-10 pe-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
         <div className="flex items-center gap-2">
-          <IconAlertTriangleFilled size={15} className="text-[var(--danger)]" />
           <span className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{t.dashboardPage.failureCausesTitle || "Top causes d'échec"}</span>
         </div>
       </div>
@@ -448,8 +450,8 @@ export function FailureCausesWidget({ stats }: { stats: DashboardStats | null })
 export function DriverAvailabilityWidget({ driverGroups }: { driverGroups: { online: DriverLite[]; onBreak: DriverLite[]; offline: DriverLite[] } }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col">
-      <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+      <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.driverAvailability || 'Fleet Status'}</span>
       <div className="flex flex-col gap-2 overflow-y-auto">
         {[
           { group: driverGroups.online, label: t.dashboardPage.driverOnline || 'Online', tone: 'text-[var(--success)]' },
@@ -480,7 +482,7 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
   const routeColorMap = useMemo(() => createRouteColorMap(activeRoutes), [activeRoutes]);
   return (
     <SectionCard
-      title={<div className="flex items-center gap-2"><IconNavigationFilled size={15} className="text-[var(--brand)]" /><span>{t.dashboardPage?.sectionActiveRoutes || 'Tournées actives'}</span></div>}
+      title={<span>{t.dashboardPage?.sectionActiveRoutes || 'Tournées actives'}</span>}
       actions={<Badge variant="secondary">{activeRoutes.length}</Badge>}
     >
       {activeRoutes.length === 0 ? (
@@ -531,8 +533,8 @@ export function ActiveRoutesWidget({ activeRoutes, focusedRouteId, setFocusedRou
 export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void }) {
   const t = useT();
   return (
-    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col">
-      <span className="ps-10 text-xs font-semibold uppercase tracking-wider text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
+    <div className="border border-[var(--border)] rounded-lg p-4 h-full flex flex-col shadow-[var(--shadow-card)]">
+      <span className="text-xs font-semibold text-[var(--text-muted)] block mb-3">{t.dashboardPage.quickActions || 'Quick Actions'}</span>
       <div className="grid grid-cols-2 gap-2 flex-1 min-h-0">
         {[
           { label: t.dashboardPage.actionGoToDispatch || 'Dispatch Desk', path: '/dispatch-desk', Icon: IconLayoutKanban },
@@ -548,6 +550,71 @@ export function QuickActionsWidget({ navigate }: { navigate: (p: string) => void
           >
             <Icon size={14} className="text-[var(--text-muted)] shrink-0" strokeWidth={1.8} />
             <span className="text-xs font-medium text-[var(--text-secondary)] leading-tight">{label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Returns KPI (RMA) ─────────────────────────────────────────────────────────
+export function ReturnsWidget({ returns, navigate }: { returns: { total?: number; open?: number; restocked?: number; totalValue?: number } | null; navigate: (p: string) => void }) {
+  const t = useT();
+  const { locale } = useLocaleStore();
+  const money = (n: number) => new Intl.NumberFormat(locale === 'ar' ? 'ar-TN' : 'fr-TN', { style: 'currency', currency: 'TND', maximumFractionDigits: 0 }).format(n || 0);
+  const cells = [
+    { label: t.dashboardPage.returnsOpen || 'À traiter', v: String(returns?.open ?? 0), tone: 'var(--warning)' },
+    { label: t.dashboardPage.returnsRestocked || 'Réintégrés', v: String(returns?.restocked ?? 0), tone: 'var(--success)' },
+    { label: t.dashboardPage.returnsTotal || 'Total', v: String(returns?.total ?? 0), tone: 'var(--text-primary)' },
+    { label: t.dashboardPage.returnsValue || 'Valeur', v: money(returns?.totalValue ?? 0), tone: 'var(--text-primary)' },
+  ];
+  return (
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center justify-between border-b border-[var(--border)] shrink-0">
+        <div className="flex items-center gap-2">
+          <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.returnsTitle || 'Retours (RMA)'}</span>
+        </div>
+        <button onClick={() => navigate('/returns')} className="text-xs font-medium text-[var(--brand)] hover:underline flex items-center gap-1 cursor-pointer">
+          {t.dashboardPage.needsAttentionViewAll || 'Voir tout'} <IconArrowUpRight size={11} />
+        </button>
+      </div>
+      <div className="grid grid-cols-2 flex-1">
+        {cells.map((c, i) => (
+          <div key={c.label} className="flex flex-col justify-center gap-0.5 p-4" style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}>
+            <span className="font-mono text-xl font-semibold tabular-nums truncate" style={{ color: c.tone }}>{c.v}</span>
+            <span className="text-2xs text-[var(--text-muted)]">{c.label}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Delivery backlog tallies ──────────────────────────────────────────────────
+export function BacklogWidget({ counts, navigate }: { counts: Record<string, number> | null; navigate: (p: string) => void }) {
+  const t = useT();
+  const tiles = [
+    { key: 'needsPinning', label: t.dashboardPage.backlogNeedsPinning || 'À géolocaliser', tone: 'var(--warning)', href: '/deliveries?view=needsPinning' },
+    { key: 'unassigned', label: t.dashboardPage.backlogUnassigned || 'Non assignées', tone: 'var(--info)', href: '/deliveries?view=unassigned' },
+    { key: 'overdue', label: t.dashboardPage.backlogOverdue || 'En retard', tone: 'var(--danger)', href: '/deliveries?view=overdue' },
+    { key: 'future', label: t.dashboardPage.backlogFuture || 'À venir', tone: 'var(--text-muted)', href: '/deliveries?view=future' },
+  ];
+  return (
+    <div className="border border-[var(--border)] rounded-lg overflow-hidden flex flex-col h-full shadow-[var(--shadow-card)]">
+      <div className="px-5 py-3 flex items-center gap-2 border-b border-[var(--border)] shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{t.dashboardPage.backlogTitle || 'Backlog livraisons'}</span>
+      </div>
+      <div className="grid grid-cols-2 flex-1">
+        {tiles.map((tile, i) => (
+          <button
+            key={tile.key}
+            type="button"
+            onClick={() => navigate(tile.href)}
+            className="flex flex-col justify-center gap-0.5 p-4 text-left hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+            style={{ borderTop: i >= 2 ? '0.5px solid var(--border)' : undefined, borderInlineStart: i % 2 === 1 ? '0.5px solid var(--border)' : undefined }}
+          >
+            <span className="font-mono text-2xl font-semibold tabular-nums" style={{ color: tile.tone }}>{counts?.[tile.key] ?? 0}</span>
+            <span className="text-2xs text-[var(--text-muted)]">{tile.label}</span>
           </button>
         ))}
       </div>

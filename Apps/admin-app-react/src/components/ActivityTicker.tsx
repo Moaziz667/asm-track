@@ -1,44 +1,50 @@
 import { useNavigate } from 'react-router-dom';
-import { IconCircleCheckFilled, IconTruckFilled, IconNavigationFilled, IconContainerFilled } from '@tabler/icons-react';
+import {
+  IconCircleCheck, IconTruck, IconContainer,
+  IconAlertTriangle, IconLayoutGrid, IconChevronRight,
+} from '@tabler/icons-react';
 import { useRealtimeStatus } from '@/components/RealtimeProvider';
 import { useNotificationsState, getLocalizedNotif, type Notification } from '@/components/AlertsProvider';
 import { useLocaleStore } from '@/lib/i18n';
-import { formatElapsed } from '@/lib/sla';
 import { notifDestination } from '@/lib/api/dispatch-link';
 import { cn } from '@/lib/utils';
 
 // Recent operational activity, sourced from the server-backed notifications feed
 // (so it survives a refresh) and kept live by the same RealtimeProvider socket.
+// Rendered as a timeline: absolute clock time · colored dot on a continuous rail ·
+// tinted type-icon chip · title/subtitle.
 
-function categoryIcon(category: Notification['category']) {
-  if (category === 'route') return IconNavigationFilled;
-  if (category === 'erp') return IconContainerFilled;
-  return IconTruckFilled;
+type TypeStyle = { Icon: typeof IconTruck; fg: string; bg: string };
+
+// Icon + color by event type. Exceptions (critical) win; then category. Purple (route)
+// has no theme token, so it is an inline literal — acceptable here, not a themed surface.
+function typeStyle(n: Notification): TypeStyle {
+  if (n.severity === 'critical') return { Icon: IconAlertTriangle, fg: 'var(--danger)', bg: 'var(--danger-bg)' };
+  if (n.category === 'route') return { Icon: IconLayoutGrid, fg: '#7c6cf0', bg: 'rgba(124,108,240,0.12)' };
+  if (n.category === 'erp') return { Icon: IconContainer, fg: 'var(--brand)', bg: 'var(--brand-bg)' };
+  return { Icon: IconTruck, fg: 'var(--success)', bg: 'var(--success-bg)' };
 }
+
+const clock = (ts: number, locale: string) =>
+  new Date(ts).toLocaleTimeString(locale === 'ar' ? 'ar-TN' : locale === 'en' ? 'en-GB' : 'fr-FR',
+    { hour: '2-digit', minute: '2-digit', hour12: false });
 
 export default function ActivityTicker() {
   const navigate = useNavigate();
   const locale = useLocaleStore(s => s.locale) || 'fr';
   const connected = useRealtimeStatus();
   const { notifications } = useNotificationsState();
-  const entries = notifications;
+  // Keep the feed light: last 30 events, ~6 visible then scroll.
+  const entries = notifications.slice(0, 30);
 
   const titleLabel = locale === 'ar' ? 'النشاط المباشر' : locale === 'en' ? 'Live Activity' : 'Activité en direct';
   const emptyLabel = locale === 'ar' ? 'في انتظار النشاط…' : locale === 'en' ? 'Waiting for activity…' : 'En attente d\'activité…';
-
-  const severityTone = (severity: string) => {
-    if (severity === 'critical') return 'text-[var(--danger)]';
-    if (severity === 'warning') return 'text-[var(--warning)]';
-    return 'text-[var(--brand)]';
-  };
+  const viewAllLabel = locale === 'ar' ? 'عرض الكل' : locale === 'en' ? 'View all' : 'Voir tout';
 
   return (
     <div className="border border-[var(--border)] rounded-lg h-full overflow-hidden flex flex-col">
-      <div className="ps-10 pe-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
-        <div className="flex items-center gap-2">
-          <IconCircleCheckFilled size={15} className="text-[var(--brand)]" />
-          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{titleLabel}</span>
-        </div>
+      <div className="px-4 py-3 border-b border-[var(--border)] flex items-center justify-between shrink-0">
+        <span className="text-xs font-semibold text-[var(--text-primary)]">{titleLabel}</span>
         <span
           className={cn('text-2xs font-bold', connected ? 'text-[var(--success)]' : 'text-[var(--text-soft)]')}
           title={connected ? 'Connected' : 'Reconnecting…'}
@@ -47,43 +53,70 @@ export default function ActivityTicker() {
         </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-3 py-2" style={{ scrollbarWidth: 'thin' }}>
+      <div className="flex-1 overflow-y-auto px-2 py-1" style={{ scrollbarWidth: 'thin' }}>
         {entries.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 opacity-40 py-10">
-            <IconCircleCheckFilled size={22} className="text-[var(--text-muted)]" />
+            <IconCircleCheck size={22} strokeWidth={1.5} className="text-[var(--text-muted)]" />
             <span className="text-xs font-medium text-[var(--text-muted)]">{emptyLabel}</span>
           </div>
         ) : (
           <div className="flex flex-col">
-            {entries.map(n => {
-              const Icon = categoryIcon(n.category);
+            {entries.map((n, i) => {
+              const { Icon, fg } = typeStyle(n);
               const loc = getLocalizedNotif(n, locale);
               const subtitle = [n.clientName, n.orderId || n.routeName].filter(Boolean).join(' · ');
+              const isLast = i === entries.length - 1;
               return (
                 <button
                   key={n.id}
                   type="button"
                   onClick={() => navigate(notifDestination(n))}
-                  className="flex items-start gap-2 px-2 py-2 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-left"
+                  className="group flex items-stretch gap-2.5 rounded-md hover:bg-[var(--hover-bg)] transition-colors text-left"
                 >
-                  <Icon size={14} className={cn('mt-0.5 shrink-0', severityTone(n.severity))} />
-                  <div className="flex flex-col min-w-0 flex-1">
-                    <span className="text-xs font-semibold text-[var(--text-primary)] leading-tight truncate">
+                  {/* Absolute clock time */}
+                  <span className="w-10 shrink-0 text-end text-2xs font-mono tabular-nums text-[var(--text-muted)] pt-3">
+                    {clock(n.timestamp, locale)}
+                  </span>
+
+                  {/* Timeline rail: continuous line with a colored dot node.
+                      Top segment (h-4, hidden on first) + dot + flex-1 bottom segment
+                      (hidden on last) meet flush across rows → one unbroken vertical line. */}
+                  <div className="flex flex-col items-center shrink-0 w-2.5">
+                    <span className="w-px h-4 bg-[var(--border)]" style={{ visibility: i === 0 ? 'hidden' : 'visible' }} aria-hidden="true" />
+                    <span className="w-1.5 h-1.5 rounded-full z-10 shrink-0 border-2 border-white dark:border-[var(--surface)]" style={{ background: fg }} />
+                    <span className="w-px flex-1 bg-[var(--border)]" style={{ visibility: isLast ? 'hidden' : 'visible' }} aria-hidden="true" />
+                  </div>
+
+                  {/* Type icon — no background chip */}
+                  <span className="w-8 h-8 flex items-center justify-center shrink-0 mt-1">
+                    <Icon size={18} strokeWidth={1.5} style={{ color: fg }} />
+                  </span>
+
+                  {/* Title + subtitle */}
+                  <div className="flex flex-col min-w-0 flex-1 py-3 pe-1">
+                    <span className="text-xs font-medium text-[var(--text-primary)] leading-tight truncate">
                       {loc.title}
                     </span>
-                    <span className="text-2xs text-[var(--text-muted)] truncate">
+                    <span className="text-2xs text-[var(--text-muted)] truncate mt-0.5">
                       {subtitle || loc.message || '—'}
                     </span>
                   </div>
-                  <span className="text-2xs font-mono text-[var(--text-soft)] shrink-0 mt-0.5">
-                    {formatElapsed(new Date(n.timestamp).toISOString(), locale)}
-                  </span>
                 </button>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Footer — view full activity */}
+      <button
+        type="button"
+        onClick={() => navigate('/notifications')}
+        className="shrink-0 border-t border-[var(--border)] px-4 py-2.5 flex items-center justify-center gap-1.5 text-xs font-semibold text-[var(--brand)] hover:bg-[var(--hover-bg)] transition-colors cursor-pointer"
+      >
+        {viewAllLabel}
+        <IconChevronRight size={14} />
+      </button>
     </div>
   );
 }

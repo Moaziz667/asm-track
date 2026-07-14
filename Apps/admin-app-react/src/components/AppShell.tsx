@@ -12,6 +12,7 @@ import GlobalFloatingMap from './GlobalFloatingMap';
 import ErrorBoundary from './ErrorBoundary';
 import ContentBreadcrumb from './ContentBreadcrumb';
 import AlertBell from './AlertBell';
+import GlobalSearch from './GlobalSearch';
 
 // ── Shell ─────────────────────────────────────────────────────────────────────
 
@@ -49,8 +50,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <SidebarInset className="flex flex-col flex-1 min-w-0 min-h-dvh" style={{ borderRadius: '24px', overflow: 'hidden' }}>
             <div className="flex flex-col flex-1 min-w-0 min-h-dvh bg-[var(--app-bg)]">
               {/* Integrated breadcrumb — with background */}
-              <div className="px-8 h-14 flex items-center justify-between bg-[var(--surface)] border-b border-[var(--border)]">
+              <div className="relative px-8 h-14 flex items-center justify-between bg-[var(--surface)] border-b border-[var(--border)]">
                 <ContentBreadcrumb />
+
+                {/* Global search — absolutely centered in the header */}
+                <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">
+                  <GlobalSearch />
+                </div>
+
                 <AlertBell />
               </div>
               

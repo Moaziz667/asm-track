@@ -137,8 +137,11 @@ public class RmaService {
     public org.springframework.data.domain.Page<RmaResponse> list(
             RmaStatus status, String q, java.time.LocalDate dateFrom, java.time.LocalDate dateTo,
             org.springframework.data.domain.Pageable pageable) {
-        LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay() : null;
-        LocalDateTime to = dateTo != null ? dateTo.atTime(java.time.LocalTime.MAX) : null;
+        // Always bind concrete bounds. A bare ":from IS NULL" on a timestamp bind makes Postgres fail
+        // with "could not determine data type of parameter" (it can't type a param used only in IS NULL),
+        // so an absent date collapses to a wide sentinel range instead of a nullable predicate.
+        LocalDateTime from = dateFrom != null ? dateFrom.atStartOfDay() : LocalDateTime.of(1970, 1, 1, 0, 0);
+        LocalDateTime to = dateTo != null ? dateTo.atTime(java.time.LocalTime.MAX) : LocalDateTime.of(2999, 12, 31, 23, 59, 59);
         return rmaRepository.searchPaged(status, q, from, to, pageable).map(RmaResponse::from);
     }
 

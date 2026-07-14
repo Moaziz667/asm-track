@@ -10,25 +10,33 @@ type ZoneData = {
   zoneColor: string;
   orders: number;
   zipcodes: number;
+  /** Delayed/failed orders in the zone over the window (from heatpoint.delayedOrders). */
+  delayed: number;
+  /** On-time rate = (orders − delayed) / orders, as a percentage. */
+  onTimePct: number;
   previousOrders: number;
   delta: number | null;
   rank: number;
 };
+
+type ZoneAgg = { orders: number; delayed: number; zipcodes: number; zoneName: string; zoneColor: string };
 
 function aggregateByZone(points: Array<{
   zoneId: string;
   zoneName: string;
   zoneColor: string;
   ordersCount: number;
-}>): Map<string, { orders: number; zipcodes: number; zoneName: string; zoneColor: string }> {
-  const byZone = new Map<string, { orders: number; zipcodes: number; zoneName: string; zoneColor: string }>();
+  delayedOrders?: number;
+}>): Map<string, ZoneAgg> {
+  const byZone = new Map<string, ZoneAgg>();
   for (const p of points) {
     const existing = byZone.get(p.zoneId);
     if (existing) {
       existing.orders += p.ordersCount;
+      existing.delayed += p.delayedOrders ?? 0;
       existing.zipcodes += 1;
     } else {
-      byZone.set(p.zoneId, { orders: p.ordersCount, zipcodes: 1, zoneName: p.zoneName, zoneColor: p.zoneColor });
+      byZone.set(p.zoneId, { orders: p.ordersCount, delayed: p.delayedOrders ?? 0, zipcodes: 1, zoneName: p.zoneName, zoneColor: p.zoneColor });
     }
   }
   return byZone;
@@ -46,7 +54,7 @@ export function useZoneComparison(range: Range, from?: string, to?: string) {
     queryKey: ['zone-heatmap', range, from ?? '', to ?? ''],
     queryFn: () =>
       api.get('/api/admin/reports/zone-heatmap', { params })
-        .then(r => r.data as { points?: Array<{ zoneId: string; zoneName: string; zoneColor: string; ordersCount: number }>; previousOrdersByZone?: Record<string, number> })
+        .then(r => r.data as { points?: Array<{ zoneId: string; zoneName: string; zoneColor: string; ordersCount: number; delayedOrders?: number }>; previousOrdersByZone?: Record<string, number> })
         .catch(() => ({ points: [], previousOrdersByZone: {} })),
     staleTime: 30_000,
   });
@@ -68,6 +76,8 @@ export function useZoneComparison(range: Range, from?: string, to?: string) {
         zoneColor: d.zoneColor,
         orders: d.orders,
         zipcodes: d.zipcodes,
+        delayed: d.delayed,
+        onTimePct: d.orders > 0 ? ((d.orders - d.delayed) / d.orders) * 100 : 100,
         previousOrders: prevOrders,
         delta,
         rank: 0,

@@ -839,6 +839,24 @@ export const FR_COPY = {
     genericAlert: 'Un problème requiert votre attention',
     critiqueBadge: 'CRITIQUE',
     overdueChipLabel: '{count} non planifiée{plural} en retard',
+    // Zone overview
+    zoneOverviewTitle: 'Vue par zone',
+    zoneColZone: 'Zone',
+    zoneColOnTime: 'À l\'heure',
+    zoneColOrders: 'Cmd.',
+    zoneColDelayed: 'Retard',
+    // Returns (RMA)
+    returnsTitle: 'Retours (RMA)',
+    returnsOpen: 'À traiter',
+    returnsRestocked: 'Réintégrés',
+    returnsTotal: 'Total',
+    returnsValue: 'Valeur',
+    // Delivery backlog
+    backlogTitle: 'Backlog livraisons',
+    backlogNeedsPinning: 'À géolocaliser',
+    backlogUnassigned: 'Non assignées',
+    backlogOverdue: 'En retard',
+    backlogFuture: 'À venir',
   },
 
   // ── Global Floating Map ──────────────────────────────────────────────────

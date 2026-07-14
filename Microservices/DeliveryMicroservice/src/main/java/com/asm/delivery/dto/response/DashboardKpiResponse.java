@@ -38,6 +38,9 @@ public class DashboardKpiResponse {
     private long lateOrders;
     @Schema(description = "Measurable completed deliveries in the period (the denominator for the late rate)")
     private long measurableOrders;
+    @Schema(description = "Measurable completed deliveries in the preceding period — 0 means the previous "
+            + "SLA rate is a default (no reference), so the SLA delta is not a real comparison")
+    private long previousMeasurable;
 
     // Period-over-period counterparts for the top KPI deltas (all vs the preceding window of equal length).
     @Schema(description = "Delivered (incl. partial) in the current period")
@@ -66,5 +69,11 @@ public class DashboardKpiResponse {
 
         @Schema(description = "Failed count for date")
         private long failed;
+
+        @Schema(description = "Late count for date — measurable completed deliveries that missed their SLA window")
+        private long late;
+
+        @Schema(description = "SLA compliance (%) for date — onTime / measurable over completed deliveries; 100 when none measurable")
+        private double slaRate;
     }
 }

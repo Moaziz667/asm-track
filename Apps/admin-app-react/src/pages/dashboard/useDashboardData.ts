@@ -13,6 +13,13 @@ import { analyticsDateParams } from '@/lib/analytics/date-params';
 
 export type Range = 'today' | 'yesterday' | 'last7d' | 'last30d' | 'custom';
 
+export type ReturnsKpi = { total?: number; open?: number; restocked?: number; totalValue?: number };
+
+/** A KPI delta that is either a percentage change (previous>0) or an absolute count delta
+ *  (previous=0). `value` is null when there is nothing to compare. */
+export type TrendDelta = { value: number | null; isPct: boolean };
+const EMPTY_DELTA: TrendDelta = { value: null, isPct: true };
+
 /** All data + derived metrics for the dashboard. Extracted from DashboardPage so the page is a
  *  pure layout/orchestrator. Source of truth = REST via React Query; realtime events only
  *  invalidate (debounced), so KPIs self-heal from the server.
@@ -42,7 +49,7 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
   const { data: dash, isFetching: refreshing, isLoading, refetch } = useQuery({
     queryKey: ['dashboard-overview', range, from ?? '', to ?? '', scopeParams],
     queryFn: async () => {
-      const [sR, oR, driversRes, routesRes, kR, healthRes] = await Promise.all([
+      const [sR, oR, driversRes, routesRes, kR, healthRes, returnsRes, countsRes] = await Promise.all([
         api.get('/api/admin/deliveries/stats', { params: { ...dateParams, ...scopeParams } }),
         // LIVE plane — always "now"; only spatial pivots scope it, never the date range.
         api.get('/api/admin/ops/overview', { params: { ...scopeParams } }),
@@ -50,6 +57,9 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
         api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
         api.get('/api/admin/reports/dashboard', { params: { ...dateParams, ...scopeParams, compare: true } }).catch(() => ({ data: null })),
         api.get('/api/admin/system/health').catch(() => ({ data: null })),
+        // Returns KPI + delivery backlog tallies — live "now" (no date range).
+        api.get('/api/admin/returns/kpi').catch(() => ({ data: null })),
+        api.get('/api/admin/deliveries/counts').catch(() => ({ data: null })),
       ]);
       const driversData = driversRes.data;
       return {
@@ -59,6 +69,8 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
         drivers: (Array.isArray(driversData) ? driversData : (driversData?.content ?? driversData?.drivers ?? [])) as Driver[],
         activeRoutesCount: Array.isArray(routesRes.data) ? routesRes.data.length : 0,
         health: healthRes.data,
+        returns: (returnsRes.data ?? null) as ReturnsKpi | null,
+        counts: (countsRes.data ?? null) as Record<string, number> | null,
       };
     },
     staleTime: 30_000,
@@ -70,6 +82,8 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
   const drivers = dash?.drivers ?? [];
   const activeRoutesCount = dash?.activeRoutesCount ?? 0;
   const healthData = dash?.health ?? null;
+  const returns = dash?.returns ?? null;
+  const counts = dash?.counts ?? null;
 
   const healthSummary = useMemo(() => deriveHealthSummary(healthData), [healthData]);
 
@@ -162,16 +176,26 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
     : (today?.total ? Math.round((today.delivered / today.total) * 100) : 100);
 
   const trend = useMemo(
-    () => (Array.isArray(kpi?.weeklyTrend) ? kpi.weeklyTrend : []) as Array<{ count: number; delivered: number; failed: number }>,
+    () => (Array.isArray(kpi?.weeklyTrend) ? kpi.weeklyTrend : []) as Array<{ count: number; delivered: number; failed: number; late?: number; slaRate?: number }>,
     [kpi],
   );
   // Top-KPI deltas — all period-over-period vs the preceding window of equal length (backend compare),
   // so they track the selected range instead of a fixed last-7-vs-prior-7 slice of the 30-day trend.
-  const pctDelta = (cur: number, prev: number) => (prev > 0 ? ((cur - prev) / prev) * 100 : null);
-  const deliveredDelta = kpi ? pctDelta(Number(kpi.deliveredOrders) || 0, Number(kpi.previousDelivered) || 0) : null;
-  const failedDelta = kpi ? pctDelta(Number(kpi.failedOrders) || 0, Number(kpi.previousFailed) || 0) : null;
-  const lateDelta = kpi ? pctDelta(Number(kpi.lateOrders) || 0, Number(kpi.previousLate) || 0) : null;
-  const slaDelta = (kpi?.slaRate != null && kpi?.previousSlaRate != null) ? kpi.slaRate - kpi.previousSlaRate : null;
+  // Robust rendering: previous>0 → % change; previous=0 but current>0 → absolute delta (a % change
+  // vs zero is undefined); both 0 → nothing. So every count KPI shows an honest comparison.
+  const trendDelta = (cur: number, prev: number): TrendDelta => {
+    if (prev > 0) return { value: ((cur - prev) / prev) * 100, isPct: true };
+    if (cur > 0) return { value: cur - prev, isPct: false };
+    return { value: null, isPct: true };
+  };
+  const deliveredDelta = kpi ? trendDelta(Number(kpi.deliveredOrders) || 0, Number(kpi.previousDelivered) || 0) : EMPTY_DELTA;
+  const failedDelta = kpi ? trendDelta(Number(kpi.failedOrders) || 0, Number(kpi.previousFailed) || 0) : EMPTY_DELTA;
+  const lateDelta = kpi ? trendDelta(Number(kpi.lateOrders) || 0, Number(kpi.previousLate) || 0) : EMPTY_DELTA;
+  // SLA delta (points) only when BOTH windows have measurable deliveries. Otherwise the previous SLA is
+  // a 100% default (empty reference window) and "−50 pts" would be a misleading artifact → show nothing.
+  const slaDelta = (kpi?.slaRate != null && kpi?.previousSlaRate != null
+    && (Number(kpi.measurableOrders) || 0) > 0 && (Number(kpi.previousMeasurable) || 0) > 0)
+    ? kpi.slaRate - kpi.previousSlaRate : null;
 
   const vsPrev = t.dashboardPage.kpiVsPrevPeriod || 'vs prev. period';
   const deliveredSub = deliveredDelta == null ? `/ ${today?.total ?? 0}` : undefined;
@@ -205,7 +229,7 @@ export function useDashboardData(range: Range, from?: string, to?: string, scope
 
   return {
     refreshing, isLoading, refetch,
-    stats, ops, kpi, drivers, activeRoutesCount,
+    stats, ops, kpi, drivers, activeRoutesCount, returns, counts,
     healthSummary, healthProblemsSummary,
     today, overdueCount, slaPercent,
     trend, deliveredDelta, failedDelta, lateDelta, slaDelta, vsPrev, deliveredSub,

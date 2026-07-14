@@ -235,36 +235,17 @@ export function AppSidebar() {
   );
 
   const getBadgeFor = (labelKey: string) => {
-    const sb = t.sidebar.badges;
     if (labelKey === 'dispatch' && telemetry && telemetry.opsExceptions > 0) {
       const n = telemetry.opsExceptions;
-      const text = activeLocale === 'ar'
-        ? (n === 1 ? sb.arDispatchOne : `${n} ${sb.arDispatchMany}`)
-        : activeLocale === 'fr'
-        ? (n === 1 ? `1 ${sb.dispatchActionRequired}` : `${n} ${sb.dispatchActionsRequired}`)
-        : (n === 1 ? `1 ${sb.dispatchActionRequired}` : `${n} ${sb.dispatchActionsRequired}`);
-        
-      return { text, rawCount: n, type: 'alert' as const };
+      return { text: String(n), rawCount: n, type: 'alert' as const };
     }
     if (labelKey === 'import' && telemetry && telemetry.erpPending > 0) {
       const n = telemetry.erpPending;
-      const text = activeLocale === 'ar'
-        ? (n === 1 ? sb.arImportOne : `${n} ${sb.arImportMany}`)
-        : activeLocale === 'fr'
-        ? (n === 1 ? `1 ${sb.importOne}` : `${n} ${sb.imports}`)
-        : (n === 1 ? `1 ${sb.importOne}` : `${n} ${sb.imports}`);
-
-      return { text, rawCount: n, type: 'neutral' as const };
+      return { text: String(n), rawCount: n, type: 'neutral' as const };
     }
     if (labelKey === 'routes' && telemetry && telemetry.activeRoutes > 0) {
       const n = telemetry.activeRoutes;
-      const text = activeLocale === 'ar'
-        ? (n === 1 ? sb.arRouteActive : `${n} ${sb.arRouteActiveMany}`)
-        : activeLocale === 'fr'
-        ? (n === 1 ? `1 ${sb.routeActive}` : `${n} ${sb.routesActive}`)
-        : (n === 1 ? `1 ${sb.routeActive}` : `${n} ${sb.routesActive}`);
-
-      return { text, rawCount: n, type: 'info' as const };
+      return { text: String(n), rawCount: n, type: 'info' as const };
     }
     return null;
   };

@@ -23,8 +23,10 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
     List<Rma> findByDeliveryIdOrderByCreatedAtDesc(UUID deliveryId);
 
     /**
-     * Server-side paginated + filtered returns list. Both filters are optional: null status = all
-     * statuses, blank q = no text filter. Search spans client name / BL / ERP ref (all on the Rma row).
+     * Server-side paginated + filtered returns list. status/q are optional (null status = all, blank q =
+     * no text filter); from/to are always bound (the caller passes a wide sentinel range when absent — a
+     * bare ":from IS NULL" on a timestamp param breaks Postgres type inference). Search spans client name /
+     * BL / ERP ref (all on the Rma row).
      */
     @Query("""
             SELECT r FROM Rma r
@@ -33,8 +35,8 @@ public interface RmaRepository extends JpaRepository<Rma, UUID> {
                    LOWER(r.clientName) LIKE LOWER(CONCAT('%', :q, '%')) OR
                    LOWER(r.blNumber)   LIKE LOWER(CONCAT('%', :q, '%')) OR
                    LOWER(r.erpOrderId) LIKE LOWER(CONCAT('%', :q, '%')))
-              AND (:from IS NULL OR r.createdAt >= :from)
-              AND (:to   IS NULL OR r.createdAt <= :to)
+              AND r.createdAt >= :from
+              AND r.createdAt <= :to
             ORDER BY r.createdAt DESC
             """)
     Page<Rma> searchPaged(@Param("status") RmaStatus status, @Param("q") String q,

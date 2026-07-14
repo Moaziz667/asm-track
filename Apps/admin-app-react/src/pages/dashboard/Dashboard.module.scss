@@ -1,0 +1,140 @@
+// ── Dense dashboard grid ──────────────────────────────────────────────────────
+// Static "control-tower" layout that replaced the react-grid-layout draggable grid.
+// Structure: full-width KPI strip on top, then a two-region body (fluid `main` stack of
+// fixed-height bands + a fixed-width activity `rail`). Each band is a CSS grid whose
+// columns are `fr` — widgets (all `h-full`) fill the band and stay aligned, no per-widget
+// coordinate math. Inverted pyramid: live/urgent on top, analytics/secondary at the bottom.
+
+$gap: 12px;
+$rail-w: 340px;
+$band-core: 320px;   // status breakdown · needs attention  (live core)
+$band-trend: 300px;  // volume trend · backlog
+$band-zone: 300px;   // zone overview · failure causes
+$band-fleet: 260px;  // driver status · active routes
+$band-footer: 180px; // cycle time · returns · quick actions (secondary)
+
+.page {
+  width: 100%;
+  max-width: 1900px;
+  margin-inline: auto;
+  padding: 14px 16px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+// ── KPI strip ────────────────────────────────────────────────────────────────
+.kpiStrip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: $gap;
+
+  > * {
+    min-height: 92px;
+  }
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// ── Body: fluid main + fixed activity rail ───────────────────────────────────
+.body {
+  display: flex;
+  gap: $gap;
+  align-items: stretch;
+
+  @media (max-width: 1280px) {
+    flex-direction: column;
+  }
+}
+
+.main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+.band {
+  display: grid;
+  gap: $gap;
+
+  > * {
+    min-width: 0;
+  }
+}
+
+@mixin stack-on-narrow($minH) {
+  @media (max-width: 900px) {
+    grid-template-columns: 1fr;
+    height: auto;
+    > * { min-height: $minH; }
+  }
+}
+
+// Row 1 — quick read: backlog · returns · cycle time
+.bandQuad {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  height: 288px;
+
+  @media (max-width: 1100px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    height: auto;
+    > * { min-height: 200px; }
+  }
+  @media (max-width: 560px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+// Row 2 — volume trend (wide) · zone overview
+.bandTrend {
+  grid-template-columns: 2fr 1fr;
+  height: $band-trend;
+  @include stack-on-narrow(260px);
+}
+
+// Rows 3-4 — two-up pairs (failure · driver) then (routes · quick actions)
+.bandPair {
+  grid-template-columns: 1fr 1fr;
+  height: $band-zone;
+  @include stack-on-narrow(240px);
+}
+
+// ── Right rail: Live Activity (compact ~6 rows) + Needs attention below ──────
+$rail-feed-h: 420px;
+
+.rail {
+  flex: 0 0 $rail-w;
+  width: $rail-w;
+  display: flex;
+  flex-direction: column;
+  gap: $gap;
+}
+
+// Each wrapper is a flex box so its single widget child stretches to fill.
+.railFeed,
+.railAttn {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  > * { flex: 1 1 auto; min-height: 0; }
+}
+.railFeed { flex: 0 0 $rail-feed-h; }   // compact feed, ~6 visible + scroll
+.railAttn { flex: 1 1 auto; min-height: 260px; } // fills the rest of the column height
+
+@media (max-width: 1280px) {
+  .rail {
+    flex-basis: auto;
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .railFeed,
+  .railAttn { flex: 1 1 340px; height: 440px; }
+}
