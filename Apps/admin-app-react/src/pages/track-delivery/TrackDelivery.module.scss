@@ -1,0 +1,85 @@
+// ── Public delivery tracking — responsive shell ───────────────────────────────
+// The page keeps ONE DOM structure (map, top bar and detail sheet are absolute
+// siblings inside .frame); only their CSS positioning changes per breakpoint.
+//   • Mobile: full-bleed map + draggable bottom-sheet (the component's inline
+//     `bottom`/`height` drive the collapsed/expanded sheet).
+//   • Desktop (≥1024px): a real split — full-width brand header, then map (fluid)
+//     beside a fixed detail panel — so a laptop customer gets an enterprise page,
+//     not a stretched phone frame. Desktop rules use `!important` on purpose: they
+//     override the mobile inline styles the component sets.
+
+$panel-w: clamp(380px, 32vw, 460px);
+$header-h: 56px;
+
+.page {
+  position: fixed;
+  inset: 0;
+  background: #eef2f6;
+  display: flex;
+  justify-content: center;
+  font-family: "IBM Plex Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+.frame {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  height: 100%;
+  background: #fff;
+  overflow: hidden;
+  box-shadow: 0 0 40px rgba(15, 23, 42, 0.06);
+}
+
+.mapWrap {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  // `bottom` is set inline (sheet height) on mobile.
+}
+
+.panel {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  // `height` + visual styles (bg, radius, shadow) are set inline on mobile.
+}
+
+// ── Desktop split ─────────────────────────────────────────────────────────────
+@media (min-width: 1024px) {
+  .page { background: #fff; }
+
+  .frame {
+    max-width: none;
+    box-shadow: none;
+  }
+
+  // Map takes the left, leaving room for the fixed panel; sits below the header.
+  .mapWrap {
+    top: $header-h !important;
+    left: 0 !important;
+    right: $panel-w !important;
+    bottom: 0 !important;
+  }
+
+  // Detail panel docks right, full height under the header — always open.
+  .panel {
+    top: $header-h !important;
+    right: 0 !important;
+    left: auto !important;
+    bottom: 0 !important;
+    width: $panel-w !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    box-shadow: -1px 0 0 #e5e7eb, -8px 0 24px rgba(15, 23, 42, 0.04) !important;
+  }
+
+  // The drag handle is meaningless when the panel is permanently open.
+  .handle { display: none !important; }
+}
+
+@media (min-width: 1600px) {
+  .frame { max-width: 1680px; box-shadow: 0 0 40px rgba(15, 23, 42, 0.06); }
+}

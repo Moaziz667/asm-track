@@ -33,7 +33,7 @@ public class SecurityConfig {
             .cors(ServerHttpSecurity.CorsSpec::disable)
             .authorizeExchange(auth -> auth
                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .pathMatchers("/api/auth/**", "/api/public/**", "/api/dev/**", "/ws/**").permitAll()
+                .pathMatchers("/api/auth/**", "/api/public/**", "/api/dev/**", "/ws/**", "/files/**").permitAll()
                 .pathMatchers("/internal/**").denyAll()
                 .anyExchange().authenticated()
             )

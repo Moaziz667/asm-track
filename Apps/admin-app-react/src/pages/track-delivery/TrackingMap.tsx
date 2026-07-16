@@ -4,32 +4,63 @@ import { TileLayer } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import ErrorBoundary from '@/components/ErrorBoundary';
-import { useIsDark } from '@/lib/ui/theme';
 
 interface TrackingData {
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   depotLat?: number;   depotLng?: number;   depotName?: string
   driverLat?: number;  driverLng?: number;  driverName?: string
   routeGeometry?: string
+  kind?: string  // FORWARD | RETURN_PICKUP — flips pickup/destination roles (ADR-033)
 }
 
-const SVG_TRUCK = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M1 3h15v13H1z"/><path d="M16 8h4l3 3v5h-7V8z"/><circle cx="5.5" cy="18.5" r="2.5"/><circle cx="18.5" cy="18.5" r="2.5"/></svg>`;
-const SVG_PIN   = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="#fff" stroke="#fff" stroke-width="1"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>`;
-const SVG_DEPOT = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>`;
+// Markers ported 1:1 from the admin route map (RouteTrackingMap) so the client sees the same visual
+// language: an avatar puck for the driver, a dark warehouse puck for the depot, a red teardrop for the
+// destination. A subtle live-pulse ring is layered under the driver only (it's the moving actor).
 
-function makeIcon(color: string, svg: string, pulse = false) {
+/** Driver puck — brand-ringed avatar (initials) with an online status dot + live pulse. */
+function driverIcon(name?: string) {
+  const size = 40, wrap = size + 8, dot = 12;
+  const initials = (name || '').split(/\s+/).map(p => p[0]).filter(Boolean).join('').slice(0, 2).toUpperCase() || '—';
   return L.divIcon({
     className: '',
-    iconSize: [36, 36],
-    iconAnchor: [18, 36],
-    popupAnchor: [0, -40],
-    html: `
-      ${pulse ? `<div style="position:absolute;width:36px;height:36px;border-radius:50%;background:${color};opacity:0.2;animation:mPulse 1.6s ease-out infinite;"></div>` : ''}
-      <div style="width:36px;height:36px;background:${color};border-radius:50% 50% 50% 0;transform:rotate(-45deg);box-shadow:0 2px 8px rgba(0,0,0,0.22);border:2.5px solid #fff;display:flex;align-items:center;justify-content:center;position:relative;">
-        <span style="transform:rotate(45deg);display:flex;align-items:center;justify-content:center;">${svg}</span>
-      </div>
-      <style>@keyframes mPulse{0%{transform:scale(1);opacity:0.25}100%{transform:scale(2.6);opacity:0}}</style>
-    `,
+    iconSize: [wrap, wrap], iconAnchor: [wrap / 2, wrap / 2], popupAnchor: [0, -(size / 2) - 6],
+    html: `<div style="position:relative;width:${wrap}px;height:${wrap}px;">
+  <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--brand);opacity:0.18;animation:mPulse 1.6s ease-out infinite;"></div>
+  <div style="position:absolute;top:4px;left:4px;width:${size}px;height:${size}px;border-radius:50%;background:var(--surface,#fff);border:2.5px solid var(--brand);box-shadow:0 0 0 2px color-mix(in srgb, var(--brand) 22%, transparent),0 2px 8px rgba(0,0,0,0.22);overflow:hidden;display:flex;align-items:center;justify-content:center;">
+    <span style="font-family:var(--font-sans),system-ui;font-weight:700;font-size:${Math.round(size * 0.36)}px;line-height:1;color:var(--text-primary,#0f172a);">${initials}</span>
+  </div>
+  <span style="position:absolute;bottom:3px;right:3px;width:${dot}px;height:${dot}px;border-radius:50%;background:var(--success,#16a34a);border:2px solid var(--surface,#fff);"></span>
+  <style>@keyframes mPulse{0%{transform:scale(1);opacity:0.22}100%{transform:scale(2.4);opacity:0}}</style>
+</div>`,
+  });
+}
+
+/** Depot puck — dark circle with a white warehouse glyph. */
+function depotIcon() {
+  return L.divIcon({
+    className: '', iconSize: [42, 42], iconAnchor: [21, 21], popupAnchor: [0, -22],
+    html: `<div style="width:42px;height:42px;filter:drop-shadow(0 3px 8px rgba(0,0,0,0.45));">
+  <svg width="42" height="42" viewBox="0 0 42 42" xmlns="http://www.w3.org/2000/svg">
+    <circle cx="21" cy="21" r="21" fill="#111827"/>
+    <circle cx="21" cy="21" r="19" fill="none" stroke="white" stroke-width="1.5" stroke-opacity="0.4"/>
+    <polygon points="21,10 10,19 32,19" fill="white" fill-opacity="0.95"/>
+    <rect x="12" y="19" width="18" height="11" fill="white" fill-opacity="0.9" rx="1"/>
+    <rect x="18" y="23" width="6" height="7" fill="#111827" rx="1"/>
+  </svg>
+</div>`,
+  });
+}
+
+/** Destination — red teardrop pin with a white center. */
+function destinationIcon() {
+  return L.divIcon({
+    className: '', iconSize: [32, 44], iconAnchor: [16, 44], popupAnchor: [0, -42],
+    html: `<div style="filter:drop-shadow(0 2px 6px rgba(0,0,0,0.4));">
+  <svg width="32" height="44" viewBox="0 0 32 44" xmlns="http://www.w3.org/2000/svg">
+    <path d="M16 0C7.163 0 0 7.163 0 16c0 6.193 3.56 11.563 8.765 14.257L16 44l7.235-13.743C28.44 27.563 32 22.193 32 16 32 7.163 24.837 0 16 0z" fill="#ef4444"/>
+    <circle cx="16" cy="16" r="7" fill="white" fill-opacity="0.9"/>
+  </svg>
+</div>`,
   });
 }
 
@@ -52,7 +83,7 @@ function InvalidateOnMount() {
 }
 
 function TrackingMapInner({ data }: { data: TrackingData }) {
-  const isDark = useIsDark();
+  // Client-facing page: always light basemap, independent of the admin dashboard theme.
   const defaultCenter: [number, number] = [36.8065, 10.1815];
 
   const points: [number, number][] = [];
@@ -78,31 +109,33 @@ function TrackingMapInner({ data }: { data: TrackingData }) {
       <FitBounds points={points} />
 
       <TileLayer
-        url={isDark ? "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png" : "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"}
+        url="https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
         attribution="© OpenStreetMap © CARTO"
       />
 
       {polyline.length > 1 && (
-        <Polyline positions={polyline} color="#f97316" weight={4} opacity={0.85} />
+        <Polyline positions={polyline} color="var(--brand, #2563eb)" weight={4} opacity={0.85} />
       )}
 
+      {(() => { const isReturn = data.kind === 'RETURN_PICKUP'; return <>
       {data.depotLat && data.depotLng && (
-        <Marker position={[data.depotLat, data.depotLng]} icon={makeIcon('#334155', SVG_DEPOT)}>
-          <Popup><strong>{data.depotName ?? 'Dépôt'}</strong></Popup>
+        <Marker position={[data.depotLat, data.depotLng]} icon={depotIcon()}>
+          <Popup><strong>{isReturn ? 'Destination (dépôt)' : (data.depotName ?? 'Dépôt')}</strong></Popup>
         </Marker>
       )}
 
       {data.dropoffLat && data.dropoffLng && (
-        <Marker position={[data.dropoffLat, data.dropoffLng]} icon={makeIcon('#16a34a', SVG_PIN)}>
+        <Marker position={[data.dropoffLat, data.dropoffLng]} icon={destinationIcon()}>
           <Popup>
-            <strong>Destination</strong>
+            <strong>{isReturn ? 'Point de collecte' : 'Destination'}</strong>
             {data.dropoffAddress && <><br />{data.dropoffAddress}</>}
           </Popup>
         </Marker>
       )}
+      </>; })()}
 
       {data.driverLat && data.driverLng && (
-        <Marker position={[data.driverLat, data.driverLng]} icon={makeIcon('#f97316', SVG_TRUCK, true)}>
+        <Marker position={[data.driverLat, data.driverLng]} icon={driverIcon(data.driverName)}>
           <Popup><strong>{data.driverName ?? 'Livreur'}</strong><br />Position actuelle</Popup>
         </Marker>
       )}

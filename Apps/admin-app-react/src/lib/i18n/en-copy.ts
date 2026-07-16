@@ -2685,6 +2685,7 @@ export const EN_COPY = {
 
     // Table content
     unknownDriver: 'Unknown address',
+    returnPickupBadge: 'Return',
     notAssigned: 'Not assigned',
     outOfZone: 'Zone not defined',
     unscheduled: 'Unscheduled',

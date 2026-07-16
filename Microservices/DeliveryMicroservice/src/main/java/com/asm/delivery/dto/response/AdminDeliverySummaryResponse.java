@@ -46,6 +46,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "Delivery status", example = "IN_TRANSIT")
     private String status;
 
+    @Schema(description = "FORWARD (depot→client) or RETURN_PICKUP (client→depot, a return collection). ADR-033")
+    private String kind;
+
     /** Canonical failure category (FailureCode name) when the delivery failed. */
     private String failureCode;
     /** Human reason (catalog label enriched with the driver comment) when failed. */
@@ -151,6 +154,9 @@ public class AdminDeliverySummaryResponse {
 
     @Schema(description = "Assignment timestamp")
     private LocalDateTime assignedAt;
+
+    @Schema(description = "Pickup timestamp (parcel loaded at depot)")
+    private LocalDateTime pickedUpAt;
 
     @Schema(description = "Transit start timestamp")
     private LocalDateTime inTransitAt;

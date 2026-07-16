@@ -2797,6 +2797,7 @@ export const FR_COPY = {
 
     // Table content
     unknownDriver: 'Adresse inconnue',
+    returnPickupBadge: 'Retour',
     notAssigned: 'Non assigné',
     outOfZone: 'Zone non définie',
     unscheduled: 'Non planifié',

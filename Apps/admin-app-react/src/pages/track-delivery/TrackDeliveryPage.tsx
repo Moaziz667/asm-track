@@ -5,15 +5,16 @@ import { lazy as dynamic } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
 import { Skeleton } from '@/components/ui/skeleton';
-import { IconPhone, IconChevronUp, IconChevronDown } from '@tabler/icons-react';
+import { IconPhone, IconChevronUp, IconChevronDown, IconCheck, IconClipboardList, IconPackage, IconTruckDelivery, IconHomeCheck } from '@tabler/icons-react';
 import { useT } from '@/lib/i18n/LocaleContext';
 import ReturnSection from './ReturnSection';
+import s from './TrackDelivery.module.scss';
 
 const TrackingMap = dynamic(() => import('./TrackingMap'));
 
 interface OrderItem { name: string; quantity: number; unitPrice?: number }
 interface TrackingData {
-  deliveryId: string; status: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
+  deliveryId: string; status: string; kind?: string; failReason?: string; returnStatus?: string; returnResolutionNote?: string; clientName?: string; clientPhone?: string; erpOrderId?: string
   dropoffLat?: number; dropoffLng?: number; dropoffAddress?: string; dropoffCity?: string
   driverName?: string; driverPhone?: string; driverLat?: number; driverLng?: number
   depotLat?: number; depotLng?: number; depotName?: string
@@ -23,6 +24,7 @@ interface TrackingData {
 }
 
 const STEPS = ['SCHEDULED', 'PICKED_UP', 'IN_TRANSIT', 'DELIVERED'];
+const STEP_ICONS = [IconClipboardList, IconPackage, IconTruckDelivery, IconHomeCheck];
 
 function getStatusConfig(t: TranslationSchema): Record<string, { label: string; sub: string; color: string }> {
   return {
@@ -67,7 +69,11 @@ export default function TrackingPage() {
       const res = await fetch(`/api/public/track/${deliveryId}`, { signal });
       if (!res.ok) { setError(true); return; }
       setData(await res.json());
-    } catch { setError(true); }
+      setError(false); // clear any prior/transient error once a load succeeds
+    } catch (e) {
+      // An aborted fetch (StrictMode double-mount / unmount) is expected, not a "not found".
+      if ((e as { name?: string })?.name !== 'AbortError') setError(true);
+    }
     finally { setLoading(false); }
   };
 
@@ -129,12 +135,11 @@ export default function TrackingPage() {
     // Full-viewport neutral backdrop; the phone-style UI is centered and capped
     // at a max width so a customer opening the link on desktop doesn't get a
     // stretched mobile layout.
-    <div style={{ position: 'fixed', inset: 0, background: '#e2e8f0', display: 'flex', justifyContent: 'center' }}>
-    <div style={{ position: 'relative', width: '100%', maxWidth: 520, height: '100%', overflow: 'hidden', background: '#fff', fontFamily: '"IBM Plex Sans", -apple-system, sans-serif' }}>
+    <div className={s.page}>
+    <div className={s.frame}>
 
-      {/* Map — fills from top-0 to bottom-sheet edge, sits behind the top bar */}
-      <div style={{
-        position: 'absolute', top: 0, left: 0, right: 0,
+      {/* Map — mobile: fills to the sheet edge; desktop: fluid left half (see module) */}
+      <div className={s.mapWrap} style={{
         bottom: SHEET,
         transition: 'bottom 0.38s cubic-bezier(0.32,0.72,0,1)',
       }}>
@@ -165,9 +170,8 @@ export default function TrackingPage() {
         )}
       </div>
 
-      {/* Bottom sheet */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 100,
+      {/* Detail — mobile: bottom-sheet; desktop: fixed right panel (see module) */}
+      <div className={s.panel} style={{
         height: SHEET,
         transition: 'height 0.38s cubic-bezier(0.32,0.72,0,1)',
         background: '#fff',
@@ -182,6 +186,7 @@ export default function TrackingPage() {
 
           {/* Handle + toggle */}
           <button
+            className={s.handle}
             onClick={() => setExpanded(e => !e)}
             style={{ width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: '10px 0 8px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}
           >
@@ -190,9 +195,14 @@ export default function TrackingPage() {
           </button>
 
           {/* Status */}
-          <div style={{ padding: '0 20px 16px' }}>
+          <div style={{ padding: '18px 20px 16px' }}>
             <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
               <div>
+                {data.kind === 'RETURN_PICKUP' && (
+                  <div style={{ display: 'inline-block', fontSize: 10, fontWeight: 800, color: '#7c3aed', background: '#f3e8ff', padding: '3px 8px', borderRadius: 999, letterSpacing: '0.04em', marginBottom: 6 }}>
+                    COLLECTE RETOUR
+                  </div>
+                )}
                 <div style={{ fontSize: 22, fontWeight: 800, color: '#0f172a', lineHeight: 1.1 }}>{st.label}</div>
                 <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>{st.sub}</div>
               </div>
@@ -222,31 +232,40 @@ export default function TrackingPage() {
               </div>
             )}
 
-            {/* Stepper */}
+            {/* Stepper — modern icon timeline: filled progress, check for done, pulsing current */}
             {stepIdx >= 0 && (
-              <div style={{ display: 'flex', alignItems: 'center', marginTop: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', marginTop: 22 }}>
                 {STEPS.map((step, i) => {
-                  const done   = stepIdx >= i;
-                  const active = stepIdx === i;
+                  const reached = stepIdx >= i;   // node coloured
+                  const done    = stepIdx > i;    // past → check
+                  const active  = stepIdx === i;  // current → icon + pulse
+                  const StepIcon = STEP_ICONS[i];
                   return (
                     <div key={step} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                       <div style={{ display: 'flex', alignItems: 'center', width: '100%' }}>
-                        {i > 0 && <div style={{ flex: 1, height: 2, background: done ? st.color : '#e2e8f0', transition: 'background 0.3s' }} />}
+                        <div style={{ flex: 1, height: 3, borderRadius: 2, background: (i > 0 && stepIdx >= i) ? st.color : '#e5e7eb', transition: 'background 0.3s' }} />
                         <div style={{
-                          width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                          background: done ? st.color : '#e2e8f0',
-                          outline: active ? `3px solid ${st.color}33` : 'none',
-                          outlineOffset: 2,
+                          position: 'relative', width: 32, height: 32, borderRadius: '50%', flexShrink: 0,
+                          display: 'flex', alignItems: 'center', justifyContent: 'center',
+                          background: reached ? st.color : '#fff',
+                          border: reached ? 'none' : '2px solid #e5e7eb',
+                          boxShadow: active ? `0 0 0 4px ${st.color}22` : 'none',
                           transition: 'all 0.3s',
-                        }} />
-                        {i < STEPS.length - 1 && <div style={{ flex: 1, height: 2, background: stepIdx > i ? st.color : '#e2e8f0', transition: 'background 0.3s' }} />}
+                        }}>
+                          {active && <span style={{ position: 'absolute', inset: -3, borderRadius: '50%', background: st.color, opacity: 0.18, animation: 'trkPulse 1.6s ease-out infinite' }} />}
+                          {done
+                            ? <IconCheck size={16} color="#fff" stroke={3} />
+                            : <StepIcon size={15} color={reached ? '#fff' : '#94a3b8'} stroke={2} />}
+                        </div>
+                        <div style={{ flex: 1, height: 3, borderRadius: 2, background: (i < STEPS.length - 1 && stepIdx > i) ? st.color : '#e5e7eb', transition: 'background 0.3s' }} />
                       </div>
-                      <div style={{ fontSize: 9, fontWeight: 600, color: done ? '#475569' : '#cbd5e1', marginTop: 5, textAlign: 'center', letterSpacing: '0.02em' }}>
+                      <div style={{ fontSize: 11, fontWeight: active ? 800 : 600, color: active ? st.color : reached ? '#334155' : '#cbd5e1', marginTop: 8, textAlign: 'center', lineHeight: 1.2 }}>
                         {getStepLabels(t)[i]}
                       </div>
                     </div>
                   );
                 })}
+                <style>{`@keyframes trkPulse{0%{transform:scale(1);opacity:0.22}100%{transform:scale(1.7);opacity:0}}@media (prefers-reduced-motion:reduce){[style*="trkPulse"]{animation:none!important}}`}</style>
               </div>
             )}
           </div>

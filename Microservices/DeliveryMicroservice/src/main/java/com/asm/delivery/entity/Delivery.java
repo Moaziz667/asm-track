@@ -38,6 +38,20 @@ public class Delivery {
     @Column(name = "source_depot_id")
     private UUID sourceDepotId;
 
+    /** FORWARD (depot→client, default) or RETURN_PICKUP (client→depot, a reverse leg for an RMA). ADR-033. */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "kind", nullable = false, length = 20)
+    @Builder.Default
+    private DeliveryKind kind = DeliveryKind.FORWARD;
+
+    /** For RETURN_PICKUP: the RMA this collection leg fulfils. */
+    @Column(name = "rma_id")
+    private UUID rmaId;
+
+    /** For RETURN_PICKUP: the depot the collected goods are dropped at (destination of the reverse leg). */
+    @Column(name = "return_depot_id")
+    private UUID returnDepotId;
+
     @Enumerated(EnumType.STRING)
     @Column(name = "status", nullable = false, length = 20)
     @Builder.Default

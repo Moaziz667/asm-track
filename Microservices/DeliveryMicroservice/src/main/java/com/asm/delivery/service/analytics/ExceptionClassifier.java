@@ -41,7 +41,12 @@ public class ExceptionClassifier {
     @Value("${ops.sla.waiting-minutes:15}")
     private int waitingSlaMinutes;
 
-    /** Dashboard needs-attention row, or null when the delivery is within SLA for its status. */
+    /**
+     * Dashboard needs-attention row, or null when the delivery does not currently need dispatcher action.
+     * Severity scale is aligned with the exceptions page ({@link #classifyException}) so the two views
+     * never disagree: FAILED / late IN_TRANSIT / past-due UNSCHEDULED = CRITICAL; PARTIAL, late SCHEDULED,
+     * stuck PICKED_UP, same-day UNSCHEDULED = WARNING. CANCELLED is terminal (no action) → never surfaced.
+     */
     public AdminOpsOverviewResponse.ExceptionRow toExceptionRow(AdminDeliverySummaryResponse s,
                                                                 LocalDateTime now,
                                                                 int effectiveWaitingSlaMinutes,
@@ -49,23 +54,26 @@ public class ExceptionClassifier {
         if ("FAILED".equals(s.getStatus())) {
             return buildExceptionRow(s, DeliveryStatus.FAILED, "CRITICAL", "Delivery failed: manual intervention required");
         }
-        if ("CANCELLED".equals(s.getStatus())) {
-            return buildExceptionRow(s, DeliveryStatus.CANCELLED, "CRITICAL", "Delivery cancelled by user or system");
-        }
+        // CANCELLED is terminal — no action required — so it is intentionally NOT a needs-attention row.
         if ("PARTIALLY_DELIVERED".equals(s.getStatus())) {
             return buildExceptionRow(s, DeliveryStatus.PARTIALLY_DELIVERED, "WARNING", "Partial delivery reported");
         }
         if ("UNSCHEDULED".equals(s.getStatus())) {
-            // Lead-time vs ERP scheduled date; fallback to since-creation when absent.
+            // Same rule as the exceptions page: severity by scheduled date. Future schedules aren't
+            // actionable yet, so they're dropped from needs-attention.
             if (s.getScheduledAt() != null) {
-                int assignLeadTimeMins = systemSettingsService.getInt("ops.sla.assign-leadtime-minutes", 120);
-                LocalDateTime deadline = s.getScheduledAt().minusMinutes(assignLeadTimeMins);
-                if (now.isAfter(deadline)) {
-                    long over = Duration.between(deadline, now).toMinutes();
-                    return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING",
-                         String.format("Affectation tardive: %d min apres le seuil avant date planifiee", over));
+                LocalDate scheduledDate = s.getScheduledAt().toLocalDate();
+                LocalDate today = now.toLocalDate();
+                if (scheduledDate.isBefore(today)) {
+                    return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "CRITICAL",
+                         "En retard (Planifié le " + scheduledDate + ")");
                 }
-            } else if (s.getCreatedAt() != null) {
+                if (scheduledDate.isEqual(today)) {
+                    return buildExceptionRow(s, DeliveryStatus.UNSCHEDULED, "WARNING", "Planifié pour aujourd'hui");
+                }
+                return null;
+            }
+            if (s.getCreatedAt() != null) {
                 int waitingLimit = systemSettingsService.getInt("ops.sla.waiting-limit-minutes", waitingLimitMinutes);
                 long elapsed = Duration.between(s.getCreatedAt(), now).toMinutes();
                 if (elapsed > waitingLimit) {
@@ -73,17 +81,29 @@ public class ExceptionClassifier {
                          String.format("Planning SLA exceeded: unscheduled for %d minutes", elapsed));
                 }
             }
+            return null;
         }
         if ("SCHEDULED".equals(s.getStatus())) {
             int assignLimit = systemSettingsService.getInt("ops.sla.assign-limit-minutes", assignLimitMinutes);
             Long elapsed = resolveAssignSlaElapsedMinutes(s, now);
-            if (elapsed == null) {
-                return null;
-            }
-            if (elapsed > assignLimit) {
-                return buildExceptionRow(s, DeliveryStatus.SCHEDULED, "CRITICAL",
+            if (elapsed != null && elapsed > assignLimit) {
+                return buildExceptionRow(s, DeliveryStatus.SCHEDULED, "WARNING",
                      "Assignment SLA exceeded: driver delay in depot pickup");
             }
+            return null;
+        }
+        if ("PICKED_UP".equals(s.getStatus())) {
+            // Parcel loaded but transit not started past the pickup SLA — a genuine stuck state that the
+            // dashboard previously missed (it was only on the exceptions page).
+            if (s.getPickedUpAt() != null) {
+                int pickupLimit = systemSettingsService.getInt("ops.sla.pickup-limit-minutes", 120);
+                long elapsed = Duration.between(s.getPickedUpAt(), now).toMinutes();
+                if (elapsed > pickupLimit) {
+                    return buildExceptionRow(s, DeliveryStatus.PICKED_UP, "WARNING",
+                         String.format("Picked up but transit not started for %d min", elapsed));
+                }
+            }
+            return null;
         }
         if ("IN_TRANSIT".equals(s.getStatus())) {
             if (s.getRouteEndTimeWindow() != null) {
@@ -92,6 +112,7 @@ public class ExceptionClassifier {
                     return buildExceptionRow(s, DeliveryStatus.IN_TRANSIT, "CRITICAL", "Critical delay: delivery time window exceeded");
                 }
             }
+            return null;
         }
         return null;
     }

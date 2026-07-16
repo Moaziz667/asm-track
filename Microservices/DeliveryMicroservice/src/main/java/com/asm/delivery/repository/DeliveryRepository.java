@@ -19,6 +19,12 @@ import java.util.UUID;
 @Repository
 public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
 
+    /** ADR-033 — true when a reverse-pickup delivery already exists for this RMA (idempotent creation). */
+    boolean existsByRmaId(UUID rmaId);
+
+    /** ADR-033 — the reverse-pickup legs of an RMA (normally one) — used to cancel them if the RMA is dropped. */
+    java.util.List<Delivery> findByRmaId(UUID rmaId);
+
 
 
     List<Delivery> findByStatus(DeliveryStatus status);

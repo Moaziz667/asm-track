@@ -18,6 +18,14 @@ spring:
         - RemoveRequestHeader=X-App-User-Id
         - RemoveRequestHeader=X-Dominant-Role
       routes:
+        # ADR-033/images — public file proxy: browser & phone reach MinIO through the single gateway
+        # origin instead of a hardcoded LAN IP. /files/pod-files/x → strip /files → minio/pod-files/x.
+        - id: minio-files
+          uri: ${MINIO_URL:http://minio:9000}
+          predicates:
+            - Path=/files/**
+          filters:
+            - StripPrefix=1
         - id: app-backend-client-auth
           uri: ${APP_BACKEND_URL:http://localhost:8080}
           predicates:

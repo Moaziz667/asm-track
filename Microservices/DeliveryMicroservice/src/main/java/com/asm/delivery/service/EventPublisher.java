@@ -835,6 +835,20 @@ public class EventPublisher {
                 .data(p)
                 .build();
             notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+
+            // A brand-new client return is a persistent, actionable alert for the admin (bell + history),
+            // not just a transient socket event — otherwise a return can arrive with nobody notified.
+            if ("REQUESTED".equals(p.get("status"))) {
+                String client = (String) p.get("clientName");
+                notificationGateway.record(Notification.builder()
+                        .eventType("return.requested").severity("warning")
+                        .title("Nouveau retour client")
+                        .message((client != null ? client : "Un client") + " a demandé un retour")
+                        .deliveryId((String) p.get("deliveryId"))
+                        .clientName(client)
+                        .payload(new HashMap<>(Map.of("rmaId", String.valueOf(p.get("rmaId")))))
+                        .build());
+            }
         });
     }
 

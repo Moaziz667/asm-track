@@ -104,13 +104,19 @@ public class RouteExecutionService {
         Route route = getRoute(routeId);
         ensureDriverOwnsRoute(route, driverId);
 
-        if (route.getStatus() != RouteStatus.VALIDATED) {
+        // A route can be flipped to IN_PROGRESS as a side-effect (e.g. a driver-to-driver handoff moved a
+        // PICKED_UP parcel into it) before its own driver ever started it. Such a route has no startedAt,
+        // and its home-depot parcels were never auto-picked. Allow the real start in that case so those
+        // parcels aren't stranded SCHEDULED; a route already started by its driver (startedAt set) still
+        // can't be re-started.
+        boolean neverStarted = route.getStatus() == RouteStatus.IN_PROGRESS && route.getStartedAt() == null;
+        if (route.getStatus() != RouteStatus.VALIDATED && !neverStarted) {
             throw AppException.badRequest("Only validated routes can be started");
         }
 
         route.setStatus(RouteStatus.IN_PROGRESS);
         LocalDateTime now = LocalDateTime.now();
-        route.setStartedAt(now);
+        if (route.getStartedAt() == null) route.setStartedAt(now);
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         auditLogService.logAction(principal, "START_ROUTE", "ROUTE", routeId.toString(),
                 java.util.Map.of("chauffeur", driverName, "tournee", route.getName() != null ? route.getName() : routeId.toString(),

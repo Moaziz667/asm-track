@@ -715,6 +715,7 @@ public class DispatchService {
                 .timeSlotStartTime(routeInfo != null && routeInfo.startWindow() != null ? routeInfo.startWindow().toString() : null)
                 .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
+                .kind(d.getKind() != null ? d.getKind().name() : "FORWARD")
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failReason(d.getFailReason())
                 .source(order != null ? order.getSource() : null)

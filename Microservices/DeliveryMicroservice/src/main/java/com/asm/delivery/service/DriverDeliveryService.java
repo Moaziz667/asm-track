@@ -63,6 +63,11 @@ public class DriverDeliveryService {
     @org.springframework.beans.factory.annotation.Autowired
     private com.asm.delivery.service.dispatch.ExceptionResolutionService exceptionResolutionService;
 
+    /** Lazy — ADR-033: advances the RMA to RECEIVED when a RETURN_PICKUP leg is completed at the depot. */
+    @org.springframework.context.annotation.Lazy
+    @org.springframework.beans.factory.annotation.Autowired
+    private RmaService rmaService;
+
     private static final List<DeliveryStatus> ACTIVE_STATUSES = List.of(
             DeliveryStatus.SCHEDULED,
             DeliveryStatus.PICKED_UP,
@@ -296,16 +301,26 @@ public class DriverDeliveryService {
         }
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
+        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
 
-        // P1: Transactional Outbox. enqueueErpStockSync atomically marks the order PENDING_SYNC and
-        // enqueues the event (B5), so we no longer reset the status by hand. `treatedAsPartial` is the
-        // SERVER-derived verdict (C3), not the raw mobile flag, so Odoo gets a full-delivery sync
-        // whenever every line was in fact delivered.
-        outboxProcessor.enqueueErpStockSync(deliveryId, treatedAsPartial,
-                treatedAsPartial ? normalizedPartialItems : null);
+        // ADR-033 — A reverse-pickup leg reuses the original order, so it must NOT push a forward stock
+        // sync to Odoo on completion (the return's stock is reversed later via stock.return.picking on
+        // RESTOCKED). Instead, completing it at the depot advances its RMA to RECEIVED.
+        if (isReturnPickup) {
+            if (finalStatus == DeliveryStatus.DELIVERED && delivery.getRmaId() != null) {
+                rmaService.onReturnCollected(delivery.getRmaId());
+            }
+        } else {
+            // P1: Transactional Outbox. enqueueErpStockSync atomically marks the order PENDING_SYNC and
+            // enqueues the event (B5), so we no longer reset the status by hand. `treatedAsPartial` is the
+            // SERVER-derived verdict (C3), not the raw mobile flag, so Odoo gets a full-delivery sync
+            // whenever every line was in fact delivered.
+            outboxProcessor.enqueueErpStockSync(deliveryId, treatedAsPartial,
+                    treatedAsPartial ? normalizedPartialItems : null);
+        }
 
         String driverName = (principal != null && principal.getDisplayName() != null) ? principal.getDisplayName() : driverId.toString().substring(0, 8);
         String clientName = delivery.getOrder() != null ? delivery.getOrder().getClientName() : "N/A";

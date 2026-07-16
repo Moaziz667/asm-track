@@ -9,6 +9,9 @@ import java.util.List;
 public class TrackingResponse {
     private String deliveryId;
     private String status;
+    /** FORWARD (depot→client) or RETURN_PICKUP (client→depot). ADR-033 — lets the tracking UI flip the
+     *  pickup/destination roles for a return collection. */
+    private String kind;
     /** Human-readable failure reason (label + optional comment); null unless status is FAILED/PARTIALLY_DELIVERED. */
     private String failReason;
     /** Latest return lifecycle state for this delivery (RmaStatus name), or null if no return exists. */

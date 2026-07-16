@@ -91,6 +91,7 @@ public class PublicTrackingService {
         return TrackingResponse.builder()
                 .deliveryId(deliveryId.toString())
                 .status(data.delivery().getStatus() != null ? data.delivery().getStatus().name() : "UNKNOWN")
+                .kind(data.delivery().getKind() != null ? data.delivery().getKind().name() : "FORWARD")
                 .failReason(failReason)
                 .returnStatus(returnStatus)
                 .returnResolutionNote(returnResolutionNote)

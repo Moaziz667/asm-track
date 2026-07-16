@@ -188,6 +188,11 @@ public class RmaService {
         rma.setStatus(target);
         if (note != null && !note.isBlank()) rma.setResolutionNote(note.trim());
         if (target == RmaStatus.RECEIVED) rma.setReceivedAt(LocalDateTime.now());
+        // ADR-033 — approving a return auto-creates the reverse-pickup delivery (client→depot), so the
+        // collection lands in the dispatch pool as a routable, trackable leg instead of a manual step.
+        if (target == RmaStatus.APPROVED) createReturnPickup(rma);
+        // Dropping the return must not leave a phantom collection in the pool: cancel its pending pickup.
+        if (target == RmaStatus.CANCELLED || target == RmaStatus.REJECTED) cancelReturnPickup(rma);
         if (target == RmaStatus.RESTOCKED) {
             rma.setRestockedAt(LocalDateTime.now());
             // D2 — Mark the reverse-move sync as pending BEFORE enqueueing, so the async ERP result
@@ -234,6 +239,65 @@ public class RmaService {
                 Map.of("delivery", String.valueOf(saved.getDeliveryId())));
         enqueueErpReturn(saved);
         return RmaResponse.from(saved);
+    }
+
+    /**
+     * ADR-033 — On approval, create the reverse-pickup delivery (client → depot) for the return. It reuses
+     * the original order (client, address, items) and lands UNSCHEDULED in the dispatch pool. Idempotent:
+     * one open pickup per RMA. The reverse leg's destination is the original delivery's home depot.
+     */
+    private void createReturnPickup(Rma rma) {
+        if (rma.getDeliveryId() == null) return;
+        if (deliveryRepository.existsByRmaId(rma.getId())) return; // already created
+        com.asm.delivery.entity.Delivery original = deliveryRepository.findById(rma.getDeliveryId()).orElse(null);
+        if (original == null || original.getOrder() == null) {
+            log.warn("RMA {} — cannot create return pickup: original delivery/order missing", rma.getId());
+            return;
+        }
+        com.asm.delivery.entity.Delivery pickup = com.asm.delivery.entity.Delivery.builder()
+                .order(original.getOrder())
+                .kind(com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP)
+                .rmaId(rma.getId())
+                .returnDepotId(original.getSourceDepotId())
+                .status(com.asm.delivery.entity.DeliveryStatus.UNSCHEDULED)
+                .build();
+        com.asm.delivery.entity.Delivery saved = deliveryRepository.save(pickup);
+        log.info("ADR-033 return pickup {} created for RMA {} (order {})", saved.getId(), rma.getId(), original.getOrder().getId());
+    }
+
+    /**
+     * ADR-033 — When a return is cancelled/rejected, cancel its still-pending collection so it disappears
+     * from the dispatch pool. Only a not-yet-collected leg (UNSCHEDULED/SCHEDULED) is auto-cancelled; if the
+     * driver already holds the goods (PICKED_UP/IN_TRANSIT) we leave it and warn — that's a field decision.
+     */
+    private void cancelReturnPickup(Rma rma) {
+        for (com.asm.delivery.entity.Delivery pickup : deliveryRepository.findByRmaId(rma.getId())) {
+            com.asm.delivery.entity.DeliveryStatus s = pickup.getStatus();
+            if (s == com.asm.delivery.entity.DeliveryStatus.UNSCHEDULED
+                    || s == com.asm.delivery.entity.DeliveryStatus.SCHEDULED) {
+                pickup.setStatus(com.asm.delivery.entity.DeliveryStatus.CANCELLED);
+                pickup.setCancelledAt(LocalDateTime.now());
+                pickup.setCancelReason("Retour " + rma.getStatus().name().toLowerCase());
+                deliveryRepository.save(pickup);
+                log.info("ADR-033 return pickup {} cancelled (RMA {} {})", pickup.getId(), rma.getId(), rma.getStatus());
+            } else if (s != com.asm.delivery.entity.DeliveryStatus.CANCELLED
+                    && s != com.asm.delivery.entity.DeliveryStatus.DELIVERED) {
+                log.warn("ADR-033 RMA {} {} but pickup {} already {} — goods may be in the field, left as-is",
+                        rma.getId(), rma.getStatus(), pickup.getId(), s);
+            }
+        }
+    }
+
+    /**
+     * ADR-033 — Called when a RETURN_PICKUP delivery is completed at the depot: the goods are physically
+     * back, so the RMA advances APPROVED → RECEIVED automatically (no manual dispatcher click).
+     */
+    @Transactional
+    public void onReturnCollected(UUID rmaId) {
+        if (rmaId == null) return;
+        Rma rma = rmaRepository.findById(rmaId).orElse(null);
+        if (rma == null || rma.getStatus() != RmaStatus.APPROVED) return;
+        transition(rmaId, RmaStatus.RECEIVED, "Collecte retour reçue au dépôt", null);
     }
 
     private void enqueueErpReturn(Rma rma) {

@@ -115,19 +115,6 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
     : [];
   const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'by';
 
-  // Inbound return-shipment tracking (editable).
-  const [ship, setShip] = useState({ trackingNumber: '', shippingCarrier: '' });
-  const [savingShip, setSavingShip] = useState(false);
-  useEffect(() => {
-    setShip({ trackingNumber: rma?.trackingNumber ?? '', shippingCarrier: rma?.shippingCarrier ?? '' });
-  }, [rma?.id, rma?.trackingNumber, rma?.shippingCarrier]);
-  const shipDirty = !!rma && (ship.trackingNumber !== (rma.trackingNumber ?? '') || ship.shippingCarrier !== (rma.shippingCarrier ?? ''));
-  const saveShipping = async () => {
-    if (!rma || !onSaveShipping) return;
-    setSavingShip(true);
-    try { await onSaveShipping(rma, ship); } finally { setSavingShip(false); }
-  };
-
   const title = rma ? (
     <div className="flex items-center gap-2">
       <span className="truncate">{rma.clientName ?? '—'}</span>
@@ -340,45 +327,8 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
               </div>
             ))}
           </div>
-
-          {/* Inbound return-shipment tracking */}
-          {onSaveShipping && (
-            <div className="px-5 py-4 border-t" style={{ borderColor: 'var(--border)' }}>
-              <div className="flex items-center gap-1.5 mb-3">
-                <IconTruckReturn size={14} stroke={2} style={{ color: 'var(--text-muted)' }} />
-                <span className="text-xs font-[700]" style={{ color: 'var(--text-primary)' }}>
-                  {tlabel(t.returnsPage, 'drawerShipping') ?? 'Expédition retour'}
-                </span>
-                {rma?.shippedAt && (
-                  <span className="text-2xs font-mono" style={{ color: 'var(--text-muted)' }}>· {fmtDate(rma.shippedAt)}</span>
-                )}
-              </div>
-              <div className="flex flex-col gap-2">
-                <input
-                  value={ship.shippingCarrier}
-                  onChange={(e) => setShip((s) => ({ ...s, shippingCarrier: e.target.value }))}
-                  placeholder={tlabel(t.returnsPage, 'shippingCarrier') ?? 'Transporteur'}
-                  className="h-8 px-2.5 text-xs rounded border outline-none focus:ring-1 focus:ring-[var(--brand)]"
-                  style={{ borderColor: 'var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                />
-                <input
-                  value={ship.trackingNumber}
-                  onChange={(e) => setShip((s) => ({ ...s, trackingNumber: e.target.value }))}
-                  placeholder={tlabel(t.returnsPage, 'shippingTracking') ?? 'N° de suivi'}
-                  className="h-8 px-2.5 text-xs rounded border outline-none focus:ring-1 focus:ring-[var(--brand)] font-mono"
-                  style={{ borderColor: 'var(--border)', background: 'var(--app-bg)', color: 'var(--text-primary)' }}
-                />
-                <Button
-                  variant="outline" size="sm"
-                  disabled={!shipDirty || savingShip}
-                  onClick={() => void saveShipping()}
-                  className="h-7 self-end px-3 text-xs font-semibold"
-                >
-                  {savingShip ? '…' : (tlabel(t.returnsPage, 'shippingSave') ?? 'Enregistrer')}
-                </Button>
-              </div>
-            </div>
-          )}
+          {/* Return shipping (carrier + tracking) removed — ADR-033: reverse logistics is a tracked
+              reverse-pickup delivery, not a manual courier field. */}
         </div>
       )}
     </AppDrawer>

@@ -77,6 +77,11 @@ export function DeliveryTableRow({
             <div className="flex flex-col gap-0.5 max-w-[400px]">
               <span className="text-xs font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
                 {item.clientName || t.deliveriesPage.unknownDriver}
+                {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (
+                  <span className="ms-1.5 align-middle text-3xs font-bold px-1.5 py-0.5 rounded" style={{ color: '#7c3aed', background: 'color-mix(in srgb, #7c3aed 12%, transparent)' }}>
+                    {t.deliveriesPage.returnPickupBadge ?? 'RETOUR'}
+                  </span>
+                )}
               </span>
               <div className="flex items-center gap-1 flex-nowrap">
                 <IconMapPin size={10} className="text-[var(--text-muted)]" />
