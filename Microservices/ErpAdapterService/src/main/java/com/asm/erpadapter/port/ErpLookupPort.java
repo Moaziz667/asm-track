@@ -13,7 +13,6 @@ public interface ErpLookupPort {
     List<ErpProductDTO> searchProducts(String search, int limit);
     List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit);
     ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId);
-    byte[] getDeliveryNotePdf(String blNumber);
 
     /** Source depots: the ERP's warehouses (Odoo {@code stock.warehouse}) with address/coordinates. */
     List<ErpWarehouseDTO> getWarehouses();

@@ -45,7 +45,11 @@ public class CompanyService {
         if (patch.getName()         != null) existing.setName(patch.getName());
         if (patch.getLogoUrl()      != null) existing.setLogoUrl(patch.getLogoUrl());
         if (patch.getAddress()      != null) existing.setAddress(patch.getAddress());
+        if (patch.getCity()         != null) existing.setCity(patch.getCity());
         if (patch.getPrimaryColor() != null) existing.setPrimaryColor(patch.getPrimaryColor());
+        if (patch.getPhone()        != null) existing.setPhone(patch.getPhone());
+        if (patch.getTaxId()        != null) existing.setTaxId(patch.getTaxId());
+        if (patch.getRegistrationNumber() != null) existing.setRegistrationNumber(patch.getRegistrationNumber());
         if (patch.getSupportEmail() != null) existing.setSupportEmail(patch.getSupportEmail());
         if (patch.getActive() != null) existing.setActive(patch.getActive());
         Company saved = repo.save(existing);
@@ -73,9 +77,16 @@ public class CompanyService {
         String address = composeAddress(str(erp.get("address")), str(erp.get("city")));
         String email   = str(erp.get("email"));
 
+        String city  = str(erp.get("city"));
+        String vat   = str(erp.get("vat"));
+        String phone = str(erp.get("phone"));
+
         if (name    != null) existing.setName(name);
         if (address != null) existing.setAddress(address);
         if (email   != null) existing.setSupportEmail(email);
+        if (city    != null) existing.setCity(city);
+        if (vat     != null) existing.setTaxId(vat);
+        if (phone   != null) existing.setPhone(phone);
 
         String logoBase64 = str(erp.get("logo"));
         if (logoBase64 != null) {

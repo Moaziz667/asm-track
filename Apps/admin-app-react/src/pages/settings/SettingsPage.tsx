@@ -116,7 +116,7 @@ export default function SettingsPage() {
   });
 
   // Company branding
-  const [company, setCompany] = useState<{ name: string; supportEmail?: string; address?: string; primaryColor?: string } | null>(null);
+  const [company, setCompany] = useState<{ name: string; supportEmail?: string; address?: string; city?: string; phone?: string; taxId?: string; registrationNumber?: string; primaryColor?: string } | null>(null);
   const [companySaving, setCompanySaving] = useState(false);
 
   const fetchAdminUsers = useCallback(async () => {
@@ -138,7 +138,9 @@ export default function SettingsPage() {
       const res = await api.get('/api/admin/companies/me');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
-        address: res.data.address, primaryColor: res.data.primaryColor,
+        address: res.data.address, city: res.data.city, phone: res.data.phone,
+        taxId: res.data.taxId, registrationNumber: res.data.registrationNumber,
+        primaryColor: res.data.primaryColor,
       });
     } catch { /* fail safe */ }
   }, []);
@@ -151,7 +153,9 @@ export default function SettingsPage() {
       showSuccessToast('successCompanyUpdated');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
-        address: res.data.address, primaryColor: res.data.primaryColor,
+        address: res.data.address, city: res.data.city, phone: res.data.phone,
+        taxId: res.data.taxId, registrationNumber: res.data.registrationNumber,
+        primaryColor: res.data.primaryColor,
       });
     } catch (err) {
       showErrorToast(err, 'errorCompanyUpdateFailed');
@@ -166,7 +170,9 @@ export default function SettingsPage() {
       const res = await api.post('/api/admin/companies/me/sync-erp');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
-        address: res.data.address, primaryColor: res.data.primaryColor,
+        address: res.data.address, city: res.data.city, phone: res.data.phone,
+        taxId: res.data.taxId, registrationNumber: res.data.registrationNumber,
+        primaryColor: res.data.primaryColor,
       });
       showSuccessToast('successCompanySynced');
     } catch (err) {
@@ -385,6 +391,34 @@ export default function SettingsPage() {
                           />
                         </div>
                       </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FieldInput
+                        label={sp.companyCity}
+                        value={company?.city ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, city: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                      <FieldInput
+                        label={sp.companyPhone}
+                        value={company?.phone ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, phone: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <FieldInput
+                        label={sp.companyTaxId}
+                        value={company?.taxId ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, taxId: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
+                      <FieldInput
+                        label={sp.companyRegistration}
+                        value={company?.registrationNumber ?? ''}
+                        onChange={(e) => setCompany((p) => p ? { ...p, registrationNumber: e.target.value } : null)}
+                        disabled={!canManage || companySaving}
+                      />
                     </div>
 
                     {canManage && (

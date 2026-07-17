@@ -27,11 +27,23 @@ public class Company {
     @Column(length = 512)
     private String address;
 
+    @Column(length = 120)
+    private String city;
+
     @Column(name = "primary_color", length = 7)
     @Builder.Default
     private String primaryColor = "#FF5722";
 
+    @Column(length = 40)
+    private String phone;
 
+    /** Legal tax id printed on the delivery note (Tunisia: matricule fiscal). */
+    @Column(name = "tax_id", length = 50)
+    private String taxId;
+
+    /** Trade register number printed on the delivery note (registre de commerce / RCS). */
+    @Column(name = "registration_number", length = 50)
+    private String registrationNumber;
 
     @Column(name = "support_email", length = 255)
     private String supportEmail;

@@ -39,12 +39,6 @@ public class DuxLookupAdapter implements ErpLookupPort {
     }
 
     @Override
-    public byte[] getDeliveryNotePdf(String blNumber) {
-        log.warn("DUX getDeliveryNotePdf not yet implemented");
-        return null;
-    }
-
-    @Override
     public List<ErpWarehouseDTO> getWarehouses() {
         log.warn("DUX getWarehouses not yet implemented");
         return List.of();

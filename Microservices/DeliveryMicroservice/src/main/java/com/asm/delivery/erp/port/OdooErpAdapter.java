@@ -109,19 +109,4 @@ public class OdooErpAdapter implements ErpPort {
         }
     }
 
-    @Override
-    public byte[] getDeliveryNotePdf(String blNumber) {
-        try {
-            return feign.getDeliveryNotePdf(provider, blNumber);
-        } catch (feign.FeignException.NotFound e) {
-            log.error("ERP getDeliveryNotePdf: BL not found in Odoo: {}", blNumber);
-            return null;
-        } catch (feign.FeignException e) {
-            log.error("ERP getDeliveryNotePdf failed for blNumber={}: HTTP {} - {}", blNumber, e.status(), e.contentUTF8());
-            return null;
-        } catch (Exception e) {
-            log.error("ERP getDeliveryNotePdf failed for blNumber={}", blNumber, e);
-            return null;
-        }
-    }
 }

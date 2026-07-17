@@ -38,6 +38,4 @@ public interface ErpPort {
     String getPickingRef(String pickingId);
 
     Map<String, Object> getCompany();
-
-    byte[] getDeliveryNotePdf(String blNumber);
 }

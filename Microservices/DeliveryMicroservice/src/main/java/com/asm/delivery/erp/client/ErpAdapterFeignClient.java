@@ -65,8 +65,4 @@ public interface ErpAdapterFeignClient {
 
     @GetMapping("/api/erp/lookup/company")
     Map<String, Object> getCompany(@RequestParam("erpProvider") String erpProvider);
-
-    @GetMapping("/api/erp/lookup/delivery-note-pdf")
-    byte[] getDeliveryNotePdf(@RequestParam("erpProvider") String erpProvider,
-                              @RequestParam("blNumber") String blNumber);
 }

@@ -84,14 +84,11 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
     const failed = deliveries.filter(d => d.status === 'FAILED').length;
     const unassigned = deliveries.filter(d => !d.driverId).length;
     const completionRate = total > 0 ? Math.round((delivered / total) * 100) : 0;
-    const codAll = deliveries.reduce((s, d) => s + (d.totalAmount || 0), 0);
-    const codCollected = deliveries.filter(d => d.status === 'DELIVERED').reduce((s, d) => s + (d.totalAmount || 0), 0);
     const weight = deliveries.reduce((s, d) => s + (d.totalWeightKg || 0), 0);
     const routesUsing = new Set(routes.map(r => r.driverId).filter(Boolean)).size;
-    return { total, done, delivered, failed, unassigned, completionRate, codAll, codCollected, weight, routesUsing };
+    return { total, done, delivered, failed, unassigned, completionRate, weight, routesUsing };
   }, [deliveries, routes]);
 
-  const currency = deliveries[0]?.currency ?? 'TND';
   const capacityPct = driverSlots > 0 ? Math.min(Math.round((m.routesUsing / driverSlots) * 100), 100) : 0;
   const overCapacity = driverSlots > 0 && m.routesUsing > driverSlots;
 
@@ -117,7 +114,6 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
           <div className="flex flex-col">
             <MetricRow label={t.overviewPage?.kpiCompletion ?? 'Completion rate'} value={`${m.completionRate}%`} sub={`${m.delivered} / ${m.total}`}
               tone={m.completionRate >= 80 ? 'success' : m.completionRate >= 50 ? 'warning' : m.total > 0 ? 'danger' : 'default'} />
-            <MetricRow label={t.overviewPage?.kpiCollected ?? 'Collected (COD)'} value={formatMoney(m.codCollected, currency)} sub={`/ ${formatMoney(m.codAll, currency)}`} tone="success" />
             <MetricRow label={t.overviewPage?.kpiFailures ?? 'Failures'} value={m.failed} sub={m.failed > 0 ? (t.overviewPage?.kpiFailuresSub ?? 'to review') : (t.overviewPage?.kpiNoFailures ?? 'none')}
               tone={m.failed > 0 ? 'danger' : 'success'} />
             <MetricRow label={t.overviewPage?.kpiWeight ?? 'Delivered weight'} value={`${m.weight.toFixed(1)} kg`} sub={`${m.done} ${t.overviewPage?.kpiClosed ?? 'closed'}`} tone="info" />
@@ -146,7 +142,6 @@ export function DayPanel({ selected, deliveries, routes, driverSlots, t }: Props
               <MetricRow label={t.overviewPage?.kpiPlanned ?? 'Planned deliveries'} value={m.total} sub={isToday ? `${m.completionRate}% ${t.overviewPage?.doneSuffix ?? 'done'}` : `${routes.length} ${t.overviewPage?.routesSuffix ?? 'routes'}`} tone="default" />
               <MetricRow label={t.overviewPage?.kpiUnassigned ?? 'Unassigned'} value={m.unassigned} sub={m.unassigned > 0 ? (t.overviewPage?.toDispatch ?? 'to dispatch') : (t.overviewPage?.allAssigned ?? 'all assigned')}
                 tone={m.unassigned > 0 ? 'warning' : 'success'} />
-              <MetricRow label={t.overviewPage?.kpiValue ?? 'Parcel value'} value={formatMoney(m.codAll, currency)} sub={t.overviewPage?.kpiValueSub ?? 'to collect'} tone="info" />
               <MetricRow label={t.overviewPage?.kpiWeightPlanned ?? 'Planned weight'} value={`${m.weight.toFixed(1)} kg`} sub={t.overviewPage?.kpiLoad ?? 'est. load'} tone="default" />
             </div>
           </div>
