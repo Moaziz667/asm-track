@@ -29,6 +29,10 @@ public class Rma {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
+    /** Own human-readable reference (RET-00001), distinct from the shared order/delivery ref. ADR-033. */
+    @Column(name = "rma_number", length = 20, unique = true)
+    private String rmaNumber;
+
     @Column(name = "delivery_id", nullable = false)
     private UUID deliveryId;
 

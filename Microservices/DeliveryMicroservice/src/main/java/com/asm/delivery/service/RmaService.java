@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -69,6 +70,7 @@ public class RmaService {
         }
 
         Rma rma = Rma.builder()
+                .rmaNumber(rmaRepository.nextRmaNumber())
                 .deliveryId(delivery.getId())
                 .orderId(order != null ? order.getId() : null)
                 .erpOrderId(order != null ? order.getErpOrderId() : null)
@@ -242,9 +244,52 @@ public class RmaService {
     }
 
     /**
+     * ADR-033 — The line items a return collection concerns, resolved from the RMA (the source of truth for a
+     * return), NOT the shared forward order — so the collection shows the RETURNED quantities, not the ordered
+     * ones. quantityDone is preset to the full agreed quantity (a collection takes what was approved). Empty
+     * when the RMA is missing.
+     */
+    @Transactional(readOnly = true)
+    public List<OrderItem> collectionItems(UUID rmaId) {
+        if (rmaId == null) return List.of();
+        return rmaRepository.findById(rmaId).map(r -> toOrderItems(r.getItems())).orElse(List.of());
+    }
+
+    /** The RMA's own reference (RET-00001) for a collection leg, resolved from its rmaId. */
+    @Transactional(readOnly = true)
+    public String collectionRef(UUID rmaId) {
+        if (rmaId == null) return null;
+        return rmaRepository.findById(rmaId).map(Rma::getRmaNumber).orElse(null);
+    }
+
+    /** Batch variant of {@link #collectionItems} for list endpoints — one query for the RMAs, keyed by RMA id. */
+    @Transactional(readOnly = true)
+    public Map<UUID, List<OrderItem>> collectionItemsByRma(Collection<UUID> rmaIds) {
+        if (rmaIds == null || rmaIds.isEmpty()) return Map.of();
+        Map<UUID, List<OrderItem>> out = new HashMap<>();
+        for (Rma r : rmaRepository.findAllById(rmaIds)) out.put(r.getId(), toOrderItems(r.getItems()));
+        return out;
+    }
+
+    /** Maps RMA lines to the OrderItem shape used by every delivery-facing DTO (manifest, detail, tracking). */
+    public static List<OrderItem> toOrderItems(List<RmaItem> items) {
+        if (items == null) return List.of();
+        return items.stream()
+                .map(ri -> OrderItem.builder()
+                        .sku(ri.getSku())
+                        .name(ri.getName())
+                        .quantity(ri.getQuantity())
+                        .quantityDone(ri.getQuantity())
+                        .unitPrice(ri.getUnitPrice())
+                        .build())
+                .toList();
+    }
+
+    /**
      * ADR-033 — On approval, create the reverse-pickup delivery (client → depot) for the return. It reuses
-     * the original order (client, address, items) and lands UNSCHEDULED in the dispatch pool. Idempotent:
-     * one open pickup per RMA. The reverse leg's destination is the original delivery's home depot.
+     * the original order for client/address context (its own line items are resolved from the RMA, not the
+     * order — see {@link #collectionItems}) and lands UNSCHEDULED in the dispatch pool. Idempotent: one open
+     * pickup per RMA. The reverse leg's destination is the original delivery's home depot.
      */
     private void createReturnPickup(Rma rma) {
         if (rma.getDeliveryId() == null) return;
@@ -298,6 +343,20 @@ public class RmaService {
         Rma rma = rmaRepository.findById(rmaId).orElse(null);
         if (rma == null || rma.getStatus() != RmaStatus.APPROVED) return;
         transition(rmaId, RmaStatus.RECEIVED, "Collecte retour reçue au dépôt", null);
+    }
+
+    /**
+     * ADR-033 — Called when a RETURN_PICKUP delivery FAILS (client absent/refused/not ready): the collection
+     * won't happen, so the RMA is closed (CANCELLED) — this frees the one-open-return guard so the client/admin
+     * can raise a fresh return. No ERP touch: nothing exists in Odoo for a return until RESTOCKED.
+     */
+    @Transactional
+    public void onReturnCollectionFailed(UUID rmaId, String reason) {
+        if (rmaId == null) return;
+        Rma rma = rmaRepository.findById(rmaId).orElse(null);
+        if (rma == null || rma.getStatus() != RmaStatus.APPROVED) return;
+        String note = "Collecte échouée" + (reason != null && !reason.isBlank() ? " : " + reason.trim() : "");
+        transition(rmaId, RmaStatus.CANCELLED, note, null);
     }
 
     private void enqueueErpReturn(Rma rma) {

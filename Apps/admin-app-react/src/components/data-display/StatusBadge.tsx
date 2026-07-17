@@ -8,6 +8,7 @@ import {
   IconPackages, IconArrowBackUp, IconClock, IconPackageImport, IconBuildingWarehouse,
   IconRefresh, IconCircleOff, IconTruck, IconUserOff, IconMapPinOff,
   IconPackageOff, IconDots, IconAlertOctagon, IconHistory, IconArrowsExchange,
+  IconPackageExport,
 } from '@tabler/icons-react';
 
 export type StatusValue =
@@ -56,6 +57,8 @@ const CONFIG: Record<string, StatusConfig> = {
   RECEIVED:            { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
   RESTOCKED:           { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
   REJECTED:            { dot: '#C7372F', bg: 'rgba(199,55,47,0.09)',   text: '#A52B24' },
+  // Return-collection leg (reverse pickup) — distinct violet
+  RETURN_PICKUP:       { dot: '#7C5CBF', bg: 'rgba(124,92,191,0.10)',  text: '#6A4BA8' },
   // ── ERP sync statuses ─────────────────────────────────────────────────
   SYNCED:              { dot: '#4CAF82', bg: 'rgba(76,175,130,0.09)',  text: '#2D8A5E' },
   SYNCING:             { dot: '#2594B8', bg: 'rgba(37,148,184,0.09)',  text: '#1A7A9A' },
@@ -109,7 +112,7 @@ const ICON: Record<string, typeof IconCircleCheck> = {
   REMOVED_REPLANNED: IconArrowBackUp, REMOVED_CANCELLED: IconBan, FAILED_ATTEMPT: IconAlertTriangle,
   // Returns (RMA)
   REQUESTED: IconClock, APPROVED: IconCircleCheck, RECEIVED: IconPackageImport,
-  RESTOCKED: IconBuildingWarehouse, REJECTED: IconCircleX,
+  RESTOCKED: IconBuildingWarehouse, REJECTED: IconCircleX, RETURN_PICKUP: IconPackageExport,
   // ERP sync
   SYNCED: IconCircleCheck, SYNCING: IconRefresh, PENDING: IconClock,
   SYNC_FAILED: IconAlertTriangle, NOT_SYNCED: IconCircleOff,

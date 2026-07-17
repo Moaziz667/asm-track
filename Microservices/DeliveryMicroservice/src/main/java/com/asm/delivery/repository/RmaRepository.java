@@ -16,6 +16,15 @@ import java.util.UUID;
 @Repository
 public interface RmaRepository extends JpaRepository<Rma, UUID> {
 
+    /** Atomic next value of the RMA reference sequence (see V28). */
+    @Query(value = "SELECT nextval('rma_number_seq')", nativeQuery = true)
+    long nextRmaNumberSeq();
+
+    /** Own human-readable RMA reference, e.g. RET-00042. */
+    default String nextRmaNumber() {
+        return String.format("RET-%05d", nextRmaNumberSeq());
+    }
+
     List<Rma> findAllByOrderByCreatedAtDesc();
 
     List<Rma> findByStatusOrderByCreatedAtDesc(RmaStatus status);

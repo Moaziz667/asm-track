@@ -115,9 +115,12 @@ public class AdminDeliveryController {
             @Parameter(description = "Planifié range end (inclusive, ISO yyyy-MM-dd) — filters on effective scheduled date")
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dateTo,
 
+            @Parameter(description = "Filter by leg kind: FORWARD (delivery) and/or RETURN_PICKUP (return collection)")
+            @RequestParam(name = "kind", required = false) java.util.List<com.asm.delivery.entity.DeliveryKind> kind,
+
             @ParameterObject Pageable pageable
     ) {
-        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable));
+        return ResponseEntity.ok(dispatchService.searchDeliveries(status, driverId, date, source, zoneId, depot, unpinned, q, assigned, bucket, dateFrom, dateTo, kind, pageable));
     }
 
     @GetMapping("/calendar")

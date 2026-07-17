@@ -163,6 +163,10 @@ export default function DeliveryDetailPage() {
   // Human ERP reference — mirrors the backend Order.resolveRef() priority (erpOrderId →
   // erpExternalRef → uuid) so the header/breadcrumb never fall back to a bare UUID when the ERP id exists.
   const orderRef = (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase();
+  // ADR-033 — a return collection is identified by its own RMA ref (RET-00001); the order ref becomes the origin link.
+  const isReturn = (delivery as { kind?: string }).kind === 'RETURN_PICKUP';
+  const rmaNumber = (delivery as { rmaNumber?: string }).rmaNumber;
+  const originalDeliveryId = (delivery as { originalDeliveryId?: string }).originalDeliveryId;
   const isCancelled = delivery.status === 'CANCELLED';
 
   // Delivery time window (start–end) for scheduled orders. Accepts "HH:mm:ss" / "HH:mm".
@@ -198,6 +202,9 @@ export default function DeliveryDetailPage() {
                     timeline (right column) is the single source of truth for it. */}
                 <div className="flex items-center gap-2">
                   <StatusBadge status={delivery.status} size="sm" />
+                  {isReturn && (
+                    <StatusBadge status="RETURN_PICKUP" label={t.deliveriesPage?.returnPickupBadge ?? 'Retour'} size="sm" />
+                  )}
                   {isCancelled && (
                     <span className="text-2xs font-medium px-2 py-1 rounded-xs bg-gray-50 text-gray-600 border border-gray-200">{t.deliveryPage.cancelled}</span>
                   )}
@@ -210,7 +217,23 @@ export default function DeliveryDetailPage() {
 
                 {/* Meta line */}
                 <div className="flex flex-wrap items-center gap-2 text-xs">
-                  <code className="font-mono font-semibold text-[var(--brand)]">{orderRef}</code>
+                  <code className="font-mono font-semibold text-[var(--brand)]">{isReturn && rmaNumber ? rmaNumber : orderRef}</code>
+                  {isReturn && rmaNumber && (
+                    <>
+                      <span className="text-[var(--border)]">·</span>
+                      {originalDeliveryId ? (
+                        <Link
+                          to={`/deliveries/${originalDeliveryId}`}
+                          className="font-mono text-[var(--text-muted)] hover:text-[var(--brand)] transition-colors"
+                          title={orderRef}
+                        >
+                          ↩ {orderRef}
+                        </Link>
+                      ) : (
+                        <span className="font-mono text-[var(--text-muted)]" title={orderRef}>↩ {orderRef}</span>
+                      )}
+                    </>
+                  )}
                   {delivery.clientPhone && (
                     <>
                       <span className="text-[var(--border)]">·</span>

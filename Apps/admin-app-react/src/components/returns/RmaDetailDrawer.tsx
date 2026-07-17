@@ -94,7 +94,7 @@ function lifecycleSteps(rma: Rma, t: Copy): Step[] {
 }
 
 export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTransition, onResync, onSaveShipping, t }: Props) {
-  const ref = rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
+  const ref = rma?.rmaNumber || rma?.blNumber || rma?.erpOrderId || (rma ? `#${rma.id.slice(0, 8)}` : '');
   const returnValue = rma
     ? rma.items.reduce((s, it) => s + (it.quantity ?? 0) * (Number(it.unitPrice) || 0), 0)
     : 0;
@@ -116,7 +116,10 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
   const byLabel = tlabel(t.returnsPage, 'byLabel') ?? 'by';
 
   const title = rma ? (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 min-w-0">
+      {rma.rmaNumber && (
+        <span className="font-mono text-sm text-[var(--text-muted)] shrink-0">{rma.rmaNumber}</span>
+      )}
       <span className="truncate">{rma.clientName ?? '—'}</span>
     </div>
   ) : '';

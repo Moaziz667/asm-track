@@ -9,7 +9,8 @@ import java.util.List;
 
 @Data
 public class ProofOfDeliveryRequest {
-    @NotBlank
+    // ADR-033 — optional: a return collection has no delivery note (bon de livraison). Required for a
+    // FORWARD delivery, enforced in the service where the leg kind is known.
     private String bonLivraisonPhotoBase64; // signed receipt photo
 
     @NotBlank

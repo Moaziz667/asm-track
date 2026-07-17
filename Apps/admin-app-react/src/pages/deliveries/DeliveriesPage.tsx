@@ -112,6 +112,7 @@ function DeliveriesPageContent() {
     if (zoneId.length) params.zoneId = zoneId;
     if (depot.length) params.depot = depot;
     if (quickView === 'needsPinning') params.unpinned = 'true';
+    if (quickView === 'returns') params.kind = ['RETURN_PICKUP'];
     return params;
   }, [page, size, status, dateFrom, dateTo, driverId, zoneId, depot, quickView]);
 
@@ -245,6 +246,7 @@ function DeliveriesPageContent() {
     { value: 'inTransit',   label: t.deliveriesPage.quickViewInTransit,   count: quickCounts.inTransit },
     { value: 'completed',   label: t.deliveriesPage.quickViewCompleted,   count: quickCounts.completed },
     { value: 'failed',      label: t.deliveriesPage.quickViewFailed,      count: quickCounts.failed },
+    { value: 'returns',     label: t.deliveriesPage.quickViewReturns,     count: quickCounts.returns },
   ];
 
   const headerSort = (key: 'ref' | 'client' | 'status' | 'zone') => {

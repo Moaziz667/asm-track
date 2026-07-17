@@ -26,7 +26,7 @@ export type RmaStatus = 'REQUESTED' | 'APPROVED' | 'RECEIVED' | 'RESTOCKED' | 'R
 
 export interface RmaItem { id?: string; sku?: string; name?: string; quantity: number; unitPrice?: number; condition?: 'RESELLABLE' | 'DAMAGED'; reason?: string; }
 export interface Rma {
-  id: string; deliveryId: string; erpOrderId?: string; blNumber?: string; clientName?: string;
+  id: string; rmaNumber?: string; deliveryId: string; erpOrderId?: string; blNumber?: string; clientName?: string;
   status: RmaStatus; reason?: string; resolutionNote?: string; items: RmaItem[]; totalUnits: number;
   erpSyncStatus?: string; erpSyncError?: string; createdBy?: string; createdAt?: string;
   receivedAt?: string; restockedAt?: string;
@@ -238,6 +238,7 @@ export default function ReturnsPage() {
               baseName="retours"
               rows={visibleRows}
               columns={[
+                { header: 'RMA', accessor: r => r.rmaNumber },
                 { header: t.common?.client ?? 'Client', accessor: r => r.clientName },
                 { header: 'BL', accessor: r => r.blNumber },
                 { header: t.common?.reference ?? 'ERP Ref', accessor: r => r.erpOrderId },
@@ -301,7 +302,10 @@ export default function ReturnsPage() {
                     style={{ background: 'var(--surface)', borderInlineStartWidth: 3, borderInlineStartColor: STATUS_TOKENS[r.status]?.dot ?? 'var(--border)' }}
                   >
                     <div className="flex items-center justify-between gap-2">
-                      <span className="text-sm font-[600] text-[var(--text-primary)] truncate">{r.clientName ?? '—'}</span>
+                      <div className="flex flex-col min-w-0">
+                        <span className="text-2xs font-mono text-[var(--text-muted)] truncate">{r.rmaNumber ?? '—'}</span>
+                        <span className="text-sm font-[600] text-[var(--text-primary)] truncate">{r.clientName ?? '—'}</span>
+                      </div>
                       <StatusBadge status={r.status} label={statusLabel(r.status)} size="sm" />
                     </div>
                     <div className="flex items-center justify-between gap-2 text-xs text-[var(--text-muted)]">
@@ -367,7 +371,12 @@ export default function ReturnsPage() {
                     <td className="p-0">
                       <div className="w-[3px] h-10 rounded-r-[2px]" style={{ backgroundColor: STATUS_TOKENS[r.status]?.dot ?? 'var(--border)' }} />
                     </td>
-                    <td className="px-6 text-xs font-[600] text-[var(--text-primary)]">{r.clientName ?? '—'}</td>
+                    <td className="px-6 text-xs">
+                      <div className="flex flex-col">
+                        <span className="font-mono text-2xs text-[var(--text-muted)]">{r.rmaNumber ?? '—'}</span>
+                        <span className="font-[600] text-[var(--text-primary)]">{r.clientName ?? '—'}</span>
+                      </div>
+                    </td>
                     <td className="px-6 font-mono text-xs text-[var(--text-muted)]">{r.blNumber ?? r.erpOrderId ?? '—'}</td>
                     <td className="px-6 text-xs">
                       <div className="flex flex-col gap-0.5 min-w-0 max-w-[240px]">

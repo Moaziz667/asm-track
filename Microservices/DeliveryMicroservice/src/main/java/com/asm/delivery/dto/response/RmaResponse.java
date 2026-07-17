@@ -16,6 +16,7 @@ import java.util.UUID;
 @Builder
 public class RmaResponse {
     private UUID id;
+    private String rmaNumber;
     private UUID deliveryId;
     private UUID orderId;
     private String erpOrderId;
@@ -56,6 +57,7 @@ public class RmaResponse {
         List<Item> items = r.getItems().stream().map(RmaResponse::item).toList();
         return RmaResponse.builder()
                 .id(r.getId())
+                .rmaNumber(r.getRmaNumber())
                 .deliveryId(r.getDeliveryId())
                 .orderId(r.getOrderId())
                 .erpOrderId(r.getErpOrderId())

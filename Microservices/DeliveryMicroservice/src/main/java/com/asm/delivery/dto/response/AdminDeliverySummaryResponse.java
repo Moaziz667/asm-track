@@ -49,6 +49,9 @@ public class AdminDeliverySummaryResponse {
     @Schema(description = "FORWARD (depot→client) or RETURN_PICKUP (client→depot, a return collection). ADR-033")
     private String kind;
 
+    /** For RETURN_PICKUP: the RMA's own reference (RET-00001), shown instead of the shared order ref. */
+    private String rmaNumber;
+
     /** Canonical failure category (FailureCode name) when the delivery failed. */
     private String failureCode;
     /** Human reason (catalog label enriched with the driver comment) when failed. */

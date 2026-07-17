@@ -34,6 +34,7 @@ export function useDeliveries(params: {
   zoneId?: string | string[];
   depot?: string | string[];
   unpinned?: string;
+  kind?: string | string[];
 }) {
   return useQuery({
     queryKey: ['deliveries', params],

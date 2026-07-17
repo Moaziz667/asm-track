@@ -22,6 +22,11 @@ public class DriverDeliveryResponse {
     private String        orderRef;       // human-readable: erpOrderId or short UUID
     private String        status;
 
+    // ADR-033 — leg kind so the driver app renders a return collection (client→depot, "récupérer")
+    // instead of a normal delivery. rmaNumber = the return's own ref (RET-00001) for a RETURN_PICKUP.
+    private String        kind;
+    private String        rmaNumber;
+
     // client info (driver needs to confirm identity)
     private String        clientName;
     private String        clientPhone;

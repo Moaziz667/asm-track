@@ -5,6 +5,7 @@ import com.asm.delivery.entity.*;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
 import com.asm.delivery.repository.DepotRepository;
+import com.asm.delivery.repository.RmaRepository;
 import com.asm.delivery.repository.RouteStopRepository;
 import com.asm.delivery.repository.VehicleRepository;
 import com.asm.delivery.repository.ZoneRepository;
@@ -39,6 +40,7 @@ public class RouteResponseMapper {
 
     private final RouteStopRepository routeStopRepository;
     private final DeliveryRepository deliveryRepository;
+    private final RmaRepository rmaRepository;
     private final DepotRepository depotRepository;
     private final ZoneRepository zoneRepository;
     private final VehicleRepository vehicleRepository;
@@ -323,13 +325,17 @@ public class RouteResponseMapper {
                 : depotRepository.findAllById(depotIds).stream()
                     .collect(Collectors.toMap(com.asm.delivery.entity.Depot::getId, Function.identity()));
 
+        // ADR-033 — a return-pickup stop shows the RMA lines (returned qty), not the shared order's lines.
+        // Prefetch them for the whole route in one findAllById, keyed by delivery id.
+        Map<UUID, List<OrderItem>> returnItemsByDelivery = buildReturnItemsMap(deliveryMap, allDeliveryIds);
+
         List<RouteStopFullResponse> stops = activeStops.stream()
-                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById, returnItemsByDelivery))
                 .toList();
 
         List<RouteStopFullResponse> legacyStops = allStops.stream()
                 .filter(stop -> RoutePlanningService.isRemovedStatus(stop.getStatus()))
-                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById))
+                .map(stop -> toFullStopResponse(stop, route, activeStops, actorNames, deliveryMap, slaByDeliveryId, depotById, returnItemsByDelivery))
                 .toList();
 
         // Progression counts DELIVERY stops only — pickup (multi-depot load) stops are logistics
@@ -479,9 +485,33 @@ public class RouteResponseMapper {
         ).orElse(com.asm.delivery.dto.response.VehicleResponse.builder().id(vehicleId).build());
     }
 
+    /**
+     * ADR-033 — Prefetch return-collection line items (from the RMA, keyed by delivery id) for every
+     * RETURN_PICKUP stop in the route, in one findAllById. Empty map when the route has no returns.
+     */
+    private Map<UUID, List<OrderItem>> buildReturnItemsMap(Map<UUID, Delivery> deliveryMap, List<UUID> deliveryIds) {
+        Map<UUID, UUID> deliveryToRma = new HashMap<>();
+        for (UUID id : deliveryIds) {
+            Delivery d = deliveryMap.get(id);
+            if (d != null && d.getKind() == DeliveryKind.RETURN_PICKUP && d.getRmaId() != null) {
+                deliveryToRma.put(id, d.getRmaId());
+            }
+        }
+        if (deliveryToRma.isEmpty()) return Map.of();
+        Map<UUID, List<OrderItem>> byRma = new HashMap<>();
+        for (Rma r : rmaRepository.findAllById(deliveryToRma.values())) {
+            byRma.put(r.getId(), com.asm.delivery.service.RmaService.toOrderItems(r.getItems()));
+        }
+        Map<UUID, List<OrderItem>> byDelivery = new HashMap<>();
+        deliveryToRma.forEach((deliveryId, rmaId) ->
+                byDelivery.put(deliveryId, byRma.getOrDefault(rmaId, List.of())));
+        return byDelivery;
+    }
+
     private RouteStopFullResponse toFullStopResponse(RouteStop stop, Route route, List<RouteStop> activeStops, Map<String, String> actorNames, Map<UUID, Delivery> deliveryMap,
                                                      Map<UUID, com.asm.delivery.sla.SlaState> slaByDeliveryId,
-                                                     Map<UUID, com.asm.delivery.entity.Depot> depotById) {
+                                                     Map<UUID, com.asm.delivery.entity.Depot> depotById,
+                                                     Map<UUID, List<OrderItem>> returnItemsByDelivery) {
         Delivery delivery = stop.getDeliveryId() != null ? deliveryMap.get(stop.getDeliveryId()) : null;
         if (delivery == null && stop.getDeliveryId() != null) {
             // Fallback for safety, though it shouldn't happen with the pre-fetch
@@ -489,6 +519,11 @@ public class RouteResponseMapper {
         }
 
         com.asm.delivery.entity.Order orderInfo = delivery != null ? delivery.getOrder() : null;
+        // ADR-033 — return-pickup stop: its lines come from the RMA, not the shared forward order.
+        boolean isReturnStop = delivery != null && delivery.getKind() == DeliveryKind.RETURN_PICKUP;
+        List<OrderItem> stopLines = isReturnStop
+                ? returnItemsByDelivery.getOrDefault(delivery.getId(), List.of())
+                : (orderInfo != null ? orderInfo.getItems() : null);
         com.asm.delivery.sla.SlaState slaState = stop.getDeliveryId() != null ? slaByDeliveryId.get(stop.getDeliveryId()) : null;
 
         // Calculate delay details
@@ -579,8 +614,10 @@ public class RouteResponseMapper {
                         .currency(orderInfo.getCurrency())
                         .priority(orderInfo.getPriority() != null ? orderInfo.getPriority().name() : null)
                         .scheduledAt(orderInfo.getScheduledAt())
-                        .items(orderInfo.getItems() != null ? new ArrayList<>(orderInfo.getItems()) : null)
-                        .totalQuantity(orderInfo.getTotalQuantity())
+                        .items(stopLines != null ? new ArrayList<>(stopLines) : null)
+                        .totalQuantity(isReturnStop
+                                ? stopLines.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum()
+                                : orderInfo.getTotalQuantity())
                         .totalWeightKg(orderInfo.getTotalWeightKg())
                         .status(orderInfo.getStatus() != null ? orderInfo.getStatus().name() : null)
                         .deliveryId(delivery != null ? delivery.getId() : null)

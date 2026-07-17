@@ -58,29 +58,34 @@ export function DeliveryTableRow({
 
       {orderedColumns.map(col => {
         if (!visibleIds.has(col.id)) return null;
-        if (col.id === 'ref') return (
+        if (col.id === 'ref') {
+          const isReturn = (item as { kind?: string }).kind === 'RETURN_PICKUP';
+          const rmaNumber = (item as { rmaNumber?: string }).rmaNumber;
+          const primaryRef = isReturn && rmaNumber ? rmaNumber : resolveOrderRef(item);
+          return (
           <td key="ref" className="px-6">
             <div className="flex flex-col gap-0">
               <Link to={`/deliveries/${item.rowId ?? item.id}`} onClick={(e) => e.stopPropagation()} style={{ textDecoration: 'none' }}>
                 <span className="text-xs font-[700] font-mono tabular-nums hover:text-[var(--brand)] transition-colors" style={{ color: 'var(--brand)', cursor: 'pointer' }}>
-                  {resolveOrderRef(item)}
+                  {primaryRef}
                 </span>
               </Link>
               <span className="text-xs font-[600] text-[var(--text-muted)] uppercase font-mono tracking-tighter opacity-70">
-                #{shortId(item.rowId)}
+                {isReturn && rmaNumber ? resolveOrderRef(item) : `#${shortId(item.rowId)}`}
               </span>
             </div>
           </td>
-        );
+          );
+        }
         if (col.id === 'client') return (
           <td key="client" className="px-6">
             <div className="flex flex-col gap-0.5 max-w-[400px]">
-              <span className="text-xs font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
-                {item.clientName || t.deliveriesPage.unknownDriver}
+              <span className="flex items-center gap-1.5 min-w-0">
+                <span className="text-xs font-[600] text-[var(--text-primary)] line-clamp-1 group-hover:underline decoration-[var(--brand)]/20">
+                  {item.clientName || t.deliveriesPage.unknownDriver}
+                </span>
                 {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (
-                  <span className="ms-1.5 align-middle text-3xs font-bold px-1.5 py-0.5 rounded" style={{ color: '#7c3aed', background: 'color-mix(in srgb, #7c3aed 12%, transparent)' }}>
-                    {t.deliveriesPage.returnPickupBadge ?? 'RETOUR'}
-                  </span>
+                  <StatusBadge status="RETURN_PICKUP" label={t.deliveriesPage.returnPickupBadge ?? 'Retour'} size="sm" />
                 )}
               </span>
               <div className="flex items-center gap-1 flex-nowrap">
@@ -305,10 +310,14 @@ export function DeliveryMobileCard({
       <div className="flex items-center justify-between min-w-0 ps-1">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-bold font-mono text-[var(--brand)] truncate">
-            {resolveOrderRef(item)}
+            {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (item as { rmaNumber?: string }).rmaNumber
+              ? (item as { rmaNumber?: string }).rmaNumber
+              : resolveOrderRef(item)}
           </span>
           <span className="text-3xs font-[600] text-[var(--text-muted)] font-mono">
-            #{shortId(item.rowId)}
+            {(item as { kind?: string }).kind === 'RETURN_PICKUP' && (item as { rmaNumber?: string }).rmaNumber
+              ? resolveOrderRef(item)
+              : `#${shortId(item.rowId)}`}
           </span>
         </div>
         <div className="flex items-center gap-1 shrink-0">

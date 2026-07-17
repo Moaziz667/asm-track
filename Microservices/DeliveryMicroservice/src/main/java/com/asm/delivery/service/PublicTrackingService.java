@@ -77,9 +77,15 @@ public class PublicTrackingService {
                 ? latestReturn.getResolutionNote() : null;
 
         Order order = data.delivery().getOrder();
+        // ADR-033 — a return collection shows the RMA lines (returned qty), not the shared order's lines.
+        List<OrderItem> displayItems = data.delivery().getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP
+                && data.delivery().getRmaId() != null
+                ? rmaRepo.findById(data.delivery().getRmaId())
+                    .map(r -> com.asm.delivery.service.RmaService.toOrderItems(r.getItems())).orElse(List.of())
+                : (order != null ? order.getItems() : null);
         List<TrackingResponse.OrderItemDto> itemDtos = null;
-        if (order != null && order.getItems() != null) {
-            itemDtos = order.getItems().stream()
+        if (displayItems != null) {
+            itemDtos = displayItems.stream()
                 .map(i -> TrackingResponse.OrderItemDto.builder()
                     .name(i.getName())
                     .quantity(i.getQuantity())

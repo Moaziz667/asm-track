@@ -38,6 +38,7 @@ public class RouteReportService {
     private final RouteReportRepository routeReportRepository;
     private final RouteStopRepository routeStopRepository;
     private final DeliveryRepository deliveryRepository;
+    private final RmaRepository rmaRepository;
     private final ProofOfDeliveryRepository podRepository;
     private final DeliveryStatusHistoryRepository statusHistoryRepository;
     private final VehicleRepository vehicleRepository;
@@ -247,17 +248,29 @@ public class RouteReportService {
                     .handoffToDriverName(handoffToName)
                     .failureCode(d != null && d.getFailureCode() != null ? d.getFailureCode().name() : null)
                     .failReason(d != null ? d.getFailReason() : null)
-                    .items(buildItemLines(order))
+                    .items(buildItemLines(reportItems(d, order)))
                     .build();
         }).toList();
     }
 
+    /**
+     * ADR-033 — Lines to print for a stop: the RMA lines (returned qty) for a return collection, else the
+     * shared order's lines. A return leg must NOT print the original ordered quantities.
+     */
+    private List<OrderItem> reportItems(Delivery d, Order order) {
+        if (d != null && d.getKind() == DeliveryKind.RETURN_PICKUP && d.getRmaId() != null) {
+            return rmaRepository.findById(d.getRmaId())
+                    .map(r -> com.asm.delivery.service.RmaService.toOrderItems(r.getItems())).orElse(List.of());
+        }
+        return order != null ? order.getItems() : null;
+    }
+
     /** Per-line item detail for a delivery: ordered vs delivered + shortfall dispositions (from the
      *  WMS per-unit POD breakdown, falling back to the denormalized single-outcome fields). */
-    private List<RouteReportResponse.ItemLine> buildItemLines(Order order) {
-        if (order == null || order.getItems() == null || order.getItems().isEmpty()) return null;
+    private List<RouteReportResponse.ItemLine> buildItemLines(List<OrderItem> items) {
+        if (items == null || items.isEmpty()) return null;
         List<RouteReportResponse.ItemLine> lines = new ArrayList<>();
-        for (com.asm.delivery.entity.OrderItem it : order.getItems()) {
+        for (com.asm.delivery.entity.OrderItem it : items) {
             int qty = it.getQuantity() != null ? it.getQuantity() : 0;
             Integer done = it.getQuantityDone();
             List<RouteReportResponse.ItemShortfall> shorts = new ArrayList<>();

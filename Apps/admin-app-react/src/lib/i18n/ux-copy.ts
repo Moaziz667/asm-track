@@ -2776,6 +2776,7 @@ export const FR_COPY = {
     quickViewInTransit: 'En transit',
     quickViewCompleted: 'Livrées',
     quickViewFailed: 'Échouées',
+    quickViewReturns: 'Retours',
     quickViewOverdue: 'Retard planification',
     quickViewToday: 'Aujourd\'hui',
     quickViewFuture: 'À venir',

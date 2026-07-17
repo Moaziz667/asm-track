@@ -248,33 +248,40 @@ public class DriverDeliveryService {
             throw AppException.badRequest("Cannot complete from status " + delivery.getStatus());
         }
 
+        // ADR-033 — A reverse-pickup leg SHARES the forward order. Its own line items live on the RMA, so
+        // completing a collection must NEVER touch the order's JSONB lines (doing so would overwrite the
+        // forward delivery's recorded quantities). The whole order-mutation block below is forward-only.
+        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
+
         List<com.asm.delivery.dto.request.PartialDeliveryItem> normalizedPartialItems = partialItems;
-        if (isPartial && delivery.getOrder() != null && partialItems != null && !partialItems.isEmpty()) {
+        if (!isReturnPickup && isPartial && delivery.getOrder() != null && partialItems != null && !partialItems.isEmpty()) {
             normalizedPartialItems = normalizePartialItems(delivery.getOrder(), partialItems);
         }
 
-        if (isPartial && delivery.getOrder() != null && normalizedPartialItems != null && !normalizedPartialItems.isEmpty()) {
-            applyPartialQuantities(delivery.getOrder(), normalizedPartialItems);
-        } else if (!isPartial && delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
-            // Full delivery — reset all items to fully delivered, clearing any stale partial data
-            // from previous delivery attempts on the same order.
-            for (com.asm.delivery.entity.OrderItem item : delivery.getOrder().getItems()) {
-                item.setQuantityDone(item.getQuantity() != null ? item.getQuantity() : 0);
-                item.setOutcome("DELIVERED");
-                item.setReason(null);
-                item.setComment(null);
-                item.setSegments(null);
+        if (!isReturnPickup) {
+            if (isPartial && delivery.getOrder() != null && normalizedPartialItems != null && !normalizedPartialItems.isEmpty()) {
+                applyPartialQuantities(delivery.getOrder(), normalizedPartialItems);
+            } else if (!isPartial && delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
+                // Full delivery — reset all items to fully delivered, clearing any stale partial data
+                // from previous delivery attempts on the same order.
+                for (com.asm.delivery.entity.OrderItem item : delivery.getOrder().getItems()) {
+                    item.setQuantityDone(item.getQuantity() != null ? item.getQuantity() : 0);
+                    item.setOutcome("DELIVERED");
+                    item.setReason(null);
+                    item.setComment(null);
+                    item.setSegments(null);
+                }
             }
-        }
 
-        // PERSIST the line quantities. `items` is a JSONB column (@Type(JsonType.class)); mutating its
-        // elements in place is NOT reliably detected by Hibernate dirty-checking, so without this the
-        // quantityDone/outcome changes above silently revert to 0 on commit. Reassign the list reference
-        // (forces the JSON column dirty) and save the order explicitly.
-        if (delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
-            Order ord = delivery.getOrder();
-            ord.setItems(new java.util.ArrayList<>(ord.getItems()));
-            orderRepo.save(ord);
+            // PERSIST the line quantities. `items` is a JSONB column (@Type(JsonType.class)); mutating its
+            // elements in place is NOT reliably detected by Hibernate dirty-checking, so without this the
+            // quantityDone/outcome changes above silently revert to 0 on commit. Reassign the list reference
+            // (forces the JSON column dirty) and save the order explicitly.
+            if (delivery.getOrder() != null && delivery.getOrder().getItems() != null) {
+                Order ord = delivery.getOrder();
+                ord.setItems(new java.util.ArrayList<>(ord.getItems()));
+                orderRepo.save(ord);
+            }
         }
 
         // C3 — The final status is DERIVED from the line quantities now persisted on the order, not
@@ -284,7 +291,7 @@ public class DriverDeliveryService {
         //   some-but-not-all    → PARTIALLY_DELIVERED
         // A full delivery (no partial items) is always DELIVERED. This keeps ASM and Odoo from ever
         // recording an empty or already-complete "partial".
-        DeliveryStatus finalStatus = (isPartial && delivery.getOrder() != null)
+        DeliveryStatus finalStatus = (!isReturnPickup && isPartial && delivery.getOrder() != null)
                 ? deriveStatusFromQuantities(delivery.getOrder())
                 : DeliveryStatus.DELIVERED;
         // C3 — Nothing was actually delivered: this is a failed visit, not a "partial". Delegate to
@@ -301,7 +308,6 @@ public class DriverDeliveryService {
         }
 
         boolean treatedAsPartial = finalStatus == DeliveryStatus.PARTIALLY_DELIVERED;
-        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
         delivery.setStatus(finalStatus);
         delivery.setCompletedAt(LocalDateTime.now());
         delivery = deliveryRepo.save(delivery);
@@ -545,14 +551,18 @@ public class DriverDeliveryService {
     public DriverDeliveryResponse submitPod(UUID deliveryId, UUID driverId, ProofOfDeliveryRequest req, UserPrincipal principal) {
         final String blBase64 = req.getBonLivraisonPhotoBase64();
         final String pkgBase64 = req.getPackagePhotoBase64();
+        // ADR-033 — the bon de livraison is optional for a return collection (no delivery note exists).
+        final boolean hasBl = blBase64 != null && !blBase64.isBlank();
         return persistAndCompletePod(
                 deliveryId, driverId, req.getComment(), req.getLat(), req.getLng(),
-                req.isPartial(), req.getItemsDone(), principal,
+                req.isPartial(), req.getItemsDone(), hasBl, principal,
                 (blPath, pkgPath) -> {
-                    try {
-                        minioStorageService.uploadBase64(blBase64, blPath);
-                    } catch (Exception e) {
-                        log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
+                    if (hasBl) {
+                        try {
+                            minioStorageService.uploadBase64(blBase64, blPath);
+                        } catch (Exception e) {
+                            log.error("Deferred post-commit upload failed for bon-livraison photo of delivery {}: {}", deliveryId, e.getMessage());
+                        }
                     }
                     try {
                         minioStorageService.uploadBase64(pkgBase64, pkgPath);
@@ -567,6 +577,7 @@ public class DriverDeliveryService {
     private DriverDeliveryResponse persistAndCompletePod(
             UUID deliveryId, UUID driverId, String comment, BigDecimal lat, BigDecimal lng,
             boolean partial, List<com.asm.delivery.dto.request.PartialDeliveryItem> itemsDone,
+            boolean hasBonLivraison,
             UserPrincipal principal, java.util.function.BiConsumer<String, String> mediaUploader) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
@@ -589,6 +600,14 @@ public class DriverDeliveryService {
             );
         }
 
+        // ADR-033 — a FORWARD delivery must carry its signed delivery-note (bon de livraison) photo; a
+        // RETURN_PICKUP collection has none, only the collected-parcel photo.
+        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
+        if (!hasBonLivraison && !isReturnPickup) {
+            throw AppException.badRequest("BON_LIVRAISON_REQUIRED",
+                    "La photo du bon de livraison est obligatoire pour une livraison.");
+        }
+
         // P0: Geofence Enforcement
         validateGeofence(delivery, lat, lng);
 
@@ -597,7 +616,7 @@ public class DriverDeliveryService {
         String bonLivraisonPhotoPath = deliveryFolder + "/bon-livraison.png";
         String packagePhotoPath = deliveryFolder + "/package.png";
 
-        String bonLivraisonPhotoUrl = minioStorageService.getPublicUrl(bonLivraisonPhotoPath);
+        String bonLivraisonPhotoUrl = hasBonLivraison ? minioStorageService.getPublicUrl(bonLivraisonPhotoPath) : null;
         String packagePhotoUrl = minioStorageService.getPublicUrl(packagePhotoPath);
 
         ProofOfDelivery pod = ProofOfDelivery.builder()
@@ -691,8 +710,22 @@ public class DriverDeliveryService {
                                        FailureCode legacyCode, String failureComment, UserPrincipal principal) {
         Delivery delivery = loadAndAuthorize(deliveryId, driverId);
 
-        if (delivery.getStatus() != DeliveryStatus.PICKED_UP && delivery.getStatus() != DeliveryStatus.IN_TRANSIT) {
-            throw AppException.badRequest("Can only fail delivery from PICKED_UP or IN_TRANSIT state");
+        // ADR-033 — A return collection SHARES the forward order, a completed+synced transaction. A failed
+        // collection must NEVER touch the forward order's ERP state (no PENDING_SYNC, no ERP failure sync,
+        // no replacement shipment — nothing exists in Odoo for the return until RESTOCKED). Its own RMA is
+        // closed instead so a fresh return can be raised.
+        boolean isReturnPickup = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
+
+        // A forward delivery can only fail once in the field (PICKED_UP/IN_TRANSIT). A return collection can
+        // ALSO fail from SCHEDULED — the classic "client absent / colis pas prêt" happens BEFORE the driver
+        // ever gets the parcel in hand (there is no depot-load step for a reverse leg). ADR-033.
+        boolean failable = delivery.getStatus() == DeliveryStatus.PICKED_UP
+                || delivery.getStatus() == DeliveryStatus.IN_TRANSIT
+                || (isReturnPickup && delivery.getStatus() == DeliveryStatus.SCHEDULED);
+        if (!failable) {
+            throw AppException.badRequest(isReturnPickup
+                    ? "Can only fail a return collection from SCHEDULED, PICKED_UP or IN_TRANSIT state"
+                    : "Can only fail delivery from PICKED_UP or IN_TRANSIT state");
         }
 
         // Resolve the configurable reason → analytics category + human label.
@@ -718,9 +751,9 @@ public class DriverDeliveryService {
         // comment can be shown separately (fail_reason stays flattened for ERP/analytics/tracking).
         delivery.setFailureComment(failureComment != null && !failureComment.isBlank() ? failureComment.trim() : null);
         delivery.setFailureCode(failureCode);
-        // B5 — A failure is also pushed to the ERP, so the order must be PENDING_SYNC for the
-        // reconciliation sweep to recover it if the ERP result is ever lost.
-        if (delivery.getOrder() != null) {
+        // B5 — A forward failure is pushed to the ERP, so the order must be PENDING_SYNC for the
+        // reconciliation sweep to recover it if the ERP result is ever lost. Return collections skip this.
+        if (!isReturnPickup && delivery.getOrder() != null) {
             delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
         }
         delivery = deliveryRepo.save(delivery);
@@ -743,18 +776,24 @@ public class DriverDeliveryService {
         slaStateService.refresh(delivery);
         eventPublisher.publishDeliveryFailed(delivery.getOrder(), delivery, failureComment);
 
-        // P1: Outbox Sync for failures
-        outboxProcessor.enqueue("ERP_SYNC_FAILURE", Map.of(
-            "deliveryId", deliveryId.toString(),
-            "failureCode", failureCode != null ? failureCode.name() : "GENERAL",
-            "comment", failureComment != null ? failureComment : ""
-        ));
+        // P1: Outbox Sync for failures — forward-only (see ADR-033 note above).
+        if (!isReturnPickup) {
+            outboxProcessor.enqueue("ERP_SYNC_FAILURE", Map.of(
+                "deliveryId", deliveryId.toString(),
+                "failureCode", failureCode != null ? failureCode.name() : "GENERAL",
+                "comment", failureComment != null ? failureComment : ""
+            ));
 
-        // Disposition-code re-delivery: if this failed visit was a refusal for a DEFECT (damaged /
-        // wrong item / postponed), the customer still wants the product — create a replacement shipment
-        // to re-deliver a good unit. No-op for a plain failure (client absent, outright refusal).
-        if (delivery.getOrder() != null) {
-            exceptionResolutionService.createReplacementShipment(delivery.getOrder().getId(), deliveryId);
+            // Disposition-code re-delivery: if this failed visit was a refusal for a DEFECT (damaged /
+            // wrong item / postponed), the customer still wants the product — create a replacement shipment
+            // to re-deliver a good unit. No-op for a plain failure (client absent, outright refusal).
+            if (delivery.getOrder() != null) {
+                exceptionResolutionService.createReplacementShipment(delivery.getOrder().getId(), deliveryId);
+            }
+        } else if (delivery.getRmaId() != null) {
+            // ADR-033 — a failed collection closes its RMA (terminal) so the one-open-return guard is freed
+            // and a fresh return can be raised. No Odoo touch — nothing was created there yet.
+            rmaService.onReturnCollectionFailed(delivery.getRmaId(), storedReason);
         }
 
         return toDriverDeliveryResponse(delivery);
@@ -1023,6 +1062,13 @@ public class DriverDeliveryService {
         Order order = delivery.getOrder();
         String orderRef = order != null ? order.resolveRef() : null;
 
+        // ADR-033 — a return collection's manifest shows the RMA lines (what to collect), not the shared
+        // order's original ordered quantities.
+        boolean isReturnPickupManifest = delivery.getKind() == com.asm.delivery.entity.DeliveryKind.RETURN_PICKUP;
+        List<com.asm.delivery.entity.OrderItem> manifestItems = isReturnPickupManifest
+                ? rmaService.collectionItems(delivery.getRmaId())
+                : (order != null ? order.getItems() : null);
+
         // Fetch POD when delivery is terminal (completed/partial/failed with photos)
         ProofOfDeliveryResponse podResponse = null;
         if (delivery.getStatus() == DeliveryStatus.DELIVERED
@@ -1071,8 +1117,12 @@ public class DriverDeliveryService {
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .currency(order != null ? order.getCurrency() : null)
-                .items(order != null ? order.getItems() : null)
-                .totalQuantity(order != null ? order.getTotalQuantity() : null)
+                .kind(delivery.getKind() != null ? delivery.getKind().name() : "FORWARD")
+                .rmaNumber(isReturnPickupManifest ? rmaService.collectionRef(delivery.getRmaId()) : null)
+                .items(manifestItems)
+                .totalQuantity(isReturnPickupManifest
+                        ? manifestItems.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum()
+                        : (order != null ? order.getTotalQuantity() : null))
                 .priority(order != null ? order.getPriority().name() : null)
                 .scheduledAt(order != null ? order.getScheduledAt() : null)
                 .assignedAt(delivery.getAssignedAt())

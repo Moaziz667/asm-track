@@ -26,6 +26,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
       const isPending = !['DELIVERED', 'PARTIALLY_DELIVERED', 'FAILED', 'CANCELLED'].includes(item.status);
       const bucket = getDayBucket(item.scheduledAt);
 
+      if (quickView === 'returns') return (item as { kind?: string }).kind === 'RETURN_PICKUP';
       if (quickView === 'needsPinning') return !item.dropoffPinned;
       if (quickView === 'unassigned' && Boolean(item.driverId)) return false;
       if (quickView === 'inTransit' && item.status !== 'IN_TRANSIT' && item.status !== 'AWAITING_HANDOFF') return false;
@@ -82,9 +83,10 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
 
   const quickCounts = useMemo(() => {
     let needsPinning = 0, unassigned = 0, inTransit = 0, completed = 0, failed = 0;
-    let overdue = 0, today = 0, future = 0;
+    let overdue = 0, today = 0, future = 0, returns = 0;
 
     rows.forEach((item: DeliveryRow) => {
+      if ((item as { kind?: string }).kind === 'RETURN_PICKUP') returns++;
       if (!item.dropoffPinned) needsPinning++;
       if (!item.driverId) unassigned++;
       if (item.status === 'IN_TRANSIT' || item.status === 'AWAITING_HANDOFF') inTransit++;
@@ -99,7 +101,7 @@ export function useDeliveryListData(rows: DeliveryRow[], opts: ListOpts) {
         else if (bucket === 'future') future++;
       }
     });
-    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future };
+    return { all: rows.length, needsPinning, unassigned, inTransit, completed, failed, overdue, today, future, returns };
   }, [rows]);
 
   return { filteredRows, quickCounts };

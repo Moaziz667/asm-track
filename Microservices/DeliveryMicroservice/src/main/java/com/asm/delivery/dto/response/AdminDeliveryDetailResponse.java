@@ -35,6 +35,15 @@ public class AdminDeliveryDetailResponse {
     @Schema(description = "Delivery status", example = "PICKED_UP")
     private String status;
 
+    @Schema(description = "FORWARD (depot→client) or RETURN_PICKUP (client→depot, a return collection). ADR-033")
+    private String kind;
+
+    /** For RETURN_PICKUP: the RMA's own reference (RET-00001), shown instead of the shared order ref. */
+    private String rmaNumber;
+
+    /** For RETURN_PICKUP: the original (forward) delivery this return was collected against — clickable link. */
+    private java.util.UUID originalDeliveryId;
+
     @Schema(description = "Failure classification when delivery failed", example = "ADDRESS_NOT_FOUND")
     private String failureCode;
 

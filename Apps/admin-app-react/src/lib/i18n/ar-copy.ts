@@ -2726,6 +2726,7 @@ export const AR_COPY = {
     quickViewInTransit: 'قيد النقل',
     quickViewCompleted: 'مسلمة',
     quickViewFailed: 'فشلت',
+    quickViewReturns: 'المرتجعات',
     quickViewOverdue: 'تأخير التخطيط',
     quickViewToday: 'اليوم',
     quickViewFuture: 'القادمة',

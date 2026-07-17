@@ -86,9 +86,10 @@ public class DispatchService {
             String bucket,
             LocalDate dateFrom,
             LocalDate dateTo,
+            List<DeliveryKind> kinds,
             Pageable pageable
     ) {
-        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, pageable);
+        Page<Delivery> deliveryPage = doSearch(statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds, pageable);
         List<Delivery> deliveries = deliveryPage.getContent();
 
         // Bulk-fetch driver info from Driver Service (OUTSIDE Transaction)
@@ -96,11 +97,12 @@ public class DispatchService {
         Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
         Map<UUID, Zone> zoneMap = loadZoneMap(deliveries);
         Map<UUID, com.asm.delivery.sla.SlaState> slaMap = loadSlaMap(deliveries);
+        ReturnBatch returnBatch = loadReturnBatch(deliveries);
 
         List<AdminDeliverySummaryResponse> content = deliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap);
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap, returnBatch);
                 })
                 .toList();
 
@@ -115,10 +117,11 @@ public class DispatchService {
         Map<UUID, RouteInfo> routeInfoByDeliveryId = loadRouteInfoMap(deliveries);
         Map<UUID, Zone> zoneMap = loadZoneMap(deliveries);
         Map<UUID, com.asm.delivery.sla.SlaState> slaMap = loadSlaMap(deliveries);
+        ReturnBatch returnBatch = loadReturnBatch(deliveries);
         return deliveries.stream()
                 .map(d -> {
                     DriverDTO driver = d.getDriverId() != null ? driverMap.get(d.getDriverId().toString()) : null;
-                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap);
+                    return toSummaryResponse(d, driver, routeInfoByDeliveryId.get(d.getId()), zoneMap, slaMap, returnBatch);
                 })
                 .toList();
     }
@@ -126,14 +129,14 @@ public class DispatchService {
     @Transactional(readOnly = true)
     public Page<Delivery> doSearch(List<DeliveryStatus> statuses, List<UUID> driverIds, LocalDate date, List<OrderSource> sources,
                                   List<UUID> zoneIds, List<UUID> depotIds, Boolean unpinned, String q, Boolean assigned, String bucket,
-                                  LocalDate dateFrom, LocalDate dateTo,
+                                  LocalDate dateFrom, LocalDate dateTo, List<DeliveryKind> kinds,
                                   Pageable pageable) {
         CriteriaBuilder cb = entityManager.getCriteriaBuilder();
 
         CriteriaQuery<Delivery> cq = cb.createQuery(Delivery.class);
         Root<Delivery> root = cq.from(Delivery.class);
         root.fetch("order", JoinType.INNER);
-        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo);
+        List<Predicate> predicates = buildPredicates(cb, root, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
         cq.select(root).distinct(true).where(predicates.toArray(Predicate[]::new))
                 .orderBy(cb.desc(root.get("createdAt")));
 
@@ -144,7 +147,7 @@ public class DispatchService {
 
         CriteriaQuery<Long> countQuery = cb.createQuery(Long.class);
         Root<Delivery> countRoot = countQuery.from(Delivery.class);
-        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo);
+        List<Predicate> countPredicates = buildPredicates(cb, countRoot, statuses, driverIds, date, sources, zoneIds, depotIds, unpinned, q, assigned, bucket, dateFrom, dateTo, kinds);
         countQuery.select(cb.count(countRoot)).where(countPredicates.toArray(Predicate[]::new));
         long total = entityManager.createQuery(countQuery).getSingleResult();
 
@@ -478,10 +481,14 @@ public class DispatchService {
                                             Boolean assigned,
                                             String bucket,
                                             LocalDate dateFrom,
-                                            LocalDate dateTo) {
+                                            LocalDate dateTo,
+                                            List<DeliveryKind> kinds) {
         List<Predicate> predicates = new ArrayList<>();
         if (has(statuses)) {
             predicates.add(root.get("status").in(statuses));
+        }
+        if (has(kinds)) {
+            predicates.add(root.get("kind").in(kinds));
         }
         if (has(driverIds)) {
             predicates.add(root.get("driverId").in(driverIds));
@@ -594,7 +601,7 @@ public class DispatchService {
                 source != null ? List.of(source) : null,
                 zoneId != null ? List.of(zoneId) : null,
                 null,
-                unpinned, q, assigned, bucket, null, null);
+                unpinned, q, assigned, bucket, null, null, null);
         cq.select(cb.count(root)).where(ps.toArray(Predicate[]::new));
         return entityManager.createQuery(cq).getSingleResult();
     }
@@ -693,8 +700,15 @@ public class DispatchService {
     }
 
     private AdminDeliverySummaryResponse toSummaryResponse(Delivery d, DriverDTO driver, RouteInfo routeInfo,
-                                                             Map<UUID, Zone> zoneMap, Map<UUID, com.asm.delivery.sla.SlaState> slaMap) {
+                                                             Map<UUID, Zone> zoneMap, Map<UUID, com.asm.delivery.sla.SlaState> slaMap,
+                                                             ReturnBatch returnBatch) {
         Order order = d.getOrder();
+        // ADR-033 — a return collection shows the RMA lines (returned qty) + its own RMA ref, not the shared order.
+        boolean isReturn = d.getKind() == DeliveryKind.RETURN_PICKUP;
+        List<OrderItem> lines = isReturn
+                ? returnBatch.items().getOrDefault(d.getId(), List.of())
+                : (order != null ? order.getItems() : null);
+        String rmaNumber = isReturn ? returnBatch.numbers().get(d.getId()) : null;
         boolean isDropoffPinned = order != null && order.getDropoffLat() != null && order.getDropoffLng() != null;
         Zone zone = (order != null && order.getZoneId() != null)
                 ? zoneMap.get(order.getZoneId())
@@ -716,6 +730,7 @@ public class DispatchService {
                 .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
                 .kind(d.getKind() != null ? d.getKind().name() : "FORWARD")
+                .rmaNumber(rmaNumber)
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failReason(d.getFailReason())
                 .source(order != null ? order.getSource() : null)
@@ -753,16 +768,55 @@ public class DispatchService {
                 .failedAt(d.getFailedAt())
                 .cancelledAt(d.getCancelledAt())
                 .updatedAt(d.getUpdatedAt())
-                .totalQuantity(order != null ? (order.getTotalQuantity() != null && order.getTotalQuantity() > 0 
-                    ? order.getTotalQuantity() 
-                    : (order.getItems() != null ? order.getItems().stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum() : 0)) : null)
-                .itemsSummary(order != null && order.getItems() != null 
-                    ? order.getItems().stream()
+                .totalQuantity(isReturn
+                    ? sumQty(lines)
+                    : (order != null ? (order.getTotalQuantity() != null && order.getTotalQuantity() > 0
+                        ? order.getTotalQuantity()
+                        : sumQty(order.getItems())) : null))
+                .itemsSummary(lines != null
+                    ? lines.stream()
                         .map(i -> i.getQuantity() + "x " + (i.getName() != null ? i.getName() : "Item"))
                         .collect(Collectors.joining(", "))
                     : null)
-                .items(order != null && order.getItems() != null ? new ArrayList<>(order.getItems()) : null)
+                .items(lines != null ? new ArrayList<>(lines) : null)
                 .build();
+    }
+
+    /** Sum of line quantities, null-safe. */
+    private static int sumQty(List<OrderItem> items) {
+        if (items == null) return 0;
+        return items.stream().mapToInt(i -> i.getQuantity() != null ? i.getQuantity() : 0).sum();
+    }
+
+    /** Prefetched return data for a batch of deliveries, keyed by delivery id (empty for non-returns). */
+    private record ReturnBatch(Map<UUID, List<OrderItem>> items, Map<UUID, String> numbers) {}
+
+    /**
+     * ADR-033 — Prefetch return data (line items + RMA reference, keyed by delivery id) for every
+     * RETURN_PICKUP in the batch, in a single findAllById — so the summary list never does a per-row RMA
+     * lookup. Empty maps when the batch has no returns.
+     */
+    private ReturnBatch loadReturnBatch(List<Delivery> deliveries) {
+        Map<UUID, UUID> deliveryToRma = new HashMap<>();
+        for (Delivery d : deliveries) {
+            if (d.getKind() == DeliveryKind.RETURN_PICKUP && d.getRmaId() != null) {
+                deliveryToRma.put(d.getId(), d.getRmaId());
+            }
+        }
+        if (deliveryToRma.isEmpty()) return new ReturnBatch(Map.of(), Map.of());
+        Map<UUID, List<OrderItem>> itemsByRma = new HashMap<>();
+        Map<UUID, String> numberByRma = new HashMap<>();
+        for (Rma r : rmaRepo.findAllById(deliveryToRma.values())) {
+            itemsByRma.put(r.getId(), com.asm.delivery.service.RmaService.toOrderItems(r.getItems()));
+            numberByRma.put(r.getId(), r.getRmaNumber());
+        }
+        Map<UUID, List<OrderItem>> items = new HashMap<>();
+        Map<UUID, String> numbers = new HashMap<>();
+        deliveryToRma.forEach((deliveryId, rmaId) -> {
+            items.put(deliveryId, itemsByRma.getOrDefault(rmaId, List.of()));
+            numbers.put(deliveryId, numberByRma.get(rmaId));
+        });
+        return new ReturnBatch(items, numbers);
     }
 
         private record RouteInfo(UUID routeId, String routeName, String routeStatus,
@@ -813,6 +867,15 @@ public class DispatchService {
                 ? depotRepository.findById(detailSrcDepotId).map(Depot::getName).orElse(null)
                 : null;
 
+        // ADR-033 — a return collection shows the RMA lines (returned qty) + its own RMA ref, not the shared order.
+        boolean isReturnDetail = d.getKind() == DeliveryKind.RETURN_PICKUP && d.getRmaId() != null;
+        Rma detailRma = isReturnDetail ? rmaRepo.findById(d.getRmaId()).orElse(null) : null;
+        List<OrderItem> detailLines = detailRma != null
+                ? com.asm.delivery.service.RmaService.toOrderItems(detailRma.getItems())
+                : (order != null ? order.getItems() : null);
+        String detailRmaNumber = detailRma != null ? detailRma.getRmaNumber() : null;
+        UUID originalDeliveryId = detailRma != null ? detailRma.getDeliveryId() : null;
+
         return AdminDeliveryDetailResponse.builder()
                 .deliveryId(d.getId())
                 .orderId(order != null ? order.getId() : null)
@@ -821,6 +884,9 @@ public class DispatchService {
                 .timeSlotStartTime(routeInfo != null && routeInfo.startWindow() != null ? routeInfo.startWindow().toString() : null)
                 .timeSlotEndTime(routeInfo != null && routeInfo.endWindow() != null ? routeInfo.endWindow().toString() : null)
                 .status(d.getStatus().name())
+                .kind(d.getKind() != null ? d.getKind().name() : "FORWARD")
+                .rmaNumber(detailRmaNumber)
+                .originalDeliveryId(originalDeliveryId)
                 .failureCode(d.getFailureCode() != null ? d.getFailureCode().name() : null)
                 .failReason(failureMotifLabel(d))
                 .failureComment(d.getFailureComment())
@@ -844,7 +910,7 @@ public class DispatchService {
                 .zoneName(zone != null ? zone.getName() : null)
                 .zoneColor(zone != null ? zone.getColor() : null)
                 .deliveryInstructions(order != null ? order.getDeliveryInstructions() : null)
-                .items(order != null && order.getItems() != null ? new ArrayList<>(order.getItems()) : null)
+                .items(detailLines != null ? new ArrayList<>(detailLines) : null)
                 .totalAmount(order != null ? order.getTotalAmount() : null)
                 .totalWeightKg(order != null ? order.getTotalWeightKg() : null)
                 .routeDistanceKm(d.getRouteDistanceKm())
