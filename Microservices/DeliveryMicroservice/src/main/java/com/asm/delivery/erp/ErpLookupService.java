@@ -64,10 +64,7 @@ public class ErpLookupService {
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
-        List<Map<String, Object>> res = erpPort.searchClients(search, limit);
-        List<ErpClientDTO> dtos = res.stream()
-                .map(m -> objectMapper.convertValue(m, ErpClientDTO.class))
-                .collect(Collectors.toList());
+        List<ErpClientDTO> dtos = erpPort.searchClients(search, limit);
         clientCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));
         return dtos;
     }
@@ -78,10 +75,7 @@ public class ErpLookupService {
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
-        List<Map<String, Object>> res = erpPort.searchProducts(search, limit);
-        List<ErpProductDTO> dtos = res.stream()
-                .map(m -> objectMapper.convertValue(m, ErpProductDTO.class))
-                .collect(Collectors.toList());
+        List<ErpProductDTO> dtos = erpPort.searchProducts(search, limit);
         productCache.put(cacheKey, new CacheEntry<>(dtos, System.currentTimeMillis()));
         return dtos;
     }
@@ -96,9 +90,7 @@ public class ErpLookupService {
         Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
         Set<String> importedBls = orderRepository.findAllBlNumbers();
 
-        List<Map<String, Object>> res = erpPort.getPendingOrders(limit);
-        List<ErpPendingOrderSummaryDTO> dtos = res.stream()
-                .map(m -> objectMapper.convertValue(m, ErpPendingOrderSummaryDTO.class))
+        List<ErpPendingOrderSummaryDTO> dtos = erpPort.getPendingOrders(limit).stream()
                 .filter(dto -> dto.getErpOrderId() != null)
                 // Mark (don't drop) already-imported orders — by delivery-note (BL) when
                 // present, else by ERP order ref — so the UI's "Déjà importées" tab can
@@ -117,11 +109,11 @@ public class ErpLookupService {
     }
 
     public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
-        Map<String, Object> preview = erpPort.getPendingOrderPreview(erpOrderId);
-        if (preview == null || preview.isEmpty()) {
+        ErpPendingOrderPreviewDTO preview = erpPort.getPendingOrderPreview(erpOrderId);
+        if (preview == null) {
             throw AppException.notFound("Pending order not found: " + erpOrderId);
         }
-        return objectMapper.convertValue(preview, ErpPendingOrderPreviewDTO.class);
+        return preview;
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package com.asm.delivery.service;
 
 import com.asm.delivery.dto.response.GeocodeSuggestionResponse;
 import com.asm.delivery.entity.Depot;
+import com.asm.delivery.erp.ErpWarehouseDTO;
 import com.asm.delivery.erp.port.ErpPort;
 import com.asm.delivery.repository.DepotRepository;
 import lombok.RequiredArgsConstructor;
@@ -38,29 +39,29 @@ public class DepotSyncService {
 
     @Transactional
     public SyncResult syncFromErp() {
-        List<Map<String, Object>> warehouses = erpPort.getWarehouses();
+        List<ErpWarehouseDTO> warehouses = erpPort.getWarehouses();
         int created = 0, updated = 0, geocoded = 0, missingCoords = 0;
 
-        for (Map<String, Object> w : warehouses) {
-            String code = asString(w.get("code"));
+        for (ErpWarehouseDTO w : warehouses) {
+            String code = w.getCode();
             if (!StringUtils.hasText(code)) continue;
 
             Depot depot = depotRepository.findByWarehouseCode(code).orElseGet(Depot::new);
             boolean isNew = depot.getId() == null;
 
-            String newAddress = asString(w.get("address"));
-            String newCity = asString(w.get("city"));
+            String newAddress = w.getAddress();
+            String newCity = w.getCity();
             boolean addressChanged = !java.util.Objects.equals(depot.getAddress(), newAddress);
 
             depot.setWarehouseCode(code);
-            depot.setErpWarehouseId(asString(w.get("erpWarehouseId")));
+            depot.setErpWarehouseId(w.getErpWarehouseId());
             depot.setProvider(defaultProvider);
-            depot.setName(StringUtils.hasText(asString(w.get("name"))) ? asString(w.get("name")) : code);
+            depot.setName(StringUtils.hasText(w.getName()) ? w.getName() : code);
             depot.setAddress(newAddress);
             if (depot.getIsActive() == null) depot.setIsActive(true);
 
-            Double lat = asDouble(w.get("latitude"));
-            Double lng = asDouble(w.get("longitude"));
+            Double lat = w.getLatitude();
+            Double lng = w.getLongitude();
             if (lat == null || lng == null) {
                 // Re-geocode if the depot is new, the address changed in Odoo, or we have no coords yet.
                 if (isNew || addressChanged || depot.getLatitude() == null || depot.getLongitude() == null) {
@@ -101,19 +102,5 @@ public class DepotSyncService {
             return new double[]{geo.getLat(), geo.getLng()};
         }
         return null;
-    }
-
-
-    private static String asString(Object v) {
-        if (v == null) return null;
-        String s = String.valueOf(v).trim();
-        return s.isEmpty() ? null : s;
-    }
-
-    private static Double asDouble(Object v) {
-        if (v == null) return null;
-        if (v instanceof Number n) return n.doubleValue();
-        try { return Double.parseDouble(String.valueOf(v)); }
-        catch (NumberFormatException e) { return null; }
     }
 }

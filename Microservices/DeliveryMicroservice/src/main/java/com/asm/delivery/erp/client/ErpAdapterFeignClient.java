@@ -1,5 +1,11 @@
 package com.asm.delivery.erp.client;
 
+import com.asm.delivery.erp.ErpClientDTO;
+import com.asm.delivery.erp.ErpCompanyDTO;
+import com.asm.delivery.erp.ErpPendingOrderPreviewDTO;
+import com.asm.delivery.erp.ErpPendingOrderSummaryDTO;
+import com.asm.delivery.erp.ErpProductDTO;
+import com.asm.delivery.erp.ErpWarehouseDTO;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -37,32 +43,32 @@ public interface ErpAdapterFeignClient {
     Map<String, Object> syncFailure(@RequestParam("erpProvider") String erpProvider,
                                     @RequestBody Map<String, Object> body);
 
-    // ── Lookup operations ────────────────────────────────────────────────────
+    // ── Lookup operations (JSON deserialized straight into the canonical DTOs) ─
     @GetMapping("/api/erp/lookup/clients")
-    List<Map<String, Object>> searchClients(@RequestParam("erpProvider") String erpProvider,
-                                            @RequestParam("search") String search,
-                                            @RequestParam("limit") int limit);
+    List<ErpClientDTO> searchClients(@RequestParam("erpProvider") String erpProvider,
+                                     @RequestParam("search") String search,
+                                     @RequestParam("limit") int limit);
 
     @GetMapping("/api/erp/lookup/products")
-    List<Map<String, Object>> searchProducts(@RequestParam("erpProvider") String erpProvider,
-                                             @RequestParam("search") String search,
-                                             @RequestParam("limit") int limit);
+    List<ErpProductDTO> searchProducts(@RequestParam("erpProvider") String erpProvider,
+                                       @RequestParam("search") String search,
+                                       @RequestParam("limit") int limit);
 
     @GetMapping("/api/erp/lookup/pending-orders")
-    List<Map<String, Object>> getPendingOrders(@RequestParam("erpProvider") String erpProvider,
-                                               @RequestParam("limit") int limit);
+    List<ErpPendingOrderSummaryDTO> getPendingOrders(@RequestParam("erpProvider") String erpProvider,
+                                                     @RequestParam("limit") int limit);
 
     @GetMapping("/api/erp/lookup/pending-orders/preview")
-    Map<String, Object> getPendingOrderPreview(@RequestParam("erpProvider") String erpProvider,
-                                               @RequestParam("erpOrderId") String erpOrderId);
+    ErpPendingOrderPreviewDTO getPendingOrderPreview(@RequestParam("erpProvider") String erpProvider,
+                                                     @RequestParam("erpOrderId") String erpOrderId);
 
     @GetMapping("/api/erp/lookup/warehouses")
-    List<Map<String, Object>> getWarehouses(@RequestParam("erpProvider") String erpProvider);
+    List<ErpWarehouseDTO> getWarehouses(@RequestParam("erpProvider") String erpProvider);
 
     @GetMapping("/api/erp/lookup/picking-ref")
     Map<String, Object> getPickingRef(@RequestParam("erpProvider") String erpProvider,
                                       @RequestParam("pickingId") String pickingId);
 
     @GetMapping("/api/erp/lookup/company")
-    Map<String, Object> getCompany(@RequestParam("erpProvider") String erpProvider);
+    ErpCompanyDTO getCompany(@RequestParam("erpProvider") String erpProvider);
 }

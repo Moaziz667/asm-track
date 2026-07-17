@@ -425,7 +425,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
             String dc = asString(row.get("default_code"));
             if (dc != null && !dc.isBlank()) skus.put(id, dc);
             String dt = asString(row.get("type"));
-            if (dt != null && !dt.isBlank()) types.put(id, dt);
+            if (dt != null && !dt.isBlank()) types.put(id, neutralType(dt));
         }
         return new ProductDetails(weights, skus, types);
     }
@@ -514,5 +514,20 @@ public class OdooLookupAdapter implements ErpLookupPort {
 
     private static String orEmpty(String value) {
         return value != null ? value : "";
+    }
+
+    /**
+     * Maps the ERP's raw product type to a vendor-neutral canonical value so the DTO never leaks
+     * Odoo vocabulary. Odoo: product→STORABLE, consu→CONSUMABLE, service→SERVICE; anything else is
+     * passed through upper-cased.
+     */
+    static String neutralType(String raw) {
+        if (raw == null || raw.isBlank()) return null;
+        return switch (raw.trim().toLowerCase(Locale.ROOT)) {
+            case "product" -> "STORABLE";
+            case "consu"   -> "CONSUMABLE";
+            case "service" -> "SERVICE";
+            default        -> raw.trim().toUpperCase(Locale.ROOT);
+        };
     }
 }

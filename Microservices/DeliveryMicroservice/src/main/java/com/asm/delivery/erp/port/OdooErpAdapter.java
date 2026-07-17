@@ -1,5 +1,11 @@
 package com.asm.delivery.erp.port;
 
+import com.asm.delivery.erp.ErpClientDTO;
+import com.asm.delivery.erp.ErpCompanyDTO;
+import com.asm.delivery.erp.ErpPendingOrderPreviewDTO;
+import com.asm.delivery.erp.ErpPendingOrderSummaryDTO;
+import com.asm.delivery.erp.ErpProductDTO;
+import com.asm.delivery.erp.ErpWarehouseDTO;
 import com.asm.delivery.erp.client.ErpAdapterFeignClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,9 +21,8 @@ import java.util.Map;
  *
  * <p>Selected when {@code erp.provider} is {@code odoo} (the default). It owns the Odoo-specific
  * details: the provider key sent to the ErpAdapter microservice and the defensive "never throw —
- * return a safe default" behavior the rest of the codebase relies on (previously in the now-deleted
- * {@code ErpAdapterClient}). The HTTP transport, service-auth and caller-identity headers are handled
- * by {@link ErpAdapterFeignClient} and the shared Feign interceptor.
+ * return a safe default" behavior the rest of the codebase relies on. The Feign client deserializes
+ * the ErpAdapter's JSON straight into the canonical DTOs, so this adapter is a thin, typed passthrough.
  *
  * <p>To add another ERP: write {@code SapErpAdapter implements ErpPort} annotated with
  * {@code @ConditionalOnProperty(name = "erp.provider", havingValue = "sap")} and set the property.
@@ -35,9 +40,9 @@ public class OdooErpAdapter implements ErpPort {
     private String provider;
 
     @Override
-    public List<Map<String, Object>> searchClients(String search, int limit) {
+    public List<ErpClientDTO> searchClients(String search, int limit) {
         try {
-            List<Map<String, Object>> r = feign.searchClients(provider, search != null ? search : "", limit);
+            List<ErpClientDTO> r = feign.searchClients(provider, search != null ? search : "", limit);
             return r != null ? r : List.of();
         } catch (Exception e) {
             log.error("ERP searchClients failed: {}", e.getMessage(), e);
@@ -46,9 +51,9 @@ public class OdooErpAdapter implements ErpPort {
     }
 
     @Override
-    public List<Map<String, Object>> searchProducts(String search, int limit) {
+    public List<ErpProductDTO> searchProducts(String search, int limit) {
         try {
-            List<Map<String, Object>> r = feign.searchProducts(provider, search != null ? search : "", limit);
+            List<ErpProductDTO> r = feign.searchProducts(provider, search != null ? search : "", limit);
             return r != null ? r : List.of();
         } catch (Exception e) {
             log.error("ERP searchProducts failed: {}", e.getMessage(), e);
@@ -57,9 +62,9 @@ public class OdooErpAdapter implements ErpPort {
     }
 
     @Override
-    public List<Map<String, Object>> getPendingOrders(int limit) {
+    public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit) {
         try {
-            List<Map<String, Object>> r = feign.getPendingOrders(provider, limit);
+            List<ErpPendingOrderSummaryDTO> r = feign.getPendingOrders(provider, limit);
             return r != null ? r : List.of();
         } catch (Exception e) {
             log.error("ERP getPendingOrders failed: {}", e.getMessage(), e);
@@ -68,7 +73,7 @@ public class OdooErpAdapter implements ErpPort {
     }
 
     @Override
-    public Map<String, Object> getPendingOrderPreview(String erpOrderId) {
+    public ErpPendingOrderPreviewDTO getPendingOrderPreview(String erpOrderId) {
         try {
             return feign.getPendingOrderPreview(provider, erpOrderId);
         } catch (Exception e) {
@@ -78,9 +83,9 @@ public class OdooErpAdapter implements ErpPort {
     }
 
     @Override
-    public List<Map<String, Object>> getWarehouses() {
+    public List<ErpWarehouseDTO> getWarehouses() {
         try {
-            List<Map<String, Object>> r = feign.getWarehouses(provider);
+            List<ErpWarehouseDTO> r = feign.getWarehouses(provider);
             return r != null ? r : List.of();
         } catch (Exception e) {
             log.error("ERP getWarehouses failed: {}", e.getMessage(), e);
@@ -100,7 +105,7 @@ public class OdooErpAdapter implements ErpPort {
     }
 
     @Override
-    public Map<String, Object> getCompany() {
+    public ErpCompanyDTO getCompany() {
         try {
             return feign.getCompany(provider);
         } catch (Exception e) {

@@ -33,11 +33,11 @@ public class ErpAutoImportNotifier {
         Set<String> alreadyImported = orderRepository.findAllErpOrderIds();
 
         try {
-            List<Map<String, Object>> pending = erpPort.getPendingOrders(200);
+            List<com.asm.delivery.erp.ErpPendingOrderSummaryDTO> pending = erpPort.getPendingOrders(200);
 
             int newCount = (int) pending.stream()
-                    .map(m -> String.valueOf(m.getOrDefault("name", "")))
-                    .filter(id -> !id.isBlank() && !alreadyImported.contains(id))
+                    .map(com.asm.delivery.erp.ErpPendingOrderSummaryDTO::getErpOrderId)
+                    .filter(id -> id != null && !id.isBlank() && !alreadyImported.contains(id))
                     .count();
 
             if (newCount > lastKnownCount) {

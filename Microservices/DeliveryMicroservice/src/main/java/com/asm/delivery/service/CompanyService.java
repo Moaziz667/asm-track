@@ -68,18 +68,18 @@ public class CompanyService {
         Company existing = repo.findById(id)
                 .orElseThrow(() -> AppException.notFound("Company not found: " + id));
 
-        java.util.Map<String, Object> erp = erpPort.getCompany();
-        if (erp == null || erp.isEmpty()) {
+        com.asm.delivery.erp.ErpCompanyDTO erp = erpPort.getCompany();
+        if (erp == null) {
             throw AppException.badRequest("L'ERP n'a retourné aucune information d'entreprise. Vérifiez la configuration ERP.");
         }
 
-        String name    = str(erp.get("name"));
-        String address = composeAddress(str(erp.get("address")), str(erp.get("city")));
-        String email   = str(erp.get("email"));
+        String name    = str(erp.getName());
+        String address = composeAddress(str(erp.getAddress()), str(erp.getCity()));
+        String email   = str(erp.getEmail());
 
-        String city  = str(erp.get("city"));
-        String vat   = str(erp.get("vat"));
-        String phone = str(erp.get("phone"));
+        String city  = str(erp.getCity());
+        String vat   = str(erp.getVat());
+        String phone = str(erp.getPhone());
 
         if (name    != null) existing.setName(name);
         if (address != null) existing.setAddress(address);
@@ -88,7 +88,7 @@ public class CompanyService {
         if (vat     != null) existing.setTaxId(vat);
         if (phone   != null) existing.setPhone(phone);
 
-        String logoBase64 = str(erp.get("logo"));
+        String logoBase64 = str(erp.getLogo());
         if (logoBase64 != null) {
             try {
                 byte[] imageBytes = java.util.Base64.getDecoder().decode(logoBase64);

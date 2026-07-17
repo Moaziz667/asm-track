@@ -37,7 +37,7 @@ public class OrderItem {
     /** Optional driver comment specific to this item. */
     private String comment;
 
-    /** Odoo product type: "product" (storable), "consu" (consumable), "service". Null for legacy items. */
+    /** Canonical product type (vendor-neutral): STORABLE, CONSUMABLE, or SERVICE. Null for legacy items. */
     private String productType;
 
     /**
