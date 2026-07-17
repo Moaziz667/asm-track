@@ -264,9 +264,11 @@ export function DeliveryTableRow({
             <TooltipTrigger asChild>
               <button
                 type="button"
-                className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)] transition-colors"
+                className={`w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] text-[var(--text-soft)] transition-colors ${item.status === 'UNSCHEDULED' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--hover-bg)]'}`}
                 onClick={(e) => {
                   e.stopPropagation();
+                  // Tracking has no live driver/route until the delivery is dispatched — don't hand out an empty link.
+                  if (item.status === 'UNSCHEDULED') return;
                   const url = `${window.location.origin}/track/${item.rowId}`;
                   navigator.clipboard.writeText(url);
                   showSuccessToast(t.deliveriesPage.trackingCopied);
@@ -275,7 +277,7 @@ export function DeliveryTableRow({
                 <IconLink size={14} />
               </button>
             </TooltipTrigger>
-            <TooltipContent>{t.deliveriesPage.trackingLink}</TooltipContent>
+            <TooltipContent>{item.status === 'UNSCHEDULED' ? t.deliveriesPage.trackingLinkUnavailable : t.deliveriesPage.trackingLink}</TooltipContent>
           </Tooltip>
         </div>
       </td>
@@ -433,13 +435,14 @@ export function DeliveryMobileCard({
 
         <button
           type="button"
-          className="w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-soft)] hover:bg-[var(--hover-bg)]"
+          className={`w-7 h-7 flex items-center justify-center rounded border border-[var(--border)] text-[var(--text-soft)] ${item.status === 'UNSCHEDULED' ? 'opacity-40 cursor-not-allowed' : 'hover:bg-[var(--hover-bg)]'}`}
           onClick={() => {
+            if (item.status === 'UNSCHEDULED') return;
             const url = `${window.location.origin}/track/${item.rowId}`;
             navigator.clipboard.writeText(url);
             showSuccessToast(t.deliveriesPage.trackingCopied);
           }}
-          title={t.deliveriesPage.trackingLink}
+          title={item.status === 'UNSCHEDULED' ? t.deliveriesPage.trackingLinkUnavailable : t.deliveriesPage.trackingLink}
         >
           <IconLink size={13} />
         </button>

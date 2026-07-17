@@ -2780,6 +2780,7 @@ export const AR_COPY = {
     tooltipCancel: 'إلغاء التسليم',
     tooltipDownloadBL: 'تحميل إيصال التسليم (PDF)',
     trackingLink: 'نسخ رابط التتبع العام',
+    trackingLinkUnavailable: 'متاح بعد إرسال الشحنة',
 
     // Cancel modal
     cancelModalTitle: 'إلغاء التسليم',

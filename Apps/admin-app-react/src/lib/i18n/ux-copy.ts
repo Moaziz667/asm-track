@@ -2830,6 +2830,7 @@ export const FR_COPY = {
     tooltipCancel: 'Annuler la livraison',
     tooltipDownloadBL: 'Télécharger le bon de livraison (PDF)',
     trackingLink: 'Copier le lien de suivi public',
+    trackingLinkUnavailable: 'Disponible une fois la livraison dispatchée',
 
     // Cancel modal
     cancelModalTitle: 'Annuler la livraison',

@@ -2718,6 +2718,7 @@ export const EN_COPY = {
     tooltipCancel: 'Cancel delivery',
     tooltipDownloadBL: 'Download delivery note (PDF)',
     trackingLink: 'Copy public tracking link',
+    trackingLinkUnavailable: 'Available once the delivery is dispatched',
 
     // Cancel modal
     cancelModalTitle: 'Cancel delivery',
