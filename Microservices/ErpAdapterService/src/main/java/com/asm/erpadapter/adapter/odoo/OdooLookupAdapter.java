@@ -180,6 +180,7 @@ public class OdooLookupAdapter implements ErpLookupPort {
         boolean ready = "assigned".equals(asString(picking.get("state")));
 
         return ErpPendingOrderPreviewDTO.builder()
+                .source("ODOO")
                 .erpOrderId(asString(picking.get("name")))            // import identity = the BL number
                 .blNumber(asString(picking.get("name")))
                 .saleOrderRef(firstNonBlank(asRelName(picking.get("sale_id")), asString(picking.get("origin"))))
@@ -455,7 +456,6 @@ public class OdooLookupAdapter implements ErpLookupPort {
                 .deliveryCity(partner != null ? asString(partner.get("city")) : null)
                 .totalAmount(sale != null ? asBigDecimal(sale.get("amount_total")) : null)
                 .currency(resolveCurrency(sale))
-                .state(asString(picking.get("state")))
                 // backorder_id is set by Odoo when this picking is the remainder (reliquat) of a prior
                 // partial delivery; surface it so the operator sees it's a backorder before importing.
                 .backorder(asRelId(picking.get("backorder_id")) != null)

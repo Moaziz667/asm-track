@@ -164,7 +164,7 @@ function ImportErpPageContent() {
         || row.customerName?.toLowerCase().includes(q)
         || (row.customerPhone ?? '').toLowerCase().includes(q)
         || (row.externalRef ?? '').toLowerCase().includes(q)
-        || String(row.existingBackorderId ?? '').toLowerCase().includes(q)
+        || (row.originBl ?? '').toLowerCase().includes(q)
       );
     }
 
@@ -785,10 +785,10 @@ function ImportErpPageContent() {
 
               {/* Action */}
               <div className="flex flex-col gap-3 mt-auto pt-4">
-                {preview.existingBackorderId && (
+                {preview.backorder && (
                   <div className="p-3 rounded-xs flex items-center gap-2 bg-[var(--warning-bg)]" style={{ border: '1px solid #FEF08A' }}>
                     <IconAlertCircle size={14} className="text-[var(--warning)]" />
-                    <p className="text-xs font-semibold text-[var(--warning)]">{t.importPage.backorderWarning.replace('{backorderId}', String(preview.existingBackorderId))}</p>
+                    <p className="text-xs font-semibold text-[var(--warning)]">{t.importPage.backorderWarning.replace('{backorderId}', preview.originBl ?? '—')}</p>
                   </div>
                 )}
                 <button

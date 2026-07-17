@@ -7,5 +7,16 @@ package com.asm.delivery.entity;
  */
 public enum OrderSource {
     ODOO,
-    DUX
+    ERPNEXT,
+    DUX;
+
+    /** Map an adapter-provided provider tag (preview {@code source}) to the domain enum; defaults to ODOO. */
+    public static OrderSource fromProvider(String provider) {
+        if (provider == null) return ODOO;
+        return switch (provider.trim().toUpperCase()) {
+            case "ERPNEXT" -> ERPNEXT;
+            case "DUX" -> DUX;
+            default -> ODOO;
+        };
+    }
 }

@@ -13,10 +13,12 @@ import { FieldInput, FieldSelect } from '@/components/ui/field';
 import { SectionCard } from '@/components/ui/section-card';
 
 // ── Types ──────────────────────────────────────────────────────────────────
-type ErpProvider = 'NONE' | 'ODOO' | 'DUX';
+type ErpProvider = 'NONE' | 'ODOO' | 'DUX' | 'ERPNEXT';
 type ConnStatus = 'NOT_CONFIGURED' | 'CONFIGURED' | 'CONNECTED' | 'ERROR';
 interface OdooConfig {
   url?: string; db?: string; login?: string; apiKey?: string; reportId?: string;
+  // ERPNext token auth (Authorization: token apiKey:apiSecret) + optional company scoping:
+  apiSecret?: string; company?: string;
   // legacy fields tolerated for back-compat (not shown in the UI):
   uid?: number; password?: string;
 }
@@ -35,6 +37,7 @@ interface ErpSettings {
 type ConnState = { status: 'idle' | 'ok' | 'fail'; uid?: string };
 
 const EMPTY_ODOO: OdooConfig = { url: '', db: '', login: '', apiKey: '', reportId: 'stock.report_deliveryslip' };
+const EMPTY_ERPNEXT: OdooConfig = { url: '', apiKey: '', apiSecret: '', company: '' };
 
 // ── Connection-status pill — the persisted lifecycle, at a glance ────────────
 type EffStatus = ConnStatus | 'STALE';
@@ -96,7 +99,8 @@ export default function ErpIntegrationPage() {
     setErp((prev) => prev ? {
       ...prev,
       activeErpProvider: p,
-      erpConfiguration: p === 'NONE' ? null : (prev.erpConfiguration ?? { ...EMPTY_ODOO }),
+      erpConfiguration: p === 'NONE' ? null
+        : (prev.erpConfiguration ?? { ...(p === 'ERPNEXT' ? EMPTY_ERPNEXT : EMPTY_ODOO) }),
     } : prev);
   };
 
@@ -208,6 +212,7 @@ export default function ErpIntegrationPage() {
                   options={[
                     { value: 'NONE', label: 'NONE' },
                     { value: 'ODOO', label: 'ODOO' },
+                    { value: 'ERPNEXT', label: 'ERPNEXT' },
                     { value: 'DUX', label: 'DUX' },
                   ]}
                 />
@@ -241,6 +246,45 @@ export default function ErpIntegrationPage() {
                       placeholder={t.erpIntegrationPage.reportIdPlaceholder}
                       value={conf.reportId ?? ''}
                       onChange={(e) => patchConf({ reportId: e.target.value })}
+                      disabled={!canManage}
+                    />
+                  </div>
+                )}
+
+                {/* ERPNEXT config — token auth (apiKey:apiSecret), optional company scoping */}
+                {provider === 'ERPNEXT' && conf && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 rounded-lg bg-[var(--app-bg)] border border-dashed border-[var(--border)]">
+                    <FieldInput
+                      wrapperClassName="md:col-span-2"
+                      label={sp.erpUrl}
+                      placeholder="https://your-site.frappe.cloud"
+                      value={conf.url ?? ''}
+                      onChange={(e) => patchConf({ url: e.target.value })}
+                      disabled={!canManage}
+                    />
+                    <FieldInput
+                      type="password"
+                      label={sp.erpApiKey}
+                      placeholder="••••••••"
+                      value={conf.apiKey ?? ''}
+                      onChange={(e) => patchConf({ apiKey: e.target.value })}
+                      disabled={!canManage}
+                    />
+                    <FieldInput
+                      type="password"
+                      label={sp.erpApiSecret ?? 'API Secret'}
+                      placeholder="••••••••"
+                      value={conf.apiSecret ?? ''}
+                      onChange={(e) => patchConf({ apiSecret: e.target.value })}
+                      disabled={!canManage}
+                    />
+                    <FieldInput
+                      wrapperClassName="md:col-span-2"
+                      label={sp.erpCompany ?? 'Company (optional)'}
+                      hint={sp.erpCompanyHint ?? 'Only if the instance hosts several companies'}
+                      placeholder="e.g. TEST (Demo)"
+                      value={conf.company ?? ''}
+                      onChange={(e) => patchConf({ company: e.target.value })}
                       disabled={!canManage}
                     />
                   </div>

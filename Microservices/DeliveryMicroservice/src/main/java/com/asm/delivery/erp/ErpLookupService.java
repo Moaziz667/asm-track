@@ -152,7 +152,7 @@ public class ErpLookupService {
         String saleRef = StringUtils.hasText(preview.getSaleOrderRef()) ? preview.getSaleOrderRef() : null;
 
         Order order = Order.builder()
-                .source(OrderSource.ODOO)
+                .source(OrderSource.fromProvider(preview.getSource()))   // ERPNEXT / ODOO — the adapter tags it
                 .clientId(null)
                 .erpClientId(null)
 

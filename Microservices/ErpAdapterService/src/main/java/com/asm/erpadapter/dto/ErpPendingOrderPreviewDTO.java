@@ -19,6 +19,8 @@ import java.util.List;
 @AllArgsConstructor
 public class ErpPendingOrderPreviewDTO {
     private String erpOrderId;
+    /** Which ERP produced this preview ("ODOO" / "ERPNEXT") — the adapter is the authority. */
+    private String source;
     private String externalRef;
     private String customerName;
     private String customerPhone;

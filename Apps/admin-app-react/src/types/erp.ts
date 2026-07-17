@@ -9,13 +9,10 @@ export type ErpPendingOrderSummaryDTO = {
   deliveryCity?: string
   totalAmount?: number
   currency?: string
-  state?: string
-  invoiceStatus?: string
   dateOrder?: string
   scheduledAt?: string
   alreadyImported: boolean
   existingDeliveryId?: string
-  existingBackorderId?: number
   blNumber?: string
   saleOrderRef?: string
   warehouseCode?: string

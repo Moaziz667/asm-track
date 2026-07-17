@@ -76,9 +76,6 @@ public class ErpPendingOrderPreviewDTO {
     @Schema(description = "Existing ASM Track delivery ID if already imported")
     private UUID existingDeliveryId;
 
-    @Schema(description = "Odoo backorder picking ID from a previous partial delivery", example = "42")
-    private Integer existingBackorderId;
-
     // ── Delivery-note (bon de livraison) fields — enterprise multi-depot ──────────
 
     @Schema(description = "Official ERP delivery-note / picking number (bon de livraison)", example = "WH/OUT/00012")

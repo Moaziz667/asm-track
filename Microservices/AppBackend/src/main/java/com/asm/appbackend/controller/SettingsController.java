@@ -83,6 +83,9 @@ public class SettingsController {
                 if (configMap.containsKey("apiKey")) {
                     configMap.put("apiKey", "********");
                 }
+                if (configMap.containsKey("apiSecret")) {
+                    configMap.put("apiSecret", "********");
+                }
             } catch (JsonProcessingException e) {
                 log.error("Failed to parse decrypted ERP config", e);
             }
@@ -128,6 +131,9 @@ public class SettingsController {
                     // Restore original password if frontend sent mask
                     if ("********".equals(newConfig.get("password")) && oldConfig.containsKey("password")) {
                         newConfig.put("password", oldConfig.get("password"));
+                    }
+                    if ("********".equals(newConfig.get("apiSecret")) && oldConfig.containsKey("apiSecret")) {
+                        newConfig.put("apiSecret", oldConfig.get("apiSecret"));
                     }
                     if ("********".equals(newConfig.get("apiKey")) && oldConfig.containsKey("apiKey")) {
                         newConfig.put("apiKey", oldConfig.get("apiKey"));
@@ -180,7 +186,8 @@ public class SettingsController {
             return ResponseEntity.ok(Map.of("status", "success", "message", "DUX adapter testing will be implemented next week."));
         }
 
-        if (!"ODOO".equals(dto.getActiveErpProvider()) || dto.getErpConfiguration() == null) {
+        boolean isErpNext = "ERPNEXT".equals(dto.getActiveErpProvider());
+        if ((!"ODOO".equals(dto.getActiveErpProvider()) && !isErpNext) || dto.getErpConfiguration() == null) {
             return ResponseEntity.badRequest().body(Map.of("error", "Unsupported or missing provider config"));
         }
 
@@ -192,9 +199,10 @@ public class SettingsController {
         SystemSettings stored = repository.findById("SINGLETON").orElse(null);
         Map<String, Object> oldConfig = decryptStoredConfig(stored);
         restoreMaskedSecret(config, oldConfig, "apiKey");
+        restoreMaskedSecret(config, oldConfig, "apiSecret");
         restoreMaskedSecret(config, oldConfig, "password");
 
-        return runOdooTest(config);
+        return isErpNext ? runErpNextTest(config) : runOdooTest(config);
     }
 
     /**
@@ -212,6 +220,9 @@ public class SettingsController {
         }
         if ("DUX".equalsIgnoreCase(stored.getActiveErpProvider())) {
             return ResponseEntity.ok(Map.of("status", "success", "message", "DUX adapter testing will be implemented next week."));
+        }
+        if ("ERPNEXT".equalsIgnoreCase(stored.getActiveErpProvider())) {
+            return runErpNextTest(decryptStoredConfig(stored));
         }
         return runOdooTest(decryptStoredConfig(stored));
     }
@@ -285,6 +296,48 @@ public class SettingsController {
 
         } catch (Exception e) {
             log.warn("ERP Test Connection failed: {}", e.getMessage());
+            persistTestResult(false, null, e.getMessage());
+            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * Authenticate an ERPNext config and persist the CONNECTED/ERROR result. ERPNext uses token auth
+     * ({@code Authorization: token <apiKey>:<apiSecret>}); we validate by calling
+     * {@code frappe.auth.get_logged_user}, which returns the user bound to the key — a plain, cheap,
+     * side-effect-free probe (the ERPNext equivalent of Odoo's {@code common.authenticate}).
+     */
+    @SuppressWarnings("rawtypes")
+    private ResponseEntity<Map<String, String>> runErpNextTest(Map<String, Object> config) {
+        try {
+            String url = String.valueOf(config.get("url"));
+            validateUrl(url);
+            String base = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
+            String apiKey = config.get("apiKey") != null ? String.valueOf(config.get("apiKey")) : "";
+            String apiSecret = config.get("apiSecret") != null ? String.valueOf(config.get("apiSecret")) : "";
+            if (apiKey.isBlank() || apiSecret.isBlank()) {
+                persistTestResult(false, null, "Missing API key or secret.");
+                return ResponseEntity.badRequest().body(Map.of("error", "Missing API key or secret."));
+            }
+
+            Map response = org.springframework.web.client.RestClient.create()
+                    .get().uri(base + "/api/method/frappe.auth.get_logged_user")
+                    .header("Authorization", "token " + apiKey + ":" + apiSecret)
+                    .header("Accept", "application/json")
+                    .retrieve()
+                    .body(Map.class);
+
+            // Success shape: {"message": "user@example.com"}. Anything without a resolved user = failure.
+            Object user = response != null ? response.get("message") : null;
+            if (user != null && !String.valueOf(user).isBlank()) {
+                persistTestResult(true, String.valueOf(user), null);
+                return ResponseEntity.ok(Map.of("status", "success", "uid", String.valueOf(user)));
+            }
+            persistTestResult(false, null, "Authentication failed — wrong URL or API key/secret.");
+            return ResponseEntity.badRequest().body(Map.of("error", "Authentication failed — wrong URL or API key/secret."));
+
+        } catch (Exception e) {
+            log.warn("ERPNext Test Connection failed: {}", e.getMessage());
             persistTestResult(false, null, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }

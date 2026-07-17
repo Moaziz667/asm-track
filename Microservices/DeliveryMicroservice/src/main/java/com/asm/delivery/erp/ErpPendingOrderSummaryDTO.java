@@ -41,12 +41,6 @@ public class ErpPendingOrderSummaryDTO {
     @Schema(description = "Currency code", example = "TND")
     private String currency;
 
-    @Schema(description = "Odoo sale order state", example = "sale", allowableValues = {"draft", "sent", "sale", "done", "cancel"})
-    private String state;
-
-    @Schema(description = "Odoo invoice status", example = "invoiced", allowableValues = {"upselling", "invoiced", "to invoice", "nothing"})
-    private String invoiceStatus;
-
     @Schema(description = "Date the order was confirmed in the ERP", example = "2026-05-13T09:00:00")
     private LocalDateTime dateOrder;
 
@@ -58,9 +52,6 @@ public class ErpPendingOrderSummaryDTO {
 
     @Schema(description = "ID of the existing ASM Track delivery if already imported", example = "550e8400-e29b-41d4-a716-446655440000")
     private UUID existingDeliveryId;
-
-    @Schema(description = "Odoo backorder picking ID if a partial delivery was previously done", example = "42")
-    private Integer existingBackorderId;
 
     // ── Delivery-note (bon de livraison) fields — enterprise multi-depot ──────────
 

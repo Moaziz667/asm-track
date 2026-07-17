@@ -25,8 +25,6 @@ public class ErpPendingOrderSummaryDTO {
     private String deliveryCity;
     private BigDecimal totalAmount;
     private String currency;
-    private String state;
-    private String invoiceStatus;
     private LocalDateTime dateOrder;
     private LocalDateTime scheduledAt;
 
