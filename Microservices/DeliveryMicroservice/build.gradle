@@ -85,6 +85,21 @@ dependencies {
     testImplementation 'org.testcontainers:postgresql:1.20.4'
 }
 
+// Unit tests: fast, no external services. Excludes integration tests (*IT) so this task can run in an
+// early CI stage without a database. Integration tests get their own task/stage below.
 tasks.named('test') {
     useJUnitPlatform()
+    filter { excludeTestsMatching '*IT' }
+}
+
+// Integration tests (*IT): need a real Postgres (see AbstractPostgresIT). Run in a later CI stage that
+// provides the DB (Testcontainers locally, or a `services: postgres` side-car + IT_DB_URL in CI).
+tasks.register('integrationTest', Test) {
+    description = 'Runs integration tests (*IT) against a real Postgres.'
+    group = 'verification'
+    useJUnitPlatform()
+    filter { includeTestsMatching '*IT' }
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    shouldRunAfter('test')
 }

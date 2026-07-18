@@ -3,8 +3,8 @@ import {
 } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
-import { jwtDecode } from 'jwt-decode';
 import { safeStorage } from '@/lib/storage';
+import { extractCompanyIdFromToken } from '@/lib/tenant';
 
 // ── Single multiplexed realtime connection ─────────────────────────────────────
 // One STOMP-over-SockJS client for the whole authenticated app. Consumers (the
@@ -40,22 +40,9 @@ const RealtimeContext = createContext<RealtimeContextValue>({
   companyId: null,
 });
 
-/** Extract company UUID from the JWT access token (org_id or nested organization claim). */
+/** Reads the current access token from storage and resolves its tenant (see {@link extractCompanyIdFromToken}). */
 function extractCompanyId(): string | null {
-  try {
-    const token = safeStorage.getItem('access_token');
-    if (!token) return null;
-    const decoded = jwtDecode<{ org_id?: string; organization?: Record<string, { id?: string }> }>(token);
-    if (decoded.org_id) return decoded.org_id;
-    const orgs = decoded.organization;
-    if (orgs) {
-      const first = Object.values(orgs)[0];
-      if (first?.id) return first.id;
-    }
-    return null;
-  } catch {
-    return null;
-  }
+  return extractCompanyIdFromToken(safeStorage.getItem('access_token'));
 }
 
 const TOPICS: { sub: string; category: RealtimeCategory }[] = [

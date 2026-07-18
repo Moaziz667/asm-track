@@ -5,6 +5,7 @@ import com.asm.delivery.config.TenantIdentifierResolver;
 import com.asm.delivery.config.TenantSchema;
 import com.asm.delivery.config.TenantSchemaProvisioner;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
@@ -39,6 +40,12 @@ class FlywayMigrationsIT extends AbstractPostgresIT {
 
     @Autowired
     private DataSource dataSource;
+
+    @BeforeEach
+    void cleanSlate() {
+        // Drop any schema left behind by an interrupted run, so this test always provisions from scratch.
+        provisioner.deprovision(TENANT);
+    }
 
     @AfterEach
     void drop() {
