@@ -1,9 +1,11 @@
 package com.asm.delivery.sla;
 
 import com.asm.delivery.entity.Delivery;
+import com.asm.delivery.entity.Order;
 import com.asm.delivery.exception.AppException;
 import com.asm.delivery.repository.DeliveryRepository;
 import com.asm.delivery.repository.DeliveryStatusHistoryRepository;
+import com.asm.delivery.repository.OrderRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,6 +25,7 @@ public class SlaTimelineService {
     private final SlaStateRepository slaStateRepository;
     private final SlaStateService slaStateService;
     private final DeliveryRepository deliveryRepository;
+    private final OrderRepository orderRepository;
     private final DeliveryStatusHistoryRepository historyRepository;
     private final com.asm.delivery.web.ActorNameResolver actorNameResolver;
     private final com.asm.delivery.repository.ProofOfDeliveryRepository proofOfDeliveryRepository;
@@ -125,26 +128,52 @@ public class SlaTimelineService {
                     .toList();
         }
 
+        // Backorder / reliquat cross-link — provider-neutral.
+        //  • Odoo is BL-articulated: a backorder is another SHIPMENT on the SAME order (odooBackorderId set).
+        //  • ERPNext is SO-articulated: a reliquat is a SEPARATE order (parentOrderId set) sharing the SO
+        //    (erpExternalRef). Detect both so the "Reliquat" badge shows regardless of the ERP.
         String direction = null, linkedId = null, linkedBl = null;
-        if (d.getOdooBackorderId() != null) {
-            // This shipment IS a backorder — link back to the original shipment of the same order.
+        Order order = d.getOrder();
+        boolean isChild = d.getOdooBackorderId() != null || (order != null && order.getParentOrderId() != null);
+        if (isChild) {
             direction = "child";
-            Delivery parent = siblings(d).stream()
-                    .filter(s -> s.getOdooBackorderId() == null)
-                    .findFirst().orElse(null);
+            Delivery parent = backorderParent(d, order);
             if (parent != null) { linkedId = parent.getId().toString(); linkedBl = parent.getBlNumber(); }
         } else {
-            // This is an original shipment — surface its backorder child, if one exists.
-            Delivery child = siblings(d).stream()
-                    .filter(s -> s.getOdooBackorderId() != null)
-                    .findFirst().orElse(null);
+            Delivery child = backorderChild(d, order);
             if (child != null) { direction = "parent"; linkedId = child.getId().toString(); linkedBl = child.getBlNumber(); }
         }
         return new SlaTimelineResponse.Context(failureCode, failReason, direction, linkedId, linkedBl,
                 podComment, itemOutcomes);
     }
 
-    private List<Delivery> siblings(Delivery d) {
+    /** The original shipment this backorder/reliquat descends from (Odoo: same-order sibling; ERPNext: parent order). */
+    private Delivery backorderParent(Delivery d, Order order) {
+        if (order != null && order.getParentOrderId() != null) {   // ERPNext reliquat → the parent order's shipment
+            return deliveryRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getParentOrderId()).orElse(null);
+        }
+        return sameOrderSiblings(d).stream()                        // Odoo → the non-backorder shipment of this order
+                .filter(s -> s.getOdooBackorderId() == null)
+                .findFirst().orElse(null);
+    }
+
+    /** A backorder/reliquat descending from this original shipment, if any (Odoo sibling, else ERPNext child order). */
+    private Delivery backorderChild(Delivery d, Order order) {
+        Delivery odoo = sameOrderSiblings(d).stream()
+                .filter(s -> s.getOdooBackorderId() != null)
+                .findFirst().orElse(null);
+        if (odoo != null) return odoo;
+        if (order != null && order.getErpExternalRef() != null && !order.getErpExternalRef().isBlank()) {
+            for (Order sib : orderRepository.findByErpExternalRefOrderByCreatedAtAsc(order.getErpExternalRef())) {
+                if (sib.getId().equals(order.getId()) || sib.getParentOrderId() == null) continue;
+                Delivery childDel = deliveryRepository.findFirstByOrderIdOrderByCreatedAtDesc(sib.getId()).orElse(null);
+                if (childDel != null) return childDel;
+            }
+        }
+        return null;
+    }
+
+    private List<Delivery> sameOrderSiblings(Delivery d) {
         if (d.getOrder() == null) return List.of();
         return deliveryRepository.findAllByOrderIdWithOrder(d.getOrder().getId()).stream()
                 .filter(s -> !s.getId().equals(d.getId()))
