@@ -54,6 +54,23 @@ public class ErpSyncController {
         return ResponseEntity.ok(Map.of("success", true, "invoiceRef", invoiceRef));
     }
 
+    @GetMapping("/invoice-pdf")
+    @Operation(summary = "Download the rendered PDF of an ERP invoice")
+    public ResponseEntity<byte[]> invoicePdf(
+            @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestParam String invoiceRef) {
+
+        byte[] pdf = resolve(erpProvider).getInvoicePdf(invoiceRef);
+        if (pdf == null || pdf.length == 0) {
+            return ResponseEntity.notFound().build();
+        }
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + invoiceRef + ".pdf\"")
+                .body(pdf);
+    }
+
     @PostMapping("/full-delivery")
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(

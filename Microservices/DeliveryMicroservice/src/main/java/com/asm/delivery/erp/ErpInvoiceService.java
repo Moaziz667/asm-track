@@ -60,4 +60,23 @@ public class ErpInvoiceService {
     private static boolean isDelivered(DeliveryStatus s) {
         return s == DeliveryStatus.DELIVERED || s == DeliveryStatus.PARTIALLY_DELIVERED;
     }
+
+    /** Fetch the rendered PDF of an ERP invoice for this delivery's provider. Null/empty on failure. */
+    @Transactional(readOnly = true)
+    public byte[] getInvoicePdf(UUID deliveryId, String invoiceRef) {
+        Delivery delivery = deliveryRepository.findById(deliveryId)
+                .orElseThrow(() -> AppException.badRequest("Delivery not found"));
+        if (invoiceRef == null || invoiceRef.isBlank()) {
+            throw AppException.badRequest("Missing invoice reference.");
+        }
+        Order order = delivery.getOrder();
+        String provider = order.getSource() != null ? order.getSource().name().toLowerCase() : "odoo";
+        try {
+            byte[] pdf = feign.getInvoicePdf(provider, invoiceRef);
+            if (pdf != null && pdf.length > 0) return pdf;
+        } catch (Exception e) {
+            log.warn("getInvoicePdf delivery={} ref={} failed: {}", deliveryId, invoiceRef, e.getMessage());
+        }
+        throw AppException.badRequest("Invoice PDF unavailable — open it in the ERP.");
+    }
 }

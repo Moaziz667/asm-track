@@ -133,6 +133,11 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
         return name;
     }
 
+    @Override
+    public byte[] getInvoicePdf(String invoiceRef) {
+        return erp.downloadPdf("Sales Invoice", invoiceRef);
+    }
+
     // ── Failure = a chatter note on the Sales Order ──────────────────────────────
 
     @Override

@@ -108,6 +108,20 @@ export default function DeliveryDetailPage() {
     }
   }, [id]);
 
+  const downloadInvoicePdf = useCallback(async () => {
+    if (!invoiceRef) return;
+    try {
+      const res = await api.get(`/api/admin/deliveries/${id}/invoice-pdf`, { params: { ref: invoiceRef }, responseType: 'blob' });
+      const url = URL.createObjectURL(res.data as Blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = `${invoiceRef}.pdf`;
+      document.body.appendChild(a); a.click(); a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      showErrorToast("PDF indisponible — ouvrez la facture dans l'ERP.");
+    }
+  }, [id, invoiceRef]);
+
   usePageBreadcrumb(
     delivery
       ? [{ label: t.pages.deliveries?.title || 'Suivi des livraisons', href: '/deliveries' }, { label: (delivery.erpOrderId ?? delivery.erpExternalRef ?? delivery.orderRef ?? id.slice(0, 8)).toUpperCase() }]
@@ -613,9 +627,10 @@ export default function DeliveryDetailPage() {
           <div className="flex flex-col gap-3 text-sm">
             <p className="text-[var(--text-secondary)]">La facture a été créée et validée dans l'ERP :</p>
             <div className="px-3 py-2 rounded-sm bg-[var(--app-bg)] border border-[var(--border)] font-mono text-[var(--text-primary)]">{invoiceRef}</div>
-            <p className="text-2xs text-[var(--text-muted)]">Vous pouvez la consulter ou la télécharger depuis l'ERP.</p>
-            <div className="flex justify-end">
+            <p className="text-2xs text-[var(--text-muted)]">Générée par l'ERP (TVA, comptes, montants).</p>
+            <div className="flex justify-end gap-2">
               <button type="button" onClick={() => setInvoiceOpen(false)} className="h-8 px-3 rounded-sm border border-[var(--border)] text-xs font-semibold hover:bg-[var(--hover-bg)]">Fermer</button>
+              <button type="button" onClick={downloadInvoicePdf} className="h-8 px-3 rounded-sm bg-[var(--text-primary)] text-[var(--surface)] text-xs font-semibold hover:opacity-90 inline-flex items-center gap-1.5"><IconReceipt size={13} /> Télécharger PDF</button>
             </div>
           </div>
         ) : (

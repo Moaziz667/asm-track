@@ -65,6 +65,17 @@ public class AdminDeliveryController {
         return ResponseEntity.ok(java.util.Map.of("invoiceRef", erpInvoiceService.createInvoice(id)));
     }
 
+    @GetMapping("/{id}/invoice-pdf")
+    @Operation(summary = "Download the rendered PDF of an ERP invoice for this delivery")
+    public ResponseEntity<byte[]> invoicePdf(@PathVariable UUID id, @RequestParam("ref") String invoiceRef) {
+        byte[] pdf = erpInvoiceService.getInvoicePdf(id, invoiceRef);
+        return ResponseEntity.ok()
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"" + invoiceRef + ".pdf\"")
+                .body(pdf);
+    }
+
     @PostMapping("/re-geocode-missing")
     @Operation(summary = "Re-run auto-geocoding for all unlocated orders",
             description = "Queues every order with no coordinates for geocoding (full address, then city fallback). Returns how many were queued.")

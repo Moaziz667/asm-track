@@ -87,4 +87,12 @@ public interface ErpSyncPort {
     default String createInvoice(String erpOrderId, String pickingRef) {
         return null;
     }
+
+    /**
+     * Fetch the rendered PDF of an ERP invoice by its reference (e.g. "ACC-SINV-2026-00007"). Synchronous,
+     * admin-triggered download. Returns the raw PDF bytes or {@code null} on failure/unsupported.
+     */
+    default byte[] getInvoicePdf(String invoiceRef) {
+        return null;
+    }
 }

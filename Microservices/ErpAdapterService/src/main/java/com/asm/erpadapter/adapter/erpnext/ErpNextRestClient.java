@@ -268,6 +268,29 @@ public class ErpNextRestClient {
         }
     }
 
+    /**
+     * Render a document to PDF via Frappe's {@code print_format.download_pdf} (default print format).
+     * Returns the raw PDF bytes, or {@code null} on failure. Token-authenticated like every other call.
+     */
+    public byte[] downloadPdf(String doctype, String name) {
+        if (doctype == null || name == null || name.isBlank()) return null;
+        String base = requireBase();
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl(base)
+                    .path("/api/method/frappe.utils.print_format.download_pdf")
+                    .queryParam("doctype", doctype)
+                    .queryParam("name", name)
+                    .build().encode().toUri();
+            return restClient.get().uri(uri)
+                    .header("Authorization", authToken())
+                    .header("Accept", "application/pdf")
+                    .retrieve().body(byte[].class);
+        } catch (Exception e) {
+            log.warn("ERPNext downloadPdf {}/{} failed: {}", doctype, name, err(e));
+            return null;
+        }
+    }
+
     private String requireBase() {
         String base = baseUrl();
         if (base.isBlank()) throw new ErpAdapterException("ERPNext URL not configured in Settings", 400);
