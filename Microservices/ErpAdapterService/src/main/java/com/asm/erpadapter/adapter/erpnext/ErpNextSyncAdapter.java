@@ -295,10 +295,15 @@ public class ErpNextSyncAdapter implements ErpSyncPort {
     //  Helpers
     // ═══════════════════════════════════════════════════════════════════════════
 
-    /** Find the submitted Delivery Note for a Sales Order via the child {@code against_sales_order} link. */
+    /**
+     * Find the submitted <b>forward</b> Delivery Note for a Sales Order via the child
+     * {@code against_sales_order} link. Excludes return DNs ({@code is_return=1}) so POD / invoicing /
+     * return-against always target the actual outbound shipment, never a prior credit-side return.
+     */
     private String findSubmittedDn(String so) {
         List<Map<String, Object>> rows = erp.getList("Delivery Note", List.of("name"),
-                List.of(List.of("Delivery Note Item", "against_sales_order", "=", so), List.of("docstatus", "=", 1)),
+                List.of(List.of("Delivery Note Item", "against_sales_order", "=", so),
+                        List.of("docstatus", "=", 1), List.of("is_return", "=", 0)),
                 1, "creation desc");
         return rows.isEmpty() ? null : asString(rows.get(0).get("name"));
     }
