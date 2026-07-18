@@ -965,6 +965,7 @@ public class DispatchService {
             out.add(AdminDeliveryDetailResponse.RelatedShipment.builder()
                     .deliveryId(del.getId())
                     .blNumber(o.getBlNumber())
+                    .erpOrderId(o.getErpOrderId())          // fallback ref when no BL yet (ERPNext reliquat)
                     .status(del.getStatus().name())
                     .current(del.getId().equals(currentDeliveryId))
                     .build());

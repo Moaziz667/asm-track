@@ -203,6 +203,8 @@ public class AdminDeliveryDetailResponse {
     public static class RelatedShipment {
         private UUID deliveryId;
         private String blNumber;
+        @Schema(description = "ERP order ref — shown when there's no BL yet (e.g. an ERPNext reliquat: S00018#R2)")
+        private String erpOrderId;
         private String status;
         @Schema(description = "True for the delivery currently being viewed")
         private boolean current;

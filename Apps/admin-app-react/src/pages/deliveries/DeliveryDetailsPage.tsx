@@ -399,7 +399,7 @@ export default function DeliveryDetailPage() {
                     {(delivery.relatedShipments ?? []).map((s) => (
                       s.current ? (
                         <div key={s.deliveryId} className="flex items-center justify-between py-2 border-b border-[var(--border)]/30">
-                          <span className="text-xs font-semibold text-[var(--text-primary)] font-mono">{s.blNumber || '—'}</span>
+                          <span className="text-xs font-semibold text-[var(--text-primary)] font-mono">{s.blNumber || s.erpOrderId || '—'}</span>
                           <div className="flex items-center gap-2">
                             <StatusBadge status={s.status} size="sm" />
                             <span className="text-2xs text-[var(--text-muted)]">{t.deliveryPage.relatedShipmentCurrent}</span>
@@ -407,7 +407,7 @@ export default function DeliveryDetailPage() {
                         </div>
                       ) : (
                         <Link key={s.deliveryId} to={`/deliveries/${s.deliveryId}`} className="flex items-center justify-between py-2 border-b border-[var(--border)]/30 hover:bg-[var(--hover-bg)] rounded-sm px-1 -mx-1">
-                          <span className="text-xs font-semibold text-[var(--brand)] font-mono">{s.blNumber || '—'}</span>
+                          <span className="text-xs font-semibold text-[var(--brand)] font-mono">{s.blNumber || s.erpOrderId || '—'}</span>
                           <StatusBadge status={s.status} size="sm" />
                         </Link>
                       )
