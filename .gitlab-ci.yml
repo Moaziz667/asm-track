@@ -1,0 +1,75 @@
+# ASM Track — CI pipeline (self-hosted GitLab, git.asmtechtn.com).
+#
+# Jobs run on the Docker-executor runner (tag: docker). One `test` stage, jobs run in parallel.
+#
+# Backend integration tests (TenantIsolationIT, FlywayMigrationsIT) need a real Postgres. We attach one
+# with `services:` (a GitLab-managed side-car container) and point the tests at it via IT_DB_URL — the
+# same env switch AbstractPostgresIT reads. No Docker-in-Docker required: the tests connect to the
+# service over the job network, they don't spawn their own container.
+
+stages:
+  - test
+
+# ── Backend: delivery-service (unit + integration) ───────────────────────────
+test-backend-delivery:
+  stage: test
+  image: gradle:8.5-jdk17
+  tags: [docker]
+  services:
+    - name: postgres:16
+      alias: postgres
+  variables:
+    # Side-car Postgres credentials.
+    POSTGRES_DB: delivery_test
+    POSTGRES_USER: test
+    POSTGRES_PASSWORD: test
+    # Point AbstractPostgresIT at the side-car instead of Testcontainers.
+    IT_DB_URL: "jdbc:postgresql://postgres:5432/delivery_test"
+    IT_DB_USER: test
+    IT_DB_PASS: test
+    # Keep Gradle's cache inside the project dir so it can be cached between runs.
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  cache:
+    key: gradle-delivery
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+  script:
+    - cd Microservices/DeliveryMicroservice
+    - gradle test --no-daemon
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/DeliveryMicroservice/build/test-results/test/*.xml
+    paths:
+      - Microservices/DeliveryMicroservice/build/reports/tests/
+    expire_in: 1 week
+
+# ── Frontend: admin-app-react ────────────────────────────────────────────────
+# `npm ci` reinstalls from package-lock so the native (rolldown) binding matches the Linux runner —
+# do NOT reuse a node_modules built on another OS.
+typecheck-admin:
+  stage: test
+  image: node:20
+  tags: [docker]
+  cache:
+    key: npm-admin
+    paths:
+      - Apps/admin-app-react/.npm
+  script:
+    - cd Apps/admin-app-react
+    - npm ci --cache .npm --prefer-offline
+    - npm run typecheck
+
+test-admin:
+  stage: test
+  image: node:20
+  tags: [docker]
+  cache:
+    key: npm-admin
+    paths:
+      - Apps/admin-app-react/.npm
+  script:
+    - cd Apps/admin-app-react
+    - npm ci --cache .npm --prefer-offline
+    - npm test

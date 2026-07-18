@@ -82,6 +82,10 @@ delivery:
   service:
     url: ${DELIVERY_SERVICE_URL:http://delivery-service:8082}
 
+driver:
+  service:
+    url: ${DRIVER_SERVICE_URL:http://driver-service:8086}
+
 management:
   endpoints:
     web:

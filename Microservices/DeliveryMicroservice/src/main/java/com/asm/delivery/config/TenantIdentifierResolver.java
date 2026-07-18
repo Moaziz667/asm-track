@@ -13,12 +13,12 @@ import java.util.UUID;
  * Tells Hibernate which tenant (schema) the current unit of work belongs to, by reading the
  * {@link TenantContext} ThreadLocal set from the gateway-injected X-Company-Id header.
  *
- * <p>When no tenant is resolved (public endpoints, actuator, bootstrap, legacy single-tenant data)
- * it falls back to {@link TenantSchema#DEFAULT} = {@code public}. Hibernate forbids a null identifier.
+ * <p>When no tenant is resolved (actuator, bootstrap, legacy single-tenant data) it falls back to
+ * {@link TenantSchema#DEFAULT} = {@code public}. Hibernate forbids a null identifier.
  *
- * <p>TODO(phase-4): public tracking endpoints legitimately have no X-Company-Id yet must reach a
- * tenant's data. Resolve their tenant from the requested resource (delivery → company) rather than
- * relying on this {@code public} fallback. Tracked in MULTITENANT_PLAN.md §4.
+ * <p>Public tracking endpoints (no X-Company-Id) are handled upstream by
+ * {@link com.asm.delivery.security.PublicTrackingTenantFilter}, which resolves the tenant from the
+ * deliveryId in the path and sets the TenantContext before the request reaches JPA.
  */
 @Component
 public class TenantIdentifierResolver

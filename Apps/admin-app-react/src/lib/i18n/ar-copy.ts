@@ -1340,6 +1340,17 @@ export const AR_COPY = {
     forceWarning: 'فرض التعيين (تجاهل التحذير)',
     cancelBtn: 'إلغاء',
     confirmBtn: 'تأكيد',
+    modalTitle: 'إعادة التعيين',
+    tabDriver: 'إلى سائق',
+    tabRoute: 'إلى رحلة',
+    unnamedDriver: 'بدون اسم',
+    stopCountBadge: '{count} محطة{s}',
+    orderField: 'ترتيب المحطة',
+    startWindow: 'بداية النافذة',
+    endWindow: 'نهاية النافذة',
+    noteRequired: 'ملاحظة (إلزامية إذا تم الاستلام)',
+    capacityInfo: 'السعة المستهدفة: {load} / {capacity} كغ ({pct}%)',
+    forceOverride: 'الفرض رغم التجاوز',
   },
 
   // ── Delivery Detail Page ──────────────────────────────────────────────────

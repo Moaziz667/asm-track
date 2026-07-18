@@ -80,11 +80,11 @@ public class SecurityConfig {
                             
                             boolean hasValidAud = aud != null && (aud.contains("driver-app") || aud.contains("admin-web")
                                     || aud.contains("erp-adapter") || aud.contains("delivery-service")
-                                    || aud.contains("driver-service"));
-                                    
+                                    || aud.contains("driver-service") || aud.contains("app-backend"));
+
                             boolean hasValidAzp = azp != null && (azp.equals("driver-app") || azp.equals("admin-web")
                                     || azp.equals("erp-adapter") || azp.equals("delivery-service")
-                                    || azp.equals("driver-service"));
+                                    || azp.equals("driver-service") || azp.equals("app-backend"));
 
                             if (hasValidAud || hasValidAzp) {
                                 return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();

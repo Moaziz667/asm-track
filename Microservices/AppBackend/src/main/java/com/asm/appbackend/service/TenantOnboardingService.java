@@ -85,7 +85,7 @@ public class TenantOnboardingService {
 
         } catch (Exception e) {
             log.error("Onboarding failed for {} — rolling back ({} provisioned)", alias, provisioned, e);
-            rollback(companyId, orgId, provisioned);
+            rollback(companyId, orgId, provisioned, adminUserId);
             throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR,
                     "Onboarding failed and was rolled back: " + e.getMessage());
         }
@@ -117,12 +117,18 @@ public class TenantOnboardingService {
         }
     }
 
-    private void rollback(UUID companyId, String orgId, List<String> provisioned) {
+    private void rollback(UUID companyId, String orgId, List<String> provisioned, String adminUserId) {
         if (provisioned.contains("driver")) deprovisionRemote(driverUrl, companyId);
         if (provisioned.contains("delivery")) deprovisionRemote(deliveryUrl, companyId);
         if (provisioned.contains("app-backend")) {
             try { localProvisioner.deprovision(companyId); }
             catch (Exception e) { log.error("Rollback local deprovision failed: {}", e.getMessage()); }
+        }
+        // Delete the admin user too (idempotent no-op if it was never created) so a failed onboarding
+        // leaves no orphan whose email would then block a retry.
+        if (adminUserId != null) {
+            try { kc.deleteUser(adminUserId); }
+            catch (Exception e) { log.error("Rollback delete user {} failed: {}", adminUserId, e.getMessage()); }
         }
         kc.deleteOrganization(orgId);
     }

@@ -543,10 +543,11 @@ public class KeycloakAdminClient {
     /** Adds a Keycloak user (by its KC user id) as a member of an organization. */
     public void addOrganizationMember(String orgId, String kcUserId) {
         try {
+            // KC's add-member endpoint takes the raw user id as the request body (as kcadm does with -b).
             restClient.post()
                     .uri(getAdminUrl() + "/organizations/" + orgId + "/members")
                     .header("Authorization", "Bearer " + getServiceToken())
-                    .contentType(MediaType.TEXT_PLAIN)
+                    .contentType(MediaType.APPLICATION_JSON)
                     .body(kcUserId)
                     .retrieve()
                     .toBodilessEntity();
