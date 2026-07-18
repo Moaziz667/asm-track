@@ -188,8 +188,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                     .warehouseCode(wh)
                     .warehouseName(wh)                     // ERPNext warehouse name == its code (natural key)
                     .ready(true)
-                    .backorder(isBackorder)
-                    .originBl(isBackorder ? so : null)
+                    .backorder(isBackorder)   // reliquat badge; no originBl — the row already shows the SO (self-reference)
                     .scheduledAt(parseDateTime(r.get("delivery_date"), null))
                     .dateOrder(parseDateTime(r.get("transaction_date"), null))
                     .build());
