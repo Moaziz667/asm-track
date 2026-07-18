@@ -159,7 +159,7 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
 
         List<Map<String, Object>> rows = erp.getList("Sales Order",
                 List.of("name", "customer_name", "contact_mobile", "transaction_date", "delivery_date",
-                        "grand_total", "currency", "set_warehouse", "total_qty",
+                        "grand_total", "currency", "set_warehouse", "total_qty", "per_delivered",
                         "shipping_address_name", "customer_address"),
                 filters, limit, "delivery_date asc");
 
@@ -173,6 +173,9 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
             if (so == null) continue;
             String wh = asString(r.get("set_warehouse"));
             String[] addr = addrByName.get(firstNonBlank(asString(r.get("shipping_address_name")), asString(r.get("customer_address"))));
+            // A partially-delivered SO (per_delivered > 0) re-appearing here IS the reliquat/backorder.
+            Double perDelivered = asDouble(r.get("per_delivered"));
+            boolean isBackorder = perDelivered != null && perDelivered > 0;
             result.add(ErpPendingOrderSummaryDTO.builder()
                     .erpOrderId(so)                        // import identity = the Sales Order (no BL until delivery)
                     .saleOrderRef(so)
@@ -185,6 +188,8 @@ public class ErpNextLookupAdapter implements ErpLookupPort {
                     .warehouseCode(wh)
                     .warehouseName(wh)                     // ERPNext warehouse name == its code (natural key)
                     .ready(true)
+                    .backorder(isBackorder)
+                    .originBl(isBackorder ? so : null)
                     .scheduledAt(parseDateTime(r.get("delivery_date"), null))
                     .dateOrder(parseDateTime(r.get("transaction_date"), null))
                     .build());
