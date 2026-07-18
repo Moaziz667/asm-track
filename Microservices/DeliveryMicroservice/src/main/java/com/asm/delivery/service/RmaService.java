@@ -186,6 +186,14 @@ public class RmaService {
             throw AppException.badRequest("RMA_REASON_REQUIRED",
                     "Un motif est obligatoire pour rejeter ou annuler un retour.");
         }
+        // Marking RECEIVED by hand is an OVERRIDE of the physical collection (goods handed in at the depot
+        // instead of driver-collected). The normal path reaches RECEIVED automatically when the collection
+        // delivery completes (onReturnCollected, which passes its own note). So a blank note here means a
+        // dispatcher clicked it manually — require a justification, exactly like reject/cancel.
+        if (target == RmaStatus.RECEIVED && (note == null || note.isBlank())) {
+            throw AppException.badRequest("RMA_REASON_REQUIRED",
+                    "Un motif est obligatoire pour marquer un retour reçu manuellement (sans collecte).");
+        }
 
         rma.setStatus(target);
         if (note != null && !note.isBlank()) rma.setResolutionNote(note.trim());
@@ -193,8 +201,13 @@ public class RmaService {
         // ADR-033 — approving a return auto-creates the reverse-pickup delivery (client→depot), so the
         // collection lands in the dispatch pool as a routable, trackable leg instead of a manual step.
         if (target == RmaStatus.APPROVED) createReturnPickup(rma);
-        // Dropping the return must not leave a phantom collection in the pool: cancel its pending pickup.
-        if (target == RmaStatus.CANCELLED || target == RmaStatus.REJECTED) cancelReturnPickup(rma);
+        // Reaching RECEIVED (goods are back) or dropping the return must not leave a phantom collection in
+        // the dispatch pool: cancel any still-pending pickup. No-op on the normal driver path (the pickup is
+        // already DELIVERED); on a manual RECEIVED override it removes the now-pointless collection so the
+        // driver never sees a leg for goods that were handed in at the depot.
+        if (target == RmaStatus.RECEIVED || target == RmaStatus.CANCELLED || target == RmaStatus.REJECTED) {
+            cancelReturnPickup(rma);
+        }
         if (target == RmaStatus.RESTOCKED) {
             rma.setRestockedAt(LocalDateTime.now());
             // D2 — Mark the reverse-move sync as pending BEFORE enqueueing, so the async ERP result
@@ -322,7 +335,9 @@ public class RmaService {
                     || s == com.asm.delivery.entity.DeliveryStatus.SCHEDULED) {
                 pickup.setStatus(com.asm.delivery.entity.DeliveryStatus.CANCELLED);
                 pickup.setCancelledAt(LocalDateTime.now());
-                pickup.setCancelReason("Retour " + rma.getStatus().name().toLowerCase());
+                pickup.setCancelReason(rma.getStatus() == RmaStatus.RECEIVED
+                        ? "Retour reçu manuellement au dépôt — collecte non nécessaire"
+                        : "Retour " + rma.getStatus().name().toLowerCase());
                 deliveryRepository.save(pickup);
                 log.info("ADR-033 return pickup {} cancelled (RMA {} {})", pickup.getId(), rma.getId(), rma.getStatus());
             } else if (s != com.asm.delivery.entity.DeliveryStatus.CANCELLED

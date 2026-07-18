@@ -131,10 +131,11 @@ export default function ReturnsPage() {
     return () => clearTimeout(id);
   }, [query]);
 
-  // Entry point from the row actions. Reject/cancel need a reason → open the modal; other
-  // transitions run immediately.
+  // Entry point from the row actions. Reject/cancel AND a manual "received" (an override of the physical
+  // collection — goods handed in at the depot) require a reason → open the modal; other transitions run
+  // immediately. RECEIVED normally happens automatically when the collection delivery completes.
   const transition = (r: Rma, target: RmaStatus) => {
-    if (target === 'REJECTED' || target === 'CANCELLED') {
+    if (target === 'REJECTED' || target === 'CANCELLED' || target === 'RECEIVED') {
       setReasonText('');
       setReasonModal({ rma: r, target });
       return;
