@@ -55,9 +55,14 @@ spring:
     password: ${DB_PASS:driver}
   jpa:
     hibernate:
-      ddl-auto: update
+      ddl-auto: none
     show-sql: false
-    defer-datasource-initialization: true
+
+  # Flyway owns the schema now (moved off ddl-auto:update so tenant schemas can be
+  # provisioned identically to delivery/appbackend). Baseline = V1__baseline.sql.
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
 
   # Driver avatar uploads (phone photos can exceed the 1MB default).
   servlet:
@@ -65,10 +70,10 @@ spring:
       max-file-size: 8MB
       max-request-size: 10MB
 
+  # Default driver seed disabled: multi-tenant, seed manually per tenant.
   sql:
     init:
-      mode: always
-      continue-on-error: true
+      mode: never
 
 minio:
   # Internal Docker URL for the client; PUBLIC_URL is what the browser/app loads avatars from.

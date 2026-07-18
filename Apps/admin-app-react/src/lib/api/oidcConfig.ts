@@ -75,7 +75,7 @@ export const oidcConfig: AuthProviderProps & { useRefreshToken?: boolean } = {
   redirect_uri: REDIRECT_URI,
   post_logout_redirect_uri: POST_LOGOUT_URI,
   response_type: 'code',
-  scope: 'openid profile email',
+  scope: 'openid profile email organization',
 
   // Render the Keycloak login in the app's language (FR/EN/AR) and seed KEYCLOAK_LOCALE.
   extraQueryParams: { ui_locales: appLocale() },

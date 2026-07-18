@@ -55,8 +55,11 @@ public class ErpLookupService {
 
     private static final long CACHE_TTL_MILLIS = Duration.ofMinutes(5).toMillis();
 
-    // Single-tenant: one instance = one ERP/company, so the lookup caches are global (no per-company key).
-    private static final String CACHE_SCOPE = "global";
+    // Multi-tenant: cache keys are scoped per company to prevent cross-tenant data leaks.
+    private String cacheScope() {
+        UUID companyId = com.asm.delivery.security.TenantContext.get();
+        return companyId != null ? companyId.toString() : "global";
+    }
 
     /** A delivery attempt is finished (no longer blocking a reliquat) in these states. */
     private static final List<DeliveryStatus> TERMINAL_DELIVERY_STATUSES = List.of(
@@ -65,7 +68,7 @@ public class ErpLookupService {
 
     @Transactional(readOnly = true)
     public List<ErpClientDTO> searchClients(String search, int limit) {
-        String cacheKey = CACHE_SCOPE + "-clients-" + search + "-" + limit;
+        String cacheKey = cacheScope() + "-clients-" + search + "-" + limit;
         CacheEntry<List<ErpClientDTO>> cached = clientCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -76,7 +79,7 @@ public class ErpLookupService {
 
     @Transactional(readOnly = true)
     public List<ErpProductDTO> searchProducts(String search, int limit) {
-        String cacheKey = CACHE_SCOPE + "-products-" + search + "-" + limit;
+        String cacheKey = cacheScope() + "-products-" + search + "-" + limit;
         CacheEntry<List<ErpProductDTO>> cached = productCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
@@ -87,7 +90,7 @@ public class ErpLookupService {
 
     @Transactional(readOnly = true)
     public List<ErpPendingOrderSummaryDTO> getPendingOrders(int limit, boolean forceRefresh) {
-        String cacheKey = CACHE_SCOPE + "-pending-" + limit;
+        String cacheKey = cacheScope() + "-pending-" + limit;
         if (forceRefresh) pendingOrderCache.remove(cacheKey);
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();

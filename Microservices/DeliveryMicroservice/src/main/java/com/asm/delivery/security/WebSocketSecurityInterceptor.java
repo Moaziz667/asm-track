@@ -15,6 +15,7 @@ import org.springframework.security.oauth2.jwt.JwtDecoder;
 
 import java.security.Principal;
 import java.util.List;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Slf4j
@@ -42,11 +43,22 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                 Jwt jwt = jwtDecoder.decode(token);
                 var auth = jwtAuthConverter.convert(jwt);
                 accessor.setUser(auth);
+
+                // Set tenant context from org_id claim
+                String orgId = jwt.getClaimAsString("org_id");
+                if (orgId != null) {
+                    TenantContext.set(UUID.fromString(orgId));
+                    log.debug("WS TenantContext set: companyId={}", orgId);
+                }
+
                 log.info("WS Connection authenticated for user: {}", auth.getName());
             } catch (Exception e) {
                 log.warn("WS Connection authentication failed: {}", e.getMessage());
                 throw new MessageDeliveryException("Unauthorized: " + e.getMessage());
             }
+        } else if (StompCommand.DISCONNECT.equals(accessor.getCommand())) {
+            TenantContext.clear();
+            log.debug("WS TenantContext cleared on disconnect");
         } else if (StompCommand.SUBSCRIBE.equals(accessor.getCommand())) {
             String dest = accessor.getDestination();
             if (dest == null) {
@@ -66,15 +78,50 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
 
             UserPrincipal user = (UserPrincipal) auth.getPrincipal();
 
-            if (dest.startsWith("/topic/admin.")) {
+            // Validate tenant-scoped topics: /topic/company/{companyId}/...
+            if (dest.startsWith("/topic/company/")) {
+                // Extract companyId from /topic/company/{companyId}/...
+                String remainder = dest.substring("/topic/company/".length());
+                int slashIdx = remainder.indexOf('/');
+                if (slashIdx < 0) {
+                    log.warn("WS Subscription rejected: Invalid tenant topic format {}", dest);
+                    throw new MessageDeliveryException("Access denied: Invalid topic format");
+                }
+                String topicCompanyId = remainder.substring(0, slashIdx);
+
+                // Verify the companyId matches the user's org_id
+                if (user.getCompanyId() == null || !user.getCompanyId().toString().equals(topicCompanyId)) {
+                    log.warn("WS Subscription rejected: User {} company {} attempted subscribing to topic {}",
+                            user.getUserId(), user.getCompanyId(), dest);
+                    throw new MessageDeliveryException("Access denied: Topic company mismatch");
+                }
+
+                String subPath = remainder.substring(slashIdx + 1);
+                if (subPath.startsWith("admin.")) {
+                    if (!List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
+                        log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to admin topic {}",
+                                user.getUserId(), user.getRole(), dest);
+                        throw new MessageDeliveryException("Access denied: Admin permissions required");
+                    }
+                } else if (subPath.startsWith("driver.")) {
+                    String topicDriverId = subPath.substring("driver.".length());
+                    if (!user.getUserId().equals(topicDriverId) && !List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
+                        log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to driver topic {}",
+                                user.getUserId(), user.getRole(), dest);
+                        throw new MessageDeliveryException("Access denied: Subscription resource mismatch");
+                    }
+                }
+            } else if (dest.startsWith("/topic/admin.")) {
                 if (!List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
-                    log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to admin topic {}", user.getUserId(), user.getRole(), dest);
+                    log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to admin topic {}",
+                            user.getUserId(), user.getRole(), dest);
                     throw new MessageDeliveryException("Access denied: Admin permissions required");
                 }
             } else if (dest.startsWith("/topic/driver.")) {
                 String topicDriverId = dest.substring("/topic/driver.".length());
                 if (!user.getUserId().equals(topicDriverId) && !List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
-                    log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to driver topic {}", user.getUserId(), user.getRole(), dest);
+                    log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to driver topic {}",
+                            user.getUserId(), user.getRole(), dest);
                     throw new MessageDeliveryException("Access denied: Subscription resource mismatch");
                 }
             } else {

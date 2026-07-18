@@ -57,21 +57,32 @@ public class MinioStorageService {
 
     public String uploadFile(byte[] data, String contentType, String path) {
         long start = System.currentTimeMillis();
+        String tenantPath = tenantPrefix(path);
         try {
             minioClient.putObject(
                     PutObjectArgs.builder()
                             .bucket(minioConfig.getBucket())
-                            .object(path)
+                            .object(tenantPath)
                             .stream(new ByteArrayInputStream(data), data.length, -1)
                             .contentType(contentType)
                             .build());
 
-            String url = getPublicUrl(path);
-            log.info("Uploaded {} ({} bytes) in {}ms", path, data.length, System.currentTimeMillis() - start);
+            String url = getPublicUrl(tenantPath);
+            log.info("Uploaded {} ({} bytes) in {}ms", tenantPath, data.length, System.currentTimeMillis() - start);
             return url;
         } catch (Exception e) {
-            throw new StorageException(path, e);
+            throw new StorageException(tenantPath, e);
         }
+    }
+
+    /**
+     * Prepends the tenant company ID prefix to the object path.
+     * e.g. "pod-files/deliveries/123/photo.jpg" → "{companyId}/pod-files/deliveries/123/photo.jpg"
+     */
+    private String tenantPrefix(String path) {
+        java.util.UUID companyId = com.asm.delivery.security.TenantContext.get();
+        if (companyId == null) return path;
+        return companyId + "/" + path;
     }
 
     public String uploadBase64(String base64, String path) {

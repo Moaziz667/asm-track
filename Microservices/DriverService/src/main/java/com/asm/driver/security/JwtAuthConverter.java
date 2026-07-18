@@ -41,8 +41,29 @@ public class JwtAuthConverter implements Converter<Jwt, AbstractAuthenticationTo
         String appUserId = jwt.getClaimAsString("app_user_id");
         String principalId = appUserId != null ? appUserId : jwt.getSubject();
 
-        UserPrincipal principal = new UserPrincipal(principalId, dominantRole, jwt.getClaimAsString("name"));
+        java.util.UUID companyId = extractCompanyId(jwt);
+
+        UserPrincipal principal = new UserPrincipal(principalId, dominantRole, jwt.getClaimAsString("name"), companyId);
         return new UsernamePasswordAuthenticationToken(principal, null, authorities);
+    }
+
+    @SuppressWarnings("unchecked")
+    private java.util.UUID extractCompanyId(Jwt jwt) {
+        String orgId = jwt.getClaimAsString("org_id");
+        if (orgId != null) {
+            try { return java.util.UUID.fromString(orgId); } catch (IllegalArgumentException ignored) {}
+        }
+        Map<String, Object> orgs = jwt.getClaim("organization");
+        if (orgs != null && !orgs.isEmpty()) {
+            Object first = orgs.values().iterator().next();
+            if (first instanceof Map) {
+                Object id = ((Map<?, ?>) first).get("id");
+                if (id != null) {
+                    try { return java.util.UUID.fromString(id.toString()); } catch (IllegalArgumentException ignored) {}
+                }
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

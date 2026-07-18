@@ -32,12 +32,14 @@ public class OutboxProcessor {
     private final EventPublisher eventPublisher;
     private final com.asm.delivery.repository.OrderRepository orderRepo;
     private final com.asm.delivery.repository.RmaRepository rmaRepo;
+    private final com.asm.delivery.config.TenantIterator tenantIterator;
 
     public OutboxProcessor(OutboxRepository outboxRepo, ErpSyncService erpSyncService,
                            ObjectMapper objectMapper, DeliveryRepository deliveryRepo,
                            TransportPort transportPort, EventPublisher eventPublisher,
                            com.asm.delivery.repository.OrderRepository orderRepo,
-                           com.asm.delivery.repository.RmaRepository rmaRepo) {
+                           com.asm.delivery.repository.RmaRepository rmaRepo,
+                           com.asm.delivery.config.TenantIterator tenantIterator) {
         this.outboxRepo = outboxRepo;
         this.erpSyncService = erpSyncService;
         this.objectMapper = objectMapper;
@@ -46,10 +48,15 @@ public class OutboxProcessor {
         this.eventPublisher = eventPublisher;
         this.orderRepo = orderRepo;
         this.rmaRepo = rmaRepo;
+        this.tenantIterator = tenantIterator;
     }
 
     @Scheduled(fixedDelay = 20000)
     public void processOutbox() {
+        tenantIterator.forEachActive(companyId -> processOutboxForTenant());
+    }
+
+    private void processOutboxForTenant() {
         // Recover any events stuck in PROCESSING due to a previous container crash
         int recovered = outboxRepo.recoverStuckEvents(LocalDateTime.now().minusMinutes(5));
         if (recovered > 0) log.warn("Recovered {} stuck PROCESSING events", recovered);

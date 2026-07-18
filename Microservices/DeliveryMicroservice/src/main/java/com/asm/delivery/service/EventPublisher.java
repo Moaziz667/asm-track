@@ -10,6 +10,7 @@ import com.asm.delivery.event.CloudEventWrapper;
 import com.asm.delivery.event.DeliveryEventPayload;
 import com.asm.delivery.event.HandoffEventPayload;
 import com.asm.delivery.event.RouteEventPayload;
+import com.asm.delivery.security.TenantContext;
 import com.asm.delivery.transport.TransportPort;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -37,6 +38,20 @@ public class EventPublisher {
     private com.asm.delivery.repository.RouteStopRepository routeStopRepository;
 
     // ── Helpers ───────────────────────────────────────────────────────────────
+
+    private UUID getCompanyId() {
+        return TenantContext.get();
+    }
+
+    /** Returns tenant-scoped topic: /topic/company/{companyId}/{subtopic} or fallback for public/driver topics. */
+    private String tenantTopic(String subtopic) {
+        UUID companyId = getCompanyId();
+        if (companyId != null) {
+            return "/topic/company/" + companyId + "/" + subtopic;
+        }
+        // Fallback for legacy topics without tenant context
+        return "/topic/" + subtopic;
+    }
 
     private String getDriverName(UUID driverId) {
         if (driverId == null) return null;
@@ -113,7 +128,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+        notificationGateway.broadcast(tenantTopic("admin.deliveries"), envelope);
     }
 
     private void sendRoute(String eventType, Object payload) {
@@ -122,7 +137,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        notificationGateway.broadcast("/topic/admin.routes", envelope);
+        notificationGateway.broadcast(tenantTopic("admin.routes"), envelope);
     }
 
     private void sendErp(String eventType, Object payload) {
@@ -131,7 +146,7 @@ public class EventPublisher {
             .type(eventType)
             .data(payload)
             .build();
-        notificationGateway.broadcast("/topic/admin.erp", envelope);
+        notificationGateway.broadcast(tenantTopic("admin.erp"), envelope);
     }
 
     /** Push a real-time event to a single driver's personal STOMP topic. */
@@ -171,7 +186,7 @@ public class EventPublisher {
             log.info("EVENT handoff.requested handoffId={} from={} to={}", h.getId(), h.getFromDriverId(), h.getToDriverId());
             sendDriver(h.getToDriverId(), "handoff.incoming", p);
             sendDriver(h.getFromDriverId(), "handoff.outgoing", p);
-            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast(tenantTopic("admin.routes"), CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.requested").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -209,7 +224,7 @@ public class EventPublisher {
             log.info("EVENT handoff.confirmed handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
             sendDriver(h.getToDriverId(), "handoff.confirmed", p);
             sendDriver(h.getFromDriverId(), "handoff.confirmed", p);
-            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast(tenantTopic("admin.routes"), CloudEventWrapper.builder()
                 .source("/delivery-service").type("delivery.handoff_confirmed").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -236,7 +251,7 @@ public class EventPublisher {
             log.info("EVENT handoff.cancelled handoffId={} reason={}", h.getId(), h.getReason());
             sendDriver(h.getToDriverId(), "handoff.cancelled", p);
             sendDriver(h.getFromDriverId(), "handoff.cancelled", p);
-            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast(tenantTopic("admin.routes"), CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.cancelled").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -262,7 +277,7 @@ public class EventPublisher {
         final HandoffEventPayload p = handoffPayload(h, order);
         executeAfterCommitAsync(() -> {
             log.warn("EVENT handoff.overdue handoffId={} deliveryId={}", h.getId(), h.getDeliveryId());
-            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast(tenantTopic("admin.routes"), CloudEventWrapper.builder()
                 .source("/delivery-service").type("handoff.overdue").data(p).build());
             
             String clientName = order != null ? order.getClientName() : null;
@@ -299,7 +314,7 @@ public class EventPublisher {
             p.put("reason", parcelCount + " colis");
             log.warn("EVENT pickup.overdue routeId={} stopId={} depot={}", route.getId(), pickupStop.getId(), depotName);
             sendDriver(route.getDriverId(), "pickup.overdue", p);
-            notificationGateway.broadcast("/topic/admin.routes", CloudEventWrapper.builder()
+            notificationGateway.broadcast(tenantTopic("admin.routes"), CloudEventWrapper.builder()
                 .source("/delivery-service").type("pickup.overdue").data(p).build());
             sendFcmFatPayload(route.getDriverId() != null ? route.getDriverId().toString() : null, "PICKUP_OVERDUE", p);
             // Persist so admins still see overdue depot pickups in the bell/history after a reload.
@@ -714,7 +729,7 @@ public class EventPublisher {
                 .type("erp.orders_ready")
                 .data(m)
                 .build();
-            notificationGateway.broadcast("/topic/admin.erp", envelope);
+            notificationGateway.broadcast(tenantTopic("admin.erp"), envelope);
         });
     }
 
@@ -799,7 +814,7 @@ public class EventPublisher {
                     .type("delivery.redelivery_scheduled")
                     .data(p)
                     .build();
-            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+            notificationGateway.broadcast(tenantTopic("admin.deliveries"), envelope);
             Map<String, Object> persisted = new HashMap<>();
             persisted.put("erpOrderId", orderRef != null ? orderRef : "");
             persisted.put("clientName", client != null ? client : "");
@@ -834,7 +849,7 @@ public class EventPublisher {
                 .type("return.status_changed")
                 .data(p)
                 .build();
-            notificationGateway.broadcast("/topic/admin.deliveries", envelope);
+            notificationGateway.broadcast(tenantTopic("admin.deliveries"), envelope);
 
             // A brand-new client return is a persistent, actionable alert for the admin (bell + history),
             // not just a transient socket event — otherwise a return can arrive with nobody notified.
@@ -960,7 +975,7 @@ public class EventPublisher {
                 .type("delivery.handoff_confirmed")
                 .data(m)
                 .build();
-            notificationGateway.broadcast("/topic/admin.routes", envelope);
+            notificationGateway.broadcast(tenantTopic("admin.routes"), envelope);
         });
     }
 }

@@ -2,6 +2,7 @@ package com.asm.delivery.service.route;
 
 import com.asm.delivery.event.CloudEventWrapper;
 import com.asm.delivery.event.RouteEventPayload;
+import com.asm.delivery.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -17,6 +18,18 @@ import java.util.UUID;
 public class RouteWebSocketService {
 
     private final SimpMessagingTemplate messaging;
+
+    private UUID getCompanyId() {
+        return TenantContext.get();
+    }
+
+    private String tenantTopic(String subtopic) {
+        UUID companyId = getCompanyId();
+        if (companyId != null) {
+            return "/topic/company/" + companyId + "/" + subtopic;
+        }
+        return "/topic/" + subtopic;
+    }
 
     /**
      * Pushes a route lifecycle event to the driver's personal topic.
@@ -43,7 +56,7 @@ public class RouteWebSocketService {
 
             try {
                 messaging.convertAndSend(destination, envelope);
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyDriver: sent event={} to driverId={} routeId={}", event, driverId, routeId);
             } catch (Exception e) {
                 log.warn("notifyDriver: failed to send event={} to driverId={}: {}", event, driverId, e.getMessage());
@@ -71,7 +84,7 @@ public class RouteWebSocketService {
 
             try {
                 messaging.convertAndSend(destination, envelope);
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyDriverStopAdded: sent to driverId={} client={}", driverId, clientName);
             } catch (Exception e) {
                 log.warn("notifyDriverStopAdded: failed for driverId={}: {}", driverId, e.getMessage());
@@ -102,7 +115,7 @@ public class RouteWebSocketService {
 
             try {
                 messaging.convertAndSend(destination, envelope);
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyDriverStopRemoved: sent to driverId={} client={}", driverId, clientName);
             } catch (Exception e) {
                 log.warn("notifyDriverStopRemoved: failed for driverId={}: {}", driverId, e.getMessage());
@@ -135,7 +148,7 @@ public class RouteWebSocketService {
                 .build();
 
             try {
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyRouteStarted: routeId={} driverId={} stops={}", routeId, driverId, stopCount);
             } catch (Exception e) {
                 log.warn("notifyRouteStarted: failed for routeId={}: {}", routeId, e.getMessage());
@@ -169,7 +182,7 @@ public class RouteWebSocketService {
                 .build();
 
             try {
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyPickupConfirmed: routeId={} depot={} parcels={}", routeId, depotName, parcelCount);
             } catch (Exception e) {
                 log.warn("notifyPickupConfirmed: failed for routeId={}: {}", routeId, e.getMessage());
@@ -195,7 +208,7 @@ public class RouteWebSocketService {
                 .build();
 
             try {
-                messaging.convertAndSend("/topic/admin.routes", envelope);
+                messaging.convertAndSend(tenantTopic("admin.routes"), envelope);
                 log.info("notifyRouteUpdate: sent update for routeId={} to admin", routeId);
             } catch (Exception e) {
                 log.warn("notifyRouteUpdate: failed for routeId={}: {}", routeId, e.getMessage());
@@ -206,7 +219,7 @@ public class RouteWebSocketService {
     public void notifyDriverStatusChanged(UUID driverId, String status, String driverName) {
         java.util.concurrent.CompletableFuture.runAsync(() -> {
             try {
-                String destination = "/topic/admin.drivers";
+                String destination = tenantTopic("admin.drivers");
                 
                 Map<String, String> payload = new HashMap<>();
                 payload.put("driverId", driverId.toString());

@@ -87,3 +87,52 @@ UPDATE system_settings
    AND active_erp_provider IS NOT NULL
    AND active_erp_provider <> 'NONE'
    AND erp_configuration IS NOT NULL;
+
+-- ── Multi-tenant: company_id on existing tables ──────────────────────────────
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS company_id UUID;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS company_id UUID;
+ALTER TABLE outbox_event ADD COLUMN IF NOT EXISTS company_id UUID;
+ALTER TABLE system_settings ADD COLUMN IF NOT EXISTS company_id UUID;
+
+-- Indexes
+CREATE INDEX IF NOT EXISTS idx_admin_users_company ON admin_users(company_id);
+CREATE INDEX IF NOT EXISTS idx_clients_company ON clients(company_id);
+
+-- ── Company ERP config (per-tenant ERP credentials) ─────────────────────────
+CREATE TABLE IF NOT EXISTS company_erp_config (
+    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id      UUID NOT NULL,
+    erp_type        VARCHAR(20) NOT NULL DEFAULT 'ODOO',
+    api_url         VARCHAR(512),
+    api_key_enc     TEXT,
+    db_name         VARCHAR(100),
+    username        VARCHAR(100),
+    uid             INT,
+    is_active       BOOLEAN NOT NULL DEFAULT true,
+    last_tested_at  TIMESTAMP,
+    last_error      TEXT,
+    created_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at      TIMESTAMP NOT NULL DEFAULT NOW(),
+    UNIQUE(company_id, erp_type)
+);
+
+-- ── Company features (feature flags per tenant) ─────────────────────────────
+CREATE TABLE IF NOT EXISTS company_features (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id  UUID NOT NULL,
+    feature_key VARCHAR(100) NOT NULL,
+    enabled     BOOLEAN NOT NULL DEFAULT true,
+    config      JSONB DEFAULT '{}',
+    UNIQUE(company_id, feature_key)
+);
+
+-- ── Provisioning audit trail ────────────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS provisioning_audit (
+    id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    company_id  UUID,
+    action      VARCHAR(50) NOT NULL,
+    status      VARCHAR(20) NOT NULL,
+    details     TEXT,
+    performed_by UUID,
+    created_at  TIMESTAMP NOT NULL DEFAULT NOW()
+);

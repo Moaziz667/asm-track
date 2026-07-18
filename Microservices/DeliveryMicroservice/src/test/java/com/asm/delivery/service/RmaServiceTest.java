@@ -65,7 +65,7 @@ class RmaServiceTest {
                 .blNumber("BL-001")
                 .build();
 
-        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test User", null);
+        principal = new UserPrincipal(UUID.randomUUID().toString(), "ADMIN", "Test User", null, null);
     }
 
     // ── create() ─────────────────────────────────────────────────────────────

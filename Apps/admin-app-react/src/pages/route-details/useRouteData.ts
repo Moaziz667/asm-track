@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Client } from '@stomp/stompjs';
 import SockJS from 'sockjs-client';
+import { jwtDecode } from 'jwt-decode';
 import { api } from '@/lib/api';
 import { safeStorage } from '@/lib/storage';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -134,7 +135,17 @@ export function useRouteData(routeId: string | undefined) {
     const baseUrl = import.meta.env.VITE_WS_BASE_URL
       ?? import.meta.env.VITE_API_BASE_URL
       ?? `${window.location.protocol}//${window.location.host}`;
-    const topic = '/topic/admin.routes';
+
+    // Build tenant-scoped topic
+    let topic = '/topic/admin.routes';
+    try {
+      const token = safeStorage.getItem('access_token');
+      if (token) {
+        const decoded = jwtDecode<{ org_id?: string; organization?: Record<string, { id?: string }> }>(token);
+        const orgId = decoded.org_id ?? (() => { const o = decoded.organization; return o ? Object.values(o)[0]?.id : undefined; })();
+        if (orgId) topic = `/topic/company/${orgId}/admin.routes`;
+      }
+    } catch { /* fallback to legacy topic */ }
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${baseUrl}/ws`),

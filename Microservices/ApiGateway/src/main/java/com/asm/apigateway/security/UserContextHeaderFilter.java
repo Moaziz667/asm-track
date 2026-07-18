@@ -41,6 +41,7 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
         copiedHeaders.remove("X-User-Role");
         copiedHeaders.remove("X-User-Name");
         copiedHeaders.remove("X-User-Perms");
+        copiedHeaders.remove("X-Company-Id");
 
         ServerHttpRequest sanitizedRequest = new org.springframework.http.server.reactive.ServerHttpRequestDecorator(exchange.getRequest()) {
             @Override
@@ -76,9 +77,18 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
 
                     String perms = roles.stream().filter(r -> r.startsWith("perm:"))
                             .collect(java.util.stream.Collectors.joining(","));
+                    String companyId = extractCompanyId(jwt);
+                    if (companyId == null) {
+                        // Fail-closed: no resolvable tenant = no data access. NEVER fall back to a
+                        // catch-all company (that silently bleeds data across tenants). A user without
+                        // an org_id claim is misconfigured in Keycloak — reject rather than guess.
+                        log.warn("Missing org_id/organization claim for user={} on path={} — rejecting", userId, path);
+                        return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "No tenant assigned");
+                    }
                     ServerHttpRequest.Builder req = sanitizedExchange.getRequest().mutate()
                             .header("X-User-Id", userId)
-                            .header("X-User-Role", role);
+                            .header("X-User-Role", role)
+                            .header("X-Company-Id", companyId);
                     if (name != null) req.header("X-User-Name", name);
                     if (!perms.isEmpty()) req.header("X-User-Perms", perms);
 
@@ -124,6 +134,21 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
 
     private static boolean hasRole(java.util.Set<String> roles, String role) {
         return roles.stream().anyMatch(r -> r.equalsIgnoreCase(role));
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractCompanyId(Jwt jwt) {
+        String orgId = jwt.getClaimAsString("org_id");
+        if (orgId != null) return orgId;
+        Map<String, Object> orgs = jwt.getClaim("organization");
+        if (orgs != null && !orgs.isEmpty()) {
+            Object first = orgs.values().iterator().next();
+            if (first instanceof Map) {
+                Object id = ((Map<?, ?>) first).get("id");
+                if (id != null) return id.toString();
+            }
+        }
+        return null;
     }
 
     /**

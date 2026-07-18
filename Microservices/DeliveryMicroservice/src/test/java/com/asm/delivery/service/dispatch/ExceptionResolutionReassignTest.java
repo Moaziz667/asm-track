@@ -88,7 +88,7 @@ class ExceptionResolutionReassignTest {
     @InjectMocks ExceptionResolutionService service;
 
     private static final UserPrincipal ADMIN =
-            new UserPrincipal("admin-1", "ADMIN", "Sonia Dispatch", "+21600000000");
+            new UserPrincipal("admin-1", "ADMIN", "Sonia Dispatch", "+21600000000", null);
 
     private UUID deliveryId;
     private UUID driverA;   // current owner

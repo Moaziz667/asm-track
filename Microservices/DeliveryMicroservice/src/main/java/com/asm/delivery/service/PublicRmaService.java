@@ -42,7 +42,7 @@ public class PublicRmaService {
 
     /** Synthetic actor for public self-service actions → audit rows read "CLIENT", not "SYSTEM". */
     private static final UserPrincipal CLIENT_ACTOR =
-            new UserPrincipal("public", "CLIENT", "Client (suivi public)", null);
+            new UserPrincipal("public", "CLIENT", "Client (suivi public)", null, null);
 
     private final DeliveryRepository deliveryRepository;
     private final RmaRepository rmaRepository;
