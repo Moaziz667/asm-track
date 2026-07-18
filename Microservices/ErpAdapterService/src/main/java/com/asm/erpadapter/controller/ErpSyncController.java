@@ -39,6 +39,21 @@ public class ErpSyncController {
         return ResponseEntity.ok(Map.of("success", success));
     }
 
+    @PostMapping("/invoice")
+    @Operation(summary = "Create + validate an ERP invoice for a delivered order (synchronous, admin-triggered)")
+    public ResponseEntity<Map<String, Object>> createInvoice(
+            @RequestParam(defaultValue = "odoo") String erpProvider,
+            @RequestParam String erpOrderId,
+            @RequestParam(required = false) String pickingRef) {
+
+        String invoiceRef = resolve(erpProvider).createInvoice(erpOrderId, pickingRef);
+        if (invoiceRef == null) {
+            return ResponseEntity.badRequest().body(Map.of("success", false,
+                    "message", "Invoice could not be created — create it manually in the ERP."));
+        }
+        return ResponseEntity.ok(Map.of("success", true, "invoiceRef", invoiceRef));
+    }
+
     @PostMapping("/full-delivery")
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(

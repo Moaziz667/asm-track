@@ -214,6 +214,73 @@ public class ErpNextRestClient {
         }
     }
 
+    // ── Writes (Phase B — sync outcomes back to ERPNext) ─────────────────────────
+    // These THROW on failure (unlike the reads) so a sync error retries and dead-letters into
+    // SYNC_FAILED — never a silent fake success.
+
+    /**
+     * POST {@code /api/resource/{doctype}} to insert a document. When {@code doc} carries
+     * {@code docstatus:1}, Frappe inserts AND submits it in one call. Returns the created doc (name…).
+     */
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> insert(String doctype, Map<String, Object> doc) {
+        String base = requireBase();
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl(base).pathSegment("api", "resource", doctype).build().encode().toUri();
+            Map<String, Object> resp = restClient.post().uri(uri)
+                    .header("Authorization", authToken()).header("Accept", "application/json")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(doc).retrieve().body(Map.class);
+            Object data = resp != null ? resp.get("data") : null;
+            return data instanceof Map ? (Map<String, Object>) data : null;
+        } catch (Exception e) {
+            throw new ErpAdapterException("ERPNext insert " + doctype + " failed: " + err(e), 502);
+        }
+    }
+
+    /** GET a whitelisted server method (e.g. {@code make_delivery_note}); returns the {@code message}. */
+    public Object methodGet(String method, Map<String, String> params) {
+        String base = requireBase();
+        try {
+            UriComponentsBuilder b = UriComponentsBuilder.fromHttpUrl(base).path("/api/method/" + method);
+            if (params != null) params.forEach(b::queryParam);
+            Map<String, Object> resp = restClient.get().uri(b.build().encode().toUri())
+                    .header("Authorization", authToken()).header("Accept", "application/json")
+                    .retrieve().body(Map.class);
+            return resp != null ? resp.get("message") : null;
+        } catch (Exception e) {
+            throw new ErpAdapterException("ERPNext method " + method + " failed: " + err(e), 502);
+        }
+    }
+
+    /** POST a whitelisted server method with a JSON body (e.g. {@code frappe.client.cancel/set_value}). */
+    public Object method(String method, Map<String, Object> body) {
+        String base = requireBase();
+        try {
+            URI uri = UriComponentsBuilder.fromHttpUrl(base).path("/api/method/" + method).build().encode().toUri();
+            Map<String, Object> resp = restClient.post().uri(uri)
+                    .header("Authorization", authToken()).header("Accept", "application/json")
+                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
+                    .body(body != null ? body : Map.of()).retrieve().body(Map.class);
+            return resp != null ? resp.get("message") : null;
+        } catch (Exception e) {
+            throw new ErpAdapterException("ERPNext method " + method + " failed: " + err(e), 502);
+        }
+    }
+
+    private String requireBase() {
+        String base = baseUrl();
+        if (base.isBlank()) throw new ErpAdapterException("ERPNext URL not configured in Settings", 400);
+        validateUrl(base);
+        return base;
+    }
+
+    /** Short, readable Frappe error message (the RestClient exception body carries the server message). */
+    private static String err(Exception e) {
+        String m = e.getMessage();
+        return m == null ? e.getClass().getSimpleName() : (m.length() > 400 ? m.substring(0, 400) : m);
+    }
+
     // ── Type-safe extraction helpers (Frappe returns JSON numbers/strings) ────────
 
     public static String asString(Object o) {

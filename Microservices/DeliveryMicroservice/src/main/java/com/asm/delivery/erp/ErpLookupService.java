@@ -120,14 +120,32 @@ public class ErpLookupService {
     public OrderResponse importPendingOrder(String erpOrderId) {
         ErpPendingOrderPreviewDTO preview = getPendingOrderPreview(erpOrderId);
 
-        // Idempotency: per delivery-note (BL) when available, else per ERP order ref.
+        // Backorder-aware idempotency.
+        // BL-articulated ERP (Odoo): each delivery attempt is a distinct picking with its own BL number,
+        // so a repeat import is a true duplicate → block on the BL.
+        // SO-articulated ERP (ERPNext): the SAME Sales Order re-appears for its remaining (backorder),
+        // since ERPNext tracks delivered_qty on the SO instead of creating a new document. Allow the
+        // reliquat once no prior attempt is still in progress and something is actually left to deliver;
+        // give it a DISTINCT erpOrderId (the system relies on erpOrderId being unique) while
+        // erpExternalRef stays the shared SO ref (used for sync + sibling grouping) — structurally the
+        // same as Odoo, where erpOrderId=BL is distinct per attempt and erpExternalRef=SO is shared.
         String blNumber = preview.getBlNumber();
+        String importErpOrderId = preview.getErpOrderId();
         if (StringUtils.hasText(blNumber)) {
             if (orderRepository.findByBlNumber(blNumber).isPresent()) {
                 throw AppException.badRequest("Delivery note " + blNumber + " already imported");
             }
-        } else if (orderRepository.findByErpOrderId(erpOrderId).isPresent()) {
-            throw AppException.badRequest("Order " + erpOrderId + " already imported");
+        } else {
+            List<Order> priorForSo = orderRepository.findByErpExternalRefOrderByCreatedAtAsc(erpOrderId);
+            if (!priorForSo.isEmpty()) {
+                if (priorForSo.stream().anyMatch(this::hasActiveDelivery)) {
+                    throw AppException.badRequest("Order " + erpOrderId + " already has a delivery in progress");
+                }
+                if (preview.getItems() == null || preview.getItems().isEmpty()) {
+                    throw AppException.badRequest("Order " + erpOrderId + " has nothing left to deliver");
+                }
+                importErpOrderId = erpOrderId + "#R" + (priorForSo.size() + 1);   // backorder: distinct id, shared SO ref
+            }
         }
 
         // Resolve the source depot from the delivery-note warehouse. Depots mirror ERP
@@ -170,7 +188,7 @@ public class ErpLookupService {
                 .totalQuantity(preview.getTotalQuantity() != null ? preview.getTotalQuantity() : 0)
                 .totalWeightKg(preview.getTotalWeightKg() != null ? preview.getTotalWeightKg() : BigDecimal.ZERO)
                 .status(OrderStatus.PENDING)
-                .erpOrderId(preview.getErpOrderId())           // WH/OUT/00131 — BL ref for display
+                .erpOrderId(importErpOrderId)                  // BL ref (Odoo) / SO or SO#Rn for a backorder (ERPNext)
                 .erpExternalRef(saleRef)                       // S00110 — sale ref for sync
                 .blNumber(blNumber)
                 .warehouseCode(warehouseCode)
@@ -271,6 +289,18 @@ public class ErpLookupService {
         clientCache.clear();
         productCache.clear();
         pendingOrderCache.clear();
+    }
+
+    /** True when the order's latest shipment is still being worked (not in a terminal state). */
+    private boolean hasActiveDelivery(Order order) {
+        return deliveryRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getId())
+                .map(d -> !isTerminalDelivery(d.getStatus()))
+                .orElse(false);
+    }
+
+    private static boolean isTerminalDelivery(DeliveryStatus s) {
+        return s == DeliveryStatus.DELIVERED || s == DeliveryStatus.PARTIALLY_DELIVERED
+                || s == DeliveryStatus.FAILED || s == DeliveryStatus.CANCELLED;
     }
 
     private static OrderResponse toOrderResponse(Order order, Delivery delivery) {

@@ -72,4 +72,19 @@ public interface ErpSyncPort {
     default boolean syncReschedule(String erpOrderId, String scheduledAt, String transactionId, String pickingRef) {
         return true;
     }
+
+    /**
+     * Create + validate an invoice in the ERP for a delivered order. <b>Admin-triggered and synchronous</b>
+     * (not part of the delivery outbox): the operator clicks "create invoice" on a delivery and gets the
+     * ERP invoice reference back immediately. ASM never computes anything — the ERP prices/taxes/accounts
+     * the invoice from its own config. Bills the DELIVERED quantity (ERPNext from the DN, Odoo via the
+     * delivered-qty invoicing policy). Returns the ERP invoice reference (e.g. "ACC-SINV-2026-00001") or
+     * {@code null} on failure/unsupported. Default: unsupported.
+     *
+     * @param erpOrderId the sale-order reference to invoice
+     * @param pickingRef the delivery-note / picking reference, when the invoice should bill a specific shipment
+     */
+    default String createInvoice(String erpOrderId, String pickingRef) {
+        return null;
+    }
 }

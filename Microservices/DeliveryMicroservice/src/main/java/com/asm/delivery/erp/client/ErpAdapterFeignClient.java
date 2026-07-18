@@ -31,6 +31,11 @@ public interface ErpAdapterFeignClient {
                                               @RequestParam("transactionId") String transactionId,
                                               @RequestParam(value = "pickingRef", required = false) String pickingRef);
 
+    @PostMapping("/api/erp/sync/invoice")
+    Map<String, Object> createInvoice(@RequestParam("erpProvider") String erpProvider,
+                                      @RequestParam("erpOrderId") String erpOrderId,
+                                      @RequestParam(value = "pickingRef", required = false) String pickingRef);
+
     @PostMapping("/api/erp/sync/full-delivery")
     Map<String, Object> syncFullDelivery(@RequestParam("erpProvider") String erpProvider,
                                          @RequestBody Map<String, Object> body);

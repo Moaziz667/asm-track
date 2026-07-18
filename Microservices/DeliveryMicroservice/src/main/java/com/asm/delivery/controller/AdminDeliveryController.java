@@ -56,6 +56,14 @@ public class AdminDeliveryController {
     private final com.asm.delivery.service.OrderService orderService;
     private final com.asm.delivery.service.OrderGeocodingService orderGeocodingService;
     private final com.asm.delivery.sla.SlaTimelineService slaTimelineService;
+    private final com.asm.delivery.erp.ErpInvoiceService erpInvoiceService;
+
+    @PostMapping("/{id}/invoice")
+    @Operation(summary = "Create + validate an ERP invoice for this delivered shipment",
+            description = "Synchronous, admin-triggered. ASM only triggers the ERP's invoicing (ERPNext make_sales_invoice / Odoo delivered-qty wizard); the ERP prices/taxes it. Returns the ERP invoice reference.")
+    public ResponseEntity<java.util.Map<String, String>> createInvoice(@PathVariable UUID id) {
+        return ResponseEntity.ok(java.util.Map.of("invoiceRef", erpInvoiceService.createInvoice(id)));
+    }
 
     @PostMapping("/re-geocode-missing")
     @Operation(summary = "Re-run auto-geocoding for all unlocated orders",

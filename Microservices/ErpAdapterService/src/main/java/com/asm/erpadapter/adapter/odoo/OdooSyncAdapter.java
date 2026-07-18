@@ -146,6 +146,69 @@ public class OdooSyncAdapter implements ErpSyncPort {
     }
 
 
+    // ── Invoice = delivered-qty invoicing wizard + post (admin-triggered, synchronous) ──
+
+    @Override
+    public String createInvoice(String erpOrderId, String pickingRef) {
+        try {
+            Integer soId = resolveErpId(erpOrderId);
+            if (soId == null) {
+                log.warn("provider=odoo operation=createInvoice erpOrderId={} reason=so_not_found", erpOrderId);
+                return null;
+            }
+            // Standard delivered-qty invoicing wizard (works v16→19), scoped to this SO via context.
+            Map<String, Object> ctx = Map.of("active_model", "sale.order", "active_ids", List.of(soId), "active_id", soId);
+            Map<String, Object> wizResp = rpc.callRpc(rpc.buildArgs("sale.advance.payment.inv", "create",
+                    List.of(Map.of("advance_payment_method", "delivered")), Map.of("context", ctx)));
+            Integer wizId = asInt(wizResp != null ? wizResp.get("result") : null);
+            if (wizId == null) {
+                log.warn("provider=odoo operation=createInvoice erpOrderId={} reason=wizard_create_failed", erpOrderId);
+                return null;
+            }
+            rpc.callRpc(rpc.buildArgs("sale.advance.payment.inv", "create_invoices",
+                    List.of(List.of(wizId)), Map.of("context", ctx)));
+
+            // Read the SO's invoices, validate them, return the first reference.
+            Map<String, Object> soRead = rpc.callRpc(rpc.buildArgs("sale.order", "read",
+                    List.of(List.of(soId), List.of("invoice_ids"))));
+            List<Integer> invoiceIds = extractInvoiceIds(soRead);
+            if (invoiceIds.isEmpty()) {
+                log.warn("provider=odoo operation=createInvoice erpOrderId={} reason=no_invoice_created", erpOrderId);
+                return null;
+            }
+            rpc.callRpc(rpc.buildArgs("account.move", "action_post", List.of(invoiceIds)));
+            Map<String, Object> invRead = rpc.callRpc(rpc.buildArgs("account.move", "read",
+                    List.of(invoiceIds, List.of("name"))));
+            String name = extractFirstName(invRead);
+            log.info("provider=odoo operation=createInvoice erpOrderId={} soId={} invoice={}", erpOrderId, soId, name);
+            return name;
+        } catch (Exception e) {
+            log.warn("provider=odoo operation=createInvoice erpOrderId={} failed: {}", erpOrderId, e.getMessage());
+            return null;
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Integer> extractInvoiceIds(Map<String, Object> soRead) {
+        List<Integer> ids = new java.util.ArrayList<>();
+        Object result = soRead != null ? soRead.get("result") : null;
+        if (result instanceof List<?> rows && !rows.isEmpty() && rows.get(0) instanceof Map<?, ?> row) {
+            Object inv = ((Map<String, Object>) row).get("invoice_ids");
+            if (inv instanceof List<?> l) for (Object o : l) { Integer id = asInt(o); if (id != null) ids.add(id); }
+        }
+        return ids;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractFirstName(Map<String, Object> invRead) {
+        Object result = invRead != null ? invRead.get("result") : null;
+        if (result instanceof List<?> rows && !rows.isEmpty() && rows.get(0) instanceof Map<?, ?> row) {
+            Object name = ((Map<String, Object>) row).get("name");
+            return name != null ? String.valueOf(name) : null;
+        }
+        return null;
+    }
+
     // ══════════════════════════════════════════════════════════════════════════
     //  Core Sync Logic (Internal)
     // ══════════════════════════════════════════════════════════════════════════

@@ -30,7 +30,7 @@ public class ErpSyncService {
     public void syncOrderCancellation(Delivery delivery, String transactionId) {
         Order order = delivery.getOrder();
         if (order.getErpOrderId() == null) return;
-        commandPublisher.publishCancellation(
+        commandPublisher.publishCancellation(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(),
                 order.getErpOrderId(), pickingRef(delivery), transactionId);
     }
@@ -39,7 +39,7 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishStockFull(
+        commandPublisher.publishStockFull(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 backorderPickingId(delivery), pickingRef(delivery), transactionId);
     }
@@ -48,7 +48,7 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishStockPartial(
+        commandPublisher.publishStockPartial(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 partialItems, pickingRef(delivery), transactionId);
     }
@@ -57,7 +57,7 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishFailure(
+        commandPublisher.publishFailure(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 failureCode, comment, pickingRef(delivery), transactionId);
     }
@@ -66,7 +66,7 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishPod(
+        commandPublisher.publishPod(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 pickingRef(delivery), transactionId, pod);
     }
@@ -75,7 +75,7 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishReschedule(
+        commandPublisher.publishReschedule(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 pickingRef(delivery), transactionId, scheduledAt);
     }
@@ -84,9 +84,14 @@ public class ErpSyncService {
         Order order = delivery.getOrder();
         String erpOrderId = resolveErpOrderId(order);
         if (erpOrderId == null) return;
-        commandPublisher.publishReturn(
+        commandPublisher.publishReturn(providerOf(order),
                 delivery.getId().toString(), order.getId().toString(), erpOrderId,
                 pickingRef(delivery), transactionId, reason, rmaId, items);
+    }
+
+    /** The ERP this order came from → the sync command's routing key (Odoo/ERPNext/Dux; defaults odoo). */
+    private String providerOf(Order order) {
+        return order.getSource() != null ? order.getSource().name().toLowerCase() : "odoo";
     }
 
     /** Picking (BL) number for this shipment — from the delivery, falling back to the order (legacy). */

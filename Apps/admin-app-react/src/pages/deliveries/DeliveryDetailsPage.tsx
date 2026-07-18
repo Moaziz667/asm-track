@@ -7,7 +7,7 @@ import {
   IconRefresh, IconPackage, IconUser, IconRoute,
   IconMapPin, IconCheck, IconX, IconPhone, IconTruck, IconClock,
   IconPhoto, IconWeight, IconCurrencyDollar,
-  IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport,
+  IconFileText, IconBuildingWarehouse, IconQuote, IconPackageExport, IconReceipt,
 } from '@tabler/icons-react';
 import { api } from '@/lib/api';
 import { formatMoney } from '@/lib/utils';
@@ -88,6 +88,25 @@ export default function DeliveryDetailPage() {
   const [viewerTitle, setViewerTitle] = useState('');
   const [returnOpen, setReturnOpen] = useState(false);
   const [assignedDriverStatus, setAssignedDriverStatus] = useState<string | null>(null);
+  const [invoiceOpen, setInvoiceOpen] = useState(false);
+  const [invoicing, setInvoicing] = useState(false);
+  const [invoiceRef, setInvoiceRef] = useState<string | null>(null);
+
+  const submitInvoice = useCallback(async () => {
+    setInvoicing(true);
+    try {
+      const res = await api.post(`/api/admin/deliveries/${id}/invoice`);
+      const ref = res.data?.invoiceRef ?? null;
+      setInvoiceRef(ref);
+      showSuccessToast(`Facture créée : ${ref}`);
+    } catch (e: unknown) {
+      const msg = (e as { response?: { data?: { message?: string } } })?.response?.data?.message
+        ?? "Facture non créée — à créer manuellement dans l'ERP.";
+      showErrorToast(msg);
+    } finally {
+      setInvoicing(false);
+    }
+  }, [id]);
 
   usePageBreadcrumb(
     delivery
@@ -263,6 +282,16 @@ export default function DeliveryDetailPage() {
                     title={t.returnsPage?.newReturn ?? 'Créer un retour'}
                   >
                     <IconPackageExport size={13} /> {t.returnsPage?.newReturn ?? 'Créer un retour'}
+                  </button>
+                )}
+                {(delivery.status === 'DELIVERED' || delivery.status === 'PARTIALLY_DELIVERED') && (
+                  <button
+                    type="button"
+                    onClick={() => { setInvoiceRef(null); setInvoiceOpen(true); }}
+                    className="h-7 inline-flex items-center gap-1.5 px-2.5 rounded-sm border border-[var(--border)] text-xs font-semibold text-[var(--text-secondary)] hover:bg-[var(--hover-bg)] transition-colors"
+                    title="Créer + valider la facture dans l'ERP — ASM déclenche, l'ERP calcule (TVA, comptes)"
+                  >
+                    <IconReceipt size={13} /> Créer facture
                   </button>
                 )}
                 <button
@@ -571,6 +600,35 @@ export default function DeliveryDetailPage() {
         onCreated={() => setReturnOpen(false)}
         prefillDeliveryId={delivery.id || id}
       />
+
+      {/* Manual ERP invoice — admin triggers, the ERP prices/taxes it */}
+      <AppModal
+        opened={invoiceOpen}
+        onClose={() => setInvoiceOpen(false)}
+        title={invoiceRef ? 'Facture créée' : 'Créer la facture'}
+        subtitle="Facturation ERP"
+        size="md"
+      >
+        {invoiceRef ? (
+          <div className="flex flex-col gap-3 text-sm">
+            <p className="text-[var(--text-secondary)]">La facture a été créée et validée dans l'ERP :</p>
+            <div className="px-3 py-2 rounded-sm bg-[var(--app-bg)] border border-[var(--border)] font-mono text-[var(--text-primary)]">{invoiceRef}</div>
+            <p className="text-2xs text-[var(--text-muted)]">Vous pouvez la consulter ou la télécharger depuis l'ERP.</p>
+            <div className="flex justify-end">
+              <button type="button" onClick={() => setInvoiceOpen(false)} className="h-8 px-3 rounded-sm border border-[var(--border)] text-xs font-semibold hover:bg-[var(--hover-bg)]">Fermer</button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-4 text-sm">
+            <p className="text-[var(--text-secondary)]">Ceci va <b>créer et valider</b> la facture dans l'ERP pour cette livraison. ASM déclenche seulement — l'ERP calcule la TVA, les comptes et les montants depuis sa configuration.</p>
+            <p className="text-2xs text-[var(--text-muted)]">Un retour éventuel (avoir) reste géré dans l'ERP.</p>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setInvoiceOpen(false)} disabled={invoicing} className="h-8 px-3 rounded-sm border border-[var(--border)] text-xs font-semibold hover:bg-[var(--hover-bg)] disabled:opacity-50">Annuler</button>
+              <button type="button" onClick={submitInvoice} disabled={invoicing} className="h-8 px-3 rounded-sm bg-[var(--text-primary)] text-[var(--surface)] text-xs font-semibold hover:opacity-90 disabled:opacity-50">{invoicing ? 'Création…' : 'Créer la facture'}</button>
+            </div>
+          </div>
+        )}
+      </AppModal>
     </div>
   );
 }

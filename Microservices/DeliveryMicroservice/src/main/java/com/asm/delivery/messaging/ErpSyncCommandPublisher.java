@@ -25,49 +25,49 @@ public class ErpSyncCommandPublisher {
 
     private final RabbitTemplate rabbitTemplate;
 
-    public void publishStockFull(String deliveryId, String orderId, String erpOrderId, Integer backorderPickingId,
+    public void publishStockFull(String erpProvider, String deliveryId, String orderId, String erpOrderId, Integer backorderPickingId,
                                  String pickingRef, String txId) {
-        Map<String, Object> cmd = base("STOCK_FULL", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "STOCK_FULL", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (backorderPickingId != null) cmd.put("backorderPickingId", backorderPickingId);
         send(cmd);
     }
 
-    public void publishStockPartial(String deliveryId, String orderId, String erpOrderId, List<PartialDeliveryItem> items,
+    public void publishStockPartial(String erpProvider, String deliveryId, String orderId, String erpOrderId, List<PartialDeliveryItem> items,
                                     String pickingRef, String txId) {
-        Map<String, Object> cmd = base("STOCK_PARTIAL", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "STOCK_PARTIAL", deliveryId, orderId, erpOrderId, pickingRef, txId);
         cmd.put("partialItems", mapItems(items));
         send(cmd);
     }
 
-    public void publishFailure(String deliveryId, String orderId, String erpOrderId, String failureCode, String comment,
+    public void publishFailure(String erpProvider, String deliveryId, String orderId, String erpOrderId, String failureCode, String comment,
                                String pickingRef, String txId) {
-        Map<String, Object> cmd = base("FAILURE", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "FAILURE", deliveryId, orderId, erpOrderId, pickingRef, txId);
         cmd.put("failureCode", failureCode);
         cmd.put("comment", comment);
         send(cmd);
     }
 
-    public void publishCancellation(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
-        send(base("CANCELLATION", deliveryId, orderId, erpOrderId, pickingRef, txId));
+    public void publishCancellation(String erpProvider, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
+        send(base(erpProvider, "CANCELLATION", deliveryId, orderId, erpOrderId, pickingRef, txId));
     }
 
-    public void publishReschedule(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+    public void publishReschedule(String erpProvider, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
                                   String scheduledAt) {
-        Map<String, Object> cmd = base("RESCHEDULE", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "RESCHEDULE", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (scheduledAt != null) cmd.put("scheduledAt", scheduledAt);
         send(cmd);
     }
 
-    public void publishPod(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+    public void publishPod(String erpProvider, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
                            Map<String, Object> pod) {
-        Map<String, Object> cmd = base("POD", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "POD", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (pod != null) pod.forEach((k, v) -> { if (v != null) cmd.put(k, v); });
         send(cmd);
     }
 
-    public void publishReturn(String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
+    public void publishReturn(String erpProvider, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId,
                               String reason, String rmaId, List<Map<String, Object>> items) {
-        Map<String, Object> cmd = base("RETURN", deliveryId, orderId, erpOrderId, pickingRef, txId);
+        Map<String, Object> cmd = base(erpProvider, "RETURN", deliveryId, orderId, erpOrderId, pickingRef, txId);
         if (reason != null) cmd.put("reason", reason);
         // rmaId is echoed back by the adapter on the result so the loop closes on the right RMA (D2).
         if (rmaId != null) cmd.put("rmaId", rmaId);
@@ -75,13 +75,16 @@ public class ErpSyncCommandPublisher {
         send(cmd);
     }
 
-    private Map<String, Object> base(String op, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
+    private Map<String, Object> base(String erpProvider, String op, String deliveryId, String orderId, String erpOrderId, String pickingRef, String txId) {
         Map<String, Object> cmd = new HashMap<>();
         cmd.put("op", op);
         cmd.put("txId", txId);
         cmd.put("deliveryId", deliveryId);
         cmd.put("orderId", orderId);
         cmd.put("erpOrderId", erpOrderId);
+        // Route the command to the ERP the order actually came from (Odoo/ERPNext/…); the consumer
+        // defaults to odoo when absent, so a non-Odoo order MUST carry its provider.
+        if (erpProvider != null && !erpProvider.isBlank()) cmd.put("erpProvider", erpProvider);
         if (pickingRef != null) cmd.put("pickingRef", pickingRef);
         return cmd;
     }
