@@ -39,6 +39,15 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     /** The backorder shipment created for a given Odoo backorder picking (idempotency guard). */
     Optional<Delivery> findByOdooBackorderId(Integer odooBackorderId);
 
+    /**
+     * Sale-order refs (erpExternalRef) that currently have a NON-terminal delivery. For SO-articulated
+     * ERPs (ERPNext): a Sales Order is "already imported" only while a delivery for it is in progress;
+     * once the prior attempt is terminal the SO's remaining is an importable reliquat again.
+     */
+    @Query("SELECT DISTINCT d.order.erpExternalRef FROM Delivery d " +
+           "WHERE d.order.erpExternalRef IS NOT NULL AND d.status NOT IN :terminal")
+    java.util.Set<String> findSaleRefsWithActiveDelivery(@Param("terminal") java.util.Collection<DeliveryStatus> terminal);
+
     /** Returns all deliveries waiting for a driver, joining order for full info. */
     @Query("SELECT d FROM Delivery d JOIN FETCH d.order WHERE d.status = :status ORDER BY d.order.priority DESC, d.createdAt ASC")
     List<Delivery> findAllWaitingWithOrder(@Param("status") DeliveryStatus status);

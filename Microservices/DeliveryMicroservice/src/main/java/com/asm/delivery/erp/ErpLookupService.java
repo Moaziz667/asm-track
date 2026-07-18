@@ -58,6 +58,11 @@ public class ErpLookupService {
     // Single-tenant: one instance = one ERP/company, so the lookup caches are global (no per-company key).
     private static final String CACHE_SCOPE = "global";
 
+    /** A delivery attempt is finished (no longer blocking a reliquat) in these states. */
+    private static final List<DeliveryStatus> TERMINAL_DELIVERY_STATUSES = List.of(
+            DeliveryStatus.DELIVERED, DeliveryStatus.PARTIALLY_DELIVERED,
+            DeliveryStatus.FAILED, DeliveryStatus.CANCELLED);
+
     @Transactional(readOnly = true)
     public List<ErpClientDTO> searchClients(String search, int limit) {
         String cacheKey = CACHE_SCOPE + "-clients-" + search + "-" + limit;
@@ -87,18 +92,20 @@ public class ErpLookupService {
         CacheEntry<List<ErpPendingOrderSummaryDTO>> cached = pendingOrderCache.get(cacheKey);
         if (cached != null && !cached.isExpired()) return cached.value();
 
-        Set<String> importedErpIds = orderRepository.findAllErpOrderIds();
         Set<String> importedBls = orderRepository.findAllBlNumbers();
+        // SO-articulated ERPs (ERPNext, no BL until delivery): a Sales Order is "already imported" only
+        // while a delivery for it is IN PROGRESS. Once the prior attempt is terminal, the SO's remaining
+        // is an importable reliquat again (shows in "ready" with the backorder badge). BL-articulated
+        // ERPs (Odoo) stay keyed on the unique BL number.
+        Set<String> activeSaleRefs = deliveryRepository.findSaleRefsWithActiveDelivery(TERMINAL_DELIVERY_STATUSES);
 
         List<ErpPendingOrderSummaryDTO> dtos = erpPort.getPendingOrders(limit).stream()
                 .filter(dto -> dto.getErpOrderId() != null)
-                // Mark (don't drop) already-imported orders — by delivery-note (BL) when
-                // present, else by ERP order ref — so the UI's "Déjà importées" tab can
-                // show them instead of the list silently excluding them.
+                // Mark (don't drop) already-imported orders so the UI's "Déjà importées" tab can show them.
                 .map(dto -> {
                     boolean imported = StringUtils.hasText(dto.getBlNumber())
                             ? importedBls.contains(dto.getBlNumber())
-                            : importedErpIds.contains(dto.getErpOrderId());
+                            : activeSaleRefs.contains(dto.getErpOrderId());
                     dto.setAlreadyImported(imported);
                     return dto;
                 })
