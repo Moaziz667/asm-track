@@ -231,7 +231,8 @@ class ExceptionResolutionReassignTest {
             // CUSTODY INVARIANT: the parcel is physically on driver A — pickedUpAt must survive so the
             // report/SLA know it was collected. It changes hands by handoff, not a fresh depot load.
             assertThat(d.getPickedUpAt()).isEqualTo(pickedAt);
-            assertThat(d.getStatus()).isEqualTo(DeliveryStatus.SCHEDULED);
+            // An in-field parcel never rewinds to SCHEDULED: it waits for the receiver to confirm custody.
+            assertThat(d.getStatus()).isEqualTo(DeliveryStatus.AWAITING_HANDOFF);
             assertThat(d.getDriverId()).isEqualTo(driverB);
 
             // a handoff is opened A → B with the note
@@ -341,6 +342,9 @@ class ExceptionResolutionReassignTest {
         r.setStatus(status);
         r.setDriverId(driverId);
         r.setDepotId(depot);
+        // Routes always carry a name in production; the DRAFT-assignment audit history reads it
+        // (Map.of rejects a null value), so a nameless test route would NPE that path.
+        r.setName("Tournée " + status);
         return r;
     }
 

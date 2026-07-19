@@ -25,6 +25,7 @@ class RouteExecutionServiceTest {
 
     @Mock RouteRepository routeRepository;
     @Mock RouteStopRepository routeStopRepository;
+    @Mock HandoffRepository handoffRepository; // close() checks for a pending custody handoff before closing
     @Mock DeliveryRepository deliveryRepository;
     @Mock DeliveryStatusHistoryRepository deliveryStatusHistoryRepository;
     @Mock AuditLogService auditLogService;
