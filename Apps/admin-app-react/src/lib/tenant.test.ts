@@ -9,8 +9,10 @@ import { extractCompanyIdFromToken } from './tenant';
 
 /** Build a fake (unsigned) JWT with the given payload — jwtDecode only base64-decodes, it never verifies. */
 function jwt(payload: Record<string, unknown>): string {
-  const b64 = (o: unknown) => Buffer.from(JSON.stringify(o)).toString('base64url');
-  return `${b64({ alg: 'none', typ: 'JWT' })}.${b64(payload)}.sig`;
+  // base64url via btoa (no Node Buffer, so it type-checks under the browser lib): payloads are ASCII JSON.
+  const b64url = (o: unknown) =>
+    btoa(JSON.stringify(o)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  return `${b64url({ alg: 'none', typ: 'JWT' })}.${b64url(payload)}.sig`;
 }
 
 const ORG = '5c72a175-6f18-4b61-8d21-ff7fd15938b3';

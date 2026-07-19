@@ -17,9 +17,13 @@ import org.springframework.web.client.RestClient;
 
 import java.util.UUID;
 
+import org.mockito.Answers;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.client.RestClient.RequestBodyUriSpec;
+import org.springframework.web.client.RestClient.ResponseSpec;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Answers.RETURNS_DEEP_STUBS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
@@ -36,7 +40,7 @@ import static org.mockito.Mockito.when;
  *
  * <p>This is a collaborator-contract test (Mockito): Keycloak and the remote provision HTTP calls are
  * mocked, so it asserts the orchestration decisions, not the real KC/DB round-trip (validated live E2E).
- * The remote {@link RestClient} is a deep stub — its fluent chain returns no-op stubs, so a provision call
+ * The remote {@link RestClient} POST chain is stubbed to return 200 (see {@code setUp}), so a provision
  * "succeeds" without a real server, letting us fail a LATER step and observe the compensating rollback.
  */
 @ExtendWith(MockitoExtension.class)
@@ -46,7 +50,11 @@ class TenantOnboardingServiceTest {
     @Mock KeycloakAdminClient kc;
     @Mock TenantSchemaProvisioner localProvisioner;
     @Mock RestClient.Builder restClientBuilder;
-    @Mock(answer = RETURNS_DEEP_STUBS) RestClient restClient;
+    @Mock RestClient restClient;
+    // RETURNS_SELF lets the fluent builder chain (post().uri().header().contentType()) return itself,
+    // so we only have to stub the two terminal calls (retrieve → toBodilessEntity).
+    @Mock(answer = Answers.RETURNS_SELF) RequestBodyUriSpec requestSpec;
+    @Mock ResponseSpec responseSpec;
 
     private TenantOnboardingService service;
 
@@ -60,6 +68,12 @@ class TenantOnboardingServiceTest {
         service = new TenantOnboardingService(kc, localProvisioner, restClientBuilder);
         ReflectionTestUtils.setField(service, "deliveryUrl", "http://delivery-service:8082");
         ReflectionTestUtils.setField(service, "driverUrl", "http://driver-service:8086");
+
+        // Remote provision POST chain succeeds (200). deprovisionRemote (DELETE) is left unstubbed — its
+        // own try/catch swallows the resulting no-op, which is fine for the rollback assertions.
+        when(restClient.post()).thenReturn(requestSpec);
+        when(requestSpec.retrieve()).thenReturn(responseSpec);
+        when(responseSpec.toBodilessEntity()).thenReturn(ResponseEntity.ok().build());
     }
 
     // ── slugify: KC org alias must be a stable slug ──────────────────────────
