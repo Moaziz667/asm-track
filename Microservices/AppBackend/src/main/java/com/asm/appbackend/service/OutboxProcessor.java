@@ -29,9 +29,17 @@ public class OutboxProcessor {
     private final OutboxRepository outboxRepo;
     private final ObjectMapper objectMapper;
     private final IamCommandApplier iamApplier;
+    private final com.asm.appbackend.config.TenantIterator tenantIterator;
 
+    // The IAM outbox lives in each tenant's schema, so drain it once per provisioned tenant — a
+    // scheduled thread carries no TenantContext, so an unscoped run would only touch the empty
+    // `public` schema and no tenant's admin role/name/status changes would ever reach Keycloak.
     @Scheduled(fixedDelay = 15000)
     public void processOutbox() {
+        tenantIterator.forEachActive(companyId -> processOutboxForTenant());
+    }
+
+    private void processOutboxForTenant() {
         int recovered = outboxRepo.recoverStuckEvents(LocalDateTime.now().minusMinutes(5));
         if (recovered > 0) log.warn("Recovered {} stuck PROCESSING outbox events", recovered);
 

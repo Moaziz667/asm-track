@@ -364,18 +364,36 @@ public class EventPublisher {
     }
 
     private void executeAfterCommitAsync(Runnable runnable) {
+        // Capture the tenant on THIS (request/tx) thread and restore it on the async worker: the
+        // CompletableFuture pool has no TenantContext, so tenantTopic() would otherwise fall back to
+        // the global "/topic/..." destination — publishing one tenant's events onto a channel any
+        // other tenant's admin can subscribe to (cross-tenant real-time leak).
+        final Runnable tenantAware = withTenant(runnable);
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        runAsyncLogged(runnable);
+                        runAsyncLogged(tenantAware);
                     }
                 }
             );
         } else {
-            runAsyncLogged(runnable);
+            runAsyncLogged(tenantAware);
         }
+    }
+
+    /** Re-establish the submitting thread's tenant inside an async task, then clear it afterwards. */
+    private Runnable withTenant(Runnable task) {
+        final UUID tenant = TenantContext.get();
+        return () -> {
+            if (tenant != null) TenantContext.set(tenant);
+            try {
+                task.run();
+            } finally {
+                TenantContext.clear();
+            }
+        };
     }
 
     /**

@@ -8,6 +8,7 @@ import com.asm.driver.service.DriverAuditLogService;
 import com.asm.driver.service.DriverEventPublisher;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -24,10 +25,19 @@ public class ScheduledTasks {
     private final DriverInviteTokenRepository inviteTokenRepo;
     private final DriverAuditLogService auditLogService;
     private final DriverEventPublisher eventPublisher;
+    private final TenantIterator tenantIterator;
+    // Self-proxy so the per-tenant @Transactional applies (a direct this-call would bypass it).
+    private final ObjectProvider<ScheduledTasks> self;
 
+    // Drivers + invite tokens live in each tenant's schema; iterate every provisioned tenant so the
+    // scheduled thread (no TenantContext) doesn't just scan the empty `public` schema.
     @Scheduled(fixedDelay = 300_000)
-    @Transactional
     public void autoOfflineStaleDrivers() {
+        tenantIterator.forEachActive(companyId -> self.getObject().autoOfflineStaleDriversForTenant());
+    }
+
+    @Transactional
+    public void autoOfflineStaleDriversForTenant() {
         LocalDateTime threshold = LocalDateTime.now().minusMinutes(10);
 
         // Load before update so we can audit and publish events per driver
@@ -56,11 +66,15 @@ public class ScheduledTasks {
     }
 
     @Scheduled(fixedDelay = 3_600_000)
-    @Transactional
     public void cleanupExpiredInviteTokens() {
+        tenantIterator.forEachActive(companyId -> self.getObject().cleanupExpiredInviteTokensForTenant(companyId));
+    }
+
+    @Transactional
+    public void cleanupExpiredInviteTokensForTenant(java.util.UUID companyId) {
         int deleted = inviteTokenRepo.deleteAllExpired(LocalDateTime.now());
         if (deleted > 0) {
-            log.info("Cleaned up {} expired invite token(s)", deleted);
+            log.info("Cleaned up {} expired invite token(s) for tenant {}", deleted, companyId);
         }
     }
 }

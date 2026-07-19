@@ -31,32 +31,44 @@ public class KeycloakSyncScheduler {
     private final AdminUserRepository adminUserRepo;
     private final KeycloakAdminClient keycloakAdminClient;
     private final MeterRegistry meters;
+    private final com.asm.appbackend.config.TenantIterator tenantIterator;
     private final AtomicLong lastSuccessEpoch = new AtomicLong(0);
 
     public KeycloakSyncScheduler(AdminUserRepository adminUserRepo,
                                  KeycloakAdminClient keycloakAdminClient,
-                                 MeterRegistry meters) {
+                                 MeterRegistry meters,
+                                 com.asm.appbackend.config.TenantIterator tenantIterator) {
         this.adminUserRepo = adminUserRepo;
         this.keycloakAdminClient = keycloakAdminClient;
         this.meters = meters;
+        this.tenantIterator = tenantIterator;
         meters.gauge("kc.sync.last_success.seconds", lastSuccessEpoch);
     }
 
-    /** Fast incremental pass: only rows that may diverge (just created/updated, or failed sync). */
+    /**
+     * Fast incremental pass: only rows that may diverge (just created/updated, or failed sync).
+     * The {@code admin_users} table is per-tenant, so we iterate every provisioned tenant — otherwise
+     * the scheduled thread (no TenantContext) would only scan the empty {@code public} schema and no
+     * real tenant's admins would ever reconcile to Keycloak.
+     */
     @Scheduled(fixedDelay = 60_000, initialDelay = 10_000)
     public void reconcileDirty() {
-        List<AdminUser> dirty = adminUserRepo.findByKcSyncedFalse();
-        if (dirty.isEmpty()) return;
-        log.info("Keycloak admin sync (dirty pass): {} row(s) to reconcile", dirty.size());
-        runPass("dirty", dirty);
+        tenantIterator.forEachActive(companyId -> {
+            List<AdminUser> dirty = adminUserRepo.findByKcSyncedFalse();
+            if (dirty.isEmpty()) return;
+            log.info("Keycloak admin sync (dirty pass): {} row(s) to reconcile for tenant {}", dirty.size(), companyId);
+            runPass("dirty", dirty);
+        });
     }
 
     /** Full drift audit over all rows — catches out-of-band Keycloak edits the dirty pass misses. */
     @Scheduled(fixedDelay = 900_000, initialDelay = 60_000)
     public void reconcileAll() {
-        log.info("Keycloak admin sync (full pass): starting drift audit...");
-        runPass("full", adminUserRepo.findAll());
-        log.info("Keycloak admin sync (full pass): complete.");
+        tenantIterator.forEachActive(companyId -> {
+            log.info("Keycloak admin sync (full pass): starting drift audit for tenant {}...", companyId);
+            runPass("full", adminUserRepo.findAll());
+            log.info("Keycloak admin sync (full pass): complete for tenant {}.", companyId);
+        });
     }
 
     private void runPass(String pass, List<AdminUser> users) {

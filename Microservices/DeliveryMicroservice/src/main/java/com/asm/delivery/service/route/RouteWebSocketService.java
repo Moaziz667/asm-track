@@ -217,7 +217,7 @@ public class RouteWebSocketService {
     }
 
     public void notifyDriverStatusChanged(UUID driverId, String status, String driverName) {
-        java.util.concurrent.CompletableFuture.runAsync(() -> {
+        java.util.concurrent.CompletableFuture.runAsync(withTenant(() -> {
             try {
                 String destination = tenantTopic("admin.drivers");
                 
@@ -237,21 +237,37 @@ public class RouteWebSocketService {
             } catch (Exception e) {
                 log.warn("notifyDriverStatusChanged: failed for driverId={}: {}", driverId, e.getMessage());
             }
-        });
+        }));
     }
 
     private void executeAfterCommitAsync(Runnable runnable) {
+        // The async worker has no TenantContext, so tenantTopic() inside the task would fall back to
+        // the global "/topic/..." destination (cross-tenant). Capture the tenant here and restore it.
+        final Runnable tenantAware = withTenant(runnable);
         if (org.springframework.transaction.support.TransactionSynchronizationManager.isSynchronizationActive()) {
             org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
                 new org.springframework.transaction.support.TransactionSynchronization() {
                     @Override
                     public void afterCommit() {
-                        java.util.concurrent.CompletableFuture.runAsync(runnable);
+                        java.util.concurrent.CompletableFuture.runAsync(tenantAware);
                     }
                 }
             );
         } else {
-            java.util.concurrent.CompletableFuture.runAsync(runnable);
+            java.util.concurrent.CompletableFuture.runAsync(tenantAware);
         }
+    }
+
+    /** Re-establish the submitting thread's tenant inside an async task, then clear it afterwards. */
+    private Runnable withTenant(Runnable task) {
+        final UUID tenant = TenantContext.get();
+        return () -> {
+            if (tenant != null) TenantContext.set(tenant);
+            try {
+                task.run();
+            } finally {
+                TenantContext.clear();
+            }
+        };
     }
 }

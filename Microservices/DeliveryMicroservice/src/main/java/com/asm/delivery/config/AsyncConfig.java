@@ -1,9 +1,12 @@
 package com.asm.delivery.config;
 
+import com.asm.delivery.security.TenantContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.task.TaskDecorator;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 
+import java.util.UUID;
 import java.util.concurrent.Executor;
 
 @Configuration
@@ -13,6 +16,11 @@ public class AsyncConfig {
      * Single-thread executor for address geocoding. Serializes Nominatim calls so a bulk
      * import of many BLs respects the public Nominatim usage policy (~1 request/second)
      * instead of firing a burst that gets the instance rate-limited or banned.
+     *
+     * <p>The {@link #tenantPropagatingDecorator() task decorator} carries the submitting request's
+     * tenant onto the worker thread: geocoding loads and saves the order via JPA, which resolves the
+     * schema from {@link TenantContext} — without it the async work would hit the {@code public} schema
+     * and silently never persist coordinates for any real tenant.
      */
     @Bean(name = "geocodingExecutor")
     public Executor geocodingExecutor() {
@@ -21,7 +29,23 @@ public class AsyncConfig {
         ex.setMaxPoolSize(1);
         ex.setQueueCapacity(1000);
         ex.setThreadNamePrefix("geocode-");
+        ex.setTaskDecorator(tenantPropagatingDecorator());
         ex.initialize();
         return ex;
+    }
+
+    /** Captures the submitting thread's tenant and restores it around the async task. */
+    private static TaskDecorator tenantPropagatingDecorator() {
+        return runnable -> {
+            final UUID tenant = TenantContext.get();
+            return () -> {
+                if (tenant != null) TenantContext.set(tenant);
+                try {
+                    runnable.run();
+                } finally {
+                    TenantContext.clear();
+                }
+            };
+        };
     }
 }
