@@ -54,6 +54,11 @@ public class TenantSchemaProvisioner {
                 }
             }
 
+            // Seed system_settings singleton so the tenant has a default ERP config row.
+            conn.createStatement().execute(
+                "INSERT INTO system_settings (id, active_erp_provider, connection_status) "
+                + "VALUES ('SINGLETON', 'ODOO', 'NOT_CONFIGURED') ON CONFLICT (id) DO NOTHING");
+
             log.info("Schema provisioning completed for: {}", schemaName);
 
         } catch (Exception e) {

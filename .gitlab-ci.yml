@@ -89,9 +89,13 @@ integration-test-backend-delivery:
     POSTGRES_DB: delivery_test
     POSTGRES_USER: test
     POSTGRES_PASSWORD: test
+    POSTGRES_HOST_AUTH_METHOD: trust
     IT_DB_URL: "jdbc:postgresql://postgres:5432/delivery_test"
     IT_DB_USER: test
     IT_DB_PASS: test
+  before_script:
+    - cd Microservices/DeliveryMicroservice
+    - until pg_isready -h postgres -p 5432 -U test -d delivery_test; do sleep 1; done
   script:
     - gradle integrationTest
   artifacts:

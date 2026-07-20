@@ -94,10 +94,12 @@ public class SecurityConfig {
                             String azp = jwt.getClaimAsString("azp");
                             
                             boolean hasValidAud = aud != null && (aud.contains("admin-web") || aud.contains("erp-adapter")
-                                    || aud.contains("delivery-service") || aud.contains("driver-service"));
-                                    
+                                    || aud.contains("delivery-service") || aud.contains("driver-service")
+                                    || aud.contains("app-backend"));
+
                             boolean hasValidAzp = azp != null && (azp.equals("admin-web") || azp.equals("erp-adapter")
-                                    || azp.equals("delivery-service") || azp.equals("driver-service"));
+                                    || azp.equals("delivery-service") || azp.equals("driver-service")
+                                    || azp.equals("app-backend"));
 
                             if (hasValidAud || hasValidAzp) {
                                 return org.springframework.security.oauth2.core.OAuth2TokenValidatorResult.success();

@@ -3,15 +3,19 @@ package com.asm.appbackend.controller;
 import com.asm.appbackend.dto.SystemSettingsDto;
 import com.asm.appbackend.entity.SystemSettings;
 import com.asm.appbackend.repository.SystemSettingsRepository;
+import com.asm.appbackend.security.TenantContext;
 import com.asm.appbackend.service.EncryptionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.client.RestClient;
 
 
 import java.util.HashMap;
@@ -27,9 +31,13 @@ public class SettingsController {
     private final SystemSettingsRepository repository;
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
+    private final RestClient.Builder restClientBuilder;
 
     @org.springframework.beans.factory.annotation.Value("${allowed.erp.domains:}")
     private String allowedDomains;
+
+    @Value("${delivery.service.url:http://delivery-service:8082}")
+    private String deliveryUrl;
 
     private void validateUrl(String url) {
         if (url == null || url.isBlank()) return;
@@ -175,6 +183,11 @@ public class SettingsController {
         }
 
         repository.save(settings);
+
+        // Push the active ERP provider to delivery-service so its adapter
+        // routes to the correct ERP per tenant (not hardcoded "odoo").
+        pushProviderToDelivery(newProvider);
+
         return ResponseEntity.ok().build();
     }
 
@@ -410,5 +423,55 @@ public class SettingsController {
         // with credentials that aren't CONNECTED.
         out.setConnectionStatus(settings.getConnectionStatus());
         return ResponseEntity.ok(out);
+    }
+
+    /**
+     * Push the active ERP provider to delivery-service so it routes to the correct
+     * ERP adapter per tenant (not the hardcoded "odoo" default).
+     * Best-effort: failure is logged but doesn't block the settings save.
+     */
+    private void pushProviderToDelivery(String provider) {
+        if (provider == null || provider.isBlank() || "NONE".equalsIgnoreCase(provider)) return;
+        java.util.UUID companyId = TenantContext.get();
+        if (companyId == null) {
+            log.debug("No tenant context — skipping ERP provider push to delivery-service");
+            return;
+        }
+        try {
+            String token = getServiceToken();
+            Map<String, String> body = Map.of("provider", provider.toLowerCase());
+
+            restClientBuilder.build()
+                .post()
+                .uri(deliveryUrl + "/internal/erp/provider")
+                .headers(h -> {
+                    h.setContentType(MediaType.APPLICATION_JSON);
+                    h.set("X-Company-Id", companyId.toString());
+                    if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                })
+                .body(body)
+                .retrieve()
+                .toBodilessEntity();
+
+            log.info("Pushed ERP provider '{}' to delivery-service for tenant {}", provider, companyId);
+        } catch (Exception e) {
+            log.warn("Failed to push ERP provider to delivery-service: {}", e.getMessage());
+        }
+    }
+
+    private String getServiceToken() {
+        try {
+            return restClientBuilder.build()
+                .post()
+                .uri("http://keycloak:8080/realms/master/protocol/openid-connect/token")
+                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
+                .body("grant_type=client_credentials&client_id=app-backend&client_secret=AppBackendSecret2026!")
+                .retrieve()
+                .body(java.util.Map.class)
+                .get("access_token").toString();
+        } catch (Exception e) {
+            log.warn("Failed to get service token for delivery push: {}", e.getMessage());
+            return "";
+        }
     }
 }

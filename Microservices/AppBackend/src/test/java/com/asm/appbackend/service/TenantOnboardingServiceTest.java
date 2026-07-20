@@ -51,6 +51,7 @@ class TenantOnboardingServiceTest {
     @Mock TenantSchemaProvisioner localProvisioner;
     @Mock RestClient.Builder restClientBuilder;
     @Mock RestClient restClient;
+    @Mock javax.sql.DataSource dataSource;
     // RETURNS_SELF lets the fluent builder chain (post().uri().header().contentType()) return itself,
     // so we only have to stub the two terminal calls (retrieve → toBodilessEntity).
     @Mock(answer = Answers.RETURNS_SELF) RequestBodyUriSpec requestSpec;
@@ -65,7 +66,7 @@ class TenantOnboardingServiceTest {
         // The service builds its RestClient from the injected builder in the constructor, so stub build()
         // before constructing it (this is why we don't use @InjectMocks here).
         when(restClientBuilder.build()).thenReturn(restClient);
-        service = new TenantOnboardingService(kc, localProvisioner, restClientBuilder);
+        service = new TenantOnboardingService(kc, localProvisioner, restClientBuilder, dataSource);
         ReflectionTestUtils.setField(service, "deliveryUrl", "http://delivery-service:8082");
         ReflectionTestUtils.setField(service, "driverUrl", "http://driver-service:8086");
 

@@ -2,6 +2,7 @@ package com.asm.appbackend.service;
 
 import com.asm.appbackend.client.KeycloakAdminClient;
 import com.asm.appbackend.config.TenantSchemaProvisioner;
+import com.asm.appbackend.config.TenantSchema;
 import com.asm.appbackend.exception.AppException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -11,6 +12,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
+import javax.sql.DataSource;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -33,6 +37,7 @@ public class TenantOnboardingService {
     private final KeycloakAdminClient kc;
     private final TenantSchemaProvisioner localProvisioner; // app_backend_db
     private final RestClient restClient;
+    private final DataSource dataSource;
 
     @Value("${delivery.service.url:http://delivery-service:8082}")
     private String deliveryUrl;
@@ -42,10 +47,12 @@ public class TenantOnboardingService {
 
     public TenantOnboardingService(KeycloakAdminClient kc,
                                    TenantSchemaProvisioner localProvisioner,
-                                   RestClient.Builder restClientBuilder) {
+                                   RestClient.Builder restClientBuilder,
+                                   DataSource dataSource) {
         this.kc = kc;
         this.localProvisioner = localProvisioner;
         this.restClient = restClientBuilder.build();
+        this.dataSource = dataSource;
     }
 
     public record OnboardResult(String companyId, String adminUserId, List<String> provisioned) {}
@@ -79,6 +86,18 @@ public class TenantOnboardingService {
             adminUserId = UUID.randomUUID().toString();
             String kcUserId = kc.createUser(adminEmail, "ADMIN", adminUserId, null, adminName);
             kc.addOrganizationMember(orgId, kcUserId);
+
+            // 3. Insert admin_users row in the tenant schema so /api/admin/me works.
+            String schema = TenantSchema.schemaFor(companyId);
+            try (Connection conn = dataSource.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "INSERT INTO " + schema + ".admin_users (id, name, email, role, active) "
+                         + "VALUES (?, ?, ?, 'ADMIN', true) ON CONFLICT (email) DO NOTHING")) {
+                ps.setObject(1, UUID.fromString(adminUserId));
+                ps.setString(2, adminName);
+                ps.setString(3, adminEmail);
+                ps.executeUpdate();
+            }
             log.info("Onboarding complete: company={} admin={}", orgId, adminEmail);
 
             return new OnboardResult(orgId, adminUserId, provisioned);
