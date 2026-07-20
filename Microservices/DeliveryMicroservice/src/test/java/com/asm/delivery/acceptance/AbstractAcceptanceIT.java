@@ -17,8 +17,9 @@ import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
-import org.springframework.context.annotation.TestConfiguration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -34,6 +35,7 @@ import static org.mockito.Mockito.*;
 
 @SpringBootTest
 @ActiveProfiles("test")
+@Import(AbstractAcceptanceIT.MockConfig.class)
 abstract class AbstractAcceptanceIT {
 
     static final PostgreSQLContainer<?> POSTGRES =
@@ -61,8 +63,8 @@ abstract class AbstractAcceptanceIT {
               + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration");
     }
 
-    @TestConfiguration
-    static class MockBeans {
+    @Configuration
+    static class MockConfig {
         @Bean @Primary
         ErpPort erpPort() { return Mockito.mock(ErpPort.class); }
 
