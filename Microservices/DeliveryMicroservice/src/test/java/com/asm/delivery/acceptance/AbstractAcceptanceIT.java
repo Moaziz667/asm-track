@@ -13,9 +13,12 @@ import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.TestConfiguration;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -29,13 +32,6 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-/**
- * Base class for delivery-lifecycle acceptance tests.
- *
- * Boots the full Spring context against a throwaway Testcontainers Postgres, provisions a
- * tenant schema, and mocks every external boundary (MinIO, ERP adapter, driver-service Feign).
- * Each test gets a clean tenant context and a seeded Vehicle + Depot.
- */
 @SpringBootTest
 @ActiveProfiles("test")
 abstract class AbstractAcceptanceIT {
@@ -65,6 +61,21 @@ abstract class AbstractAcceptanceIT {
               + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration");
     }
 
+    @TestConfiguration
+    static class MockBeans {
+        @Bean @Primary
+        ErpPort erpPort() { return Mockito.mock(ErpPort.class); }
+
+        @Bean @Primary
+        TransportPort transportPort() { return Mockito.mock(TransportPort.class); }
+
+        @Bean @Primary
+        MinioStorageService minioStorageService() { return Mockito.mock(MinioStorageService.class); }
+
+        @Bean @Primary
+        EventPublisher eventPublisher() { return Mockito.mock(EventPublisher.class); }
+    }
+
     private static final UUID TENANT_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     @Autowired TenantSchemaProvisioner provisioner;
@@ -76,10 +87,10 @@ abstract class AbstractAcceptanceIT {
     @Autowired DepotRepository depotRepository;
     @Autowired OutboxRepository outboxRepository;
 
-    @MockitoBean ErpPort erpPort;
-    @MockitoBean TransportPort transportPort;
-    @MockitoBean MinioStorageService minioStorageService;
-    @MockitoBean EventPublisher eventPublisher;
+    @Autowired ErpPort erpPort;
+    @Autowired TransportPort transportPort;
+    @Autowired MinioStorageService minioStorageService;
+    @Autowired EventPublisher eventPublisher;
 
     protected Vehicle testVehicle;
     protected Depot testDepot;
