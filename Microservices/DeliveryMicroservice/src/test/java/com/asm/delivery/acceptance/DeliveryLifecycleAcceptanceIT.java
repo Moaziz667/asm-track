@@ -41,7 +41,7 @@ class DeliveryLifecycleAcceptanceIT extends AbstractAcceptanceIT {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("Route creation persists a DRAFT route linked to vehicle and depot")
     void createRouteWithStops() {
-        UUID driverId = UUID.fromString(transportPort.getDriver(anyString()).call().id());
+        UUID driverId = UUID.fromString(transportPort.getDriver(anyString()).getId());
 
         CreateRouteRequest req = new CreateRouteRequest();
         req.setDriverId(driverId);
@@ -166,7 +166,7 @@ class DeliveryLifecycleAcceptanceIT extends AbstractAcceptanceIT {
                 .nextRetryAt(LocalDateTime.now())
                 .build());
 
-        List<OutboxEvent> pending = outboxRepository.findByStatus("PENDING");
+        List<OutboxEvent> pending = outboxRepository.findByStatusOrderByCreatedAtAsc("PENDING");
         assertThat(pending).isNotEmpty();
         assertThat(pending.get(0).getEventType()).isEqualTo("ERP_SYNC_POD");
     }

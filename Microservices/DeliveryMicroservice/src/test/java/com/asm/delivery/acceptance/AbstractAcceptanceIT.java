@@ -15,7 +15,7 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.bean.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -76,10 +76,10 @@ abstract class AbstractAcceptanceIT {
     @Autowired DepotRepository depotRepository;
     @Autowired OutboxRepository outboxRepository;
 
-    @MockBean ErpPort erpPort;
-    @MockBean TransportPort transportPort;
-    @MockBean MinioStorageService minioStorageService;
-    @MockBean EventPublisher eventPublisher;
+    @MockitoBean ErpPort erpPort;
+    @MockitoBean TransportPort transportPort;
+    @MockitoBean MinioStorageService minioStorageService;
+    @MockitoBean EventPublisher eventPublisher;
 
     protected Vehicle testVehicle;
     protected Depot testDepot;
