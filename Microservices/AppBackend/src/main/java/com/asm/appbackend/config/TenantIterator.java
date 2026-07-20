@@ -31,7 +31,7 @@ public class TenantIterator {
 
     /** Executes the action once per provisioned tenant, with its TenantContext set then cleared. */
     public void forEachActive(Consumer<UUID> action) {
-        for (UUID companyId : listProvisionedTenants()) {
+        for (UUID companyId : listProvisioned()) {
             TenantContext.set(companyId);
             try {
                 action.accept(companyId);
@@ -43,7 +43,8 @@ public class TenantIterator {
         }
     }
 
-    private List<UUID> listProvisionedTenants() {
+    /** The company ids of every provisioned tenant (one {@code company_<hex>} schema each). */
+    public List<UUID> listProvisioned() {
         List<String> schemas = jdbcTemplate.queryForList(
                 "SELECT schema_name FROM information_schema.schemata WHERE schema_name LIKE 'company\\_%'",
                 String.class);

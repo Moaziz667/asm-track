@@ -1,5 +1,6 @@
 package com.asm.erpadapter.routing;
 
+import com.asm.erpadapter.port.ErpChangePort;
 import com.asm.erpadapter.port.ErpLookupPort;
 import com.asm.erpadapter.port.ErpOrderPort;
 import com.asm.erpadapter.port.ErpSyncPort;
@@ -25,15 +26,17 @@ public class ErpProviderRouter {
     private final Map<String, ErpSyncPort> syncAdapters = new HashMap<>();
     private final Map<String, ErpLookupPort> lookupAdapters = new HashMap<>();
     private final Map<String, ErpOrderPort> orderAdapters = new HashMap<>();
+    private final Map<String, ErpChangePort> changeAdapters = new HashMap<>();
     private final SettingsClient settingsClient;
 
     /**
      * Collects all ERP port implementations.
-     * Naming convention: sync="odoo", lookup="odooLookup", order="odooOrder".
+     * Naming convention: sync="odoo", lookup="odooLookup", order="odooOrder", change="odooChange".
      */
     public ErpProviderRouter(List<ErpSyncPort> syncBeans,
                               List<ErpLookupPort> lookupBeans,
                               List<ErpOrderPort> orderBeans,
+                              List<ErpChangePort> changeBeans,
                               SettingsClient settingsClient) {
         this.settingsClient = settingsClient;
         for (ErpSyncPort bean : syncBeans) {
@@ -48,8 +51,12 @@ public class ErpProviderRouter {
             String key = extractProviderKey(bean.getClass());
             orderAdapters.put(key, bean);
         }
-        log.info("ERP providers registered — sync: {}, lookup: {}, order: {}",
-                syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet());
+        for (ErpChangePort bean : changeBeans) {
+            String key = extractProviderKey(bean.getClass());
+            changeAdapters.put(key, bean);
+        }
+        log.info("ERP providers registered — sync: {}, lookup: {}, order: {}, change: {}",
+                syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet(), changeAdapters.keySet());
     }
 
     public ErpSyncPort getSync(String providerRequested) {
@@ -83,14 +90,24 @@ public class ErpProviderRouter {
     }
 
     /**
+     * The inbound-change adapter for the current tenant's ERP, or empty when the tenant has no ERP
+     * configured ({@code none}) — so the inbound poller can cleanly skip un-configured tenants without
+     * treating "no ERP" as an error.
+     */
+    public java.util.Optional<ErpChangePort> getChange() {
+        String provider = resolveProvider();
+        return java.util.Optional.ofNullable(changeAdapters.get(provider));
+    }
+
+    /**
      * Extracts the provider key from the adapter class name.
      * OdooSyncAdapter → "odoo", OdooLookupAdapter → "odoo", DuxSyncAdapter → "dux".
      */
     private static String extractProviderKey(Class<?> clazz) {
         String name = clazz.getSimpleName(); // e.g. "OdooSyncAdapter"
-        // Remove "Sync/Lookup/Order/Adapter" suffixes to get the provider prefix
-        String cleaned = name.replaceAll("(Sync|Lookup|Order|Adapter)", "");
-        return cleaned.toLowerCase(); // "odoo", "dux", etc.
+        // Remove "Sync/Lookup/Order/Change/Adapter" suffixes to get the provider prefix
+        String cleaned = name.replaceAll("(Sync|Lookup|Order|Change|Adapter)", "");
+        return cleaned.toLowerCase(); // "odoo", "erpnext", "dux", etc.
     }
 
     private String resolveProvider() {

@@ -1,5 +1,6 @@
 package com.asm.appbackend.controller;
 
+import com.asm.appbackend.config.TenantIterator;
 import com.asm.appbackend.config.TenantSchema;
 import com.asm.appbackend.config.TenantSchemaProvisioner;
 import lombok.RequiredArgsConstructor;
@@ -7,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -21,6 +23,17 @@ import java.util.UUID;
 public class TenantProvisioningController {
 
     private final TenantSchemaProvisioner schemaProvisioner;
+    private final TenantIterator tenantIterator;
+
+    /**
+     * Lists every provisioned tenant (company id per {@code company_<hex>} schema). Used by DB-less
+     * services (the ERP adapter's inbound change poller) that must run work per tenant but can't read
+     * the schema catalog themselves. Secured by {@code /internal/**} → SERVICE role.
+     */
+    @GetMapping
+    public List<UUID> listTenants() {
+        return tenantIterator.listProvisioned();
+    }
 
     /**
      * Provisions a new tenant schema with all required tables.
