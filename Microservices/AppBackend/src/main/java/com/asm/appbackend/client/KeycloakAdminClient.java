@@ -552,6 +552,12 @@ public class KeycloakAdminClient {
                     .retrieve()
                     .toBodilessEntity();
         } catch (RestClientResponseException e) {
+            // Already a member (reconciler re-provision, or a retried IAM command) is success, not failure —
+            // Keycloak answers 409 CONFLICT. Only a genuine error should propagate.
+            if (e.getStatusCode() == HttpStatus.CONFLICT) {
+                log.debug("User {} already a member of organization {} — ok", kcUserId, orgId);
+                return;
+            }
             log.error("Failed to add member {} to organization {}: {}", kcUserId, orgId, e.getResponseBodyAsString());
             throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Organization membership failed");
         }

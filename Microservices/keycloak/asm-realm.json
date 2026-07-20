@@ -57,11 +57,21 @@
         "composite": true,
         "composites": {
           "realm": [
-            "perm:user:manage", "perm:driver:manage", "perm:driver:view",
-            "perm:route:view", "perm:route:manage", "perm:route:validate",
-            "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate",
-            "perm:erp:sync", "perm:erp:config", "perm:report:view",
-            "perm:audit:view", "perm:settings:manage", "perm:company:manage"
+            "perm:user:manage",
+            "perm:driver:manage",
+            "perm:driver:view",
+            "perm:route:view",
+            "perm:route:manage",
+            "perm:route:validate",
+            "perm:delivery:view",
+            "perm:delivery:manage",
+            "perm:dispatch:operate",
+            "perm:erp:sync",
+            "perm:erp:config",
+            "perm:report:view",
+            "perm:audit:view",
+            "perm:settings:manage",
+            "perm:company:manage"
           ]
         },
         "clientRole": false
@@ -73,9 +83,15 @@
         "composites": {
           "realm": [
             "perm:driver:view",
-            "perm:route:view", "perm:route:manage", "perm:route:validate",
-            "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate",
-            "perm:erp:sync", "perm:report:view", "perm:audit:view"
+            "perm:route:view",
+            "perm:route:manage",
+            "perm:route:validate",
+            "perm:delivery:view",
+            "perm:delivery:manage",
+            "perm:dispatch:operate",
+            "perm:erp:sync",
+            "perm:report:view",
+            "perm:audit:view"
           ]
         },
         "clientRole": false
@@ -85,7 +101,11 @@
         "description": "Read-only manager",
         "composite": true,
         "composites": {
-          "realm": ["perm:route:view", "perm:delivery:view", "perm:report:view"]
+          "realm": [
+            "perm:route:view",
+            "perm:delivery:view",
+            "perm:report:view"
+          ]
         },
         "clientRole": false
       },
@@ -107,28 +127,111 @@
         "composite": false,
         "clientRole": false
       },
-      { "name": "perm:user:manage",      "description": "Manage admin/dispatcher/manager users", "composite": false, "clientRole": false },
-      { "name": "perm:driver:manage",    "description": "Invite/edit/suspend drivers",          "composite": false, "clientRole": false },
-      { "name": "perm:driver:view",      "description": "View drivers",                         "composite": false, "clientRole": false },
-      { "name": "perm:route:view",       "description": "View routes",                          "composite": false, "clientRole": false },
-      { "name": "perm:route:manage",     "description": "Build/edit routes",                    "composite": false, "clientRole": false },
-      { "name": "perm:route:validate",   "description": "Validate/start/close routes",          "composite": false, "clientRole": false },
-      { "name": "perm:delivery:view",    "description": "View deliveries",                      "composite": false, "clientRole": false },
-      { "name": "perm:delivery:manage",  "description": "Edit/dispatch deliveries",             "composite": false, "clientRole": false },
-      { "name": "perm:dispatch:operate", "description": "Operate the dispatch desk",            "composite": false, "clientRole": false },
-      { "name": "perm:erp:sync",         "description": "Trigger ERP import/sync",              "composite": false, "clientRole": false },
-      { "name": "perm:erp:config",       "description": "Configure ERP connection",             "composite": false, "clientRole": false },
-      { "name": "perm:report:view",      "description": "View stats/reports/analytics",         "composite": false, "clientRole": false },
-      { "name": "perm:audit:view",       "description": "View audit logs",                      "composite": false, "clientRole": false },
-      { "name": "perm:settings:manage",  "description": "Manage system settings",               "composite": false, "clientRole": false },
-      { "name": "perm:company:manage",   "description": "Manage company profile/branding",      "composite": false, "clientRole": false },
+      {
+        "name": "perm:user:manage",
+        "description": "Manage admin/dispatcher/manager users",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:driver:manage",
+        "description": "Invite/edit/suspend drivers",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:driver:view",
+        "description": "View drivers",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:route:view",
+        "description": "View routes",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:route:manage",
+        "description": "Build/edit routes",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:route:validate",
+        "description": "Validate/start/close routes",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:delivery:view",
+        "description": "View deliveries",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:delivery:manage",
+        "description": "Edit/dispatch deliveries",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:dispatch:operate",
+        "description": "Operate the dispatch desk",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:erp:sync",
+        "description": "Trigger ERP import/sync",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:erp:config",
+        "description": "Configure ERP connection",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:report:view",
+        "description": "View stats/reports/analytics",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:audit:view",
+        "description": "View audit logs",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:settings:manage",
+        "description": "Manage system settings",
+        "composite": false,
+        "clientRole": false
+      },
+      {
+        "name": "perm:company:manage",
+        "description": "Manage company profile/branding",
+        "composite": false,
+        "clientRole": false
+      },
       {
         "name": "default-roles-asm",
         "description": "${role_default-roles}",
         "composite": true,
         "composites": {
-          "realm": ["offline_access", "uma_authorization"],
-          "client": { "account": ["view-profile", "manage-account"] }
+          "realm": [
+            "offline_access",
+            "uma_authorization"
+          ],
+          "client": {
+            "account": [
+              "view-profile",
+              "manage-account"
+            ]
+          }
         },
         "clientRole": false
       }
@@ -253,6 +356,21 @@
             "userinfo.token.claim": "true"
           }
         }
+      ],
+      "defaultClientScopes": [
+        "web-origins",
+        "acr",
+        "profile",
+        "roles",
+        "basic",
+        "email",
+        "organization"
+      ],
+      "optionalClientScopes": [
+        "address",
+        "phone",
+        "offline_access",
+        "microprofile-jwt"
       ]
     },
     {
