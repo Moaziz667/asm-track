@@ -111,12 +111,6 @@ public class WebSocketSecurityInterceptor implements ChannelInterceptor {
                         throw new MessageDeliveryException("Access denied: Subscription resource mismatch");
                     }
                 }
-            } else if (dest.startsWith("/topic/admin.")) {
-                if (!List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {
-                    log.warn("WS Subscription rejected: User {} with role {} attempted subscribing to admin topic {}",
-                            user.getUserId(), user.getRole(), dest);
-                    throw new MessageDeliveryException("Access denied: Admin permissions required");
-                }
             } else if (dest.startsWith("/topic/driver.")) {
                 String topicDriverId = dest.substring("/topic/driver.".length());
                 if (!user.getUserId().equals(topicDriverId) && !List.of("ADMIN", "DISPATCHER", "MANAGER").contains(user.getRole())) {

@@ -136,8 +136,9 @@ export function useRouteData(routeId: string | undefined) {
       ?? import.meta.env.VITE_API_BASE_URL
       ?? `${window.location.protocol}//${window.location.host}`;
 
-    // Build tenant-scoped topic
-    let topic = '/topic/admin.routes';
+    // Tenant-scoped topic only. The backend no longer allows the legacy non-tenant /topic/admin.routes,
+    // so with no resolvable tenant we simply don't open a live driver-location feed (fail closed).
+    let topic: string | null = null;
     try {
       const token = safeStorage.getItem('access_token');
       if (token) {
@@ -145,13 +146,15 @@ export function useRouteData(routeId: string | undefined) {
         const orgId = decoded.org_id ?? (() => { const o = decoded.organization; return o ? Object.values(o)[0]?.id : undefined; })();
         if (orgId) topic = `/topic/company/${orgId}/admin.routes`;
       }
-    } catch { /* fallback to legacy topic */ }
+    } catch { /* no tenant → no subscription */ }
+    if (!topic) return;
+    const destination = topic;
 
     const client = new Client({
       webSocketFactory: () => new SockJS(`${baseUrl}/ws`),
       reconnectDelay: 5000,
       onConnect: () => {
-        client.subscribe(topic, msg => {
+        client.subscribe(destination, msg => {
           try {
             const data = JSON.parse(msg.body);
             if (data.event === 'driver.location_updated' && data.driverId === driverId) {

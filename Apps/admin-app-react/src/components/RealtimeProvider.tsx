@@ -83,11 +83,15 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
     const wsUrl = `${wsBase}/ws`;
     let retryCount = 0;
 
-    // Build tenant-scoped topic URLs: /topic/company/{companyId}/admin.X
-    // Fallback to legacy /topic/admin.X if no companyId (shouldn't happen in prod)
+    // Tenant-scoped topics only: /topic/company/{companyId}/admin.X. The backend no longer allows the
+    // legacy non-tenant /topic/admin.X (it was a cross-tenant channel), so if there's no companyId we
+    // subscribe to nothing rather than to a topic that would be rejected — fail closed.
     const topics = companyId
       ? TOPICS.map(t => ({ topic: `/topic/company/${companyId}/${t.sub}`, category: t.category }))
-      : TOPICS.map(t => ({ topic: `/topic/${t.sub}`, category: t.category }));
+      : [];
+    if (!companyId) {
+      console.warn('[RealtimeProvider] No companyId in token — skipping admin topic subscriptions.');
+    }
 
     const client = new Client({
       webSocketFactory: () => new SockJS(wsUrl),
@@ -103,12 +107,10 @@ export function RealtimeProvider({ children }: { children: ReactNode }) {
         // Re-read companyId on reconnect (token may have been renewed with new org_id)
         companyIdRef.current = extractCompanyId();
         const cid = companyIdRef.current;
-        // Rebuild topics with possibly new companyId
+        // Rebuild topics with possibly new companyId — tenant-scoped only (see above; fail closed).
         topics.length = 0;
         if (cid) {
           TOPICS.forEach(t => topics.push({ topic: `/topic/company/${cid}/${t.sub}`, category: t.category }));
-        } else {
-          TOPICS.forEach(t => topics.push({ topic: `/topic/${t.sub}`, category: t.category }));
         }
       },
       onConnect: () => {
