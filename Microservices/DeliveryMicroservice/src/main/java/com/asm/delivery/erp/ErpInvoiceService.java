@@ -45,7 +45,7 @@ public class ErpInvoiceService {
             throw AppException.badRequest("This delivery has no ERP order reference to invoice.");
         }
         try {
-            Map<String, Object> resp = feign.createInvoice(provider, erpOrderId, pickingRef);
+            Map<String, Object> resp = feign.createInvoice(erpOrderId, pickingRef);
             Object ref = resp != null ? resp.get("invoiceRef") : null;
             if (ref != null) {
                 log.info("Invoice created delivery={} provider={} erpOrderId={} ref={}", deliveryId, provider, erpOrderId, ref);
@@ -69,10 +69,8 @@ public class ErpInvoiceService {
         if (invoiceRef == null || invoiceRef.isBlank()) {
             throw AppException.badRequest("Missing invoice reference.");
         }
-        Order order = delivery.getOrder();
-        String provider = order.getSource() != null ? order.getSource().name().toLowerCase() : "odoo";
         try {
-            byte[] pdf = feign.getInvoicePdf(provider, invoiceRef);
+            byte[] pdf = feign.getInvoicePdf(invoiceRef);
             if (pdf != null && pdf.length > 0) return pdf;
         } catch (Exception e) {
             log.warn("getInvoicePdf delivery={} ref={} failed: {}", deliveryId, invoiceRef, e.getMessage());

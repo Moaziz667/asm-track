@@ -14,39 +14,41 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
-import java.util.UUID;
 
+/**
+ * The ERP provider is resolved per-tenant by {@link ErpProviderRouter} (tenant settings + propagated
+ * {@code X-Company-Id}), so no {@code erpProvider} param is accepted — the caller can't override it.
+ */
 @RestController
 @RequestMapping("/api/erp/sync")
 @Tag(name = "ERP Sync", description = "Order lifecycle synchronization")
 @RequiredArgsConstructor
 public class ErpSyncController {
 
-    private final ErpProviderRouter      router;
-    private ErpSyncPort resolve(String erpProvider) {
-        return router.getSync(erpProvider);
+    private final ErpProviderRouter router;
+
+    private ErpSyncPort resolve() {
+        return router.getSync();
     }
 
     @PostMapping("/order-cancellation")
     @Operation(summary = "Cancel ERP order")
     public ResponseEntity<Map<String, Object>> syncOrderCancellation(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId,
             @RequestParam(required = false) String transactionId,
             @RequestParam(required = false) String pickingRef) {
 
-        boolean success = resolve(erpProvider).syncOrderCancellation(erpOrderId, transactionId, pickingRef);
+        boolean success = resolve().syncOrderCancellation(erpOrderId, transactionId, pickingRef);
         return ResponseEntity.ok(Map.of("success", success));
     }
 
     @PostMapping("/invoice")
     @Operation(summary = "Create + validate an ERP invoice for a delivered order (synchronous, admin-triggered)")
     public ResponseEntity<Map<String, Object>> createInvoice(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String erpOrderId,
             @RequestParam(required = false) String pickingRef) {
 
-        String invoiceRef = resolve(erpProvider).createInvoice(erpOrderId, pickingRef);
+        String invoiceRef = resolve().createInvoice(erpOrderId, pickingRef);
         if (invoiceRef == null) {
             return ResponseEntity.badRequest().body(Map.of("success", false,
                     "message", "Invoice could not be created — create it manually in the ERP."));
@@ -57,10 +59,9 @@ public class ErpSyncController {
     @GetMapping("/invoice-pdf")
     @Operation(summary = "Download the rendered PDF of an ERP invoice")
     public ResponseEntity<byte[]> invoicePdf(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @RequestParam String invoiceRef) {
 
-        byte[] pdf = resolve(erpProvider).getInvoicePdf(invoiceRef);
+        byte[] pdf = resolve().getInvoicePdf(invoiceRef);
         if (pdf == null || pdf.length == 0) {
             return ResponseEntity.notFound().build();
         }
@@ -74,10 +75,9 @@ public class ErpSyncController {
     @PostMapping("/full-delivery")
     @Operation(summary = "Sync full delivery to ERP")
     public ResponseEntity<Map<String, Object>> syncFullDelivery(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @Valid @RequestBody SyncFullDeliveryRequest request) {
 
-        boolean success = resolve(erpProvider)
+        boolean success = resolve()
                 .syncFullDelivery(request.getErpOrderId(), request.getBackorderPickingId(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(Map.of("success", success));
     }
@@ -85,10 +85,9 @@ public class ErpSyncController {
     @PostMapping("/partial-delivery")
     @Operation(summary = "Sync partial delivery to ERP")
     public ResponseEntity<ErpPartialDeliveryResultDTO> syncPartialDelivery(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @Valid @RequestBody SyncPartialDeliveryRequest request) {
 
-        ErpPartialDeliveryResultDTO result = resolve(erpProvider)
+        ErpPartialDeliveryResultDTO result = resolve()
                 .syncPartialDelivery(request.getErpOrderId(), request.getItems(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(result);
     }
@@ -96,10 +95,9 @@ public class ErpSyncController {
     @PostMapping("/failure")
     @Operation(summary = "Post failure note on ERP order")
     public ResponseEntity<Map<String, Object>> syncFailure(
-            @RequestParam(defaultValue = "odoo") String erpProvider,
             @Valid @RequestBody SyncFailureRequest request) {
 
-        boolean success = resolve(erpProvider)
+        boolean success = resolve()
                 .syncFailure(request.getErpOrderId(), request.getFailureCode(), request.getComment(), request.getTransactionId(), request.getPickingRef());
         return ResponseEntity.ok(Map.of("success", success));
     }

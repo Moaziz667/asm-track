@@ -59,7 +59,11 @@ public class ErpProviderRouter {
                 syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet(), changeAdapters.keySet());
     }
 
-    public ErpSyncPort getSync(String providerRequested) {
+    // The provider is resolved from the CURRENT TENANT's settings (via SettingsClient + the propagated
+    // X-Company-Id), never from the caller — a tenant on ERPNext must never be served the Odoo adapter
+    // just because a caller passed "odoo". So these take no provider argument by design.
+
+    public ErpSyncPort getSync() {
         String provider = resolveProvider();
         ErpSyncPort adapter = syncAdapters.get(provider);
         if (adapter == null) {
@@ -69,7 +73,7 @@ public class ErpProviderRouter {
         return adapter;
     }
 
-    public ErpLookupPort getLookup(String providerRequested) {
+    public ErpLookupPort getLookup() {
         String provider = resolveProvider();
         ErpLookupPort adapter = lookupAdapters.get(provider);
         if (adapter == null) {
@@ -79,7 +83,7 @@ public class ErpProviderRouter {
         return adapter;
     }
 
-    public ErpOrderPort getOrder(String providerRequested) {
+    public ErpOrderPort getOrder() {
         String provider = resolveProvider();
         ErpOrderPort adapter = orderAdapters.get(provider);
         if (adapter == null) {
