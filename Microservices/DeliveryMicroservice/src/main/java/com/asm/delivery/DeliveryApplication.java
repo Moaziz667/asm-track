@@ -5,11 +5,11 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.EnableAspectJAutoProxy;
 import org.springframework.data.web.config.EnableSpringDataWebSupport;
 import org.springframework.scheduling.annotation.EnableAsync;
-import org.springframework.scheduling.annotation.EnableScheduling;
 import org.springframework.transaction.annotation.EnableTransactionManagement;
 
+// @EnableScheduling lives on SchedulingConfig (conditional on app.scheduling.enabled) so tests can turn
+// the background jobs off — their external calls would otherwise leave non-daemon threads stuck.
 @SpringBootApplication
-@EnableScheduling
 @EnableAsync
 @EnableAspectJAutoProxy
 @EnableTransactionManagement(order = 0)

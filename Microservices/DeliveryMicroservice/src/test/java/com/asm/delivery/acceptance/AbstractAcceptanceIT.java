@@ -77,6 +77,10 @@ abstract class AbstractAcceptanceIT {
         // :61613. With no broker in CI its non-daemon retry threads never die, so the test JVM can't exit
         // and the gradle task hangs until the pipeline timeout.
         registry.add("websocket.broker.relay.enabled", () -> "false");
+        // Turn off the @Scheduled background jobs (outbox drain, SLA monitors, ERP auto-import, health
+        // snapshots): their outbound calls (RabbitMQ / ERP adapter) would otherwise park a non-daemon
+        // scheduler thread in CI (host resolves but never answers), keeping the test JVM alive forever.
+        registry.add("app.scheduling.enabled", () -> "false");
         registry.add("spring.autoconfigure.exclude", () ->
                 "org.springframework.boot.autoconfigure.websocket.WebSocketAutoConfiguration,"
               + "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,"
