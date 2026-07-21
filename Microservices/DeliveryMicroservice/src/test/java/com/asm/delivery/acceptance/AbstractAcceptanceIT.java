@@ -72,6 +72,11 @@ abstract class AbstractAcceptanceIT {
         // auto-startup off nothing touches a broker during the test — the context loads without RabbitMQ.
         registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
         registry.add("spring.rabbitmq.listener.direct.auto-startup", () -> "false");
+        // Use the in-memory simple broker, NOT the STOMP relay: the app enables a TCP broker relay
+        // (websocket.broker.relay.enabled=true) that opens an auto-reconnecting reactor-netty client to
+        // :61613. With no broker in CI its non-daemon retry threads never die, so the test JVM can't exit
+        // and the gradle task hangs until the pipeline timeout.
+        registry.add("websocket.broker.relay.enabled", () -> "false");
         registry.add("spring.autoconfigure.exclude", () ->
                 "org.springframework.boot.autoconfigure.websocket.WebSocketAutoConfiguration,"
               + "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,"
