@@ -12,6 +12,8 @@ import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabas
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import javax.sql.DataSource;
 import java.util.List;
@@ -52,7 +54,14 @@ class FlywayMigrationsIT extends AbstractPostgresIT {
         provisioner.deprovision(TENANT);
     }
 
+    /**
+     * No surrounding test transaction ({@code NOT_SUPPORTED}): the JdbcTemplate reads below (notably the
+     * {@code information_schema} lookup) would otherwise run inside {@code @DataJpaTest}'s rolled-back
+     * transaction and hold an AccessShareLock on the schema — which the {@code @AfterEach} DROP SCHEMA,
+     * running on a separate connection, would then deadlock against, hanging the whole build.
+     */
     @Test
+    @Transactional(propagation = Propagation.NOT_SUPPORTED)
     void allMigrationsApplyCleanlyOnAFreshSchema() {
         // Provisioning runs Flyway.migrate() on the new schema — throws if any migration fails.
         provisioner.provision(TENANT);
