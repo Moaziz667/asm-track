@@ -13,13 +13,9 @@ import com.asm.delivery.transport.DriverDTO;
 import com.asm.delivery.transport.TransportPort;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
-import org.springframework.context.annotation.Primary;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -33,12 +29,8 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-// allow-bean-definition-overriding must be an inlined property (read at bootstrap) — a
-// @DynamicPropertySource value is applied too late for the @Primary MockConfig beans to replace
-// the real @Service beans (eventPublisher, minioStorageService) they share a name with.
-@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
+@SpringBootTest
 @ActiveProfiles("test")
-@Import(AbstractAcceptanceIT.MockConfig.class)
 abstract class AbstractAcceptanceIT {
 
     /**
@@ -87,21 +79,6 @@ abstract class AbstractAcceptanceIT {
               + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration");
     }
 
-    @Configuration
-    static class MockConfig {
-        @Bean @Primary
-        ErpPort erpPort() { return Mockito.mock(ErpPort.class); }
-
-        @Bean @Primary
-        TransportPort transportPort() { return Mockito.mock(TransportPort.class); }
-
-        @Bean @Primary
-        MinioStorageService minioStorageService() { return Mockito.mock(MinioStorageService.class); }
-
-        @Bean @Primary
-        EventPublisher eventPublisher() { return Mockito.mock(EventPublisher.class); }
-    }
-
     private static final UUID TENANT_ID = UUID.fromString("aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa");
 
     @Autowired TenantSchemaProvisioner provisioner;
@@ -113,10 +90,15 @@ abstract class AbstractAcceptanceIT {
     @Autowired DepotRepository depotRepository;
     @Autowired OutboxRepository outboxRepository;
 
-    @Autowired ErpPort erpPort;
-    @Autowired TransportPort transportPort;
-    @Autowired MinioStorageService minioStorageService;
-    @Autowired EventPublisher eventPublisher;
+    // @MockBean removes the real bean definition and registers a Mockito mock in its place, regardless of
+    // the real bean's name or registration order — so the mock always wins injection (a @Primary @Bean does
+    // not: the real TransportPort bean is also named "transportPort", and with bean-override enabled it shadowed
+    // the mock). It also means the real MinioStorageService/EventPublisher are never instantiated, so their
+    // broker/@PostConstruct wiring never runs during the test.
+    @MockBean ErpPort erpPort;
+    @MockBean TransportPort transportPort;
+    @MockBean MinioStorageService minioStorageService;
+    @MockBean EventPublisher eventPublisher;
 
     protected Vehicle testVehicle;
     protected Depot testDepot;
