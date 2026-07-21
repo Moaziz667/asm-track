@@ -41,7 +41,9 @@ class DeliveryLifecycleAcceptanceIT extends AbstractAcceptanceIT {
     @Transactional(propagation = Propagation.NOT_SUPPORTED)
     @DisplayName("Route creation persists a DRAFT route linked to vehicle and depot")
     void createRouteWithStops() {
-        UUID driverId = UUID.fromString(transportPort.getDriver(anyString()).getId());
+        // Real argument, not a matcher: getDriver(anyString()) is stubbed in setUpTenant, and a bare
+        // matcher outside when()/verify would corrupt Mockito's matcher stack for the next test.
+        UUID driverId = UUID.fromString(transportPort.getDriver("driver-1").getId());
 
         CreateRouteRequest req = new CreateRouteRequest();
         req.setDriverId(driverId);

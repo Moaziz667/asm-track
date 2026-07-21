@@ -33,31 +33,55 @@ import java.util.UUID;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
-@SpringBootTest
+// allow-bean-definition-overriding must be an inlined property (read at bootstrap) — a
+// @DynamicPropertySource value is applied too late for the @Primary MockConfig beans to replace
+// the real @Service beans (eventPublisher, minioStorageService) they share a name with.
+@SpringBootTest(properties = "spring.main.allow-bean-definition-overriding=true")
 @ActiveProfiles("test")
 @Import(AbstractAcceptanceIT.MockConfig.class)
 abstract class AbstractAcceptanceIT {
 
-    static final PostgreSQLContainer<?> POSTGRES =
-            new PostgreSQLContainer<>("postgres:16").withDatabaseName("acceptance_test");
+    /**
+     * DB source, resolved once for the whole suite (same switch as {@code AbstractPostgresIT}):
+     * <ul>
+     *   <li><b>{@code IT_DB_URL} set (CI):</b> the side-car Postgres — the GitLab docker executor has no
+     *       Docker daemon of its own, so Testcontainers can't spawn a container there;</li>
+     *   <li><b>otherwise (local dev):</b> a throwaway Testcontainers Postgres.</li>
+     * </ul>
+     * {@code null} when running against an external DB.
+     */
+    static final PostgreSQLContainer<?> POSTGRES;
 
     static {
-        POSTGRES.start();
+        if (System.getenv("IT_DB_URL") == null) {
+            POSTGRES = new PostgreSQLContainer<>("postgres:16").withDatabaseName("acceptance_test");
+            POSTGRES.start();
+        } else {
+            POSTGRES = null;
+        }
     }
 
     @DynamicPropertySource
     static void datasource(DynamicPropertyRegistry registry) {
-        registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
-        registry.add("spring.datasource.username", POSTGRES::getUsername);
-        registry.add("spring.datasource.password", POSTGRES::getPassword);
+        if (POSTGRES != null) {
+            registry.add("spring.datasource.url", POSTGRES::getJdbcUrl);
+            registry.add("spring.datasource.username", POSTGRES::getUsername);
+            registry.add("spring.datasource.password", POSTGRES::getPassword);
+        } else {
+            registry.add("spring.datasource.url", () -> System.getenv("IT_DB_URL"));
+            registry.add("spring.datasource.username", () -> System.getenv().getOrDefault("IT_DB_USER", "delivery"));
+            registry.add("spring.datasource.password", () -> System.getenv().getOrDefault("IT_DB_PASS", "delivery"));
+        }
         registry.add("spring.flyway.enabled", () -> "false");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
         registry.add("spring.jpa.properties.hibernate.dialect", () -> "org.hibernate.dialect.PostgreSQLDialect");
-        registry.add("spring.rabbitmq.host", () -> "localhost");
-        registry.add("spring.rabbitmq.port", () -> "5672");
+        // Keep RabbitAutoConfiguration: the app's RabbitMQConfig#rabbitTemplate needs a ConnectionFactory
+        // bean. The CachingConnectionFactory connects lazily (only on first send), so with the listeners'
+        // auto-startup off nothing touches a broker during the test — the context loads without RabbitMQ.
+        registry.add("spring.rabbitmq.listener.simple.auto-startup", () -> "false");
+        registry.add("spring.rabbitmq.listener.direct.auto-startup", () -> "false");
         registry.add("spring.autoconfigure.exclude", () ->
-                "org.springframework.boot.autoconfigure.amqp.RabbitAutoConfiguration,"
-              + "org.springframework.boot.autoconfigure.websocket.WebSocketAutoConfiguration,"
+                "org.springframework.boot.autoconfigure.websocket.WebSocketAutoConfiguration,"
               + "org.springframework.boot.autoconfigure.security.servlet.SecurityAutoConfiguration,"
               + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
               + "org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration");
