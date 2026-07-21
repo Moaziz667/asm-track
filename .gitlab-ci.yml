@@ -95,7 +95,7 @@ integration-test-backend-delivery:
     IT_DB_PASS: test
   before_script:
     - cd Microservices/DeliveryMicroservice
-    - until pg_isready -h postgres -p 5432 -U test -d delivery_test; do sleep 1; done
+    - until bash -c "echo > /dev/tcp/postgres/5432" 2>/dev/null; do sleep 1; done
   script:
     - gradle integrationTest
   artifacts:
