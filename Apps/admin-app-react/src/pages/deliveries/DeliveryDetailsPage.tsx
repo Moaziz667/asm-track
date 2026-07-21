@@ -95,7 +95,7 @@ export default function DeliveryDetailPage() {
   const submitInvoice = useCallback(async () => {
     setInvoicing(true);
     try {
-      const res = await api.post(`/api/admin/deliveries/${id}/invoice`);
+      const res = await api.post(`/admin/deliveries/${id}/invoice`);
       const ref = res.data?.invoiceRef ?? null;
       setInvoiceRef(ref);
       showSuccessToast(`Facture créée : ${ref}`);
@@ -111,7 +111,7 @@ export default function DeliveryDetailPage() {
   const downloadInvoicePdf = useCallback(async () => {
     if (!invoiceRef) return;
     try {
-      const res = await api.get(`/api/admin/deliveries/${id}/invoice-pdf`, { params: { ref: invoiceRef }, responseType: 'blob' });
+      const res = await api.get(`/admin/deliveries/${id}/invoice-pdf`, { params: { ref: invoiceRef }, responseType: 'blob' });
       const url = URL.createObjectURL(res.data as Blob);
       const a = document.createElement('a');
       a.href = url; a.download = `${invoiceRef}.pdf`;
@@ -132,9 +132,9 @@ export default function DeliveryDetailPage() {
     if (silent) setRefreshing(true); else setLoading(true);
     try {
       const [dRes, hRes, podRes] = await Promise.allSettled([
-        api.get(`/api/admin/deliveries/${id}`),
-        api.get(`/api/admin/deliveries/${id}/history`),
-        api.get(`/api/admin/deliveries/${id}/pod`),
+        api.get(`/admin/deliveries/${id}`),
+        api.get(`/admin/deliveries/${id}/history`),
+        api.get(`/admin/deliveries/${id}/pod`),
       ]);
 
       if (dRes.status === 'fulfilled') {
@@ -159,7 +159,7 @@ export default function DeliveryDetailPage() {
 
   useEffect(() => {
     if (!delivery?.driverId) return;
-    api.get(`/api/admin/fleet/drivers/${delivery.driverId}`)
+    api.get(`/admin/fleet/drivers/${delivery.driverId}`)
       .then(res => setAssignedDriverStatus(res.data?.onlineStatus ?? null))
       .catch(() => {});
   }, [delivery?.driverId]);
@@ -452,7 +452,7 @@ export default function DeliveryDetailPage() {
                     type="button"
                     onClick={async () => {
                       try {
-                        const res = await api.get(`/api/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
+                        const res = await api.get(`/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
                         const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
                         window.open(url, '_blank');
                         setTimeout(() => URL.revokeObjectURL(url), 60000);

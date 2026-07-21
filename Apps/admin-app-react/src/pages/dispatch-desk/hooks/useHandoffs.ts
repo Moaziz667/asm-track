@@ -52,7 +52,7 @@ export function useHandoffs() {
 
   const refetch = useCallback(async () => {
     try {
-      const res = await api.get<HandoffItem[]>('/api/admin/handoffs');
+      const res = await api.get<HandoffItem[]>('/admin/handoffs');
       setItems(Array.isArray(res.data) ? res.data : []);
     } catch {
       /* keep previous list on transient errors */
@@ -75,7 +75,7 @@ export function useHandoffs() {
   const cancel = useCallback(async (id: string, reason: string): Promise<boolean> => {
     setCancellingId(id);
     try {
-      await api.post(`/api/admin/handoffs/${id}/cancel`, null, {
+      await api.post(`/admin/handoffs/${id}/cancel`, null, {
         params: reason.trim() ? { reason: reason.trim() } : {},
       });
       await refetch();

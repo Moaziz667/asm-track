@@ -33,7 +33,9 @@ public class SecurityConfig {
             .cors(ServerHttpSecurity.CorsSpec::disable)
             .authorizeExchange(auth -> auth
                 .pathMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                .pathMatchers("/api/auth/**", "/api/public/**", "/api/dev/**", "/ws/**", "/files/**").permitAll()
+                .pathMatchers("/api/v1/auth/**", "/api/v1/public/**", "/api/v1/dev/**", "/ws/**", "/files/**").permitAll()
+                // Aggregated API docs served by the gateway.
+                .pathMatchers("/swagger-ui.html", "/swagger-ui/**", "/v3/api-docs/**", "/webjars/**").permitAll()
                 .pathMatchers("/internal/**").denyAll()
                 .anyExchange().authenticated()
             )

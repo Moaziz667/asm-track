@@ -14,7 +14,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/auth/driver/setup")
+@RequestMapping("/api/v1/auth/driver/setup")
 @RequiredArgsConstructor
 @Tag(name = "Driver Activation", description = "Endpoints for driver account activation and password setup")
 public class DriverAuthController {

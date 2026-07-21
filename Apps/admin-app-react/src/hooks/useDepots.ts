@@ -19,7 +19,7 @@ export function useDepots() {
   return useQuery<Depot[]>({
     queryKey: DEPOTS_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<Depot[]>('/api/v1/depots');
+      const res = await api.get<Depot[]>('/depots');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -36,7 +36,7 @@ export function useSyncDepotsFromErp() {
 
   return useMutation({
     mutationFn: async () => {
-      const res = await api.post<DepotSyncResult>('/api/v1/depots/sync');
+      const res = await api.post<DepotSyncResult>('/depots/sync');
       return res.data;
     },
     onSuccess: () => {
@@ -59,7 +59,7 @@ export function usePatchDepotLocation() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ depotId, payload }: { depotId: string; payload: PatchDepotLocationPayload }) => {
-      const res = await api.patch(`/api/v1/depots/${depotId}/location`, payload);
+      const res = await api.patch(`/depots/${depotId}/location`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -78,7 +78,7 @@ export function useGeolocateDepot() {
 
   return useMutation({
     mutationFn: async (depotId: string) => {
-      const res = await api.post(`/api/v1/depots/${depotId}/geolocate`);
+      const res = await api.post(`/depots/${depotId}/geolocate`);
       return res.data;
     },
     onSuccess: () => {

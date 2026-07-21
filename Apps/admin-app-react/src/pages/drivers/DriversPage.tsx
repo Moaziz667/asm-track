@@ -125,7 +125,7 @@ function DriversPageContent() {
   useEffect(() => {
     if (!selectedId) return;
     setDetailLoading(true);
-    api.get('/api/admin/deliveries', { params: { driverId: selectedId } })
+    api.get('/admin/deliveries', { params: { driverId: selectedId } })
       .then((res) => {
         const list = res.data.content ?? res.data;
         setDriverDeliveries(Array.isArray(list) ? list : []);

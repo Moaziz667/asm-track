@@ -50,7 +50,7 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
 
   const loadPanel = useCallback(async () => {
     try {
-      const res = await fetch(`/api/public/track/${deliveryId}/return`);
+      const res = await fetch(`/api/v1/public/track/${deliveryId}/return`);
       if (!res.ok) { setPanel(null); return; }
       setPanel(await res.json());
     } catch { setPanel(null); }
@@ -78,7 +78,7 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
     setUploading(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/public/track/${deliveryId}/return/photos`, { method: 'POST', body: form });
+      const res = await fetch(`/api/v1/public/track/${deliveryId}/return/photos`, { method: 'POST', body: form });
       if (!res.ok) { setErrorMsg(tr('returnPhotoError', 'Échec du téléversement de la photo.')); return; }
       const urls: string[] = await res.json();
       setPhotoUrls(prev => [...prev, ...urls].slice(0, MAX_PHOTOS));
@@ -98,7 +98,7 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
         })),
         photoUrls,
       };
-      const res = await fetch(`/api/public/track/${deliveryId}/return`, {
+      const res = await fetch(`/api/v1/public/track/${deliveryId}/return`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
       });
       if (res.status === 429) { setErrorMsg(tr('rateLimitExceeded', 'Trop de demandes. Réessayez demain.')); return; }
@@ -115,7 +115,7 @@ export default function ReturnSection({ deliveryId, returnStatus, returnResoluti
     setSubmitting(true);
     setErrorMsg(null);
     try {
-      const res = await fetch(`/api/public/track/${deliveryId}/return/cancel`, { method: 'POST' });
+      const res = await fetch(`/api/v1/public/track/${deliveryId}/return/cancel`, { method: 'POST' });
       if (res.status === 429) { setErrorMsg(tr('rateLimitExceeded', 'Trop de demandes. Réessayez demain.')); return; }
       if (!res.ok) { setErrorMsg(tr('returnCancelError', 'Échec de l’annulation.')); return; }
       await loadPanel();

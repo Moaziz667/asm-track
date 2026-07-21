@@ -26,9 +26,9 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                 .requestMatchers(
-                    "/api/auth/driver/**",
-                    "/api/public/**",
-                    "/api/dev/**",
+                    "/api/v1/auth/driver/**",
+                    "/api/v1/public/**",
+                    "/api/v1/dev/**",
                     "/swagger-ui.html",
                     "/swagger-ui/**",
                     "/v3/api-docs/**",
@@ -36,22 +36,22 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/api/orders/**").hasRole("CLIENT")
-                .requestMatchers("/api/driver/deliveries/**").hasRole("DRIVER")
-                .requestMatchers("/api/driver/profile/**").hasRole("DRIVER")
-                .requestMatchers("/api/driver/location/**").hasRole("DRIVER")
-                .requestMatchers("/api/driver/**").hasRole("DRIVER")
-                .requestMatchers("/api/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/v1/orders/**").hasRole("CLIENT")
+                .requestMatchers("/api/v1/driver/deliveries/**").hasRole("DRIVER")
+                .requestMatchers("/api/v1/driver/profile/**").hasRole("DRIVER")
+                .requestMatchers("/api/v1/driver/location/**").hasRole("DRIVER")
+                .requestMatchers("/api/v1/driver/**").hasRole("DRIVER")
+                .requestMatchers("/api/v1/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/v1/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/v1/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                 .requestMatchers("/internal/**").hasRole("SERVICE")
-                .requestMatchers(HttpMethod.GET, "/api/admin/routes/**", "/api/admin/routes",
-                        "/api/admin/deliveries/**", "/api/admin/deliveries")
+                .requestMatchers(HttpMethod.GET, "/api/v1/admin/routes/**", "/api/v1/admin/routes",
+                        "/api/v1/admin/deliveries/**", "/api/v1/admin/deliveries")
                         .hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/companies/me").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
-                .requestMatchers("/api/v1/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/deliveries/**").hasAnyRole("DRIVER", "DISPATCHER", "ADMIN")
+                .requestMatchers("/api/v1/admin/companies/me").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
+                .requestMatchers("/api/v1/depots/**", "/api/v1/zones/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                .requestMatchers("/api/v1/deliveries/**").hasAnyRole("DRIVER", "DISPATCHER", "ADMIN")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(rs -> rs

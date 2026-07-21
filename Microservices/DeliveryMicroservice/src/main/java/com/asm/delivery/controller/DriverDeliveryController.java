@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/driver/deliveries")
+@RequestMapping("/api/v1/driver/deliveries")
 @Tag(name = "Driver Deliveries", description = "Delivery management for driver app")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

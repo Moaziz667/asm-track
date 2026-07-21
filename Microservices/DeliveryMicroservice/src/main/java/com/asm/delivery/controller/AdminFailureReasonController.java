@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/failure-reasons")
+@RequestMapping("/api/v1/admin/failure-reasons")
 @Tag(name = "Admin Failure Reasons", description = "Configurable delivery-failure reasons (referential)")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

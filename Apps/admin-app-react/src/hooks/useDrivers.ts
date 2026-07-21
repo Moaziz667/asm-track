@@ -24,7 +24,7 @@ export function useDrivers() {
   return useQuery<Driver[]>({
     queryKey: DRIVERS_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<Driver[]>('/api/admin/drivers');
+      const res = await api.get<Driver[]>('/admin/drivers');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -37,7 +37,7 @@ export function useCreateDriver() {
 
   return useMutation({
     mutationFn: async (payload: DriverPayload) => {
-      const res = await api.post<Driver>('/api/admin/drivers', payload);
+      const res = await api.post<Driver>('/admin/drivers', payload);
       return res.data;
     },
     onSuccess: () => {
@@ -55,7 +55,7 @@ export function useUpdateDriver() {
 
   return useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: Partial<DriverPayload> }) => {
-      const res = await api.put<Driver>(`/api/admin/drivers/${id}`, payload);
+      const res = await api.put<Driver>(`/admin/drivers/${id}`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -75,7 +75,7 @@ export function useToggleDriverStatus() {
     mutationFn: async ({ id, isRegistered, reason }: { id: string; isRegistered: boolean; reason?: string }) => {
       const body: DriverStatusBody = { isRegistered };
       if (reason) body.reason = reason;
-      const res = await api.patch<Driver>(`/api/admin/drivers/${id}/status`, body);
+      const res = await api.patch<Driver>(`/admin/drivers/${id}/status`, body);
       return res.data;
     },
     onSuccess: (_, variables) => {
@@ -103,7 +103,7 @@ export function useCancelDriverInvite() {
     mutationFn: async ({ id, reason }: { id: string; reason?: string }) => {
       const body: CancelInviteBody = {};
       if (reason) body.reason = reason;
-      await api.delete(`/api/admin/drivers/${id}`, { data: body });
+      await api.delete(`/admin/drivers/${id}`, { data: body });
     },
     onSuccess: () => {
       showSuccessToast('successDriverInviteCancelled');
@@ -121,7 +121,7 @@ export function useResendDriverInvite() {
   return useMutation({
     mutationFn: async (id: string) => {
       const res = await api.post<{ expiresAt: string; status: string }>(
-        `/api/admin/drivers/${id}/resend-invite`
+        `/admin/drivers/${id}/resend-invite`
       );
       return res.data;
     },
@@ -140,7 +140,7 @@ export function useForceLogoutDriver() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.post<void>(`/api/admin/drivers/${id}/logout`);
+      const res = await api.post<void>(`/admin/drivers/${id}/logout`);
       return res.data;
     },
     onSuccess: () => {
@@ -158,7 +158,7 @@ export function useImportDrivers() {
 
   return useMutation({
     mutationFn: async (formData: FormData) => {
-      const res = await api.post<void>('/api/admin/drivers/import', formData, {
+      const res = await api.post<void>('/admin/drivers/import', formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       return res.data;

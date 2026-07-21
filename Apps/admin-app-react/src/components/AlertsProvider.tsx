@@ -189,7 +189,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
 
   const refresh = useCallback(async () => {
     try {
-      const res = await api.get('/api/admin/notifications?size=100');
+      const res = await api.get('/admin/notifications?size=100');
       if (res.data && Array.isArray(res.data.content)) {
         setNotifs(res.data.content.map(mapResponseToNotification));
       }
@@ -330,7 +330,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
     setNotifs(prev => prev.map(x => x.id === id ? { ...x, read: true } : x));
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (UUID_RE.test(id)) {
-      api.post(`/api/admin/notifications/${id}/read`).catch(err => {
+      api.post(`/admin/notifications/${id}/read`).catch(err => {
         console.error(`[Notifications] Failed to mark notification ${id} as read on server:`, err);
       });
     }
@@ -338,14 +338,14 @@ export default function NotificationsProvider({ children }: { children: ReactNod
 
   const markAllRead = useCallback(() => {
     setNotifs(prev => prev.map(x => ({ ...x, read: true })));
-    api.post('/api/admin/notifications/read-all').catch(err => {
+    api.post('/admin/notifications/read-all').catch(err => {
       console.error('[Notifications] Failed to mark all notifications as read on server:', err);
     });
   }, []);
 
   const clearAll = useCallback(() => {
     setNotifs([]);
-    api.post('/api/admin/notifications/read-all').catch(err => {
+    api.post('/admin/notifications/read-all').catch(err => {
       console.error('[Notifications] Failed to clear/read all notifications on server:', err);
     });
   }, []);
@@ -354,7 +354,7 @@ export default function NotificationsProvider({ children }: { children: ReactNod
     setNotifs(prev => prev.filter(x => x.id !== id));
     const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     if (UUID_RE.test(id)) {
-      api.post(`/api/admin/notifications/${id}/acknowledge`).catch(err => {
+      api.post(`/admin/notifications/${id}/acknowledge`).catch(err => {
         console.error(`[Notifications] Failed to acknowledge notification ${id} on server:`, err);
       });
     }

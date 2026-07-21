@@ -66,7 +66,7 @@ export default function TrackingPage() {
 
   const fetchData = async (signal?: AbortSignal) => {
     try {
-      const res = await fetch(`/api/public/track/${deliveryId}`, { signal });
+      const res = await fetch(`/api/v1/public/track/${deliveryId}`, { signal });
       if (!res.ok) { setError(true); return; }
       setData(await res.json());
       setError(false); // clear any prior/transient error once a load succeeds

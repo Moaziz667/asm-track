@@ -42,7 +42,7 @@ export default function OverviewCalendarPage() {
   const { data: deliveries = [], isFetching: calLoading } = useQuery<CalDelivery[]>({
     queryKey: ['calendar-deliveries', rangeFrom, rangeTo],
     queryFn: async () => {
-      const res = await api.get<CalDelivery[]>('/api/admin/deliveries/calendar', { params: { from: rangeFrom, to: rangeTo } });
+      const res = await api.get<CalDelivery[]>('/admin/deliveries/calendar', { params: { from: rangeFrom, to: rangeTo } });
       return Array.isArray(res.data) ? res.data : [];
     },
   });
@@ -51,7 +51,7 @@ export default function OverviewCalendarPage() {
   const { data: driversData } = useQuery<{ count: number; drivers: { id: string; name: string; accountStatus?: string }[] }>({
     queryKey: ['overview-driver-slots'],
     queryFn: async () => {
-      const res = await api.get('/api/admin/fleet/drivers');
+      const res = await api.get('/admin/fleet/drivers');
       const list = Array.isArray(res.data) ? res.data : [];
       const drivers = list.filter((d: { accountStatus?: string }) => !d.accountStatus || d.accountStatus === 'ACTIVE');
       return { count: drivers.length, drivers: drivers.map((d: { id: string; name: string }) => ({ id: d.id, name: d.name })) };

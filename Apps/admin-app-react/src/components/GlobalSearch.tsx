@@ -208,7 +208,7 @@ export default function GlobalSearch() {
     const id = ++fetchIdRef.current
     const timer = setTimeout(async () => {
       try {
-        const res = await api.get<SearchResult>('/api/admin/search', { params: { q, limit: 6 } })
+        const res = await api.get<SearchResult>('/admin/search', { params: { q, limit: 6 } })
         if (fetchIdRef.current !== id) return
         setResults(res.data)
       } catch {

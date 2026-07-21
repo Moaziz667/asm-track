@@ -56,10 +56,10 @@ $t-mid: 0.24s $ease-out;
     width: $icon-rail-width;
   }
 
+  // On mobile we drop the icon-rail entirely: the header already exposes the menu
+  // toggle, theme, language, user and logout, so the drawer only needs the nav list.
   @media (max-width: 768px) {
-    transform: translateX(-100%);
-    :global(html[dir="rtl"]) & { transform: translateX(100%); }
-    &.iconRail__mobileOpen { transform: translateX(0); z-index: 100; }
+    display: none;
   }
 
   // Brand Logo
@@ -257,12 +257,19 @@ $t-mid: 0.24s $ease-out;
     pointer-events: none;
   }
 
+  // Mobile: a single simple drawer flush to the left edge (the rail is hidden),
+  // slides in/out and floats above the overlay. Nav content scrolls if it overflows.
   @media (max-width: 768px) {
     transform: translateX(-100%);
-    width: 300px;
+    width: min(280px, 85vw);
     left: 0;
+    z-index: 99;
+    border-right: 1px solid var(--panel-border);
     :global(html[dir="rtl"]) & { transform: translateX(100%); left: auto; right: 0; }
-    &.navPanel__mobileOpen { transform: translateX(0); z-index: 99; }
+    &.navPanel__mobileOpen {
+      transform: translateX(0);
+      box-shadow: 4px 0 24px rgba(0, 0, 0, 0.18);
+    }
   }
 
   // Header

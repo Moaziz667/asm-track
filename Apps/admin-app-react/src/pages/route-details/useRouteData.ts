@@ -58,7 +58,7 @@ export function useRouteData(routeId: string | undefined) {
     if (!routeId) return;
     setLoading(true);
     try {
-      const res = await api.get(`/api/admin/routes/${routeId}/full`);
+      const res = await api.get(`/admin/routes/${routeId}/full`);
       const data = res.data as RouteDetail;
       setRoute(data);
       const dm: Record<string, Delivery> = {};
@@ -100,7 +100,7 @@ export function useRouteData(routeId: string | undefined) {
 
   useEffect(() => {
     if (!route?.driver?.id) return;
-    api.get(`/api/admin/fleet/drivers/${route.driver.id}`)
+    api.get(`/admin/fleet/drivers/${route.driver.id}`)
       .then(res => {
         setDriverOnlineStatus(res.data?.onlineStatus ?? null);
         setDriverLastSeen(res.data?.lastLocationAt ?? null);
@@ -204,7 +204,7 @@ export function useRouteData(routeId: string | undefined) {
     if (!delivery) { showErrorToast(null, 'errorDataNotLoaded'); return; }
     try {
       showInfoToast('infoBlGenerating');
-      const response = await api.get(`/api/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
+      const response = await api.get(`/admin/deliveries/${delivery.id}/bon-livraison`, { responseType: 'blob' });
       const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -226,7 +226,7 @@ export function useRouteData(routeId: string | undefined) {
     try {
       const params = cancelStopReason.trim() ? { reason: cancelStopReason.trim() } : {};
       await api.post(
-        `/api/admin/routes/${route.id}/stops/${cancelStopTarget.stopId}/cancel`,
+        `/admin/routes/${route.id}/stops/${cancelStopTarget.stopId}/cancel`,
         null,
         { params },
       );
@@ -258,7 +258,7 @@ export function useRouteData(routeId: string | undefined) {
     try {
       const params = new URLSearchParams();
       if (removeStopReason) params.append('reason', removeStopReason);
-      const url = `/api/admin/routes/${route.id}/stops/${removeStopTarget.stopId}${params.toString() ? `?${params.toString()}` : ''}`;
+      const url = `/admin/routes/${route.id}/stops/${removeStopTarget.stopId}${params.toString() ? `?${params.toString()}` : ''}`;
       const delivery = route.stops?.find(s => s.id === removeStopTarget.stopId)?.delivery;
       await api.delete(url);
       showSuccessToast(t.apiMessages.successStopRemoved, {
@@ -322,7 +322,7 @@ export function useRouteData(routeId: string | undefined) {
       if (editWindowStart) payload.startTimeWindow = editWindowStart.length === 5 ? `${editWindowStart}:00` : editWindowStart;
       if (editWindowEnd) payload.endTimeWindow = editWindowEnd.length === 5 ? `${editWindowEnd}:00` : editWindowEnd;
       const delivery = route.stops?.find(s => s.id === editWindowTarget.stopId)?.delivery;
-      await api.patch(`/api/admin/routes/${route.id}/stops/${editWindowTarget.stopId}`, payload);
+      await api.patch(`/admin/routes/${route.id}/stops/${editWindowTarget.stopId}`, payload);
       showSuccessToast(t.apiMessages.successWindowUpdated, {
         orderId: delivery?.order?.referenceId,
         erpId: delivery?.order?.erpOrderId,

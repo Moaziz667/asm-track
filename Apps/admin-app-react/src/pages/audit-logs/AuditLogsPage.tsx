@@ -439,7 +439,7 @@ export default function AuditLogsPage() {
       if (filterFrom) params.from = filterFrom + 'T00:00:00';
       if (filterTo) params.to = filterTo + 'T23:59:59';
 
-      const res = await api.get('/api/admin/audit', { params, signal: abortRef.current.signal });
+      const res = await api.get('/admin/audit', { params, signal: abortRef.current.signal });
       const data: Page<AuditLog> = res.data;
       setLogs(data.content);
       setTotalElements(data.totalElements);

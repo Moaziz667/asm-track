@@ -121,21 +121,21 @@ export default function SettingsPage() {
 
   const fetchAdminUsers = useCallback(async () => {
     try {
-      const res = await api.get('/api/admin/users');
+      const res = await api.get('/admin/users');
       setAdminUsers(Array.isArray(res.data) ? res.data : res.data.content ?? []);
     } catch { /* fail safe */ }
   }, []);
 
   const fetchSlaSettings = useCallback(async () => {
     try {
-      const res = await api.get('/api/admin/reports/settings');
+      const res = await api.get('/admin/reports/settings');
       setSlaSettings(res.data);
     } catch { /* fail safe */ }
   }, []);
 
   const fetchCompany = useCallback(async () => {
     try {
-      const res = await api.get('/api/admin/companies/me');
+      const res = await api.get('/admin/companies/me');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
         address: res.data.address, city: res.data.city, phone: res.data.phone,
@@ -149,7 +149,7 @@ export default function SettingsPage() {
     if (!company) return;
     setCompanySaving(true);
     try {
-      const res = await api.put('/api/admin/companies/me', company);
+      const res = await api.put('/admin/companies/me', company);
       showSuccessToast('successCompanyUpdated');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
@@ -167,7 +167,7 @@ export default function SettingsPage() {
   const handleSyncCompanyFromErp = async () => {
     setCompanySaving(true);
     try {
-      const res = await api.post('/api/admin/companies/me/sync-erp');
+      const res = await api.post('/admin/companies/me/sync-erp');
       if (res.data) setCompany({
         name: res.data.name, supportEmail: res.data.supportEmail,
         address: res.data.address, city: res.data.city, phone: res.data.phone,
@@ -193,7 +193,7 @@ export default function SettingsPage() {
 
   const updateSetting = async (key: string, value: string) => {
     try {
-      await api.post('/api/admin/reports/settings', null, { params: { key, value } });
+      await api.post('/admin/reports/settings', null, { params: { key, value } });
       showSuccessToast('successSlaUpdated', { action: `MAJ : ${key} ➔ ${value} min` });
       fetchSlaSettings();
     } catch {
@@ -204,7 +204,7 @@ export default function SettingsPage() {
   const handleAddUser = addForm.handleSubmit(async (data) => {
     setSubmitting(true);
     try {
-      await api.post('/api/admin/users', data);
+      await api.post('/admin/users', data);
       showSuccessToast('successUserCreated');
       setAddOpen(false);
       addForm.reset();
@@ -222,7 +222,7 @@ export default function SettingsPage() {
     if (!editingUser) return;
     setSubmitting(true);
     try {
-      await api.put(`/api/admin/users/${editingUser.id}`, data);
+      await api.put(`/admin/users/${editingUser.id}`, data);
       showSuccessToast('successUserUpdated');
       setEditOpen(false);
       setEditingUser(null);
@@ -239,7 +239,7 @@ export default function SettingsPage() {
 
   const handleToggleStatus = async (user: AdminUser) => {
     try {
-      await api.patch(`/api/admin/users/${user.id}/status`, { active: !user.active });
+      await api.patch(`/admin/users/${user.id}/status`, { active: !user.active });
       showSuccessToast('successUserUpdated');
       fetchAdminUsers();
     } catch (err) {
@@ -249,7 +249,7 @@ export default function SettingsPage() {
 
   const handleResetPassword = async (user: AdminUser) => {
     try {
-      await api.post(`/api/admin/users/${user.id}/reset-password-email`);
+      await api.post(`/admin/users/${user.id}/reset-password-email`);
       showSuccessToast('successUserPasswordResetEmail');
     } catch (err) {
       showErrorToast(err, 'errorUserPasswordResetEmailFailed');
@@ -258,7 +258,7 @@ export default function SettingsPage() {
 
   const handleForceLogout = async (user: AdminUser) => {
     try {
-      await api.post(`/api/admin/users/${user.id}/logout`);
+      await api.post(`/admin/users/${user.id}/logout`);
       showSuccessToast('successUserForceLogout');
     } catch (err) {
       showErrorToast(err, 'errorUserForceLogoutFailed');

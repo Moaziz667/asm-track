@@ -104,7 +104,7 @@ export function RmaDetailDrawer({ rma, open, onClose, statusLabel, busyId, onTra
   useEffect(() => {
     if (!open || !rma?.id) { setHistory([]); return; }
     let cancelled = false;
-    api.get<RmaHistoryRow[]>(`/api/admin/returns/${rma.id}/history`)
+    api.get<RmaHistoryRow[]>(`/admin/returns/${rma.id}/history`)
       .then(res => { if (!cancelled) setHistory(Array.isArray(res.data) ? res.data : []); })
       .catch(() => { if (!cancelled) setHistory([]); });
     return () => { cancelled = true; };

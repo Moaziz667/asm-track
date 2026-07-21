@@ -66,7 +66,7 @@ export function useRoutes(params?: RoutesQueryParams, enabled = true) {
   return useQuery<RouteItem[]>({
     queryKey: ROUTES_QUERY_KEY(params),
     queryFn: async () => {
-      const res = await api.get<RouteItem[]>('/api/admin/routes', { params });
+      const res = await api.get<RouteItem[]>('/admin/routes', { params });
       return Array.isArray(res.data) ? res.data : [];
     },
     enabled,
@@ -82,7 +82,7 @@ export function useRoute(routeId: string | null | undefined) {
   return useQuery<RouteItem>({
     queryKey: ['route', routeId],
     queryFn: async () => {
-      const res = await api.get<RouteItem>(`/api/admin/routes/${routeId}`);
+      const res = await api.get<RouteItem>(`/admin/routes/${routeId}`);
       return res.data;
     },
     enabled: Boolean(routeId),
@@ -98,7 +98,7 @@ export function useReassignRoute() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ routeId, driverId }: { routeId: string; driverId: string }) => {
-      const res = await api.post(`/api/admin/routes/${routeId}/reassign`, { driverId });
+      const res = await api.post(`/admin/routes/${routeId}/reassign`, { driverId });
       return res.data;
     },
     onSuccess: () => {
@@ -118,7 +118,7 @@ export function useCloseRoute() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (routeId: string) => {
-      const res = await api.post(`/api/admin/routes/${routeId}/close`);
+      const res = await api.post(`/admin/routes/${routeId}/close`);
       return res.data;
     },
     onSuccess: () => {
@@ -139,7 +139,7 @@ export function useCancelRoute() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ routeId, reason }: { routeId: string; reason: string }) => {
-      const res = await api.post(`/api/admin/routes/${routeId}/cancel`, null, { params: { reason } });
+      const res = await api.post(`/admin/routes/${routeId}/cancel`, null, { params: { reason } });
       return res.data;
     },
     onSuccess: () => {
@@ -159,7 +159,7 @@ export function useValidateRoute() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (routeId: string) => {
-      const res = await api.post(`/api/admin/routes/${routeId}/validate`);
+      const res = await api.post(`/admin/routes/${routeId}/validate`);
       return res.data;
     },
     onSuccess: () => {

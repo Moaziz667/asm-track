@@ -20,7 +20,7 @@ import java.util.UUID;
  * the admin STOMP topics; the GET here is for initial load / filtering.
  */
 @RestController
-@RequestMapping("/api/admin/handoffs")
+@RequestMapping("/api/v1/admin/handoffs")
 @Tag(name = "Admin Handoffs", description = "Custody transfer oversight")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

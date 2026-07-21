@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/audit")
+@RequestMapping("/api/v1/admin/audit")
 @Tag(name = "Admin Audit", description = "Endpoints for viewing system audit logs")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

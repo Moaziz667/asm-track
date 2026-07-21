@@ -26,7 +26,7 @@ import java.time.LocalDate;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/reports")
+@RequestMapping("/api/v1/admin/reports")
 @Tag(name = "Admin Reports", description = "Administrative KPI and reporting endpoints")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

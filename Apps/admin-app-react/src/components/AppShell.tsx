@@ -7,7 +7,7 @@ import { RealtimeProvider } from './RealtimeProvider';
 import SessionRevocationWatcher from './SessionRevocationWatcher';
 import { AppSidebar } from './Sidebar';
 import { BreadcrumbProvider } from '@/lib/ui/breadcrumb';
-import { SidebarProvider, SidebarInset } from './ui/sidebar';
+import { SidebarProvider, SidebarInset, SidebarTrigger } from './ui/sidebar';
 import GlobalFloatingMap from './GlobalFloatingMap';
 import ErrorBoundary from './ErrorBoundary';
 import ContentBreadcrumb from './ContentBreadcrumb';
@@ -50,8 +50,13 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <SidebarInset className="flex flex-col flex-1 min-w-0 min-h-dvh" style={{ borderRadius: '24px', overflow: 'hidden' }}>
             <div className="flex flex-col flex-1 min-w-0 min-h-dvh bg-[var(--app-bg)]">
               {/* Integrated breadcrumb — with background */}
-              <div className="relative px-8 h-14 flex items-center justify-between bg-[var(--surface)] border-b border-[var(--border)]">
-                <ContentBreadcrumb />
+              <div className="relative px-4 md:px-8 h-14 flex items-center justify-between gap-2 bg-[var(--surface)] border-b border-[var(--border)]">
+                <div className="flex items-center gap-2 min-w-0">
+                  {/* Mobile-only drawer toggle — the icon rail is hidden below md, so this is the
+                      only way to open the nav drawer on phones. */}
+                  <SidebarTrigger className="md:hidden" aria-label="Open menu" />
+                  <ContentBreadcrumb />
+                </div>
 
                 {/* Global search — absolutely centered in the header */}
                 <div className="absolute left-1/2 -translate-x-1/2 hidden md:block">

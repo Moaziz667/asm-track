@@ -8,7 +8,7 @@ export function useFailureReasons() {
   return useQuery<FailureReason[]>({
     queryKey: FAILURE_REASONS_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<FailureReason[]>('/api/admin/failure-reasons');
+      const res = await api.get<FailureReason[]>('/admin/failure-reasons');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,

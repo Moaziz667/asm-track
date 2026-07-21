@@ -20,7 +20,7 @@ import java.util.UUID;
  * only their own record (the gateway allows {@code /api/admin/me} for any authenticated user).
  */
 @RestController
-@RequestMapping("/api/admin/me")
+@RequestMapping("/api/v1/admin/me")
 @RequiredArgsConstructor
 public class MeController {
 

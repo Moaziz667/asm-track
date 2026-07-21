@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/settings")
+@RequestMapping("/api/v1/settings")
 @RequiredArgsConstructor
 @Slf4j
 public class SettingsController {

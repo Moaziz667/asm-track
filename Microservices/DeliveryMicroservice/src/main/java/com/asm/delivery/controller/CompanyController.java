@@ -13,7 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/companies")
+@RequestMapping("/api/v1/admin/companies")
 @Tag(name = "Company", description = "Company configuration and branding management")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

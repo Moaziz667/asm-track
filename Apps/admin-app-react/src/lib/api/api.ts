@@ -1,15 +1,23 @@
 import axios, { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { safeStorage } from '@/lib/storage';
 
-let baseURL = import.meta.env.VITE_API_BASE_URL;
+// API version prefix. The public contract is /api/v1/**, so the version lives here in the
+// client's baseURL (declarative, single source of truth) and call sites use resource-relative
+// paths (api.get('/admin/deliveries'), not '/api/admin/deliveries'). A future v2 is a second
+// axios instance with baseURL '.../api/v2' — no per-call rewriting.
+const API_BASE_PATH = '/api/v1';
+
+let origin = import.meta.env.VITE_API_BASE_URL;
 
 if (typeof window !== 'undefined') {
   // In the browser we always use a relative path so the API gateway / Vite dev
   // proxy forwards the request to the correct backend host.
-  baseURL = '';
-} else if (!baseURL) {
-  baseURL = 'http://localhost:80';
+  origin = '';
+} else if (!origin) {
+  origin = 'http://localhost:80';
 }
+
+const baseURL = origin + API_BASE_PATH;
 
 export const TOKEN_KEY = 'admin_jwt';
 

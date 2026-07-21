@@ -21,7 +21,7 @@ import java.util.UUID;
  * this endpoint never blocks on network probes. Backs the admin "System Health" page.
  */
 @RestController
-@RequestMapping("/api/admin/system")
+@RequestMapping("/api/v1/admin/system")
 @Tag(name = "Admin System Health", description = "DLQ, circuit breakers, DB and ERP sync health")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

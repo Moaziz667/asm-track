@@ -53,7 +53,7 @@ export function useZoneComparison(range: Range, from?: string, to?: string) {
   const { data, isLoading } = useQuery({
     queryKey: ['zone-heatmap', range, from ?? '', to ?? ''],
     queryFn: () =>
-      api.get('/api/admin/reports/zone-heatmap', { params })
+      api.get('/admin/reports/zone-heatmap', { params })
         .then(r => r.data as { points?: Array<{ zoneId: string; zoneName: string; zoneColor: string; ordersCount: number; delayedOrders?: number }>; previousOrdersByZone?: Record<string, number> })
         .catch(() => ({ points: [], previousOrdersByZone: {} })),
     staleTime: 30_000,

@@ -78,8 +78,8 @@ export default function GlobalFloatingMap() {
       // Today's routes (validated/upcoming) UNION every IN_PROGRESS route — a running route is active
       // regardless of its planned date, so drivers on a route started on a prior day still map correctly.
       const [todayRes, runningRes] = await Promise.all([
-        api.get('/api/admin/routes', { params: { from: todayIso, to: todayIso } }),
-        api.get('/api/admin/routes', { params: { status: 'IN_PROGRESS' } }),
+        api.get('/admin/routes', { params: { from: todayIso, to: todayIso } }),
+        api.get('/admin/routes', { params: { status: 'IN_PROGRESS' } }),
       ]);
       const a = Array.isArray(todayRes.data) ? todayRes.data : [];
       const b = Array.isArray(runningRes.data) ? runningRes.data : [];
@@ -101,7 +101,7 @@ export default function GlobalFloatingMap() {
   const { data: drivers = [] } = useQuery<LiveDriver[]>({
     queryKey: ['global-map-drivers'],
     queryFn: async () => {
-      const res = await api.get('/api/admin/fleet/drivers');
+      const res = await api.get('/admin/fleet/drivers');
       const data = res.data;
       return Array.isArray(data) ? data : (data?.content ?? data?.drivers ?? []);
     },

@@ -64,7 +64,7 @@ export function PinDropoffModal({
     if (!LOCKED_STATUSES.includes(target.status)) {
       (async () => {
         try {
-          const res = await api.get(`/api/admin/deliveries/${target.rowId}/geocode`);
+          const res = await api.get(`/admin/deliveries/${target.rowId}/geocode`);
           const sug: GeocodeSuggestion = res.data;
           if (alive && sug.found) {
             setPinLat(sug.lat ?? null); setPinLng(sug.lng ?? null);
@@ -81,7 +81,7 @@ export function PinDropoffModal({
   const handleMapPick = async (lat: number, lng: number) => {
     setPinLat(lat); setPinLng(lng); setReverseGeocoding(true);
     try {
-      const res = await api.get('/api/admin/deliveries/reverse-geocode', { params: { lat, lng } });
+      const res = await api.get('/admin/deliveries/reverse-geocode', { params: { lat, lng } });
       const rev: GeocodeSuggestion = res.data;
       if (rev.found) {
         setPinAddress(rev.displayName ?? '');

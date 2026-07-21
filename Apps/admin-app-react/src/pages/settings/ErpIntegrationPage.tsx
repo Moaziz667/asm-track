@@ -75,7 +75,7 @@ export default function ErpIntegrationPage() {
   const fetchErp = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/api/settings/erp');
+      const res = await api.get('/settings/erp');
       if (res.data) { setErp(res.data); setDirty(false); setConn({ status: 'idle' }); }
     } catch { /* fail safe */ }
     finally { setLoading(false); }
@@ -113,8 +113,8 @@ export default function ErpIntegrationPage() {
     setConn({ status: 'idle' });
     try {
       const res = stored
-        ? await api.post('/api/settings/erp/test-stored')
-        : await api.post('/api/settings/erp/test', erp);
+        ? await api.post('/settings/erp/test-stored')
+        : await api.post('/settings/erp/test', erp);
       setConn({ status: 'ok', uid: res.data?.uid });
       setDirty(false);
       if (refetch) fetchErp();
@@ -132,7 +132,7 @@ export default function ErpIntegrationPage() {
     if (!erp) return;
     setSaving(true);
     try {
-      await api.put('/api/settings/erp', erp);
+      await api.put('/settings/erp', erp);
       if (erp.activeErpProvider === 'NONE') {
         showSuccessToast('successErpUpdated');
         fetchErp();

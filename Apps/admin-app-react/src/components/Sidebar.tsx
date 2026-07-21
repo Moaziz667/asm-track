@@ -184,9 +184,9 @@ export function AppSidebar() {
     const fetchTelemetry = async () => {
       try {
         const [erpRes, routesRes, exceptionsRes] = await Promise.all([
-          api.get('/api/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] })),
-          api.get('/api/admin/routes').catch(() => ({ data: [] })),
-          api.get('/api/admin/ops/exceptions', { params: { period: 'day', limit: 200 } }).catch(() => ({ data: { items: [] } }))
+          api.get('/admin/erp/pending-orders', { params: { limit: 200 } }).catch(() => ({ data: [] })),
+          api.get('/admin/routes').catch(() => ({ data: [] })),
+          api.get('/admin/ops/exceptions', { params: { period: 'day', limit: 200 } }).catch(() => ({ data: { items: [] } }))
         ]);
         if (!active) return;
 

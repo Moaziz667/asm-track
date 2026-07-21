@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/public")
+@RequestMapping("/api/v1/public")
 @RequiredArgsConstructor
 public class PublicTrackingController {
 

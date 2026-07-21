@@ -19,7 +19,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/deliveries")
+@RequestMapping("/api/v1/deliveries")
 @Tag(name = "Deliveries", description = "Delivery status, tracking and history (client + driver)")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

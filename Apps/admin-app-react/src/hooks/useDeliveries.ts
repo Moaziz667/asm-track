@@ -39,7 +39,7 @@ export function useDeliveries(params: {
   return useQuery({
     queryKey: ['deliveries', params],
     queryFn: async () => {
-      const res = await api.get('/api/admin/deliveries', { params });
+      const res = await api.get('/admin/deliveries', { params });
       return res.data;
     },
     retry: 1,
@@ -51,7 +51,7 @@ export function useActiveZones() {
   return useQuery<Zone[]>({
     queryKey: ACTIVE_ZONES_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<Zone[]>('/api/v1/zones/active');
+      const res = await api.get<Zone[]>('/zones/active');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -64,7 +64,7 @@ export function usePinDropoff() {
 
   return useMutation({
     mutationFn: async ({ deliveryId, payload }: { deliveryId: string; payload: PinDropoffPayload }) => {
-      const res = await api.post(`/api/admin/deliveries/${deliveryId}/pin-dropoff`, payload);
+      const res = await api.post(`/admin/deliveries/${deliveryId}/pin-dropoff`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -78,7 +78,7 @@ export function useCancelDelivery() {
 
   return useMutation({
     mutationFn: async ({ deliveryId, reason }: { deliveryId: string; reason: string }) => {
-      const res = await api.post(`/api/admin/deliveries/${deliveryId}/cancel`, null, {
+      const res = await api.post(`/admin/deliveries/${deliveryId}/cancel`, null, {
         params: { reason }
       });
       return res.data;

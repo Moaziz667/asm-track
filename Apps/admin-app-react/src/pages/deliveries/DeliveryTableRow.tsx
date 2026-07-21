@@ -211,7 +211,7 @@ export function DeliveryTableRow({
                         type="button"
                         className="w-7 h-7 flex items-center justify-center rounded-xs border border-[var(--border)] hover:bg-[var(--hover-bg)] transition-colors"
                         style={{ color: 'var(--brand)' }}
-                        onClick={(e) => { e.stopPropagation(); window.open(`/api/admin/deliveries/${item.id}/bon-livraison`, '_blank'); }}
+                        onClick={(e) => { e.stopPropagation(); window.open(`/admin/deliveries/${item.id}/bon-livraison`, '_blank'); }}
                       >
                         <IconFileText size={14} />
                       </button>

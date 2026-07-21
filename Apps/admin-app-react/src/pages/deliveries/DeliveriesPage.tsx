@@ -84,7 +84,7 @@ function DeliveriesPageContent() {
   const downloadBl = async (deliveryId: string, ref: string) => {
     setDownloadingBl(prev => new Set(prev).add(deliveryId));
     try {
-      const res = await api.get(`/api/admin/deliveries/${deliveryId}/bon-livraison`, { responseType: 'blob' });
+      const res = await api.get(`/admin/deliveries/${deliveryId}/bon-livraison`, { responseType: 'blob' });
       const url  = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }));
       const link = document.createElement('a');
       link.href = url;
@@ -162,7 +162,7 @@ function DeliveriesPageContent() {
     if (row) { setPinTarget(row); pinConsumedRef.current = true; return; }
     // Fallback: fetch the single delivery by ID if not in the current list
     if (rows.length > 0) {
-      api.get(`/api/admin/deliveries/${pinParam}`)
+      api.get(`/admin/deliveries/${pinParam}`)
         .then(res => {
           if (!pinConsumedRef.current && res.data) {
             setPinTarget(res.data as DeliveryRow);

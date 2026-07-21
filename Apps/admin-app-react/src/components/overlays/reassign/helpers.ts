@@ -86,8 +86,8 @@ export const loadDriverRoute = async (driverId: string): Promise<RouteData | nul
   const from = new Date().toISOString().slice(0, 10);
   const to = new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10);
   const [up, run] = await Promise.all([
-    api.get(`/api/admin/routes/driver/${driverId}`, { params: { from, to } }).catch(() => ({ data: [] })),
-    api.get('/api/admin/routes', { params: { driverId, status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
+    api.get(`/admin/routes/driver/${driverId}`, { params: { from, to } }).catch(() => ({ data: [] })),
+    api.get('/admin/routes', { params: { driverId, status: 'IN_PROGRESS' } }).catch(() => ({ data: [] })),
   ]);
   const byId = new Map<string, RouteData>();
   [...(Array.isArray(up.data) ? up.data : []), ...(Array.isArray(run.data) ? run.data : [])].forEach((r: RouteData) => byId.set(r.id, r));

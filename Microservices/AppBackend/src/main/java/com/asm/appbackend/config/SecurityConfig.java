@@ -25,7 +25,7 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
                         .requestMatchers(
-                                "/api/auth/**",
+                                "/api/v1/auth/**",
                                 "/actuator/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
@@ -33,10 +33,10 @@ public class SecurityConfig {
                                 "/v3/api-docs"
                         ).permitAll()
                         .requestMatchers("/internal/**").hasRole("SERVICE")
-                        .requestMatchers("/api/profile/**").hasRole("CLIENT")
-                        .requestMatchers("/api/admin/users", "/api/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/clients/**").hasRole("ADMIN")
-                        .requestMatchers("/api/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
+                        .requestMatchers("/api/v1/profile/**").hasRole("CLIENT")
+                        .requestMatchers("/api/v1/admin/users", "/api/v1/admin/users/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/clients/**").hasRole("ADMIN")
+                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
                         .anyRequest().authenticated()
                 )
                 .oauth2ResourceServer(rs -> rs

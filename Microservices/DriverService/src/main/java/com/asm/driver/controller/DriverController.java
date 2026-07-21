@@ -20,7 +20,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/driver")
+@RequestMapping("/api/v1/driver")
 @RequiredArgsConstructor
 @Tag(name = "Driver Operations", description = "Endpoints for Driver App (Requires DRIVER role)")
 @SecurityRequirement(name = "bearerAuth")

@@ -18,7 +18,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/users")
+@RequestMapping("/api/v1/admin/users")
 @RequiredArgsConstructor
 @Slf4j
 @PreAuthorize("hasAuthority('perm:user:manage')") // defense-in-depth; gateway also gates this path

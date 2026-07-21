@@ -19,7 +19,7 @@ export function useZones() {
   return useQuery<Zone[]>({
     queryKey: ZONES_QUERY_KEY,
     queryFn: async () => {
-      const res = await api.get<Zone[]>('/api/v1/zones');
+      const res = await api.get<Zone[]>('/zones');
       return Array.isArray(res.data) ? res.data : [];
     },
     retry: 1,
@@ -32,7 +32,7 @@ export function useCreateZone() {
 
   return useMutation({
     mutationFn: async (payload: ZonePayload) => {
-      const res = await api.post<Zone>('/api/v1/zones', payload);
+      const res = await api.post<Zone>('/zones', payload);
       return res.data;
     },
     onSuccess: () => {
@@ -50,7 +50,7 @@ export function useUpdateZone() {
 
   return useMutation({
     mutationFn: async ({ id, payload }: { id: string; payload: ZonePayload }) => {
-      const res = await api.put<Zone>(`/api/v1/zones/${id}`, payload);
+      const res = await api.put<Zone>(`/zones/${id}`, payload);
       return res.data;
     },
     onSuccess: () => {
@@ -68,7 +68,7 @@ export function useDeleteZone() {
 
   return useMutation({
     mutationFn: async (id: string) => {
-      const res = await api.delete<void>(`/api/v1/zones/${id}`);
+      const res = await api.delete<void>(`/zones/${id}`);
       return res.data;
     },
     onSuccess: () => {
@@ -86,7 +86,7 @@ export function useSyncZones() {
 
   return useMutation({
     mutationFn: async () => {
-      const res = await api.post<void>('/api/admin/deliveries/sync-zones');
+      const res = await api.post<void>('/admin/deliveries/sync-zones');
       return res.data;
     },
     onSuccess: () => {

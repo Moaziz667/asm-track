@@ -21,7 +21,7 @@ import java.util.UUID;
  * {@code /api/public/**}, which is whitelisted in SecurityConfig. Write actions are IP-rate-limited.
  */
 @RestController
-@RequestMapping("/api/public/track/{deliveryId}/return")
+@RequestMapping("/api/v1/public/track/{deliveryId}/return")
 @RequiredArgsConstructor
 public class PublicRmaController {
 

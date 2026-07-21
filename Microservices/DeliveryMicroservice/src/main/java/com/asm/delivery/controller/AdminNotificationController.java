@@ -20,7 +20,7 @@ import java.util.UUID;
  * read/acknowledge state shared across all admins. Live updates still arrive over STOMP.
  */
 @RestController
-@RequestMapping("/api/admin/notifications")
+@RequestMapping("/api/v1/admin/notifications")
 @Tag(name = "Admin Notifications", description = "Persistent operational notifications")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

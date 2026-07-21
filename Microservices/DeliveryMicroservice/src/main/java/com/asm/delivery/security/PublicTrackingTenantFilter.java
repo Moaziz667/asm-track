@@ -27,7 +27,7 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class PublicTrackingTenantFilter implements Filter {
 
-    private static final String PREFIX = "/api/public/track/";
+    private static final String PREFIX = "/api/v1/public/track/";
 
     private final PublicTenantResolver resolver;
 

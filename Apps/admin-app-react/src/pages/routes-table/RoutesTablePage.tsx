@@ -122,7 +122,7 @@ function useRouteStops(route: EnrichedRoute, expanded: boolean) {
   useEffect(() => {
     if (!expanded || loaded || loading) return;
     setLoading(true);
-    api.get(`/api/admin/routes/${route.id}/full`)
+    api.get(`/admin/routes/${route.id}/full`)
       .then((res) => {
         const data = res.data ?? {};
         const raw = Array.isArray(data.stops) ? data.stops.map(mapFullStop) : [];
@@ -631,10 +631,10 @@ function RoutesTablePageContent() {
       if (debouncedClient.trim()) params.q = debouncedClient.trim();
       try {
         const [routesRes, driversRes, vehiclesRes, depotsRes] = await Promise.all([
-          api.get('/api/admin/routes/page', { params }),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/fleet/drivers'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/admin/vehicles'),
-          isManager ? Promise.resolve({ data: [] }) : api.get('/api/v1/depots/active').catch(() => ({ data: [] })),
+          api.get('/admin/routes/page', { params }),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/admin/fleet/drivers'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/admin/vehicles'),
+          isManager ? Promise.resolve({ data: [] }) : api.get('/depots/active').catch(() => ({ data: [] })),
         ]);
 
         const pageData = routesRes.data ?? {};

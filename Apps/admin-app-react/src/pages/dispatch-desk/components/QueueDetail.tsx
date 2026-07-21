@@ -45,8 +45,8 @@ export function QueueDetail() {
     staleTime: 15000,
     queryFn: async () => {
       const [dRes, podRes] = await Promise.allSettled([
-        api.get(`/api/admin/deliveries/${selectedId}`),
-        api.get(`/api/admin/deliveries/${selectedId}/pod`),
+        api.get(`/admin/deliveries/${selectedId}`),
+        api.get(`/admin/deliveries/${selectedId}/pod`),
       ]);
       return {
         delivery: dRes.status === 'fulfilled' ? dRes.value.data : null,

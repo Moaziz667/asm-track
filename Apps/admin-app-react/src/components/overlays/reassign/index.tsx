@@ -91,7 +91,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
   useEffect(() => {
     if (!open || isBatch || !target?.deliveryId) { setNearest({}); return; }
     let alive = true;
-    api.get(`/api/admin/ops/exceptions/${target.deliveryId}/nearest-drivers`, { params: { limit: 8 } })
+    api.get(`/admin/ops/exceptions/${target.deliveryId}/nearest-drivers`, { params: { limit: 8 } })
       .then(res => {
         if (!alive) return;
         const map: Record<string, NearestInfo> = {};
@@ -213,7 +213,7 @@ export function ReassignDrawer({ open, target, targets, drivers, driversWithRout
   const goPrev = () => setStepIndex(i => Math.max(i - 1, 0));
 
   const post = (deliveryId: string, body: Record<string, unknown>) =>
-    api.post(`/api/admin/ops/exceptions/${deliveryId}/reassign`, body);
+    api.post(`/admin/ops/exceptions/${deliveryId}/reassign`, body);
 
   // Localize a server window/conflict error for inline display — reuses the client warn* copy so the
   // one case the client mirror can't predict (a race) reads in the user's language, not raw English.

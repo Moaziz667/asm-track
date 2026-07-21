@@ -32,7 +32,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/ops")
+@RequestMapping("/api/v1/admin/ops")
 @Tag(
     name = "Admin — Operations & Dispatch",
     description = """

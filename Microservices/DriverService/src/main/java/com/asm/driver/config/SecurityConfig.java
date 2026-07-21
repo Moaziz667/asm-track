@@ -25,16 +25,16 @@ public class SecurityConfig {
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
-                .requestMatchers("/api/auth/driver/**").permitAll()
+                .requestMatchers("/api/v1/auth/driver/**").permitAll()
                 .requestMatchers("/swagger-ui/**", "/v3/api-docs/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
                 .requestMatchers("/internal/**").hasRole("SERVICE")
                 // Driver avatar map is dispatcher-visible (dispatch desk) — gateway already enforces driver:view.
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers/avatars").authenticated()
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/admin/drivers/avatars").authenticated()
                 // Dispatcher read-only access to drivers list (dispatch desk needs driver names/status)
-                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/admin/drivers").hasAnyRole("ADMIN", "DISPATCHER")
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
-                .requestMatchers("/api/driver/**").hasRole("DRIVER")
+                .requestMatchers(org.springframework.http.HttpMethod.GET, "/api/v1/admin/drivers").hasAnyRole("ADMIN", "DISPATCHER")
+                .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                .requestMatchers("/api/v1/driver/**").hasRole("DRIVER")
                 .anyRequest().authenticated()
             )
             .oauth2ResourceServer(rs -> rs

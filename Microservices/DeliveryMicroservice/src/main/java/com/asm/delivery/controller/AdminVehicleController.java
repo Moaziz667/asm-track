@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/vehicles")
+@RequestMapping("/api/v1/admin/vehicles")
 @Tag(name = "Admin Vehicles", description = "Vehicle management for route planning")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

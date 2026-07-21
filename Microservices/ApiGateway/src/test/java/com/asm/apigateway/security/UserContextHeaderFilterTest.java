@@ -41,55 +41,55 @@ class UserContextHeaderFilterTest {
 
     @Test
     void admin_is_superuser() {
-        assertTrue(auth(ADMIN, "/api/admin/users", HttpMethod.POST));
-        assertTrue(auth(ADMIN, "/api/admin/companies/x", HttpMethod.PUT));
-        assertTrue(auth(ADMIN, "/api/admin/erp/import", HttpMethod.POST));
-        assertTrue(auth(ADMIN, "/api/admin/reports/settings", HttpMethod.PUT));
+        assertTrue(auth(ADMIN, "/api/v1/admin/users", HttpMethod.POST));
+        assertTrue(auth(ADMIN, "/api/v1/admin/companies/x", HttpMethod.PUT));
+        assertTrue(auth(ADMIN, "/api/v1/admin/erp/import", HttpMethod.POST));
+        assertTrue(auth(ADMIN, "/api/v1/admin/reports/settings", HttpMethod.PUT));
     }
 
     @Test
     void dispatcher_views_drivers_but_cannot_manage_them() {
-        assertTrue(auth(DISPATCHER, "/api/admin/drivers", HttpMethod.GET));
-        assertFalse(auth(DISPATCHER, "/api/admin/drivers", HttpMethod.POST));   // no driver:manage
-        assertFalse(auth(DISPATCHER, "/api/admin/drivers/123", HttpMethod.PUT));
+        assertTrue(auth(DISPATCHER, "/api/v1/admin/drivers", HttpMethod.GET));
+        assertFalse(auth(DISPATCHER, "/api/v1/admin/drivers", HttpMethod.POST));   // no driver:manage
+        assertFalse(auth(DISPATCHER, "/api/v1/admin/drivers/123", HttpMethod.PUT));
     }
 
     @Test
     void dispatcher_cannot_manage_users_or_settings_or_company() {
-        assertFalse(auth(DISPATCHER, "/api/admin/users", HttpMethod.GET));      // no user:manage
-        assertFalse(auth(DISPATCHER, "/api/admin/reports/settings", HttpMethod.PUT));
-        assertFalse(auth(DISPATCHER, "/api/admin/companies/abc", HttpMethod.PUT));
+        assertFalse(auth(DISPATCHER, "/api/v1/admin/users", HttpMethod.GET));      // no user:manage
+        assertFalse(auth(DISPATCHER, "/api/v1/admin/reports/settings", HttpMethod.PUT));
+        assertFalse(auth(DISPATCHER, "/api/v1/admin/companies/abc", HttpMethod.PUT));
     }
 
     @Test
     void dispatcher_can_operate_admin_surface_and_erp_and_company_me() {
-        assertTrue(auth(DISPATCHER, "/api/admin/routes", HttpMethod.POST));     // catch-all → dispatch:operate
-        assertTrue(auth(DISPATCHER, "/api/admin/erp/sync", HttpMethod.POST));   // erp:sync
-        assertTrue(auth(DISPATCHER, "/api/admin/companies/me", HttpMethod.GET));
+        assertTrue(auth(DISPATCHER, "/api/v1/admin/routes", HttpMethod.POST));     // catch-all → dispatch:operate
+        assertTrue(auth(DISPATCHER, "/api/v1/admin/erp/sync", HttpMethod.POST));   // erp:sync
+        assertTrue(auth(DISPATCHER, "/api/v1/admin/companies/me", HttpMethod.GET));
     }
 
     @Test
     void manager_is_read_only_on_routes_deliveries_reports() {
-        assertTrue(auth(MANAGER, "/api/admin/routes", HttpMethod.GET));
-        assertTrue(auth(MANAGER, "/api/admin/deliveries", HttpMethod.GET));
-        assertTrue(auth(MANAGER, "/api/admin/stats", HttpMethod.GET));
-        assertFalse(auth(MANAGER, "/api/admin/routes", HttpMethod.POST));       // no route mutation
-        assertFalse(auth(MANAGER, "/api/admin/users", HttpMethod.GET));
-        assertFalse(auth(MANAGER, "/api/admin/companies/me", HttpMethod.GET));  // not admin-tier
+        assertTrue(auth(MANAGER, "/api/v1/admin/routes", HttpMethod.GET));
+        assertTrue(auth(MANAGER, "/api/v1/admin/deliveries", HttpMethod.GET));
+        assertTrue(auth(MANAGER, "/api/v1/admin/stats", HttpMethod.GET));
+        assertFalse(auth(MANAGER, "/api/v1/admin/routes", HttpMethod.POST));       // no route mutation
+        assertFalse(auth(MANAGER, "/api/v1/admin/users", HttpMethod.GET));
+        assertFalse(auth(MANAGER, "/api/v1/admin/companies/me", HttpMethod.GET));  // not admin-tier
     }
 
     @Test
     void client_and_driver_paths_stay_role_scoped() {
-        assertTrue(auth(CLIENT, "/api/orders/1", HttpMethod.GET));
-        assertFalse(auth(CLIENT, "/api/admin/routes", HttpMethod.GET));
-        assertTrue(auth(DRIVER, "/api/driver/me", HttpMethod.GET));
-        assertTrue(auth(DRIVER, "/api/deliveries/5", HttpMethod.GET));
-        assertFalse(auth(DRIVER, "/api/admin/routes", HttpMethod.GET));
+        assertTrue(auth(CLIENT, "/api/v1/orders/1", HttpMethod.GET));
+        assertFalse(auth(CLIENT, "/api/v1/admin/routes", HttpMethod.GET));
+        assertTrue(auth(DRIVER, "/api/v1/driver/me", HttpMethod.GET));
+        assertTrue(auth(DRIVER, "/api/v1/deliveries/5", HttpMethod.GET));
+        assertFalse(auth(DRIVER, "/api/v1/admin/routes", HttpMethod.GET));
     }
 
     @Test
     void unknown_or_unprivileged_is_denied() {
-        assertFalse(auth(Set.of(), "/api/admin/routes", HttpMethod.GET));
-        assertFalse(auth(MANAGER, "/api/admin/erp/sync", HttpMethod.POST));     // manager lacks erp:sync
+        assertFalse(auth(Set.of(), "/api/v1/admin/routes", HttpMethod.GET));
+        assertFalse(auth(MANAGER, "/api/v1/admin/erp/sync", HttpMethod.POST));     // manager lacks erp:sync
     }
 }

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/driver/routes")
+@RequestMapping("/api/v1/driver/routes")
 @Tag(name = "Driver Routes", description = "Driver route execution endpoints")
 @SecurityRequirement(name = "Bearer Authentication")
 @RequiredArgsConstructor

@@ -25,7 +25,7 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin/drivers")
+@RequestMapping("/api/v1/admin/drivers")
 @Tag(name = "Admin Drivers", description = "Super-admin driver management")
 @RequiredArgsConstructor
 public class AdminDriverController {

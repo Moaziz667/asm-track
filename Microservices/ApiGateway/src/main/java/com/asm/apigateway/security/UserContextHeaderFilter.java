@@ -105,9 +105,9 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
     // ── helpers ───────────────────────────────────────────────────────────────
 
     private boolean isPublic(String path) {
-        return path.startsWith("/api/auth/")
-                || path.startsWith("/api/public/")
-                || path.startsWith("/api/dev/")
+        return path.startsWith("/api/v1/auth/")
+                || path.startsWith("/api/v1/public/")
+                || path.startsWith("/api/v1/dev/")
                 || path.startsWith("/ws/")
                 || path.equals("/ws");
     }
@@ -162,41 +162,41 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
         boolean isGet = HttpMethod.GET.equals(method);
 
         // Client/driver-facing paths — role-scoped, not part of the admin permission model.
-        if (path.startsWith("/api/orders/")) return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/users/"))  return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/driver/")) return hasRole(roles, "DRIVER");
+        if (path.startsWith("/api/v1/orders/")) return hasRole(roles, "CLIENT");
+        if (path.startsWith("/api/v1/users/"))  return hasRole(roles, "CLIENT");
+        if (path.startsWith("/api/v1/driver/")) return hasRole(roles, "DRIVER");
 
         // Admin surface — permission-based (order matters: most specific first).
-        if (path.equals("/api/admin/me") || path.startsWith("/api/admin/me/"))
+        if (path.equals("/api/v1/admin/me") || path.startsWith("/api/v1/admin/me/"))
             return true; // any authenticated admin/dispatcher/manager — only their own profile (read + login-sync)
-        if (path.equals("/api/admin/companies/me"))
+        if (path.equals("/api/v1/admin/companies/me"))
             return roles.contains("perm:company:manage") || roles.contains("perm:dispatch:operate");
-        if (path.startsWith("/api/admin/companies/"))
+        if (path.startsWith("/api/v1/admin/companies/"))
             return roles.contains("perm:company:manage");
-        if (path.startsWith("/api/admin/users"))
+        if (path.startsWith("/api/v1/admin/users"))
             return roles.contains("perm:user:manage");
-        if (path.startsWith("/api/admin/drivers"))
+        if (path.startsWith("/api/v1/admin/drivers"))
             return isGet ? roles.contains("perm:driver:view") : roles.contains("perm:driver:manage");
-        if (path.startsWith("/api/admin/vehicles"))
+        if (path.startsWith("/api/v1/admin/vehicles"))
             return isGet && roles.contains("perm:driver:view");
-        if (path.startsWith("/api/admin/erp/"))
+        if (path.startsWith("/api/v1/admin/erp/"))
             return roles.contains("perm:erp:sync");
-        if (path.startsWith("/api/admin/reports/settings"))
+        if (path.startsWith("/api/v1/admin/reports/settings"))
             return roles.contains("perm:settings:manage");
-        if (path.startsWith("/api/admin/stats")
-                || path.startsWith("/api/admin/reports/")
-                || path.startsWith("/api/admin/ops/"))
+        if (path.startsWith("/api/v1/admin/stats")
+                || path.startsWith("/api/v1/admin/reports/")
+                || path.startsWith("/api/v1/admin/ops/"))
             return roles.contains("perm:report:view");
-        if (isGet && path.startsWith("/api/admin/routes"))
+        if (isGet && path.startsWith("/api/v1/admin/routes"))
             return roles.contains("perm:route:view");
-        if (isGet && path.startsWith("/api/admin/deliveries"))
+        if (isGet && path.startsWith("/api/v1/admin/deliveries"))
             return roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/admin/"))
+        if (path.startsWith("/api/v1/admin/"))
             return roles.contains("perm:dispatch:operate");
 
-        if (path.startsWith("/api/deliveries/"))
+        if (path.startsWith("/api/v1/deliveries/"))
             return hasRole(roles, "DRIVER") || roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/v1/"))
+        if (path.startsWith("/api/v1/depots") || path.startsWith("/api/v1/zones"))
             return roles.contains("perm:route:view");
 
         return false;

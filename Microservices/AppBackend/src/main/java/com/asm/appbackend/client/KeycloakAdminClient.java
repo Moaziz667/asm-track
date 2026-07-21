@@ -406,11 +406,14 @@ public class KeycloakAdminClient {
                     .toBodilessEntity();
             log.info("Triggered UPDATE_PASSWORD email for appUserId: {}", appUserId);
         } catch (RestClientResponseException e) {
-            log.error("Failed to trigger password reset: status={}, response={}", e.getStatusCode(), e.getResponseBodyAsString());
             String responseBody = e.getResponseBodyAsString();
             if (responseBody != null && responseBody.contains("Failed to send execute actions email")) {
+                // Expected when Keycloak has no SMTP configured (e.g. dev). The caller handles this
+                // gracefully, so log at WARN — not ERROR — to avoid noise on every provisioning pass.
+                log.warn("Password-reset email not sent (Keycloak SMTP unavailable) for appUserId={}", appUserId);
                 throw new AppException(HttpStatus.BAD_GATEWAY, "SMTP email server is not configured or reachable in Keycloak");
             }
+            log.error("Failed to trigger password reset: status={}, response={}", e.getStatusCode(), responseBody);
             throw new AppException(HttpStatus.INTERNAL_SERVER_ERROR, "Failed to trigger password reset email");
         }
     }

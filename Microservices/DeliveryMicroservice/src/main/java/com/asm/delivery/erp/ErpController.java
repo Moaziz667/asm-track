@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/admin/erp")
+@RequestMapping("/api/v1/admin/erp")
 @Tag(
     name = "Admin — ERP Import",
     description = """

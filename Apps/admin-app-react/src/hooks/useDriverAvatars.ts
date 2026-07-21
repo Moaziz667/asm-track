@@ -9,7 +9,7 @@ export function useDriverAvatars(): Record<string, string> {
   const { data } = useQuery({
     queryKey: ['driver-avatars'],
     queryFn: async () => {
-      const res = await api.get<Record<string, string>>('/api/admin/drivers/avatars');
+      const res = await api.get<Record<string, string>>('/admin/drivers/avatars');
       return res.data ?? {};
     },
     staleTime: 5 * 60_000,
