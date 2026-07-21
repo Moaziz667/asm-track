@@ -38,13 +38,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     boolean existsByBlNumber(String blNumber);
 
-    List<Order> findTop100ByOdooSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
+    List<Order> findTop100ByErpSyncStatusInOrderByUpdatedAtAsc(List<String> statuses);
 
     /** Count of orders in a given ERP sync state — backs the System Health ERP sync card. */
-    long countByOdooSyncStatus(String status);
+    long countByErpSyncStatus(String status);
 
     /** Oldest-first slice of orders in a given sync state (e.g. SYNC_FAILED) for the drill-down. */
-    List<Order> findTop50ByOdooSyncStatusOrderByUpdatedAtAsc(String status);
+    List<Order> findTop50ByErpSyncStatusOrderByUpdatedAtAsc(String status);
 
     /**
      * Find orders whose ERP sync has failed and are due for a retry attempt.
@@ -58,7 +58,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
      */
     @Query("""
            SELECT o FROM Order o
-           WHERE o.odooSyncStatus IN ('PENDING_RETRY', 'PENDING_CANCEL')
+           WHERE o.erpSyncStatus IN ('PENDING_RETRY', 'PENDING_CANCEL')
              AND (o.nextSyncRetryAt IS NULL OR o.nextSyncRetryAt <= :now)
              AND o.syncRetryCount < :maxRetries
            ORDER BY o.nextSyncRetryAt ASC NULLS FIRST

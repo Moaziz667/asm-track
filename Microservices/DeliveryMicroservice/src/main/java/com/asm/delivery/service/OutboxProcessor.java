@@ -150,7 +150,7 @@ public class OutboxProcessor {
                     if (orderId != null) {
                         final UUID resolvedOrderId = orderId;
                         orderRepo.findById(resolvedOrderId).ifPresent(order -> {
-                            order.setOdooSyncStatus("SYNC_FAILED");
+                            order.setErpSyncStatus("SYNC_FAILED");
                             order.setLastSyncOp(resyncOpForEventType(event.getEventType()));
                             order.setLastSyncError(event.getLastError());
                             orderRepo.save(order);
@@ -347,7 +347,7 @@ public class OutboxProcessor {
     public void enqueueErpStockSync(UUID deliveryId, boolean partial, List<PartialDeliveryItem> partialItems) {
         deliveryRepo.findByIdWithOrder(deliveryId).ifPresent(delivery -> {
             if (delivery.getOrder() != null) {
-                delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+                delivery.getOrder().setErpSyncStatus("PENDING_SYNC");
                 orderRepo.save(delivery.getOrder());
             }
         });

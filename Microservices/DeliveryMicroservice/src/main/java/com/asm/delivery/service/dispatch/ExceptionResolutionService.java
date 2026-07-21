@@ -362,7 +362,7 @@ public class ExceptionResolutionService {
                 // V3.3 — Push the new commitment date to the ERP so the promised date matches ASM's
                 // (otherwise the two diverge after a replan). Any ERP order; routed through the outbox.
                 if (rescheduled && delivery.getOrder() != null && delivery.getOrder().isFromErp()) {
-                        delivery.getOrder().setOdooSyncStatus("PENDING_SYNC");
+                        delivery.getOrder().setErpSyncStatus("PENDING_SYNC");
                         orderRepo.save(delivery.getOrder());
                         outboxProcessor.enqueue("ERP_SYNC_RESCHEDULE", Map.of(
                                         "deliveryId", delivery.getId().toString(),

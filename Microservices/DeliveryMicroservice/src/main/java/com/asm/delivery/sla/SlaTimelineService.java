@@ -129,12 +129,12 @@ public class SlaTimelineService {
         }
 
         // Backorder / reliquat cross-link — provider-neutral.
-        //  • Odoo is BL-articulated: a backorder is another SHIPMENT on the SAME order (odooBackorderId set).
+        //  • Odoo is BL-articulated: a backorder is another SHIPMENT on the SAME order (erpBackorderId set).
         //  • ERPNext is SO-articulated: a reliquat is a SEPARATE order (parentOrderId set) sharing the SO
         //    (erpExternalRef). Detect both so the "Reliquat" badge shows regardless of the ERP.
         String direction = null, linkedId = null, linkedBl = null;
         Order order = d.getOrder();
-        boolean isChild = d.getOdooBackorderId() != null || (order != null && order.getParentOrderId() != null);
+        boolean isChild = d.getErpBackorderId() != null || (order != null && order.getParentOrderId() != null);
         if (isChild) {
             direction = "child";
             Delivery parent = backorderParent(d, order);
@@ -153,14 +153,14 @@ public class SlaTimelineService {
             return deliveryRepository.findFirstByOrderIdOrderByCreatedAtDesc(order.getParentOrderId()).orElse(null);
         }
         return sameOrderSiblings(d).stream()                        // Odoo → the non-backorder shipment of this order
-                .filter(s -> s.getOdooBackorderId() == null)
+                .filter(s -> s.getErpBackorderId() == null)
                 .findFirst().orElse(null);
     }
 
     /** A backorder/reliquat descending from this original shipment, if any (Odoo sibling, else ERPNext child order). */
     private Delivery backorderChild(Delivery d, Order order) {
         Delivery odoo = sameOrderSiblings(d).stream()
-                .filter(s -> s.getOdooBackorderId() != null)
+                .filter(s -> s.getErpBackorderId() != null)
                 .findFirst().orElse(null);
         if (odoo != null) return odoo;
         if (order != null && order.getErpExternalRef() != null && !order.getErpExternalRef().isBlank()) {

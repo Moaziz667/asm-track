@@ -47,7 +47,7 @@ class ErpResyncServiceTest {
         orderId = UUID.randomUUID();
         order = Order.builder()
                 .id(orderId)
-                .odooSyncStatus("SYNC_FAILED")
+                .erpSyncStatus("SYNC_FAILED")
                 .blNumber("S00110")
                 .erpOrderId("S00110")
                 .lastSyncOp("STOCK_FULL")
@@ -74,7 +74,7 @@ class ErpResyncServiceTest {
         assertThat(result.status()).isEqualTo("PENDING_SYNC");
         assertThat(failed.getStatus()).isEqualTo("PENDING");
         assertThat(failed.getRetryCount()).isZero();
-        assertThat(order.getOdooSyncStatus()).isEqualTo("PENDING_SYNC");
+        assertThat(order.getErpSyncStatus()).isEqualTo("PENDING_SYNC");
         assertThat(order.getSyncRetryCount()).isZero();
         verify(outboxRepo).save(failed);
         // No fresh enqueue when we re-drive the existing event.
@@ -90,14 +90,14 @@ class ErpResyncServiceTest {
         var result = service.resync(orderId);
 
         assertThat(result.queued()).isTrue();
-        assertThat(order.getOdooSyncStatus()).isEqualTo("PENDING_SYNC");
+        assertThat(order.getErpSyncStatus()).isEqualTo("PENDING_SYNC");
         // Routes through the transactional outbox, not a direct publish.
         verify(outboxProcessor).enqueue(eq("ERP_SYNC_STOCK"), any());
     }
 
     @Test
     void refusesToResyncWhenOrderIsNotFailed() {
-        order.setOdooSyncStatus("SYNCED");
+        order.setErpSyncStatus("SYNCED");
         when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
 
         var result = service.resync(orderId);
@@ -138,7 +138,7 @@ class ErpResyncServiceTest {
 
     @Test
     void reEnqueuesAnOrderStuckInPendingSync() {
-        order.setOdooSyncStatus("PENDING_SYNC");
+        order.setErpSyncStatus("PENDING_SYNC");
         order.setLastSyncOp("STOCK_FULL");
         when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
         when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));
@@ -152,7 +152,7 @@ class ErpResyncServiceTest {
 
     @Test
     void doesNotReEnqueueAnOrderThatIsNoLongerPending() {
-        order.setOdooSyncStatus("SYNCED"); // the result arrived after all
+        order.setErpSyncStatus("SYNCED"); // the result arrived after all
         when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
 
         boolean requeued = service.reEnqueueStuckOrder(orderId);
@@ -163,7 +163,7 @@ class ErpResyncServiceTest {
 
     @Test
     void reEnqueueChoosesPartialSyncWhenLastOpWasPartial() {
-        order.setOdooSyncStatus("PENDING_SYNC");
+        order.setErpSyncStatus("PENDING_SYNC");
         order.setLastSyncOp("STOCK_PARTIAL");
         when(orderRepo.findByIdForUpdate(orderId)).thenReturn(Optional.of(order));
         when(deliveryRepo.findFirstByOrderIdOrderByCreatedAtDesc(orderId)).thenReturn(Optional.of(delivery));

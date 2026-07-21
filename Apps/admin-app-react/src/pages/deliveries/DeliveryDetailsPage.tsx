@@ -381,8 +381,8 @@ export default function DeliveryDetailPage() {
                   <InfoRow label={t.deliveryPage.labelTotalWeight} value={delivery.totalWeightKg ? `${delivery.totalWeightKg} kg` : null} />
                   <InfoRow label={t.deliveryPage.labelAmount}     value={delivery.totalAmount ? formatMoney(delivery.totalAmount, delivery.currency) : null} />
                   <InfoRow label={t.deliveryPage.labelSource}     value={tlabel(t.sources, delivery.source) ?? delivery.source} />
-                  {delivery.odooSyncStatus && delivery.odooSyncStatus !== 'SYNCED' && (
-                    <InfoRow label={t.deliveryPage.labelSyncErp} value={t.syncStatus[delivery.odooSyncStatus] ?? delivery.odooSyncStatus} />
+                  {delivery.erpSyncStatus && delivery.erpSyncStatus !== 'SYNCED' && (
+                    <InfoRow label={t.deliveryPage.labelSyncErp} value={t.syncStatus[delivery.erpSyncStatus] ?? delivery.erpSyncStatus} />
                   )}
                   <InfoRow label={t.deliveryPage.labelCreatedAt}  value={delivery.createdAt ? new Date(delivery.createdAt).toLocaleString('fr-FR') : null} />
                   <InfoRow label={t.deliveryPage.labelUpdatedAt}  value={delivery.updatedAt ? new Date(delivery.updatedAt).toLocaleString('fr-FR') : null} />

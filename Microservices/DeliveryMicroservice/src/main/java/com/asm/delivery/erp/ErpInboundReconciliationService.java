@@ -31,7 +31,7 @@ import java.util.Map;
  *       admin "Odoo conflict" notification so a human resolves it (credit note, return…).</li>
  * </ul>
  *
- * <p>Idempotency / anti-replay: the inbound {@code odooWriteDate} is compared against
+ * <p>Idempotency / anti-replay: the inbound {@code erpWriteDate} is compared against
  * {@link Order#getLastSyncedAt()}; an older or equal change is ignored. Anti-loop: mutations here set
  * {@code lastSyncedAt} and never enqueue an ASM→Odoo sync.
  */
@@ -54,10 +54,10 @@ public class ErpInboundReconciliationService {
      * @param erpOrderId    the Odoo sale-order reference (e.g. "S00123" or its picking ref)
      * @param changeType    what changed in Odoo
      * @param payload       change-specific fields (new items / address / date)
-     * @param odooWriteDate Odoo's write_date for anti-replay; null skips the guard
+     * @param erpWriteDate Odoo's write_date for anti-replay; null skips the guard
      */
     @Transactional
-    public void apply(String erpOrderId, ChangeType changeType, Map<String, Object> payload, LocalDateTime odooWriteDate) {
+    public void apply(String erpOrderId, ChangeType changeType, Map<String, Object> payload, LocalDateTime erpWriteDate) {
         Order order = findOrder(erpOrderId);
         if (order == null) {
             log.info("ERP inbound: no imported order for erpOrderId={} — ignoring {}", erpOrderId, changeType);
@@ -65,10 +65,10 @@ public class ErpInboundReconciliationService {
         }
 
         // Anti-replay: ignore a change we've already seen (or older).
-        if (odooWriteDate != null && order.getLastSyncedAt() != null
-                && !odooWriteDate.isAfter(order.getLastSyncedAt())) {
+        if (erpWriteDate != null && order.getLastSyncedAt() != null
+                && !erpWriteDate.isAfter(order.getLastSyncedAt())) {
             log.debug("ERP inbound: stale change for orderId={} (writeDate={} <= lastSynced={}) — ignoring",
-                    order.getId(), odooWriteDate, order.getLastSyncedAt());
+                    order.getId(), erpWriteDate, order.getLastSyncedAt());
             return;
         }
 
@@ -80,7 +80,7 @@ public class ErpInboundReconciliationService {
             log.warn("ERP inbound CONFLICT: Odoo {} on orderId={} but delivery already {} — ignoring + alerting admin",
                     changeType, order.getId(), delivery.getStatus());
             eventPublisher.publishErpConflict(order, delivery.getId(), changeType.name());
-            touchSynced(order, odooWriteDate);
+            touchSynced(order, erpWriteDate);
             return;
         }
 
@@ -91,7 +91,7 @@ public class ErpInboundReconciliationService {
             case ADDRESS   -> applyAddressChange(order, payload);
             case DATE      -> applyDateChange(order, payload);
         }
-        touchSynced(order, odooWriteDate);
+        touchSynced(order, erpWriteDate);
     }
 
     private void applyCancellation(Delivery delivery, Order order) {
@@ -171,8 +171,8 @@ public class ErpInboundReconciliationService {
     }
 
     /** Advance the anti-replay cursor; never enqueues an ASM→Odoo sync (anti-loop). */
-    private void touchSynced(Order order, LocalDateTime odooWriteDate) {
-        order.setLastSyncedAt(odooWriteDate != null ? odooWriteDate : LocalDateTime.now());
+    private void touchSynced(Order order, LocalDateTime erpWriteDate) {
+        order.setLastSyncedAt(erpWriteDate != null ? erpWriteDate : LocalDateTime.now());
         orderRepo.save(order);
     }
 }

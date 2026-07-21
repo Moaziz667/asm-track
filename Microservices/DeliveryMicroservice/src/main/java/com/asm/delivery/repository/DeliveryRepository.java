@@ -37,7 +37,7 @@ public interface DeliveryRepository extends JpaRepository<Delivery, UUID> {
     List<Delivery> findAllByOrderIdWithOrder(@Param("orderId") UUID orderId);
 
     /** The backorder shipment created for a given Odoo backorder picking (idempotency guard). */
-    Optional<Delivery> findByOdooBackorderId(Integer odooBackorderId);
+    Optional<Delivery> findByErpBackorderId(Integer erpBackorderId);
 
     /**
      * Sale-order refs (erpExternalRef) that currently have a NON-terminal delivery. For SO-articulated

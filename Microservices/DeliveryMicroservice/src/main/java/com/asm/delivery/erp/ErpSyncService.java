@@ -101,8 +101,8 @@ public class ErpSyncService {
     }
 
     private Integer backorderPickingId(Delivery delivery) {
-        if (delivery.getOdooBackorderId() != null) return delivery.getOdooBackorderId();
-        return delivery.getOrder() != null ? delivery.getOrder().getOdooBackorderId() : null;
+        if (delivery.getErpBackorderId() != null) return delivery.getErpBackorderId();
+        return delivery.getOrder() != null ? delivery.getOrder().getErpBackorderId() : null;
     }
 
     /**

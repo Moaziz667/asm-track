@@ -336,8 +336,8 @@ public class ErpLookupService {
                 .deliveryId(delivery != null ? delivery.getId() : null)
                 .deliveryStatus(delivery != null ? delivery.getStatus().name() : null)
                 .erpOrderId(order.getErpOrderId())
-                .odooSyncStatus(order.getOdooSyncStatus())
-                .odooBackorderId(order.getOdooBackorderId())
+                .erpSyncStatus(order.getErpSyncStatus())
+                .erpBackorderId(order.getErpBackorderId())
                 .createdAt(order.getCreatedAt())
                 .updatedAt(order.getUpdatedAt())
                 .build();

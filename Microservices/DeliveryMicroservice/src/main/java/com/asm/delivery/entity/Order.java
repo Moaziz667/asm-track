@@ -174,13 +174,13 @@ public class Order {
     private String erpClientId;
 
     /** SYNCED | PENDING_RETRY | PENDING_CANCEL | SYNC_FAILED */
-    @Column(name = "odoo_sync_status", length = 40)
+    @Column(name = "erp_sync_status", length = 40)
     @Builder.Default
-    private String odooSyncStatus = "SYNCED";
+    private String erpSyncStatus = "SYNCED";
 
     /** Odoo stock.picking ID from the last partial delivery (backorder). */
-    @Column(name = "odoo_backorder_id")
-    private Integer odooBackorderId;
+    @Column(name = "erp_backorder_id")
+    private Integer erpBackorderId;
 
     /** Last ERP sync operation attempted (STOCK_FULL | FAILURE | CANCELLATION | …) — drives Resync replay. */
     @Column(name = "last_sync_op", length = 40)

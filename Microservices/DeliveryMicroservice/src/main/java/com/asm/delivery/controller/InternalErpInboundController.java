@@ -43,7 +43,7 @@ public class InternalErpInboundController {
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> payload = body.get("payload") instanceof Map<?, ?> m ? (Map<String, Object>) m : Map.of();
-        LocalDateTime writeDate = parseDate(str(body.get("odooWriteDate")));
+        LocalDateTime writeDate = parseDate(str(body.get("erpWriteDate")));
 
         reconciliation.apply(erpOrderId, changeType, payload, writeDate);
         return ResponseEntity.ok().build();
