@@ -4,7 +4,7 @@ import { api } from '@/lib/api';
 import type { Driver, Delivery, Zone } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { useGlobalFilters } from '@/lib/state/global-filters';
-import { getCurrentUser, getCurrentRole, isReadOnlyRole } from '@/lib/api/auth';
+import { getCurrentUser, hasPerm } from '@/lib/api/auth';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { useRealtimeEvent } from '@/components/RealtimeProvider';
@@ -130,7 +130,7 @@ export function useDispatchDeskContext() {
 export function DispatchDeskProvider({ children }: { children: React.ReactNode }) {
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.dispatch?.title || 'Dispatch' }]);
-  const isReadOnly = isReadOnlyRole(getCurrentRole());
+  const isReadOnly = !hasPerm('perm:dispatch:operate');
   const { filters: globalFilters, applyFilters, clearFilters: clearGlobalFilters, globalContext } = useGlobalFilters();
 
   // ── Data ──────────────────────────────────────────────────────────────────

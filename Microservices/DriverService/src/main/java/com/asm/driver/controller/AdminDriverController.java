@@ -14,7 +14,6 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -36,15 +35,14 @@ public class AdminDriverController {
     @Operation(summary = "List drivers")
     public ResponseEntity<List<AdminDriverResponse>> list(
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.listAll());
     }
 
     @GetMapping("/avatars")
     @Operation(summary = "driverId → avatar URL map (dispatcher-visible; non-sensitive)")
     public ResponseEntity<Map<String, String>> avatars() {
-        // No requireAdmin: dispatchers see driver avatars on the dispatch desk. Authorization is the
-        // gateway's driver:view perm + the SecurityConfig rule that permits this GET to any authenticated user.
+        // Authorization is centralized: the gateway + SecurityConfig require perm:driver:view on this GET
+        // (dispatchers/managers see driver avatars on the dispatch desk). No per-method role check here.
         return ResponseEntity.ok(service.avatarsMap());
     }
 
@@ -53,7 +51,6 @@ public class AdminDriverController {
     public ResponseEntity<AdminDriverResponse> get(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.getById(id));
     }
 
@@ -62,7 +59,6 @@ public class AdminDriverController {
     public ResponseEntity<AdminDriverResponse> invite(
             @RequestBody InviteDriverRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(service.invite(req.name(), req.phone(), req.email(), principal));
     }
@@ -73,7 +69,6 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody UpdateDriverRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.update(id, req.name(), req.phone(), req.email(), principal));
     }
 
@@ -83,7 +78,6 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody SetStatusRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.setActive(id, req.isRegistered(), req.reason(), principal));
     }
 
@@ -93,7 +87,6 @@ public class AdminDriverController {
             @PathVariable UUID id,
             @RequestBody(required = false) CancelInviteRequest req,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         String reason = req != null ? req.reason() : null;
         service.cancelInvite(id, reason, principal);
         return ResponseEntity.ok(Map.of("message", "Invite cancelled"));
@@ -104,7 +97,6 @@ public class AdminDriverController {
     public ResponseEntity<Map<String, Object>> resendInvite(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.adminResendInvite(id, principal));
     }
 
@@ -113,7 +105,6 @@ public class AdminDriverController {
     public ResponseEntity<Map<String, String>> forceLogout(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         service.forceLogout(id, principal);
         return ResponseEntity.ok(Map.of("message", "Driver force logged out successfully"));
     }
@@ -123,7 +114,6 @@ public class AdminDriverController {
     public ResponseEntity<List<AdminDriverResponse>> importCsv(
             @RequestParam("file") MultipartFile file,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         return ResponseEntity.ok(service.importCsv(file, principal));
     }
 
@@ -138,7 +128,6 @@ public class AdminDriverController {
             @RequestParam(required = false) LocalDateTime from,
             @RequestParam(required = false) LocalDateTime to,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         Page<DriverAuditLog> result = service.listAuditLogs(action, actor, actorRole, from, to, page, size);
         List<DriverAuditLogResponse> content = result.getContent().stream()
                 .map(this::toAuditDto)
@@ -156,7 +145,6 @@ public class AdminDriverController {
     public ResponseEntity<List<DriverAuditLogResponse>> driverAuditLogs(
             @PathVariable UUID id,
             @AuthenticationPrincipal UserPrincipal principal) {
-        requireAdmin(principal);
         Page<DriverAuditLog> result = service.listAuditLogs(null, null, null, null, null, 0, 50);
         List<DriverAuditLogResponse> content = result.getContent().stream()
                 .filter(l -> id.equals(l.getResourceId()))
@@ -178,14 +166,6 @@ public class AdminDriverController {
                 .ipAddress("admin")
                 .createdAt(l.getCreatedAt())
                 .build();
-    }
-
-    private void requireAdmin(UserPrincipal principal) {
-        if (principal == null) throw new AccessDeniedException("Authentication required");
-        String role = principal.getRole();
-        if (!"ADMIN".equals(role)) {
-            throw AppException.forbidden("Only ADMIN can manage drivers");
-        }
     }
 
     public record InviteDriverRequest(@NotBlank String name, @NotBlank String phone, @NotBlank String email) {}

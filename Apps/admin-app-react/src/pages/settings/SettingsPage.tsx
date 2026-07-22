@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
-import { canManageSettings, getCurrentRole } from '@/lib/api/auth';
+import { getCurrentRole, hasPerm } from '@/lib/api/auth';
 import { AdminUser } from '@/types';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { applyFieldError } from '@/lib/utils/form-errors';
@@ -265,7 +265,7 @@ export default function SettingsPage() {
     }
   };
 
-  const canManage = canManageSettings(role);
+  const canManage = hasPerm('perm:settings:manage');
   const [mobileTab, setMobileTab] = useState<'nav' | 'content'>('content');
 
   const navSections = [

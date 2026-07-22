@@ -5,7 +5,6 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { type DragEndEvent, type DragStartEvent } from '@dnd-kit/core';
 import { api } from '@/lib/api';
-import { canManageRoutes, getCurrentRole } from '@/lib/api/auth';
 import { getBusinessDayKey } from '@/lib/sla';
 import { useT } from '@/lib/i18n/LocaleContext';
 import type { Driver } from '@/types';
@@ -98,13 +97,6 @@ export function useRouteBuilder() {
     isMounted.current = true;
     return () => { isMounted.current = false; };
   }, []);
-
-  // Auth check
-  useEffect(() => {
-    if (!canManageRoutes(getCurrentRole())) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
 
   // State
   const [loading, setLoading] = useState(true);

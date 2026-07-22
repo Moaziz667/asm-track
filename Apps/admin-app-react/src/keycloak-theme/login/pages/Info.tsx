@@ -4,7 +4,6 @@ import type { I18n } from "../i18n";
 
 type Props = PageProps<Extract<KcContext, { pageId: "info.ftl" }>, I18n>;
 
-// msg/msgStr are strictly typed — cast for keys not in keycloakify's union
 type AnyMsg = (key: string, ...args: string[]) => React.ReactNode;
 
 export default function Info({ kcContext, i18n, Template, doUseDefaultCss }: Props) {
@@ -21,14 +20,14 @@ export default function Info({ kcContext, i18n, Template, doUseDefaultCss }: Pro
       headerNode={messageHeader ?? msgAny("infoTitle")}
       displayMessage={false}
     >
-      <div className="asm-icon-page">
-        <div className="asm-icon-wrap asm-icon-wrap-green">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="asm-status-page">
+        <div className="asm-status-icon asm-status-icon-green">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M20 6L9 17l-5-5"/>
           </svg>
         </div>
 
-        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 20, textAlign: "center" }}>
+        <p style={{ fontSize: 13, color: "var(--text-secondary)", lineHeight: 1.6, marginBottom: 16, textAlign: "center" }}>
           <span dangerouslySetInnerHTML={{ __html: message.summary }} />
           {requiredActions && (
             <>
@@ -47,7 +46,7 @@ export default function Info({ kcContext, i18n, Template, doUseDefaultCss }: Pro
           <a
             href={pageRedirectUri ?? actionUri ?? client?.baseUrl}
             className="asm-btn-primary"
-            style={{ display: "inline-flex", maxWidth: 220, margin: "0 auto" }}
+            style={{ maxWidth: 220 }}
           >
             {actionUri
               ? msg("proceedWithAction")

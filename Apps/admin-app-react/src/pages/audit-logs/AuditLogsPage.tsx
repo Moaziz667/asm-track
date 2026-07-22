@@ -9,7 +9,6 @@ import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { isAbortError } from '@/lib/utils/errors';
 import type { TranslationSchema } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
 import { cn } from '@/lib/utils';
 import { IconChevronDown, IconX } from '@tabler/icons-react';
 import { AppLoader } from '@/components/AppLoader';
@@ -392,13 +391,6 @@ export default function AuditLogsPage() {
   const t = useT();
   const locale = useLocaleStore(state => state.locale);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const r = getCurrentRole();
-    if (r !== 'UNKNOWN' && !canDispatch(r)) {
-      navigate('/dashboard', { replace: true });
-    }
-  }, [navigate]);
 
   const [logs, setLogs] = useState<AuditLog[]>([]);
   const [totalElements, setTotalElements] = useState(0);

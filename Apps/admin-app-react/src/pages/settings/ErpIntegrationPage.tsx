@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { api } from '@/lib/api';
 import { useT } from '@/lib/i18n/LocaleContext';
 import { tlabel } from '@/lib/i18n/i18n-dict';
-import { canManageSettings, getCurrentRole } from '@/lib/api/auth';
+import { getCurrentRole, hasPerm } from '@/lib/api/auth';
 import { showSuccessToast, showErrorToast } from '@/lib/ui/toast-service';
 import { IconDatabase, IconPlugConnected, IconPlugConnectedX, IconLock, IconAlertTriangle, IconClock, IconCircleCheck, IconCircleDot } from '@tabler/icons-react';
 import { cn } from '@/lib/utils';
@@ -70,7 +70,7 @@ export default function ErpIntegrationPage() {
   // True once the admin edits any field; means a persisted CONNECTED is stale until re-test.
   const [dirty, setDirty] = useState(false);
 
-  const canManage = canManageSettings(role);
+  const canManage = hasPerm('perm:settings:manage');
 
   const fetchErp = useCallback(async () => {
     setLoading(true);

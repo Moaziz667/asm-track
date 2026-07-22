@@ -12,8 +12,7 @@ import {
   IconSun, IconMoon, IconMap2 as IconMap, IconUserCircle, IconLogout
 } from '@tabler/icons-react';
 import {
-  canManageSettings, getCurrentRole, canImportErp,
-  canManageRoutes, canDispatch, canViewReadOnly
+  getCurrentRole, usePermissions, Perm
 } from '@/lib/api/auth';
 import { AdminRole } from '@/types';
 import { useT } from '@/lib/i18n/LocaleContext';
@@ -41,7 +40,10 @@ export type NavItem = {
   labelKey: string;
   href: string;
   Icon: React.ComponentType<{ size?: number; stroke?: number; className?: string }>;
-  roleCheck?: (role: AdminRole) => boolean;
+  // Permission required to SEE this page (perm:* — same strings the backend enforces). Absent = always
+  // visible to any authenticated user. A page shown here is one the user can at least read; action
+  // controls inside are gated separately with <Can> on the corresponding manage perm.
+  perm?: Perm;
 };
 
 export type NavGroupDef = {
@@ -58,45 +60,45 @@ export const GROUP_DEFS: NavGroupDef[] = [
     Icon: IconCalendarEvent,
     items: [
       { labelKey: 'dashboard',  href: '/dashboard',     Icon: IconLayoutDashboard },
-      { labelKey: 'overview',   href: '/overview',    Icon: IconCalendarEvent,           roleCheck: canViewReadOnly },
-      { labelKey: 'dispatch',   href: '/dispatch-desk', Icon: IconCommand,          roleCheck: canDispatch },
-      { labelKey: 'systemHealth', href: '/system-health', Icon: IconHeartbeat,      roleCheck: canManageSettings },
+      { labelKey: 'overview',   href: '/overview',    Icon: IconCalendarEvent,           perm: 'perm:report:view' },
+      { labelKey: 'dispatch',   href: '/dispatch-desk', Icon: IconCommand,          perm: 'perm:dispatch:operate' },
+      { labelKey: 'systemHealth', href: '/system-health', Icon: IconHeartbeat,      perm: 'perm:settings:manage' },
     ],
   },
   {
     groupKey: 'deliveries',
     Icon: IconPackage,
     items: [
-      { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          roleCheck: canDispatch },
-      { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    roleCheck: canDispatch },
-      { labelKey: 'import',     href: '/import',        Icon: IconUpload,           roleCheck: canImportErp },
-      { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        roleCheck: canManageSettings },
+      { labelKey: 'tracking',   href: '/deliveries',    Icon: IconPackage,          perm: 'perm:delivery:view' },
+      { labelKey: 'returns',    href: '/returns',       Icon: IconPackageExport,    perm: 'perm:dispatch:operate' },
+      { labelKey: 'import',     href: '/import',        Icon: IconUpload,           perm: 'perm:erp:sync' },
+      { labelKey: 'failureReasons', href: '/failure-reasons', Icon: IconBan,        perm: 'perm:settings:manage' },
     ],
   },
   {
     groupKey: 'planning',
     Icon: IconRoute,
     items: [
-      { labelKey: 'createRoute', href: '/route-builder', Icon: IconMapPlus,         roleCheck: canManageRoutes },
-      { labelKey: 'routes',      href: '/routes-table',  Icon: IconRoute,           roleCheck: canViewReadOnly },
+      { labelKey: 'createRoute', href: '/route-builder', Icon: IconMapPlus,         perm: 'perm:route:manage' },
+      { labelKey: 'routes',      href: '/routes-table',  Icon: IconRoute,           perm: 'perm:route:view' },
     ],
   },
   {
     groupKey: 'fleet',
     Icon: IconTruck,
     items: [
-      { labelKey: 'drivers',    href: '/drivers',       Icon: IconUsers,            roleCheck: canDispatch },
-      { labelKey: 'vehicles',   href: '/vehicles',      Icon: IconTruck,            roleCheck: canDispatch },
-      { labelKey: 'depots',     href: '/depots',        Icon: IconBuildingWarehouse,roleCheck: canDispatch },
-      { labelKey: 'zones',      href: '/zones',         Icon: IconMap2,             roleCheck: canDispatch },
+      { labelKey: 'drivers',    href: '/drivers',       Icon: IconUsers,            perm: 'perm:driver:view' },
+      { labelKey: 'vehicles',   href: '/vehicles',      Icon: IconTruck,            perm: 'perm:driver:view' },
+      { labelKey: 'depots',     href: '/depots',        Icon: IconBuildingWarehouse,perm: 'perm:route:view' },
+      { labelKey: 'zones',      href: '/zones',         Icon: IconMap2,             perm: 'perm:route:view' },
     ],
   },
   {
     groupKey: 'analytics',
     Icon: IconChartLine,
     items: [
-      { labelKey: 'performance', href: '/performance',  Icon: IconChartLine },
-      { labelKey: 'audit',       href: '/audit-logs',   Icon: IconFileText,         roleCheck: canDispatch },
+      { labelKey: 'performance', href: '/performance',  Icon: IconChartLine,        perm: 'perm:report:view' },
+      { labelKey: 'audit',       href: '/audit-logs',   Icon: IconFileText,         perm: 'perm:audit:view' },
     ],
   },
 ];
@@ -110,6 +112,7 @@ export function AppSidebar() {
   const { data: user } = useCurrentUser();
 
   const [role, setRole] = useState<AdminRole>('UNKNOWN');
+  const { has: hasPermReactive } = usePermissions();
   const [isClient, setIsClient] = useState(false);
   const [isDark, setIsDark] = useState(false);
   const [telemetry, setTelemetry] = useState<{ erpPending: number; activeRoutes: number; opsExceptions: number } | null>(null);
@@ -228,7 +231,7 @@ export function AppSidebar() {
         label: tlabel(t.sidebar.items, item.labelKey) || item.labelKey,
         href:  item.href,
         Icon:  item.Icon,
-        roleCheck: item.roleCheck,
+        perm: item.perm,
       })),
     })),
     [t],
@@ -310,7 +313,7 @@ export function AppSidebar() {
         {/* Navigation Icons */}
         <nav className={s['iconRail__nav']}>
           {groups.map((group) => {
-            const visibleItems = group.items.filter(item => !item.roleCheck || item.roleCheck(role));
+            const visibleItems = group.items.filter(item => !item.perm || hasPermReactive(item.perm as Perm));
             if (visibleItems.length === 0) return null;
 
             const isActive = activeGroup === group.labelKey;
@@ -346,7 +349,7 @@ export function AppSidebar() {
           })}
 
           {/* Settings */}
-          {(!canManageSettings || canManageSettings(role)) && (
+          {hasPermReactive('perm:settings:manage') && (
             <button
               type="button"
               className={cn(s.iconRail__item, activeGroup === 'settings' && s['iconRail__item--active'])}
@@ -483,7 +486,7 @@ export function AppSidebar() {
         {/* Navigation Content */}
         <nav className={s['navPanel__content']}>
           {groups.map((group) => {
-            const visibleItems = group.items.filter(item => !item.roleCheck || item.roleCheck(role));
+            const visibleItems = group.items.filter(item => !item.perm || hasPermReactive(item.perm as Perm));
             if (visibleItems.length === 0) return null;
 
             const isGroupExpanded = activeGroup === group.labelKey;
@@ -555,7 +558,7 @@ export function AppSidebar() {
           })}
 
           {/* Settings Group */}
-          {(!canManageSettings || canManageSettings(role)) && (
+          {hasPermReactive('perm:settings:manage') && (
             <div className={s.navPanel__group}>
               <button
                 type="button"

@@ -17,7 +17,7 @@ import {
   IconRefresh, IconScan, IconTrash, IconX, IconWorld,
   IconLayoutDashboard, IconPoint
 } from '@tabler/icons-react';
-import { isReadOnlyRole, getCurrentRole } from '@/lib/api/auth';
+import { usePermissions } from '@/lib/api/auth';
 import type { Zone } from '@/types';
 import { cn } from '@/lib/utils';
 import type { CoordMap } from '@/components/ZoneSelectorMap';
@@ -65,8 +65,9 @@ export default function ZonesPage() {
     { id: 'status',      label: t.common?.statut ?? 'Status' },
   ];
   const locale = useLocaleStore(state => state.locale);
-  const role = getCurrentRole();
-  const readOnly = isReadOnlyRole(role);
+  // Master-data management (zones) gated on perm:route:manage, aligned with the backend.
+  const { has } = usePermissions();
+  const readOnly = !has('perm:route:manage');
 
   const { density, setDensity } = useDensity('zones', 'comfortable');
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('zones', ZONE_TABLE_COLUMNS);

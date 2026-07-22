@@ -1,6 +1,11 @@
 package com.asm.appbackend.controller;
 
 import com.asm.appbackend.service.TenantOnboardingService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
@@ -17,6 +22,10 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/internal/onboarding")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal · Tenant Onboarding", description = "Platform/ops endpoint (SERVICE role) to onboard a new "
+        + "tenant in one call — creates the Keycloak organization, the first admin, and the tenant schema. Not "
+        + "reachable by a tenant's own admin.")
+@SecurityRequirement(name = "bearerAuth")
 public class TenantOnboardingController {
 
     private final TenantOnboardingService onboarding;
@@ -30,6 +39,15 @@ public class TenantOnboardingController {
     }
 
     @PostMapping
+    @Operation(summary = "Onboard a new tenant",
+            description = "Provisions a complete new tenant: Keycloak organization, first admin user (added to "
+                    + "the org), and the company's database schema. Returns the created ids. Best-effort rollback "
+                    + "on partial failure.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Tenant onboarded (ids returned)"),
+            @ApiResponse(responseCode = "400", description = "Validation error"),
+            @ApiResponse(responseCode = "403", description = "Caller is not a SERVICE principal")
+    })
     public ResponseEntity<TenantOnboardingService.OnboardResult> onboard(@RequestBody OnboardRequest req) {
         return ResponseEntity.ok(onboarding.onboard(
                 req.getCompanyName(), req.getDomain(), req.getAdminEmail(), req.getAdminName()));

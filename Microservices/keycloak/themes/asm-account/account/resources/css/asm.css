@@ -1,12 +1,12 @@
 /* ════════════════════════════════════════════════════════════════════════════
-   ASM Track — account console theme (dark "Control Tower", matches the admin app).
-   We extend keycloak.v3 (PatternFly 5) and override the global PF tokens + a few
-   component surfaces. Palette + font mirror admin globals.css / the login theme.
+   ASM Track — account console theme (matches the admin app).
+   We extend keycloak.v3 (PatternFly 5) and override the global PF tokens.
+   Palette + font mirror admin globals.css. Supports light + dark via
+   asm-theme cookie (set by the admin app's dark mode toggle).
    ════════════════════════════════════════════════════════════════════════════ */
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
 
-/* asm.js adds .pf-v5-theme-dark on <html> → PF5 dark base. We override those dark defaults with the
-   ASM navy palette here; the selector list includes .pf-v5-theme-dark so it wins PF's own dark rule. */
+/* ── Dark mode (default, matches admin app dark) ──────────────────────────── */
 :root,
 .pf-v5-theme-dark {
   /* Brand */
@@ -18,16 +18,16 @@
   --pf-v5-global--active-color--400:  #539FE5;
 
   /* Backgrounds */
-  --pf-v5-global--BackgroundColor--100:       #1B2530; /* cards / content */
-  --pf-v5-global--BackgroundColor--200:       #0F1B2A; /* page */
+  --pf-v5-global--BackgroundColor--100:       #131C2B;
+  --pf-v5-global--BackgroundColor--200:       #0F1B2A;
   --pf-v5-global--BackgroundColor--300:       #232F3E;
-  --pf-v5-global--BackgroundColor--light-100: #1B2530;
+  --pf-v5-global--BackgroundColor--light-100: #131C2B;
   --pf-v5-global--BackgroundColor--light-300: #232F3E;
   --pf-v5-global--BackgroundColor--dark-100:  #0F1B2A;
 
   /* Text */
-  --pf-v5-global--Color--100:       #E9EBED; /* primary */
-  --pf-v5-global--Color--200:       #B6BEC9; /* secondary */
+  --pf-v5-global--Color--100:       #E9EBED;
+  --pf-v5-global--Color--200:       #B6BEC9;
   --pf-v5-global--Color--light-100: #E9EBED;
   --pf-v5-global--Color--dark-100:  #E9EBED;
 
@@ -41,39 +41,129 @@
   --pf-v5-global--danger-color--100:  #EB6F6F;
   --pf-v5-global--warning-color--100: #E0CA57;
 
+  /* Fonts */
   --pf-v5-global--FontFamily--text: 'Open Sans', 'Clear Sans', system-ui, -apple-system, sans-serif;
   --pf-v5-global--FontFamily--heading: 'Open Sans', 'Clear Sans', system-ui, -apple-system, sans-serif;
   --pf-v5-global--FontFamily--monospace: 'JetBrains Mono', ui-monospace, monospace;
 }
 
-/* Page + main */
+/* ── Light mode overrides ─────────────────────────────────────────────────── */
+@media (prefers-color-scheme: light) {
+  :root {
+    --pf-v5-global--primary-color--100: #0972D3;
+    --pf-v5-global--primary-color--200: #4A9AE8;
+    --pf-v5-global--link--Color:        #0972D3;
+    --pf-v5-global--link--Color--hover: #4A9AE8;
+    --pf-v5-global--active-color--100:  #0972D3;
+    --pf-v5-global--active-color--400:  #0972D3;
+
+    --pf-v5-global--BackgroundColor--100:       #FFFFFF;
+    --pf-v5-global--BackgroundColor--200:       #F2F3F3;
+    --pf-v5-global--BackgroundColor--300:       #FFFFFF;
+    --pf-v5-global--BackgroundColor--light-100: #FFFFFF;
+    --pf-v5-global--BackgroundColor--light-300: #FFFFFF;
+    --pf-v5-global--BackgroundColor--dark-100:  #F2F3F3;
+
+    --pf-v5-global--Color--100:       #0F141A;
+    --pf-v5-global--Color--200:       #414D5C;
+    --pf-v5-global--Color--light-100: #0F141A;
+    --pf-v5-global--Color--dark-100:  #0F141A;
+
+    --pf-v5-global--BorderColor--100: #E9EBED;
+    --pf-v5-global--BorderColor--200: #E9EBED;
+    --pf-v5-global--BorderColor--300: #E9EBED;
+
+    --pf-v5-global--success-color--100: #037F0C;
+    --pf-v5-global--danger-color--100:  #D91515;
+    --pf-v5-global--warning-color--100: #8D6605;
+  }
+}
+
+/* ── Light mode when asm-theme cookie = "light" ───────────────────────────── */
+:root[data-theme="light"] {
+  --pf-v5-global--primary-color--100: #0972D3;
+  --pf-v5-global--primary-color--200: #4A9AE8;
+  --pf-v5-global--link--Color:        #0972D3;
+  --pf-v5-global--link--Color--hover: #4A9AE8;
+  --pf-v5-global--active-color--100:  #0972D3;
+  --pf-v5-global--active-color--400:  #0972D3;
+
+  --pf-v5-global--BackgroundColor--100:       #FFFFFF;
+  --pf-v5-global--BackgroundColor--200:       #F2F3F3;
+  --pf-v5-global--BackgroundColor--300:       #FFFFFF;
+  --pf-v5-global--BackgroundColor--light-100: #FFFFFF;
+  --pf-v5-global--BackgroundColor--light-300: #FFFFFF;
+  --pf-v5-global--BackgroundColor--dark-100:  #F2F3F3;
+
+  --pf-v5-global--Color--100:       #0F141A;
+  --pf-v5-global--Color--200:       #414D5C;
+  --pf-v5-global--Color--light-100: #0F141A;
+  --pf-v5-global--Color--dark-100:  #0F141A;
+
+  --pf-v5-global--BorderColor--100: #E9EBED;
+  --pf-v5-global--BorderColor--200: #E9EBED;
+  --pf-v5-global--BorderColor--300: #E9EBED;
+
+  --pf-v5-global--success-color--100: #037F0C;
+  --pf-v5-global--danger-color--100:  #D91515;
+  --pf-v5-global--warning-color--100: #8D6605;
+}
+
+/* ── Component overrides ──────────────────────────────────────────────────── */
 html, body,
 .pf-v5-c-page,
 .pf-v5-c-page__main,
 .pf-v5-c-page__main-section,
 .pf-v5-c-page__sidebar,
 .pf-v5-c-drawer__content {
-  background-color: #0F1B2A !important;
-  color: #E9EBED;
+  background-color: var(--pf-v5-global--BackgroundColor--200) !important;
+  color: var(--pf-v5-global--Color--100);
 }
 
-/* Top bar (masthead) */
+/* Masthead */
 .pf-v5-c-masthead {
-  background-color: #1B2530 !important;
-  border-bottom: 1px solid #2B3640;
-  color: #E9EBED;
+  background-color: var(--pf-v5-global--BackgroundColor--100) !important;
+  border-bottom: 1px solid var(--pf-v5-global--BorderColor--100);
+  color: var(--pf-v5-global--Color--100);
 }
 
-/* Left nav */
+/* Left nav — force our token colors in BOTH modes */
 .pf-v5-c-nav__link {
-  color: #B6BEC9;
+  color: var(--pf-v5-global--Color--200) !important;
 }
-.pf-v5-c-nav__link:hover { color: #E9EBED; background-color: #232F3E; }
+.pf-v5-c-nav__link:hover {
+  color: var(--pf-v5-global--Color--100) !important;
+  background-color: var(--pf-v5-global--BackgroundColor--300) !important;
+}
 .pf-v5-c-nav__item .pf-m-current > .pf-v5-c-nav__link,
 .pf-v5-c-nav__link.pf-m-current {
-  color: #E9EBED;
-  background-color: #232F3E;
-  border-inline-start-color: #539FE5;
+  color: var(--pf-v5-global--Color--100) !important;
+  background-color: var(--pf-v5-global--BackgroundColor--300) !important;
+  border-inline-start-color: var(--pf-v5-global--primary-color--100) !important;
+}
+
+/* Ensure sidebar itself has correct background */
+.pf-v5-c-page__sidebar {
+  background-color: var(--pf-v5-global--BackgroundColor--100) !important;
+  border-right: 1px solid var(--pf-v5-global--BorderColor--100) !important;
+}
+
+/* Force nav link colors with hardcoded fallbacks — PF5 light theme can't override these */
+.pf-v5-c-nav__link { color: #B6BEC9 !important; }
+.pf-v5-c-nav__link:hover { color: #E9EBED !important; background-color: #232F3E !important; }
+.pf-v5-c-nav__link.pf-m-current { color: #E9EBED !important; background-color: #232F3E !important; border-inline-start-color: #539FE5 !important; }
+
+/* When user explicitly chose light mode, flip nav colors */
+:root[data-theme="light"] .pf-v5-c-nav__link { color: #414D5C !important; }
+:root[data-theme="light"] .pf-v5-c-nav__link:hover { color: #0F141A !important; background-color: #F4F4F4 !important; }
+:root[data-theme="light"] .pf-v5-c-nav__link.pf-m-current { color: #0F141A !important; background-color: #F4F4F4 !important; border-inline-start-color: #0972D3 !important; }
+:root[data-theme="light"] .pf-v5-c-page__sidebar { background-color: #FFFFFF !important; border-right-color: #E9EBED !important; }
+
+/* Also flip when OS preference is light (covers direct navigation without cookie) */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) .pf-v5-c-nav__link { color: #414D5C !important; }
+  :root:not([data-theme="dark"]) .pf-v5-c-nav__link:hover { color: #0F141A !important; background-color: #F4F4F4 !important; }
+  :root:not([data-theme="dark"]) .pf-v5-c-nav__link.pf-m-current { color: #0F141A !important; background-color: #F4F4F4 !important; border-inline-start-color: #0972D3 !important; }
 }
 
 /* Cards / panels / surfaces */
@@ -81,17 +171,17 @@ html, body,
 .pf-v5-c-panel,
 .pf-v5-c-menu,
 .pf-v5-c-dropdown__menu {
-  background-color: #1B2530 !important;
-  color: #E9EBED;
-  border: 1px solid #2B3640;
+  background-color: var(--pf-v5-global--BackgroundColor--100) !important;
+  color: var(--pf-v5-global--Color--100);
+  border: 1px solid var(--pf-v5-global--BorderColor--100);
 }
 .pf-v5-c-card__title, .pf-v5-c-title, .pf-v5-c-content h1,
-.pf-v5-c-content h2, .pf-v5-c-content h3 { color: #E9EBED; }
+.pf-v5-c-content h2, .pf-v5-c-content h3 { color: var(--pf-v5-global--Color--100); }
 .pf-v5-c-content, .pf-v5-c-content p, .pf-v5-c-content small,
-.pf-v5-c-data-list, .pf-v5-c-data-list__item { color: #B6BEC9; }
-.pf-v5-c-data-list__item { background-color: transparent; border-color: #2B3640; }
+.pf-v5-c-data-list, .pf-v5-c-data-list__item { color: var(--pf-v5-global--Color--200); }
+.pf-v5-c-data-list__item { background-color: transparent; border-color: var(--pf-v5-global--BorderColor--100); }
 
-/* Inputs — rounded + app-like (PatternFly defaults to square 0-radius) */
+/* Inputs */
 .pf-v5-c-form-control,
 .pf-v5-c-form-control > input,
 .pf-v5-c-form-control textarea,
@@ -99,42 +189,41 @@ html, body,
 .pf-v5-c-text-input-group__text-input,
 .pf-v5-c-input-group,
 .pf-v5-c-input-group__item {
-  background-color: #16212E !important;
-  color: #E9EBED !important;
-  border-color: #2B3640 !important;
-  border-radius: 8px !important;
+  background-color: var(--pf-v5-global--BackgroundColor--200) !important;
+  color: var(--pf-v5-global--Color--100) !important;
+  border-color: var(--pf-v5-global--BorderColor--100) !important;
+  border-radius: 6px !important;
 }
 .pf-v5-c-form-control { padding: 2px 4px; }
 .pf-v5-c-form-control::after,
-.pf-v5-c-form-control::before { display: none !important; } /* kill PF's bottom-border underline */
+.pf-v5-c-form-control::before { display: none !important; }
 .pf-v5-c-form-control:focus-within {
   outline: none;
-  border-color: #539FE5 !important;
-  box-shadow: 0 0 0 3px rgba(83, 159, 229, 0.28) !important;
+  border-color: var(--pf-v5-global--primary-color--100) !important;
+  box-shadow: 0 0 0 3px rgba(83, 159, 229, 0.25) !important;
 }
-.pf-v5-c-form__label-text { color: #B6BEC9; }
+.pf-v5-c-form__label-text { color: var(--pf-v5-global--Color--200); }
 
 /* Buttons */
 .pf-v5-c-button.pf-m-primary {
-  background-color: #539FE5;
-  color: #0F1B2A;
+  background-color: var(--pf-v5-global--primary-color--100);
+  color: #fff;
 }
-.pf-v5-c-button.pf-m-primary:hover { background-color: #89BDEE; }
+.pf-v5-c-button.pf-m-primary:hover { background-color: var(--pf-v5-global--primary-color--200); }
 .pf-v5-c-button.pf-m-secondary {
-  color: #E9EBED;
-  border-color: #2B3640;
-  background-color: #232F3E;
+  color: var(--pf-v5-global--Color--100);
+  border-color: var(--pf-v5-global--BorderColor--100);
+  background-color: var(--pf-v5-global--BackgroundColor--300);
 }
-.pf-v5-c-button.pf-m-link { color: #539FE5; }
+.pf-v5-c-button.pf-m-link { color: var(--pf-v5-global--primary-color--100); }
 
-/* Masthead brand: swap the default Keycloak logo for the real ASM app icon (same as the
-   sidebar + login theme). It's a square mark → keep it square + rounded like the app. */
+/* Masthead brand */
 .pf-v5-c-masthead__brand img,
 .pf-v5-c-brand img,
 .pf-v5-c-brand {
   content: url("../img/icon.png");
   height: 36px;
-  width: auto;          /* keep the logo's natural aspect — no square squish */
+  width: auto;
   max-width: 160px;
   object-fit: contain;
 }

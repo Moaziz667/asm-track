@@ -21,7 +21,7 @@ import {
 import type { Driver, DeliveryItem } from '@/types';
 import { usePageBreadcrumb } from '@/lib/ui/breadcrumb';
 import { EmptyState } from '@/components/feedback/EmptyState';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
+import { getCurrentRole } from '@/lib/api/auth';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { cn } from '@/lib/utils';
 import { FieldInput, FieldSelect } from '@/components/ui/field';
@@ -587,11 +587,6 @@ function RoutesTablePageContent() {
   const t = useT();
   usePageBreadcrumb([{ label: t.pages.routes?.title || 'Tournées' }]);
   const router = useRouter();
-
-  useEffect(() => {
-    const role = getCurrentRole();
-    if (role !== 'UNKNOWN' && !canDispatch(role)) router('/dashboard', { replace: true });
-  }, [router]);
 
   // ── Filters + pagination (all server-side; the list endpoint is paginated + filtered) ──
   // Multi-select pivots are string[] (empty = no filter, sent as repeated params); date stays a single

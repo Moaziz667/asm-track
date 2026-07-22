@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import type { PageProps } from "keycloakify/login/pages/PageProps";
 import type { KcContext } from "../KcContext";
 import type { I18n } from "../i18n";
@@ -17,7 +17,7 @@ export default function LoginOtp({ kcContext, i18n, Template, doUseDefaultCss }:
       doUseDefaultCss={doUseDefaultCss}
       headerNode={msg("doLogIn")}
     >
-      <p style={{ fontSize: 12, color: "var(--text-soft)", marginBottom: 20, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.6 }}>
         Enter the one-time code from your authenticator app.
       </p>
 
@@ -27,7 +27,6 @@ export default function LoginOtp({ kcContext, i18n, Template, doUseDefaultCss }:
         method="post"
         onSubmit={() => setIsSubmitting(true)}
       >
-        {/* Multiple OTP devices */}
         {otpLogin.userOtpCredentials.length > 1 && (
           <div className="asm-field">
             <label className="asm-label">{msg("loginOtpOneTime")}</label>
@@ -38,13 +37,13 @@ export default function LoginOtp({ kcContext, i18n, Template, doUseDefaultCss }:
                   style={{
                     display: "flex",
                     alignItems: "center",
-                    gap: 9,
-                    padding: "8px 12px",
+                    gap: 8,
+                    padding: "7px 10px",
                     background: "var(--hover-bg)",
                     border: "1px solid var(--border)",
-                    borderRadius: "var(--radius-sm)",
+                    borderRadius: "var(--radius)",
                     cursor: "pointer",
-                    fontSize: 12,
+                    fontSize: 12.5,
                     color: "var(--text-secondary)",
                   }}
                 >
@@ -78,7 +77,7 @@ export default function LoginOtp({ kcContext, i18n, Template, doUseDefaultCss }:
               autoFocus
               className={`asm-input${messagesPerField.existsError("totp") ? " error" : ""}`}
               placeholder="000000"
-              style={{ letterSpacing: "0.15em", textAlign: "center", fontSize: 16, fontWeight: 600 }}
+              style={{ letterSpacing: "0.15em", textAlign: "center", fontSize: 15, fontWeight: 600 }}
             />
           </div>
           {messagesPerField.existsError("totp") && (
@@ -87,8 +86,8 @@ export default function LoginOtp({ kcContext, i18n, Template, doUseDefaultCss }:
         </div>
 
         <button type="submit" className="asm-btn-primary" disabled={isSubmitting}>
-          {isSubmitting ? <span className="asm-spinner" /> : null}
-          {isSubmitting ? "Verifying…" : msgStr("doLogIn")}
+          {isSubmitting && <span className="asm-spinner" />}
+          {isSubmitting ? "Verifying\u2026" : msgStr("doLogIn")}
         </button>
       </form>
     </Template>

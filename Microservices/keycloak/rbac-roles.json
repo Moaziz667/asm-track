@@ -1,0 +1,38 @@
+{
+  "_comment": "Canonical role→permission model for the ASM realm. Source of truth for the Keycloak composites, applied idempotently by apply-rbac.py. Keep in sync with rbac-policy.json (gateway) — the perms below are the perm:* strings every service/UI gates on.",
+  "perms": [
+    "perm:user:manage",
+    "perm:driver:manage",
+    "perm:driver:view",
+    "perm:route:view",
+    "perm:route:manage",
+    "perm:route:validate",
+    "perm:delivery:view",
+    "perm:delivery:manage",
+    "perm:dispatch:operate",
+    "perm:erp:sync",
+    "perm:erp:config",
+    "perm:report:view",
+    "perm:audit:view",
+    "perm:settings:manage",
+    "perm:company:manage"
+  ],
+  "composites": {
+    "ADMIN": [
+      "perm:user:manage", "perm:driver:manage", "perm:driver:view", "perm:route:view",
+      "perm:route:manage", "perm:route:validate", "perm:delivery:view", "perm:delivery:manage",
+      "perm:dispatch:operate", "perm:erp:sync", "perm:erp:config", "perm:report:view",
+      "perm:audit:view", "perm:settings:manage", "perm:company:manage"
+    ],
+    "DISPATCHER": [
+      "perm:driver:view", "perm:route:view", "perm:route:manage", "perm:route:validate",
+      "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate", "perm:erp:sync",
+      "perm:report:view", "perm:audit:view"
+    ],
+    "MANAGER": [
+      "perm:driver:view", "perm:route:view", "perm:route:manage", "perm:route:validate",
+      "perm:delivery:view", "perm:delivery:manage", "perm:dispatch:operate", "perm:erp:sync",
+      "perm:report:view", "perm:audit:view"
+    ]
+  }
+}

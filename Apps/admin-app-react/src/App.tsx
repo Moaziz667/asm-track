@@ -2,9 +2,9 @@ import { createBrowserRouter, RouterProvider, Navigate, Outlet } from 'react-rou
 import { lazy, Suspense } from 'react';
 import Providers from './Providers';
 import AppShell from '@/components/AppShell';
-import { ProtectedRoute, PublicRoute, RoleRoute } from './components/auth/ProtectedRoute';
+import { ProtectedRoute, PublicRoute, PermRoute } from './components/auth/ProtectedRoute';
 import { PublicLayout } from './layouts/PublicLayout';
-import type { AdminRole } from '@/lib/api/auth';
+import type { Perm } from '@/lib/api/auth';
 
 // Public Pages
 import LoginPage from './pages/LoginPage';
@@ -39,10 +39,8 @@ const RouteBuilderPage = lazy(() => import('./pages/route-builder/RouteBuilderPa
 const RouteDetailsPage = lazy(() => import('./pages/route-details/RouteDetailsPage'));
 const ZonesPage = lazy(() => import('./pages/zones/ZonesPage'));
 
-// ── Role groups (mirrors lib/auth capability predicates) ─────────────────────
-const ALL: AdminRole[] = ['ADMIN', 'DISPATCHER', 'MANAGER'];
-const DISPATCH: AdminRole[] = ['ADMIN', 'DISPATCHER'];
-const ADMIN_ONLY: AdminRole[] = ['ADMIN'];
+// Per-route "any authenticated" marker — pages with no specific view permission.
+const ANY = null;
 
 const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   <Suspense
@@ -59,16 +57,16 @@ const LazyLoad = ({ children }: { children: React.ReactNode }) => (
   </Suspense>
 );
 
-/** Compose role gating + per-route crash isolation + lazy Suspense for a protected page element.
- *  The ErrorBoundary is inside RoleRoute and around Suspense, so a crash (render OR lazy-load)
- *  in one page shows the fallback card within the shell instead of white-screening the whole app;
- *  the sidebar/topnav stay usable and the user can navigate away. */
-const guard = (allow: AdminRole[], element: React.ReactNode) => (
-  <RoleRoute allow={allow}>
+/** Compose permission gating + per-route crash isolation + lazy Suspense for a protected page element.
+ *  The ErrorBoundary is inside PermRoute and around Suspense, so a crash (render OR lazy-load) in one
+ *  page shows the fallback card within the shell instead of white-screening the whole app; the
+ *  sidebar/topnav stay usable and the user can navigate away. `perm` null = any authenticated user. */
+const guard = (perm: Perm | null, element: React.ReactNode) => (
+  <PermRoute perm={perm}>
     <ErrorBoundary>
       <LazyLoad>{element}</LazyLoad>
     </ErrorBoundary>
-  </RoleRoute>
+  </PermRoute>
 );
 
 const AppShellLayout = () => {
@@ -102,28 +100,28 @@ const router = createBrowserRouter([
     ),
     children: [
       { path: "/", element: <Navigate to="/dashboard" replace /> },
-      { path: "/dashboard", element: guard(ALL, <DashboardPage />) },
-      { path: "/deliveries", element: guard(DISPATCH, <DeliveriesPage />) },
-      { path: "/deliveries/:id", element: guard(DISPATCH, <DeliveryDetailsPage />) },
-      { path: "/dispatch-desk", element: guard(DISPATCH, <DispatchDeskPage />) },
-      { path: "/routes-table", element: guard(DISPATCH, <RoutesTablePage />) },
-      { path: "/route-builder", element: guard(DISPATCH, <RouteBuilderPage />) },
-      { path: "/routes/:id", element: guard(DISPATCH, <RouteDetailsPage />) },
-      { path: "/drivers", element: guard(DISPATCH, <DriversPage />) },
-      { path: "/vehicles", element: guard(DISPATCH, <VehiclesPage />) },
-      { path: "/depots", element: guard(DISPATCH, <DepotsPage />) },
-      { path: "/schedule", element: guard(ALL, <SchedulePage />) },
-      { path: "/overview", element: guard(ALL, <OverviewCalendarPage />) },
-      { path: "/performance", element: guard(ALL, <PerformancePage />) },
-      { path: "/settings", element: guard(ADMIN_ONLY, <SettingsPage />) },
-      { path: "/settings/erp", element: guard(ADMIN_ONLY, <ErpIntegrationPage />) },
-      { path: "/audit-logs", element: guard(DISPATCH, <AuditLogsPage />) },
-      { path: "/import", element: guard(DISPATCH, <ImportPage />) },
-      { path: "/notifications", element: guard(ALL, <NotificationsPage />) },
-      { path: "/zones", element: guard(DISPATCH, <ZonesPage />) },
-      { path: "/returns", element: guard(DISPATCH, <ReturnsPage />) },
-      { path: "/failure-reasons", element: guard(ADMIN_ONLY, <FailureReasonsPage />) },
-      { path: "/system-health", element: guard(ADMIN_ONLY, <SystemHealthPage />) },
+      { path: "/dashboard", element: guard(ANY, <DashboardPage />) },
+      { path: "/deliveries", element: guard('perm:delivery:view', <DeliveriesPage />) },
+      { path: "/deliveries/:id", element: guard('perm:delivery:view', <DeliveryDetailsPage />) },
+      { path: "/dispatch-desk", element: guard('perm:dispatch:operate', <DispatchDeskPage />) },
+      { path: "/routes-table", element: guard('perm:route:view', <RoutesTablePage />) },
+      { path: "/route-builder", element: guard('perm:route:manage', <RouteBuilderPage />) },
+      { path: "/routes/:id", element: guard('perm:route:view', <RouteDetailsPage />) },
+      { path: "/drivers", element: guard('perm:driver:view', <DriversPage />) },
+      { path: "/vehicles", element: guard('perm:driver:view', <VehiclesPage />) },
+      { path: "/depots", element: guard('perm:route:view', <DepotsPage />) },
+      { path: "/schedule", element: guard('perm:dispatch:operate', <SchedulePage />) },
+      { path: "/overview", element: guard('perm:report:view', <OverviewCalendarPage />) },
+      { path: "/performance", element: guard('perm:report:view', <PerformancePage />) },
+      { path: "/settings", element: guard('perm:settings:manage', <SettingsPage />) },
+      { path: "/settings/erp", element: guard('perm:settings:manage', <ErpIntegrationPage />) },
+      { path: "/audit-logs", element: guard('perm:audit:view', <AuditLogsPage />) },
+      { path: "/import", element: guard('perm:erp:sync', <ImportPage />) },
+      { path: "/notifications", element: guard(ANY, <NotificationsPage />) },
+      { path: "/zones", element: guard('perm:route:view', <ZonesPage />) },
+      { path: "/returns", element: guard('perm:dispatch:operate', <ReturnsPage />) },
+      { path: "/failure-reasons", element: guard('perm:settings:manage', <FailureReasonsPage />) },
+      { path: "/system-health", element: guard('perm:settings:manage', <SystemHealthPage />) },
       { path: "*", element: <NotFound /> },
     ]
   },

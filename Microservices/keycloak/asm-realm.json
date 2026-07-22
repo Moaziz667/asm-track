@@ -102,9 +102,16 @@
         "composite": true,
         "composites": {
           "realm": [
+            "perm:driver:view",
             "perm:route:view",
+            "perm:route:manage",
+            "perm:route:validate",
             "perm:delivery:view",
-            "perm:report:view"
+            "perm:delivery:manage",
+            "perm:dispatch:operate",
+            "perm:erp:sync",
+            "perm:report:view",
+            "perm:audit:view"
           ]
         },
         "clientRole": false

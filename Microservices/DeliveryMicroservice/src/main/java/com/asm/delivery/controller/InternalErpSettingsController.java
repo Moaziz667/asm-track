@@ -1,6 +1,10 @@
 package com.asm.delivery.controller;
 
 import com.asm.delivery.service.SystemSettingsService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -17,6 +21,10 @@ import java.util.Map;
 @RequestMapping("/internal/erp")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal · ERP Provider", description = "Service-to-service (SERVICE role) sync of the active ERP "
+        + "provider per tenant. Called by AppBackend when ERP settings are saved, so delivery routes to the "
+        + "right adapter. Tenant resolved from the X-Company-Id header.")
+@SecurityRequirement(name = "bearerAuth")
 public class InternalErpSettingsController {
 
     private final SystemSettingsService settingsService;
@@ -27,6 +35,9 @@ public class InternalErpSettingsController {
      * (injected by the API Gateway, resolved by TenantContextFilter).
      */
     @PutMapping("/provider")
+    @Operation(summary = "[internal] Set the tenant's ERP provider",
+            description = "Updates the active ERP provider for the tenant (from X-Company-Id). Body: {\"provider\": \"…\"}.")
+    @ApiResponse(responseCode = "200", description = "Provider updated")
     public ResponseEntity<Map<String, String>> updateProvider(@RequestBody Map<String, String> body) {
         String provider = body.get("provider");
         if (provider == null || provider.isBlank()) {

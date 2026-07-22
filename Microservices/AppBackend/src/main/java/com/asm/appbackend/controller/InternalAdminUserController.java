@@ -2,6 +2,10 @@ package com.asm.appbackend.controller;
 
 import com.asm.appbackend.entity.AdminUser;
 import com.asm.appbackend.repository.AdminUserRepository;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +25,10 @@ import java.util.UUID;
 @RequestMapping("/internal/admin-users")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal · Admin User Lookup", description = "Service-to-service (SERVICE role) resolution of "
+        + "admin/dispatcher identities (name + role) by id — lets other services turn a stored actor UUID into "
+        + "a person's name for activity timelines.")
+@SecurityRequirement(name = "bearerAuth")
 public class InternalAdminUserController {
 
     private final AdminUserRepository adminUserRepo;
@@ -28,6 +36,9 @@ public class InternalAdminUserController {
     public record InternalAdminUserDTO(String id, String name, String role) {}
 
     @GetMapping("/{id}")
+    @Operation(summary = "[internal] Resolve one admin user by id",
+            description = "Returns the user's id, name and role. Unknown/invalid id → 404.")
+    @ApiResponse(responseCode = "200", description = "The user identity")
     public ResponseEntity<InternalAdminUserDTO> getById(@PathVariable String id) {
         UUID uuid = parse(id);
         if (uuid == null) return ResponseEntity.notFound().build();
@@ -38,6 +49,10 @@ public class InternalAdminUserController {
 
     /** Batch resolve — one round-trip for a whole status timeline. Unknown ids are simply omitted. */
     @PostMapping("/by-ids")
+    @Operation(summary = "[internal] Batch-resolve admin users by id",
+            description = "Resolves a whole list of ids in one round-trip (e.g. a status timeline). Unknown or "
+                    + "invalid ids are simply omitted from the response.")
+    @ApiResponse(responseCode = "200", description = "The resolved identities (subset of the input)")
     public List<InternalAdminUserDTO> getByIds(@RequestBody List<String> ids) {
         List<UUID> uuids = new ArrayList<>();
         if (ids != null) {

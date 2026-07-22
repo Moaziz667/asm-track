@@ -1,9 +1,9 @@
 package com.asm.delivery.config;
 
 import com.asm.delivery.security.JwtAuthConverter;
+import com.asm.delivery.security.RbacAuthorizationManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -19,7 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RbacAuthorizationManager rbac) throws Exception {
         http
             .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -36,23 +36,10 @@ public class SecurityConfig {
                 ).permitAll()
                 .requestMatchers("/ws/**").permitAll()
                 .requestMatchers("/actuator/**").permitAll()
-                .requestMatchers("/api/v1/orders/**").hasRole("CLIENT")
-                .requestMatchers("/api/v1/driver/deliveries/**").hasRole("DRIVER")
-                .requestMatchers("/api/v1/driver/profile/**").hasRole("DRIVER")
-                .requestMatchers("/api/v1/driver/location/**").hasRole("DRIVER")
-                .requestMatchers("/api/v1/driver/**").hasRole("DRIVER")
-                .requestMatchers("/api/v1/admin/stats").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/v1/admin/reports/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/v1/admin/ops/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/internal/**").hasRole("SERVICE")
-                .requestMatchers(HttpMethod.GET, "/api/v1/admin/routes/**", "/api/v1/admin/routes",
-                        "/api/v1/admin/deliveries/**", "/api/v1/admin/deliveries")
-                        .hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/v1/admin/companies/me").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "DISPATCHER")
-                .requestMatchers("/api/v1/depots/**", "/api/v1/zones/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                .requestMatchers("/api/v1/deliveries/**").hasAnyRole("DRIVER", "DISPATCHER", "ADMIN")
-                .anyRequest().authenticated()
+                .requestMatchers("/internal/**").hasRole("SERVICE")   // service-to-service, not user-facing
+                // Every application request is authorized by the single canonical policy
+                // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules re-encoded here.
+                .anyRequest().access(rbac)
             )
             .oauth2ResourceServer(rs -> rs
                 .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))

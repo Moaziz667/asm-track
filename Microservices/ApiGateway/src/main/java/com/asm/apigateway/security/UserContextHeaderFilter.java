@@ -71,7 +71,8 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                     String name = jwt.getClaimAsString("name");
 
                     if (!isAuthorized(path, roles, sanitizedExchange.getRequest().getMethod())) {
-                        log.debug("Access denied for roles={} on path={}", roles, path);
+                        log.warn("Access denied on path={} method={} — user roles={}", path,
+                                sanitizedExchange.getRequest().getMethod(), roles);
                         return writeError(sanitizedExchange, HttpStatus.FORBIDDEN, "Access denied");
                     }
 
@@ -132,10 +133,6 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
                 .orElse("CLIENT");
     }
 
-    private static boolean hasRole(java.util.Set<String> roles, String role) {
-        return roles.stream().anyMatch(r -> r.equalsIgnoreCase(role));
-    }
-
     @SuppressWarnings("unchecked")
     private String extractCompanyId(Jwt jwt) {
         String orgId = jwt.getClaimAsString("org_id");
@@ -152,62 +149,28 @@ public class UserContextHeaderFilter implements GlobalFilter, Ordered {
     }
 
     /**
-     * Permission-based path authorization (RBAC). Permissions ride in the JWT as composite-role
-     * members (perm:*). This table is a behavior-preserving translation of the previous role table:
-     * ADMIN short-circuits (superuser); client/driver-facing paths stay role-scoped; the admin surface
-     * is authorized on perm:* so access is managed in Keycloak, not hardcoded here.
+     * Path authorization. Delegates to {@link RbacPolicy} — the single, ordered, data-driven table that
+     * is the canonical reference (and is exhaustively covered by RbacPolicyTest). No ADMIN superuser
+     * bypass: ADMIN passes because its Keycloak composite grants every perm:* the rules require.
      */
     boolean isAuthorized(String path, java.util.Set<String> roles, HttpMethod method) {
-        if (hasRole(roles, "ADMIN")) return true; // superuser safety net during RBAC rollout
-        boolean isGet = HttpMethod.GET.equals(method);
-
-        // Client/driver-facing paths — role-scoped, not part of the admin permission model.
-        if (path.startsWith("/api/v1/orders/")) return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/v1/users/"))  return hasRole(roles, "CLIENT");
-        if (path.startsWith("/api/v1/driver/")) return hasRole(roles, "DRIVER");
-
-        // Admin surface — permission-based (order matters: most specific first).
-        if (path.equals("/api/v1/admin/me") || path.startsWith("/api/v1/admin/me/"))
-            return true; // any authenticated admin/dispatcher/manager — only their own profile (read + login-sync)
-        if (path.equals("/api/v1/admin/companies/me"))
-            return roles.contains("perm:company:manage") || roles.contains("perm:dispatch:operate");
-        if (path.startsWith("/api/v1/admin/companies/"))
-            return roles.contains("perm:company:manage");
-        if (path.startsWith("/api/v1/admin/users"))
-            return roles.contains("perm:user:manage");
-        if (path.startsWith("/api/v1/admin/drivers"))
-            return isGet ? roles.contains("perm:driver:view") : roles.contains("perm:driver:manage");
-        if (path.startsWith("/api/v1/admin/vehicles"))
-            return isGet && roles.contains("perm:driver:view");
-        if (path.startsWith("/api/v1/admin/erp/"))
-            return roles.contains("perm:erp:sync");
-        if (path.startsWith("/api/v1/admin/reports/settings"))
-            return roles.contains("perm:settings:manage");
-        if (path.startsWith("/api/v1/admin/stats")
-                || path.startsWith("/api/v1/admin/reports/")
-                || path.startsWith("/api/v1/admin/ops/"))
-            return roles.contains("perm:report:view");
-        if (isGet && path.startsWith("/api/v1/admin/routes"))
-            return roles.contains("perm:route:view");
-        if (isGet && path.startsWith("/api/v1/admin/deliveries"))
-            return roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/v1/admin/"))
-            return roles.contains("perm:dispatch:operate");
-
-        if (path.startsWith("/api/v1/deliveries/"))
-            return hasRole(roles, "DRIVER") || roles.contains("perm:delivery:view");
-        if (path.startsWith("/api/v1/depots") || path.startsWith("/api/v1/zones"))
-            return roles.contains("perm:route:view");
-
-        return false;
+        return RbacPolicy.isAuthorized(path, roles, method);
     }
 
     private Mono<Void> writeError(ServerWebExchange exchange, HttpStatus status, String message) {
-        exchange.getResponse().setStatusCode(status);
-        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        var response = exchange.getResponse();
+        // Fail-closed paths can fire while the response is already committed (e.g. a second concurrent
+        // reject on the same exchange). setStatusCode/writeWith on a committed response throws
+        // UnsupportedOperationException, which surfaces as noise in HttpWebHandlerAdapter — the status
+        // is already sent, so just complete quietly instead.
+        if (response.isCommitted()) {
+            return response.setComplete();
+        }
+        response.setStatusCode(status);
+        response.getHeaders().setContentType(MediaType.APPLICATION_JSON);
         String body = "{\"status\":" + status.value() + ",\"message\":\"" + message + "\"}";
-        var buf = exchange.getResponse().bufferFactory()
+        var buf = response.bufferFactory()
                 .wrap(body.getBytes(StandardCharsets.UTF_8));
-        return exchange.getResponse().writeWith(Mono.just(buf));
+        return response.writeWith(Mono.just(buf));
     }
 }

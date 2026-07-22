@@ -15,7 +15,7 @@ export default function LoginOauthGrant({ kcContext, i18n, Template, doUseDefaul
       doUseDefaultCss={doUseDefaultCss}
       headerNode={msg("oauthGrantTitle")}
     >
-      <p style={{ fontSize: 12, color: "var(--text-soft)", marginBottom: 16, lineHeight: 1.6 }}>
+      <p style={{ fontSize: 12.5, color: "var(--text-muted)", marginBottom: 16, lineHeight: 1.6 }}>
         {client.name || client.clientId} {msg("oauthGrantRequest")}
       </p>
 

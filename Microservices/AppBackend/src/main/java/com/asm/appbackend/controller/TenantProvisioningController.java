@@ -3,6 +3,10 @@ package com.asm.appbackend.controller;
 import com.asm.appbackend.config.TenantIterator;
 import com.asm.appbackend.config.TenantSchema;
 import com.asm.appbackend.config.TenantSchemaProvisioner;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +24,10 @@ import java.util.UUID;
 @RequestMapping("/internal/tenants")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal · Tenant Provisioning", description = "Service-to-service (SERVICE role) provisioning of "
+        + "tenant database schemas. Called by the admin console after a company is created in Keycloak, and by "
+        + "DB-less services that must enumerate tenants.")
+@SecurityRequirement(name = "bearerAuth")
 public class TenantProvisioningController {
 
     private final TenantSchemaProvisioner schemaProvisioner;
@@ -31,6 +39,10 @@ public class TenantProvisioningController {
      * the schema catalog themselves. Secured by {@code /internal/**} → SERVICE role.
      */
     @GetMapping
+    @Operation(summary = "List provisioned tenants",
+            description = "Returns the company id of every tenant that has a provisioned schema. Used by DB-less "
+                    + "services (e.g. the ERP change poller) that run work per tenant.")
+    @ApiResponse(responseCode = "200", description = "List of tenant company ids")
     public List<UUID> listTenants() {
         return tenantIterator.listProvisioned();
     }
@@ -39,6 +51,10 @@ public class TenantProvisioningController {
      * Provisions a new tenant schema with all required tables.
      */
     @PostMapping("/{companyId}/provision")
+    @Operation(summary = "Provision a tenant schema",
+            description = "Creates the company's database schema and all required tables. Idempotent — safe to "
+                    + "re-run for an already-provisioned tenant.")
+    @ApiResponse(responseCode = "200", description = "Schema provisioned")
     public ResponseEntity<Map<String, String>> provision(@PathVariable UUID companyId) {
         log.info("Provisioning tenant schema for company={}", companyId);
         try {
@@ -61,6 +77,10 @@ public class TenantProvisioningController {
      * Deprovisions a tenant schema (drops it). Use with extreme caution.
      */
     @DeleteMapping("/{companyId}")
+    @Operation(summary = "Deprovision a tenant schema",
+            description = "Drops the company's schema and all its data. Destructive and irreversible — intended "
+                    + "for tenant offboarding/cleanup only.")
+    @ApiResponse(responseCode = "200", description = "Schema dropped")
     public ResponseEntity<Map<String, String>> deprovision(@PathVariable UUID companyId) {
         log.warn("Deprovisioning tenant schema for company={}", companyId);
         try {

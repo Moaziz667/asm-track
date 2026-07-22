@@ -1,6 +1,7 @@
 package com.asm.appbackend.config;
 
 import com.asm.appbackend.security.JwtAuthConverter;
+import com.asm.appbackend.security.RbacAuthorizationManager;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
@@ -18,7 +19,7 @@ import org.springframework.security.web.SecurityFilterChain;
 public class SecurityConfig {
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http, RbacAuthorizationManager rbac) throws Exception {
         http
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -32,12 +33,10 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/v3/api-docs"
                         ).permitAll()
-                        .requestMatchers("/internal/**").hasRole("SERVICE")
-                        .requestMatchers("/api/v1/profile/**").hasRole("CLIENT")
-                        .requestMatchers("/api/v1/admin/users", "/api/v1/admin/users/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/clients/**").hasRole("ADMIN")
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole("ADMIN", "DISPATCHER", "MANAGER")
-                        .anyRequest().authenticated()
+                        .requestMatchers("/internal/**").hasRole("SERVICE")   // service-to-service, not user-facing
+                        // Every application request is authorized by the single canonical policy
+                        // (rbac-policy.json) via RbacAuthorizationManager — no per-path rules re-encoded here.
+                        .anyRequest().access(rbac)
                 )
                 .oauth2ResourceServer(rs -> rs
                         .jwt(jwt -> jwt.jwtAuthenticationConverter(new JwtAuthConverter()))

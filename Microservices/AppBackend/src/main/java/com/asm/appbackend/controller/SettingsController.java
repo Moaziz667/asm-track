@@ -8,6 +8,11 @@ import com.asm.appbackend.service.EncryptionService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -26,6 +31,14 @@ import java.util.Map;
 @RequestMapping("/api/v1/settings")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Settings · ERP", description = "The caller company's ERP (Odoo) integration settings — connection "
+        + "URL and credentials, stored encrypted per tenant. Management requires perm:settings:manage; the "
+        + "internal read is service-to-service (SERVICE) for the poller.")
+@SecurityRequirement(name = "bearerAuth")
+@ApiResponses({
+        @ApiResponse(responseCode = "401", description = "Missing or invalid access token"),
+        @ApiResponse(responseCode = "403", description = "Caller lacks the required permission")
+})
 public class SettingsController {
 
     private final SystemSettingsRepository repository;
@@ -72,7 +85,11 @@ public class SettingsController {
      * Passwords and sensitive keys are masked before returning.
      */
     @GetMapping("/erp")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Get ERP settings",
+            description = "Returns the company's Odoo connection settings. Secrets (password/API key) are masked "
+                    + "in the response — never returned in clear.")
+    @ApiResponse(responseCode = "200", description = "ERP settings (secrets masked)")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<SystemSettingsDto> getErpSettings() {
         SystemSettings settings = repository.findById("SINGLETON").orElse(null);
         if (settings == null) {
@@ -118,7 +135,14 @@ public class SettingsController {
      * The JSON payload is encrypted before saving.
      */
     @PutMapping("/erp")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Update ERP settings",
+            description = "Saves the company's Odoo URL and credentials (encrypted at rest). The URL host must be "
+                    + "in the server's ERP allow-list. Omitted secret fields keep their stored value.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Settings saved"),
+            @ApiResponse(responseCode = "400", description = "Invalid URL or host not allow-listed")
+    })
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Void> updateErpSettings(@RequestBody SystemSettingsDto dto) {
         SystemSettings settings = repository.findById("SINGLETON").orElse(new SystemSettings());
         settings.setId("SINGLETON");
@@ -192,7 +216,14 @@ public class SettingsController {
     }
 
     @PostMapping("/erp/test")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Test ERP settings (from request body)",
+            description = "Attempts an Odoo connection with the credentials in the body (without saving them) and "
+                    + "reports whether the handshake succeeds. Use before saving to validate credentials.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Connection result (status message)"),
+            @ApiResponse(responseCode = "400", description = "Invalid URL or host not allow-listed")
+    })
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Map<String, String>> testErpSettings(@RequestBody SystemSettingsDto dto) {
         if ("DUX".equals(dto.getActiveErpProvider())) {
             // Placeholder for next week's DUX adapter implementation
@@ -224,7 +255,11 @@ public class SettingsController {
      * admin's real values, so testing the stored config proves those exact values work (or not).
      */
     @PostMapping("/erp/test-stored")
-    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Test the stored ERP settings",
+            description = "Attempts an Odoo connection using the credentials already saved for the company. Use to "
+                    + "re-check a previously configured connection without re-entering the password.")
+    @ApiResponse(responseCode = "200", description = "Connection result (status message)")
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
     public ResponseEntity<Map<String, String>> testStoredErpSettings() {
         SystemSettings stored = repository.findById("SINGLETON").orElse(null);
         if (stored == null || stored.getErpConfiguration() == null
@@ -400,6 +435,10 @@ public class SettingsController {
      * This endpoint must be secured via internal network rules or machine-to-machine OAuth tokens.
      */
     @GetMapping("/internal/erp")
+    @Operation(summary = "[internal] Get ERP settings with decrypted secrets",
+            description = "Service-to-service only (SERVICE role). Returns the company's ERP settings WITH "
+                    + "decrypted credentials, for the ERP poller/adapter. Never exposed to end users.")
+    @ApiResponse(responseCode = "200", description = "ERP settings with decrypted secrets")
     @PreAuthorize("hasRole('SERVICE')")
     public ResponseEntity<SystemSettingsDto> getInternalErpSettings() {
         SystemSettings settings = repository.findById("SINGLETON").orElse(null);

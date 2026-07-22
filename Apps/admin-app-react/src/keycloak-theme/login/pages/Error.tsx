@@ -16,19 +16,16 @@ export default function Error({ kcContext, i18n, Template, doUseDefaultCss }: Pr
       headerNode={msg("errorTitle")}
       displayMessage={false}
     >
-      <div className="asm-icon-page">
-        <div className="asm-icon-wrap asm-icon-wrap-red">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <div className="asm-status-page">
+        <div className="asm-status-icon asm-status-icon-red">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="10"/>
             <line x1="12" y1="8" x2="12" y2="12"/>
             <line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
         </div>
 
-        <div
-          className="asm-alert asm-alert-error"
-          style={{ textAlign: "left", marginBottom: 20 }}
-        >
+        <div className="asm-alert asm-alert-error" style={{ textAlign: "left", width: "100%", marginBottom: 16 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0, marginTop: 1 }}>
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
@@ -36,8 +33,8 @@ export default function Error({ kcContext, i18n, Template, doUseDefaultCss }: Pr
         </div>
 
         {client?.baseUrl && (
-          <a href={client.baseUrl} className="asm-btn-secondary" style={{ display: "inline-flex", maxWidth: 200, margin: "0 auto" }}>
-            ← Back to application
+          <a href={client.baseUrl} className="asm-btn-secondary" style={{ maxWidth: 200 }}>
+            &larr; Back to application
           </a>
         )}
       </div>

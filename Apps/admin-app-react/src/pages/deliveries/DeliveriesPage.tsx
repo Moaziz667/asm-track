@@ -17,7 +17,6 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { IconScan, IconX } from '@tabler/icons-react';
 import { DatePickerPopover } from '@/components/ui/DatePickerPopover';
 import { useGlobalFilters } from '@/lib/state/global-filters';
-import { getCurrentRole, canDispatch } from '@/lib/api/auth';
 import { resolveOrderRef } from '@/lib/utils';
 import { ConfirmModal } from '@/components/overlays/ConfirmModal';
 import { EmptyState } from '@/components/feedback/EmptyState';
@@ -51,7 +50,6 @@ function DeliveriesPageContent() {
   const { density, setDensity } = useDensity('deliveries', 'comfortable');
   const { orderedColumns, visibleIds, toggleColumn, moveColumn, resetColumns } = useColumnSettings('deliveries', DELIVERY_COLUMNS);
 
-  useEffect(() => { const r = getCurrentRole(); if (r !== 'UNKNOWN' && !canDispatch(r)) { router('/dashboard', { replace: true }); } }, [router]);
   const { filters: globalFilters, applyFilters, globalContext } = useGlobalFilters();
 
   const [query, setQuery] = useState(globalFilters.search);

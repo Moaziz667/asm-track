@@ -2,6 +2,10 @@ package com.asm.delivery.controller;
 
 import com.asm.delivery.erp.ErpInboundReconciliationService;
 import com.asm.delivery.erp.ErpInboundReconciliationService.ChangeType;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -22,11 +26,19 @@ import java.util.Map;
 @RequestMapping("/internal/erp")
 @RequiredArgsConstructor
 @Slf4j
+@Tag(name = "Internal · ERP Inbound", description = "Service-to-service (SERVICE role) inbound channel for "
+        + "Odoo→ASM order changes, pushed by the ERP adapter's poller. Handles PICKED_UP conflict rules and "
+        + "anti-replay.")
+@SecurityRequirement(name = "bearerAuth")
 public class InternalErpInboundController {
 
     private final ErpInboundReconciliationService reconciliation;
 
     @PostMapping("/order-changed")
+    @Operation(summary = "[internal] Ingest an ERP order change",
+            description = "Reconciles an Odoo order change (created/updated/cancelled) into ASM. Idempotent and "
+                    + "replay-safe; conflicting changes on a picked-up order are rejected per the reconciliation rules.")
+    @ApiResponse(responseCode = "200", description = "Change processed")
     public ResponseEntity<Void> orderChanged(@RequestBody Map<String, Object> body) {
         String erpOrderId = str(body.get("erpOrderId"));
         String changeTypeRaw = str(body.get("changeType"));
