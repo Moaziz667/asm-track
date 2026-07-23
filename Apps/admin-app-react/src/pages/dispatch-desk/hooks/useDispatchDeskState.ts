@@ -188,6 +188,7 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   const router = useRouter();
   const [searchParams] = useSearchParams();
   const initialSyncRef = useRef(false);
+  const lastAppliedSearch = useRef<string | null>(null);
 
   // ── Fetchers ──────────────────────────────────────────────────────────────
 
@@ -267,18 +268,33 @@ export function DispatchDeskProvider({ children }: { children: React.ReactNode }
   useEffect(() => () => { clearGlobalFilters(); }, [clearGlobalFilters]);
 
   useEffect(() => {
-    if (!globalContext || initialSyncRef.current) return;
-    initialSyncRef.current = true;
+    if (!globalContext) return;
+
     const tabParam = searchParams?.get('tab');
-    if (tabParam === 'queue' || tabParam === 'gps' || tabParam === 'handoff') {
-      setDispatchTab(tabParam);
-    } else if (tabParam === 'action' || tabParam === 'assign' || tabParam === 'failed') {
-      // Legacy deep links — both tabs were merged into the unified Queue.
-      setDispatchTab('queue');
-    }
     const q = searchParams?.get('search') || searchParams?.get('deliveryId');
-    if (q) { setSearch(q); applyFilters({ search: q }); }
-    else { setSearch(globalFilters.search); setZoneFilter(globalFilters.zone ? [globalFilters.zone] : []); setDriverId(globalFilters.driver ? [globalFilters.driver] : []); }
+
+    // Tab: only set on first sync (mount or remount)
+    if (!initialSyncRef.current) {
+      initialSyncRef.current = true;
+      if (tabParam === 'queue' || tabParam === 'gps' || tabParam === 'handoff') {
+        setDispatchTab(tabParam);
+      } else if (tabParam === 'action' || tabParam === 'assign' || tabParam === 'failed') {
+        setDispatchTab('queue');
+      }
+    }
+
+    // Search: re-apply whenever the URL search param changes (notification deep-link
+    // while already on the dispatch desk). lastAppliedSearch tracks to avoid redundant sets.
+    if (q && q !== lastAppliedSearch.current) {
+      lastAppliedSearch.current = q;
+      setSearch(q);
+      applyFilters({ search: q });
+    } else if (!q && lastAppliedSearch.current !== null) {
+      lastAppliedSearch.current = null;
+      setSearch(globalFilters.search);
+      setZoneFilter(globalFilters.zone ? [globalFilters.zone] : []);
+      setDriverId(globalFilters.driver ? [globalFilters.driver] : []);
+    }
   }, [globalContext, searchParams, applyFilters, globalFilters.search, globalFilters.zone, globalFilters.driver]);
 
   // ── Computed ──────────────────────────────────────────────────────────────

@@ -464,7 +464,7 @@
   },
   "loginTheme": "asm",
   "accountTheme": "asm-account",
-  "adminTheme": "",
+  "adminTheme": "asm-admin",
   "emailTheme": "",
   "eventsEnabled": false,
   "adminEventsEnabled": false,

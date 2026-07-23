@@ -286,8 +286,7 @@ export function QueueDetail() {
           {canReplan && (
             <Button
               size="sm"
-              variant="outline"
-              className="h-8 px-3 text-xs font-bold rounded-md gap-1.5 border-[var(--brand)] text-[var(--brand)] hover:bg-[var(--brand-soft)]"
+              className="h-8 px-3 text-xs font-bold rounded-md gap-1.5"
               onClick={() => openActionModal('replan', alert ?? exceptionFromDelivery())}
             >
               <IconReplan size={14} />
@@ -305,7 +304,7 @@ export function QueueDetail() {
           {needsDriverContact(motif) && d.driverId && (d.driverPhone ?? driver?.phone) && (
             <a
               href={`tel:${d.driverPhone ?? driver?.phone}`}
-              className="inline-flex items-center justify-center gap-1 h-7 px-2.5 rounded-md border text-xs font-bold whitespace-nowrap transition-all border-[var(--info)] text-[var(--info)] hover:bg-[var(--info-bg)]"
+              className="inline-flex items-center justify-center gap-1 h-8 px-3 rounded-md text-xs font-bold whitespace-nowrap transition-all bg-[var(--info)] text-white hover:opacity-90"
             >
               <IconCall size={14} /> {t.dispatchDeskPage.buttonCallDriver}
             </a>

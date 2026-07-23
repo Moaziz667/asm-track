@@ -31,6 +31,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     private final OdooJsonRpcClient rpc;
     private final IdempotencyService idempotency;
+    private final OdooCapabilities caps;
 
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
     private volatile Integer deliveryFailedTagId;
@@ -577,10 +578,9 @@ public class OdooSyncAdapter implements ErpSyncPort {
         // quantity, and zero out lines not in the RMA.
         applyReturnQuantities(wizardId, items);
 
-        // action_create_returns builds the reverse picking and returns an ir.actions.act_window referencing it.
-        // NOTE: Odoo 19 renamed "create_returns" → "action_create_returns" on stock.return.picking.
-        Map<String, Object> returnResp = rpc.callRpc(rpc.buildArgs("stock.return.picking", "action_create_returns",
-                List.of(List.of(wizardId)), Map.of("context", ctx)));
+        // Build the reverse picking. The method was renamed create_returns → action_create_returns (v18),
+        // so resolve it via the CapabilityMap and fall back to the alternate name if the boundary is off.
+        Map<String, Object> returnResp = callCreateReturns(wizardId, ctx);
         Integer returnPickingId = extractReturnPickingId(returnResp);
         if (returnPickingId == null) {
             log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} wizardId={} reason=return_picking_id_unresolved retryable=true result={}",
@@ -625,6 +625,27 @@ public class OdooSyncAdapter implements ErpSyncPort {
             log.info("provider=odoo operation=findReturnSourcePicking erpOrderId={} pickingRef={} action=name_no_match fallback=most_recent_done", erpOrderId, pickingRef);
         }
         return findDonePicking(erpOrderId);
+    }
+
+    /**
+     * Calls the return-picking builder, resilient to the {@code create_returns} →
+     * {@code action_create_returns} rename (v18). Tries the version-preferred name first (from the
+     * CapabilityMap) and falls back to the alternate if Odoo returns an error (e.g. the boundary is off,
+     * or a backport). Returns the first non-error response, or the last error response if both fail.
+     */
+    private Map<String, Object> callCreateReturns(Integer wizardId, Map<String, Object> ctx) {
+        Map<String, Object> resp = null;
+        for (String method : caps.createReturnsMethodCandidates()) {
+            resp = rpc.callRpc(rpc.buildArgs("stock.return.picking", method,
+                    List.of(List.of(wizardId)), Map.of("context", ctx)));
+            if (resp != null && !resp.containsKey("error")) {
+                log.info("provider=odoo operation=createReturns wizardId={} method={} action=ok", wizardId, method);
+                return resp;
+            }
+            log.info("provider=odoo operation=createReturns wizardId={} method={} action=fallback error={}",
+                    wizardId, method, resp != null ? resp.get("error") : "null_response");
+        }
+        return resp;
     }
 
     /**
@@ -1282,7 +1303,10 @@ public class OdooSyncAdapter implements ErpSyncPort {
         }
         log.info("provider=odoo operation=applyPartialQty pickingId={} productDetails={}", pickingId, pidToSku);
 
-        // Write qty_done to each move line; tally total for caller's zero-check
+        // Write the done qty to each move line; tally total for caller's zero-check.
+        // The done-quantity field is version-dependent (qty_done ≤16 / quantity 17+) — resolved once via
+        // the CapabilityMap so this single adapter is correct on every Odoo version.
+        String doneQtyField = caps.doneQtyField();
         int totalWritten = 0;
         for (Map<String, Object> line : lines) {
             Integer pid   = asRelId(line.get("product_id"));
@@ -1304,11 +1328,11 @@ public class OdooSyncAdapter implements ErpSyncPort {
             if (qty  == null && pName != null)                qty = nameToQty.get(pName);
             if (qty  == null) qty = 0; // product not in delivery list → not delivered
 
-            // Odoo 17+: "quantity" on stock.move.line is the done qty
+            // Done-qty field is version-resolved (qty_done ≤16 / quantity 17+) via the CapabilityMap.
             Map<String, Object> writeResp = rpc.callRpc(rpc.buildArgs("stock.move.line", "write",
-                    List.of(List.of(line.get("id")), Map.of("quantity", qty))));
-            log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} productId={} sku={} qty={} writeResult={}",
-                    pickingId, line.get("id"), pid, sku, qty, writeResp != null ? writeResp.get("result") : "null");
+                    List.of(List.of(line.get("id")), Map.of(doneQtyField, qty))));
+            log.info("provider=odoo operation=applyPartialQty pickingId={} lineId={} productId={} sku={} field={} qty={} writeResult={}",
+                    pickingId, line.get("id"), pid, sku, doneQtyField, qty, writeResp != null ? writeResp.get("result") : "null");
             totalWritten += qty;
         }
         return totalWritten;

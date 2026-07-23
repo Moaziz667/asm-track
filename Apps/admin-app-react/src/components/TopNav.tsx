@@ -218,7 +218,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
         setIsDark(isNextDark);
         document.documentElement.classList.toggle('dark', isNextDark);
         document.documentElement.setAttribute('data-mantine-color-scheme', e.newValue);
-        document.cookie = `asm-theme=${e.newValue}; path=/; max-age=31536000; SameSite=Strict`;
+        document.cookie = `asm-theme=${e.newValue}; path=/; domain=localhost; max-age=31536000; SameSite=Strict`;
       }
     };
     window.addEventListener('storage', handleStorage);
@@ -232,7 +232,7 @@ export default function TopNav({ onMenuClick: _onMenuClick }: { onMenuClick?: ()
     document.documentElement.classList.toggle('dark', next);
     document.documentElement.setAttribute('data-mantine-color-scheme', themeVal);
     safeStorage.setItem('admin-color-scheme', themeVal);
-    document.cookie = `asm-theme=${themeVal}; path=/; max-age=31536000; SameSite=Strict`;
+    document.cookie = `asm-theme=${themeVal}; path=/; domain=localhost; max-age=31536000; SameSite=Strict`;
   };
 
   const displayName = isClient

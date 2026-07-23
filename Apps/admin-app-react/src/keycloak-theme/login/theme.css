@@ -1,33 +1,34 @@
 @import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
 
 /* ── ASM Track login — enterprise grade, matches admin app tokens ─────────── */
+/* Light mode is the default; dark only when .dark class is on <html>. */
 :root {
-  /* Brand — single accent, matches admin dark mode */
-  --brand:        #539FE5;
-  --brand-hover:  #89BDEE;
-  --ring:         rgba(83, 159, 229, 0.35);
+  /* Brand — light accent */
+  --brand:        #0972D3;
+  --brand-hover:  #065299;
+  --ring:         rgba(9, 114, 211, 0.25);
 
-  /* Surfaces — exact match with globals.css dark */
-  --app-bg:    #0F1B2A;
-  --surface:   #131C2B;
-  --elevated:  #232F3E;
-  --hover-bg:  #1B2530;
+  /* Surfaces — light */
+  --app-bg:    #F2F3F3;
+  --surface:   #FFFFFF;
+  --elevated:  #FFFFFF;
+  --hover-bg:  #F4F4F4;
 
   /* Borders */
-  --border:        #2B3640;
-  --border-strong: #5F6B7A;
+  --border:        #E9EBED;
+  --border-strong: #C6C6CD;
 
   /* Text */
-  --text-primary:   #E9EBED;
-  --text-secondary: #B6BEC9;
-  --text-muted:     #8D99A8;
-  --text-soft:      #5F6B7A;
+  --text-primary:   #0F141A;
+  --text-secondary: #414D5C;
+  --text-muted:     #5F6B7A;
+  --text-soft:      #8D99A8;
 
   /* Status */
-  --danger:     #EB6F6F;  --danger-bg:  rgba(235, 111, 111, 0.12); --danger-border: rgba(235, 111, 111, 0.35);
-  --success:    #29AD32;  --success-bg: rgba(41, 173, 50, 0.12);
-  --warning:    #E0CA57;  --warning-bg: rgba(224, 202, 87, 0.12);
-  --info:       #539FE5;  --info-bg:    rgba(83, 159, 229, 0.12);
+  --danger:     #D91515;  --danger-bg:  #FFF7F7; --danger-border: rgba(217, 21, 21, 0.3);
+  --success:    #037F0C;  --success-bg: #F2FCF3;
+  --warning:    #8D6605;  --warning-bg: #FFFCE9;
+  --info:       #0972D3;  --info-bg:    #F0FBFF;
 
   /* Radius */
   --radius:     6px;
@@ -37,36 +38,11 @@
   /* Fonts */
   --font-sans: 'Open Sans', system-ui, -apple-system, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
+
+  color-scheme: light;
 }
 
-/* ── Light mode ───────────────────────────────────────────────────────────── */
-@media (prefers-color-scheme: light) {
-  :root {
-    --brand:        #0972D3;
-    --brand-hover:  #065299;
-    --ring:         rgba(9, 114, 211, 0.25);
-
-    --app-bg:    #F2F3F3;
-    --surface:   #FFFFFF;
-    --elevated:  #FFFFFF;
-    --hover-bg:  #F4F4F4;
-
-    --border:        #E9EBED;
-    --border-strong: #C6C6CD;
-
-    --text-primary:   #0F141A;
-    --text-secondary: #414D5C;
-    --text-muted:     #5F6B7A;
-    --text-soft:      #8D99A8;
-
-    --danger:     #D91515;  --danger-bg:  #FFF7F7; --danger-border: rgba(217, 21, 21, 0.3);
-    --success:    #037F0C;  --success-bg: #F2FCF3;
-    --warning:    #8D6605;  --warning-bg: #FFFCE9;
-    --info:       #0972D3;  --info-bg:    #F0FBFF;
-  }
-}
-
-/* ── Dark mode (explicit class, used by &dark=true param) ─────────────────── */
+/* ── Dark mode (JS adds .dark class based on cookie / OS / ?dark=) ────────── */
 .dark {
   --brand:        #539FE5;
   --brand-hover:  #89BDEE;
@@ -89,6 +65,8 @@
   --success:    #29AD32;  --success-bg: rgba(41, 173, 50, 0.12);
   --warning:    #E0CA57;  --warning-bg: rgba(224, 202, 87, 0.12);
   --info:       #539FE5;  --info-bg:    rgba(83, 159, 229, 0.12);
+
+  color-scheme: dark;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -366,6 +344,113 @@ html, body {
   color: var(--text-muted);
   margin-bottom: 8px;
 }
+
+/* ── Default Keycloak pages (register, update-profile, terms, …) ──────────────
+   keycloakify's DefaultPage renders these with PatternFly/kc class names, not our
+   asm-* classes. Style the raw elements + the default classes so they inherit the
+   ASM look instead of showing as unstyled HTML. Guards (:not([class*="asm-"]))
+   keep these off the custom pages, which already carry asm-* styles. */
+.asm-card input:not([class*="asm-"]):not([type="checkbox"]):not([type="radio"]):not([type="submit"]):not([type="button"]),
+.asm-card select:not([class*="asm-"]),
+.asm-card textarea:not([class*="asm-"]) {
+  width: 100%;
+  min-height: 42px;
+  padding: 0 12px;
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--text-primary);
+  background: var(--app-bg);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.asm-card textarea:not([class*="asm-"]) { padding: 10px 12px; min-height: 88px; line-height: 1.5; }
+.asm-card input:not([class*="asm-"]):focus-visible,
+.asm-card select:not([class*="asm-"]):focus-visible,
+.asm-card textarea:not([class*="asm-"]):focus-visible {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px var(--ring);
+}
+
+/* Labels + form-group spacing from the default markup */
+.asm-card label:not([class*="asm-"]) {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.asm-card .pf-v5-c-form__group, .asm-card .pf-c-form__group,
+.asm-card .kc-form-group, .asm-card fieldset { margin-bottom: 16px; }
+.asm-card .pf-v5-c-form__helper-text, .asm-card .pf-c-form__helper-text,
+.asm-card .kc-form-help-text { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+/* Primary submit — default classes or a raw submit control */
+.asm-card input[type="submit"]:not([class*="asm-"]),
+.asm-card button[type="submit"]:not([class*="asm-"]),
+.asm-card .pf-v5-c-button.pf-m-primary, .asm-card .pf-c-button.pf-m-primary,
+.asm-card .kc-btn-primary {
+  width: 100%;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 4px;
+  color: #fff;
+  background: var(--brand);
+  border: none;
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.asm-card input[type="submit"]:not([class*="asm-"]):hover,
+.asm-card button[type="submit"]:not([class*="asm-"]):hover,
+.asm-card .pf-v5-c-button.pf-m-primary:hover, .asm-card .pf-c-button.pf-m-primary:hover {
+  background: var(--brand-hover);
+}
+
+/* Secondary / link buttons from the default markup */
+.asm-card .pf-v5-c-button:not(.pf-m-primary):not([class*="asm-"]),
+.asm-card .pf-c-button:not(.pf-m-primary):not([class*="asm-"]) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 14px;
+  min-height: 40px;
+  color: var(--text-primary);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background 0.15s, border-color 0.15s;
+}
+.asm-card .pf-v5-c-button:not(.pf-m-primary):not([class*="asm-"]):hover,
+.asm-card .pf-c-button:not(.pf-m-primary):not([class*="asm-"]):hover {
+  background: var(--hover-bg);
+  border-color: var(--brand);
+}
+
+/* Inline links inside default pages (registration, "back to login", etc.) */
+.asm-card a:not([class*="asm-"]):not(.pf-v5-c-button):not(.pf-c-button) {
+  color: var(--brand);
+  text-decoration: none;
+  font-weight: 600;
+}
+.asm-card a:not([class*="asm-"]):not(.pf-v5-c-button):not(.pf-c-button):hover { text-decoration: underline; }
+
+/* Checkboxes/radios in default markup */
+.asm-card input[type="checkbox"]:not([class*="asm-"]),
+.asm-card input[type="radio"]:not([class*="asm-"]) { accent-color: var(--brand); width: 15px; height: 15px; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

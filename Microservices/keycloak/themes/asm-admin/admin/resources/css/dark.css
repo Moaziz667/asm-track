@@ -1,0 +1,5 @@
+/* Dark-mode hint for the admin console. The heavy lifting is the pf-*-theme-dark class set by
+   force-dark.js; this just makes the pre-script paint dark (no white flash) and covers surfaces
+   PatternFly's tokens don't reach. */
+:root { color-scheme: dark; }
+html, body { background-color: #0f1b2a; }

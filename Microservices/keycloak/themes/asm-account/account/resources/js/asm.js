@@ -2,6 +2,8 @@
 // the correct PatternFly 5 theme class. Falls back to system preference, then
 // to dark (matching the admin app default).
 (function () {
+  var CLASSES = ["pf-v5-theme-dark", "pf-v6-theme-dark", "pf-theme-dark"];
+
   function getTheme() {
     // 1. Check asm-theme cookie (set by admin app)
     var m = document.cookie.split('; ').find(function (c) { return c.startsWith('asm-theme='); });
@@ -15,12 +17,19 @@
   var isDark = getTheme() !== 'light';
 
   function apply() {
+    var el = document.documentElement;
     if (isDark) {
-      document.documentElement.classList.add('pf-v5-theme-dark');
-      document.documentElement.removeAttribute('data-theme');
+      for (var i = 0; i < CLASSES.length; i++) {
+        if (!el.classList.contains(CLASSES[i])) el.classList.add(CLASSES[i]);
+      }
+      el.removeAttribute('data-theme');
+      el.style.colorScheme = 'dark';
     } else {
-      document.documentElement.classList.remove('pf-v5-theme-dark');
-      document.documentElement.setAttribute('data-theme', 'light');
+      for (var i = 0; i < CLASSES.length; i++) {
+        el.classList.remove(CLASSES[i]);
+      }
+      el.setAttribute('data-theme', 'light');
+      el.style.colorScheme = 'light';
     }
   }
 
@@ -29,8 +38,20 @@
   // The account console is a SPA; re-assert once after it mounts.
   setTimeout(apply, 300);
 
-  // Listen for cookie changes (cross-tab sync via storage event won't fire for cookies,
-  // but the admin app sets a cookie that we re-read on any user interaction).
+  // Guard against SPA re-renders that reset <html> class (MutationObserver)
+  try {
+    new MutationObserver(function () {
+      var el = document.documentElement;
+      var hasDark = false;
+      for (var i = 0; i < CLASSES.length; i++) {
+        if (el.classList.contains(CLASSES[i])) { hasDark = true; break; }
+      }
+      if (isDark && !hasDark) apply();
+      if (!isDark && hasDark) apply();
+    }).observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+  } catch (e) { /* MutationObserver unsupported — the initial apply() still holds */ }
+
+  // Listen for cookie changes on click (cross-tab sync via storage event won't fire for cookies)
   document.addEventListener('click', function () {
     var newTheme = getTheme();
     var newIsDark = newTheme !== 'light';

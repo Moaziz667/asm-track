@@ -24,7 +24,6 @@ import org.springframework.web.client.RestClient;
 
 
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -45,12 +44,16 @@ public class SettingsController {
     private final EncryptionService encryptionService;
     private final ObjectMapper objectMapper;
     private final RestClient.Builder restClientBuilder;
+    private final com.asm.appbackend.client.KeycloakAdminClient keycloakAdminClient;
 
     @org.springframework.beans.factory.annotation.Value("${allowed.erp.domains:}")
     private String allowedDomains;
 
     @Value("${delivery.service.url:http://delivery-service:8082}")
     private String deliveryUrl;
+
+    @Value("${erp.adapter.url:http://erp-adapter:8088}")
+    private String erpAdapterUrl;
 
     private void validateUrl(String url) {
         if (url == null || url.isBlank()) return;
@@ -246,7 +249,8 @@ public class SettingsController {
         restoreMaskedSecret(config, oldConfig, "apiSecret");
         restoreMaskedSecret(config, oldConfig, "password");
 
-        return isErpNext ? runErpNextTest(config) : runOdooTest(config);
+        String providerType = isErpNext ? "erpnext" : "odoo";
+        return proxyTestAuth(config, providerType);
     }
 
     /**
@@ -270,9 +274,9 @@ public class SettingsController {
             return ResponseEntity.ok(Map.of("status", "success", "message", "DUX adapter testing will be implemented next week."));
         }
         if ("ERPNEXT".equalsIgnoreCase(stored.getActiveErpProvider())) {
-            return runErpNextTest(decryptStoredConfig(stored));
+            return proxyTestAuth(decryptStoredConfig(stored), "erpnext");
         }
-        return runOdooTest(decryptStoredConfig(stored));
+        return proxyTestAuth(decryptStoredConfig(stored), "odoo");
     }
 
     /** Decrypt the stored ERP config JSON into a map (empty map if none). */
@@ -294,114 +298,56 @@ public class SettingsController {
         }
     }
 
-    /** Authenticate the given Odoo config and persist the CONNECTED/ERROR result. */
-    private ResponseEntity<Map<String, String>> runOdooTest(Map<String, Object> config) {
-        try {
-            String url = String.valueOf(config.get("url"));
-            validateUrl(url);
-            String db = String.valueOf(config.get("db"));
-            String login = config.get("login") != null ? String.valueOf(config.get("login")) : "";
-            // Odoo accepts an API key wherever a password is expected — prefer it, fall back to password.
-            Object apiKey = config.get("apiKey");
-            String secret = (apiKey != null && !String.valueOf(apiKey).isBlank())
-                    ? String.valueOf(apiKey) : String.valueOf(config.get("password"));
-
-            // Validate by authenticating: common.authenticate returns the numeric uid (or false on
-            // bad credentials). A uid > 0 proves the db + login + API key triple is valid. Pure JSON-RPC.
-            Map<String, Object> params = new HashMap<>();
-            params.put("service", "common");
-            params.put("method", "authenticate");
-            params.put("args", List.of(db, login, secret, Map.of()));
-
-            Map<String, Object> body = new HashMap<>();
-            body.put("jsonrpc", "2.0");
-            body.put("method", "call");
-            body.put("params", params);
-
-            Map response = org.springframework.web.client.RestClient.create()
-                    .post().uri(url)
-                    .contentType(org.springframework.http.MediaType.APPLICATION_JSON)
-                    .body(body)
-                    .retrieve()
-                    .body(Map.class);
-
-            // Odoo returns {"result": <uid>} on success, {"result": false} on bad creds, or an
-            // {"error": ...} envelope on a server/db error. Treat anything but a positive uid as failure.
-            Object errorEnvelope = response != null ? response.get("error") : null;
-            Object result = response != null ? response.get("result") : null;
-            int uid = result instanceof Number ? ((Number) result).intValue() : -1;
-
-            if (errorEnvelope == null && uid > 0) {
-                persistTestResult(true, String.valueOf(uid), null);
-                return ResponseEntity.ok(Map.of("status", "success", "uid", String.valueOf(uid)));
-            }
-
-            String reason = errorEnvelope != null
-                    ? "Odoo error: " + extractOdooError(errorEnvelope)
-                    : "Authentication failed — wrong database, login, or API key.";
-            persistTestResult(false, null, reason);
-            return ResponseEntity.badRequest().body(Map.of("error", reason));
-
-        } catch (Exception e) {
-            log.warn("ERP Test Connection failed: {}", e.getMessage());
-            persistTestResult(false, null, e.getMessage());
-            return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
-        }
-    }
-
     /**
-     * Authenticate an ERPNext config and persist the CONNECTED/ERROR result. ERPNext uses token auth
-     * ({@code Authorization: token <apiKey>:<apiSecret>}); we validate by calling
-     * {@code frappe.auth.get_logged_user}, which returns the user bound to the key — a plain, cheap,
-     * side-effect-free probe (the ERPNext equivalent of Odoo's {@code common.authenticate}).
+     * Proxy the auth test to ErpAdapterService's {@code POST /api/erp/test-auth} endpoint,
+     * which uses the adapter's own HTTP client (timeouts, SSRF guard) — the same path that
+     * real sync operations use. Eliminates the duplicated inline RestClient logic.
      */
-    @SuppressWarnings("rawtypes")
-    private ResponseEntity<Map<String, String>> runErpNextTest(Map<String, Object> config) {
+    @SuppressWarnings("unchecked")
+    private ResponseEntity<Map<String, String>> proxyTestAuth(Map<String, Object> config, String providerType) {
         try {
-            String url = String.valueOf(config.get("url"));
-            validateUrl(url);
-            String base = url.endsWith("/") ? url.substring(0, url.length() - 1) : url;
-            String apiKey = config.get("apiKey") != null ? String.valueOf(config.get("apiKey")) : "";
-            String apiSecret = config.get("apiSecret") != null ? String.valueOf(config.get("apiSecret")) : "";
-            if (apiKey.isBlank() || apiSecret.isBlank()) {
-                persistTestResult(false, null, "Missing API key or secret.");
-                return ResponseEntity.badRequest().body(Map.of("error", "Missing API key or secret."));
+            java.util.UUID companyId = TenantContext.get();
+            String token = getServiceToken();
+
+            // Build the config map the adapter expects
+            Map<String, String> adapterConfig = new HashMap<>();
+            adapterConfig.put("type", providerType);
+            for (String key : new String[]{"url", "db", "login", "apiKey", "password", "apiSecret"}) {
+                Object val = config.get(key);
+                if (val != null && !"********".equals(String.valueOf(val))) {
+                    adapterConfig.put(key, String.valueOf(val));
+                }
             }
 
-            Map response = org.springframework.web.client.RestClient.create()
-                    .get().uri(base + "/api/method/frappe.auth.get_logged_user")
-                    .header("Authorization", "token " + apiKey + ":" + apiSecret)
-                    .header("Accept", "application/json")
+            Map<String, String> result = restClientBuilder.build()
+                    .post()
+                    .uri(erpAdapterUrl + "/api/erp/test-auth")
+                    .headers(h -> {
+                        h.setContentType(MediaType.APPLICATION_JSON);
+                        h.set("Accept", "application/json");
+                        if (companyId != null) h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .body(adapterConfig)
                     .retrieve()
                     .body(Map.class);
 
-            // Success shape: {"message": "user@example.com"}. Anything without a resolved user = failure.
-            Object user = response != null ? response.get("message") : null;
-            if (user != null && !String.valueOf(user).isBlank()) {
-                persistTestResult(true, String.valueOf(user), null);
-                return ResponseEntity.ok(Map.of("status", "success", "uid", String.valueOf(user)));
-            }
-            persistTestResult(false, null, "Authentication failed — wrong URL or API key/secret.");
-            return ResponseEntity.badRequest().body(Map.of("error", "Authentication failed — wrong URL or API key/secret."));
+            boolean success = result != null && "success".equals(result.get("status"));
+            String uid = result != null ? result.get("uid") : null;
+            String error = result != null ? result.get("error") : null;
 
+            if (success) {
+                persistTestResult(true, uid, null);
+                return ResponseEntity.ok(result);
+            } else {
+                persistTestResult(false, null, error);
+                return ResponseEntity.badRequest().body(result != null ? result : Map.of("error", "No response from adapter"));
+            }
         } catch (Exception e) {
-            log.warn("ERPNext Test Connection failed: {}", e.getMessage());
+            log.warn("ERP test-auth proxy failed for {}: {}", providerType, e.getMessage());
             persistTestResult(false, null, e.getMessage());
             return ResponseEntity.badRequest().body(Map.of("error", e.getMessage()));
         }
-    }
-
-    /** Pull a human message out of an Odoo JSON-RPC error envelope. */
-    @SuppressWarnings("unchecked")
-    private String extractOdooError(Object envelope) {
-        try {
-            if (envelope instanceof Map<?, ?> m) {
-                Object data = m.get("data");
-                if (data instanceof Map<?, ?> dm && dm.get("message") != null) return String.valueOf(dm.get("message"));
-                if (m.get("message") != null) return String.valueOf(m.get("message"));
-            }
-        } catch (Exception ignored) { /* fall through */ }
-        return "unauthorized or unreachable";
     }
 
     /**
@@ -428,6 +374,64 @@ public class SettingsController {
         } catch (Exception ex) {
             log.warn("Could not persist ERP test result: {}", ex.getMessage());
         }
+    }
+
+    /**
+     * Certifies the tenant's live ERP instance against the ASM integration contract — the "drytest".
+     * Proxies the read-only conformance probe on ErpAdapterService (service-to-service, SERVICE role) so
+     * the admin never calls the internal service directly. Returns the GO/DEGRADED/NO_GO report, or 204
+     * when no ERP is configured for the tenant.
+     */
+    @GetMapping("/erp/conformance")
+    @Operation(summary = "Certify the ERP instance (drytest)",
+            description = "Runs the read-only conformance probe against the company's configured ERP and "
+                    + "returns a GO/DEGRADED/NO_GO report with the detected version and per-capability "
+                    + "results. 204 when no ERP is configured.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Conformance report"),
+            @ApiResponse(responseCode = "204", description = "No ERP configured"),
+            @ApiResponse(responseCode = "502", description = "ERP adapter unreachable")
+    })
+    @PreAuthorize("hasAuthority('perm:settings:manage')")
+    public ResponseEntity<Object> getErpConformance() {
+        java.util.UUID companyId = TenantContext.get();
+        if (companyId == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "No tenant context"));
+        }
+        try {
+            String token = getServiceToken();
+            Object report = restClientBuilder.build()
+                    .get()
+                    .uri(erpAdapterUrl + "/api/erp/conformance")
+                    .headers(h -> {
+                        h.set("X-Company-Id", companyId.toString());
+                        if (!token.isEmpty()) h.set("Authorization", "Bearer " + token);
+                    })
+                    .retrieve()
+                    .body(Object.class);
+            return report != null ? ResponseEntity.ok(report) : ResponseEntity.noContent().build();
+        } catch (Exception e) {
+            log.warn("ERP conformance probe failed for tenant {}: {}", companyId, e.getMessage());
+            return ResponseEntity.status(502).body(Map.of("error", e.getMessage()));
+        }
+    }
+
+    /**
+     * INTERNAL ENDPOINT: Lightweight provider-only read. Used by delivery-service's
+     * {@code TenantErpProviderResolver} to resolve the active ERP provider per tenant
+     * without fetching decrypted credentials.
+     */
+    @GetMapping("/internal/erp/provider")
+    @Operation(summary = "[internal] Get the active ERP provider name",
+            description = "Service-to-service only (SERVICE role). Returns just the provider key "
+                    + "(e.g. \"odoo\", \"erpnext\") — no secrets, no config.")
+    @ApiResponse(responseCode = "200", description = "Provider name")
+    @PreAuthorize("hasRole('SERVICE')")
+    public ResponseEntity<Map<String, String>> getInternalErpProvider() {
+        SystemSettings settings = repository.findById("SINGLETON").orElse(null);
+        String provider = (settings != null && settings.getActiveErpProvider() != null)
+                ? settings.getActiveErpProvider().toLowerCase() : "none";
+        return ResponseEntity.ok(Map.of("provider", provider));
     }
 
     /**
@@ -498,18 +502,17 @@ public class SettingsController {
         }
     }
 
+    /**
+     * SERVICE client_credentials token from the <b>asm</b> realm (managed/cached by Spring Security via
+     * {@link com.asm.appbackend.client.KeycloakAdminClient}). The internal services (delivery, erp-adapter)
+     * validate JWTs against the asm realm, so a master-realm token is rejected 401 — this delegates to the
+     * one, proven asm-realm token used across onboarding/IAM.
+     */
     private String getServiceToken() {
         try {
-            return restClientBuilder.build()
-                .post()
-                .uri("http://keycloak:8080/realms/master/protocol/openid-connect/token")
-                .contentType(MediaType.APPLICATION_FORM_URLENCODED)
-                .body("grant_type=client_credentials&client_id=app-backend&client_secret=AppBackendSecret2026!")
-                .retrieve()
-                .body(java.util.Map.class)
-                .get("access_token").toString();
+            return keycloakAdminClient.getServiceToken();
         } catch (Exception e) {
-            log.warn("Failed to get service token for delivery push: {}", e.getMessage());
+            log.warn("Failed to get SERVICE token (asm realm): {}", e.getMessage());
             return "";
         }
     }

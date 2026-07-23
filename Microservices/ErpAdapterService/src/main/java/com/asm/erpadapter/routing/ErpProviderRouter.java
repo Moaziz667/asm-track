@@ -1,5 +1,6 @@
 package com.asm.erpadapter.routing;
 
+import com.asm.erpadapter.conformance.ErpConformanceProbe;
 import com.asm.erpadapter.port.ErpChangePort;
 import com.asm.erpadapter.port.ErpLookupPort;
 import com.asm.erpadapter.port.ErpOrderPort;
@@ -27,6 +28,7 @@ public class ErpProviderRouter {
     private final Map<String, ErpLookupPort> lookupAdapters = new HashMap<>();
     private final Map<String, ErpOrderPort> orderAdapters = new HashMap<>();
     private final Map<String, ErpChangePort> changeAdapters = new HashMap<>();
+    private final Map<String, ErpConformanceProbe> conformanceProbes = new HashMap<>();
     private final SettingsClient settingsClient;
 
     /**
@@ -37,6 +39,7 @@ public class ErpProviderRouter {
                               List<ErpLookupPort> lookupBeans,
                               List<ErpOrderPort> orderBeans,
                               List<ErpChangePort> changeBeans,
+                              List<ErpConformanceProbe> probeBeans,
                               SettingsClient settingsClient) {
         this.settingsClient = settingsClient;
         for (ErpSyncPort bean : syncBeans) {
@@ -55,8 +58,13 @@ public class ErpProviderRouter {
             String key = extractProviderKey(bean.getClass());
             changeAdapters.put(key, bean);
         }
-        log.info("ERP providers registered — sync: {}, lookup: {}, order: {}, change: {}",
-                syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet(), changeAdapters.keySet());
+        // Conformance probes self-declare their provider key (no class-name convention).
+        for (ErpConformanceProbe bean : probeBeans) {
+            conformanceProbes.put(bean.provider().toLowerCase(), bean);
+        }
+        log.info("ERP providers registered — sync: {}, lookup: {}, order: {}, change: {}, probe: {}",
+                syncAdapters.keySet(), lookupAdapters.keySet(), orderAdapters.keySet(),
+                changeAdapters.keySet(), conformanceProbes.keySet());
     }
 
     // The provider is resolved from the CURRENT TENANT's settings (via SettingsClient + the propagated
@@ -91,6 +99,15 @@ public class ErpProviderRouter {
                     + ". Available: " + orderAdapters.keySet());
         }
         return adapter;
+    }
+
+    /**
+     * The conformance probe ("drytest") for the current tenant's ERP family, or empty when the tenant
+     * has no ERP configured ({@code none}). Read-only certification — safe against production.
+     */
+    public java.util.Optional<ErpConformanceProbe> getProbe() {
+        String provider = resolveProvider();
+        return java.util.Optional.ofNullable(conformanceProbes.get(provider));
     }
 
     /**

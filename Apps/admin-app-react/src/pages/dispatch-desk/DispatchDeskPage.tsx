@@ -321,7 +321,6 @@ function DispatchDeskContentInner() {
                     {REPLANNABLE_STATUSES.includes(r.status) && (
                       <Button
                         size="sm"
-                        variant="outline"
                         className="h-7 px-3 text-xs font-bold rounded-md flex items-center gap-1.5"
                         onClick={() => {
                           setFailedModalRow(null);

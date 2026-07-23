@@ -16,11 +16,27 @@ export default function Template({
   const { message, isAppInitiatedAction, url } = kcContext;
   const logoSrc = `${url.resourcesPath}/dist/icon.png`;
 
-  // Apply dark/light mode from ?dark= query param
+  // Apply dark/light mode: ?dark= param > asm-theme cookie > OS preference > dark (default)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const darkParam = params.get("dark");
-    const isDark = darkParam !== "false"; // default = dark
+
+    let isDark: boolean;
+    if (darkParam !== null) {
+      isDark = darkParam !== "false";
+    } else {
+      // Read asm-theme cookie (set by admin app's dark mode toggle)
+      const cookieMatch = document.cookie.split("; ").find(c => c.startsWith("asm-theme="));
+      const cookieTheme = cookieMatch ? cookieMatch.split("=")[1] : null;
+
+      if (cookieTheme !== null) {
+        isDark = cookieTheme !== "light";
+      } else {
+        // Fall back to OS preference, then dark (matches admin app default)
+        isDark = !window.matchMedia?.("(prefers-color-scheme: light)").matches;
+      }
+    }
+
     document.documentElement.classList.toggle("dark", isDark);
   }, []);
 
