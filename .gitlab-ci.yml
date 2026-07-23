@@ -29,6 +29,17 @@ variables:
   before_script:
     - cd Microservices/DeliveryMicroservice
 
+.gradle-erp-adapter: &gradle-erp-adapter
+  image: gradle:8.5-jdk17
+  tags: [docker]
+  cache:
+    key: gradle-erp-adapter
+    paths:
+      - .gradle/caches
+      - .gradle/wrapper
+  before_script:
+    - cd Microservices/ErpAdapterService
+
 .npm-admin: &npm-admin
   image: node:20
   tags: [docker]
@@ -45,6 +56,12 @@ variables:
 # ── 1. BUILD ─────────────────────────────────────────────────────────────────
 build-backend-delivery:
   <<: *gradle-delivery
+  stage: build
+  script:
+    - gradle compileJava compileTestJava
+
+build-backend-erp-adapter:
+  <<: *gradle-erp-adapter
   stage: build
   script:
     - gradle compileJava compileTestJava
@@ -66,6 +83,17 @@ unit-test-backend-delivery:
     when: always
     reports:
       junit: Microservices/DeliveryMicroservice/build/test-results/test/*.xml
+    expire_in: 1 week
+
+unit-test-backend-erp-adapter:
+  <<: *gradle-erp-adapter
+  stage: unit-test
+  script:
+    - gradle test
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/ErpAdapterService/build/test-results/test/*.xml
     expire_in: 1 week
 
 test-admin:
