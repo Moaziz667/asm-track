@@ -138,6 +138,7 @@ integration-test-backend-delivery:
 # Starts Odoo via docker-in-docker, then runs *IT tests against it.
 integration-test-erp-adapter-odoo:
   stage: integration-test
+  tags: [docker]
   image: gradle:8.5-jdk17
   services:
     - docker:24-dind
