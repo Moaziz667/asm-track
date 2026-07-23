@@ -9,9 +9,9 @@ package com.asm.erpadapter.integration;
 public enum OdooVersion {
 
     V16("odoo:16", false),
-    V17("odoo:17", false),
-    V18("odoo:18", false),
-    V19("odoo:19", true);  // may not exist yet — skip by default
+    V17("odoo:17", true),
+    V18("odoo:18", true),
+    V19("odoo:19", false);
 
     private final String imageName;
     private final boolean skipByDefault;

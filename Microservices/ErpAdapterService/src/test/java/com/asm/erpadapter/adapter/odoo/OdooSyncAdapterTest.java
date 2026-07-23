@@ -26,8 +26,6 @@ class OdooSyncAdapterTest {
     @Mock
     private IdempotencyService idempotency;
     @Mock
-    private CapabilityResolver capabilityResolver;
-    @Mock
     private OdooPickingService pickingService;
     @Mock
     private OdooValidationService validationService;
@@ -45,7 +43,7 @@ class OdooSyncAdapterTest {
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        adapter = new OdooSyncAdapter(rpc, idempotency, capabilityResolver,
+        adapter = new OdooSyncAdapter(rpc, idempotency,
                 pickingService, validationService, saleOrderService, productService, podService, returnHandler);
 
         // Default: idempotency.execute runs the supplier directly

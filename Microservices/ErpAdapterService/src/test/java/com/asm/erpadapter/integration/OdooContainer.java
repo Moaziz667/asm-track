@@ -132,7 +132,6 @@ public class OdooContainer implements AutoCloseable {
     // ── Default URLs ─────────────────────────────────────────────────────────
 
     private static String defaultUrl(OdooVersion version) {
-        // With --network host, localhost IS the host. host.docker.internal is Docker Desktop only.
         String host = resolveHost();
         return switch (version) {
             case V16 -> "http://" + host + ":8069/jsonrpc";
@@ -142,19 +141,18 @@ public class OdooContainer implements AutoCloseable {
 
     /**
      * Detect the right host to reach the host's Odoo from inside a container:
-     * - --network host → localhost works
-     * - Docker Desktop → host.docker.internal
      * - Outside Docker → localhost
+     * - Inside Docker → host.docker.internal (Docker Desktop) or localhost (--network host on Linux)
      */
     private static String resolveHost() {
         if (!isInsideDocker()) return "localhost";
-        // Test if localhost is reachable (works with --network host on Linux Docker)
+        // Try host.docker.internal first (Docker Desktop on Mac/Windows)
         try (var socket = new java.net.Socket()) {
-            socket.connect(new java.net.InetSocketAddress("localhost", 8069), 2000);
-            return "localhost";
+            socket.connect(new java.net.InetSocketAddress("host.docker.internal", 8069), 2000);
+            return "host.docker.internal";
         } catch (Exception ignored) {}
-        // Fallback to host.docker.internal (Docker Desktop)
-        return "host.docker.internal";
+        // Fallback to localhost (--network host on Linux Docker)
+        return "localhost";
     }
 
     private static boolean isInsideDocker() {

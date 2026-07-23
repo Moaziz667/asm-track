@@ -41,7 +41,6 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     private final OdooJsonRpcClient rpc;
     private final IdempotencyService idempotency;
-    private final CapabilityResolver capabilityResolver;
     private final OdooPickingService pickingService;
     private final OdooValidationService validationService;
     private final OdooSaleOrderService saleOrderService;
