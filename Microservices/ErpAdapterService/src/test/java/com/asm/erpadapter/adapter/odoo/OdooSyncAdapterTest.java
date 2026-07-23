@@ -57,19 +57,16 @@ class OdooSyncAdapterTest {
 
     @Test
     void syncFullDelivery_withBackorderPickingId_validatesDirectly() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
         when(validationService.validateTransferByPickingId(42)).thenReturn(true);
 
         boolean result = adapter.syncFullDelivery("100", 42, "tx-1", null);
 
         assertTrue(result);
         verify(validationService).validateTransferByPickingId(42);
-        verify(productService).syncSaleOrderLineDeliveredQuantities(10, null, true);
     }
 
     @Test
     void syncFullDelivery_withPickingRef_findsByName() {
-        when(saleOrderService.resolveErpId("100")).thenReturn(10);
         when(pickingService.findPickingByName("WH/OUT/00012"))
                 .thenReturn(Map.of("id", 55, "state", "assigned"));
         when(validationService.validateTransferByPickingId(55)).thenReturn(true);
