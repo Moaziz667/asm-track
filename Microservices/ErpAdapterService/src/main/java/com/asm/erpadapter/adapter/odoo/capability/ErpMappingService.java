@@ -62,14 +62,20 @@ public class ErpMappingService {
 
     /**
      * Invalidate CapabilityCache for a specific tenant+capability.
-     * Sets TenantContext temporarily so the cache key resolves correctly.
+     * Sets TenantContext temporarily so the cache key resolves correctly,
+     * preserving any previously-set tenant on the calling thread.
      */
     private void invalidateCaches(UUID tenantId, String capability) {
+        UUID previous = TenantContext.get();
         TenantContext.set(tenantId);
         try {
             capabilityCache.invalidate(capability);
         } finally {
-            TenantContext.clear();
+            if (previous != null) {
+                TenantContext.set(previous);
+            } else {
+                TenantContext.clear();
+            }
         }
     }
 }

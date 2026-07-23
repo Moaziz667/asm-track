@@ -135,9 +135,10 @@ class CapabilityResolverTest {
 
     @Test
     void supports_returnsFalse_whenNotRegistered() {
-        when(registry.contains("SCRAP_PRODUCT")).thenReturn(false);
+        when(registry.contains("CANCEL_DELIVERY")).thenReturn(false);
 
-        assertFalse(resolver.supports(CanonicalCapability.SCRAP_PRODUCT));
+        assertFalse(resolver.supports(CanonicalCapability.CANCEL_DELIVERY));
+        verify(registry).contains("CANCEL_DELIVERY");
     }
 
     @Test

@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo.workflow;
 
+import com.asm.erpadapter.adapter.odoo.CapabilityResolver;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -19,12 +20,14 @@ class CancelHandlerTest {
 
     @Mock
     private OdooJsonRpcClient rpc;
+    @Mock
+    private CapabilityResolver capabilityResolver;
 
     private CancelHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new CancelHandler(rpc);
+        handler = new CancelHandler(rpc, capabilityResolver);
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.asm.erpadapter.adapter.odoo.workflow;
 
+import com.asm.erpadapter.adapter.odoo.CapabilityResolver;
+import com.asm.erpadapter.adapter.odoo.CanonicalCapability;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import com.asm.erpadapter.adapter.odoo.OdooWorkflowException;
 import org.junit.jupiter.api.BeforeEach;
@@ -20,12 +22,14 @@ class DeliveryValidationHandlerTest {
 
     @Mock
     private OdooJsonRpcClient rpc;
+    @Mock
+    private CapabilityResolver capabilityResolver;
 
     private DeliveryValidationHandler handler;
 
     @BeforeEach
     void setUp() {
-        handler = new DeliveryValidationHandler(rpc);
+        handler = new DeliveryValidationHandler(rpc, capabilityResolver);
     }
 
     // ── handleWizard dispatch ─────────────────────────────────────────────────
@@ -48,6 +52,7 @@ class DeliveryValidationHandlerTest {
 
     @Test
     void handleWizard_dispatchesSms() {
+        when(capabilityResolver.resolve(CanonicalCapability.SMS_CONFIRM)).thenReturn("action_confirm");
         when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
         Map<?, ?> res = Map.of("res_model", "confirm.stock.sms", "res_id", 77);
 
@@ -67,6 +72,7 @@ class DeliveryValidationHandlerTest {
 
     @Test
     void confirmSmsWizard_triesActionConfirmFirst() {
+        when(capabilityResolver.resolve(CanonicalCapability.SMS_CONFIRM)).thenReturn("action_confirm");
         when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
         Map<?, ?> res = Map.of("res_id", 77);
 
@@ -76,6 +82,7 @@ class DeliveryValidationHandlerTest {
 
     @Test
     void confirmSmsWizard_fallsBackToSendAndValidate() {
+        when(capabilityResolver.resolve(CanonicalCapability.SMS_CONFIRM)).thenReturn("action_confirm");
         when(rpc.callRpc(anyList()))
                 .thenReturn(Map.of("error", "no method"))  // action_confirm fails
                 .thenReturn(Map.of("result", true));        // action_send_and_validate
@@ -87,6 +94,7 @@ class DeliveryValidationHandlerTest {
 
     @Test
     void confirmSmsWizard_handlesRpcException() {
+        when(capabilityResolver.resolve(CanonicalCapability.SMS_CONFIRM)).thenReturn("action_confirm");
         when(rpc.callRpc(anyList())).thenThrow(new RuntimeException("connection refused"));
         Map<?, ?> res = Map.of("res_id", 77);
 

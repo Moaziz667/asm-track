@@ -1,5 +1,7 @@
 package com.asm.erpadapter.adapter.odoo.workflow;
 
+import com.asm.erpadapter.adapter.odoo.CanonicalCapability;
+import com.asm.erpadapter.adapter.odoo.CapabilityResolver;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import com.asm.erpadapter.adapter.odoo.OdooWorkflowException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +31,7 @@ import java.util.Map;
 public class DeliveryValidationHandler {
 
     private final OdooJsonRpcClient rpc;
+    private final CapabilityResolver capabilityResolver;
 
     /**
      * Handle the wizard returned by {@code button_validate}. Dispatches to the appropriate
@@ -53,19 +56,21 @@ public class DeliveryValidationHandler {
 
     /**
      * Confirm the SMS wizard — "Validate without SMS".
-     * Tries {@code action_confirm} first (Odoo 17), falls back to {@code action_send_and_validate}.
+     * Resolves the SMS confirm method via CapabilityResolver for Odoo version compatibility.
      */
     void confirmSmsWizard(Map<?, ?> res) {
         try {
             Object resId = res.get("res_id");
             if (resId instanceof Number wid) {
+                String smsMethod = capabilityResolver.resolve(CanonicalCapability.SMS_CONFIRM);
                 Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
-                        "confirm.stock.sms", "action_confirm", List.of(List.of(wid.intValue()))));
+                        "confirm.stock.sms", smsMethod, List.of(List.of(wid.intValue()))));
                 if (resp != null && resp.containsKey("error")) {
                     rpc.callRpc(rpc.buildArgs(
-                            "confirm.stock.sms", "action_send_and_validate", List.of(List.of(wid.intValue()))));
+                            "confirm.stock.sms", smsMethod, List.of(List.of(wid.intValue()))));
                 }
-                log.info("provider=odoo operation=confirmSmsWizard wizardId={} action=confirmed_no_sms", wid.intValue());
+                log.info("provider=odoo operation=confirmSmsWizard wizardId={} method={} action=confirmed_no_sms",
+                        wid.intValue(), smsMethod);
             }
         } catch (Exception e) {
             log.warn("provider=odoo operation=confirmSmsWizard reason={}", e.getMessage());
