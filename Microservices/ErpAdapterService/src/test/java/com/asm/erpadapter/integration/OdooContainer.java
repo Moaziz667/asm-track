@@ -2,6 +2,8 @@ package com.asm.erpadapter.integration;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Connects to an already-running Odoo instance (e.g. via docker-compose).
@@ -98,28 +100,27 @@ public class OdooContainer implements AutoCloseable {
     @SuppressWarnings("unchecked")
     public int authenticate(String db, String login, String password) {
         try {
-            var client = java.net.http.HttpClient.newHttpClient();
-            var body = """
-                    {
-                        "jsonrpc": "2.0",
-                        "method": "call",
-                        "params": {
-                            "service": "common",
-                            "method": "authenticate",
-                            "args": ["%s", "%s", "%s", {}]
-                        }
-                    }
-                    """.formatted(db, login, password);
+            var objectMapper = new com.fasterxml.jackson.databind.ObjectMapper();
+            var body = Map.of(
+                    "jsonrpc", "2.0",
+                    "method", "call",
+                    "params", Map.of(
+                            "service", "common",
+                            "method", "authenticate",
+                            "args", List.of(db, login, password, Map.of())
+                    )
+            );
+            String json = objectMapper.writeValueAsString(body);
 
+            var client = java.net.http.HttpClient.newHttpClient();
             var request = java.net.http.HttpRequest.newBuilder()
                     .uri(java.net.URI.create(url))
                     .header("Content-Type", "application/json")
-                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(body))
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(json))
                     .build();
 
             var response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
-            var map = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
-                    response.body(), java.util.Map.class);
+            var map = objectMapper.readValue(response.body(), java.util.Map.class);
             Object result = map.get("result");
             if (result instanceof Number n) return n.intValue();
             return 0;

@@ -135,7 +135,8 @@ integration-test-backend-delivery:
     expire_in: 1 week
 
 # ── 3b. ERP ADAPTER — Odoo integration tests ─────────────────────────────────
-# Starts Odoo via docker-in-docker, then runs *IT tests against it.
+# Requires a runner with Docker-in-Docker (--privileged) support.
+# Marked manual — does not block the pipeline. Trigger when dind is available.
 integration-test-erp-adapter-odoo:
   stage: integration-test
   tags: [docker]
@@ -147,8 +148,9 @@ integration-test-erp-adapter-odoo:
     DOCKER_TLS_CERTDIR: ""
     GRADLE_OPTS: "-Dorg.gradle.daemon=false"
     GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  when: manual
+  allow_failure: true
   before_script:
-    # Install Docker CLI (image is Debian-based)
     - apt-get update -qq && apt-get install -y -qq docker.io > /dev/null 2>&1
     - cd Microservices/ErpAdapterService
     # Start PostgreSQL + Odoo 16
