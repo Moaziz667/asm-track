@@ -384,6 +384,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     @SuppressWarnings("unchecked")
     private boolean createReturnPicking(Integer erpId, List<ErpReturnItemDTO> items, String pickingRef) {
+        try {
         Map<String, Object> picking = findReturnSourcePicking(erpId, pickingRef);
         if (picking == null) {
             log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} pickingRef={} reason=no_done_picking retryable=true", erpId, pickingRef);
@@ -433,6 +434,11 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
         scrapDamagedReturnedItems(erpId, items);
         return true;
+        } catch (Exception e) {
+            log.error("ERP sync exception — provider=odoo operation=syncReturn erpId={} errorClass={} reason={} retryable=true",
+                    erpId, e.getClass().getSimpleName(), e.getMessage(), e);
+            return false;
+        }
     }
 
     @SuppressWarnings("unchecked")

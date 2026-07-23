@@ -50,7 +50,7 @@ public class OdooPickingService {
      */
     @SuppressWarnings("unchecked")
     public Map<String, Object> findPickingById(Integer pickingId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
                 List.of(List.of(List.of("id", "=", pickingId))),
                 Map.of("fields", List.of("id", "state"), "limit", 1)));
         List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
@@ -90,10 +90,10 @@ public class OdooPickingService {
      */
     @SuppressWarnings("unchecked")
     public Integer findBackorderPickingId(Integer originPickingId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "search_read",
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "search_read",
                 List.of(List.of(List.of("backorder_id", "=", originPickingId))),
                 Map.of("fields", List.of("id"), "limit", 1)));
-        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
         return (result != null && !result.isEmpty()) ? asInt(result.get(0).get("id")) : null;
     }
 
@@ -103,9 +103,9 @@ public class OdooPickingService {
      * Read the state field of a picking.
      */
     public String readPickingState(Integer pickingId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("stock.picking", "read",
+        Map<String, Object> response = rpc.callRpcOrThrow(rpc.buildArgs("stock.picking", "read",
                 List.of(List.of(pickingId), List.of("state"))));
-        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
+        List<Map<String, Object>> result = response != null ? (List<Map<String, Object>>) response.get("result") : null;
         return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
     }
 

@@ -67,10 +67,7 @@ public class OdooSaleOrderService {
      * Read the state of a sale order.
      */
     public String readSaleOrderState(Integer erpOrderId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "read",
-                List.of(List.of(erpOrderId), List.of("state"))));
-        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
-        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
+        return rpc.readRecordState("sale.order", erpOrderId);
     }
 
     // ── Chatter notes ─────────────────────────────────────────────────────────

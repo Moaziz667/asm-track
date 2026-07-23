@@ -118,9 +118,10 @@ public class DeliveryValidationHandler {
                 }
             }
             if (pickingIds == null || pickingIds.isEmpty()) {
-                log.warn("provider=odoo operation=confirmBackorderWizard reason=no_picking_ids_in_context res={}",
+                log.error("provider=odoo operation=confirmBackorderWizard reason=no_picking_ids_in_context res={}",
                         res);
-                return;
+                throw new OdooWorkflowException("confirmBackorderWizard",
+                        "Backorder wizard returned no picking IDs in context for picking — cannot confirm backorder");
             }
             // Create wizard with pick_ids AND backorder_confirmation_line_ids
             List<List<Object>> pickIdsCmd = new ArrayList<>();

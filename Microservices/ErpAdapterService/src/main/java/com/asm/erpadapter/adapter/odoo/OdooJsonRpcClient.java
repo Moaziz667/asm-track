@@ -379,6 +379,19 @@ public class OdooJsonRpcClient {
 
     // ── Type-safe value helpers ─────────────────────────────────────────────
 
+    /**
+     * Read a single field value from an Odoo record. Returns null on any failure.
+     * Shared by OdooSaleOrderService, CancelHandler, and OdooValidationService.
+     */
+    @SuppressWarnings("unchecked")
+    public String readRecordState(String model, Integer recordId) {
+        Map<String, Object> response = callRpc(buildArgs(model, "read",
+                List.of(List.of(recordId), List.of("state"))));
+        List<Map<String, Object>> result = response != null
+                ? (List<Map<String, Object>>) response.get("result") : null;
+        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
+    }
+
     public static Integer asInt(Object value) {
         if (value == null) return null;
         if (value instanceof Boolean b && !b) return null;

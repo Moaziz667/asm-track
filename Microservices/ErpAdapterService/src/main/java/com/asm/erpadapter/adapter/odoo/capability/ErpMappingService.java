@@ -18,8 +18,8 @@ import java.util.UUID;
  * <p>Provides a cache-friendly interface for the {@link CapabilityResolver}
  * to check customer-specific field/method overrides.
  *
- * <p>On create/delete, invalidates both {@link CapabilityCache} and
- * {@link MethodResolver} so changes take effect immediately.
+ * <p>On create/delete, invalidates {@link CapabilityCache}
+ * so changes take effect immediately.
  */
 @Service
 @RequiredArgsConstructor
@@ -28,7 +28,6 @@ public class ErpMappingService {
 
     private final ErpMappingRepository repository;
     private final CapabilityCache capabilityCache;
-    private final MethodResolver methodResolver;
 
     public Optional<ErpMapping> findByTenantAndCapability(UUID tenantId, String capability) {
         return repository.findByTenantIdAndCapability(tenantId, capability);
@@ -62,14 +61,13 @@ public class ErpMappingService {
     }
 
     /**
-     * Invalidate both CapabilityCache and MethodResolver for a specific tenant+capability.
-     * Sets TenantContext temporarily so the cache keys resolve correctly.
+     * Invalidate CapabilityCache for a specific tenant+capability.
+     * Sets TenantContext temporarily so the cache key resolves correctly.
      */
     private void invalidateCaches(UUID tenantId, String capability) {
         TenantContext.set(tenantId);
         try {
             capabilityCache.invalidate(capability);
-            methodResolver.invalidate(capability);
         } finally {
             TenantContext.clear();
         }

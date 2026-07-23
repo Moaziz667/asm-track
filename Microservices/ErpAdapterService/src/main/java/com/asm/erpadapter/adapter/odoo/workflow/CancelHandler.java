@@ -1,5 +1,7 @@
 package com.asm.erpadapter.adapter.odoo.workflow;
 
+import com.asm.erpadapter.adapter.odoo.CanonicalCapability;
+import com.asm.erpadapter.adapter.odoo.CapabilityResolver;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,6 +23,7 @@ import java.util.Map;
 public class CancelHandler {
 
     private final OdooJsonRpcClient rpc;
+    private final CapabilityResolver capabilityResolver;
 
     /**
      * Cancel a sale order with unlock-before-cancel for Odoo 19 compatibility.
@@ -30,7 +33,8 @@ public class CancelHandler {
      */
     public boolean cancelSaleOrder(Integer erpOrderId) {
         // Odoo 19 auto-locks confirmed orders — unlock first (no-op on ≤18)
-        rpc.callRpc(rpc.buildArgs("sale.order", "action_unlock", List.of(List.of(erpOrderId))));
+        String unlockMethod = capabilityResolver.resolve(CanonicalCapability.UNLOCK_SALE_ORDER);
+        rpc.callRpc(rpc.buildArgs("sale.order", unlockMethod, List.of(List.of(erpOrderId))));
         Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "action_cancel",
                 List.of(List.of(erpOrderId))));
         if (resp != null && resp.containsKey("error")) {
@@ -38,16 +42,8 @@ public class CancelHandler {
                     erpOrderId, resp.get("error"));
             return false;
         }
-        String state = readSaleOrderState(erpOrderId);
+        String state = rpc.readRecordState("sale.order", erpOrderId);
         log.info("provider=odoo operation=cancelSaleOrder erpId={} finalState={}", erpOrderId, state);
         return "cancel".equalsIgnoreCase(state);
-    }
-
-    @SuppressWarnings("unchecked")
-    private String readSaleOrderState(Integer erpOrderId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "read",
-                List.of(List.of(erpOrderId), List.of("state"))));
-        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
-        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
     }
 }

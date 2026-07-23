@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Caches Odoo model metadata (available fields) per tenant to avoid repeated {@code fields_get()} calls.
@@ -18,6 +19,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * <p>Each tenant gets its own cache entry keyed by {@code tenantId:model}. TTL is 30 minutes —
  * Odoo instances almost never add/remove fields at runtime, and a field change is picked up
  * after TTL expiry or explicit invalidation.
+ *
+ * <p>Uses single-flight pattern via {@link CompletableFuture} to prevent cache stampede
+ * (multiple threads performing redundant Odoo RPC calls for the same model).
  */
 @Component
 @RequiredArgsConstructor
@@ -26,27 +30,43 @@ public class OdooMetadataCache {
 
     private final OdooJsonRpcClient rpc;
 
-    private record FieldCache(Set<String> fields, long atMs) {}
+    private record CacheEntry(Set<String> fields, long atMs) {}
 
-    private final ConcurrentHashMap<String, FieldCache> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CacheEntry> cache = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, CompletableFuture<Set<String>>> inFlight = new ConcurrentHashMap<>();
     private static final long TTL_MS = 30 * 60 * 1000L; // 30 min
     private static final String NO_TENANT = "__no_tenant__";
 
     /**
      * Get the set of available field names for a model on the current tenant's Odoo instance.
      * Uses cache if fresh; otherwise queries Odoo via {@code fields_get()}.
+     * Single-flight: concurrent requests for the same model share one Odoo RPC call.
      */
     public Set<String> getAvailableFields(String model) {
         String key = cacheKey(model);
         long now = System.currentTimeMillis();
-        FieldCache cached = cache.get(key);
+        CacheEntry cached = cache.get(key);
         if (cached != null && (now - cached.atMs()) < TTL_MS) {
             return cached.fields();
         }
 
-        Set<String> fields = fetchFields(model);
-        cache.put(key, new FieldCache(fields, now));
-        return fields;
+        CompletableFuture<Set<String>> future = inFlight.computeIfAbsent(key,
+                k -> CompletableFuture.supplyAsync(() -> {
+                    try {
+                        Set<String> fields = fetchFields(model);
+                        cache.put(key, new CacheEntry(fields, System.currentTimeMillis()));
+                        return fields;
+                    } finally {
+                        inFlight.remove(k);
+                    }
+                }));
+
+        try {
+            return future.get();
+        } catch (Exception e) {
+            log.warn("OdooMetadataCache: single-flight failed for model={} reason={}", model, e.getMessage());
+            return Set.of();
+        }
     }
 
     /**

@@ -28,6 +28,8 @@ public class OdooValidationService {
     private final OdooJsonRpcClient rpc;
     private final OdooPickingService pickingService;
     private final DeliveryValidationHandler wizardHandler;
+    private final OdooSaleOrderService saleOrderService;
+    private final CapabilityResolver capabilityResolver;
 
     // ── Full validation (by sale order) ───────────────────────────────────────
 
@@ -88,7 +90,8 @@ public class OdooValidationService {
      * Trigger stock reservation on a picking ({@code action_assign}).
      */
     public void reserveStock(Integer pickingId) {
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", "action_assign",
+        String method = capabilityResolver.resolve(CanonicalCapability.RESERVE_STOCK);
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", method,
                 List.of(List.of(pickingId))));
         Object error = resp != null ? resp.get("error") : null;
         if (error != null) {
@@ -106,7 +109,8 @@ public class OdooValidationService {
      */
     public void forceAvailability(Integer pickingId) {
         log.info("provider=odoo operation=forceAvailability pickingId={}", pickingId);
-        rpc.callRpc(rpc.buildArgs("stock.picking", "action_force_availability", List.of(List.of(pickingId))));
+        String method = capabilityResolver.resolve(CanonicalCapability.FORCE_AVAILABILITY);
+        rpc.callRpc(rpc.buildArgs("stock.picking", method, List.of(List.of(pickingId))));
     }
 
     // ── Set full quantities ───────────────────────────────────────────────────
@@ -116,8 +120,9 @@ public class OdooValidationService {
      * Works on Odoo 16, 17, and 18 without field-name version differences.
      */
     public void setFullQuantityDoneOnMoveLines(Integer pickingId) {
+        String method = capabilityResolver.resolve(CanonicalCapability.SET_FULL_QUANTITY);
         Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
-                "stock.picking", "action_set_quantities_to_reservation", List.of(List.of(pickingId))));
+                "stock.picking", method, List.of(List.of(pickingId))));
         log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
                 pickingId, resp != null ? resp.get("result") : "null");
     }
@@ -136,14 +141,8 @@ public class OdooValidationService {
         }
     }
 
-    /**
-     * Read the state of a sale order.
-     */
     public String readSaleOrderState(Integer erpOrderId) {
-        Map<String, Object> response = rpc.callRpc(rpc.buildArgs("sale.order", "read",
-                List.of(List.of(erpOrderId), List.of("state"))));
-        List<Map<String, Object>> result = (List<Map<String, Object>>) response.get("result");
-        return (result != null && !result.isEmpty()) ? (String) result.get(0).get("state") : null;
+        return saleOrderService.readSaleOrderState(erpOrderId);
     }
 
     // ── Private implementation ────────────────────────────────────────────────
@@ -176,8 +175,9 @@ public class OdooValidationService {
         }
 
         // skip_sms=True bypasses the confirm.stock.sms wizard in Odoo 17/18
+        String validateMethod = capabilityResolver.resolve(CanonicalCapability.DELIVERY_VALIDATE);
         Map<String, Object> validateResp = rpc.callRpc(
-                rpc.buildArgs("stock.picking", "button_validate",
+                rpc.buildArgs("stock.picking", validateMethod,
                         List.of(List.of(pickingId)),
                         Map.of("context", Map.of("skip_sms", true, "skip_immediate", true))));
 
@@ -212,7 +212,8 @@ public class OdooValidationService {
      * the wizard response itself.
      */
     public Map<String, Object> callValidatePicking(Integer pickingId) {
-        return rpc.callRpc(rpc.buildArgs("stock.picking", "button_validate",
+        String validateMethod = capabilityResolver.resolve(CanonicalCapability.DELIVERY_VALIDATE);
+        return rpc.callRpc(rpc.buildArgs("stock.picking", validateMethod,
                 List.of(List.of(pickingId)),
                 Map.of("context", Map.of("skip_sms", true, "skip_immediate", true))));
     }

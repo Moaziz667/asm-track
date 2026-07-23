@@ -6,8 +6,6 @@ import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Resolves the correct Odoo method name for a capability by trying each candidate in order.
@@ -29,12 +27,6 @@ public class MethodResolver {
     private final OdooJsonRpcClient rpc;
     private final CapabilityRegistry registry;
 
-    private record MethodCache(String resolvedMethod, long atMs) {}
-
-    private final ConcurrentHashMap<String, MethodCache> cache = new ConcurrentHashMap<>();
-    private static final long TTL_MS = 30 * 60 * 1000L; // 30 min
-    private static final String NO_TENANT = "__no_tenant__";
-
     /**
      * Resolve the correct method name for a capability by trying each candidate.
      *
@@ -49,19 +41,11 @@ public class MethodResolver {
             throw new IllegalArgumentException("Capability " + capability + " is a FIELD, not a METHOD. Use FieldResolver.");
         }
 
-        String key = cacheKey(capability);
-        long now = System.currentTimeMillis();
-        MethodCache cached = cache.get(key);
-        if (cached != null && (now - cached.atMs()) < TTL_MS) {
-            return cached.resolvedMethod();
-        }
-
         String model = entry.model();
         List<String> candidates = entry.candidates();
 
         for (String candidate : candidates) {
             if (isMethodCallable(model, candidate)) {
-                cache.put(key, new MethodCache(candidate, now));
                 log.debug("MethodResolver: capability={} model={} resolved={}", capability, model, candidate);
                 return candidate;
             }
@@ -151,30 +135,6 @@ public class MethodResolver {
             if (message != null) return String.valueOf(message);
         }
         return error != null ? String.valueOf(error) : null;
-    }
-
-    /**
-     * Invalidate a cached resolution for a specific capability (current tenant).
-     */
-    public void invalidate(String capability) {
-        cache.remove(cacheKey(capability));
-    }
-
-    /**
-     * Invalidate all cached resolutions for the current tenant.
-     */
-    public void invalidateAll() {
-        String prefix = tenantPrefix();
-        cache.keySet().removeIf(k -> k.startsWith(prefix));
-    }
-
-    private String cacheKey(String capability) {
-        return tenantPrefix() + capability;
-    }
-
-    private String tenantPrefix() {
-        UUID tenantId = com.asm.erpadapter.security.TenantContext.get();
-        return (tenantId != null ? tenantId.toString() : NO_TENANT) + ":";
     }
 
     /**
