@@ -2,6 +2,7 @@ package com.asm.erpadapter.adapter.odoo;
 
 import com.asm.erpadapter.entity.ErpMapping;
 import com.asm.erpadapter.repository.ErpMappingRepository;
+import com.asm.erpadapter.security.TenantContext;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -16,6 +17,9 @@ import java.util.UUID;
  *
  * <p>Provides a cache-friendly interface for the {@link CapabilityResolver}
  * to check customer-specific field/method overrides.
+ *
+ * <p>On create/delete, invalidates both {@link CapabilityCache} and
+ * {@link MethodResolver} so changes take effect immediately.
  */
 @Service
 @RequiredArgsConstructor
@@ -23,6 +27,8 @@ import java.util.UUID;
 public class ErpMappingService {
 
     private final ErpMappingRepository repository;
+    private final CapabilityCache capabilityCache;
+    private final MethodResolver methodResolver;
 
     public Optional<ErpMapping> findByTenantAndCapability(UUID tenantId, String capability) {
         return repository.findByTenantIdAndCapability(tenantId, capability);
@@ -43,6 +49,7 @@ public class ErpMappingService {
                 .createdAt(LocalDateTime.now())
                 .build();
         ErpMapping saved = repository.save(mapping);
+        invalidateCaches(tenantId, capability);
         log.info("ErpMapping created: tenant={} capability={} type={} odooName={}",
                 tenantId, capability, mappingType, odooName);
         return saved;
@@ -50,6 +57,21 @@ public class ErpMappingService {
 
     public void deleteMapping(UUID tenantId, String capability) {
         repository.deleteByTenantIdAndCapability(tenantId, capability);
+        invalidateCaches(tenantId, capability);
         log.info("ErpMapping deleted: tenant={} capability={}", tenantId, capability);
+    }
+
+    /**
+     * Invalidate both CapabilityCache and MethodResolver for a specific tenant+capability.
+     * Sets TenantContext temporarily so the cache keys resolve correctly.
+     */
+    private void invalidateCaches(UUID tenantId, String capability) {
+        TenantContext.set(tenantId);
+        try {
+            capabilityCache.invalidate(capability);
+            methodResolver.invalidate(capability);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }

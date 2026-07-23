@@ -153,10 +153,28 @@ public class MethodResolver {
         return error != null ? String.valueOf(error) : null;
     }
 
+    /**
+     * Invalidate a cached resolution for a specific capability (current tenant).
+     */
+    public void invalidate(String capability) {
+        cache.remove(cacheKey(capability));
+    }
+
+    /**
+     * Invalidate all cached resolutions for the current tenant.
+     */
+    public void invalidateAll() {
+        String prefix = tenantPrefix();
+        cache.keySet().removeIf(k -> k.startsWith(prefix));
+    }
+
     private String cacheKey(String capability) {
+        return tenantPrefix() + capability;
+    }
+
+    private String tenantPrefix() {
         UUID tenantId = com.asm.erpadapter.security.TenantContext.get();
-        String tenantKey = tenantId != null ? tenantId.toString() : NO_TENANT;
-        return tenantKey + ":" + capability;
+        return (tenantId != null ? tenantId.toString() : NO_TENANT) + ":";
     }
 
     /**
