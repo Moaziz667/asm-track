@@ -1,0 +1,67 @@
+{
+  "DONE_QUANTITY": {
+    "model": "stock.move.line",
+    "type": "FIELD",
+    "candidates": ["quantity", "qty_done"]
+  },
+  "DELIVERY_VALIDATE": {
+    "model": "stock.picking",
+    "type": "METHOD",
+    "candidates": ["button_validate"]
+  },
+  "CREATE_RETURN": {
+    "model": "stock.return.picking",
+    "type": "METHOD",
+    "candidates": ["action_create_returns", "create_returns"]
+  },
+  "CANCEL_DELIVERY": {
+    "model": "stock.picking",
+    "type": "METHOD",
+    "candidates": ["action_cancel"]
+  },
+  "UNLOCK_SALE_ORDER": {
+    "model": "sale.order",
+    "type": "METHOD",
+    "candidates": ["action_unlock"]
+  },
+  "RESERVE_STOCK": {
+    "model": "stock.picking",
+    "type": "METHOD",
+    "candidates": ["action_assign"]
+  },
+  "FORCE_AVAILABILITY": {
+    "model": "stock.picking",
+    "type": "METHOD",
+    "candidates": ["action_force_availability"]
+  },
+  "SET_FULL_QUANTITY": {
+    "model": "stock.picking",
+    "type": "METHOD",
+    "candidates": ["action_set_quantities_to_reservation"]
+  },
+  "CONFIRM_SALE_ORDER": {
+    "model": "sale.order",
+    "type": "METHOD",
+    "candidates": ["action_confirm"]
+  },
+  "BACKORDER_CONFIRM": {
+    "model": "stock.backorder.confirmation",
+    "type": "METHOD",
+    "candidates": ["process"]
+  },
+  "SMS_CONFIRM": {
+    "model": "confirm.stock.sms",
+    "type": "METHOD",
+    "candidates": ["action_confirm", "action_send_and_validate"]
+  },
+  "IMMEDIATE_TRANSFER": {
+    "model": "stock.immediate.transfer",
+    "type": "METHOD",
+    "candidates": ["process"]
+  },
+  "SCRAP_PRODUCT": {
+    "model": "stock.scrap",
+    "type": "METHOD",
+    "candidates": ["create", "action_validate"]
+  }
+}

@@ -133,3 +133,49 @@ integration-test-backend-delivery:
     paths:
       - Microservices/DeliveryMicroservice/build/reports/tests/
     expire_in: 1 week
+
+# ── 3b. ERP ADAPTER — Odoo integration tests ─────────────────────────────────
+# Starts Odoo via docker-in-docker, then runs *IT tests against it.
+integration-test-erp-adapter-odoo:
+  stage: integration-test
+  image: gradle:8.5-jdk17
+  services:
+    - docker:24-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    GRADLE_OPTS: "-Dorg.gradle.daemon=false"
+    GRADLE_USER_HOME: "$CI_PROJECT_DIR/.gradle"
+  before_script:
+    # Install Docker CLI (image is Debian-based)
+    - apt-get update -qq && apt-get install -y -qq docker.io > /dev/null 2>&1
+    - cd Microservices/ErpAdapterService
+    # Start PostgreSQL + Odoo 16
+    - docker run -d --name postgres-odoo --network host
+        -e POSTGRES_DB=odoo -e POSTGRES_USER=odoo -e POSTGRES_PASSWORD=odoo
+        postgres:15
+    - |
+      echo "Waiting for PostgreSQL..."
+      for i in $(seq 1 30); do
+        docker exec postgres-odoo pg_isready -U odoo 2>/dev/null && break
+        sleep 2
+      done
+    - docker run -d --name odoo-v16 --network host
+        -e HOST=localhost -e USER=odoo -e PASSWORD=odoo -e ODOO_DB=odoo
+        odoo:16
+    - |
+      echo "Waiting for Odoo HTTP..."
+      for i in $(seq 1 60); do
+        wget -q --spider http://localhost:8069/web/login 2>/dev/null && echo "Odoo ready!" && break
+        echo "Waiting... ($i/60)"
+        sleep 5
+      done
+  script:
+    - gradle integrationTest --no-daemon
+  artifacts:
+    when: always
+    reports:
+      junit: Microservices/ErpAdapterService/build/test-results/integrationTest/*.xml
+    paths:
+      - Microservices/ErpAdapterService/build/reports/tests/
+    expire_in: 1 week

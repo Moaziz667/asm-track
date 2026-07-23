@@ -25,7 +25,7 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.asRelId;
 public class OdooProductService {
 
     private final OdooJsonRpcClient rpc;
-    private final OdooCapabilities caps;
+    private final CapabilityResolver capabilityResolver;
 
     /**
      * Resolves an Odoo {@code product.product} ID from a SKU ({@code default_code}).
@@ -143,7 +143,7 @@ public class OdooProductService {
         }
         log.info("provider=odoo operation=applyPartialQty pickingId={} productDetails={}", pickingId, pidToSku);
 
-        String doneQtyField = caps.doneQtyField();
+        String doneQtyField = capabilityResolver.resolve(CanonicalCapability.DONE_QUANTITY);
         int totalWritten = 0;
         for (Map<String, Object> line : lines) {
             Integer pid   = asRelId(line.get("product_id"));

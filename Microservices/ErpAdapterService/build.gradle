@@ -60,8 +60,19 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testImplementation 'org.mockito:mockito-core'
 	testImplementation 'org.mockito:mockito-junit-jupiter'
+	// Integration tests — Testcontainers
+	testImplementation 'org.testcontainers:testcontainers:1.20.4'
+	testImplementation 'org.testcontainers:junit-jupiter:1.20.4'
+	testImplementation 'org.testcontainers:postgresql:1.20.4'
+	testImplementation 'org.postgresql:postgresql'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+	exclude '**/integration/**'
+}
+
+tasks.register('integrationTest') {
+	useJUnitPlatform()
+	include '**/integration/**'
 }

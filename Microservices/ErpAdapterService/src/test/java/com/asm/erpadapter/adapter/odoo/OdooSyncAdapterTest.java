@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.adapter.odoo.workflow.ReturnHandler;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPodDTO;
 import com.asm.erpadapter.service.IdempotencyService;
@@ -25,7 +26,7 @@ class OdooSyncAdapterTest {
     @Mock
     private IdempotencyService idempotency;
     @Mock
-    private OdooCapabilities caps;
+    private CapabilityResolver capabilityResolver;
     @Mock
     private OdooPickingService pickingService;
     @Mock
@@ -36,14 +37,16 @@ class OdooSyncAdapterTest {
     private OdooProductService productService;
     @Mock
     private OdooPodService podService;
+    @Mock
+    private ReturnHandler returnHandler;
 
     private OdooSyncAdapter adapter;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
     void setUp() {
-        adapter = new OdooSyncAdapter(rpc, idempotency, caps,
-                pickingService, validationService, saleOrderService, productService, podService);
+        adapter = new OdooSyncAdapter(rpc, idempotency, capabilityResolver,
+                pickingService, validationService, saleOrderService, productService, podService, returnHandler);
 
         // Default: idempotency.execute runs the supplier directly
         lenient().when(idempotency.execute(anyString(), anyString(), any(Class.class), any(Supplier.class)))

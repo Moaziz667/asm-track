@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.adapter.odoo.workflow.DeliveryValidationHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,13 +22,13 @@ class OdooValidationServiceTest {
     @Mock
     private OdooPickingService pickingService;
     @Mock
-    private OdooCapabilities caps;
+    private DeliveryValidationHandler wizardHandler;
 
     private OdooValidationService service;
 
     @BeforeEach
     void setUp() {
-        service = new OdooValidationService(rpc, pickingService, caps);
+        service = new OdooValidationService(rpc, pickingService, wizardHandler);
     }
 
     // ── confirmOrderIfNeeded ──────────────────────────────────────────────────
@@ -78,30 +79,22 @@ class OdooValidationServiceTest {
         assertFalse(service.validateTransferByPickingId(42));
     }
 
-    // ── handleWizard ──────────────────────────────────────────────────────────
+    // ── doValidateTransfer delegates to wizardHandler ─────────────────────────
 
     @Test
-    void handleWizard_dispatchesImmediateTransfer() {
-        Map<?, ?> res = Map.of("res_model", "stock.immediate.transfer", "res_id", 99);
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
+    void doValidateTransfer_delegatesWizardToHandler() {
+        when(pickingService.findPickingById(10))
+                .thenReturn(Map.of("id", 10, "state", "assigned"));
+        when(pickingService.readPickingState(10)).thenReturn("assigned");
+        when(rpc.callRpc(anyList()))
+                .thenReturn(Map.of("result", true))   // action_assign
+                .thenReturn(Map.of("result", true))   // action_set_quantities
+                .thenReturn(Map.of("result", List.of(Map.of("id", 1, "state", "assigned"))))  // search_read moves
+                .thenReturn(Map.of("result", Map.of("res_model", "stock.immediate.transfer", "res_id", 99)));  // button_validate
+        when(pickingService.readPickingState(10)).thenReturn("done");
 
-        assertDoesNotThrow(() -> service.handleWizard(42, res));
-    }
-
-    @Test
-    void handleWizard_dispatchesBackorder() {
-        Map<?, ?> res = Map.of("res_model", "stock.backorder.confirmation", "res_id", 88);
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
-
-        assertDoesNotThrow(() -> service.handleWizard(42, res));
-    }
-
-    @Test
-    void handleWizard_dispatchesSms() {
-        Map<?, ?> res = Map.of("res_model", "confirm.stock.sms", "res_id", 77);
-        when(rpc.callRpc(anyList())).thenReturn(Map.of("result", true));
-
-        assertDoesNotThrow(() -> service.handleWizard(42, res));
+        assertTrue(service.validateTransferByPickingId(10));
+        verify(wizardHandler).handleWizard(eq(10), anyMap());
     }
 
     // ── readSaleOrderState ────────────────────────────────────────────────────

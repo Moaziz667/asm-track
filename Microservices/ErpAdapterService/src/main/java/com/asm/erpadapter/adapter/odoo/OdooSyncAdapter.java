@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.adapter.odoo.workflow.ReturnHandler;
 import com.asm.erpadapter.dto.ErpPartialDeliveryResultDTO;
 import com.asm.erpadapter.dto.ErpPartialItemDTO;
 import com.asm.erpadapter.dto.ErpPodDTO;
@@ -40,12 +41,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
     private final OdooJsonRpcClient rpc;
     private final IdempotencyService idempotency;
-    private final OdooCapabilities caps;
+    private final CapabilityResolver capabilityResolver;
     private final OdooPickingService pickingService;
     private final OdooValidationService validationService;
     private final OdooSaleOrderService saleOrderService;
     private final OdooProductService productService;
     private final OdooPodService podService;
+    private final ReturnHandler returnHandler;
 
     private final Set<String> inFlight = ConcurrentHashMap.newKeySet();
 
@@ -305,13 +307,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
             if (validateResponse.get("result") instanceof Map<?, ?> res) {
                 String resModel = (String) res.get("res_model");
                 log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard={} action=confirming", pickingId, resModel);
-                if ("stock.backorder.confirmation".equals(resModel)) {
-                    validationService.confirmBackorderWizard(res);
-                } else if ("confirm.stock.sms".equals(resModel)) {
-                    validationService.confirmSmsWizard(res);
-                } else if ("stock.immediate.transfer".equals(resModel)) {
+                if ("stock.immediate.transfer".equals(resModel)) {
+                    // Partial delivery uses _action_done directly (not the standard wizard process)
                     log.info("provider=odoo operation=syncPartialDelivery pickingId={} wizard=immediate_transfer action=_action_done_direct", pickingId);
                     rpc.callRpc(rpc.buildArgs("stock.picking", "_action_done", List.of(List.of(pickingId))));
+                } else {
+                    // Backorder and SMS wizards — delegate to handler
+                    validationService.handleWizard(pickingId, res);
                 }
             }
 
@@ -415,7 +417,7 @@ public class OdooSyncAdapter implements ErpSyncPort {
 
         productService.applyReturnQuantities(wizardId, items);
 
-        Map<String, Object> returnResp = callCreateReturns(wizardId, ctx);
+        Map<String, Object> returnResp = returnHandler.callCreateReturns(wizardId, ctx);
         Integer returnPickingId = extractReturnPickingId(returnResp);
         if (returnPickingId == null) {
             log.warn("ERP sync failed — provider=odoo operation=syncReturn erpId={} wizardId={} reason=return_picking_id_unresolved retryable=true result={}",
@@ -451,21 +453,6 @@ public class OdooSyncAdapter implements ErpSyncPort {
             log.info("provider=odoo operation=findReturnSourcePicking erpOrderId={} pickingRef={} action=name_no_match fallback=most_recent_done", erpOrderId, pickingRef);
         }
         return pickingService.findDonePicking(erpOrderId);
-    }
-
-    private Map<String, Object> callCreateReturns(Integer wizardId, Map<String, Object> ctx) {
-        Map<String, Object> resp = null;
-        for (String method : caps.createReturnsMethodCandidates()) {
-            resp = rpc.callRpc(rpc.buildArgs("stock.return.picking", method,
-                    List.of(List.of(wizardId)), Map.of("context", ctx)));
-            if (resp != null && !resp.containsKey("error")) {
-                log.info("provider=odoo operation=createReturns wizardId={} method={} action=ok", wizardId, method);
-                return resp;
-            }
-            log.info("provider=odoo operation=createReturns wizardId={} method={} action=fallback error={}",
-                    wizardId, method, resp != null ? resp.get("error") : "null_response");
-        }
-        return resp;
     }
 
     @SuppressWarnings("unchecked")

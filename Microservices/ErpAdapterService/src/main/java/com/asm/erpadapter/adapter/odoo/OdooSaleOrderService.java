@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.adapter.odoo.workflow.CancelHandler;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,7 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 public class OdooSaleOrderService {
 
     private final OdooJsonRpcClient rpc;
+    private final CancelHandler cancelHandler;
 
     /** Cached id of the mail.mt_note subtype ("log note"), resolved lazily. */
     private volatile Integer noteSubtypeId;
@@ -54,21 +56,11 @@ public class OdooSaleOrderService {
     // ── Cancel ────────────────────────────────────────────────────────────────
 
     /**
-     * Cancel a sale order. Odoo 19 auto-locks confirmed orders — unlock before cancelling.
-     * Retries up to 3 times (transient lock contention).
+     * Cancel a sale order. Delegates to {@link CancelHandler} for version-specific
+     * unlock-before-cancel logic (Odoo 19 auto-locks confirmed orders).
      */
     public boolean cancelSaleOrder(Integer erpOrderId) {
-        rpc.callRpc(rpc.buildArgs("sale.order", "action_unlock", List.of(List.of(erpOrderId))));
-        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "action_cancel",
-                List.of(List.of(erpOrderId))));
-        if (resp != null && resp.containsKey("error")) {
-            log.warn("ERP sync failed — provider=odoo operation=cancelSaleOrder erpId={} odooError={} retryable=true",
-                    erpOrderId, resp.get("error"));
-            return false;
-        }
-        String state = readSaleOrderState(erpOrderId);
-        log.info("provider=odoo operation=cancelSaleOrder erpId={} finalState={}", erpOrderId, state);
-        return "cancel".equalsIgnoreCase(state);
+        return cancelHandler.cancelSaleOrder(erpOrderId);
     }
 
     /**

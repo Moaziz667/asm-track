@@ -1,5 +1,6 @@
 package com.asm.erpadapter.adapter.odoo;
 
+import com.asm.erpadapter.adapter.odoo.workflow.CancelHandler;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -18,12 +19,14 @@ class OdooSaleOrderServiceTest {
 
     @Mock
     private OdooJsonRpcClient rpc;
+    @Mock
+    private CancelHandler cancelHandler;
 
     private OdooSaleOrderService service;
 
     @BeforeEach
     void setUp() {
-        service = new OdooSaleOrderService(rpc);
+        service = new OdooSaleOrderService(rpc, cancelHandler);
     }
 
     // ── resolveErpId ──────────────────────────────────────────────────────────
@@ -73,20 +76,16 @@ class OdooSaleOrderServiceTest {
     // ── cancelSaleOrder ───────────────────────────────────────────────────────
 
     @Test
-    void cancelSaleOrder_returnsTrueOnCancelState() {
-        when(rpc.callRpc(anyList()))
-                .thenReturn(Map.of("result", true))  // action_unlock
-                .thenReturn(Map.of("result", true))  // action_cancel
-                .thenReturn(Map.of("result", List.of(Map.of("state", "cancel"))));  // read state
+    void cancelSaleOrder_delegatesToCancelHandler() {
+        when(cancelHandler.cancelSaleOrder(10)).thenReturn(true);
 
         assertTrue(service.cancelSaleOrder(10));
+        verify(cancelHandler).cancelSaleOrder(10);
     }
 
     @Test
-    void cancelSaleOrder_returnsFalseOnError() {
-        when(rpc.callRpc(anyList()))
-                .thenReturn(Map.of("result", true))  // action_unlock
-                .thenReturn(Map.of("error", "user error"));  // action_cancel
+    void cancelSaleOrder_returnsFalseWhenHandlerFails() {
+        when(cancelHandler.cancelSaleOrder(10)).thenReturn(false);
 
         assertFalse(service.cancelSaleOrder(10));
     }

@@ -1,6 +1,6 @@
 package com.asm.erpadapter.conformance;
 
-import com.asm.erpadapter.adapter.odoo.OdooCapabilities;
+import com.asm.erpadapter.adapter.odoo.CapabilityRegistry;
 import com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient;
 import com.asm.erpadapter.adapter.odoo.OdooVersionResolver;
 import com.asm.erpadapter.conformance.ConformanceReport.CapabilityCheck;
@@ -30,7 +30,7 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
 
     private final OdooJsonRpcClient rpc;
     private final OdooVersionResolver versionResolver;
-    private final OdooCapabilities caps;
+    private final CapabilityRegistry registry;
 
     @Override
     public String provider() {
@@ -77,10 +77,10 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
 
         // ── Version-derived method resolutions (cannot be probed read-only → UNKNOWN, never fails) ─
         checks.add(new CapabilityCheck(
-                "stock.return.picking." + caps.createReturnsMethod(),
+                "stock.return.picking." + registry.getCandidates("CREATE_RETURN").get(0),
                 Kind.METHOD, Severity.REQUIRED, Status.UNKNOWN,
-                "Version-resolved via CapabilityMap; call-with-fallback tries "
-                        + caps.createReturnsMethodCandidates() + " (method existence not verifiable read-only)."));
+                "Version-resolved via CapabilityRegistry; call-with-fallback tries "
+                        + registry.getCandidates("CREATE_RETURN") + " (method existence not verifiable read-only)."));
         checks.add(new CapabilityCheck(
                 "sale.order.action_unlock", Kind.METHOD, Severity.RECOMMENDED, Status.UNKNOWN,
                 major >= 19 ? "Odoo 19 auto-locks confirmed orders; unlock-before-cancel required."
@@ -134,12 +134,12 @@ public class OdooConformanceProbe implements ErpConformanceProbe {
     /**
      * The done-quantity field on {@code stock.move.line} is the highest-value check: Odoo 17 renamed
      * {@code qty_done} → {@code quantity}. The adapter now resolves this field via the CapabilityMap
-     * ({@link OdooCapabilities#doneQtyField()}), so the probe verifies that the exact field the adapter
+     * ({@link CapabilityRegistry#getCandidates(String)}), so the probe verifies that the exact field the adapter
      * WILL write for this version is actually present — GO on both ≤16 and 17+, NO_GO only on a genuine
      * mismatch (the field the CapabilityMap picked is absent on the instance).
      */
     private void checkDoneQtyField(List<CapabilityCheck> checks, int major) {
-        String expected = caps.doneQtyField();
+        String expected = registry.getCandidates("DONE_QUANTITY").get(0);
         Map<String, Object> fields = fieldsGet("stock.move.line");
         boolean present = fields != null && fields.containsKey(expected);
         checks.add(new CapabilityCheck("stock.move.line." + expected, Kind.FIELD, Severity.REQUIRED,
