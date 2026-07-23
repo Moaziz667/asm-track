@@ -16,7 +16,7 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
  *
  * Handles order reference resolution.
  * Clients must already exist in Odoo — no partner creation here.
- * Reuses OdooSyncAdapter's resolveErpId for order resolution.
+ * Delegates to {@link OdooSaleOrderService} for order ID resolution.
  */
 @Component("odooOrder")
 @RequiredArgsConstructor
@@ -24,11 +24,11 @@ import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.*;
 public class OdooOrderAdapter implements ErpOrderPort {
 
     private final OdooJsonRpcClient rpc;
-    private final OdooSyncAdapter syncAdapter; // reuse resolveErpId
+    private final OdooSaleOrderService saleOrderService;
 
     @Override
     public String resolveOrderId(String erpOrderRef) {
-        Integer resolved = syncAdapter.resolveErpId(erpOrderRef);
+        Integer resolved = saleOrderService.resolveErpId(erpOrderRef);
         return resolved != null ? String.valueOf(resolved) : null;
     }
 
