@@ -153,7 +153,7 @@ public class OdooValidationService {
      * Handles the three possible wizard outcomes across Odoo 16→19.
      */
     private boolean doValidateTransfer(Integer erpOrderId, Integer pickingId) {
-        pickingService.reserveStock(pickingId);
+        reserveStock(pickingId);
 
         String stateAfterReserve = pickingService.readPickingState(pickingId);
         if ("confirmed".equalsIgnoreCase(stateAfterReserve)) {

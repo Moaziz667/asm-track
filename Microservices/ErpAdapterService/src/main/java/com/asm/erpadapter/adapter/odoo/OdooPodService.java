@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Base64;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static com.asm.erpadapter.adapter.odoo.OdooJsonRpcClient.asInt;
