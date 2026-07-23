@@ -30,6 +30,7 @@ public class CancelHandler {
      *
      * @param erpOrderId the Odoo sale.order ID
      * @return true if the order reached 'cancel' state
+     * @throws SaleOrderNotFoundException if the order does not exist in Odoo (non-retryable)
      */
     public boolean cancelSaleOrder(Integer erpOrderId) {
         // Odoo 19 auto-locks confirmed orders — unlock first (no-op on ≤18)
@@ -38,6 +39,13 @@ public class CancelHandler {
         Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("sale.order", "action_cancel",
                 List.of(List.of(erpOrderId))));
         if (resp != null && resp.containsKey("error")) {
+            String errorMsg = OdooJsonRpcClient.extractOdooErrorMessage(resp.get("error"));
+            if (errorMsg != null && (
+                    errorMsg.contains("does not exist") ||
+                    errorMsg.contains("not found") ||
+                    errorMsg.contains("Missing record"))) {
+                throw new SaleOrderNotFoundException(erpOrderId);
+            }
             log.warn("ERP sync failed — provider=odoo operation=cancelSaleOrder erpId={} odooError={} retryable=true",
                     erpOrderId, resp.get("error"));
             return false;

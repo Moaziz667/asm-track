@@ -192,13 +192,13 @@ public class OdooSyncAdapter implements ErpSyncPort {
         Integer erpId = saleOrderService.resolveErpId(erpOrderId);
         if (erpId == null) return false;
 
-        int attempts = 0;
-        boolean success = false;
-        while (attempts < 3 && !success) {
-            success = saleOrderService.cancelSaleOrder(erpId);
-            attempts++;
+        try {
+            return saleOrderService.cancelSaleOrder(erpId);
+        } catch (com.asm.erpadapter.adapter.odoo.workflow.SaleOrderNotFoundException e) {
+            log.warn("ERP sync failed — provider=odoo operation=syncOrderCancellation erpOrderId={} erpId={} reason=order_not_found retryable=false",
+                    erpOrderId, erpId);
+            return false;
         }
-        return success;
     }
 
     private boolean doSyncFullDelivery(String erpOrderId, Integer backorderPickingId, String pickingRef) {

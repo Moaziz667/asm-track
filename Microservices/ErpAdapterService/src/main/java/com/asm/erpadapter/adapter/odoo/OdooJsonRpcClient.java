@@ -362,6 +362,10 @@ public class OdooJsonRpcClient {
     }
 
     /** Pulls the most useful human message out of an Odoo JSON-RPC error object. */
+    public static String extractOdooErrorMessage(Object error) {
+        return extractOdooError(error);
+    }
+
     private static String extractOdooError(Object error) {
         if (error instanceof Map<?, ?> m) {
             Object data = m.get("data");

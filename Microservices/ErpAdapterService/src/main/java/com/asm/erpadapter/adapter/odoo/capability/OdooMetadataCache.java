@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -47,7 +48,7 @@ public class OdooMetadataCache {
         long now = System.currentTimeMillis();
         CacheEntry cached = cache.get(key);
         if (cached != null && (now - cached.atMs()) < TTL_MS) {
-            return cached.fields();
+            return Collections.unmodifiableSet(cached.fields());
         }
 
         CompletableFuture<Set<String>> future = inFlight.computeIfAbsent(key,

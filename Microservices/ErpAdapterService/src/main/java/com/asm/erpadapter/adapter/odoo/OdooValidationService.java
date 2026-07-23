@@ -110,7 +110,11 @@ public class OdooValidationService {
     public void forceAvailability(Integer pickingId) {
         log.info("provider=odoo operation=forceAvailability pickingId={}", pickingId);
         String method = capabilityResolver.resolve(CanonicalCapability.FORCE_AVAILABILITY);
-        rpc.callRpc(rpc.buildArgs("stock.picking", method, List.of(List.of(pickingId))));
+        Map<String, Object> resp = rpc.callRpc(rpc.buildArgs("stock.picking", method, List.of(List.of(pickingId))));
+        Object error = resp != null ? resp.get("error") : null;
+        if (error != null) {
+            log.warn("provider=odoo operation=forceAvailability pickingId={} odooError={}", pickingId, error);
+        }
     }
 
     // ── Set full quantities ───────────────────────────────────────────────────
@@ -123,8 +127,13 @@ public class OdooValidationService {
         String method = capabilityResolver.resolve(CanonicalCapability.SET_FULL_QUANTITY);
         Map<String, Object> resp = rpc.callRpc(rpc.buildArgs(
                 "stock.picking", method, List.of(List.of(pickingId))));
-        log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
-                pickingId, resp != null ? resp.get("result") : "null");
+        Object error = resp != null ? resp.get("error") : null;
+        if (error != null) {
+            log.warn("provider=odoo operation=setFullQuantityDone pickingId={} odooError={}", pickingId, error);
+        } else {
+            log.info("provider=odoo operation=setFullQuantityDone pickingId={} result={}",
+                    pickingId, resp != null ? resp.get("result") : "null");
+        }
     }
 
     // ── Confirm sale order ────────────────────────────────────────────────────

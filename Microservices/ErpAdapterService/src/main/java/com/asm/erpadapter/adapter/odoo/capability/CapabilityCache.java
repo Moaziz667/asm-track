@@ -39,7 +39,7 @@ public class CapabilityCache {
         CacheEntry entry = cache.get(key);
         if (entry == null) return null;
         if ((System.currentTimeMillis() - entry.atMs()) >= TTL_MS) {
-            cache.remove(key);
+            cache.computeIfPresent(key, (k, v) -> v.equals(entry) ? null : v);
             return null;
         }
         return entry.resolvedName();

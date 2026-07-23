@@ -58,10 +58,5 @@
     "model": "stock.immediate.transfer",
     "type": "METHOD",
     "candidates": ["process"]
-  },
-  "SCRAP_PRODUCT": {
-    "model": "stock.scrap",
-    "type": "METHOD",
-    "candidates": ["create", "action_validate"]
   }
 }

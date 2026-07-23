@@ -8,6 +8,8 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -28,6 +30,7 @@ import java.util.UUID;
 @RequestMapping("/api/erp/mappings")
 @Tag(name = "ERP Mappings", description = "Manage customer-specific ERP capability overrides")
 @RequiredArgsConstructor
+@Slf4j
 public class ErpMappingController {
 
     private final ErpMappingService erpMappingService;
@@ -69,15 +72,31 @@ public class ErpMappingController {
             return ResponseEntity.badRequest().build();
         }
 
-        // Upsert: delete existing then create
-        erpMappingService.deleteMapping(tenantId, request.capability());
-        ErpMapping saved = erpMappingService.createMapping(
-                tenantId,
-                request.capability().toUpperCase(),
-                request.mappingType().toUpperCase(),
-                request.odooName(),
-                request.targetModel());
-        return ResponseEntity.ok(saved);
+        // Upsert: delete existing then create. Race-safe: if a concurrent upsert
+        // inserts between our delete and create, catch the unique constraint violation
+        // and retry as an update.
+        try {
+            erpMappingService.deleteMapping(tenantId, request.capability());
+            ErpMapping saved = erpMappingService.createMapping(
+                    tenantId,
+                    request.capability().toUpperCase(),
+                    request.mappingType().toUpperCase(),
+                    request.odooName(),
+                    request.targetModel());
+            return ResponseEntity.ok(saved);
+        } catch (DataIntegrityViolationException e) {
+            // Concurrent upsert won the race — retry as update
+            log.debug("ErpMapping upsert race detected, retrying as update: tenant={} capability={}",
+                    tenantId, request.capability());
+            erpMappingService.deleteMapping(tenantId, request.capability());
+            ErpMapping saved = erpMappingService.createMapping(
+                    tenantId,
+                    request.capability().toUpperCase(),
+                    request.mappingType().toUpperCase(),
+                    request.odooName(),
+                    request.targetModel());
+            return ResponseEntity.ok(saved);
+        }
     }
 
     @DeleteMapping("/{capability}")
